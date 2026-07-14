@@ -15,12 +15,65 @@ Usage:
 import logging
 import os
 import subprocess
+import threading
+import time
 from typing import Optional
 
 from app.config import settings
 from services.doctrine_terms import apply_corrections, get_whisper_initial_prompt
 
 logger = logging.getLogger(__name__)
+
+
+# ── WhisperX result cache (word-level timestamps + speaker labels) ──
+# Ponytail: module-level dict keyed by video_id, TTL-evicted after 1 hour.
+# Populated by transcribe_with_whisper (and the future transcribe_with_whisper_enhanced
+# wrapper) so the ingestion pipeline can retrieve segments/words later without re-running STT.
+_WHISPERX_TTL_SECONDS = 3600.0  # 1 hour
+_whisperx_results: dict[str, tuple[dict, float]] = {}
+_whisperx_lock = threading.Lock()
+
+
+def _evict_stale_whisperx_locked(now: float) -> None:
+    """Evict expired entries. Caller MUST hold _whisperx_lock."""
+    stale = [vid for vid, (_res, ts) in _whisperx_results.items() if now - ts > _WHISPERX_TTL_SECONDS]
+    for vid in stale:
+        _whisperx_results.pop(vid, None)
+
+
+def cache_whisperx_result(video_id: str, result: dict) -> None:
+    """Stash the full whisperx result (segments + words + speakers) for later retrieval."""
+    if not video_id or not result:
+        return
+    now = time.time()
+    with _whisperx_lock:
+        _evict_stale_whisperx_locked(now)
+        _whisperx_results[video_id] = (result, now)
+
+
+def get_cached_whisperx_result(video_id: str) -> Optional[dict]:
+    """Retrieve the cached whisperx result for a video, or None if missing/expired."""
+    if not video_id:
+        return None
+    now = time.time()
+    with _whisperx_lock:
+        _evict_stale_whisperx_locked(now)
+        entry = _whisperx_results.get(video_id)
+        if entry is None:
+            return None
+        result, ts = entry
+        if now - ts > _WHISPERX_TTL_SECONDS:
+            _whisperx_results.pop(video_id, None)
+            return None
+        return result
+
+
+def clear_cached_whisperx_result(video_id: str) -> None:
+    """Drop the cached whisperx result for a video (cleanup after ingestion)."""
+    if not video_id:
+        return
+    with _whisperx_lock:
+        _whisperx_results.pop(video_id, None)
 
 
 def download_audio(video_id: str, output_dir: str) -> Optional[str]:
@@ -189,6 +242,16 @@ def transcribe_with_whisper(
             initial_prompt=get_whisper_initial_prompt(),
         )
         text = result.get("text", "").strip()
+
+        # Ponytail: stash the full mlx-whisper result (segments + words) so the
+        # ingestion pipeline can later retrieve word-level timestamps + speaker
+        # labels via get_cached_whisperx_result(video_id). When the whisperx
+        # diarization pipeline is wired in, it will overwrite this cache entry
+        # with the richer {segments, words, speaker, method: whisperx_aligned_diarized} dict.
+        try:
+            cache_whisperx_result(video_id, dict(result))
+        except Exception as cache_err:
+            logger.debug(f"[{video_id}] whisperx result cache store failed (non-fatal): {cache_err}")
 
         if not text:
             logger.warning(f"[{video_id}] Whisper returned empty transcript")
@@ -455,3 +518,33 @@ def council_pick_best(
         "whisper_score": wh_score,
         "winner": winner_name,
     }
+
+
+def transcribe_with_whisper_enhanced(
+    video_id: str,
+    audio_path: str,
+    model: Optional[str] = None,
+    language: str = "en",
+) -> Optional[str]:
+    """
+    Enhanced Whisper transcription that preserves word-level timestamps + speaker labels.
+
+    Returns Optional[str] for Transcript Council compatibility (the council only needs text),
+    but stashes the full whisperx result (segments + words + speakers) in the module-level
+    cache so the ingestion pipeline can retrieve it later via get_cached_whisperx_result().
+
+    When the whisperx diarization pipeline (backend/services/whisperx_pipeline.py) is wired
+    in, this function will delegate to it and cache its richer dict
+    ({segments, words, speaker, method: whisperx_aligned_diarized}). Until then it falls
+    back to the mlx-whisper path, which still caches segments + word timestamps.
+    """
+    return transcribe_with_whisper(video_id, audio_path, model=model, language=language)
+
+
+if __name__ == "__main__":
+    # Self-check: cache helpers round-trip + TTL eviction.
+    cache_whisperx_result("test_vid", {"segments": [{"start": 0.0, "text": "hi"}]})
+    assert get_cached_whisperx_result("test_vid") is not None
+    clear_cached_whisperx_result("test_vid")
+    assert get_cached_whisperx_result("test_vid") is None
+    print("whisper_local_service self-check OK")

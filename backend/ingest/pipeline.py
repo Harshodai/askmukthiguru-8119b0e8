@@ -1987,6 +1987,26 @@ class IngestionPipeline:
         if not clean_chunks:
             return 0
 
+        # P1-10: extract per-chunk speaker labels from whisperx diarization output.
+        # WhisperX emits "[SPEAKER_00] ..." prefixes in the transcript text; we strip
+        # them here so they don't pollute embeddings, and surface them as chunk metadata.
+        # Ponytail: simple regex on chunk text — no time-range mapping needed.
+        import re as _re
+        _speaker_prefix_re = _re.compile(r"^\s*\[(SPEAKER_\d+)\]\s*(.*)$", _re.DOTALL)
+        chunk_speakers: list[Optional[str]] = []
+        stripped_chunks: list[str] = []
+        for chunk_text in clean_chunks:
+            m = _speaker_prefix_re.match(chunk_text)
+            if m:
+                chunk_speakers.append(m.group(1))
+                stripped_chunks.append(m.group(2))
+            else:
+                chunk_speakers.append(None)
+                stripped_chunks.append(chunk_text)
+        clean_chunks = stripped_chunks
+        if any(chunk_speakers):
+            logger.info(f"Per-chunk speaker labels detected for {sum(1 for s in chunk_speakers if s)}/{len(chunk_speakers)} chunks from source_url={source_url}")
+
         # Check for existing content and delete for clean re-ingestion
         if self._qdrant.check_source_exists(source_url):
             logger.info(f"Source already indexed, overwriting: {source_url}")
@@ -2017,6 +2037,10 @@ class IngestionPipeline:
                 "thumbnail_url": thumbnail_url,
                 "view_count": None,
             }
+            # P1-10: per-chunk speaker label (whisperx diarization). Overrides the
+            # source-level `speaker` for this specific chunk when present.
+            if i < len(chunk_speakers) and chunk_speakers[i]:
+                base_meta["chunk_speaker"] = chunk_speakers[i]
             if extra_metadatas and i < len(extra_metadatas):
                 base_meta.update(extra_metadatas[i])
             # ponytail: Gap 2 — important_kwd ingest tagging. Reuses extract_doctrine_tags.
