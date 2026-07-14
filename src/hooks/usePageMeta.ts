@@ -54,6 +54,7 @@ export function usePageMeta({ title, description, canonical, ogType = 'website',
     const twDesc = setMeta('meta[name="twitter:description"]', 'name', 'twitter:description', description);
     const twImg = setMeta('meta[name="twitter:image"]', 'name', 'twitter:image', ogImage);
     const twCard = setMeta('meta[name="twitter:card"]', 'name', 'twitter:card', ogImage ? 'summary_large_image' : undefined);
+    const robots = setMeta('meta[name="robots"]', 'name', 'robots', noindex ? 'noindex, nofollow' : undefined);
 
     let canonicalEl = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     const prevCanonical = canonicalEl?.href;
