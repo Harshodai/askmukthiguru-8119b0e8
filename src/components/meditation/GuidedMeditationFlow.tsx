@@ -8,6 +8,7 @@ import {
 import { GUIDED_STEPS, TOTAL_DURATION_SECONDS, type MeditationStep } from './meditationSteps';
 import { MeditationProgressIndicator } from './MeditationProgressIndicator';
 import { PostCompletionStreak } from './PostCompletionStreak';
+import { useMeditationAudio } from './useMeditationAudio';
 import {
   generateSessionId,
   completeMeditationSession,
