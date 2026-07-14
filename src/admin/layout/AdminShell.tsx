@@ -33,6 +33,7 @@ import { useAdminGuard } from "@/admin/hooks/useAdminGuard";
 import { AdminTopbar } from "./AdminTopbar";
 import { AdminFiltersProvider } from "@/admin/lib/filtersStore";
 import { useTranslation } from 'react-i18next';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 const NAV = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
