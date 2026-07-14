@@ -27,12 +27,21 @@ export const Footer = forwardRef<HTMLElement>((_, ref) => {
           </p>
 
           {/* Links */}
-          <div className="flex gap-6 mb-8">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-8">
             <Link to="/" className="text-caption hover:text-ojas transition-colors">
               {t('nav.home')}
             </Link>
             <Link to="/chat" className="text-caption hover:text-ojas transition-colors">
               {t('nav.chat')}
+            </Link>
+            <Link to="/practices" className="text-caption hover:text-ojas transition-colors">
+              Practices
+            </Link>
+            <Link to="/guides/ai-spiritual-companion" className="text-caption hover:text-ojas transition-colors">
+              AI Meditation Guide
+            </Link>
+            <Link to="/guides/spirit-guides" className="text-caption hover:text-ojas transition-colors">
+              Spirit Guides
             </Link>
             <a href="#gurus" className="text-caption hover:text-ojas transition-colors">
               {t('nav.about')}
