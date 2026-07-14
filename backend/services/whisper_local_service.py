@@ -332,6 +332,14 @@ def transcribe_with_whisper_enhanced(
         logger.info(f"[{video_id}] WhisperX returned None — falling back to MLX Whisper")
         return transcribe_with_whisper(video_id, audio_path, model=model, language=language)
 
+    # Ponytail: stash the full diarized whisperx result (segments + words + speakers)
+    # so the ingestion pipeline can retrieve it later via get_cached_whisperx_result().
+    # This overwrites any mlx-whisper cache entry from the fallback path above.
+    try:
+        cache_whisperx_result(video_id, result)
+    except Exception as cache_err:
+        logger.debug(f"[{video_id}] whisperx result cache store failed (non-fatal): {cache_err}")
+
     text = (result.get("text") or "").strip()
     if not text:
         logger.warning(f"[{video_id}] WhisperX produced empty text — falling back to MLX Whisper")
@@ -518,27 +526,6 @@ def council_pick_best(
         "whisper_score": wh_score,
         "winner": winner_name,
     }
-
-
-def transcribe_with_whisper_enhanced(
-    video_id: str,
-    audio_path: str,
-    model: Optional[str] = None,
-    language: str = "en",
-) -> Optional[str]:
-    """
-    Enhanced Whisper transcription that preserves word-level timestamps + speaker labels.
-
-    Returns Optional[str] for Transcript Council compatibility (the council only needs text),
-    but stashes the full whisperx result (segments + words + speakers) in the module-level
-    cache so the ingestion pipeline can retrieve it later via get_cached_whisperx_result().
-
-    When the whisperx diarization pipeline (backend/services/whisperx_pipeline.py) is wired
-    in, this function will delegate to it and cache its richer dict
-    ({segments, words, speaker, method: whisperx_aligned_diarized}). Until then it falls
-    back to the mlx-whisper path, which still caches segments + word timestamps.
-    """
-    return transcribe_with_whisper(video_id, audio_path, model=model, language=language)
 
 
 if __name__ == "__main__":
