@@ -1,106 +1,194 @@
-# Handoff — AskMukthiGuru UI + Meditation Redesign
+# Session Handoff — Jul 15, 2026
 
 ## 1. Goal
-Bring `/profile`, the chat surface, and the meditation players to ChatGPT/Claude-caliber polish across web, mobile web, and Capacitor iOS/Android. Keep the Golden Hour aesthetic, HSL semantic tokens, and every existing feature. Feel native on-device.
 
-Concrete deliverables in flight:
-- **One unified meditation player** with narrated audio synced to step transitions + breath ring. (Direction locked: pre-recorded MP3s, flame + breath ring kept.)
-- **Product demo videos** — two per role (User + Admin), 30 s teaser + 90 s deep-dive each = 4 MP4s total. Direction locked: **Remotion motion graphics** with composited app screenshots.
+Production remediation of AskMukthiGuru based on a fresh comprehensive audit. Two workstreams merged into one session:
 
-### Turn-3 additions (meditation audio sync + player merge)
-- **`useMeditationAudio` hook** (`src/components/meditation/useMeditationAudio.ts`) — single `<audio>` element, cross-fades on step change, preloads the next step, silent fallback when files are missing, respects `isPlaying` + `muted`.
-- **`MeditationStep` extended** with `audioSrc`. Every step in `GUIDED_STEPS` now carries `/audio/meditation/<id>.mp3`.
-- **`GuidedMeditationFlow`** now consumes `useMeditationAudio(steps, currentStepIndex, isPlaying && !isComplete)` — one line integration, zero behavior regression when audio files are absent.
-- **Real merge**: `SereneMindProvider` now routes the `'audio'` tab **and** all custom-teaching flows through `GuidedMeditationFlow`. `SereneMindModal` only owns the `'video'` (YouTube) tab now. From the user's perspective there is effectively one player.
-- **`public/audio/meditation/README.md`** documents the 6 required MP3 filenames + duration targets + voice direction.
+**Workstream A — Transcription accuracy overhaul (zabt.ai adoption):**
+Clone `https://github.com/afeef/zabt-ai`, compare architectures, adopt word-level alignment + speaker diarization + LLM speaker-role fallback into our Whisper pipeline. Shipped on branch `feat/zabt-transcription-adoption` (merged to main as commit `21d640ef`).
 
-## 2. Current state of code
-### Shipped this session set
-- **Design tokens (`src/index.css`)**: `--chat-surface`, `--chat-user-bubble`, `--chat-user-foreground`, `--assistant-foreground`, `--hairline`, `--divider`, `--overlay-scrim`, `--radius-bubble/card/pill`, motion tokens (`--dur-*`, `--ease-standard`), light + dark parity.
-- **Native-feel utilities**: `.safe-top`, `.safe-bottom`, `.safe-x`, `.momentum-scroll`, `.no-tap-highlight`, `.border-hairline`, `.bg-chat-user`.
-- **ChatMessage**: warmer pill user bubbles via `bg-chat-user`, subtler assistant avatar, wider max-widths, 1.55 line-height. Behavior unchanged.
-- **ChatInterface**: momentum-scroll + safe-x on scroll container, `space-y-5/6` between messages.
-- **ChatHeader + DesktopSidebar**: `border-hairline` dividers, softer New Conversation chip, `safe-top` on both.
-- **ChatComposer**: `--radius-card` corners, hairline border when idle, subtler focus shadow.
-- **ProfilePage**: new flat hero (64/80px avatar, serif name, email, streak chip), scrollable pill tab rail on mobile / 7-col grid on desktop, `safe-x` wrapper.
-- **ProfileStatTiles** (new, `src/components/profile/ProfileStatTiles.tsx`): flat left-aligned tiles with tabular serif numbers + 7-day SVG sparkline of practice minutes (no chart lib). Wired into Insights tab.
-- **Security migration** from earlier turn: `supabase/migrations/20260714080216_b87a05f0-8df7-4370-82ad-1833dd26e6aa.sql` fixed the 4 named findings.
+**Workstream B — Production audit remediation (P0-P5):**
+A fresh re-audit flagged: dead backend, missing security headers, broken SEO, bloated bundle, no analytics. We verified the audit, corrected 3 misdiagnoses, and shipped fixes on branch `fix/prod-remediation-audit` (merged to main as commit `4437da4d`).
 
-### Files touched
-- `src/index.css`
-- `src/components/chat/ChatMessage.tsx`
-- `src/components/chat/ChatInterface.tsx`
-- `src/components/chat/ChatHeader.tsx`
-- `src/components/chat/ChatComposer.tsx`
-- `src/components/chat/DesktopSidebar.tsx`
-- `src/pages/ProfilePage.tsx`
-- `src/components/profile/ProfileStatTiles.tsx` (new)
-- `handoff.md`, `.lovable/plan.md`
+**Current goal:** Verify the Railway production deploy is live and healthy with all fixes applied. Deploy is in progress (see §2).
 
-### Known big files still worth splitting (deferred, not blocking)
-- `ChatInterface.tsx` — 1991 LoC
-- `ChatMessage.tsx` — 1283 LoC
-- `ProfilePage.tsx` — ~1089 LoC
-- `SereneMindModal.tsx` — 981 LoC
-- `GuidedMeditationFlow.tsx` — 567 LoC
+---
 
-## 3. Files actively targeted next
-For the meditation-player merge + audio sync:
-- `src/components/chat/SereneMindModal.tsx` (keeps live, becomes the shell)
-- `src/components/meditation/GuidedMeditationFlow.tsx` (fold into shell as a mode)
-- `src/components/meditation/meditationSteps.ts` (add per-step `audioUrl`, `videoUrl`, `durationSec`)
-- `src/components/meditation/breathTechniques.ts` (add optional narration cues)
-- New: `src/components/meditation/MeditationPlayer.tsx` — unified player (audio + video optional + timeline-driven step advance)
-- New: `src/components/meditation/useMeditationTimeline.ts` — single frame-driver hook, replaces the two ad-hoc timers
-- `src/components/common/SereneMindProvider.tsx` (route the merged player)
-- `src/pages/guides/SereneMindPracticePage.tsx` and other `/guides/*` pages that mount the flow — swap to new component
+## 2. Current State of Code
 
-For the product demo videos (once scope is confirmed):
-- New: `remotion/` project under repo root, per the video-creator skill
-- `src/components/landing/DemoModal.tsx` — replace/point to the rendered MP4(s)
-- `public/videos/` or Lovable assets — final MP4 hosting
+### Branch
+- **Current branch:** `main` (both work branches merged)
+- **Latest commit:** `d0299a2e` — chore: add Railway MCP server
+- **Work branches (merged):** `feat/zabt-transcription-adoption`, `fix/prod-remediation-audit`
 
-## 4. What has been tried and failed / deferred
-- **Mega-file component splits** (ChatMessage 1283 LoC, ChatInterface 1991 LoC, ProfilePage ~1089, SereneMindModal 981): proposed 3 times; attempted only surgically because a full split without regenerating snapshot tests risks breaking the chat state machine (streaming checkpoints in `sessionStorage`, PrePracticeGate, tour triggers, multi-device continue). Deferred behind visible polish.
-- **Composer full rebuild**: current composer already uses AI Elements primitives correctly, so a rebuild would be churn. Applied token/border polish instead.
-- **Sidebar slim to 260 px with grouped Today/Yesterday/Last 7d**: `conversationGrouping.ts` already groups; visual grouping in the sidebar is not yet wired.
-- **Full file-level merge of `SereneMindModal` and `GuidedMeditationFlow`**: deliberately deferred. The behavioral merge (audio + provider routing) shipped instead — Serene Mind's audio experience now goes through `GuidedMeditationFlow`, so users see one player, but the two files still exist. Deleting `SereneMindModal` outright would break the YouTube-video tab, the breath-technique picker, and the `isGated` chat-flow gate that PrePracticeGate depends on. Full deletion is safe once the video tab is either dropped or ported into `GuidedMeditationFlow`.
-- **Runtime TTS for meditation narration**: rejected by the user in favor of pre-recorded MP3s. The Web Speech API path is not wired up (would sound robotic).
-- **Product demo videos**: not yet started; direction is now locked so it becomes the next-turn task.
+### What shipped (Workstream A — transcription, already merged)
+- `backend/app/contracts/transcription.py` — `TranscriptionProvider` Protocol
+- `backend/services/whisperx_pipeline.py` (new) — WhisperX align + pyannote diarize + forced re-transcription
+- `backend/services/whisper_local_service.py` — `transcribe_with_whisper_enhanced` wrapper + whisperx result cache (`cache_whisperx_result`/`get_cached_whisperx_result`/`clear_cached_whisperx_result`)
+- `backend/ingest/pipeline.py` — `_resolve_chunk_speakers_from_cache` (word-overlap mapping) + `_resolve_chunk_speakers_with_llm` (closed-set role fallback: teacher/questioner/translator/narration/unknown — NO junk)
+- `backend/requirements-gpu.txt` (new) — whisperx + torch isolated from main requirements
+- `backend/app/config.py` — `whisperx_enabled` (default False), `llm_speaker_role_fallback_enabled` (default True), `diarization_min/max_speakers`, `hf_token`
 
-## 5. Next steps (in order)
+### What shipped (Workstream B — audit remediation, already merged)
+- **P0-fix:** `backend/app/core/limiter.py` — `_HEALTH_EXEMPT_PATHS` frozenset; health endpoints get unique exempt key (never 429)
+- **P1:** `src/lib/backendUrl.ts:35` — `localhost:8000` gated behind `import.meta.env.DEV` (tree-shaken from prod). `index.html` — removed stale `ozmjeuqbholoxypfxixb.supabase.co` preconnect
+- **P2:** `src/App.tsx` — 24 admin lazy imports + `<Route>` block gated behind `ADMIN_ENABLED = import.meta.env.VITE_ADMIN_ENABLED !== 'false'` (default true; set `'false'` to strip admin + chart-vendor from prod bundle)
+- **P3:** `scripts/prerender-seo.mjs` (new, 310 lines) — generates 17 route-specific `dist/<path>/index.html` with unique title/meta/canonical/OG/Twitter/JSON-LD. `package.json` `build` = `vite build && node scripts/prerender-seo.mjs`
+- **P4:** `src/components/ui/chart.tsx` — documented chart-vendor isolation boundary
+- **P5:** `.env.example` — documented `VITE_SENTRY_DSN` + 4 other Vite vars. `src/lib/sentry.ts` — `trackPageview(path)`. `src/App.tsx` — `<RouteTracker />` inside `<AppRouter>`
+- **Railway MCP:** `.opencode.json` — added `"railway": { "url": "https://mcp.railway.com" }`
 
-### A. Finalize the merged meditation player (this session left it 80% done)
-1. Author + drop the 6 MP3 files listed in `public/audio/meditation/README.md`. Once present, they load automatically — no code change needed.
-2. Add a **mute** button to `GuidedMeditationFlow` transport controls and pass `muted` as the 4th arg to `useMeditationAudio`.
-3. Port the `SereneMindModal` **video** tab (YouTube embed) into `GuidedMeditationFlow` as an optional `sourceVideoId` prop, then delete `SereneMindModal` entirely. This is the file-level merge.
-4. Same treatment for other meditations reachable from `PracticesPage` — extend `breathTechniques.ts` with `audioSrc` per phase (inhale/hold/exhale bell cues) or per technique (full guided track). Wire via a small variant of `useMeditationAudio` that keys on breath-phase changes instead of step index.
-5. Regression test in `src/test/`: fake `HTMLMediaElement.play`, drive `GuidedMeditationFlow` through 3 steps, assert `audio.src` swaps at the boundary seconds and `pause()` is called on unmount.
+### Audit corrections (important context)
+1. **"Railway dead (HTTP 000)"** → FALSE. Backend ALIVE (429 = rate-limited). HTTP 000 was ISP DNS cache per dev.to case study.
+2. **"No CSP / X-Frame-Options"** → FALSE for our deployment. `nginx.conf:9-15` already has all 6 security headers. Audit tested Lovable preview domain (`askmukthiguru.lovable.app`), not our nginx-served Railway backend.
+3. **"No analytics"** → Partially false. Sentry (`src/lib/sentry.ts`) + Web Vitals (`src/lib/webVitals.ts`) already wired from `src/main.tsx:10-11`. Gap was product analytics (pageviews) — fixed via Sentry breadcrumbs (no new dep).
 
-### B. Product demo videos — Remotion, 30 s teaser + 90 s deep-dive per role (User + Admin) = 4 MP4s
+---
 
-**Setup (once):**
-1. Scaffold `remotion/` per the video-creator skill: `mkdir remotion && cd remotion && bun init -y && bun install remotion @remotion/cli @remotion/renderer @remotion/bundler @remotion/transitions @remotion/google-fonts react react-dom typescript @types/react @remotion/compositor-linux-x64-musl`.
-2. Fix the compositor gnu → musl overwrite + ffmpeg/ffprobe symlink dance (see video-creator skill setup section).
-3. Capture live app screenshots via Playwright: `/chat` (empty + mid-conversation + streaming + wisdom card), `/profile` (hero + insights tiles), `/practices`, `/practices/serene-mind` (flame + breath ring), `/admin/overview`, `/admin/queries`, `/admin/ingestion`, `/admin/daily-teaching`. Store under `remotion/public/screens/`.
-4. Generate voiceover with ElevenLabs at build time from scripts in `remotion/scripts/`. Cache MP3 in `remotion/public/vo/`.
+## 3. Files Actively Editing / Key Locations
 
-**Compositions:**
-- `user-teaser` (30 s / 900 frames @ 30 fps): "A guru, always available." → chat scene → Serene Mind flame → beautiful state → logo.
-- `user-deepdive` (90 s / 2700 frames): open app → ask a question → streaming answer with citations → Serene Mind guided practice with breath ring → insights tab shows streak → wisdom card share.
-- `admin-teaser` (30 s): "Doctrine. Curated. Trusted." → dashboard KPIs → ingest a YouTube URL → OKF entry auto-drafted → approve → live in chat.
-- `admin-deepdive` (90 s): login → overview → ingest → moderation queue → OKF review → daily teaching publish → telemetry → publish.
+| File | Role |
+|------|------|
+| `backend/app/core/limiter.py` | Rate limiter — health exempt set (P0-fix) |
+| `src/lib/backendUrl.ts` | Backend URL resolution — localhost gated to DEV |
+| `src/App.tsx` | Router — admin gated behind `ADMIN_ENABLED` + `<RouteTracker />` |
+| `scripts/prerender-seo.mjs` | NEW — build-time SEO prerender for 17 routes |
+| `index.html` | Base SPA template — stale Supabase preconnect removed |
+| `.opencode.json` | MCP servers — Railway MCP added (needs session restart to activate) |
+| `railway.json` | Railway deploy config — Dockerfile.railway, healthcheck `/api/health` |
+| `backend/Dockerfile.railway` | Production image — Python 3.12 slim, 2 uvicorn workers |
 
-**Motion system (locked):** Golden Hour palette (from `index.css` tokens), Fraunces display + Inter body, 300 ms spring entrances (`damping: 20, stiffness: 200`), 400 ms slide-wipe transitions between scenes, flame texture as a shared motif for the User videos, hairline underline as the shared motif for Admin.
+### Deployment topology
+- **Frontend (canonical):** `https://askmukthiguru.lovable.app` (Lovable-hosted SPA)
+- **Backend:** `https://api.askmukthiguru.com` (custom domain, Railway) + `https://askmukthiguru-8119b0e8-production.up.railway.app` (direct Railway URL)
+- **Backend URL resolution:** `src/lib/backendUrl.ts` — `VITE_BACKEND_URL` env → prod Railway URL when native/Lovable host → empty (relative `/api`)
+- **Railway project:** `resilient-embrace` (ID `7cbd5f8c-2bb1-4ba8-8de9-8bc36a14e137`), env `production`
+- **Services:** `askmukthiguru-8119b0e8` (backend), `celery-worker`, `gb-neo4j-railway-template`, `qdrant`, `Redis`
 
-**Render + publish:**
-- `cd remotion && node scripts/render-remotion.mjs` for each composition → `/mnt/documents/*.mp4`.
-- Upload with `lovable-assets create --file` → asset pointers under `src/assets/demos/`.
-- Landing hero embeds `user-teaser.mp4` autoplay-muted; `DemoModal.tsx` gets a role toggle (User / Admin) that swaps between the two deep-dives.
-- New `/demo?role=admin` route for conclave sharing (deep-dive plays inline, fullscreen button visible).
+---
 
-### C. After demos ship
-- File-level split of the mega-components with proper snapshot regen (deferred from prior sessions).
-- Sidebar visual grouping wiring.
-- Multi-language narration variants (Hindi, Telugu, Malayalam) — same MP3 slot, prefixed with locale.
+## 4. What I Tried and Failed
 
+### Railway MCP activation
+- Added `"railway": { "url": "https://mcp.railway.com" }` to `.opencode.json` (commit `d0299a2e`)
+- **Problem:** MCP servers load at session start. The new Railway MCP won't be available in THIS session — needs a restart (new session) to activate.
+- **Workaround used:** Railway CLI (`/opt/homebrew/bin/railway`, authenticated as `Harshodai`) for all deploy/status checks this session.
+
+### Health endpoint 429 verification
+- After merging the `/api/health` rate-limit exemption, I expected the new deploy to return 200 on health.
+- **Current state:** `curl https://askmukthiguru-8119b0e8-production.up.railway.app/api/health` still returns **429 "rate limited"**.
+- **Root cause hypothesis:** Railway rolling deploy — old replica (without the fix) still serves traffic while new replica initializes. The new deploy (`efc07f50`, status `DEPLOYING`) has not fully replaced the old one.
+- **What I tried:** Waited ~9 min total (3 × 3-min sleeps). Still `Initializing (9m)` per `railway status`. Backend has 12Gi memory + model loading → slow init.
+- **Did NOT try:** Forcing a redeploy via `railway up` (the auto-deploy from git push was already running; triggering a second could conflict).
+
+### Custom domain `api.askmukthiguru.com`
+- `curl https://api.askmukthiguru.com/api/health` returns **000** (connection failure).
+- `dig api.askmukthiguru.com +short` returns **empty** (no A record).
+- **Hypothesis:** Custom domain DNS not configured or not propagated. The direct Railway URL works (429 = alive). This is a Railway dashboard / DNS config issue, NOT a code issue.
+
+### Build verification of prerender
+- Did NOT run a full `npm run build` to verify `scripts/prerender-seo.mjs` generates all 17 files against the real `dist/`. The implementer tested it with a temp `dist/index.html`, but a real production build wasn't executed this session.
+
+---
+
+## 5. Next Steps (In Priority Order)
+
+### Step 1 — Wait for deploy completion + verify health (5-10 min)
+```bash
+# Check deploy status
+railway status | grep "askmukthiguru-8119b0e8:"
+
+# Once status shows "Online" (not "Initializing"), verify health
+curl -s -o /dev/null -w "%{http_code}\n" https://askmukthiguru-8119b0e8-production.up.railway.app/api/health
+# EXPECTED: 200 (the rate-limit exemption is now in the new replica)
+# If still 429 after deploy completes → the exempt paths don't match; check limiter.py
+```
+
+### Step 2 — Use Railway MCP (new session required)
+Restart opencode to load the Railway MCP server, then use it for:
+- Deployment status + logs without CLI
+- Service variable management (e.g., set `VITE_ADMIN_ENABLED=false` on the frontend service to strip admin from prod bundle)
+- Metrics + health monitoring
+- Trigger redeployments cleanly
+
+**In the new session, try:**
+```
+What Railway tools are available?
+Show the latest deployment status for askmukthiguru-8119b0e8
+Get the deployment logs for the latest deploy
+```
+
+### Step 3 — Fix custom domain `api.askmukthiguru.com`
+The direct Railway URL works but the custom domain doesn't resolve.
+```bash
+dig api.askmukthiguru.com +short   # currently empty
+railway domain list                # check if domain is attached to the service
+# If not attached: railway domain add api.askmukthiguru.com
+# If attached: check DNS provider (CNAME to railway.app or A record), wait for propagation
+```
+
+### Step 4 — Set production env vars for the frontend (Lovable)
+The frontend is Lovable-hosted. To activate the P2 admin stripping + P3 SEO, the Lovable build needs:
+- `VITE_ADMIN_ENABLED=true` (or `false` if admin should be stripped)
+- `VITE_SENTRY_DSN` (Sentry DSN from dashboard)
+- Confirm `VITE_BACKEND_URL` is set to the Railway URL (or empty for auto-resolve)
+- Confirm `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` point to the NEW Supabase project (`fynkjimvuimakgtidvuq`, not the old `ozmjeuqbholoxypfxixb`)
+
+These are set in the **Lovable project settings**, not in our repo. Coordinate with whoever has Lovable access.
+
+### Step 5 — Run a production build to verify prerender
+```bash
+npm run build
+# Verify: ls dist/guides/ai-spiritual-companion/index.html  # should exist
+# Verify: grep "AI Spiritual Companion" dist/guides/ai-spiritual-companion/index.html  # unique title
+# If broken: debug scripts/prerender-seo.mjs
+```
+
+### Step 6 — Verify the SEO prerender is deployed
+The frontend is Lovable-hosted — Lovable's build process may not run our `npm run build` script (which now includes the prerender step). If Lovable uses its own build, the prerendered files won't reach production. **Confirm Lovable runs `npm run build` (not just `vite build`).** If not, the prerender needs a different deployment path (e.g., deploy `dist/` to a CDN that respects the per-route HTML files).
+
+### Step 7 — Supabase CORS restriction (P2 follow-up)
+The audit flagged Supabase CORS `access-control-allow-origin: *`. This is a Supabase dashboard setting (not code). Log into the new Supabase project (`fynkjimvuimakgtidvuq`), go to Auth → URL Configuration, and restrict allowed origins to:
+- `https://askmukthiguru.lovable.app`
+- `https://api.askmukthiguru.com`
+- (any other canonical prod URLs)
+
+### Step 8 — MFA server-side enforcement (deferred P6)
+`/auth/mfa` route exists client-side but no server-side guard. This was deferred. To implement: add MFA challenge endpoint in `backend/app/api/endpoints/auth.py` + verify MFA factor before issuing session JWT.
+
+### Step 9 — Update AGENTS.md / lessons.md (per workspace rules)
+Document: Railway MCP setup, the audit correction findings, the prerender build step, the `VITE_ADMIN_ENABLED` flag.
+
+---
+
+## Quick Reference
+
+### Commands
+```bash
+# Railway CLI (authenticated this session)
+railway status                    # service status
+railway logs                       # live logs
+railway deployment list           # recent deploys
+railway up --detach               # trigger deploy
+
+# Local build + SEO prerender
+npm run build                     # vite build + prerender-seo.mjs
+npm run build:seo                 # alias
+
+# Verify health (after deploy completes)
+curl -s -o /dev/null -w "%{http_code}\n" https://askmukthiguru-8119b0e8-production.up.railway.app/api/health
+
+# Test admin stripping (build with flag)
+VITE_ADMIN_ENABLED=false npm run build
+# Then verify: grep -r "AdminShell" dist/assets/js/  # should return nothing
+```
+
+### Key commits on main
+- `d0299a2e` — Railway MCP config
+- `4437da4d` — Merge remediation (P0-P5)
+- `21d640ef` — Merge transcription overhaul (Workstream A)
+
+### Open questions for next session
+1. Does Lovable run `npm run build` (with prerender) or just `vite build`? Determines if P3 SEO actually reaches production.
+2. Is `api.askmukthiguru.com` custom domain supposed to work, or is the direct Railway URL the canonical backend?
+3. Should `VITE_ADMIN_ENABLED` be `false` in the Lovable production build (strip admin from public site)?
