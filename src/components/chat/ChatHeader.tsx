@@ -91,7 +91,7 @@ export const ChatHeader = ({
             >
               <Library className="w-4 h-4" />
               {sourcesCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-ojas/15 text-ojas text-[9px] font-semibold tabular-nums">
+                <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-ojas/15 text-ojas text-[10px] font-semibold tabular-nums">
                   {sourcesCount}
                 </span>
               )}

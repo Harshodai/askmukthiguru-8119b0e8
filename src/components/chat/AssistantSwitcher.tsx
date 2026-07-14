@@ -79,6 +79,7 @@ export function AssistantSwitcher({ variant = 'default' }: AssistantSwitcherProp
               ? "inline-flex items-center gap-1 rounded-full border border-ojas/20 bg-ojas/5 hover:bg-ojas/10 transition-colors px-2 py-0.5 text-[11px] text-foreground/80"
               : "inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 hover:bg-muted/60 transition-colors px-2.5 py-1 text-[11px] text-foreground/80 max-w-[180px]"
           }
+          aria-label={t('chat.switchAssistant')}
           title={t('chat.switchAssistant')}
         >
           <SelectedIcon className="w-3 h-3 text-primary shrink-0" />

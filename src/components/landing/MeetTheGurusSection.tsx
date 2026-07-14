@@ -48,6 +48,10 @@ export const MeetTheGurusSection = () => {
                   <img
                     src={gurusPhoto}
                     alt="Sri Preethaji & Sri Krishnaji"
+                    width={192}
+                    height={192}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                   {/* Gradient overlay */}

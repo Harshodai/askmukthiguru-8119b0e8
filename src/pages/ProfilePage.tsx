@@ -370,6 +370,7 @@ const ProfilePage = () => {
                       </Avatar>
                       <button
                         onClick={() => fileInputRef.current?.click()}
+                        aria-label="Change profile photo"
                         className="absolute bottom-0 right-0 p-2 rounded-full bg-ojas text-primary-foreground shadow-lg hover:scale-110 transition-transform"
                       >
                         <Camera className="w-4 h-4" />
@@ -411,7 +412,7 @@ const ProfilePage = () => {
                       className="min-h-[120px] resize-none"
                       maxLength={280}
                     />
-                    <p className="text-[11px] text-muted-foreground text-right">
+                    <p className="text-xs text-muted-foreground text-right">
                       {form.bio.length}/280 characters
                     </p>
                   </div>
