@@ -107,7 +107,7 @@ export const DesktopSidebar = ({
 
   return (
     <motion.aside
-      className="hidden sm:flex flex-col h-full border-r border-border/40 bg-card/40 backdrop-blur-sm overflow-hidden flex-shrink-0"
+      className="hidden sm:flex flex-col h-full border-r border-hairline bg-card/40 backdrop-blur-sm overflow-hidden flex-shrink-0 safe-top"
       animate={{ width: isCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
     >
@@ -191,7 +191,7 @@ export const DesktopSidebar = ({
         </div>
       ) : (
         <div className="flex flex-col h-full min-w-0 relative">
-          <div className="flex items-center gap-2.5 px-3 py-3 border-b border-border/30">
+          <div className="flex items-center gap-2.5 px-3 py-3 border-b border-hairline">
             <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-ojas/20 flex-shrink-0">
               <img src={gurusPhoto} alt={t('desktopSidebar.gurusAlt')} className="w-full h-full object-cover" />
             </div>
@@ -212,7 +212,7 @@ export const DesktopSidebar = ({
           <div className="px-2 pt-2 pb-1 space-y-1">
             <button
               onClick={onNewConversation}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium bg-ojas/10 hover:bg-ojas/15 text-ojas border border-ojas/20 hover:border-ojas/35 transition-all"
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium bg-ojas/[0.08] hover:bg-ojas/[0.14] text-ojas border border-hairline hover:border-ojas/25 transition-all"
             >
               <Plus className="w-3.5 h-3.5 flex-shrink-0" />
               {t('desktopSidebar.newConversation') === 'desktopSidebar.newConversation' ? 'New Conversation' : t('desktopSidebar.newConversation')}
