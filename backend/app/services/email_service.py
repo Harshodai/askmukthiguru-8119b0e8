@@ -16,6 +16,15 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_header(value: str, max_len: int = 200) -> str:
+    """Strip CR/LF/other control chars to prevent email-header injection (RFC 5322)."""
+    if not value:
+        return ""
+    # Remove all control chars incl. \r \n \t and NUL
+    cleaned = "".join(ch for ch in value if ch.isprintable() and ch not in "\r\n")
+    return cleaned[:max_len].strip()
+
+
 def send_support_email(
     name: str,
     from_email: str,
@@ -25,18 +34,22 @@ def send_support_email(
     attachment_paths: Optional[list[str]] = None,
 ) -> bool:
     dest = settings.support_to_email
-    full_subject = f"[AskMukthiGuru] {category}: {subject}"
+    safe_category = _sanitize_header(category) or "Feedback"
+    safe_subject = _sanitize_header(subject) or "(no subject)"
+    safe_from = _sanitize_header(from_email, max_len=254)
+    full_subject = f"[AskMukthiGuru] {safe_category}: {safe_subject}"
+
 
     if settings.smtp_host and settings.smtp_user and settings.smtp_password:
         return _send_via_smtp(
             to=dest,
             subject=full_subject,
-            body=_build_body(name, from_email, message),
-            from_email=from_email,
+            body=_build_body(name, safe_from, message),
+            from_email=safe_from,
             attachment_paths=attachment_paths or [],
         )
 
-    return _save_to_disk(name, from_email, subject, message, category, attachment_paths)
+    return _save_to_disk(name, safe_from, safe_subject, message, safe_category, attachment_paths)
 
 
 def _build_body(name: str, from_email: str, message: str) -> str:
