@@ -15,9 +15,9 @@ Graceful degradation:
 Usage:
   from services.whisperx_pipeline import transcribe_with_alignment
 
-  result = transcribe_with_alignment(video_id, audio_path, hf_token=os.getenv("HF_TOKEN"))
-  if result is None:
-      # fall back to MLX whisper
+   result = transcribe_with_alignment(video_id, audio_path, hf_token=settings.hf_token)
+   if result is None:
+       # fall back to MLX whisper
 """
 
 from __future__ import annotations
@@ -189,6 +189,7 @@ def transcribe_with_alignment(
             pass
 
     # --- Stage 2: Align (word-level timestamps) -----------------------------
+    align_model = None
     try:
         logger.info(f"[{video_id}] Aligning word timestamps...")
         tl = time.time()
@@ -209,7 +210,8 @@ def transcribe_with_alignment(
         return None
     finally:
         try:
-            del align_model
+            if align_model is not None:
+                del align_model
             if device == "cuda":
                 import torch
 
@@ -247,12 +249,6 @@ def transcribe_with_alignment(
             raw_result = assign_word_speakers(diarize_segments, raw_result)
             method = "whisperx_aligned_diarized"
             logger.info(f"[{video_id}]   diarization done in {time.time() - tl:.1f}s")
-
-            del diarize_model
-            if device == "cuda":
-                import torch
-
-                torch.cuda.empty_cache()
         except Exception as e:
             logger.warning(
                 f"[{video_id}] Diarization failed ({e}) — "
@@ -262,6 +258,16 @@ def transcribe_with_alignment(
                 seg.setdefault("speaker", "SPEAKER_UNKNOWN")
                 for w in seg.get("words", []):
                     w.setdefault("speaker", "SPEAKER_UNKNOWN")
+        finally:
+            try:
+                if "diarize_model" in locals() and diarize_model is not None:
+                    del diarize_model
+                if device == "cuda":
+                    import torch
+
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
 
     # --- Format output ------------------------------------------------------
     segments_out: list[dict] = []

@@ -1,0 +1,6 @@
+# Optional GPU transcription deps — install with: pip install -r requirements-gpu.txt
+# WhisperX (word-level alignment + pyannote diarization).
+# Opt-in via settings.whisperx_enabled. Heavy (pulls torch + pyannote.audio).
+# pyannote.audio is pinned by whisperx itself — do not double-pin here.
+whisperx>=3.1.1
+torch>=2.0.0
