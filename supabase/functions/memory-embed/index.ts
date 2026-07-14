@@ -66,6 +66,6 @@ Deno.serve(async (req) => {
     return json({ embedding: result.embedding, backend: result.backend });
   } catch (e) {
     console.error("[memory-embed] embed failed", e);
-    return json({ error: "embed_failed", detail: (e as Error).message }, 502);
+    return json({ error: "embed_failed" }, 502);
   }
 });
