@@ -176,6 +176,7 @@ const ProfilePage = () => {
       }
       // Derive richer insights from local sessions + backend memory (if live).
       const localSessions = loadMeditationSessions();
+      if (!cancelled) setSessions(localSessions);
       let memories: GuruMemory[] = [];
       try {
         const list = await memoryApi.list(1, 50);
