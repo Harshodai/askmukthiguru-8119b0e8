@@ -1,7 +1,7 @@
 import { useEffect, Suspense } from "react";
 import { lazyWithRetry, preloadCriticalRoutes } from "@/lib/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, HashRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Outlet, useLocation } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -12,6 +12,7 @@ import { SereneMindProvider } from "@/components/common/SereneMindProvider";
 import { PushPermissionPrompt } from "@/components/common/PushPermissionPrompt";
 import { PushNotificationsManager } from "@/components/common/PushNotificationsManager";
 import { purgeConversationsByAge, getRetentionDays } from "@/lib/chatStorage";
+import { trackPageview } from "@/lib/sentry";
 
 // Pages
 const Index = lazyWithRetry(() => import("./pages/Index"));
@@ -116,6 +117,14 @@ const AppRouter = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+const RouteTracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageview(location.pathname);
+  }, [location.pathname]);
+  return null;
+};
+
 const App = () => {
   useEffect(() => {
     console.log('[App] Mounted');
@@ -136,6 +145,7 @@ const App = () => {
       */}
       <SereneMindProvider>
         <AppRouter>
+          <RouteTracker />
           <Routes>
             {/* Admin — only mounted when VITE_ADMIN_ENABLED !== 'false'.
                 When disabled, Vite tree-shakes the imports above so no
