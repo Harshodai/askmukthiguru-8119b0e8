@@ -1163,7 +1163,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                                   <ExternalLink className="w-3 h-3 text-ojas/60 flex-shrink-0" />
                                   <div className="min-w-0">
                                     <p className="text-[11px] font-medium text-ojas line-clamp-1">{displayName}</p>
-                                    <p className="text-[10px] text-muted-foreground/50 truncate max-w-[200px]">{domain}</p>
+                                    <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">{domain}</p>
                                   </div>
                                 </a>
                               );
