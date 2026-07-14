@@ -64,6 +64,7 @@ const { t } = useTranslation();
   const nav = useNavigate();
   const session = getAdminSession();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  usePageMeta({ title: 'Admin — AskMukthiGuru', noindex: true });
 
   if (!ready) {
     return (
