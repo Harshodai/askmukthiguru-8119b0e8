@@ -53,7 +53,7 @@ class SparqlResponse(BaseModel):
 
 
 # Read-only guard: reject queries that look like writes.
-_WRITE_KEYWORDS = ("CREATE", "MERGE", "DELETE", "DETACH", "SET ", "DROP", "REMOVE")
+_WRITE_KEYWORDS = ("CREATE", "MERGE", "DELETE", "DETACH", "SET ", "DROP", "REMOVE", "CALL APOC", "LOAD CSV")
 
 
 def _is_read_only(query: str) -> bool:
@@ -61,8 +61,23 @@ def _is_read_only(query: str) -> bool:
     return not any(kw in q for kw in _WRITE_KEYWORDS)
 
 
+def _require_admin(user: Any) -> None:
+    """Raise 403 unless the caller is an admin/superuser."""
+    is_admin = False
+    if isinstance(user, dict):
+        is_admin = bool(user.get("is_superuser") or user.get("is_admin"))
+        roles = user.get("roles") or []
+        if isinstance(roles, (list, tuple)) and "admin" in roles:
+            is_admin = True
+    else:
+        is_admin = bool(getattr(user, "is_superuser", False) or getattr(user, "is_admin", False))
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Admin role required.")
+
+
 @router.post("/kg/sparql", response_model=SparqlResponse)
-async def kg_sparql(req: SparqlRequest, _user=Depends(get_current_user_from_supabase)) -> SparqlResponse:
+async def kg_sparql(req: SparqlRequest, user=Depends(get_current_user_from_supabase)) -> SparqlResponse:
+    _require_admin(user)
     """Forward a (read-only) graph query to Neo4j via n10s.
 
     n10s 5.x has no SPARQL engine; the query is executed as read-only Cypher.
