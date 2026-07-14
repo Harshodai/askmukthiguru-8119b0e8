@@ -19,12 +19,6 @@ from services.qdrant_service import QdrantService
 logger = logging.getLogger(__name__)
 
 try:
-    from services.whisper_local_service import WhisperLocalService
-except ImportError:
-    WhisperLocalService = None  # type: ignore
-
-
-try:
     import ffmpeg
 except ImportError:
     ffmpeg = None  # type: ignore
@@ -49,7 +43,7 @@ class VideoPipeline:
     ):
         self._qdrant = qdrant_service
         self._embedder = embedding_service
-        self._whisper = whisper_service or (WhisperLocalService() if WhisperLocalService else None)
+        self._whisper = whisper_service
 
     async def ingest_video(self, file_path: str) -> VideoIngestResult:
         """Ingest a single video file."""
