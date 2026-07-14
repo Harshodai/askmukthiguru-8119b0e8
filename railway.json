@@ -8,14 +8,19 @@
     "startCommand": "python start_railway.py",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5,
-    "healthcheckPath": "/api/health",
-    "healthcheckTimeout": 120,
     "drainingSeconds": 30,
     "overlapSeconds": 10,
     "limits": {
       "cpu": 4000,
       "memory": "12Gi"
     }
+  },
+  "services": {
+    "askmukthiguru-8119b0e8": {
+      "deploy": {
+        "healthcheckPath": "/api/health",
+        "healthcheckTimeout": 120
+      }
+    }
   }
 }
-
