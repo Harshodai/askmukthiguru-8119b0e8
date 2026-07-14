@@ -152,6 +152,7 @@ const ProfilePage = () => {
   }, [tab, setSearchParams]);
 
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
+  const [sessions, setSessions] = useState(() => loadMeditationSessions());
   const [conversationCount, setConversationCount] = useState<number>(() => loadConversations().length);
   const [conversations, setConversations] = useState<Conversation[]>(() => loadConversations());
   const [retention, setRetention] = useState<number>(getMaxConversations());
