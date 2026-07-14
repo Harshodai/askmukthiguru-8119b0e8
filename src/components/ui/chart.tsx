@@ -1,3 +1,9 @@
+/**
+ * Chart primitives (recharts wrapper). Only import from admin pages —
+ * importing from seeker-facing pages will pull the ~450KB chart-vendor
+ * chunk into the initial bundle. Admin pages are lazy-loaded + gated by
+ * VITE_ADMIN_ENABLED, keeping recharts/d3 out of the seeker payload.
+ */
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 
