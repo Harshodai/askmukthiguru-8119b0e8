@@ -11,7 +11,8 @@ from fastapi.responses import JSONResponse, Response
 from fastapi import status as http_status
 
 from app.config import settings
-from app.dependencies import ServiceContainer, get_container, startup_complete
+import app.dependencies as _app_deps
+from app.dependencies import ServiceContainer, get_container
 from app.metrics import metrics_endpoint
 from services.auth_service import get_current_user_from_supabase
 from services.circuit_breaker import CircuitState
@@ -63,7 +64,7 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     Returns fast during startup (before heavy services initialize).
     Once initialized, returns status of all backend services.
     """
-    if not startup_complete:
+    if not _app_deps.startup_complete:
         return JSONResponse({"status": "starting", "message": "Server is starting up"})
 
     health = await container.health_status()
