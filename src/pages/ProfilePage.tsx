@@ -336,20 +336,49 @@ const ProfilePage = () => {
 
   return (
     <AppShell title={isOnboarding ? "Welcome, Seeker" : "My Profile"}>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
-        {/* Profile/Onboarding UI follows... */}
-        {/* I'll stop here to avoid creating too large a chunk, but I'll continue below if needed. */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 safe-x">
+        {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
+        {!isOnboarding && (
+          <div className="flex items-center gap-4 sm:gap-5 pb-2">
+            <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-1 ring-hairline">
+              {(profile.avatarDataUrl || profile.avatarUrl) ? (
+                <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
+              ) : null}
+              <AvatarFallback className="bg-ojas/10 text-ojas text-xl font-serif">
+                {getInitials(profile.displayName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl font-serif text-foreground truncate">
+                {profile.displayName || 'Seeker'}
+              </h1>
+              <p className="text-sm text-muted-foreground truncate">
+                {user?.email ?? 'Your spiritual journey'}
+              </p>
+              {stats && stats.currentStreak > 0 && (
+                <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-ojas">
+                  <Flame className="w-3.5 h-3.5" />
+                  <span className="font-medium">{stats.currentStreak}-day streak</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="space-y-6">
           <Tabs value={tab} onValueChange={setTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 sm:grid-cols-6 lg:grid-cols-7 mb-8">
-                <TabsTrigger value="conversations">Conversations</TabsTrigger>
-              <TabsTrigger value="profile">Profile</TabsTrigger>
-              <TabsTrigger value="stats">Insights</TabsTrigger>
-              <TabsTrigger value="notes">Notes</TabsTrigger>
-              <TabsTrigger value="memory">Memory</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
-              <TabsTrigger value="support">Support</TabsTrigger>
-            </TabsList>
+            {/* ── Scrollable tab rail — no cramped 7-col grid ── */}
+            <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto momentum-scroll no-tap-highlight">
+              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-7 gap-1 mb-6 bg-muted/40 p-1 rounded-full sm:rounded-lg">
+                <TabsTrigger value="conversations" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Conversations</TabsTrigger>
+                <TabsTrigger value="profile" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Profile</TabsTrigger>
+                <TabsTrigger value="stats" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Insights</TabsTrigger>
+                <TabsTrigger value="notes" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Notes</TabsTrigger>
+                <TabsTrigger value="memory" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Memory</TabsTrigger>
+                <TabsTrigger value="settings" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Settings</TabsTrigger>
+                <TabsTrigger value="support" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Support</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="profile" className="space-y-6 mt-0">
               <Card>
