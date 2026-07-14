@@ -1,7 +1,11 @@
 # Handoff — AskMukthiGuru UI + Meditation Redesign
 
 ## 1. Goal
-Bring `/profile`, the chat surface, and the meditation players (Serene Mind + Guided Meditation) to ChatGPT/Claude-caliber polish across web, mobile web, and Capacitor iOS/Android. Keep the Golden Hour aesthetic, HSL semantic tokens, and every existing feature. Feel native on-device (safe areas, momentum scroll, no chrome fighting the OS).
+Bring `/profile`, the chat surface, and the meditation players to ChatGPT/Claude-caliber polish across web, mobile web, and Capacitor iOS/Android. Keep the Golden Hour aesthetic, HSL semantic tokens, and every existing feature. Feel native on-device.
+
+Concrete deliverables in flight:
+- **One unified meditation player** with narrated audio synced to step transitions + breath ring. (Direction locked: pre-recorded MP3s, flame + breath ring kept.)
+- **Product demo videos** — two per role (User + Admin), 30 s teaser + 90 s deep-dive each = 4 MP4s total. Direction locked: **Remotion motion graphics** with composited app screenshots.
 
 Downstream deliverables the user is also asking for:
 - One unified meditation player (audio + steps + optional visual/video, all in sync). Today there are **two** parallel players — `SereneMindModal` (chat) and `GuidedMeditationFlow` (route/guides) — and neither has narrated audio.
