@@ -485,18 +485,18 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           data-message-id={message.id}
         >
           {isGuru && (
-            <div className="w-6 h-6 rounded-full bg-ojas/10 border border-ojas/25 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-ojas/15 to-ojas/5 border border-hairline flex items-center justify-center flex-shrink-0 mt-0.5">
               <Sparkles className="w-3.5 h-3.5 text-ojas" />
             </div>
           )}
-          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'flex-1 min-w-0' : 'max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
+          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'flex-1 min-w-0' : 'max-w-[85%] sm:max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
             {/* Message body */}
             <div
-              className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-300 ${isGuru
-                  ? 'px-0 py-1 text-[15.5px] leading-[1.7] text-foreground/90 font-normal'
+              className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 ${isGuru
+                  ? 'px-0 py-0.5 text-[15.5px] leading-[1.75] text-foreground/90 font-normal'
                   : isEditing
-                    ? 'bg-card border border-ojas/40 rounded-2xl px-4 py-3 shadow-md'
-                    : 'bg-ojas/12 dark:bg-ojas/20 border border-ojas/25 rounded-2xl rounded-tr-md px-3.5 py-2 text-[15px] text-foreground font-medium'
+                    ? 'bg-card border border-hairline rounded-2xl px-4 py-3 shadow-sm'
+                    : 'bg-chat-user rounded-[var(--radius-bubble)] rounded-tr-md px-4 py-2.5 text-[15px] leading-[1.55] font-normal shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]'
                 }`}
             >
               <div

@@ -1555,7 +1555,7 @@ return (
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2 scrollbar-spiritual"
+        className="flex-1 overflow-y-auto momentum-scroll px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2 scrollbar-spiritual safe-x"
       >
         <div ref={innerContentRef} className="max-w-3xl mx-auto min-h-full">
           {isLandingMode ? (
@@ -1647,7 +1647,7 @@ return (
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.25 + idx * 0.05 }}
                     onClick={() => handleSuggestionClick(card.prompt)}
-                    className="group flex items-center gap-1.5 px-4 py-2 rounded-full border border-border/70 bg-card/60 hover:bg-ojas/10 hover:border-ojas/40 text-xs text-muted-foreground/90 hover:text-foreground transition-all shadow-sm"
+                    className="group flex items-center gap-1.5 px-4 py-2 rounded-full border border-hairline bg-card/60 hover:bg-ojas/10 hover:border-ojas/40 text-xs text-muted-foreground/90 hover:text-foreground transition-all no-tap-highlight"
                     title={card.prompt}
                   >
                     <card.icon className="w-3 h-3 text-ojas/70 group-hover:text-ojas transition-colors flex-shrink-0" />
@@ -1683,7 +1683,7 @@ return (
           ) : (
 
             <>
-                <div className="space-y-2 sm:space-y-3 pb-6 sm:pb-8">
+                <div className="space-y-5 sm:space-y-6 pb-6 sm:pb-8">
                 <MessageList
                   messages={messages}
                   streamingId={streamingMessageId}
