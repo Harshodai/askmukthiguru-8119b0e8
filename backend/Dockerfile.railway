@@ -59,9 +59,6 @@ ENV ENV=production \
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-    CMD curl -sf http://localhost:${PORT:-8000}/api/health
-
 USER appuser
 
 # Railway sets $PORT; uvicorn reads it via start_railway.py (which overrides CMD).
