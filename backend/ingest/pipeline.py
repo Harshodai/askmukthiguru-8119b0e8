@@ -638,12 +638,13 @@ class IngestionPipeline:
     ) -> dict:
         """
         Ingest Instagram Reels, TikTok, Twitter/X videos, and direct video files (MP4/MOV/WEBM).
-        Uses yt-dlp for download + WhisperLocalService for transcription.
+        Uses yt-dlp for download + transcribe_with_whisper for transcription.
         Feeds the standard adaptive-chunking → RAPTOR → LightRAG pipeline.
         """
         import re
         from ingest.social_media_loader import ingest_social_media
-        from ingest.transcript_cleaner import clean_transcript, redact_pii
+        from ingest.cleaner import clean_transcript
+        from services.pii_scanner import redact_pii
         from ingest.quality_gate import DataQualityGate
 
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
