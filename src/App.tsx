@@ -33,6 +33,8 @@ const AiSpiritualCompanionPage = lazyWithRetry(() => import("./pages/guides/AiSp
 const BeautifulStateMeditationPage = lazyWithRetry(() => import("./pages/guides/BeautifulStateMeditationPage"));
 const SereneMindPracticePage = lazyWithRetry(() => import("./pages/guides/SereneMindPracticePage"));
 const SelfCentricThinkingPage = lazyWithRetry(() => import("./pages/guides/SelfCentricThinkingPage"));
+const SpiritualGuideForAnxietyPage = lazyWithRetry(() => import("./pages/guides/SpiritualGuideForAnxietyPage"));
+const SufferingToBeautifulStatePage = lazyWithRetry(() => import("./pages/guides/SufferingToBeautifulStatePage"));
 const StudyNotebookPage = lazyWithRetry(() => import("./pages/StudyNotebookPage"));
 const KnowledgeGraphPage = lazyWithRetry(() => import("./pages/KnowledgeGraphPage"));
 
@@ -161,6 +163,8 @@ const App = () => {
               <Route path="/guides/beautiful-state-meditation" element={<Suspense fallback={<BrandedSpinner />}><BeautifulStateMeditationPage /></Suspense>} />
               <Route path="/guides/serene-mind-practice" element={<Suspense fallback={<BrandedSpinner />}><SereneMindPracticePage /></Suspense>} />
               <Route path="/guides/self-centric-thinking" element={<Suspense fallback={<BrandedSpinner />}><SelfCentricThinkingPage /></Suspense>} />
+              <Route path="/guides/spiritual-guide-for-anxiety" element={<Suspense fallback={<BrandedSpinner />}><SpiritualGuideForAnxietyPage /></Suspense>} />
+              <Route path="/guides/suffering-to-beautiful-state" element={<Suspense fallback={<BrandedSpinner />}><SufferingToBeautifulStatePage /></Suspense>} />
               <Route path="/notebooks" element={<Suspense fallback={<BrandedSpinner />}><StudyNotebookPage /></Suspense>} />
               <Route path="/knowledge-graph" element={<Suspense fallback={<BrandedSpinner />}><KnowledgeGraphPage /></Suspense>} />
               <Route path="*" element={<Suspense fallback={<BrandedSpinner />}><NotFound /></Suspense>} />
