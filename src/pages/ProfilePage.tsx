@@ -7,9 +7,6 @@ import {
   Download,
   Save,
   Flame,
-  Clock,
-  Calendar,
-  Wind,
   AlertTriangle,
   Sparkles,
   Sun,
@@ -79,6 +76,7 @@ import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsi
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
 import { MemoryManager } from '@/components/profile/MemoryManager';
 import { NotesPanel } from '@/components/profile/NotesPanel';
+import { ProfileStatTiles } from '@/components/profile/ProfileStatTiles';
 import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
@@ -152,6 +150,7 @@ const ProfilePage = () => {
   }, [tab, setSearchParams]);
 
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
+  const [sessions, setSessions] = useState(() => loadMeditationSessions());
   const [conversationCount, setConversationCount] = useState<number>(() => loadConversations().length);
   const [conversations, setConversations] = useState<Conversation[]>(() => loadConversations());
   const [retention, setRetention] = useState<number>(getMaxConversations());
@@ -175,6 +174,7 @@ const ProfilePage = () => {
       }
       // Derive richer insights from local sessions + backend memory (if live).
       const localSessions = loadMeditationSessions();
+      if (!cancelled) setSessions(localSessions);
       let memories: GuruMemory[] = [];
       try {
         const list = await memoryApi.list(1, 50);
@@ -317,12 +317,6 @@ const ProfilePage = () => {
 
   const supportCategories = ['Feedback', 'Bug Report', 'Feature Request', 'Other'];
 
-  const statCards = [
-    { icon: Flame, label: 'Sessions', value: stats.totalSessions, color: 'text-ojas', bg: 'bg-ojas/10' },
-    { icon: Clock, label: 'Minutes', value: stats.totalMinutes, color: 'text-prana', bg: 'bg-prana/10' },
-    { icon: Calendar, label: 'Streak', value: `${stats.streakDays}d`, color: 'text-ojas-dark', bg: 'bg-ojas-dark/10' },
-    { icon: Wind, label: 'Breaths', value: stats.totalCycles, color: 'text-prana-light', bg: 'bg-prana/10' },
-  ];
 
   const isOnboarding = searchParams.get('onboarding') === 'true';
 
@@ -498,19 +492,8 @@ const ProfilePage = () => {
             </TabsContent>
 
             <TabsContent value="stats" className="space-y-6 mt-0">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {statCards.map((s, idx) => (
-                  <Card key={idx} className="border-none bg-card/40 backdrop-blur-sm">
-                    <CardContent className="p-4 flex flex-col items-center text-center">
-                      <div className={`w-10 h-10 rounded-full ${s.bg} flex items-center justify-center mb-2`}>
-                        <s.icon className={`w-5 h-5 ${s.color}`} />
-                      </div>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{s.label}</p>
-                      <p className="text-xl font-bold text-foreground mt-0.5">{s.value}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <ProfileStatTiles stats={stats} sessions={sessions} />
+
 
               <Card>
                 <CardHeader>

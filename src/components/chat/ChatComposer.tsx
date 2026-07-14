@@ -156,10 +156,10 @@ export function ChatComposer({
         onSubmit={handleFormSubmit}
         role="form"
         aria-label={t('chat.messageComposer')}
-        className={`rounded-2xl border bg-card/95 backdrop-blur-xl transition-all duration-300 overflow-visible ${
+        className={`rounded-[var(--radius-card)] border bg-card/95 backdrop-blur-xl transition-all duration-300 overflow-visible ${
           inputFocused || isListening
-            ? 'border-ojas/40 shadow-lg shadow-ojas/5'
-            : 'border-border/60 shadow-sm'
+            ? 'border-ojas/40 shadow-lg shadow-ojas/[0.06]'
+            : 'border-hairline shadow-sm'
         }`}
       >
         {isAwaitingSereneMind && (
