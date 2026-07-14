@@ -26,6 +26,16 @@ export function initSentry() {
   });
 }
 
+/** Add a pageview breadcrumb for session timeline visibility. */
+export function trackPageview(path: string) {
+  if (!DSN || !isProdHost) return;
+  Sentry.addBreadcrumb({
+    category: "navigation",
+    message: path,
+    level: "info",
+  });
+}
+
 /** Tag an error with a feature area for actionable stack traces. */
 export function captureFeatureError(
   err: unknown,
