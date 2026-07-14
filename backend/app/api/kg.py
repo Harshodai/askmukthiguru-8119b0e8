@@ -167,13 +167,14 @@ def _teacher_from_labels(labels: list[str] | None) -> str | None:
 async def kg_subgraph(
     query: str = Query(..., min_length=1, description="Concept or keyword to center the subgraph on"),
     limit: int = Query(20, ge=1, le=100),
-    _user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(get_current_user_from_supabase),
 ) -> SubgraphResponse:
-    """Return a concept subgraph around `query` for the KG visualizer.
+    """Return a concept subgraph around `query` for the KG visualizer (admin-only).
 
     Ponytail: one Cypher query, 1-2 hop neighborhood, graceful fallback to empty.
     Output shape: {nodes:[{id,label,type,teacher}], edges:[{source,target,label}]}.
     """
+    _require_admin(user)
     container = get_container()
     driver = container.neo4j_driver
     if driver is None:
