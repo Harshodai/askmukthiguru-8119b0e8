@@ -1,56 +1,26 @@
 # AskMukthiGuru
 
-> AI-guided spiritual conversations and meditations rooted in the teachings of Sri Preethaji, Sri Krishnaji, Sadhguru, Amma Bhagavan, and ISKCON. Free, private, always available.
+> AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji. Free, private, always available.
 
-AskMukthiGuru is a privacy-first spiritual companion platform. Users chat with a conversational AI guru, practice guided meditations (Soul Sync, Serene Mind, Beautiful State, Daily Reflection), explore a knowledge graph of spiritual concepts, and receive daily teachings. Conversations are stored per authenticated user; anonymous use falls back to local storage.
+AskMukthiGuru is a free AI spiritual guide that helps seekers move from suffering (self-centric states) toward the Beautiful State through conversation, guided practices (including Serene Mind 3-minute meditation), and reflections drawn from the doctrine of Sri Preethaji & Sri Krishnaji. All responses are grounded in an audited knowledge base of the gurus' teachings.
 
 ## Pages
 
-- [Home](/): Overview, guru introductions, featured practices, and daily teaching feed.
-- [Chat](/chat): Conversational AI guru. Select a teacher (Preethaji, Krishnaji, Sadhguru, Amma Bhagavan, ISKCON) and ask spiritual questions.
-- [Practices](/practices): Catalog of guided meditations and contemplative practices.
-- [Practices: Soul Sync](/practices/soul-sync): 15–20 min contemplative practice for inner connection.
-- [Practices: Serene Mind](/practices/serene-mind): 3-minute breathing reset with flame visualization.
-- [Practices: Beautiful State](/practices/beautiful-state): 10–15 min heart-opening loving-kindness practice.
-- [Practices: Daily Reflection](/practices/daily-reflection): 5–10 min evening review with gratitude.
-- [Knowledge Graph](/knowledge-graph): Interactive visualization of spiritual concepts and their relationships.
-- [Study Notebook](/notebooks): Save, organize, and review your conversation insights and teachings.
-- [Guides: Spirit Guides](/guides/spirit-guides): Explore the concept of spirit guides and inner wisdom.
-- [Profile](/profile): Manage account, preferences, and conversation history.
-- [Sign In](/auth): Email/password and Google OAuth sign-in.
-- [Privacy](/privacy): Data handling, conversation privacy, and meditation data policy.
-- [Terms](/terms): Terms of use, AI disclosure, and acceptable use.
+- [Home](https://askmukthiguru.lovable.app/): Landing page, product overview, meet the gurus.
+- [Chat](https://askmukthiguru.lovable.app/chat): Talk with the AI spiritual guide.
+- [Practices](https://askmukthiguru.lovable.app/practices): Meditation and reflection practices catalog.
+- [Spirit Guides](https://askmukthiguru.lovable.app/guides/spirit-guides): Types of spirit guides and how to connect.
 
-## Admin Pages
+## Guides
 
-- [Admin Dashboard](/admin): Ingestion queue, RAG flow monitoring, query analysis, quality metrics, retrieval evaluation, telemetry, alerts, and settings.
-- [Admin: Concept Graph](/admin/concept-graph): Visual management of knowledge graph entities, relationships, and ontology.
-- [Admin: Ingestion](/admin/ingestion): Document ingestion pipeline management and status.
-- [Admin: RAG Flow](/admin/rag-flow): End-to-end retrieval-augmented generation pipeline monitoring.
+- [AI-Guided Meditation](https://askmukthiguru.lovable.app/guides/ai-spiritual-companion): Step-by-step guide to using an AI spiritual companion.
+- [Beautiful State Meditation](https://askmukthiguru.lovable.app/guides/beautiful-state-meditation): How to enter the Beautiful State.
+- [Serene Mind Practice](https://askmukthiguru.lovable.app/guides/serene-mind-practice): The 3-minute Serene Mind meditation for stress.
+- [Self-Centric Thinking](https://askmukthiguru.lovable.app/guides/self-centric-thinking): Stop overthinking spiritually.
+- [Spiritual Guide for Anxiety](https://askmukthiguru.lovable.app/guides/spiritual-guide-for-anxiety): Using AI spiritual guidance to work with anxiety.
+- [From Suffering to Beautiful State](https://askmukthiguru.lovable.app/guides/suffering-to-beautiful-state): Moving from the suffering state to the Beautiful State.
 
-## API
+## Optional
 
-- [API Docs](/api/docs): Interactive Swagger/OpenAPI documentation for the FastAPI backend.
-- [API Health](/api/health): Backend health check endpoint.
-- [Chat](/api/chat): POST to send messages, POST /chat/stream for SSE streaming responses.
-- [Auth](/api/auth): POST /register, /token (login), OAuth callbacks, password reset.
-- [Memory](/api/memory): GET/POST conversation episodes, core memory, summaries, and relevant context retrieval.
-- [Knowledge Graph](/api/kg): SPARQL query endpoint, subgraph retrieval, concept search.
-- [Speech](/api/speech): POST /speech/stt (speech-to-text), POST /speech/tts (text-to-speech), POST /translate.
-- [Teachings](/api/teachings): Daily teachings feed, teaching tips, and regeneration.
-- [Profile](/api/profile): GET/PUT user profile data.
-- [Notebooks](/api/notebooks): CRUD for study notebooks and notebook items.
-- [Feedback](/feedback): POST user feedback, GET history and feedback-derived lessons.
-- [Ingestion](/api/ingest): POST document ingestion, GET ingestion status.
-- [Jobs](/api/jobs): Background job status tracking.
-- [Metrics](/api/metrics/cache): Cache performance metrics.
-- [Admin](/api/admin): Admin-only operations including query management, quality evaluation, telemetry, alerts, and settings.
-
-## Content & Policies
-
-- **Spiritual Teachers**: The platform draws from teachings of Sri Preethaji, Sri Krishnaji, Sadhguru, Amma Bhagavan, and ISKCON. Each conversation can be grounded in a specific teacher's perspective.
-- **AI Disclosure**: All responses are generated by a large language model. Content is for spiritual exploration and should not replace professional medical, psychological, or legal advice.
-- **Privacy**: Conversations are private and encrypted. Anonymous users' data is stored locally. Authenticated users' data is stored securely server-side.
-- **Terms**: Users must be 13+. Commercial scraping is prohibited. The service may refuse content that promotes harm, violence, or illegal activity.
-- **Knowledge Graph**: The platform maintains a Neo4j-backed knowledge graph of spiritual concepts, their relationships, and teacher-specific interpretations. This graph powers context-aware responses and is browsable via the frontend knowledge graph page.
-- **Retrieval**: A RAG pipeline (Qdrant vector store + hybrid search) retrieves relevant teachings from the ingested corpus before generating responses.
+- [Privacy](https://askmukthiguru.lovable.app/privacy): Privacy policy.
+- [Terms](https://askmukthiguru.lovable.app/terms): Terms of service.
