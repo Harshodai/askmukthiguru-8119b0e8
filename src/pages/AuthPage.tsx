@@ -200,6 +200,28 @@ const AuthPage = () => {
           return;
         }
 
+        // Enforce MFA: if user has a verified TOTP factor and current AAL is
+        // aal1, require step-up to aal2 before granting access to the app.
+        try {
+          const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
+            console.info('[Auth] MFA step-up required for user', session.user.id);
+            if (sessionHandleTimeoutRef.current) {
+              clearTimeout(sessionHandleTimeoutRef.current);
+              sessionHandleTimeoutRef.current = null;
+            }
+            redirectingRef.current = false;
+            setGoogleStep('idle');
+            setFacebookStep('idle');
+            setLoading(false);
+            navigate('/auth/mfa', { replace: true });
+            return;
+          }
+        } catch (mfaErr) {
+          console.warn('[Auth] MFA assurance level check failed', mfaErr);
+        }
+
+
         const isGoogleReturn =
         sessionStorage.getItem(GOOGLE_STEP_KEY) === '1' ||
         getActiveRun()?.provider === 'google';
