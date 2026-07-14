@@ -1,42 +1,46 @@
-# Handoff
+# Handoff — Profile + Chat UI Redesign
 
-## 1. Goal
-Fix all failing SEO and AI-search findings at root cause for AskMukthiGuru (Lovable project), then re-scan to verify. Secondary: expand programmatic SEO surface via new guide pages and keep sitemap + robots + llms.txt aligned.
+## Goal
+Take `/profile` and the chat surface from "clumsy" to ChatGPT/Claude-caliber. Preserve Golden Hour aesthetic, HSL tokens, every feature. Feel native on iOS/Android via Capacitor.
 
-## 2. Current State
-- All 4 previously failing SEO findings marked **fixed** via `seo_chat--update_findings`. Awaiting next scan for re-verification.
-  - `http:sitemap` — admin routes now emit `<meta name="robots" content="noindex,nofollow">` (matches existing `robots.txt` Disallow). `public/llms.txt` created with canonical public routes.
-  - `lighthouse:lighthouse_performance` — hero image already has `fetchpriority="high"`, `decoding="async"`; fonts use `font-display: swap` via Google Fonts. Disclaimer contrast raised.
-  - `lighthouse:lighthouse_accessibility` — hero disclaimer opacity bumped (`text-foreground/80` → `text-foreground`, `bg-background/60` → `bg-background/80`).
-  - `agent_metadata:metadata_quality` — meta descriptions trimmed to ≤160 chars on `AiSpiritualCompanionPage` (180→148) and `SpiritGuidesPage` (182→148).
-- New guide pages added earlier this session: BeautifulStateMeditation, SelfCentricThinking, SereneMindPractice, SpiritualGuideForAnxiety, SufferingToBeautifulState. All routed in `App.tsx`, listed in `public/sitemap.xml`.
-- `usePageMeta` hook now supports `noindex` flag, wired into `AdminShell` and `AdminLoginPage`.
-- `PracticeDetailPage` uses semantic `<h2>` elements instead of `CardTitle` for heading hierarchy.
+## Current state (this session)
+Phase 1 + focused visual polish shipped. Deep component splits deferred (mega-files still ≥1000 LoC but no longer visually clumsy).
 
-## 3. Files Actively Edited (recent)
-- `src/hooks/usePageMeta.ts` — added `noindex` support + robots meta tag
-- `src/admin/layout/AdminShell.tsx` — `noindex: true`
-- `src/admin/pages/AdminLoginPage.tsx` — `noindex: true`
-- `src/components/landing/HeroSection.tsx` — disclaimer contrast
-- `src/pages/guides/AiSpiritualCompanionPage.tsx` — meta desc trim
-- `src/pages/guides/SpiritGuidesPage.tsx` — meta desc trim
-- `src/pages/PracticeDetailPage.tsx` — semantic headings
-- `src/pages/guides/{BeautifulStateMeditation,SelfCentricThinking,SereneMindPractice,SpiritualGuideForAnxiety,SufferingToBeautifulState}Page.tsx` — new guides
-- `src/App.tsx` — new routes
-- `public/sitemap.xml` — new guide URLs
-- `public/llms.txt` — created
-- `.lovable/plan.md` — running plan
+### Shipped
+- **Design tokens (`src/index.css`)** — added `--chat-surface`, `--chat-user-bubble`, `--chat-user-foreground`, `--assistant-foreground`, `--hairline`, `--divider`, `--overlay-scrim`, `--radius-bubble/card/pill`, motion tokens (`--dur-*`, `--ease-standard`). Full light + dark parity.
+- **Native-feel utilities** — `.safe-top`, `.safe-bottom`, `.safe-x` (env safe-area insets), `.momentum-scroll` (iOS momentum + overscroll-contain), `.no-tap-highlight`, `.border-hairline`, `.bg-chat-user`.
+- **Chat message polish (`ChatMessage.tsx`)**
+  - User bubble: `bg-chat-user` token instead of `bg-ojas/12` — softer, warmer, ChatGPT/Claude-like pill (rounded-[var(--radius-bubble)]), no thick border, single-hairline shadow.
+  - Assistant avatar: subtler 7×7 gradient chip, hairline border.
+  - Max-width bumped to 85%/75% on user messages, line-height 1.55.
+- **Chat scroll surface (`ChatInterface.tsx`)** — momentum-scroll + safe-x on the main scroll container; `space-y-5/6` between messages (was 2/3) — the biggest breathability win.
+- **Starter pills** — hairline border instead of chunky `border-border/70`, no shadow.
+- **Profile page (`ProfilePage.tsx`)**
+  - New **hero row**: 64/80px avatar, display name (serif), email, streak chip with Flame icon. Flat, generous, no gradient panel.
+  - **Tabs rebuilt**: horizontally scrollable pill row on mobile (no more cramped 7-col grid), true 7-col grid on desktop, `bg-muted/40` container.
+  - Wrapper picks up `safe-x` for Capacitor insets.
 
-## 4. Tried & Failed / Dead Ends
-- **Excluding admin routes from sitemap alone** — scanner kept flagging `http:sitemap` because robots.txt Disallow wasn't enough signal; needed per-page `noindex` meta. Fixed.
-- **Relying on `text-foreground/80` for hero disclaimer** — failed Lighthouse contrast on light background over hero image. Raised to full opacity + stronger bg.
-- **Assuming Google Fonts `<link>` handled `font-display` implicitly** — verified `&display=swap` is present in URL, so no `@font-face` override needed.
-- **Speculative `Article` JSON-LD audit** — did not migrate to dynamic sitemap generator (out of scope, existing static sitemap sufficient).
-- **Did not** run Playwright/Lighthouse locally to independently verify LCP; relying on next SEO scan.
+### Files touched
+- `src/index.css`
+- `src/components/chat/ChatMessage.tsx`
+- `src/components/chat/ChatInterface.tsx`
+- `src/pages/ProfilePage.tsx`
 
-## 5. Next Step
-1. Trigger a fresh SEO scan (`seo_chat--trigger_scan`) and watch the results panel.
-2. If `lighthouse:lighthouse_performance` re-fails, add explicit `<link rel="preload" as="image" href="/hero.webp" fetchpriority="high">` to `index.html` and confirm hero `<img>` has explicit `width`/`height` attributes to prevent CLS.
-3. Sweep remaining pages for any `text-muted-foreground/50` or `text-gray-*` on light surfaces if accessibility re-fails.
-4. Consider migrating `public/sitemap.xml` to a build-time generator that reads route manifest to prevent drift as guides are added.
-5. Publish once scan is green.
+## Not done yet (queued)
+1. **Split mega-files** into focused sub-components:
+   - `ChatMessage.tsx` (1283 LoC) → `AssistantMessage / UserMessage / MessageMarkdown / MessageActions / SourcesInline / ThinkingIndicator`
+   - `ChatInterface.tsx` (1991 LoC) → extract `useChatController` hook + `ChatShell / ChatEmptyState`
+   - `ProfilePage.tsx` (1068 LoC) → `ProfileHero / cards/*`
+2. **Composer rebuild** — single-row auto-grow, mic+attach+send inside the field, morphing send/stop button.
+3. **Empty state** — already Claude-ish; polish typography scale and give suggestion pills more room.
+4. **Desktop sidebar** — slim to 260px, shadcn Sidebar primitives, group Today/Yesterday/Last 7d (data already grouped by `conversationGrouping.ts`).
+5. **Stat tiles + 7-day sparkline** in Insights tab (SVG, no chart lib).
+6. **Danger zone** — group destructive actions under Data tab with confirmation dialogs.
+7. **QA** — Playwright visual sweep at 375/390/768/1280/1920; contrast pass on new tokens both themes.
+
+## Next step
+Start with the composer rebuild (highest daily-use impact) and the sidebar slim-down. Both are contained, each ≤ 1 session, and unblock further visual density work without touching the huge ChatMessage file.
+
+## Risks
+- Behavior of ChatMessage was unchanged; only bubble styling swapped. If a test snapshotted the old classes it will need regen.
+- Profile hero reads `user.email` from `useRequireAuth` — verified `user` is returned; falls back to a friendly string.
