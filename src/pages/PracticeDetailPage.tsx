@@ -179,9 +179,9 @@ const PracticeDetailPage = () => {
         {practice.format === 'source-reflection' ? <WisdomReflectionPractice /> : embedSrc && watchUrl && (
         <Card className="overflow-hidden">
           <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
               <PlayCircle className="w-5 h-5 text-ojas" /> Guided video
-            </CardTitle>
+            </h2>
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <a href={watchUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -210,9 +210,9 @@ const PracticeDetailPage = () => {
         {audioEmbed && audioWatch && (
           <Card className="overflow-hidden">
             <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-              <CardTitle className="flex items-center gap-2 text-base">
+              <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
                 <Headphones className="w-5 h-5 text-prana" /> Audio version
-              </CardTitle>
+              </h2>
               <Button asChild variant="outline" size="sm" className="gap-1.5">
                 <a href={audioWatch} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -240,7 +240,7 @@ const PracticeDetailPage = () => {
         {/* Purpose */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Why this practice</CardTitle>
+            <h2 className="text-base font-semibold leading-none tracking-tight">Why this practice</h2>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-foreground/90 leading-relaxed">
@@ -252,7 +252,7 @@ const PracticeDetailPage = () => {
         {/* How it works */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">How to do it</CardTitle>
+            <h2 className="text-base font-semibold leading-none tracking-tight">How to do it</h2>
           </CardHeader>
           <CardContent>
             <ol className="space-y-4 text-sm text-foreground/90 leading-relaxed list-decimal list-inside">
@@ -274,7 +274,7 @@ const PracticeDetailPage = () => {
         {/* Key Benefits */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Key Benefits</CardTitle>
+            <h2 className="text-base font-semibold leading-none tracking-tight">Key Benefits</h2>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3 text-sm text-foreground/90 leading-relaxed list-disc list-inside">
