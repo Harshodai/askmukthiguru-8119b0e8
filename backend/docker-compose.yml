@@ -1,8 +1,10 @@
 # ============================================================
 # Mukthi Guru — Full Stack Docker Compose
 #
-# All services start by default. For resource-constrained environments,
-# you can create a docker-compose.override.yml to exclude ops services.
+# Profiles:
+#   (default)         — neo4j, redis, qdrant, backend, celery-worker, frontend (always on)
+#   observability     — jaeger, prometheus, grafana (enable: COMPOSE_PROFILES=observability)
+#   cache             — gptcache-server (enable: COMPOSE_PROFILES=cache)
 #
 # Ollama runs on the HOST machine (not in Docker) because:
 #   - Windows Docker doesn't support GPU passthrough easily
@@ -10,9 +12,12 @@
 #   - The backend connects to Ollama via host.docker.internal
 #
 # Usage:
-#   docker compose up -d          # Start all services
-#   docker compose logs -f        # Watch logs
-#   docker compose down           # Stop all services
+#   docker compose up -d                            # Start core stack (default profile)
+#   COMPOSE_PROFILES=observability docker compose up -d   # + jaeger, prometheus, grafana
+#   COMPOSE_PROFILES=cache docker compose up -d           # + gptcache-server
+#   COMPOSE_PROFILES=observability,cache docker compose up -d  # everything
+#   docker compose logs -f                          # Watch logs
+#   docker compose down                             # Stop all services
 # ============================================================
 
 services:
@@ -73,6 +78,7 @@ services:
   jaeger:
     image: jaegertracing/all-in-one:1.76.0
     container_name: mukthiguru-jaeger
+    profiles: [observability]
     restart: unless-stopped
     environment:
       - COLLECTOR_OTLP_ENABLED=true
@@ -336,6 +342,7 @@ services:
     platform: linux/amd64
     image: zilliz/gptcache:0.1.44
     container_name: mukthiguru-gptcache-server
+    profiles: [cache]
     ports:
       - "8001:8000"
     environment:
@@ -367,6 +374,7 @@ services:
   prometheus:
     image: prom/prometheus:v2.51.0
     container_name: mukthiguru-prometheus
+    profiles: [observability]
     ports:
       - "9090:9090"
     volumes:
@@ -391,6 +399,7 @@ services:
   grafana:
     image: grafana/grafana:10.4.1
     container_name: mukthiguru-grafana
+    profiles: [observability]
     ports:
       - "3000:3000"
     environment:
