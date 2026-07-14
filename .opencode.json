@@ -19,6 +19,9 @@
       "cwd": "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8",
       "type": "stdio",
       "env": []
+    },
+    "railway": {
+      "url": "https://mcp.railway.com"
     }
   }
 }
