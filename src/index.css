@@ -344,13 +344,42 @@
     margin-top: 0.75rem;
   }
 
-  /* Safe area utilities for mobile */
+  /* Safe area utilities for mobile / Capacitor */
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
-
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top, 0), 0px);
+  }
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom, 0), 0px);
+  }
+  .safe-x {
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
+  }
   .h-safe-area-inset-bottom {
     height: env(safe-area-inset-bottom, 0);
+  }
+
+  /* Momentum scroll for native-feeling lists */
+  .momentum-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Kill iOS tap flash on interactive chrome */
+  .no-tap-highlight {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Hairline border using semantic token */
+  .border-hairline {
+    border-color: hsl(var(--hairline));
+  }
+  .bg-chat-user {
+    background-color: hsl(var(--chat-user-bubble));
+    color: hsl(var(--chat-user-foreground));
   }
 
   /* Touch action utilities */
