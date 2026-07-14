@@ -1,7 +1,7 @@
 import { useEffect, Suspense } from "react";
 import { lazyWithRetry, preloadCriticalRoutes } from "@/lib/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, HashRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Outlet, useLocation } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -12,6 +12,7 @@ import { SereneMindProvider } from "@/components/common/SereneMindProvider";
 import { PushPermissionPrompt } from "@/components/common/PushPermissionPrompt";
 import { PushNotificationsManager } from "@/components/common/PushNotificationsManager";
 import { purgeConversationsByAge, getRetentionDays } from "@/lib/chatStorage";
+import { trackPageview } from "@/lib/sentry";
 
 // Pages
 const Index = lazyWithRetry(() => import("./pages/Index"));
@@ -38,31 +39,64 @@ const SufferingToBeautifulStatePage = lazyWithRetry(() => import("./pages/guides
 const StudyNotebookPage = lazyWithRetry(() => import("./pages/StudyNotebookPage"));
 const KnowledgeGraphPage = lazyWithRetry(() => import("./pages/KnowledgeGraphPage"));
 
-// Admin
-const AdminLoginPage = lazyWithRetry(() => import("./admin/pages/AdminLoginPage"));
-const AdminShell = lazyWithRetry(() => import("./admin/layout/AdminShell").then(m => ({ default: m.AdminShell })));
-const OverviewPage = lazyWithRetry(() => import("./admin/pages/OverviewPage"));
-const QueriesPage = lazyWithRetry(() => import("./admin/pages/QueriesPage"));
-const QualityPage = lazyWithRetry(() => import("./admin/pages/QualityPage"));
-const RetrievalPage = lazyWithRetry(() => import("./admin/pages/RetrievalPage"));
-const DailyTeachingPage = lazyWithRetry(() => import("./admin/pages/DailyTeachingPage"));
-const TeachingTipsPage = lazyWithRetry(() => import("./admin/pages/TeachingTipsPage"));
-const TriggersPage = lazyWithRetry(() => import("./admin/pages/TriggersPage"));
-const TopicsPage = lazyWithRetry(() => import("./admin/pages/TopicsPage"));
-const PromptsPage = lazyWithRetry(() => import("./admin/pages/PromptsPage"));
-const EvalsPage = lazyWithRetry(() => import("./admin/pages/EvalsPage"));
-const IngestionPage = lazyWithRetry(() => import("./admin/pages/IngestionPage"));
-const LogsPage = lazyWithRetry(() => import("./admin/pages/LogsPage"));
-const TelemetryPage = lazyWithRetry(() => import("./admin/pages/TelemetryPage"));
-const MonitoringPage = lazyWithRetry(() => import("./admin/pages/MonitoringPage"));
-const AlertsPage = lazyWithRetry(() => import("./admin/pages/AlertsPage"));
-const SettingsPage = lazyWithRetry(() => import("./admin/pages/SettingsPage"));
-const AdminsPage = lazyWithRetry(() => import("./admin/pages/AdminsPage"));
-const FeedbackPage = lazyWithRetry(() => import("./admin/pages/FeedbackPage"));
-const OkfManagerPage = lazyWithRetry(() => import("./admin/pages/OkfManager"));
-const JobsPage = lazyWithRetry(() => import("./admin/pages/JobsPage"));
-const RAGFlowPage = lazyWithRetry(() => import("./admin/pages/RAGFlowPage"));
-const AdminSelfCheckPage = lazyWithRetry(() => import("./pages/AdminSelfCheckPage"));
+// Admin — gated by VITE_ADMIN_ENABLED (default true). Set to 'false' to strip
+// admin routes + page chunks from the production bundle. Vite replaces
+// import.meta.env.VITE_ADMIN_ENABLED at build time, so when it's 'false' the
+// entire block below is dead code and gets tree-shaken (no admin route path
+// strings, no admin chunk imports).
+const ADMIN_ENABLED = import.meta.env.VITE_ADMIN_ENABLED !== 'false';
+
+let AdminLoginPage: any = null;
+let AdminShell: any = null;
+let OverviewPage: any = null;
+let QueriesPage: any = null;
+let QualityPage: any = null;
+let RetrievalPage: any = null;
+let DailyTeachingPage: any = null;
+let TeachingTipsPage: any = null;
+let TriggersPage: any = null;
+let TopicsPage: any = null;
+let PromptsPage: any = null;
+let EvalsPage: any = null;
+let IngestionPage: any = null;
+let LogsPage: any = null;
+let TelemetryPage: any = null;
+let MonitoringPage: any = null;
+let AlertsPage: any = null;
+let SettingsPage: any = null;
+let AdminsPage: any = null;
+let FeedbackPage: any = null;
+let OkfManagerPage: any = null;
+let JobsPage: any = null;
+let RAGFlowPage: any = null;
+let AdminSelfCheckPage: any = null;
+
+if (ADMIN_ENABLED) {
+  AdminLoginPage = lazyWithRetry(() => import("./admin/pages/AdminLoginPage"));
+  AdminShell = lazyWithRetry(() => import("./admin/layout/AdminShell").then(m => ({ default: m.AdminShell })));
+  OverviewPage = lazyWithRetry(() => import("./admin/pages/OverviewPage"));
+  QueriesPage = lazyWithRetry(() => import("./admin/pages/QueriesPage"));
+  QualityPage = lazyWithRetry(() => import("./admin/pages/QualityPage"));
+  RetrievalPage = lazyWithRetry(() => import("./admin/pages/RetrievalPage"));
+  DailyTeachingPage = lazyWithRetry(() => import("./admin/pages/DailyTeachingPage"));
+  TeachingTipsPage = lazyWithRetry(() => import("./admin/pages/TeachingTipsPage"));
+  TriggersPage = lazyWithRetry(() => import("./admin/pages/TriggersPage"));
+  TopicsPage = lazyWithRetry(() => import("./admin/pages/TopicsPage"));
+  PromptsPage = lazyWithRetry(() => import("./admin/pages/PromptsPage"));
+  EvalsPage = lazyWithRetry(() => import("./admin/pages/EvalsPage"));
+  IngestionPage = lazyWithRetry(() => import("./admin/pages/IngestionPage"));
+  LogsPage = lazyWithRetry(() => import("./admin/pages/LogsPage"));
+  TelemetryPage = lazyWithRetry(() => import("./admin/pages/TelemetryPage"));
+  MonitoringPage = lazyWithRetry(() => import("./admin/pages/MonitoringPage"));
+  AlertsPage = lazyWithRetry(() => import("./admin/pages/AlertsPage"));
+  SettingsPage = lazyWithRetry(() => import("./admin/pages/SettingsPage"));
+  AdminsPage = lazyWithRetry(() => import("./admin/pages/AdminsPage"));
+  FeedbackPage = lazyWithRetry(() => import("./admin/pages/FeedbackPage"));
+  OkfManagerPage = lazyWithRetry(() => import("./admin/pages/OkfManager"));
+  JobsPage = lazyWithRetry(() => import("./admin/pages/JobsPage"));
+  RAGFlowPage = lazyWithRetry(() => import("./admin/pages/RAGFlowPage"));
+  AdminSelfCheckPage = lazyWithRetry(() => import("./pages/AdminSelfCheckPage"));
+}
 
 const queryClient = new QueryClient();
 
@@ -81,6 +115,14 @@ const AppRouter = ({ children }: { children: React.ReactNode }) => {
   ) : (
     <BrowserRouter future={future}>{children}</BrowserRouter>
   );
+};
+
+const RouteTracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageview(location.pathname);
+  }, [location.pathname]);
+  return null;
 };
 
 const App = () => {
@@ -103,41 +145,48 @@ const App = () => {
       */}
       <SereneMindProvider>
         <AppRouter>
+          <RouteTracker />
           <Routes>
-            {/* Admin */}
-            <Route path="/admin/login" element={
-              <Suspense fallback={<BrandedSpinner />}><AdminLoginPage /></Suspense>
-            } />
-            <Route path="/admin" element={
-              <Suspense fallback={<BrandedSpinner />}><AdminShell /></Suspense>
-            }>
-              <Route index element={<OverviewPage />} />
-              <Route path="queries" element={<QueriesPage />} />
-              <Route path="quality" element={<QualityPage />} />
-              <Route path="retrieval" element={<RetrievalPage />} />
-              <Route path="daily-teaching" element={<DailyTeachingPage />} />
-              <Route path="teaching-tips" element={<TeachingTipsPage />} />
-              <Route path="triggers" element={<TriggersPage />} />
-              <Route path="topics" element={<TopicsPage />} />
-              <Route path="prompts" element={<PromptsPage />} />
-              <Route path="evals" element={<EvalsPage />} />
-              <Route path="queue" element={<JobsPage />} />
-              <Route path="ingestion" element={<IngestionPage />} />
-              <Route path="logs" element={<LogsPage />} />
-              <Route path="telemetry" element={<TelemetryPage />} />
-              <Route path="monitoring" element={<MonitoringPage />} />
-              <Route path="alerts" element={<AlertsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="admins" element={<AdminsPage />} />
-              <Route path="feedback" element={<FeedbackPage />} />
-              <Route path="okf" element={<OkfManagerPage />} />
-              <Route path="rag-flow" element={
-                <Suspense fallback={<BrandedSpinner />}><RAGFlowPage /></Suspense>
-              } />
-              <Route path="self-check" element={
-                <Suspense fallback={<BrandedSpinner />}><AdminSelfCheckPage /></Suspense>
-              } />
-            </Route>
+            {/* Admin — only mounted when VITE_ADMIN_ENABLED !== 'false'.
+                When disabled, Vite tree-shakes the imports above so no
+                admin route paths or chunks reach the bundle. */}
+            {ADMIN_ENABLED && (
+              <>
+                <Route path="/admin/login" element={
+                  <Suspense fallback={<BrandedSpinner />}><AdminLoginPage /></Suspense>
+                } />
+                <Route path="/admin" element={
+                  <Suspense fallback={<BrandedSpinner />}><AdminShell /></Suspense>
+                }>
+                  <Route index element={<OverviewPage />} />
+                  <Route path="queries" element={<QueriesPage />} />
+                  <Route path="quality" element={<QualityPage />} />
+                  <Route path="retrieval" element={<RetrievalPage />} />
+                  <Route path="daily-teaching" element={<DailyTeachingPage />} />
+                  <Route path="teaching-tips" element={<TeachingTipsPage />} />
+                  <Route path="triggers" element={<TriggersPage />} />
+                  <Route path="topics" element={<TopicsPage />} />
+                  <Route path="prompts" element={<PromptsPage />} />
+                  <Route path="evals" element={<EvalsPage />} />
+                  <Route path="queue" element={<JobsPage />} />
+                  <Route path="ingestion" element={<IngestionPage />} />
+                  <Route path="logs" element={<LogsPage />} />
+                  <Route path="telemetry" element={<TelemetryPage />} />
+                  <Route path="monitoring" element={<MonitoringPage />} />
+                  <Route path="alerts" element={<AlertsPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                  <Route path="admins" element={<AdminsPage />} />
+                  <Route path="feedback" element={<FeedbackPage />} />
+                  <Route path="okf" element={<OkfManagerPage />} />
+                  <Route path="rag-flow" element={
+                    <Suspense fallback={<BrandedSpinner />}><RAGFlowPage /></Suspense>
+                  } />
+                  <Route path="self-check" element={
+                    <Suspense fallback={<BrandedSpinner />}><AdminSelfCheckPage /></Suspense>
+                  } />
+                </Route>
+              </>
+            )}
 
             {/* Seeker */}
             <Route element={<DebugLayout />}>
