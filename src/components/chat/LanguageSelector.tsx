@@ -261,22 +261,23 @@ export const LanguageSelector = ({
           <button
             key={lang.code}
             onClick={() => handleLanguageChange(lang.code)}
-            className={`w-full px-3 py-2.5 text-left text-sm hover:bg-ojas/10 transition-colors flex items-center gap-3 ${
+            className={`w-full px-3 py-3 text-left hover:bg-ojas/10 transition-colors flex items-center gap-3 ${
               isSelected ? 'bg-ojas/15' : ''
             }`}
             role="option"
             aria-selected={isSelected}
           >
             <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-2 flex-wrap">
                 <span
-                  className={`font-medium truncate ${
-                    isSelected ? 'text-ojas' : 'text-foreground'
-                  }`}
+                  className={`font-semibold truncate ${
+                    lang.code === 'en' ? 'text-base' : 'text-lg'
+                  } ${isSelected ? 'text-ojas' : 'text-foreground'}`}
+                  lang={lang.bcp47}
                 >
                   {lang.native}
                 </span>
-                <span className="text-muted-foreground text-xs truncate">
+                <span className="text-muted-foreground text-sm truncate">
                   {lang.name}
                 </span>
               </div>
@@ -329,7 +330,9 @@ export const LanguageSelector = ({
               e.stopPropagation();
               setIsOpen(!isOpen);
             }}
-            className={`flex items-center gap-1.5 px-2.5 h-8 rounded-full transition-all text-xs font-semibold border ${
+            className={`flex items-center gap-1.5 px-2.5 h-9 rounded-full transition-all font-semibold border ${
+              isNonEnglish ? 'text-sm' : 'text-xs'
+            } ${
               isNonEnglish
                 ? 'bg-ojas/10 border-ojas/30 text-ojas hover:bg-ojas/20'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 border-transparent'
@@ -342,7 +345,7 @@ export const LanguageSelector = ({
             title={`Language: ${lang?.name ?? selectedLanguage}`}
           >
             <span className="text-sm leading-none">{flag}</span>
-            <span className="font-medium">{label}</span>
+            <span className={`font-medium ${isNonEnglish ? 'text-base leading-none' : ''}`}>{label}</span>
             {isNonEnglish && (
               <span className="flex items-center gap-0.5 text-[9px] font-bold text-ojas/80 bg-ojas/10 px-1 rounded">
                 <Languages className="w-2.5 h-2.5" />
