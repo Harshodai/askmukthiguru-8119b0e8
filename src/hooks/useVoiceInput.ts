@@ -93,7 +93,7 @@ export const useVoiceInput = (): UseVoiceInputResult => {
             setError('Voice endpoint not configured');
             return;
           }
-          const res = await fetch(`${API_BASE}/api/stt`, { method: 'POST', body: form });
+          const res = await fetch(`${API_BASE}/api/speech/stt`, { method: 'POST', body: form });
           if (!res.ok) {
             setError('Transcription failed');
             return;

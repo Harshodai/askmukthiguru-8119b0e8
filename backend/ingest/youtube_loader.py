@@ -655,7 +655,10 @@ def fetch_transcript_hybrid(
 def _run_whisper_stt(video_id: str) -> Optional[str]:
     """Download audio and transcribe via local Whisper STT. Returns text or None."""
     try:
-        from services.whisper_local_service import download_audio, transcribe_with_whisper
+        from services.whisper_local_service import (
+            download_audio,
+            transcribe_with_whisper_enhanced,
+        )
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             audio_path = download_audio(video_id, tmp_dir)
@@ -663,7 +666,9 @@ def _run_whisper_stt(video_id: str) -> Optional[str]:
                 logger.warning(f"[{video_id}] Whisper STT: audio download failed")
                 return None
 
-            return transcribe_with_whisper(video_id, audio_path)
+            # Enhanced wrapper auto-falls back to MLX Whisper when whisperx is
+            # disabled or unavailable — council gets the best available text.
+            return transcribe_with_whisper_enhanced(video_id, audio_path)
     except Exception as e:
         logger.error(f"[{video_id}] Whisper STT error: {e}")
         return None

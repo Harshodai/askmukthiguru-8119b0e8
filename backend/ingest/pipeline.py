@@ -182,6 +182,10 @@ from services.ollama_service import OllamaService
 from services.pii_scanner import redact_pii
 from services.proposition_service import PropositionService
 from services.qdrant_service import QdrantService
+from services.whisper_local_service import (
+    clear_cached_whisperx_result,
+    get_cached_whisperx_result,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +230,141 @@ def extract_doctrine_tags(text: str) -> list[str]:
                 matched.add(canonical)
                 break
     return list(matched)
+
+
+def _resolve_chunk_speakers_from_cache(
+    video_id: Optional[str], chunks: list[str]
+) -> list[Optional[str]]:
+    """Map each chunk to a speaker label using the cached whisperx diarization result.
+
+    Ponytail: for each chunk, pick the segment whose normalized text shares the most
+    words with the chunk text, and take that segment's `speaker`. Returns a list of
+    `Optional[str]` aligned to `chunks` — `None` entries when no speaker can be
+    resolved or the cache is empty. Purely best-effort; never raises.
+    """
+    if not video_id or not chunks:
+        return [None] * len(chunks)
+    try:
+        wx = get_cached_whisperx_result(video_id)
+    except Exception as e:
+        logger.debug(f"whisperx cache lookup failed for {video_id} (non-fatal): {e}")
+        return [None] * len(chunks)
+    if not wx or not wx.get("segments"):
+        return [None] * len(chunks)
+
+    segments = wx["segments"]
+    # Pre-compute normalized word sets for each segment once.
+    seg_word_sets: list[set[str]] = []
+    seg_speakers: list[Optional[str]] = []
+    for seg in segments:
+        seg_text = (seg.get("text") or "").lower()
+        seg_word_sets.append(set(seg_text.split()))
+        seg_speakers.append(seg.get("speaker"))
+
+    result: list[Optional[str]] = []
+    for chunk_text in chunks:
+        chunk_words = set(chunk_text.lower().split())
+        if not chunk_words:
+            result.append(None)
+            continue
+        best_idx = -1
+        best_overlap = 0
+        for i, sws in enumerate(seg_word_sets):
+            if not sws:
+                continue
+            overlap = len(chunk_words & sws)
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_idx = i
+        if best_idx >= 0 and best_overlap > 0 and seg_speakers[best_idx]:
+            result.append(seg_speakers[best_idx])
+        else:
+            result.append(None)
+    return result
+
+
+# Allowed speaker roles — closed set to prevent LLM from inventing names/junk.
+_ALLOWED_SPEAKER_ROLES = frozenset({"teacher", "questioner", "translator", "narration", "unknown"})
+
+
+async def _resolve_chunk_speakers_with_llm(
+    chunks: list[str],
+    llm,
+    *,
+    source_url: str = "",
+    max_chunks: int = 50,
+) -> list[Optional[str]]:
+    """LLM fallback: classify each chunk's speaker ROLE when diarization is unavailable.
+
+    Returns a list aligned to `chunks` with values from _ALLOWED_SPEAKER_ROLES.
+    Never invents names — only closed-set roles. `None` for chunks that are too
+    short or when the LLM fails. Best-effort; never raises.
+
+    Ponytail: caps at max_chunks to bound LLM cost; remaining chunks get `None`.
+    """
+    if not chunks:
+        return []
+    if llm is None:
+        return [None] * len(chunks)
+
+    result: list[Optional[str]] = [None] * len(chunks)
+    # Only classify chunks with enough text to be meaningful
+    candidate_indices = [i for i, c in enumerate(chunks) if len(c.strip()) >= 40]
+    # Cap to bound cost
+    if len(candidate_indices) > max_chunks:
+        candidate_indices = candidate_indices[:max_chunks]
+
+    if not candidate_indices:
+        return result
+
+    system_prompt = (
+        "You classify the speaker role of a spiritual discourse transcript chunk. "
+        "Respond with ONLY one of: teacher, questioner, translator, narration, unknown. "
+        "Rules:\n"
+        "- teacher: the guru/teacher expounding doctrine or a practice\n"
+        "- questioner: a seeker asking a question (often short, interrogative)\n"
+        "- translator: someone translating the teacher's words to another language\n"
+        "- narration: voiceover, intro, outro, disclaimers\n"
+        "- unknown: cannot determine\n"
+        "NEVER respond with a name. ONLY the role token. No punctuation, no explanation."
+    )
+
+    async def _classify_one(idx: int, chunk: str) -> tuple[int, Optional[str]]:
+        try:
+            resp = await llm.generate(
+                system_prompt=system_prompt,
+                user_prompt=chunk[:2000],  # cap input length
+                temperature=0.0,
+                operation="speaker_role_classification",
+            )
+            role = (resp or "").strip().lower()
+            # Sanitize: take first word, must be in allowed set
+            role = role.split()[0] if role else ""
+            if role in _ALLOWED_SPEAKER_ROLES:
+                return idx, role
+            return idx, "unknown"
+        except Exception as e:
+            logger.debug(f"LLM speaker-role classification failed for chunk {idx} (non-fatal): {e}")
+            return idx, "unknown"
+
+    # Bounded concurrency to avoid hammering the LLM
+    semaphore = asyncio.Semaphore(5)
+
+    async def _bounded_classify(idx: int, chunk: str):
+        async with semaphore:
+            return await _classify_one(idx, chunk)
+
+    tasks = [_bounded_classify(i, chunks[i]) for i in candidate_indices]
+    outcomes = await asyncio.gather(*tasks, return_exceptions=True)
+    for outcome in outcomes:
+        if isinstance(outcome, tuple) and len(outcome) == 2:
+            idx, role = outcome
+            result[idx] = role
+
+    # Fill unclassified (beyond max_chunks or too short) with None
+    labeled = sum(1 for r in result if r)
+    logger.info(f"LLM speaker-role fallback: {labeled}/{len(chunks)} chunks classified for source_url={source_url}")
+    return result
 
 
 async def _okf_extract_for_video(video_id: str) -> None:
@@ -639,12 +778,13 @@ class IngestionPipeline:
     ) -> dict:
         """
         Ingest Instagram Reels, TikTok, Twitter/X videos, and direct video files (MP4/MOV/WEBM).
-        Uses yt-dlp for download + WhisperLocalService for transcription.
+        Uses yt-dlp for download + transcribe_with_whisper for transcription.
         Feeds the standard adaptive-chunking → RAPTOR → LightRAG pipeline.
         """
         import re
         from ingest.social_media_loader import ingest_social_media
-        from ingest.transcript_cleaner import clean_transcript, redact_pii
+        from ingest.cleaner import clean_transcript
+        from services.pii_scanner import redact_pii
         from ingest.quality_gate import DataQualityGate
 
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
@@ -1003,6 +1143,20 @@ class IngestionPipeline:
         # before overwriting, so a downstream RAPTOR/LightRAG failure can roll back.
         backup_collection = self._backup_before_reindex(url)
 
+        # P1-10: resolve per-chunk speaker labels. Try whisperx cache first (fast, exact);
+        # if empty, fall back to LLM speaker-role classification (best-effort, closed-set roles
+        # only — never invents names to avoid junk metadata).
+        chunk_speakers = _resolve_chunk_speakers_from_cache(video_id, final_chunks)
+        labeled = sum(1 for s in chunk_speakers if s)
+        if labeled == 0 and getattr(settings, "llm_speaker_role_fallback_enabled", True):
+            try:
+                chunk_speakers = await _resolve_chunk_speakers_with_llm(
+                    final_chunks, self._llm, source_url=url
+                )
+            except Exception as e:
+                logger.warning(f"LLM speaker-role fallback failed for {url} (non-fatal): {e}")
+                chunk_speakers = [None] * len(final_chunks)
+
         # Step 5: Embed and index
         chunks_count = self._embed_and_index(
             final_chunks,
@@ -1020,6 +1174,7 @@ class IngestionPipeline:
             published_at=result.get("published_at"),
             duration=result.get("duration"),
             thumbnail_url=result.get("thumbnail_url"),
+            chunk_speakers=chunk_speakers,
         )
 
         try:
@@ -1905,6 +2060,7 @@ class IngestionPipeline:
         published_at: Optional[str] = None,
         duration: Optional[int] = None,
         thumbnail_url: Optional[str] = None,
+        chunk_speakers: Optional[list[Optional[str]]] = None,
     ) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
@@ -1987,25 +2143,18 @@ class IngestionPipeline:
         if not clean_chunks:
             return 0
 
-        # P1-10: extract per-chunk speaker labels from whisperx diarization output.
-        # WhisperX emits "[SPEAKER_00] ..." prefixes in the transcript text; we strip
-        # them here so they don't pollute embeddings, and surface them as chunk metadata.
-        # Ponytail: simple regex on chunk text — no time-range mapping needed.
-        import re as _re
-        _speaker_prefix_re = _re.compile(r"^\s*\[(SPEAKER_\d+)\]\s*(.*)$", _re.DOTALL)
-        chunk_speakers: list[Optional[str]] = []
-        stripped_chunks: list[str] = []
-        for chunk_text in clean_chunks:
-            m = _speaker_prefix_re.match(chunk_text)
-            if m:
-                chunk_speakers.append(m.group(1))
-                stripped_chunks.append(m.group(2))
-            else:
-                chunk_speakers.append(None)
-                stripped_chunks.append(chunk_text)
-        clean_chunks = stripped_chunks
-        if any(chunk_speakers):
-            logger.info(f"Per-chunk speaker labels detected for {sum(1 for s in chunk_speakers if s)}/{len(chunk_speakers)} chunks from source_url={source_url}")
+        # P1-10: resolve per-chunk speaker labels. Prefer pre-resolved (LLM fallback or
+        # whisperx cache); otherwise fall back to the whisperx cache lookup.
+        if chunk_speakers is not None and len(chunk_speakers) == len(clean_chunks):
+            resolved_speakers = chunk_speakers
+        else:
+            resolved_speakers = _resolve_chunk_speakers_from_cache(video_id, clean_chunks)
+        labeled = sum(1 for s in resolved_speakers if s)
+        if labeled:
+            logger.info(
+                f"Per-chunk speaker labels resolved for {labeled}/{len(clean_chunks)} "
+                f"chunks from source_url={source_url} (whisperx cache)"
+            )
 
         # Check for existing content and delete for clean re-ingestion
         if self._qdrant.check_source_exists(source_url):
@@ -2037,10 +2186,10 @@ class IngestionPipeline:
                 "thumbnail_url": thumbnail_url,
                 "view_count": None,
             }
-            # P1-10: per-chunk speaker label (whisperx diarization). Overrides the
-            # source-level `speaker` for this specific chunk when present.
-            if i < len(chunk_speakers) and chunk_speakers[i]:
-                base_meta["chunk_speaker"] = chunk_speakers[i]
+            # P1-10: per-chunk speaker label (whisperx diarization or LLM fallback).
+            # Overrides the source-level `speaker` for this specific chunk when present.
+            if i < len(resolved_speakers) and resolved_speakers[i]:
+                base_meta["chunk_speaker"] = resolved_speakers[i]
             if extra_metadatas and i < len(extra_metadatas):
                 base_meta.update(extra_metadatas[i])
             # ponytail: Gap 2 — important_kwd ingest tagging. Reuses extract_doctrine_tags.
@@ -2067,6 +2216,14 @@ class IngestionPipeline:
                 logger.debug("Semantic cache invalidated for new ingestion")
             except Exception as e:
                 logger.warning(f"Semantic cache invalidation failed (non-fatal): {e}")
+
+        # P1-10: bound whisperx cache growth — drop the diarization result now that
+        # speaker labels have been persisted to Qdrant payload. Best-effort.
+        if video_id:
+            try:
+                clear_cached_whisperx_result(video_id)
+            except Exception as e:
+                logger.debug(f"whisperx cache clear failed for {video_id} (non-fatal): {e}")
 
         return upserted
 
