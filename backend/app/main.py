@@ -205,9 +205,13 @@ _startup_complete = False
 _startup_error: str | None = None
 
 
-async def _background_startup(container) -> None:
+async def _background_startup(container, fastapi_app) -> None:
     """Run heavy initialization after the server starts accepting requests."""
     try:
+        # Importing the `app` package as `_app_mod` so the parameter `fastapi_app`
+        # (the FastAPI instance) is not shadowed by the import binding.
+        import app.dependencies as _app_deps
+
         # Ensure encoder is loaded first (resolves primary/fallback models & dimension)
         try:
             logger.info("Startup: Loading embedding encoder...")
@@ -248,7 +252,7 @@ async def _background_startup(container) -> None:
             logger.error(f"Ontology seeding failed: {e}")
 
         # Observability tracing (OpenTelemetry + Jaeger)
-        init_observability(app)
+        init_observability(fastapi_app)
 
         # Schedule recurring jobs
         try:
@@ -292,12 +296,13 @@ async def _background_startup(container) -> None:
             except Exception as e:
                 logger.warning(f"Failed to start RequestQueue: {e}")
 
-        import app.dependencies
-        app.dependencies.startup_complete = True
+        _app_deps.startup_complete = True
         logger.info("=== Mukthi Guru Backend Ready ===")
     except Exception as e:
-        import app.dependencies
-        app.dependencies.startup_error = str(e)
+        try:
+            _app_deps.startup_error = str(e)  # noqa: F821 — may not be bound if import failed
+        except (NameError, UnboundLocalError):
+            pass
         logger.error(f"Background startup failed: {e}", exc_info=True)
 
 
@@ -322,7 +327,7 @@ async def lifespan(app: FastAPI):
     shutdown_scheduler = lambda: None
 
     # 3. Defer heavy initialization to background — yield immediately so uvicorn accepts requests
-    bg_init = asyncio.create_task(_background_startup(container))
+    bg_init = asyncio.create_task(_background_startup(container, app))  # noqa: F821 — `app` is the FastAPI instance at module scope
 
     # YIELD NOW — Railway health check can reach /api/health
     logger.info("=== Server accepting requests (background init in progress) ===")
