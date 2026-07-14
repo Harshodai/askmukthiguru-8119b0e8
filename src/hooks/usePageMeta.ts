@@ -95,6 +95,7 @@ export function usePageMeta({ title, description, canonical, ogType = 'website',
       restore(twDesc);
       restore(twImg);
       restore(twCard);
+      restore(robots);
       if (canonicalEl) {
         if (canonicalCreated) canonicalEl.remove();
         else if (prevCanonical !== undefined) canonicalEl.href = prevCanonical;
