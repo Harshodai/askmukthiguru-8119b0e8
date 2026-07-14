@@ -273,6 +273,7 @@ class Settings(BaseSettings):
     memory_write_rate_limit: str = "10/minute"
     profile_rate_limit: str = "10/minute"
     push_register_rate_limit: str = "10/minute"
+    push_send_rate_limit: str = "5/minute"
 
     # --- Support / Contact (SMTP) ---
     smtp_host: Optional[str] = None
