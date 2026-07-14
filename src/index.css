@@ -75,6 +75,26 @@
 
     --radius: 1rem;
 
+    /* Chat surface tokens — ChatGPT/Claude-caliber messaging surface */
+    --chat-surface: 40 30% 96%;
+    --chat-user-bubble: 36 55% 90%;
+    --chat-user-foreground: 24 30% 18%;
+    --assistant-foreground: 25 25% 20%;
+    --hairline: 30 15% 86%;
+    --divider: 30 12% 90%;
+    --overlay-scrim: 25 25% 12% / 0.4;
+
+    /* Refined radii */
+    --radius-bubble: 1.25rem;
+    --radius-card: 1rem;
+    --radius-pill: 999px;
+
+    /* Motion */
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
+    --dur-slow: 320ms;
+    --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+
     /* Glassmorphism Effects - Warm Frosted Glass */
     --glass-bg: 40 40% 100% / 0.7;
     --glass-border: 40 30% 70% / 0.4;
