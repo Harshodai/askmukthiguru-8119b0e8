@@ -79,6 +79,7 @@ import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsi
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
 import { MemoryManager } from '@/components/profile/MemoryManager';
 import { NotesPanel } from '@/components/profile/NotesPanel';
+import { ProfileStatTiles } from '@/components/profile/ProfileStatTiles';
 import { TwoFactorSettings } from '@/components/auth/TwoFactorSettings';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
