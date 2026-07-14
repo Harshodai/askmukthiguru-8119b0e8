@@ -181,6 +181,10 @@ from services.ollama_service import OllamaService
 from services.pii_scanner import redact_pii
 from services.proposition_service import PropositionService
 from services.qdrant_service import QdrantService
+from services.whisper_local_service import (
+    clear_cached_whisperx_result,
+    get_cached_whisperx_result,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +229,57 @@ def extract_doctrine_tags(text: str) -> list[str]:
                 matched.add(canonical)
                 break
     return list(matched)
+
+
+def _resolve_chunk_speakers_from_cache(
+    video_id: Optional[str], chunks: list[str]
+) -> list[Optional[str]]:
+    """Map each chunk to a speaker label using the cached whisperx diarization result.
+
+    Ponytail: for each chunk, pick the segment whose normalized text shares the most
+    words with the chunk text, and take that segment's `speaker`. Returns a list of
+    `Optional[str]` aligned to `chunks` — `None` entries when no speaker can be
+    resolved or the cache is empty. Purely best-effort; never raises.
+    """
+    if not video_id or not chunks:
+        return [None] * len(chunks)
+    try:
+        wx = get_cached_whisperx_result(video_id)
+    except Exception as e:
+        logger.debug(f"whisperx cache lookup failed for {video_id} (non-fatal): {e}")
+        return [None] * len(chunks)
+    if not wx or not wx.get("segments"):
+        return [None] * len(chunks)
+
+    segments = wx["segments"]
+    # Pre-compute normalized word sets for each segment once.
+    seg_word_sets: list[set[str]] = []
+    seg_speakers: list[Optional[str]] = []
+    for seg in segments:
+        seg_text = (seg.get("text") or "").lower()
+        seg_word_sets.append(set(seg_text.split()))
+        seg_speakers.append(seg.get("speaker"))
+
+    result: list[Optional[str]] = []
+    for chunk_text in chunks:
+        chunk_words = set(chunk_text.lower().split())
+        if not chunk_words:
+            result.append(None)
+            continue
+        best_idx = -1
+        best_overlap = 0
+        for i, sws in enumerate(seg_word_sets):
+            if not sws:
+                continue
+            overlap = len(chunk_words & sws)
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_idx = i
+        if best_idx >= 0 and best_overlap > 0 and seg_speakers[best_idx]:
+            result.append(seg_speakers[best_idx])
+        else:
+            result.append(None)
+    return result
 
 
 async def _okf_extract_for_video(video_id: str) -> None:
@@ -1987,25 +2042,23 @@ class IngestionPipeline:
         if not clean_chunks:
             return 0
 
-        # P1-10: extract per-chunk speaker labels from whisperx diarization output.
-        # WhisperX emits "[SPEAKER_00] ..." prefixes in the transcript text; we strip
-        # them here so they don't pollute embeddings, and surface them as chunk metadata.
-        # Ponytail: simple regex on chunk text — no time-range mapping needed.
-        import re as _re
-        _speaker_prefix_re = _re.compile(r"^\s*\[(SPEAKER_\d+)\]\s*(.*)$", _re.DOTALL)
-        chunk_speakers: list[Optional[str]] = []
-        stripped_chunks: list[str] = []
-        for chunk_text in clean_chunks:
-            m = _speaker_prefix_re.match(chunk_text)
-            if m:
-                chunk_speakers.append(m.group(1))
-                stripped_chunks.append(m.group(2))
-            else:
-                chunk_speakers.append(None)
-                stripped_chunks.append(chunk_text)
-        clean_chunks = stripped_chunks
-        if any(chunk_speakers):
-            logger.info(f"Per-chunk speaker labels detected for {sum(1 for s in chunk_speakers if s)}/{len(chunk_speakers)} chunks from source_url={source_url}")
+        # P1-10: resolve per-chunk speaker labels from the cached whisperx diarization
+        # result. The regex-on-chunk-text approach was dead code — `clean_transcript()`
+        # strips all `[...]` bracketed annotations (NOISE_PATTERNS) BEFORE chunks reach
+        # here, so `[SPEAKER_NN]` prefixes never survived. The whisperx result cache
+        # (`cache_whisperx_result` populated by transcribe_with_whisper[_enhanced])
+        # stores the full diarized `{segments, words, text}` dict and is the source of
+        # truth for speaker labels. Ponytail: map each chunk to the segment with the
+        # most word overlap; graceful no-op when cache is empty.
+        chunk_speakers: list[Optional[str]] = _resolve_chunk_speakers_from_cache(
+            video_id, clean_chunks
+        )
+        labeled = sum(1 for s in chunk_speakers if s)
+        if labeled:
+            logger.info(
+                f"Per-chunk speaker labels resolved for {labeled}/{len(clean_chunks)} "
+                f"chunks from source_url={source_url} (whisperx cache)"
+            )
 
         # Check for existing content and delete for clean re-ingestion
         if self._qdrant.check_source_exists(source_url):
@@ -2067,6 +2120,14 @@ class IngestionPipeline:
                 logger.debug("Semantic cache invalidated for new ingestion")
             except Exception as e:
                 logger.warning(f"Semantic cache invalidation failed (non-fatal): {e}")
+
+        # P1-10: bound whisperx cache growth — drop the diarization result now that
+        # speaker labels have been persisted to Qdrant payload. Best-effort.
+        if video_id:
+            try:
+                clear_cached_whisperx_result(video_id)
+            except Exception as e:
+                logger.debug(f"whisperx cache clear failed for {video_id} (non-fatal): {e}")
 
         return upserted
 
