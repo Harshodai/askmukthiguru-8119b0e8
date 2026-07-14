@@ -31,7 +31,7 @@ const SpiritGuidesPage = () => {
   usePageMeta({
     title: 'Types of spirit guides and how to connect — AskMukthiGuru',
     description:
-      'A grounded guide to the different kinds of spirit guides — ancestors, animal guides, inner guides, living teachers — and how to connect through stillness and the Beautiful State.',
+      'Types of spirit guides — ancestors, animal guides, inner guides, and living teachers — and how to connect through stillness and the Beautiful State.',
     canonical: 'https://askmukthiguru.lovable.app/guides/spirit-guides',
     ogType: 'article',
     jsonLd: {
