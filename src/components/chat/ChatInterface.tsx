@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw, Square, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import {
   Message,
