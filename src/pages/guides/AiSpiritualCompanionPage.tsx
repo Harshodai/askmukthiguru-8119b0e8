@@ -148,6 +148,20 @@ const AiSpiritualCompanionPage = () => {
           </p>
         </section>
 
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold text-foreground">Frequently asked questions</h2>
+          <dl className="space-y-4">
+            {faqs.map((f) => (
+              <div key={f.q} className="space-y-1">
+                <dt className="font-semibold text-foreground">{f.q}</dt>
+                <dd className="text-foreground/90 leading-relaxed">{f.a}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+
+
         <section className="space-y-3 rounded-lg border border-border/60 bg-card/60 p-6">
           <h2 className="text-xl font-semibold text-foreground">Begin your practice</h2>
           <p className="text-foreground/90 leading-relaxed">
