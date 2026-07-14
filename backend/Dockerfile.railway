@@ -59,13 +59,13 @@ ENV ENV=production \
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
-    CMD curl -f http://localhost:${PORT:-8000}/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+    CMD curl -sf http://localhost:${PORT:-8000}/api/health
 
 USER appuser
 
-# Railway sets $PORT; uvicorn reads it
-# Token optimization: request coalescer deduplicates identical concurrent requests
-# across replicas using Redis, reducing redundant RAG/LLM compute by 60-80%
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "${PORT:-8000}", "--workers", "${WEB_CONCURRENCY:-2}", "--loop", "uvloop"]
+# Railway sets $PORT; uvicorn reads it via start_railway.py (which overrides CMD).
+# This CMD is the fallback when running outside Railway (e.g. local Docker).
+# exec form cannot expand env vars; use shell form instead.
+CMD python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --loop uvloop
 
