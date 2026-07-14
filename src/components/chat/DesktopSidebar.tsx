@@ -212,7 +212,7 @@ export const DesktopSidebar = ({
           <div className="px-2 pt-2 pb-1 space-y-1">
             <button
               onClick={onNewConversation}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium bg-ojas/10 hover:bg-ojas/15 text-ojas border border-ojas/20 hover:border-ojas/35 transition-all"
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-medium bg-ojas/[0.08] hover:bg-ojas/[0.14] text-ojas border border-hairline hover:border-ojas/25 transition-all"
             >
               <Plus className="w-3.5 h-3.5 flex-shrink-0" />
               {t('desktopSidebar.newConversation') === 'desktopSidebar.newConversation' ? 'New Conversation' : t('desktopSidebar.newConversation')}
