@@ -105,6 +105,7 @@ export const MobileConversationSheet = ({
                 </div>
                 <button
                   onClick={onClose}
+                  aria-label="Close menu"
                   className="p-2 rounded-full hover:bg-muted transition-colors"
                 >
                   <X className="w-5 h-5 text-muted-foreground" />
@@ -167,12 +168,21 @@ export const MobileConversationSheet = ({
                               key={conv.id}
                               initial={{ opacity: 0, x: -10 }}
                               animate={{ opacity: 1, x: 0 }}
-                              className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all group ${
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`Open conversation: ${conv.preview || 'New conversation'}`}
+                              className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas ${
                                 conv.id === currentConversationId
                                   ? 'bg-ojas/15 border border-ojas/30'
                                   : 'bg-muted/30 hover:bg-muted/50 border border-transparent'
                               }`}
                               onClick={() => handleSelectConversation(conv)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  handleSelectConversation(conv);
+                                }
+                              }}
                             >
                               <MessageCircle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -185,6 +195,7 @@ export const MobileConversationSheet = ({
                               </div>
                               <button
                                 onClick={(e) => handleDeleteConversation(conv.id, e)}
+                                aria-label="Delete conversation"
                                 className="p-1.5 rounded-full opacity-60 hover:opacity-100 active:opacity-100 hover:bg-destructive/20 transition-all"
                               >
                                 <Trash2 className="w-3.5 h-3.5 text-destructive" />

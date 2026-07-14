@@ -784,6 +784,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                         : 'hover:bg-muted text-muted-foreground hover:text-foreground'
                       }`}
                     title="Helpful"
+                    aria-label="Mark response as helpful"
                     disabled={!!feedback}
                   >
                     <ThumbsUp className="w-4 h-4" />
@@ -795,6 +796,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                         : 'hover:bg-muted text-muted-foreground hover:text-foreground'
                       }`}
                     title="Not helpful"
+                    aria-label="Mark response as not helpful"
                     disabled={!!feedback}
                   >
                     <ThumbsDown className="w-4 h-4" />
@@ -909,7 +911,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                     <p className="text-[11px] font-medium text-muted-foreground">
                       {feedback.vote === 'up' ? 'What helped?' : 'What could improve?'}
                     </p>
-                    <button onClick={handleDismissFeedback} className="p-0.5 rounded hover:bg-muted">
+                    <button onClick={handleDismissFeedback} aria-label="Close feedback panel" className="p-0.5 rounded hover:bg-muted">
                       <X className="w-3 h-3 text-muted-foreground" />
                     </button>
                   </div>
