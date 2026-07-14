@@ -240,7 +240,7 @@ const PracticeDetailPage = () => {
         {/* Purpose */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Why this practice</CardTitle>
+            <h2 className="text-base font-semibold leading-none tracking-tight">Why this practice</h2>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-foreground/90 leading-relaxed">
