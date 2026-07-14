@@ -4,7 +4,7 @@ All service interfaces are defined as typing.Protocol so that any concrete
 implementation can be swapped without changing consumers.
 
 Usage:
-    from app.contracts import LLMService, VectorStore, EmbeddingService, GuardrailsService
+    from app.contracts import LLMService, VectorStore, EmbeddingService, GuardrailsService, TranscriptionProvider
 """
 
 from __future__ import annotations
