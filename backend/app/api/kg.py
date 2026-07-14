@@ -53,7 +53,7 @@ class SparqlResponse(BaseModel):
 
 
 # Read-only guard: reject queries that look like writes.
-_WRITE_KEYWORDS = ("CREATE", "MERGE", "DELETE", "DETACH", "SET ", "DROP", "REMOVE")
+_WRITE_KEYWORDS = ("CREATE", "MERGE", "DELETE", "DETACH", "SET ", "DROP", "REMOVE", "CALL APOC", "LOAD CSV")
 
 
 def _is_read_only(query: str) -> bool:
@@ -61,8 +61,23 @@ def _is_read_only(query: str) -> bool:
     return not any(kw in q for kw in _WRITE_KEYWORDS)
 
 
+def _require_admin(user: Any) -> None:
+    """Raise 403 unless the caller is an admin/superuser."""
+    is_admin = False
+    if isinstance(user, dict):
+        is_admin = bool(user.get("is_superuser") or user.get("is_admin"))
+        roles = user.get("roles") or []
+        if isinstance(roles, (list, tuple)) and "admin" in roles:
+            is_admin = True
+    else:
+        is_admin = bool(getattr(user, "is_superuser", False) or getattr(user, "is_admin", False))
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Admin role required.")
+
+
 @router.post("/kg/sparql", response_model=SparqlResponse)
-async def kg_sparql(req: SparqlRequest, _user=Depends(get_current_user_from_supabase)) -> SparqlResponse:
+async def kg_sparql(req: SparqlRequest, user=Depends(get_current_user_from_supabase)) -> SparqlResponse:
+    _require_admin(user)
     """Forward a (read-only) graph query to Neo4j via n10s.
 
     n10s 5.x has no SPARQL engine; the query is executed as read-only Cypher.
@@ -152,13 +167,14 @@ def _teacher_from_labels(labels: list[str] | None) -> str | None:
 async def kg_subgraph(
     query: str = Query(..., min_length=1, description="Concept or keyword to center the subgraph on"),
     limit: int = Query(20, ge=1, le=100),
-    _user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(get_current_user_from_supabase),
 ) -> SubgraphResponse:
-    """Return a concept subgraph around `query` for the KG visualizer.
+    """Return a concept subgraph around `query` for the KG visualizer (admin-only).
 
     Ponytail: one Cypher query, 1-2 hop neighborhood, graceful fallback to empty.
     Output shape: {nodes:[{id,label,type,teacher}], edges:[{source,target,label}]}.
     """
+    _require_admin(user)
     container = get_container()
     driver = container.neo4j_driver
     if driver is None:
