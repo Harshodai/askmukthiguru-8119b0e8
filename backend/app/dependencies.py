@@ -327,6 +327,10 @@ class ServiceContainer:
             self.notebook_service = None
             self.srs_service = None
 
+        # Push notification service — lightweight (lazy FCM/APNs init), no heavy deps.
+        from services.push_service import PushService
+        self.push_service = PushService()
+
     def _build_ingestion(self) -> None:
         """Layer 7: Ingestion pipeline (depends on core services)."""
         self.ingestion = IngestionPipeline(

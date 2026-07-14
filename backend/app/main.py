@@ -95,6 +95,7 @@ from app.api.speech import router as speech_router
 from app.api.teachings import router as teachings_router
 from routers.notebooks import router as notebooks_router
 from app.api.srs import router as srs_router
+from app.api.push import router as push_router
 
 # Job and trace routers are imported where needed below to avoid
 # heavy imports during module load.
@@ -683,6 +684,7 @@ app.include_router(support_router, prefix="/api")
 app.include_router(waitlist_router, prefix="/api")
 app.include_router(notebooks_router, prefix="/api")
 app.include_router(srs_router, prefix="/api")
+app.include_router(push_router, prefix="/api")
 from app.api.kg import router as kg_router
 
 app.include_router(kg_router, prefix="/api")

@@ -231,6 +231,24 @@ Auto-Clarity: drop caveman for security warnings, irreversible actions, user con
 
 Boundaries: code/commits/PRs written normal.
 
+## Mobile App
+
+- **Capacitor 8** wraps the Vite/React build for Android + iOS. Same codebase, no separate mobile repo.
+- **Package id** `com.askmukthiguru.app`, display name `AskMukthiGuru`.
+- **Router**: HashRouter on native, BrowserRouter on web — selected in `src/App.tsx` (BrowserRouter breaks in the Capacitor WebView because assets are served from `https://localhost/` with no server fallback).
+- **Backend URL**: `src/lib/backendUrl.ts` forces Railway prod on native (`Capacitor.isNativePlatform()` check) because `window.location.hostname` is `localhost` inside the WebView and the prod-host regex would miss it.
+- **Push (frontend)**: `src/components/common/PushNotificationsManager.tsx` — registers device token via `@capacitor/push-notifications`, sends to backend. `addListener` returns a Promise → use a `disposed` flag for race-safe cleanup.
+- **Push (backend)**: `backend/app/api/push.py` (routes) + `backend/services/push_service.py` (FCM + APNs dispatch). Device tokens stored in `push_devices` table (migration `20260713000000_create_push_devices.sql`).
+- **OAuth deep link**: scheme `com.askmukthiguru.app://auth-callback` — captured via `App.addListener('appUrlOpen')` in `src/App.tsx`. Android intent-filter + iOS CFBundleURLTypes wired by Capacitor config. Add this URL to Supabase Auth redirect URLs.
+- **Storage**: `@capacitor/preferences` (SharedPreferences / NSUserDefaults) via a `SupportedStorage` adapter for supabase-js — `localStorage` is unreliable in the WebView.
+- **Build cmd**: `npm run cap:sync` (vite build + cap sync). Native open: `npm run cap:open:android` / `cap:open:ios`.
+- **Re-create native projects**: `rm -rf android ios && npx cap add android && npx cap add ios` — only when package id or Capacitor plugins change drastically. Discards native-side customizations.
+- **Icons/splash**: `python3 scripts/ops/generate_mobile_assets.py` (regenerates from `public/icon-512.png`).
+- **Store submission**: `docs/MOBILE_RELEASE_RUNBOOK.md` — full Play + App Store guide.
+- **Store listing copy**: `docs/STORE_LISTING.md`.
+- **Signing + push creds**: `CREDENTIALS_GUIDE.md` → "Mobile App Credentials" (keystore, `google-services.json`, APNs `.p8`, backend env: `FIREBASE_CREDENTIALS_JSON`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_KEY_PATH`, `APNS_KEY_PEM`, `APNS_BUNDLE_ID`).
+- **Known TODOs**: ~~Apple Sign-In~~ ✅ implemented (native iOS, `AuthPage.tsx` — requires Supabase Apple provider config before submission). ~~Delete-account flow~~ ✅ implemented (`ProfilePage.tsx` + `delete-my-account` edge function).
+
 # Session Handoff — Jul 11, 2026
 
 ## Session Summary

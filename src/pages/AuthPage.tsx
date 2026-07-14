@@ -12,6 +12,9 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, User as UserIcon, Loader2, Check } from 'lucide-react';
 import { setLanguage } from '@/lib/chat/config';
 import { LanguageOnboardingStep } from '@/components/onboarding/LanguageOnboardingStep';
+import { Capacitor } from '@capacitor/core';
+import type { PluginListenerHandle } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import {
   startAuthRun,
   recordStep,
@@ -19,6 +22,9 @@ import {
   endAuthRun,
   getActiveRun,
 } from '@/lib/authTelemetry';
+
+const NATIVE_REDIRECT = 'com.askmukthiguru.app://auth-callback';
+const isNativePlatform = Capacitor.isNativePlatform();
 
 /** Map Supabase error messages/codes to user-friendly descriptions */
 const friendlyError = (err: Error | { message: string }): string => {
@@ -69,6 +75,49 @@ const AuthPage = () => {
   const { toast } = useToast();
   const redirectingRef = useRef(false);
   const sessionHandleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!isNativePlatform) return;
+    let listenerHandle: PluginListenerHandle | null = null;
+    let disposed = false;
+    CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+      if (!url || !url.startsWith(NATIVE_REDIRECT)) return;
+      try {
+        const parsed = new URL(url);
+        // Complete the OAuth flow explicitly. Supabase v2 uses PKCE by default
+        // (code + state in query); legacy implicit flow puts tokens in the hash.
+        const code = parsed.searchParams.get('code');
+        const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ''));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+
+        if (code) {
+          // PKCE flow — exchange the authorization code (not the full URL) for a session.
+          supabase.auth
+            .exchangeCodeForSession(code)
+            .catch((e) => console.warn('[Auth] deep-link code exchange failed:', e));
+        } else if (accessToken && refreshToken) {
+          // Implicit flow — install the session from the tokens.
+          supabase.auth
+            .setSession({ access_token: accessToken, refresh_token: refreshToken })
+            .catch((e) => console.warn('[Auth] deep-link setSession failed:', e));
+        } else {
+          console.warn('[Auth] deep-link URL has no code or tokens — ignoring:', url);
+        }
+      } catch (e) {
+        console.warn('[Auth] deep-link URL parse failed:', e);
+      }
+    })
+      .then((handle) => {
+        if (disposed) handle.remove();
+        else listenerHandle = handle;
+      })
+      .catch((e) => console.warn('[Auth] appUrlOpen listener registration failed:', e));
+    return () => {
+      disposed = true;
+      listenerHandle?.remove();
+    };
+  }, []);
 
 
   useEffect(() => {
@@ -379,7 +428,7 @@ const AuthPage = () => {
       const { error: supabaseError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: isNativePlatform ? NATIVE_REDIRECT : window.location.origin,
         },
       });
       recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
@@ -423,7 +472,7 @@ const AuthPage = () => {
       const { error: supabaseError } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: isNativePlatform ? NATIVE_REDIRECT : window.location.origin,
         },
       });
       recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
@@ -446,12 +495,54 @@ const AuthPage = () => {
     }
   };
 
+  const [appleStep, setAppleStep] = useState<'idle' | 'connecting' | 'redirecting' | 'finalizing'>('idle');
+
+  const handleAppleSignIn = async () => {
+    setLoading(true);
+    setError(null);
+    setAppleStep('connecting');
+    startAuthRun('apple');
+    const clickT0 = performance.now();
+    recordStep('click_apple', 'ok', 0);
+    const redirectTimer = window.setTimeout(() => {
+      setAppleStep((s) => (s === 'connecting' ? 'redirecting' : s));
+    }, 400);
+    try {
+      sessionStorage.setItem('askmukthiguru_apple_step', '1');
+      const initT0 = performance.now();
+      const { error: supabaseError } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: isNativePlatform ? NATIVE_REDIRECT : window.location.origin,
+        },
+      });
+      recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
+        error: supabaseError?.message,
+        meta: { provider: 'apple' },
+      });
+      if (supabaseError) throw supabaseError;
+      recordStep('provider_redirect', 'pending', Math.round(performance.now() - clickT0));
+      return;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not connect to Apple. Please try again.';
+      console.error('[Apple Auth Error]', err);
+      setError('Could not connect to Apple. Please try again.');
+      sessionStorage.removeItem('askmukthiguru_apple_step');
+      setAppleStep('idle');
+      endAuthRun('error', message);
+    } finally {
+      window.clearTimeout(redirectTimer);
+      setLoading(false);
+    }
+  };
+
   const googleBusy = googleStep !== 'idle';
   const facebookBusy = facebookStep !== 'idle';
+  const appleBusy = appleStep !== 'idle';
   const [showResetButton, setShowResetButton] = useState(false);
   
   useEffect(() => {
-    if (googleBusy || facebookBusy) {
+    if (googleBusy || facebookBusy || appleBusy) {
       const timer = setTimeout(() => {
         setShowResetButton(true);
       }, 5000);
@@ -459,17 +550,19 @@ const AuthPage = () => {
     } else {
       setShowResetButton(false);
     }
-  }, [googleBusy, facebookBusy]);
+  }, [googleBusy, facebookBusy, appleBusy]);
   
   const handleResetAuth = useCallback(() => {
     console.log('[Auth] Manual reset triggered');
     redirectingRef.current = false;
     setGoogleStep('idle');
     setFacebookStep('idle');
+    setAppleStep('idle');
     setLoading(false);
     setError(null);
     sessionStorage.removeItem(GOOGLE_STEP_KEY);
     sessionStorage.removeItem('askmukthiguru_facebook_step');
+    sessionStorage.removeItem('askmukthiguru_apple_step');
     if (sessionHandleTimeoutRef.current) {
       clearTimeout(sessionHandleTimeoutRef.current);
       sessionHandleTimeoutRef.current = null;
@@ -626,6 +719,30 @@ const AuthPage = () => {
             )}
           </Button>
 
+          {isNativePlatform && (
+            <Button
+              variant="outline"
+              className="w-full h-11 gap-2 relative overflow-hidden bg-black text-white hover:bg-black/90 border-black"
+              onClick={handleAppleSignIn}
+              disabled={loading || appleBusy}
+              aria-live="polite"
+            >
+              {appleBusy ? (
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              ) : (
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                </svg>
+              )}
+              <span className="text-sm">
+                {appleStep === 'idle' && t('auth.continueWithApple', { defaultValue: 'Continue with Apple' })}
+                {appleStep === 'connecting' && t('auth.appleConnecting', { defaultValue: 'Connecting…' })}
+                {appleStep === 'redirecting' && t('auth.appleRedirecting', { defaultValue: 'Redirecting…' })}
+                {appleStep === 'finalizing' && t('auth.appleFinalizing', { defaultValue: 'Finalizing…' })}
+              </span>
+            </Button>
+          )}
+
 
           {googleBusy && (
             <ol
@@ -662,7 +779,7 @@ const AuthPage = () => {
             </ol>
           )}
           
-          {showResetButton && (googleBusy || facebookBusy) && (
+          {showResetButton && (googleBusy || facebookBusy || appleBusy) && (
             <div className="text-center pt-2">
               <Button
                 variant="ghost"

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { useWebPush } from '@/hooks/useWebPush';
 import { Button } from '@/components/ui/button';
 
@@ -12,14 +13,18 @@ export const PushPermissionPrompt = () => {
   const { t } = useTranslation();
   const { supported, permission, subscribed, subscribe, loading } = useWebPush();
   const [open, setOpen] = useState(false);
+  const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
+    if (isNative) return;
     if (!supported || subscribed || permission === 'denied' || permission === 'unsupported') return;
     const last = Number(localStorage.getItem(DISMISS_KEY) || '0');
     if (Date.now() - last < COOLDOWN_MS) return;
     const timer = setTimeout(() => setOpen(true), 4000);
     return () => clearTimeout(timer);
-  }, [supported, subscribed, permission]);
+  }, [supported, subscribed, permission, isNative]);
+
+  if (isNative) return null;
 
   const dismiss = () => {
     localStorage.setItem(DISMISS_KEY, String(Date.now()));
