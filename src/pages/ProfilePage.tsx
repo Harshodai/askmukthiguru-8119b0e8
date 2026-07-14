@@ -116,7 +116,7 @@ const formatTime = (mins: number): string => {
 };
 
 const ProfilePage = () => {
-  const { loading: authLoading } = useRequireAuth();
+  const { loading: authLoading, user } = useRequireAuth();
   usePageMeta({
     title: 'Your Profile — AskMukthiGuru',
     description: 'Manage your seeker profile, preferred guru tone, language, theme, and meditation reminder settings.',
