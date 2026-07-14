@@ -227,8 +227,6 @@ services:
       #   Example: CORS_ORIGINS=https://app.yourdomain.com
       - CORS_ORIGINS=${CORS_ORIGINS:?CORS_ORIGINS must be set to allowed origins}
     depends_on:
-      jaeger:
-        condition: service_started
       neo4j:
         condition: service_healthy
       qdrant:
