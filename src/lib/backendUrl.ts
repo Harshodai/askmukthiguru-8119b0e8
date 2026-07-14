@@ -28,5 +28,8 @@ const ENV_URL =
 export const BACKEND_URL: string =
   ENV_URL || ((isNative || isProdHost) ? PROD_RAILWAY_URL : '');
 
-/** For dev tools that need a local fallback (e.g. useStudyNotebooks). */
-export const BACKEND_URL_OR_LOCAL: string = BACKEND_URL || 'http://localhost:8000';
+/** For dev tools that need a local fallback (e.g. useStudyNotebooks).
+ * In production, BACKEND_URL is always set (Railway/Lovable), so the localhost
+ * fallback is dev-only — Vite tree-shakes it from the production bundle. */
+export const BACKEND_URL_OR_LOCAL: string =
+  BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
