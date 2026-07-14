@@ -56,10 +56,15 @@ export const SereneMindProvider = ({ children }: { children: ReactNode }) => {
     [isOpen, isGated, open, close, toggle, onComplete, setOnComplete],
   );
 
+  // Merged player: 'audio' → GuidedMeditationFlow (unified audio + step + breath ring).
+  // 'video' → SereneMindModal (retains the YouTube-embed experience).
+  // Custom teaching-driven steps always route to GuidedMeditationFlow.
+  const useGuided = (customSteps && customSteps.length > 0) || initialTab === 'audio';
+
   return (
     <SereneMindContext.Provider value={value}>
       {children}
-      {customSteps && customSteps.length > 0 ? (
+      {useGuided ? (
         <GuidedMeditationFlow
           isOpen={isOpen}
           onClose={close}
