@@ -44,3 +44,17 @@ Start with the composer rebuild (highest daily-use impact) and the sidebar slim-
 ## Risks
 - Behavior of ChatMessage was unchanged; only bubble styling swapped. If a test snapshotted the old classes it will need regen.
 - Profile hero reads `user.email` from `useRequireAuth` — verified `user` is returned; falls back to a friendly string.
+
+## Update — Session 3 (Jul 14)
+
+Shipped:
+- **ProfileStatTiles** (new `src/components/profile/ProfileStatTiles.tsx`): flat, left-aligned tiles with hairline borders + serif tabular numbers. Includes a 7-day SVG sparkline of practice minutes (no chart lib). Wired into Insights tab. Removed the legacy centered `statCards` block and unused `Clock/Calendar/Wind` imports.
+- **Sidebar polish**: `border-hairline` on left rail + header divider; softened New Conversation chip (bg-ojas/0.08 + hairline border). Added `safe-top` to sidebar and chat header.
+- **Composer**: rounded to `--radius-card`, `border-hairline` when idle, subtler `shadow-ojas/[0.06]` on focus.
+
+Files touched:
+- `src/components/profile/ProfileStatTiles.tsx` (new)
+- `src/pages/ProfilePage.tsx`
+- `src/components/chat/DesktopSidebar.tsx`
+- `src/components/chat/ChatHeader.tsx`
+- `src/components/chat/ChatComposer.tsx`
