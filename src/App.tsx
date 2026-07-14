@@ -21,6 +21,7 @@ const PracticesPage = lazyWithRetry(() => import("./pages/PracticesPage"));
 const PracticeDetailPage = lazyWithRetry(() => import("./pages/PracticeDetailPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const AuthPage = lazyWithRetry(() => import("./pages/AuthPage"));
+const MFAChallengePage = lazyWithRetry(() => import("./pages/MFAChallengePage"));
 const AuthDiagnosticsPage = lazyWithRetry(() => import("./pages/AuthDiagnosticsPage"));
 const AuthLatencyDashboard = lazyWithRetry(() => import("./pages/AuthLatencyDashboard"));
 const ResetPasswordPage = lazyWithRetry(() => import("./pages/ResetPasswordPage"));
