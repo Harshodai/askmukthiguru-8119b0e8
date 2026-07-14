@@ -32,6 +32,7 @@ export const GUIDED_STEPS: MeditationStep[] = [
     instruction:
       'Sit comfortably. Let your eyes close softly. There is nothing to achieve here — only a few minutes of simple awareness.',
     durationSeconds: 20,
+    audioSrc: '/audio/meditation/arrive.mp3',
   },
   {
     id: 'observe-body',
@@ -39,6 +40,7 @@ export const GUIDED_STEPS: MeditationStep[] = [
     instruction:
       'Feel your body as it is, from the crown of your head to the soles of your feet. Notice the weight, the warmth, the points of contact. Do not change anything. Just observe.',
     durationSeconds: 45,
+    audioSrc: '/audio/meditation/observe-body.mp3',
   },
   {
     id: 'observe-breath',
@@ -47,6 +49,7 @@ export const GUIDED_STEPS: MeditationStep[] = [
       'Bring your awareness to the breath. Breathe in for four counts… and let the breath flow out for six. Stay with the breath as it moves on its own.',
     durationSeconds: 60,
     breathPattern: { inhale: 4, hold: 0, exhale: 6 },
+    audioSrc: '/audio/meditation/observe-breath.mp3',
   },
   {
     id: 'observe-sound',
@@ -54,6 +57,7 @@ export const GUIDED_STEPS: MeditationStep[] = [
     instruction:
       'Open your awareness to the sounds around you — near and distant, sharp and soft. Receive each sound as it arrives, without naming it.',
     durationSeconds: 45,
+    audioSrc: '/audio/meditation/observe-sound.mp3',
   },
   {
     id: 'compassion',
@@ -61,6 +65,7 @@ export const GUIDED_STEPS: MeditationStep[] = [
     instruction:
       'From this stillness, hold a silent wish — May all beings be free of suffering. May all beings be in a beautiful state. Let this wish move through you.',
     durationSeconds: 45,
+    audioSrc: '/audio/meditation/compassion.mp3',
   },
   {
     id: 'complete',
@@ -68,6 +73,7 @@ export const GUIDED_STEPS: MeditationStep[] = [
     instruction:
       'Gently bring your awareness back. Carry this serene mind into whatever comes next.',
     durationSeconds: 10,
+    audioSrc: '/audio/meditation/complete.mp3',
   },
 ];
 
