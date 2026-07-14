@@ -210,9 +210,9 @@ const PracticeDetailPage = () => {
         {audioEmbed && audioWatch && (
           <Card className="overflow-hidden">
             <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-              <CardTitle className="flex items-center gap-2 text-base">
+              <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
                 <Headphones className="w-5 h-5 text-prana" /> Audio version
-              </CardTitle>
+              </h2>
               <Button asChild variant="outline" size="sm" className="gap-1.5">
                 <a href={audioWatch} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="w-3.5 h-3.5" />
