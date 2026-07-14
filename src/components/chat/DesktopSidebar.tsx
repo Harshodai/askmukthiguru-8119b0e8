@@ -191,7 +191,7 @@ export const DesktopSidebar = ({
         </div>
       ) : (
         <div className="flex flex-col h-full min-w-0 relative">
-          <div className="flex items-center gap-2.5 px-3 py-3 border-b border-border/30">
+          <div className="flex items-center gap-2.5 px-3 py-3 border-b border-hairline">
             <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-ojas/20 flex-shrink-0">
               <img src={gurusPhoto} alt={t('desktopSidebar.gurusAlt')} className="w-full h-full object-cover" />
             </div>
