@@ -183,6 +183,20 @@ class Settings(BaseSettings):
     whisper_compute_type: str = "float16"  # GPU: float16, CPU: int8 or float32
     whisper_local_model: str = "mlx-community/whisper-large-v3-turbo"
 
+    # --- WhisperX (word-level alignment + diarization) ---
+    # Opt-in: adds torch + whisperx + pyannote deps. When False (default), falls
+    # back to MLX Whisper (segment-level timestamps only).
+    whisperx_enabled: bool = False
+    whisperx_device: str = "auto"  # "auto" detects cuda/cpu
+    whisperx_compute_type: str = "auto"  # "auto" → float16 (cuda) / int8 (cpu)
+    whisperx_model: str = "large-v3"  # Whisper model size for WhisperX
+    whisperx_batch_size: int = 16
+    diarization_min_speakers: int = 1
+    diarization_max_speakers: int = 10
+    # HuggingFace token for the gated pyannote/speaker-diarization-3.1 model.
+    # If unset, diarization is skipped (alignment still runs).
+    hf_token: Optional[str] = None
+
     # --- Transcript Extraction ---
     transcript_languages: str = (
         "en,hi,bn,te,mr,ta,ur,gu,kn,ml,or,pa,as,mai,sa,ks,ne,sd,kok,doi,mni,sat,brx"
@@ -590,6 +604,20 @@ class Settings(BaseSettings):
     http_max_connections: int = 100  # Maximum number of HTTP connections in the pool
     http_max_keepalive_connections: int = 20  # Maximum number of keepalive connections
     http_keepalive_expiry: float = 30.0  # Keepalive expiry time in seconds
+
+    # --- Push Notifications (Task 7 — mobile app launch) ---
+    firebase_credentials_json: str = ""  # Raw JSON string OR path to file
+    apns_key_id: str = ""
+    apns_team_id: str = ""
+    apns_key_path: str = ""  # Path to .p8 key file
+    apns_key_pem: str = ""   # Raw PEM, alternative to path
+    apns_bundle_id: str = "com.askmukthiguru.app"
+    # APNs host: production by default. Set APNS_USE_SANDBOX=true to target api.sandbox.push.apple.com.
+    apns_use_sandbox: bool = False
+    apns_host: str = ""  # Optional override; otherwise derived from apns_use_sandbox.
+    fcm_multicast_batch_size: int = 500  # firebase-admin multicast cap is 500.
+    push_register_rate_limit: str = "10/minute"
+    push_send_rate_limit: str = "30/minute"
 
     # --- Database Connection Pooling ---
     db_pool_size: int = 10  # Number of connections to maintain in pool
