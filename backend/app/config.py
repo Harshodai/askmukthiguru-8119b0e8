@@ -197,6 +197,12 @@ class Settings(BaseSettings):
     # If unset, diarization is skipped (alignment still runs).
     hf_token: Optional[str] = None
 
+    # --- LLM Speaker-Role Fallback ---
+    # When whisperx diarization is unavailable (MLX-only, cross-process, or cache
+    # empty), classify each chunk's speaker ROLE via LLM. Closed-set roles only —
+    # never invents names. See `_resolve_chunk_speakers_with_llm` in ingest/pipeline.py.
+    llm_speaker_role_fallback_enabled: bool = True
+
     # --- Transcript Extraction ---
     transcript_languages: str = (
         "en,hi,bn,te,mr,ta,ur,gu,kn,ml,or,pa,as,mai,sa,ks,ne,sd,kok,doi,mni,sat,brx"
