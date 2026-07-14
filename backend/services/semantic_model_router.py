@@ -28,6 +28,7 @@ across requests.
 from __future__ import annotations
 
 import logging
+import threading
 from typing import TYPE_CHECKING, Literal, Sequence
 
 import numpy as np
@@ -121,7 +122,10 @@ class SemanticModelRouter:
         self._tiers: list[TIER] = []
         self._utterance_texts: list[str] = []
         self._utterance_vectors: list[list[float]] = []
-        self._precompute()
+        # Deferred precompute: avoid eager model load at startup (OOM risk on
+        # memory-constrained containers). Seed vectors are built on first classify().
+        self._precomputed: bool = False
+        self._precompute_lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Public API
@@ -146,6 +150,13 @@ class SemanticModelRouter:
         if not query or not query.strip():
             return "standard", 0.0
 
+        # Lazy precompute with double-checked locking so only one call runs
+        # _precompute() even under concurrent first-classification traffic.
+        if not self._precomputed:
+            with self._precompute_lock:
+                if not self._precomputed:
+                    self._precompute()
+
         query_vec = self._embedding.encode_single(query)
         similarities = self._cosine_similarity(query_vec, self._utterance_vectors)
         max_similarity = float(max(similarities))  # keep for caller confidence check
@@ -164,18 +175,32 @@ class SemanticModelRouter:
     # ------------------------------------------------------------------
 
     def _precompute(self) -> None:
-        """Encode all seed utterances once at start-up."""
+        """Encode all seed utterances once. Caller holds ``_precompute_lock``.
+
+        Builds tier metadata + utterance vectors in local variables, performs
+        the encoding, then atomically publishes to the shared instance state —
+        so a concurrent ``classify_with_score`` never observes a half-populated
+        ``_tiers`` list if encoding raises mid-way.
+        """
         all_texts: list[str] = []
+        local_tiers: list[TIER] = []
         for tier, texts in self._TIER_UTTERANCES.items():
             all_texts.extend(texts)
-            self._tiers.extend([tier] * len(texts))
+            local_tiers.extend([tier] * len(texts))
 
         logger.info(
             f"SemanticModelRouter: pre-computing embeddings for "
             f"{len(all_texts)} seed utterances ..."
         )
-        self._utterance_vectors = self._embedding.encode(all_texts)
+        # Encode first; on failure the shared state stays empty and _precomputed
+        # remains False, so the next call retries.
+        local_vectors = self._embedding.encode(all_texts)
+
+        # Atomic publish — assign all shared fields, then flip the completion flag.
         self._utterance_texts = all_texts
+        self._utterance_vectors = local_vectors
+        self._tiers = local_tiers
+        self._precomputed = True
         logger.info(
             f"SemanticModelRouter: ready — {len(self._utterance_texts)} utterance vectors cached."
         )

@@ -1,17 +1,18 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.mukthiguru.app',
-  appName: 'MukthiGuru',
+  appId: 'com.askmukthiguru.app',
+  appName: 'AskMukthiGuru',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    iosScheme: 'capacitor',
   },
   plugins: {
     PushNotifications: {
-      presentationOptions: ['badge', 'sound', 'alert']
-    }
-  }
+      presentationOptions: ['badge', 'sound', 'banner', 'list'],
+    },
+  },
 };
 
 export default config;

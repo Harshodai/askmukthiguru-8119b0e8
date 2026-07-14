@@ -44,6 +44,18 @@ from app.metrics import (
 logger = logging.getLogger(__name__)
 
 
+def _apply_hf_env_bounds() -> None:
+    """Bound HuggingFace download concurrency + disable hf_transfer.
+
+    Sets HF_HUB_DOWNLOAD_TIMEOUT (cap stalled downloads) and disables
+    hf_transfer (which can spike memory during parallel chunk downloads).
+    Uses setdefault so explicit operator overrides win. Valid for the pinned
+    huggingface_hub>=0.20 line. Invoke before any model-loading operation.
+    """
+    os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "30")
+    os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "0")
+
+
 def _apply_query_expansion(text: str) -> str:
     """Rule-based query expansion for geographic/biographical terms.
 
@@ -122,6 +134,8 @@ class EmbeddingService:
 
     def _load_encoder(self, model_name: str, device: str) -> None:
         """Helper to load a specific encoder model into memory."""
+        # Bound HF download concurrency before any model load.
+        _apply_hf_env_bounds()
         is_bge_m3 = (model_name == "BAAI/bge-m3")
         if is_bge_m3:
             # Apply monkeypatch to fix transformers/FlagEmbedding dtype incompatibility
@@ -267,7 +281,10 @@ class EmbeddingService:
                 matches = glob.glob(os.path.join(cache_dir, "**", pattern), recursive=True)
                 for match in matches:
                     if os.path.isdir(match):
-                        shutil.rmtree(match, ignore_errors=True)
+                        # Propagate deletion failures instead of suppressing — a
+                        # leftover corrupted cache entry would cause the retry to
+                        # fail again, so surface the error for diagnosis.
+                        shutil.rmtree(match)
                         logger.info(f"Cleared HF cache: {match}")
 
     def _ensure_reranker(self) -> None:
@@ -277,6 +294,7 @@ class EmbeddingService:
         with self._lock:
             if self._reranker is not None:
                 return
+            _apply_hf_env_bounds()
             self._thread_setup()
             device = self._get_device()
             from sentence_transformers import CrossEncoder
@@ -323,6 +341,7 @@ class EmbeddingService:
         with self._lock:
             if self._colbert is not None:
                 return
+            _apply_hf_env_bounds()
             self._thread_setup()
             for model_name in ("colbert-ir/colbertv2.0", "jina-colbert/v1-base-en"):
                 try:

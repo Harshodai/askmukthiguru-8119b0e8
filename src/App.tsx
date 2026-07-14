@@ -1,7 +1,8 @@
 import { useEffect, Suspense } from "react";
 import { lazyWithRetry, preloadCriticalRoutes } from "@/lib/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Outlet } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { SessionExpiredHandler } from "@/components/common/SessionExpiredHandler";
@@ -9,6 +10,7 @@ import { CookieConsentBanner } from "@/components/common/CookieConsentBanner";
 import { BrandedSpinner } from "@/components/common/BrandedSpinner";
 import { SereneMindProvider } from "@/components/common/SereneMindProvider";
 import { PushPermissionPrompt } from "@/components/common/PushPermissionPrompt";
+import { PushNotificationsManager } from "@/components/common/PushNotificationsManager";
 import { purgeConversationsByAge, getRetentionDays } from "@/lib/chatStorage";
 
 // Pages
@@ -62,6 +64,17 @@ const DebugLayout = () => (
   </div>
 );
 
+const isNativePlatform = Capacitor.isNativePlatform();
+
+const AppRouter = ({ children }: { children: React.ReactNode }) => {
+  const future = { v7_startTransition: true, v7_relativeSplatPath: true } as const;
+  return isNativePlatform ? (
+    <HashRouter future={future}>{children}</HashRouter>
+  ) : (
+    <BrowserRouter future={future}>{children}</BrowserRouter>
+  );
+};
+
 const App = () => {
   useEffect(() => {
     console.log('[App] Mounted');
@@ -81,7 +94,7 @@ const App = () => {
         Previously missing from this tree — Serene Mind modal never rendered.
       */}
       <SereneMindProvider>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <AppRouter>
           <Routes>
             {/* Admin */}
             <Route path="/admin/login" element={
@@ -142,10 +155,11 @@ const App = () => {
           <SessionExpiredHandler />
           <CookieConsentBanner />
           <PushPermissionPrompt />
+          <PushNotificationsManager />
           <SonnerToaster richColors closeButton position="top-right" />
           <Toaster />
 
-        </BrowserRouter>
+        </AppRouter>
       </SereneMindProvider>
     </QueryClientProvider>
   );

@@ -16,6 +16,13 @@ dist-ssr
 ios/
 android/
 
+# Mobile signing & push credentials (explicit — also covered by ios/ + android/ above)
+android/*.keystore
+android/key.properties
+android/app/google-services.json
+ios/**/*.p8
+*.p8
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -40,6 +47,7 @@ venv/
 .env
 .env.*
 !.env.example
+!.env.mobile
 # .env.production (commented - never commit production env files)
 
 # Qdrant data
@@ -156,3 +164,8 @@ supabase_dump.sql
 *.sql.gz
 
 
+
+# Crash dumps / incident storage — may contain runtime PII, never commit
+backend/incidents/
+backend/crash_full.txt
+backend/crash_*.txt

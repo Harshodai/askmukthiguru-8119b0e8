@@ -235,6 +235,38 @@ A git `post-commit` hook is installed at `.git/hooks/post-commit`. It runs in th
 └── index.html            # Frontend entry point
 ```
 
+## Mobile App (Android + iOS)
+
+AskMukthiGuru ships to Google Play and the App Store as a **Capacitor 8** wrapper around the Vite/React production build (`dist/`). The same codebase powers web and native — no separate mobile repo.
+
+- **Package id:** `com.askmukthiguru.app`
+- **Display name:** `AskMukthiGuru`
+- **Build:** `npm run cap:sync` (runs `vite build` then `npx cap sync` — copies web bundle into native projects and refreshes plugin deps).
+- **Open in native IDE:**
+  ```bash
+  npm run cap:open:android   # Android Studio
+  npm run cap:open:ios       # Xcode
+  ```
+- **Re-create native projects** (only when package id or Capacitor plugins change drastically):
+  ```bash
+  rm -rf android ios && npx cap add android && npx cap add ios
+  ```
+- **Icons/splash** regenerate from `public/icon-512.png`:
+  ```bash
+  python3 scripts/ops/generate_mobile_assets.py
+  ```
+- **Router:** HashRouter on native, BrowserRouter on web — selected in `src/App.tsx`.
+- **Backend URL:** `src/lib/backendUrl.ts` forces the Railway production URL on native (`window.location.hostname` is `localhost` inside the WebView).
+
+### Documentation
+- **Store submission:** `docs/MOBILE_RELEASE_RUNBOOK.md` — step-by-step Play + App Store submission guide (signing, screenshots, testing tracks, phased rollout).
+- **Store listing copy:** `docs/STORE_LISTING.md` — titles, subtitles, descriptions, keywords, privacy policy URL.
+- **Signing + push credentials:** `CREDENTIALS_GUIDE.md` → "Mobile App Credentials" section — keystore, `google-services.json`, APNs `.p8`, backend push env vars.
+
+### Known TODOs
+- Apple Sign-In (App Review Guideline 4.8) — ✅ implemented in `AuthPage.tsx` (native iOS only). Requires Apple provider config in Supabase before submission (see `docs/STORE_LISTING.md` §4).
+- Delete-account flow (Guideline 5.1.1) — ✅ implemented (`ProfilePage.tsx` + `supabase/functions/delete-my-account` edge function).
+
 ## License
 
 Private — All rights reserved.

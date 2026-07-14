@@ -15,6 +15,7 @@
     margin: 0;
     padding: 0;
     min-height: 100%;
+    min-height: 100dvh;
     width: 100%;
   }
 
@@ -580,6 +581,38 @@
   .text-caption {
     @apply text-xs leading-normal text-muted-foreground font-sans;
   }
+}
+
+/* --- Mobile native WebView UX (Capacitor) --- */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+}
+
+/* Disable text selection on app chrome (buttons, nav, tabs) to feel native.
+   Keep selection enabled for content users read (chat messages, prose). */
+button,
+nav,
+[role="tab"],
+[role="navigation"],
+.navbar,
+.sidebar {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Keep selection for readable content */
+.prose,
+[role="article"],
+.chat-message,
+.markdown-body {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* H2.3: Toast containers must sit above the chat composer (z-20) and

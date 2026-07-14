@@ -3842,3 +3842,19 @@ Monthly Cost = Σ (vCPU_hours * $0.00000772 + GB_hours * $0.00000386 + Volume_GB
 ### SEO Canonical Duplicate Pages in Vite SPAs
 - **Problem**: Hardcoding `<link rel="canonical" href="https://..." />` in `index.html` causes search bots to treat all client-side pages as duplicate homepage entries.
 - **Fix**: Removed the static link tag from `index.html` and let the dynamic `usePageMeta` hook manage canonical links client-side during route transitions.
+
+## Mobile App Launch — Capacitor Gotchas (2026-07-13)
+
+**Context**: Shipping AskMukthiGuru to Play Store + App Store via Capacitor 8 wrapping the Vite/React frontend.
+
+**Lessons**:
+- **BrowserRouter breaks in Capacitor WebView** — files served from `https://localhost/` with no server fallback. Use HashRouter on native (platform-selected wrapper in App.tsx), BrowserRouter on web.
+- **`window.location.hostname` is `localhost` in Capacitor** — prod-host regex in `backendUrl.ts` misses native. Detect `Capacitor.isNativePlatform()` and force prod URL.
+- **OAuth `redirectTo: window.location.origin` fails in WebView** — origin is `https://localhost`. Use a custom URL scheme `com.askmukthiguru.app://auth-callback` + register `App.addListener('appUrlOpen')` + add intent-filter (Android) / CFBundleURLTypes (iOS).
+- **`localStorage` unreliable in WebView** — use `@capacitor/preferences` (SharedPreferences / NSUserDefaults) via a `SupportedStorage` adapter for supabase-js.
+- **`@capacitor/push-notifications` `addListener` returns a Promise** — race-safe cleanup needs a `disposed` flag (unmount before resolve → `handle.remove()` in `.then`).
+- **Apple Guideline 4.8**: if you offer Google Sign-In, you MUST offer Apple Sign-In on iOS. Plan for this before submission.
+- **Apple Guideline 4.2**: WebView-only apps get rejected. Push + native OAuth deep-link + splash + statusbar = sufficient native integration.
+- **iOS LaunchScreen `systemBackgroundColor` resolves to white in light mode** — the RGB in the `<systemColor>` resource block is Xcode metadata only. Use a direct `<color key="backgroundColor" red="..." .../>` instead.
+- **Postgres partial unique index + `on_conflict`**: `ON CONFLICT (platform, token)` requires the index predicate to match exactly. Drop `WHERE active` from the index for upsert compatibility.
+- **`touch_updated_at()` is a shared function name** — don't `CREATE OR REPLACE` it from a new migration; use a distinct name like `push_devices_touch_updated_at()`.

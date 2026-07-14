@@ -471,6 +471,68 @@ curl https://your-project.supabase.co/rest/v1/
 
 ---
 
+## 📱 MOBILE APP CREDENTIALS (Android + iOS)
+
+The AskMukthiGuru mobile app is a Capacitor 8 wrapper around the Vite build. Signing + push creds live **outside the repo** (gitignored). See `docs/MOBILE_RELEASE_RUNBOOK.md` for the full submission flow.
+
+### Android — app signing
+- **`android/askmukthiguru.keystore`** (gitignored) — generated via:
+  ```bash
+  keytool -genkey -v -keystore android/askmukthiguru.keystore \
+    -alias askmukthiguru -keyalg RSA -keysize 2048 -validity 10000
+  ```
+  ⚠️ Back this up to a password manager / hardware key. Lose it → you can never update the app on Play Store.
+- **`android/key.properties`** (gitignored) — points the Gradle signing config at the keystore:
+  ```properties
+  storeFile=../askmukthiguru.keystore
+  storePassword=***
+  keyAlias=askmukthiguru
+  keyPassword=***
+  ```
+  The signing config block is commented out in `android/app/build.gradle` — uncomment it for release builds.
+
+### Android — Firebase Cloud Messaging (FCM)
+- **`android/app/google-services.json`** (gitignored) — from Firebase Console → Project Settings → Add Android app → package `com.askmukthiguru.app` → download. The `build.gradle` auto-applies `com.google.gms.google-services` when this file is present.
+- **Service account JSON** (for the backend) — Firebase → Project Settings → Service Accounts → Generate new private key. Set on the backend:
+  ```
+  FIREBASE_CREDENTIALS_JSON=<paste JSON contents OR a file path>
+  ```
+
+### iOS — APNs
+- **`ios/**/*.p8`** APNs auth key (gitignored) — from Apple Developer → Keys → create APNs key → download (only downloadable once). Save as e.g. `ios/AuthKey_APNs.p8`.
+- Apple does not store the private key — keep the `.p8` in a password manager / secure storage. The Key ID + Team ID are visible in the developer portal anytime.
+- **Apple provisioning profile + signing certificate** — these live in the Apple Developer portal and on the developer's Mac keychain, NOT in the repo. Xcode auto-manages them when "Automatically manage signing" is on with the correct Team selected.
+
+### Backend env (push notifications)
+Add to `backend/.env`:
+```
+FIREBASE_CREDENTIALS_JSON=            # JSON string OR file path to Firebase service-account key
+APNS_KEY_ID=                          # 10-char APNs key ID
+APNS_TEAM_ID=                         # 10-char Apple Developer Team ID
+APNS_KEY_PATH=                        # path to .p8 file (preferred)
+APNS_KEY_PEM=                         # OR inline PEM (-----BEGIN PRIVATE KEY-----...)
+APNS_BUNDLE_ID=com.askmukthiguru.app
+```
+Provide either `APNS_KEY_PATH` (preferred) or `APNS_KEY_PEM` (for serverless / no filesystem).
+
+### Frontend env (mobile)
+```
+VITE_BACKEND_URL=https://askmukthiguru-8119b0e8-production.up.railway.app
+```
+Used by `src/lib/backendUrl.ts` when `Capacitor.isNativePlatform()` is true (the prod-host regex would otherwise miss `https://localhost` inside the WebView).
+
+### .gitignore entries
+All of the above are gitignored:
+```
+android/*.keystore
+android/key.properties
+android/app/google-services.json
+ios/**/*.p8
+*.p8
+```
+
+---
+
 ## 🎉 READY TO START!
 
 Once you have all credentials configured:

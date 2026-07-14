@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Cookie, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Capacitor } from '@capacitor/core';
 
 const STORAGE_KEY = 'askmukthiguru_consent_v1';
 
@@ -39,6 +40,8 @@ export const CookieConsentBanner = () => {
     } catch { /* quota — non-fatal */ }
     setVisible(false);
   };
+
+  if (Capacitor.isNativePlatform()) return null;
 
   return (
     <AnimatePresence>

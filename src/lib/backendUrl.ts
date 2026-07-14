@@ -11,6 +11,8 @@
  * the Lovable-hosted frontend automatically talks to the Railway backend.
  */
 
+import { Capacitor } from '@capacitor/core';
+
 export const PROD_RAILWAY_URL =
   'https://askmukthiguru-8119b0e8-production.up.railway.app';
 
@@ -18,10 +20,13 @@ const isProdHost =
   typeof window !== 'undefined' &&
   /\.lovable\.(app|dev)$|askmukthiguru\./.test(window.location.hostname);
 
+const isNative = (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform());
+
 const ENV_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_BACKEND_URL) || '';
 
-export const BACKEND_URL: string = ENV_URL || (isProdHost ? PROD_RAILWAY_URL : '');
+export const BACKEND_URL: string =
+  ENV_URL || ((isNative || isProdHost) ? PROD_RAILWAY_URL : '');
 
 /** For dev tools that need a local fallback (e.g. useStudyNotebooks). */
 export const BACKEND_URL_OR_LOCAL: string = BACKEND_URL || 'http://localhost:8000';
