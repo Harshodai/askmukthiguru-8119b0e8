@@ -3858,3 +3858,13 @@ Monthly Cost = Σ (vCPU_hours * $0.00000772 + GB_hours * $0.00000386 + Volume_GB
 - **iOS LaunchScreen `systemBackgroundColor` resolves to white in light mode** — the RGB in the `<systemColor>` resource block is Xcode metadata only. Use a direct `<color key="backgroundColor" red="..." .../>` instead.
 - **Postgres partial unique index + `on_conflict`**: `ON CONFLICT (platform, token)` requires the index predicate to match exactly. Drop `WHERE active` from the index for upsert compatibility.
 - **`touch_updated_at()` is a shared function name** — don't `CREATE OR REPLACE` it from a new migration; use a distinct name like `push_devices_touch_updated_at()`.
+
+---
+
+## Jul 15, 2026 — Railway Multi-Service Healthchecks
+
+### Shared railway.json Healthcheck Path Crash on Worker Services
+- **Problem**: When a repository contains both a Web API service (FastAPI) and a Worker service (Celery), defining `healthcheckPath` in a shared `railway.json` at the repository root causes Railway to run HTTP healthchecks on both services. Since Celery workers do not run HTTP web servers or listen on ports, their deployments fail with "service unavailable" during healthcheck validation, leading to deployment loops and build freezes.
+- **Fix**: Removed the global `healthcheckPath` and `healthcheckTimeout` from `railway.json` so background worker services deploy immediately without failing HTTP checks. The web service's deep healthcheck path (`/api/healthz`) is instead configured specifically on the FastAPI service in the Railway UI under **Settings > Healthcheck**.
+- **Pattern**: For multi-service repositories on Railway, do not define HTTP healthcheck settings globally in `railway.json`. Instead, rely on default port checks or configure the healthcheck path specifically on the web service's settings page in the Railway dashboard.
+
