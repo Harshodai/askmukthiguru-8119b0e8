@@ -48,7 +48,7 @@ describe('SessionExpiredHandler', () => {
 
   it('does not show toast or redirect on first mount if user was never signed in', () => {
     let authCallback: any;
-    onAuthStateChangeMock.mockImplementation((callback) => {
+    (onAuthStateChangeMock as any).mockImplementation((callback) => {
       authCallback = callback;
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     });
@@ -64,7 +64,7 @@ describe('SessionExpiredHandler', () => {
 
   it('shows toast and redirects on natural SIGNED_OUT event after user was signed in', () => {
     let authCallback: any;
-    onAuthStateChangeMock.mockImplementation((callback) => {
+    (onAuthStateChangeMock as any).mockImplementation((callback) => {
       authCallback = callback;
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     });
@@ -83,7 +83,7 @@ describe('SessionExpiredHandler', () => {
 
   it('does not show toast but redirects on explicit/auto-triggered signout', async () => {
     let authCallback: any;
-    onAuthStateChangeMock.mockImplementation((callback) => {
+    (onAuthStateChangeMock as any).mockImplementation((callback) => {
       authCallback = callback;
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     });
@@ -106,7 +106,7 @@ describe('SessionExpiredHandler', () => {
 
   it('auto-signs out and redirects user with disallowed email domain on mount', async () => {
     let authCallback: any;
-    onAuthStateChangeMock.mockImplementation((callback) => {
+    (onAuthStateChangeMock as any).mockImplementation((callback) => {
       authCallback = callback;
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     });
