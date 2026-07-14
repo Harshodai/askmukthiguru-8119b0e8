@@ -164,6 +164,15 @@
     --sidebar-accent-foreground: 40 30% 92%;
     --sidebar-border: 25 15% 18%;
     --sidebar-ring: 43 96% 60%;
+
+    /* Chat + surface tokens (dark) */
+    --chat-surface: 25 18% 8%;
+    --chat-user-bubble: 30 14% 18%;
+    --chat-user-foreground: 40 25% 92%;
+    --assistant-foreground: 40 30% 92%;
+    --hairline: 30 8% 22%;
+    --divider: 30 6% 18%;
+    --overlay-scrim: 25 25% 4% / 0.6;
   }
 }
 
