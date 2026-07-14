@@ -7,9 +7,12 @@ Concrete deliverables in flight:
 - **One unified meditation player** with narrated audio synced to step transitions + breath ring. (Direction locked: pre-recorded MP3s, flame + breath ring kept.)
 - **Product demo videos** — two per role (User + Admin), 30 s teaser + 90 s deep-dive each = 4 MP4s total. Direction locked: **Remotion motion graphics** with composited app screenshots.
 
-Downstream deliverables the user is also asking for:
-- One unified meditation player (audio + steps + optional visual/video, all in sync). Today there are **two** parallel players — `SereneMindModal` (chat) and `GuidedMeditationFlow` (route/guides) — and neither has narrated audio.
-- Two end-to-end product demo videos: **user journey** and **admin journey** — for the landing page and for conclaves.
+### Turn-3 additions (meditation audio sync + player merge)
+- **`useMeditationAudio` hook** (`src/components/meditation/useMeditationAudio.ts`) — single `<audio>` element, cross-fades on step change, preloads the next step, silent fallback when files are missing, respects `isPlaying` + `muted`.
+- **`MeditationStep` extended** with `audioSrc`. Every step in `GUIDED_STEPS` now carries `/audio/meditation/<id>.mp3`.
+- **`GuidedMeditationFlow`** now consumes `useMeditationAudio(steps, currentStepIndex, isPlaying && !isComplete)` — one line integration, zero behavior regression when audio files are absent.
+- **Real merge**: `SereneMindProvider` now routes the `'audio'` tab **and** all custom-teaching flows through `GuidedMeditationFlow`. `SereneMindModal` only owns the `'video'` (YouTube) tab now. From the user's perspective there is effectively one player.
+- **`public/audio/meditation/README.md`** documents the 6 required MP3 filenames + duration targets + voice direction.
 
 ## 2. Current state of code
 ### Shipped this session set
