@@ -27,7 +27,7 @@ export const ChatHeader = ({
   const { t } = useTranslation();
 
   return (
-    <header className="relative z-20 sticky top-0 backdrop-blur-md bg-background/85 border-b border-border/40" data-testid="chat-header-simplified">
+    <header className="relative z-20 sticky top-0 backdrop-blur-md bg-background/85 border-b border-hairline safe-top" data-testid="chat-header-simplified">
       <div className="flex items-center justify-between px-3 sm:px-5 h-[52px]">
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           {onToggleSidebar && (
