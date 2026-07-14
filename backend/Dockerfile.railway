@@ -12,6 +12,13 @@
 
 FROM python:3.12-slim
 
+# ── Cache Buster ──
+# This arg is filled by railway up (or buildx) with the commit hash.
+# It busts the Docker build cache on every new commit. Platforms without
+# --build-arg support will silently ignore it (no effect on dev).
+ARG GIT_COMMIT
+RUN echo "Build: ${GIT_COMMIT:-$(date +%s)}" > /dev/null
+
 # System deps: curl for healthcheck, gcc for compiled extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl gcc g++ make && \
