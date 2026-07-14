@@ -8,6 +8,7 @@ import {
 import { GUIDED_STEPS, TOTAL_DURATION_SECONDS, type MeditationStep } from './meditationSteps';
 import { MeditationProgressIndicator } from './MeditationProgressIndicator';
 import { PostCompletionStreak } from './PostCompletionStreak';
+import { useMeditationAudio } from './useMeditationAudio';
 import {
   generateSessionId,
   completeMeditationSession,
@@ -84,6 +85,10 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
   const step = steps[currentStepIndex];
   const isComplete = currentStepIndex >= steps.length;
   const stepProgress = step ? Math.min(elapsed / step.durationSeconds, 1) : 1;
+
+  // Per-step narrated audio, synced to the timeline. Silent fallback when the
+  // MP3 files are absent — the flame + text carry the practice.
+  useMeditationAudio(steps, currentStepIndex, isPlaying && !isComplete);
 
   // On open: detect unfinished prior session and offer resume.
   useEffect(() => {

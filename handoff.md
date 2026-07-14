@@ -1,11 +1,18 @@
 # Handoff — AskMukthiGuru UI + Meditation Redesign
 
 ## 1. Goal
-Bring `/profile`, the chat surface, and the meditation players (Serene Mind + Guided Meditation) to ChatGPT/Claude-caliber polish across web, mobile web, and Capacitor iOS/Android. Keep the Golden Hour aesthetic, HSL semantic tokens, and every existing feature. Feel native on-device (safe areas, momentum scroll, no chrome fighting the OS).
+Bring `/profile`, the chat surface, and the meditation players to ChatGPT/Claude-caliber polish across web, mobile web, and Capacitor iOS/Android. Keep the Golden Hour aesthetic, HSL semantic tokens, and every existing feature. Feel native on-device.
 
-Downstream deliverables the user is also asking for:
-- One unified meditation player (audio + steps + optional visual/video, all in sync). Today there are **two** parallel players — `SereneMindModal` (chat) and `GuidedMeditationFlow` (route/guides) — and neither has narrated audio.
-- Two end-to-end product demo videos: **user journey** and **admin journey** — for the landing page and for conclaves.
+Concrete deliverables in flight:
+- **One unified meditation player** with narrated audio synced to step transitions + breath ring. (Direction locked: pre-recorded MP3s, flame + breath ring kept.)
+- **Product demo videos** — two per role (User + Admin), 30 s teaser + 90 s deep-dive each = 4 MP4s total. Direction locked: **Remotion motion graphics** with composited app screenshots.
+
+### Turn-3 additions (meditation audio sync + player merge)
+- **`useMeditationAudio` hook** (`src/components/meditation/useMeditationAudio.ts`) — single `<audio>` element, cross-fades on step change, preloads the next step, silent fallback when files are missing, respects `isPlaying` + `muted`.
+- **`MeditationStep` extended** with `audioSrc`. Every step in `GUIDED_STEPS` now carries `/audio/meditation/<id>.mp3`.
+- **`GuidedMeditationFlow`** now consumes `useMeditationAudio(steps, currentStepIndex, isPlaying && !isComplete)` — one line integration, zero behavior regression when audio files are absent.
+- **Real merge**: `SereneMindProvider` now routes the `'audio'` tab **and** all custom-teaching flows through `GuidedMeditationFlow`. `SereneMindModal` only owns the `'video'` (YouTube) tab now. From the user's perspective there is effectively one player.
+- **`public/audio/meditation/README.md`** documents the 6 required MP3 filenames + duration targets + voice direction.
 
 ## 2. Current state of code
 ### Shipped this session set
@@ -54,37 +61,46 @@ For the product demo videos (once scope is confirmed):
 - `public/videos/` or Lovable assets — final MP4 hosting
 
 ## 4. What has been tried and failed / deferred
-- **Mega-file component splits**: proposed 3 times across sessions (ChatMessage/ChatInterface/ProfilePage into small pieces). Attempted only surgically — tokens, hero, tiles — because a full split without regenerating snapshot tests risks breaking the chat state machine (streaming checkpoints in `sessionStorage`, PrePracticeGate, tour triggers, multi-device continue). Deferred behind visible polish.
-- **Composer full rebuild** (single-row, morphing send/stop, controls inside field): current composer already uses AI Elements primitives correctly, so a rebuild would be churn. Applied token/border polish instead.
-- **Sidebar slim to 260 px with grouped Today/Yesterday/Last 7d**: `conversationGrouping.ts` already groups; the visual grouping in the sidebar is not yet wired. Left for next session because the existing sidebar already reads acceptable after hairline pass.
-- **Meditation audio narration**: never attempted this session. There is no TTS or pre-recorded audio pipeline for meditation steps today — `SereneMindModal` uses a JS timer + visual flame; `GuidedMeditationFlow` uses a JS timer + text. Merging them without an audio source would just be a rename.
-- **Product demo videos**: not started — needs script, brand direction (voice, pace, target duration), and a decision between recorded screen capture vs. Remotion motion graphics vs. hybrid. See open questions below.
+- **Mega-file component splits** (ChatMessage 1283 LoC, ChatInterface 1991 LoC, ProfilePage ~1089, SereneMindModal 981): proposed 3 times; attempted only surgically because a full split without regenerating snapshot tests risks breaking the chat state machine (streaming checkpoints in `sessionStorage`, PrePracticeGate, tour triggers, multi-device continue). Deferred behind visible polish.
+- **Composer full rebuild**: current composer already uses AI Elements primitives correctly, so a rebuild would be churn. Applied token/border polish instead.
+- **Sidebar slim to 260 px with grouped Today/Yesterday/Last 7d**: `conversationGrouping.ts` already groups; visual grouping in the sidebar is not yet wired.
+- **Full file-level merge of `SereneMindModal` and `GuidedMeditationFlow`**: deliberately deferred. The behavioral merge (audio + provider routing) shipped instead — Serene Mind's audio experience now goes through `GuidedMeditationFlow`, so users see one player, but the two files still exist. Deleting `SereneMindModal` outright would break the YouTube-video tab, the breath-technique picker, and the `isGated` chat-flow gate that PrePracticeGate depends on. Full deletion is safe once the video tab is either dropped or ported into `GuidedMeditationFlow`.
+- **Runtime TTS for meditation narration**: rejected by the user in favor of pre-recorded MP3s. The Web Speech API path is not wired up (would sound robotic).
+- **Product demo videos**: not yet started; direction is now locked so it becomes the next-turn task.
 
 ## 5. Next steps (in order)
 
-### A. Unified meditation player (Serene Mind + Guided merged)
-1. Extract a `MeditationStep` type with: `id`, `title`, `instruction`, `durationSec`, `audioUrl?`, `videoUrl?`, `breathPattern?`, `visual` (`flame` | `breath-ring` | `still` | `video`).
-2. Build `useMeditationTimeline({ steps, onComplete })` — one RAF-based clock that owns `elapsedSec`, `stepIndex`, `paused`, exposes `seekTo`, `pause`, `resume`, `skip`. All step transitions derive from `elapsedSec` so audio, breath-ring, and text advance from the same source of truth.
-3. Build `MeditationPlayer` — presentational: renders header (title + close), hero visual (flame/breath-ring/`<Video>`), step text with cross-fade on `stepIndex` change, breath-count / timer, transport controls (pause, skip, mute), progress bar. Consumes the timeline hook.
-4. Wire audio: `<audio>` element bound to the active step's `audioUrl`; on step change, cross-fade audio via 200 ms `volume` ramp; keep a single element and swap `src` to avoid iOS autoplay stalls. Preload next step audio.
-5. Wire optional video: `<video muted playsInline>` behind the flame; if `videoUrl` present, hide the flame. Same source-of-truth clock.
-6. Replace `SereneMindModal`'s inner content with `MeditationPlayer` and pass the Serene Mind step set. Delete the timer/breath logic from the modal.
-7. Replace `GuidedMeditationFlow`'s render with the same `MeditationPlayer` and pass the guided step set. Keep the outer route/page.
-8. Provider (`SereneMindProvider`) becomes the single mount for the merged player, with a `mode: 'serene-mind' | 'guided' | <techniqueId>` prop deciding which step set loads.
-9. Author or upload audio narration per step. Two options:
-   - **Pre-recorded MP3** in `public/audio/meditation/<step>.mp3` (best quality, fixed voice).
-   - **Runtime ElevenLabs TTS** via a Supabase Edge Function (dynamic, voice-consistent, but adds latency and cost). Recommend pre-recorded for launch, TTS for future personalization.
-10. Update `meditationSteps.ts` and `breathTechniques.ts` with `audioUrl` + `durationSec` fields.
-11. Regression tests: `SereneMindProvider.test`, `ChatMessage.test`, and a new `MeditationPlayer` unit test that fakes RAF and asserts step advance at boundary seconds.
+### A. Finalize the merged meditation player (this session left it 80% done)
+1. Author + drop the 6 MP3 files listed in `public/audio/meditation/README.md`. Once present, they load automatically — no code change needed.
+2. Add a **mute** button to `GuidedMeditationFlow` transport controls and pass `muted` as the 4th arg to `useMeditationAudio`.
+3. Port the `SereneMindModal` **video** tab (YouTube embed) into `GuidedMeditationFlow` as an optional `sourceVideoId` prop, then delete `SereneMindModal` entirely. This is the file-level merge.
+4. Same treatment for other meditations reachable from `PracticesPage` — extend `breathTechniques.ts` with `audioSrc` per phase (inhale/hold/exhale bell cues) or per technique (full guided track). Wire via a small variant of `useMeditationAudio` that keys on breath-phase changes instead of step index.
+5. Regression test in `src/test/`: fake `HTMLMediaElement.play`, drive `GuidedMeditationFlow` through 3 steps, assert `audio.src` swaps at the boundary seconds and `pause()` is called on unmount.
 
-### B. Product demo videos
-1. Pick the production approach (see open questions).
-2. If Remotion motion graphics: scaffold `remotion/` per the video-creator skill, script two ~45–60 s pieces (User: land → chat → serene mind → insights; Admin: login → dashboard → ingest → moderation → publish teaching), render to `/mnt/documents/`, then upload with `lovable-assets` and reference in `DemoModal.tsx` and landing hero.
-3. If screen-recorded: script + record via Playwright screen capture in the sandbox, add voiceover via ElevenLabs, mux with ffmpeg.
-4. Add an in-app "Watch demo" entry point on the landing page and a `/demo?role=admin` deep link for conclaves.
+### B. Product demo videos — Remotion, 30 s teaser + 90 s deep-dive per role (User + Admin) = 4 MP4s
 
-## Open questions blocking step-B (please confirm)
-1. **Voice for narration**: use one of the existing Mayura voices (Deepika / Ananya / Arvind), pre-record with a professional, or generate via ElevenLabs at build time?
-2. **Demo video style**: (a) real screen recording of the live app with voiceover, (b) Remotion motion graphics with app screens composited in, or (c) hybrid — recorded flows with animated captions/highlights?
-3. **Demo duration**: 30 s teaser for landing hero + 90 s deep-dive per role, or one 60 s per role?
-4. **Meditation visuals**: keep the current flame + breath-ring, or introduce short ambient background videos (dawn sky, still water, candle) generated with `videogen--generate_video` behind the flame?
+**Setup (once):**
+1. Scaffold `remotion/` per the video-creator skill: `mkdir remotion && cd remotion && bun init -y && bun install remotion @remotion/cli @remotion/renderer @remotion/bundler @remotion/transitions @remotion/google-fonts react react-dom typescript @types/react @remotion/compositor-linux-x64-musl`.
+2. Fix the compositor gnu → musl overwrite + ffmpeg/ffprobe symlink dance (see video-creator skill setup section).
+3. Capture live app screenshots via Playwright: `/chat` (empty + mid-conversation + streaming + wisdom card), `/profile` (hero + insights tiles), `/practices`, `/practices/serene-mind` (flame + breath ring), `/admin/overview`, `/admin/queries`, `/admin/ingestion`, `/admin/daily-teaching`. Store under `remotion/public/screens/`.
+4. Generate voiceover with ElevenLabs at build time from scripts in `remotion/scripts/`. Cache MP3 in `remotion/public/vo/`.
+
+**Compositions:**
+- `user-teaser` (30 s / 900 frames @ 30 fps): "A guru, always available." → chat scene → Serene Mind flame → beautiful state → logo.
+- `user-deepdive` (90 s / 2700 frames): open app → ask a question → streaming answer with citations → Serene Mind guided practice with breath ring → insights tab shows streak → wisdom card share.
+- `admin-teaser` (30 s): "Doctrine. Curated. Trusted." → dashboard KPIs → ingest a YouTube URL → OKF entry auto-drafted → approve → live in chat.
+- `admin-deepdive` (90 s): login → overview → ingest → moderation queue → OKF review → daily teaching publish → telemetry → publish.
+
+**Motion system (locked):** Golden Hour palette (from `index.css` tokens), Fraunces display + Inter body, 300 ms spring entrances (`damping: 20, stiffness: 200`), 400 ms slide-wipe transitions between scenes, flame texture as a shared motif for the User videos, hairline underline as the shared motif for Admin.
+
+**Render + publish:**
+- `cd remotion && node scripts/render-remotion.mjs` for each composition → `/mnt/documents/*.mp4`.
+- Upload with `lovable-assets create --file` → asset pointers under `src/assets/demos/`.
+- Landing hero embeds `user-teaser.mp4` autoplay-muted; `DemoModal.tsx` gets a role toggle (User / Admin) that swaps between the two deep-dives.
+- New `/demo?role=admin` route for conclave sharing (deep-dive plays inline, fullscreen button visible).
+
+### C. After demos ship
+- File-level split of the mega-components with proper snapshot regen (deferred from prior sessions).
+- Sidebar visual grouping wiring.
+- Multi-language narration variants (Hindi, Telugu, Malayalam) — same MP3 slot, prefixed with locale.
+
