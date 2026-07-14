@@ -8,6 +8,8 @@ const ASSETS_TO_CACHE = [
   '/placeholder.svg',
   '/robots.txt',
   '/sitemap.xml',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 // Install Event: pre-cache static core assets
