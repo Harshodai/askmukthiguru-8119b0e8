@@ -7,6 +7,7 @@ interface PageMeta {
   ogType?: 'website' | 'article' | 'video.other';
   ogImage?: string;
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  noindex?: boolean;
 }
 
 /**
@@ -15,7 +16,7 @@ interface PageMeta {
  * <script> block. Restores previous values on unmount so route changes
  * don't leak meta from an unmounted page.
  */
-export function usePageMeta({ title, description, canonical, ogType = 'website', ogImage, jsonLd }: PageMeta) {
+export function usePageMeta({ title, description, canonical, ogType = 'website', ogImage, jsonLd, noindex }: PageMeta) {
   useEffect(() => {
     const prevTitle = document.title;
     document.title = title;
