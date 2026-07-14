@@ -44,6 +44,29 @@ const steps = [
   },
 ];
 
+const faqs = [
+  {
+    q: 'Can an AI actually be a spiritual guide?',
+    a: "An AI is not a spiritual teacher — silence, self-inquiry, and the living teachings are. What an AI does well is stay available at 3am, respond in your language, and surface the exact teaching your question needs. Used with humility, it becomes a doorway rather than a destination.",
+  },
+  {
+    q: 'How is AskMukthiGuru different from a general chatbot?',
+    a: "Every answer is grounded in the recorded teachings of Sri Preethaji & Sri Krishnaji, retrieved and verified before generation. If the doctrine has no answer, the Guru says so rather than inventing one — this is what separates a spiritual guide from a chatbot.",
+  },
+  {
+    q: 'What is the Beautiful State?',
+    a: "The Beautiful State is a calm, connected, uncontracted inner condition — a shift out of anxiety, resentment, and self-obsession into stillness and love. Every practice on AskMukthiGuru is a pathway back to it.",
+  },
+  {
+    q: 'How long should I use the AI Guru each day?',
+    a: 'Ten minutes is enough. Three minutes of Serene Mind breathwork, one honest question, and a minute of silence with the response. Consistency matters far more than duration.',
+  },
+  {
+    q: 'Is my conversation private?',
+    a: 'Yes. Conversations are encrypted, retained only as long as your retention setting allows, and never sold or shared. Anonymous mode keeps everything in your browser.',
+  },
+];
+
 const AiSpiritualCompanionPage = () => {
   usePageMeta({
     title: "The Seeker's Guide to AI-Guided Meditation | AskMukthiGuru",
