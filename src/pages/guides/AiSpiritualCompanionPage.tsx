@@ -71,7 +71,7 @@ const AiSpiritualCompanionPage = () => {
   usePageMeta({
     title: "The Seeker's Guide to AI-Guided Meditation | AskMukthiGuru",
     description:
-      'A step-by-step guide to using an AI spiritual guide for daily meditation, breathwork, and reflection — combining ancient yogic wisdom with modern AI to reach the Beautiful State.',
+      'A step-by-step guide to AI-guided meditation, breathwork, and reflection — pairing yogic wisdom with modern AI to reach the Beautiful State.',
     canonical: 'https://askmukthiguru.lovable.app/guides/ai-spiritual-companion',
     ogType: 'article',
     jsonLd: {
