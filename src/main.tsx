@@ -10,6 +10,37 @@ import "./index.css";
 initSentry();
 initWebVitals();
 
+// Suppress extension-injected script errors and message port disconnect warnings.
+// "Message port closed before a response was received" or "unhandled rejection"
+// from message channel comes from browser extensions (Grammarly, Honey, etc.).
+if (typeof window !== "undefined") {
+  const handleExtensionError = (msg: string, source?: string) => {
+    const isExtension = 
+      (typeof source === "string" && source.includes("chrome-extension://")) ||
+      (typeof msg === "string" && (
+        msg.includes("message port closed") ||
+        msg.includes("message channel closed") ||
+        msg.includes("Extension context")
+      ));
+    return isExtension;
+  };
+
+  window.addEventListener("error", (event) => {
+    if (handleExtensionError(event.message, event.filename)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
+
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event.reason?.message || String(event.reason || "");
+    if (handleExtensionError(reason)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
+}
+
 createRoot(document.getElementById("root")!).render(
   <I18nextProvider i18n={i18n}>
     <RootErrorBoundary>
