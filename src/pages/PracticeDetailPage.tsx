@@ -179,9 +179,9 @@ const PracticeDetailPage = () => {
         {practice.format === 'source-reflection' ? <WisdomReflectionPractice /> : embedSrc && watchUrl && (
         <Card className="overflow-hidden">
           <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
               <PlayCircle className="w-5 h-5 text-ojas" /> Guided video
-            </CardTitle>
+            </h2>
             <Button asChild variant="outline" size="sm" className="gap-1.5">
               <a href={watchUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="w-3.5 h-3.5" />
