@@ -4103,3 +4103,18 @@ const isLovableProject = rawUrl.includes('fynkjimvuimakgtidvuq') || (typeof wind
 // override URL and key
 ```
 This forces the frontend to talk to the user's custom Supabase project, enabling Google Sign-In and other custom providers to work correctly.
+
+### RULE 28 — Use GSI standard button identity flow to resolve Google consent screen branding mismatch
+
+**Problem**: Under Supabase's standard redirect OAuth (`signInWithOAuth`), the redirected URL is a Supabase domain which causes Google's consent screen to say: **"to continue to [supabase-project].supabase.co"** instead of the application domain **"askmukthiguru.lovable.app"**, creating trust and branding issues for users.
+
+**Solution**: Switch to Google Identity Services (GSI) standard web button flow. Load the official Google Accounts GSI client SDK script in the head, initialize the button targeting the application origin `askmukthiguru.lovable.app`, and when clicked, receive the credential JWT via a callback. Pass the credential token directly to Supabase via `signInWithIdToken`. Google now correctly displays **"to continue to askmukthiguru.lovable.app"** on the consent screen.
+
+**Timing/Nonce Match**: Ensure the cryptographic nonce passed during GSI initialization matches the nonce passed to Supabase during token sign-in, otherwise sign-in will fail.
+
+### RULE 29 — Strict Localization Key Verification in Multi-lingual RAG Apps
+
+**Problem**: Using dynamically generated keys or keys that are missing in the locale `.json` files causes `i18next` to render raw, unlocalized strings like `meditation.breath` or `meditation.breaths`. Additionally, minor translation mistakes (e.g. `minute` translating to `न्यून` in Hindi, or `minutes` translating to `మైనస్` in Telugu) cause critical user-facing stats or time-relative indicators to render incorrectly.
+
+**Solution**: Define both singular and plural forms (e.g. `breath` and `breaths`) across all locales under the `meditation` namespace. Do a periodic grep audit of translation call sites (like `t('...')`) against the keys in `en.json` to verify zero omissions, and ensure time-relative translations are grammatically correct in each supported locale.
+
