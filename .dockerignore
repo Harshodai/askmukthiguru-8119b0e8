@@ -52,7 +52,8 @@ infrastructure/
 docker-compose*.yml
 
 # Ignore development/ops scripts — not needed at runtime
-scripts/
+scripts/*
+!scripts/prerender-seo.mjs
 benchmarks/
 Makefile
 
