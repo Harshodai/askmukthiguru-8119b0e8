@@ -21,9 +21,14 @@
 
   /* Allow page-level vertical scroll; horizontal overflow is still clipped to
      prevent decorative absolute-positioned elements from creating scrollbars. */
-  html,
+  html {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
   body {
     overflow-x: hidden;
+    overflow-y: visible;
   }
 
   :root {
