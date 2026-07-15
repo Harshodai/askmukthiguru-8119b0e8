@@ -4074,3 +4074,12 @@ Lovable build pipeline may override VITE_SUPABASE_URL with its own managed proje
 - Long-term production: Own Supabase — avoid vendor lock-in
 
 Decision for AskMukthiGuru: Use ozmjeuqbholoxypfxixb everywhere. Lovable = UI code gen only.
+
+### RULE 25 — Never escape hostname slashes or ports in Railway environment variables
+
+**Problem**: The `QDRANT_URL` was configured as `http://\\qdrant.railway.internal:\\6333` (with literal backslashes). During container startup, python's `qdrant_client` tries to resolve `\\qdrant.railway.internal`, which fails with `[Errno -2] Name or service not known` and crashes the FastAPI lifespan.
+
+**Hard rules**:
+1. **Ensure URLs are completely clean**: Use `http://qdrant.railway.internal:6333` directly without any backslashes or escape sequences.
+2. **Synchronize all linked services**: Update `QDRANT_URL` on both the main API service and the celery worker service since they maintain independent variable sheets.
+3. **Verify CLI raw JSON values**: Always run `railway variables --json` and inspect values to make sure no hidden escapes exist.
