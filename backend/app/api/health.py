@@ -32,42 +32,13 @@ async def _health_check(name: str, coro) -> dict:
 
 
 @router.get("/api/healthz")
-async def healthz(container: ServiceContainer = Depends(get_container)) -> JSONResponse:
-    """Aggregate deep-health check for Qdrant, Redis, and Ollama."""
-    if not _app_deps.startup_complete:
-        return JSONResponse(
-            {"ok": True, "status": "starting", "message": "Server is starting up"},
-            status_code=http_status.HTTP_200_OK,
-        )
-    loop = asyncio.get_running_loop()
-
-    async def _qdrant_coro() -> bool:
-        return await loop.run_in_executor(None, container.qdrant.health_check)
-
-    async def _redis_coro() -> bool:
-        if container.exact_cache and getattr(container.exact_cache, "_redis", None):
-            return await loop.run_in_executor(None, container.exact_cache._redis.ping)
-        return False
-
-    checks = await asyncio.gather(
-        _health_check("qdrant", _qdrant_coro()),
-        _health_check("redis", _redis_coro()),
-        _health_check("ollama", container.ollama.health_check()),
-    )
-    
-    is_external = settings.llm_provider.lower() in ("openrouter", "sarvam_cloud", "nim", "krutrim")
-    if is_external:
-        # If external cloud provider check failed, we log a warning but still mark overall health as OK
-        # to prevent deployment boot-loops caused by external rate limits / network glitches.
-        ok = all(x["ok"] for x in checks if x["name"] != "ollama")
-        if not next((x["ok"] for x in checks if x["name"] == "ollama"), True):
-            logger.warning("External LLM provider healthcheck failed but marked healthy to prevent deployment loop.")
-    else:
-        ok = all(x["ok"] for x in checks)
-
+async def healthz() -> JSONResponse:
+    """Liveness probe for Railway. Returns 200 always — Railway needs a simple
+    alive/dead check, not deep service dependency checks (which live in /api/health).
+    Deep checks cause deployment boot-loops when any dependency has a transient blip."""
     return JSONResponse(
-        {"ok": ok, "checks": checks},
-        status_code=http_status.HTTP_200_OK if ok else http_status.HTTP_503_SERVICE_UNAVAILABLE,
+        {"ok": True, "status": "alive"},
+        status_code=http_status.HTTP_200_OK,
     )
 
 
