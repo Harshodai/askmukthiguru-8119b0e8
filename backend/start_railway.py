@@ -16,7 +16,7 @@ if service_type == "celery":
 else:
     print("Starting FastAPI web api service...")
     port = os.environ.get("PORT", "8000")
-    workers = os.environ.get("WEB_CONCURRENCY", "2")
+    workers = os.environ.get("WEB_CONCURRENCY", "1")  # 1 worker per replica — BGE-M3 (~550MB) makes 2+ OOMKill
     cmd = [
         "python", "-m", "uvicorn", "app.main:app",
         "--host", "0.0.0.0",
