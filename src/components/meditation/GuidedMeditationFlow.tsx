@@ -75,6 +75,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
   const [selectedMood, setSelectedMood] = useState<string>('');
   const [journalText, setJournalText] = useState('');
   const [gratitudeText, setGratitudeText] = useState('');
+  const [muted, setMuted] = useState(false);
   // Resume + close-confirm UX
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [resumeOffer, setResumeOffer] = useState<ResumePayload | null>(null);
@@ -90,7 +91,9 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
 
   // Per-step narrated audio, synced to the timeline. Silent fallback when the
   // MP3 files are absent — the flame + text carry the practice.
-  useMeditationAudio(steps, currentStepIndex, isPlaying && !isComplete);
+  useMeditationAudio(steps, currentStepIndex, isPlaying && !isComplete, muted);
+  // Free browser TTS fallback when no MP3 is present for a step.
+  useMeditationTTS(steps, currentStepIndex, isPlaying && !isComplete, muted);
 
   // On open: detect unfinished prior session and offer resume.
   useEffect(() => {
@@ -483,6 +486,14 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                 title={t('meditation.skipStep')}
               >
                 <SkipForward className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <button
+                onClick={() => setMuted((m) => !m)}
+                className="p-3 rounded-full border border-border hover:border-ojas/40 transition-colors"
+                aria-label={muted ? 'Unmute narration' : 'Mute narration'}
+                title={muted ? 'Unmute narration' : 'Mute narration'}
+              >
+                {muted ? <VolumeX className="w-4 h-4 text-muted-foreground" /> : <Volume2 className="w-4 h-4 text-muted-foreground" />}
               </button>
             </div>
           </div>
