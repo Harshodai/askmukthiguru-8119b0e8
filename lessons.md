@@ -4033,3 +4033,44 @@ Monthly Cost = Σ (vCPU_hours * $0.00000772 + GB_hours * $0.00000386 + Volume_GB
 - **Fix**: Removed the global `healthcheckPath` and `healthcheckTimeout` from `railway.json` so background worker services deploy immediately without failing HTTP checks. The web service's deep healthcheck path (`/api/healthz`) is instead configured specifically on the FastAPI service in the Railway UI under **Settings > Healthcheck**.
 - **Pattern**: For multi-service repositories on Railway, do not define HTTP healthcheck settings globally in `railway.json`. Instead, rely on default port checks or configure the healthcheck path specifically on the web service's settings page in the Railway dashboard.
 
+
+
+---
+
+## Jul 15, 2026 — Lovable Cloud Supabase Architecture Decision
+
+### RULE 21 — Never use Lovable Cloud Supabase as auth backend for external services
+
+**Problem**: Lovable Cloud Supabase (fynkjimvuimakgtidvuq) is a walled garden:
+- No service_role key exposed — Lovable locks it internally, never accessible to you
+- No direct DB connection string — deliberately abstracted
+- No Supabase dashboard access — schema changes only via Lovable chat
+- External backends (Railway, Vercel, etc.) cannot do admin writes to it
+
+**Hard rule**: If the project has ANY external backend beyond Lovable Edge Functions, use your own Supabase from day one.
+
+### RULE 22 — Hybrid JWT verification pattern (auth project != data project)
+
+JWKS endpoints are publicly accessible — no secret required to verify JWTs from any Supabase project.
+
+Railway env vars for hybrid mode:
+  SUPABASE_JWKS_URL   = https://<auth-project>.supabase.co/auth/v1/.well-known/jwks.json
+  SUPABASE_JWT_ISSUER = https://<auth-project>.supabase.co/auth/v1
+  SUPABASE_URL        = https://<data-project>.supabase.co
+  SUPABASE_KEY        = sb_secret_<data-project-service-role>
+
+Confidence: 95% — JWKS is public, zero frontend changes needed.
+
+### RULE 23 — Lovable Cloud .env.production override risk
+
+Lovable build pipeline may override VITE_SUPABASE_URL with its own managed project vars even if .env.production in git has different values. Confidence in git push fixing frontend Supabase ref: 65%.
+
+### RULE 24 — Lovable Cloud strategic fit
+
+- MVP / prototype: Lovable Cloud OK
+- External backend (Railway): Must use own Supabase — Lovable Cloud blocks service_role
+- Google OAuth + custom backend: Must use own Supabase — JWT mismatch risk
+- RAG pipeline admin writes: Must use own Supabase — no service_role on Lovable Cloud
+- Long-term production: Own Supabase — avoid vendor lock-in
+
+Decision for AskMukthiGuru: Use ozmjeuqbholoxypfxixb everywhere. Lovable = UI code gen only.

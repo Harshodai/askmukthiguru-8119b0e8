@@ -136,6 +136,8 @@ _jwks_lock = AsyncLock()
 
 def _get_jwks_url() -> str:
     """Return the JWKS URL for the configured Supabase instance."""
+    if getattr(settings, "supabase_jwks_url", None):
+        return settings.supabase_jwks_url
     base = settings.supabase_url.rstrip("/")
     return f"{base}/auth/v1/.well-known/jwks.json"
 
@@ -190,11 +192,14 @@ class SupabaseAuthStrategy(AuthStrategy):
         # PyJWT accepts a list for `issuer` and validates against any match.
         def _valid_issuers() -> list[str]:
             base = settings.supabase_url.rstrip("/")
-            return [
+            issuers = [
                 f"{base}/auth/v1",              # e.g., http://host.docker.internal:54321/auth/v1
                 "http://127.0.0.1:54321/auth/v1",
                 "http://localhost:54321/auth/v1",
             ]
+            if getattr(settings, "supabase_jwt_issuer", None):
+                issuers.append(settings.supabase_jwt_issuer)
+            return issuers
 
         try:
             if alg in ("ES256", "RS256"):
