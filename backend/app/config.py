@@ -149,9 +149,11 @@ class Settings(BaseSettings):
     # Example: {"sadhguru":"Speak with the direct, earthy tone of a yogi.","preethaji":"Speak with warmth and stillness."}
     teacher_personalities: str = ""
 
-    # --- Supabase (Docker Local) ---
+    # --- Supabase (Docker Local & Production Hybrid Modes) ---
     supabase_url: str = "http://host.docker.internal:54321"
     supabase_key: str = ""  # SERVICE_ROLE_KEY for backend write access
+    supabase_jwks_url: Optional[str] = None  # Optional JWKS URL for JWT validation (used in hybrid auth setups)
+    supabase_jwt_issuer: Optional[str] = None  # Optional JWT Issuer for token validation (used in hybrid auth setups)
     qdrant_local_path: Optional[str] = None  # Set for local mode (no Docker)
 
     # --- Neo4j ---

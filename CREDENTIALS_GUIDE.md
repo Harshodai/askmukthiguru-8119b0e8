@@ -576,3 +576,39 @@ curl http://localhost:3000
 ---
 
 **Good luck! 🚀**
+
+
+---
+
+## Supabase Project Architecture (Jul 15, 2026)
+
+### Two Supabase Projects — What Goes Where
+
+| Project | Ref | Purpose | Who Controls |
+|---------|-----|---------|--------------|
+| Lovable Cloud | fynkjimvuimakgtidvuq | Lovable managed (DO NOT use for Railway) | Lovable — no service_role access |
+| User Own | ozmjeuqbholoxypfxixb | Railway backend data + auth source of truth | You — full access |
+
+### Credential Mapping
+
+Frontend (.env.production):
+  VITE_SUPABASE_URL=https://ozmjeuqbholoxypfxixb.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xiLP47LDiH7JKMf1GfLhng_6MZfd8JC
+
+Railway Backend env vars:
+  SUPABASE_URL=https://ozmjeuqbholoxypfxixb.supabase.co
+  SUPABASE_KEY=sb_secret_REDACTED_LmVsRPTC08oqQbI
+  SUPABASE_JWKS_URL=https://ozmjeuqbholoxypfxixb.supabase.co/auth/v1/.well-known/jwks.json
+  SUPABASE_JWT_ISSUER=https://ozmjeuqbholoxypfxixb.supabase.co/auth/v1
+  SUPABASE_JWT_AUDIENCE=authenticated
+
+### Key Format Reference (Supabase 2025+)
+- sb_publishable_* = anon key (safe for frontend/git)
+- sb_secret_* = service_role key (backend only, never commit)
+- Legacy eyJ... JWT keys still work until end of 2026
+
+### Why Lovable Cloud Supabase Cannot Be Used for Railway
+- No service_role key exposed — Lovable locks it internally
+- No DB connection string available
+- Railway writes fail with 403/RLS errors on every admin operation
+- JWT signing project must match verification project (or use hybrid JWKS pattern from RULE 22 in lessons.md)
