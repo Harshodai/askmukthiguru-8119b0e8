@@ -1,0 +1,500 @@
+2026-07-15T10:46:23.291495532Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:22+0000" correlation_id="dc0d9fec" logger="services.auth_service"
+2026-07-15T10:46:23.291499761Z [INFO] AUDIT GET /api/profile -> 401 (0.031s) timestamp="2026-07-15T10:46:22+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:22140 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:23.291508244Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:22+0000" correlation_id="9ce267c5" logger="services.auth_service"
+2026-07-15T10:46:23.291513073Z [INFO] AUDIT GET /api/profile -> 401 (0.028s) timestamp="2026-07-15T10:46:22+0000" logger="app.middleware.audit"
+INFO:     100.64.0.7:57536 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:24.165690172Z [INFO] AUDIT GET /api/profile -> 401 (0.028s) timestamp="2026-07-15T10:46:23+0000" logger="app.middleware.audit"
+INFO:     100.64.0.8:11906 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:24.165787276Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:23+0000" correlation_id="0cd1cb01" logger="services.auth_service"
+2026-07-15T10:46:24.165801575Z [INFO] AUDIT GET /api/profile -> 401 (0.032s) timestamp="2026-07-15T10:46:23+0000" logger="app.middleware.audit"
+INFO:     100.64.0.20:20758 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:24.165811793Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:23+0000" correlation_id="fa99e234" logger="services.auth_service"
+2026-07-15T10:46:24.302618566Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:24+0000" correlation_id="9b768e3d" logger="services.auth_service"
+2026-07-15T10:46:24.302629717Z [INFO] AUDIT GET /api/profile -> 401 (0.030s) timestamp="2026-07-15T10:46:24+0000" logger="app.middleware.audit"
+INFO:     100.64.0.8:11906 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:25.159785536Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:24+0000" correlation_id="9655942d" logger="services.auth_service"
+2026-07-15T10:46:25.159790185Z [INFO] AUDIT GET /api/notebooks -> 401 (0.039s) timestamp="2026-07-15T10:46:24+0000" logger="app.middleware.audit"
+INFO:     100.64.0.6:37982 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:25.159828047Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:24+0000" correlation_id="2157312d" logger="services.auth_service"
+2026-07-15T10:46:25.159832698Z [INFO] AUDIT GET /api/profile -> 401 (0.037s) timestamp="2026-07-15T10:46:24+0000" logger="app.middleware.audit"
+INFO:     100.64.0.8:11906 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:33.448884763Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:33+0000" correlation_id="68614e8b" logger="services.auth_service"
+2026-07-15T10:46:33.448894045Z [INFO] AUDIT GET /api/profile -> 401 (0.029s) timestamp="2026-07-15T10:46:33+0000" logger="app.middleware.audit"
+INFO:     100.64.0.10:39170 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:33.448912740Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:33+0000" correlation_id="53be056f" logger="services.auth_service"
+2026-07-15T10:46:33.448998605Z [INFO] AUDIT GET /api/notebooks -> 401 (0.028s) timestamp="2026-07-15T10:46:33+0000" logger="app.middleware.audit"
+INFO:     100.64.0.18:56022 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.9:41046 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:34.146066956Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:33+0000" correlation_id="2da611fc" logger="services.auth_service"
+INFO:     100.64.0.11:16762 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:34.146079999Z [INFO] AUDIT GET /api/profile -> 401 (0.032s) timestamp="2026-07-15T10:46:33+0000" logger="app.middleware.audit"
+2026-07-15T10:46:34.146086781Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:33+0000" correlation_id="e779fde8" logger="services.auth_service"
+2026-07-15T10:46:34.146092413Z [INFO] AUDIT GET /api/notebooks -> 401 (0.034s) timestamp="2026-07-15T10:46:33+0000" logger="app.middleware.audit"
+2026-07-15T10:46:34.197834598Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:34+0000" correlation_id="d36c9c14" logger="services.auth_service"
+2026-07-15T10:46:34.197842305Z [INFO] AUDIT GET /api/notebooks -> 401 (0.029s) timestamp="2026-07-15T10:46:34+0000" logger="app.middleware.audit"
+INFO:     100.64.0.18:56022 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:34.202552513Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:34+0000" correlation_id="5addcf51" logger="services.auth_service"
+2026-07-15T10:46:34.202557874Z [INFO] AUDIT GET /api/profile -> 401 (0.033s) timestamp="2026-07-15T10:46:34+0000" logger="app.middleware.audit"
+INFO:     100.64.0.7:40968 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:35.414402813Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:34+0000" correlation_id="3c954f37" logger="services.auth_service"
+2026-07-15T10:46:35.414408852Z [INFO] AUDIT GET /api/notebooks -> 401 (0.028s) timestamp="2026-07-15T10:46:34+0000" logger="app.middleware.audit"
+INFO:     100.64.0.8:52502 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:35.414422661Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:34+0000" correlation_id="2ac4b3d3" logger="services.auth_service"
+2026-07-15T10:46:35.414428957Z [INFO] AUDIT GET /api/profile -> 401 (0.035s) timestamp="2026-07-15T10:46:34+0000" logger="app.middleware.audit"
+INFO:     100.64.0.18:56022 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:35.414441413Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:34+0000" correlation_id="26e12f36" logger="services.auth_service"
+2026-07-15T10:46:35.414448026Z [INFO] AUDIT GET /api/notebooks -> 401 (0.026s) timestamp="2026-07-15T10:46:34+0000" logger="app.middleware.audit"
+INFO:     100.64.0.10:39170 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:35.414492233Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:34+0000" correlation_id="8879e6c8" logger="services.auth_service"
+2026-07-15T10:46:35.414499115Z [INFO] AUDIT GET /api/profile -> 401 (0.026s) timestamp="2026-07-15T10:46:34+0000" logger="app.middleware.audit"
+INFO:     100.64.0.9:41046 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:35.421360194Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:35+0000" correlation_id="a541cfb4" logger="services.auth_service"
+2026-07-15T10:46:35.421366344Z [INFO] AUDIT GET /api/profile -> 401 (0.027s) timestamp="2026-07-15T10:46:35+0000" logger="app.middleware.audit"
+INFO:     100.64.0.8:52502 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:36.365814612Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:35+0000" correlation_id="593fa8bc" logger="services.auth_service"
+2026-07-15T10:46:36.365824654Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:35+0000" correlation_id="960f22c3" logger="services.auth_service"
+2026-07-15T10:46:36.365827853Z [INFO] AUDIT GET /api/notebooks -> 401 (0.047s) timestamp="2026-07-15T10:46:35+0000" logger="app.middleware.audit"
+2026-07-15T10:46:36.365837587Z [INFO] AUDIT GET /api/profile -> 401 (0.035s) timestamp="2026-07-15T10:46:35+0000" logger="app.middleware.audit"
+INFO:     100.64.0.11:16762 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.9:41046 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:36.365869291Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:36+0000" correlation_id="836bfc19" logger="services.auth_service"
+2026-07-15T10:46:36.365869447Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:36+0000" correlation_id="d44c590a" logger="services.auth_service"
+2026-07-15T10:46:36.365877180Z [INFO] AUDIT GET /api/notebooks -> 401 (0.025s) timestamp="2026-07-15T10:46:36+0000" logger="app.middleware.audit"
+2026-07-15T10:46:36.365880381Z [INFO] AUDIT GET /api/profile -> 401 (0.038s) timestamp="2026-07-15T10:46:36+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:15618 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.8:52502 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:37.196652675Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:37+0000" correlation_id="d5113db8" logger="services.auth_service"
+2026-07-15T10:46:37.196665014Z [INFO] AUDIT GET /api/notebooks -> 401 (0.031s) timestamp="2026-07-15T10:46:37+0000" logger="app.middleware.audit"
+INFO:     100.64.0.19:44284 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:37.196696723Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:36+0000" correlation_id="ed98c887" logger="services.auth_service"
+2026-07-15T10:46:37.196707765Z [INFO] AUDIT GET /api/profile -> 401 (0.031s) timestamp="2026-07-15T10:46:36+0000" logger="app.middleware.audit"
+INFO:     100.64.0.9:41046 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:37.196723275Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:36+0000" correlation_id="30996548" logger="services.auth_service"
+2026-07-15T10:46:37.196730100Z [INFO] AUDIT GET /api/notebooks -> 401 (0.025s) timestamp="2026-07-15T10:46:36+0000" logger="app.middleware.audit"
+INFO:     100.64.0.8:52502 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:37.196743049Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:37+0000" correlation_id="bc58881e" logger="services.auth_service"
+2026-07-15T10:46:37.196756023Z [INFO] AUDIT GET /api/profile -> 401 (0.030s) timestamp="2026-07-15T10:46:37+0000" logger="app.middleware.audit"
+INFO:     100.64.0.11:16762 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:37.462198405Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:37+0000" correlation_id="4a47a281" logger="services.auth_service"
+2026-07-15T10:46:37.463649263Z [INFO] AUDIT GET /api/profile -> 401 (0.037s) timestamp="2026-07-15T10:46:37+0000" logger="app.middleware.audit"
+INFO:     100.64.0.18:56022 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:38.563491873Z [INFO] AUDIT GET /api/profile -> 401 (0.029s) timestamp="2026-07-15T10:46:38+0000" logger="app.middleware.audit"
+INFO:     100.64.0.9:41046 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:38.563516604Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:37+0000" correlation_id="16121ad4" logger="services.auth_service"
+INFO:     100.64.0.7:40968 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:38.563528227Z [INFO] AUDIT GET /api/profile -> 401 (0.027s) timestamp="2026-07-15T10:46:37+0000" logger="app.middleware.audit"
+2026-07-15T10:46:38.563530199Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:38+0000" correlation_id="5f77b011" logger="services.auth_service"
+INFO:     100.64.0.6:39466 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T10:46:48.412170687Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:48+0000" correlation_id="6df927ad" logger="services.auth_service"
+2026-07-15T10:46:48.414591709Z [INFO] AUDIT GET /api/profile -> 401 (0.033s) timestamp="2026-07-15T10:46:48+0000" logger="app.middleware.audit"
+INFO:     100.64.0.8:11830 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:49.321794717Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:48+0000" correlation_id="8fe8809a" logger="services.auth_service"
+2026-07-15T10:46:49.321799791Z [INFO] AUDIT GET /api/profile -> 401 (0.027s) timestamp="2026-07-15T10:46:48+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:44730 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:49.321811163Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:49+0000" correlation_id="95a00569" logger="services.auth_service"
+2026-07-15T10:46:49.321816128Z [INFO] AUDIT GET /api/profile -> 401 (0.028s) timestamp="2026-07-15T10:46:49+0000" logger="app.middleware.audit"
+INFO:     100.64.0.19:42910 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:49.535959890Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:49+0000" correlation_id="538fee84" logger="services.auth_service"
+2026-07-15T10:46:49.535968697Z [INFO] AUDIT GET /api/profile -> 401 (0.030s) timestamp="2026-07-15T10:46:49+0000" logger="app.middleware.audit"
+INFO:     100.64.0.9:61534 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:50.350810403Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:49+0000" correlation_id="b37e36de" logger="services.auth_service"
+2026-07-15T10:46:50.350818984Z [INFO] AUDIT GET /api/profile -> 401 (0.035s) timestamp="2026-07-15T10:46:49+0000" logger="app.middleware.audit"
+INFO:     100.64.0.10:39260 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:46:50.439317622Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:46:50+0000" correlation_id="44054718" logger="services.auth_service"
+2026-07-15T10:46:50.439324422Z [INFO] AUDIT GET /api/profile -> 401 (0.027s) timestamp="2026-07-15T10:46:50+0000" logger="app.middleware.audit"
+INFO:     100.64.0.8:11830 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T10:47:19.888543083Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T10:47:11+0000" correlation_id="7bd5c821" logger="services.auth_service"
+2026-07-15T10:47:19.888547457Z [INFO] AUDIT GET /api/profile -> 401 (0.042s) timestamp="2026-07-15T10:47:11+0000" logger="app.middleware.audit"
+INFO:     100.64.0.8:60774 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.18:52858 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T17:06:27.844298630Z [INFO] AUDIT OPTIONS /api/profile -> 200 (0.005s) timestamp="2026-07-15T17:06:25+0000" logger="app.middleware.audit"
+2026-07-15T17:06:27.844304052Z [INFO] AUDIT OPTIONS /api/profile -> 200 (0.004s) timestamp="2026-07-15T17:06:25+0000" logger="app.middleware.audit"
+2026-07-15T17:06:27.844309785Z [INFO] AUDIT OPTIONS /api/profile -> 200 (0.004s) timestamp="2026-07-15T17:06:25+0000" logger="app.middleware.audit"
+INFO:     100.64.0.7:57312 - "OPTIONS /api/profile HTTP/1.1" 200 OK
+INFO:     100.64.0.12:48752 - "OPTIONS /api/profile HTTP/1.1" 200 OK
+INFO:     100.64.0.14:27772 - "OPTIONS /api/profile HTTP/1.1" 200 OK
+2026-07-15T17:06:27.844347713Z [INFO] AUDIT OPTIONS /api/profile -> 200 (0.004s) timestamp="2026-07-15T17:06:25+0000" logger="app.middleware.audit"
+INFO:     100.64.0.16:61822 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     100.64.0.22:26658 - "OPTIONS /api/profile HTTP/1.1" 200 OK
+2026-07-15T17:06:27.844361962Z [INFO] AUDIT OPTIONS /api/profile -> 200 (0.003s) timestamp="2026-07-15T17:06:25+0000" logger="app.middleware.audit"
+INFO:     100.64.0.9:36814 - "OPTIONS /api/profile HTTP/1.1" 200 OK
+2026-07-15T17:06:27.844370991Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:06:26+0000" correlation_id="b5762bba" logger="services.auth_service"
+2026-07-15T17:06:27.844376026Z [INFO] AUDIT GET /api/profile -> 401 (0.887s) timestamp="2026-07-15T17:06:26+0000" logger="app.middleware.audit"
+2026-07-15T17:06:29.155719109Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:06:27+0000" correlation_id="d591ca38" logger="services.auth_service"
+2026-07-15T17:06:29.155728205Z [INFO] AUDIT GET /api/profile -> 401 (0.035s) timestamp="2026-07-15T17:06:27+0000" logger="app.middleware.audit"
+INFO:     100.64.0.4:11968 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T17:06:29.155742393Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:06:28+0000" correlation_id="6fe6269b" logger="services.auth_service"
+2026-07-15T17:06:29.155750092Z [INFO] AUDIT GET /api/profile -> 401 (0.035s) timestamp="2026-07-15T17:06:28+0000" logger="app.middleware.audit"
+INFO:     100.64.0.7:57312 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T17:06:29.155801365Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:06:26+0000" correlation_id="21fa18aa" logger="services.auth_service"
+2026-07-15T17:06:29.155808193Z [INFO] AUDIT GET /api/profile -> 401 (0.033s) timestamp="2026-07-15T17:06:26+0000" logger="app.middleware.audit"
+INFO:     100.64.0.4:11968 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T17:06:29.155821120Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:06:27+0000" correlation_id="72b8bb0a" logger="services.auth_service"
+2026-07-15T17:06:29.155827532Z [INFO] AUDIT GET /api/profile -> 401 (0.049s) timestamp="2026-07-15T17:06:27+0000" logger="app.middleware.audit"
+INFO:     100.64.0.22:26658 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.23:49140 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.13:34820 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T17:07:10.297550398Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:07:04+0000" correlation_id="629f6806" logger="services.auth_service"
+2026-07-15T17:07:10.297555020Z [INFO] AUDIT GET /api/profile -> 401 (0.055s) timestamp="2026-07-15T17:07:04+0000" logger="app.middleware.audit"
+INFO:     100.64.0.22:40304 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T17:07:10.297564261Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:07:04+0000" correlation_id="79406f8c" logger="services.auth_service"
+2026-07-15T17:07:10.297569049Z [INFO] AUDIT GET /api/profile -> 401 (0.041s) timestamp="2026-07-15T17:07:04+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:34820 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T17:07:10.297580470Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:07:04+0000" correlation_id="1da35d1b" logger="services.auth_service"
+2026-07-15T17:07:10.297586876Z [INFO] AUDIT GET /api/profile -> 401 (0.032s) timestamp="2026-07-15T17:07:04+0000" logger="app.middleware.audit"
+INFO:     100.64.0.22:40304 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T17:07:10.297599079Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:07:05+0000" correlation_id="6686b382" logger="services.auth_service"
+2026-07-15T17:07:10.297605403Z [INFO] AUDIT GET /api/profile -> 401 (0.033s) timestamp="2026-07-15T17:07:05+0000" logger="app.middleware.audit"
+INFO:     100.64.0.16:53892 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T17:07:10.300421438Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:07:05+0000" correlation_id="10cd7efc" logger="services.auth_service"
+2026-07-15T17:07:10.300427512Z [INFO] AUDIT GET /api/profile -> 401 (0.036s) timestamp="2026-07-15T17:07:05+0000" logger="app.middleware.audit"
+INFO:     100.64.0.22:40304 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T17:08:51.841753415Z [INFO] AUDIT OPTIONS /api/notebooks -> 200 (0.001s) timestamp="2026-07-15T17:08:47+0000" logger="app.middleware.audit"
+INFO:     100.64.0.14:58736 - "OPTIONS /api/notebooks HTTP/1.1" 200 OK
+2026-07-15T17:08:51.841762152Z [INFO] AUDIT OPTIONS /api/notebooks -> 200 (0.001s) timestamp="2026-07-15T17:08:47+0000" logger="app.middleware.audit"
+INFO:     100.64.0.9:39522 - "OPTIONS /api/notebooks HTTP/1.1" 200 OK
+2026-07-15T17:08:51.841783108Z [INFO] AUDIT OPTIONS /api/chat/title -> 200 (0.006s) timestamp="2026-07-15T17:08:47+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:52110 - "OPTIONS /api/chat/title HTTP/1.1" 200 OK
+2026-07-15T17:08:51.841791811Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:08:47+0000" correlation_id="b24a55e4" logger="services.auth_service"
+2026-07-15T17:08:51.841883649Z [INFO] AUDIT GET /api/profile -> 401 (0.228s) timestamp="2026-07-15T17:08:47+0000" logger="app.middleware.audit"
+INFO:     100.64.0.15:55710 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T17:08:51.841892911Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:08:47+0000" correlation_id="e9347482" logger="services.auth_service"
+2026-07-15T17:08:51.841897172Z [INFO] AUDIT GET /api/notebooks -> 401 (0.031s) timestamp="2026-07-15T17:08:47+0000" logger="app.middleware.audit"
+INFO:     100.64.0.14:58736 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T17:08:51.841905601Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:08:47+0000" correlation_id="aaf4b370" logger="services.auth_service"
+INFO:     100.64.0.16:18978 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.9:39522 - "POST /api/chat/title HTTP/1.1" 401 Unauthorized
+2026-07-15T17:08:51.842474243Z [INFO] AUDIT OPTIONS /api/chat/stream -> 200 (0.004s) timestamp="2026-07-15T17:08:47+0000" logger="app.middleware.audit"
+2026-07-15T17:08:51.842476142Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:08:48+0000" correlation_id="58e03c1a" logger="services.auth_service"
+INFO:     100.64.0.19:44668 - "OPTIONS /api/chat/stream HTTP/1.1" 200 OK
+2026-07-15T17:08:51.842485555Z [INFO] AUDIT GET /api/notebooks -> 401 (0.030s) timestamp="2026-07-15T17:08:48+0000" logger="app.middleware.audit"
+2026-07-15T17:08:51.842490572Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:08:47+0000" correlation_id="c30c1ff9" logger="services.auth_service"
+INFO:     100.64.0.7:34302 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T17:08:51.842498204Z [INFO] AUDIT GET /api/profile -> 401 (0.042s) timestamp="2026-07-15T17:08:47+0000" logger="app.middleware.audit"
+2026-07-15T17:08:51.842503825Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:08:48+0000" correlation_id="96583a48" logger="services.auth_service"
+2026-07-15T17:08:51.842524951Z [INFO] AUDIT POST /api/chat/title -> 401 (0.048s) timestamp="2026-07-15T17:08:47+0000" logger="app.middleware.audit"
+2026-07-15T17:08:51.843269860Z [INFO] AUDIT POST /api/chat/stream -> 401 (0.036s) timestamp="2026-07-15T17:08:48+0000" logger="app.middleware.audit"
+INFO:     100.64.0.16:18978 - "POST /api/chat/stream HTTP/1.1" 401 Unauthorized
+2026-07-15T17:08:51.845292734Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:08:48+0000" correlation_id="533120fb" logger="services.auth_service"
+2026-07-15T17:08:51.845299377Z [INFO] AUDIT GET /api/profile -> 401 (0.033s) timestamp="2026-07-15T17:08:48+0000" logger="app.middleware.audit"
+INFO:     100.64.0.7:34302 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T17:08:51.845314347Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:08:48+0000" correlation_id="dbb7b296" logger="services.auth_service"
+2026-07-15T17:08:51.845320546Z [INFO] AUDIT POST /api/chat/stream -> 401 (0.064s) timestamp="2026-07-15T17:08:48+0000" logger="app.middleware.audit"
+INFO:     100.64.0.14:58736 - "POST /api/chat/stream HTTP/1.1" 401 Unauthorized
+2026-07-15T17:08:51.845342850Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:08:49+0000" correlation_id="ced405fc" logger="services.auth_service"
+2026-07-15T17:08:51.845350781Z [INFO] AUDIT GET /api/notebooks -> 401 (0.034s) timestamp="2026-07-15T17:08:49+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:52110 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T17:08:51.845363384Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T17:08:49+0000" correlation_id="1bd0948b" logger="services.auth_service"
+2026-07-15T17:08:51.845369922Z [INFO] AUDIT GET /api/profile -> 401 (0.034s) timestamp="2026-07-15T17:08:49+0000" logger="app.middleware.audit"
+INFO:     100.64.0.9:39522 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:21:19.242955628Z [INFO] AUDIT OPTIONS /api/profile -> 200 (0.001s) timestamp="2026-07-15T18:21:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.10:27010 - "OPTIONS /api/profile HTTP/1.1" 200 OK
+2026-07-15T18:21:19.242968923Z [INFO] AUDIT OPTIONS /api/profile -> 200 (0.002s) timestamp="2026-07-15T18:21:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.6:58828 - "OPTIONS /api/profile HTTP/1.1" 200 OK
+2026-07-15T18:21:19.242981717Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:21:16+0000" correlation_id="fc20ab4b" logger="services.auth_service"
+2026-07-15T18:21:19.242988749Z [INFO] AUDIT GET /api/profile -> 401 (0.614s) timestamp="2026-07-15T18:21:16+0000" logger="app.middleware.audit"
+INFO:     100.64.0.11:31940 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:21:19.243001596Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:21:17+0000" correlation_id="6a5edc95" logger="services.auth_service"
+2026-07-15T18:21:19.243008005Z [INFO] AUDIT GET /api/profile -> 401 (0.031s) timestamp="2026-07-15T18:21:17+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:13024 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:21:26.656050392Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:21:26+0000" correlation_id="aac485b6" logger="services.auth_service"
+2026-07-15T18:21:26.656058164Z [INFO] AUDIT GET /api/profile -> 401 (0.044s) timestamp="2026-07-15T18:21:26+0000" logger="app.middleware.audit"
+INFO:     100.64.0.18:15298 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.23:38446 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:21:28.107264487Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:21:26+0000" correlation_id="060a4c4a" logger="services.auth_service"
+2026-07-15T18:21:28.107269417Z [INFO] AUDIT GET /api/profile -> 401 (0.036s) timestamp="2026-07-15T18:21:26+0000" logger="app.middleware.audit"
+2026-07-15T18:21:58.100622307Z [INFO] AUDIT OPTIONS /api/profile -> 200 (0.002s) timestamp="2026-07-15T18:21:56+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:14804 - "OPTIONS /api/profile HTTP/1.1" 200 OK
+2026-07-15T18:21:58.100631106Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:21:56+0000" correlation_id="8f283da2" logger="services.auth_service"
+2026-07-15T18:21:58.100639136Z [INFO] AUDIT GET /api/profile -> 401 (0.054s) timestamp="2026-07-15T18:21:56+0000" logger="app.middleware.audit"
+INFO:     100.64.0.23:21898 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:21:58.100655626Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:21:56+0000" correlation_id="08a83fc1" logger="services.auth_service"
+2026-07-15T18:21:58.100660352Z [INFO] AUDIT PUT /api/profile -> 401 (0.032s) timestamp="2026-07-15T18:21:56+0000" logger="app.middleware.audit"
+INFO:     100.64.0.10:44368 - "PUT /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.22:56244 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T18:21:58.100674202Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:21:56+0000" correlation_id="e0a26d30" logger="services.auth_service"
+2026-07-15T18:21:58.100680465Z [INFO] AUDIT GET /api/profile -> 401 (0.030s) timestamp="2026-07-15T18:21:56+0000" logger="app.middleware.audit"
+INFO:     100.64.0.6:29936 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:21:58.100688915Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:21:57+0000" correlation_id="d79b3e32" logger="services.auth_service"
+2026-07-15T18:21:58.101302105Z [INFO] AUDIT GET /api/profile -> 401 (0.037s) timestamp="2026-07-15T18:21:57+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:55930 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:21:58.101313024Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:21:57+0000" correlation_id="7cff5966" logger="services.auth_service"
+2026-07-15T18:21:58.101318122Z [INFO] AUDIT GET /api/profile -> 401 (0.028s) timestamp="2026-07-15T18:21:57+0000" logger="app.middleware.audit"
+INFO:     100.64.0.11:58124 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:21:58.101327473Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:21:57+0000" correlation_id="fa0f1734" logger="services.auth_service"
+2026-07-15T18:21:58.101333996Z [INFO] AUDIT GET /api/profile -> 401 (0.039s) timestamp="2026-07-15T18:21:57+0000" logger="app.middleware.audit"
+INFO:     100.64.0.11:58124 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:21:58.255788872Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:21:58+0000" correlation_id="b045cc07" logger="services.auth_service"
+2026-07-15T18:21:58.255796261Z [INFO] AUDIT GET /api/profile -> 401 (0.036s) timestamp="2026-07-15T18:21:58+0000" logger="app.middleware.audit"
+INFO:     100.64.0.11:58124 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:21:59.116584526Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:21:58+0000" correlation_id="8bd1e3e9" logger="services.auth_service"
+2026-07-15T18:21:59.116590984Z [INFO] AUDIT GET /api/profile -> 401 (0.040s) timestamp="2026-07-15T18:21:58+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:55930 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:22:28.393806342Z [INFO] AUDIT OPTIONS /api/memory/knowledge-graph -> 200 (0.001s) timestamp="2026-07-15T18:22:21+0000" logger="app.middleware.audit"
+INFO:     100.64.0.14:26536 - "OPTIONS /api/memory/knowledge-graph?view=personal HTTP/1.1" 200 OK
+2026-07-15T18:22:28.393824955Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:22:21+0000" correlation_id="6caafb29" logger="services.auth_service"
+2026-07-15T18:22:28.393830588Z [INFO] AUDIT GET /api/memory/knowledge-graph -> 200 (0.285s) timestamp="2026-07-15T18:22:21+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:36776 - "GET /api/memory/knowledge-graph?view=personal HTTP/1.1" 200 OK
+INFO:     100.64.0.17:36792 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T18:22:28.393844525Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:22:27+0000" correlation_id="fb36d080" logger="services.auth_service"
+2026-07-15T18:22:28.393848881Z [INFO] AUDIT GET /api/memory/knowledge-graph -> 200 (0.040s) timestamp="2026-07-15T18:22:27+0000" logger="app.middleware.audit"
+INFO:     100.64.0.6:35708 - "GET /api/memory/knowledge-graph?view=personal HTTP/1.1" 200 OK
+INFO:     100.64.0.17:47402 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T18:23:17.764872263Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:10+0000" correlation_id="1593dce7" logger="services.auth_service"
+2026-07-15T18:23:17.764878144Z [INFO] AUDIT GET /api/profile -> 401 (0.044s) timestamp="2026-07-15T18:23:10+0000" logger="app.middleware.audit"
+INFO:     100.64.0.11:62182 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:17.764894357Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:11+0000" correlation_id="621e0120" logger="services.auth_service"
+2026-07-15T18:23:17.764899939Z [INFO] AUDIT GET /api/profile -> 401 (0.036s) timestamp="2026-07-15T18:23:11+0000" logger="app.middleware.audit"
+INFO:     100.64.0.6:40466 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:47.806044325Z [INFO] AUDIT GET /api/profile -> 401 (0.035s) timestamp="2026-07-15T18:23:46+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:14842 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.23:11796 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T18:23:47.806075283Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:46+0000" correlation_id="71d611ba" logger="services.auth_service"
+2026-07-15T18:23:47.806086585Z [INFO] AUDIT GET /api/profile -> 401 (0.038s) timestamp="2026-07-15T18:23:46+0000" logger="app.middleware.audit"
+2026-07-15T18:23:47.806095269Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:45+0000" correlation_id="a98c5b6e" logger="services.auth_service"
+INFO:     100.64.0.13:60774 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:47.806110963Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:46+0000" correlation_id="c57dfca2" logger="services.auth_service"
+2026-07-15T18:23:47.806114338Z [INFO] AUDIT GET /api/profile -> 401 (0.045s) timestamp="2026-07-15T18:23:45+0000" logger="app.middleware.audit"
+2026-07-15T18:23:47.806124000Z [INFO] AUDIT GET /api/profile -> 401 (0.034s) timestamp="2026-07-15T18:23:46+0000" logger="app.middleware.audit"
+INFO:     100.64.0.14:29180 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:47.806146447Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:46+0000" correlation_id="033d1beb" logger="services.auth_service"
+INFO:     100.64.0.23:11796 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:47.807734406Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:47+0000" correlation_id="f0adfaf3" logger="services.auth_service"
+2026-07-15T18:23:47.807741868Z [INFO] AUDIT GET /api/profile -> 401 (0.031s) timestamp="2026-07-15T18:23:47+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:14842 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:47.807755527Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:47+0000" correlation_id="f3aa5682" logger="services.auth_service"
+2026-07-15T18:23:47.807766772Z [INFO] AUDIT GET /api/profile -> 401 (0.032s) timestamp="2026-07-15T18:23:47+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:14842 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.17:14842 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T18:23:47.909805233Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:47+0000" correlation_id="ed0136d7" logger="services.auth_service"
+2026-07-15T18:23:47.909811763Z [INFO] AUDIT GET /api/profile -> 401 (0.035s) timestamp="2026-07-15T18:23:47+0000" logger="app.middleware.audit"
+INFO:     100.64.0.4:44736 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:48.677179318Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:48+0000" correlation_id="6f5fbf6c" logger="services.auth_service"
+2026-07-15T18:23:48.677186734Z [INFO] AUDIT GET /api/profile -> 401 (0.031s) timestamp="2026-07-15T18:23:48+0000" logger="app.middleware.audit"
+INFO:     100.64.0.23:11796 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:48.677198396Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:48+0000" correlation_id="a47202b5" logger="services.auth_service"
+2026-07-15T18:23:48.677204159Z [INFO] AUDIT GET /api/profile -> 401 (0.039s) timestamp="2026-07-15T18:23:48+0000" logger="app.middleware.audit"
+INFO:     100.64.0.22:42440 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:48.847675252Z [INFO] AUDIT OPTIONS /api/notebooks -> 200 (0.003s) timestamp="2026-07-15T18:23:48+0000" logger="app.middleware.audit"
+2026-07-15T18:23:48.847687828Z [INFO] AUDIT OPTIONS /api/notebooks -> 200 (0.003s) timestamp="2026-07-15T18:23:48+0000" logger="app.middleware.audit"
+INFO:     100.64.0.22:42440 - "OPTIONS /api/notebooks HTTP/1.1" 200 OK
+INFO:     100.64.0.17:14842 - "OPTIONS /api/notebooks HTTP/1.1" 200 OK
+2026-07-15T18:23:48.876827620Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:48+0000" correlation_id="15f61288" logger="services.auth_service"
+2026-07-15T18:23:48.876836236Z [INFO] AUDIT GET /api/profile -> 401 (0.033s) timestamp="2026-07-15T18:23:48+0000" logger="app.middleware.audit"
+INFO:     100.64.0.14:29180 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.22:42440 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T18:23:49.836879418Z [INFO] AUDIT OPTIONS /api/notebooks -> 200 (0.002s) timestamp="2026-07-15T18:23:49+0000" logger="app.middleware.audit"
+INFO:     100.64.0.21:57592 - "OPTIONS /api/notebooks HTTP/1.1" 200 OK
+2026-07-15T18:23:49.836893405Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:49+0000" correlation_id="7255f5c9" logger="services.auth_service"
+2026-07-15T18:23:49.836900389Z [INFO] AUDIT GET /api/notebooks -> 401 (0.031s) timestamp="2026-07-15T18:23:49+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:14842 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:49.836916117Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:49+0000" correlation_id="aa6f938c" logger="services.auth_service"
+2026-07-15T18:23:49.836922569Z [INFO] AUDIT GET /api/profile -> 401 (0.036s) timestamp="2026-07-15T18:23:49+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:14844 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:49.836942710Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:49+0000" correlation_id="c177fe33" logger="services.auth_service"
+2026-07-15T18:23:49.836950097Z [INFO] AUDIT GET /api/notebooks -> 401 (0.038s) timestamp="2026-07-15T18:23:49+0000" logger="app.middleware.audit"
+INFO:     100.64.0.4:44736 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:49.836963669Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:49+0000" correlation_id="f5756336" logger="services.auth_service"
+2026-07-15T18:23:49.842175578Z [INFO] AUDIT GET /api/profile -> 401 (0.036s) timestamp="2026-07-15T18:23:49+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:14844 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:49.842185841Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:49+0000" correlation_id="feb623aa" logger="services.auth_service"
+2026-07-15T18:23:49.842190301Z [INFO] AUDIT GET /api/notebooks -> 401 (0.028s) timestamp="2026-07-15T18:23:49+0000" logger="app.middleware.audit"
+INFO:     100.64.0.4:44736 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:49.842199968Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:49+0000" correlation_id="65832299" logger="services.auth_service"
+2026-07-15T18:23:49.842205112Z [INFO] AUDIT GET /api/profile -> 401 (0.023s) timestamp="2026-07-15T18:23:49+0000" logger="app.middleware.audit"
+INFO:     100.64.0.22:42440 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:50.934911874Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:50+0000" correlation_id="784b4e0e" logger="services.auth_service"
+2026-07-15T18:23:50.934925063Z [INFO] AUDIT GET /api/profile -> 401 (0.034s) timestamp="2026-07-15T18:23:50+0000" logger="app.middleware.audit"
+INFO:     100.64.0.4:44736 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:50.934940942Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:50+0000" correlation_id="2f0e0193" logger="services.auth_service"
+2026-07-15T18:23:50.934948377Z [INFO] AUDIT GET /api/profile -> 401 (0.040s) timestamp="2026-07-15T18:23:50+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:14844 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:50.934964465Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:50+0000" correlation_id="ab057f52" logger="services.auth_service"
+2026-07-15T18:23:50.934965290Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:50+0000" correlation_id="ba1fcd51" logger="services.auth_service"
+2026-07-15T18:23:50.934971282Z [INFO] AUDIT PUT /api/profile -> 401 (0.032s) timestamp="2026-07-15T18:23:50+0000" logger="app.middleware.audit"
+2026-07-15T18:23:50.934973246Z [INFO] AUDIT GET /api/profile -> 401 (0.034s) timestamp="2026-07-15T18:23:50+0000" logger="app.middleware.audit"
+INFO:     100.64.0.22:42440 - "PUT /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.6:37942 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.17:14842 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:51.923310405Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:51+0000" correlation_id="ebb09815" logger="services.auth_service"
+2026-07-15T18:23:51.923315214Z [INFO] AUDIT GET /api/notebooks -> 401 (0.036s) timestamp="2026-07-15T18:23:51+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:14844 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:51.923323232Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:51+0000" correlation_id="1fdb269b" logger="services.auth_service"
+2026-07-15T18:23:51.923327653Z [INFO] AUDIT GET /api/profile -> 401 (0.032s) timestamp="2026-07-15T18:23:51+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:21818 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:51.923342240Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:51+0000" correlation_id="7a696454" logger="services.auth_service"
+2026-07-15T18:23:51.923346436Z [INFO] AUDIT GET /api/notebooks -> 401 (0.034s) timestamp="2026-07-15T18:23:51+0000" logger="app.middleware.audit"
+INFO:     100.64.0.14:29180 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:51.923408849Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:51+0000" correlation_id="e4068077" logger="services.auth_service"
+2026-07-15T18:23:51.923418513Z [INFO] AUDIT GET /api/profile -> 401 (0.025s) timestamp="2026-07-15T18:23:51+0000" logger="app.middleware.audit"
+2026-07-15T18:23:51.928454244Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:51+0000" correlation_id="15010615" logger="services.auth_service"
+2026-07-15T18:23:51.928463927Z [INFO] AUDIT GET /api/profile -> 401 (0.034s) timestamp="2026-07-15T18:23:51+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:14844 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:51.928474984Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:51+0000" correlation_id="0c1e2c8e" logger="services.auth_service"
+2026-07-15T18:23:51.928479748Z [INFO] AUDIT GET /api/notebooks -> 401 (0.033s) timestamp="2026-07-15T18:23:51+0000" logger="app.middleware.audit"
+INFO:     100.64.0.6:37942 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T18:23:52.896356285Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:23:52+0000" correlation_id="5ab436af" logger="services.auth_service"
+2026-07-15T18:23:52.896366474Z [INFO] AUDIT GET /api/profile -> 401 (0.042s) timestamp="2026-07-15T18:23:52+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:21818 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:24:12.084791871Z [INFO] AUDIT OPTIONS /api/kg/subgraph -> 200 (0.001s) timestamp="2026-07-15T18:24:04+0000" logger="app.middleware.audit"
+INFO:     100.64.0.21:20924 - "OPTIONS /api/kg/subgraph?query=deeksha&limit=20 HTTP/1.1" 200 OK
+2026-07-15T18:24:12.084803947Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:04+0000" correlation_id="4f71e3c1" logger="services.auth_service"
+2026-07-15T18:24:12.084809105Z [INFO] AUDIT GET /api/kg/subgraph -> 401 (0.045s) timestamp="2026-07-15T18:24:04+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:29464 - "GET /api/kg/subgraph?query=deeksha&limit=20 HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.17:40202 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.21:59060 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T18:24:14.887106894Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:14+0000" correlation_id="fa5e89ce" logger="services.auth_service"
+2026-07-15T18:24:14.887116381Z [INFO] AUDIT GET /api/profile -> 401 (0.030s) timestamp="2026-07-15T18:24:14+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:40202 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:24:14.887131993Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:14+0000" correlation_id="19b0b02a" logger="services.auth_service"
+2026-07-15T18:24:14.887141048Z [INFO] AUDIT GET /api/profile -> 401 (0.057s) timestamp="2026-07-15T18:24:14+0000" logger="app.middleware.audit"
+2026-07-15T18:24:15.107478341Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:15+0000" correlation_id="a72c44f3" logger="services.auth_service"
+2026-07-15T18:24:15.107486859Z [INFO] AUDIT GET /api/profile -> 401 (0.038s) timestamp="2026-07-15T18:24:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:33548 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:24:15.917232787Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:15+0000" correlation_id="6f748be0" logger="services.auth_service"
+2026-07-15T18:24:15.917239157Z [INFO] AUDIT GET /api/profile -> 401 (0.036s) timestamp="2026-07-15T18:24:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.22:48578 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:24:15.917252440Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:15+0000" correlation_id="277baa22" logger="services.auth_service"
+2026-07-15T18:24:15.917260256Z [INFO] AUDIT GET /api/notebooks -> 401 (0.039s) timestamp="2026-07-15T18:24:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.22:48570 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T18:24:15.917271831Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:15+0000" correlation_id="d6f8cd69" logger="services.auth_service"
+2026-07-15T18:24:15.917277957Z [INFO] AUDIT GET /api/notebooks -> 401 (0.033s) timestamp="2026-07-15T18:24:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:40202 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T18:24:15.917290401Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:15+0000" correlation_id="5acd7b72" logger="services.auth_service"
+2026-07-15T18:24:15.917312969Z [INFO] AUDIT GET /api/profile -> 401 (0.031s) timestamp="2026-07-15T18:24:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:40216 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:24:16.098271149Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:16+0000" correlation_id="10926cd1" logger="services.auth_service"
+2026-07-15T18:24:16.098280894Z [INFO] AUDIT GET /api/profile -> 401 (0.028s) timestamp="2026-07-15T18:24:16+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:33548 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:24:16.098294553Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:16+0000" correlation_id="0c8ad3f3" logger="services.auth_service"
+2026-07-15T18:24:16.098311916Z [INFO] AUDIT GET /api/notebooks -> 401 (0.033s) timestamp="2026-07-15T18:24:16+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:40216 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T18:24:16.820279997Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:16+0000" correlation_id="4479c6a2" logger="services.auth_service"
+2026-07-15T18:24:16.820290713Z [INFO] AUDIT GET /api/profile -> 401 (0.033s) timestamp="2026-07-15T18:24:16+0000" logger="app.middleware.audit"
+INFO:     100.64.0.10:34476 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:24:21.098095358Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:21+0000" correlation_id="9ddc781d" logger="services.auth_service"
+2026-07-15T18:24:21.098107350Z [INFO] AUDIT GET /api/profile -> 401 (0.046s) timestamp="2026-07-15T18:24:21+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:35678 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:24:21.866802258Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:24:21+0000" correlation_id="838c0050" logger="services.auth_service"
+2026-07-15T18:24:21.866811070Z [INFO] AUDIT GET /api/profile -> 401 (0.030s) timestamp="2026-07-15T18:24:21+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:55674 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:26:12.934953166Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:05+0000" correlation_id="b81c270c" logger="services.auth_service"
+2026-07-15T18:26:12.934957823Z [INFO] AUDIT GET /api/profile -> 401 (0.174s) timestamp="2026-07-15T18:26:05+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:33362 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:26:12.935375387Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:05+0000" correlation_id="12882ae1" logger="services.auth_service"
+2026-07-15T18:26:12.935382050Z [INFO] AUDIT GET /api/profile -> 401 (0.031s) timestamp="2026-07-15T18:26:05+0000" logger="app.middleware.audit"
+INFO:     100.64.0.23:52836 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.21:30740 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T18:26:32.141123787Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:23+0000" correlation_id="2ebc5d84" logger="services.auth_service"
+2026-07-15T18:26:32.141132626Z [INFO] AUDIT GET /api/profile -> 401 (0.029s) timestamp="2026-07-15T18:26:23+0000" logger="app.middleware.audit"
+INFO:     100.64.0.11:12818 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:26:32.141144403Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:23+0000" correlation_id="ea64dc85" logger="services.auth_service"
+2026-07-15T18:26:32.141151395Z [INFO] AUDIT GET /api/profile -> 401 (0.153s) timestamp="2026-07-15T18:26:23+0000" logger="app.middleware.audit"
+INFO:     100.64.0.6:57550 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:26:32.141162943Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:24+0000" correlation_id="b7a7379d" logger="services.auth_service"
+2026-07-15T18:26:32.141168825Z [INFO] AUDIT GET /api/profile -> 401 (0.032s) timestamp="2026-07-15T18:26:24+0000" logger="app.middleware.audit"
+INFO:     100.64.0.6:57550 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:26:32.141192778Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:24+0000" correlation_id="e709481b" logger="services.auth_service"
+2026-07-15T18:26:32.141198366Z [INFO] AUDIT GET /api/profile -> 401 (0.031s) timestamp="2026-07-15T18:26:24+0000" logger="app.middleware.audit"
+INFO:     100.64.0.21:30740 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:26:36.086586447Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:36+0000" correlation_id="064b728a" logger="services.auth_service"
+2026-07-15T18:26:36.086593849Z [INFO] AUDIT GET /api/profile -> 401 (0.049s) timestamp="2026-07-15T18:26:36+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:14716 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:26:36.923419431Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:36+0000" correlation_id="71d03226" logger="services.auth_service"
+2026-07-15T18:26:36.923425455Z [INFO] AUDIT GET /api/profile -> 401 (0.043s) timestamp="2026-07-15T18:26:36+0000" logger="app.middleware.audit"
+INFO:     100.64.0.4:62722 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:26:41.041323685Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:41+0000" correlation_id="c4f01d84" logger="services.auth_service"
+2026-07-15T18:26:41.041335460Z [INFO] AUDIT PUT /api/profile -> 401 (0.034s) timestamp="2026-07-15T18:26:41+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:33952 - "PUT /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.15:61284 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T18:27:00.316750564Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:50+0000" correlation_id="eb407ef1" logger="services.auth_service"
+2026-07-15T18:27:00.316764225Z [INFO] AUDIT GET /api/profile -> 401 (0.030s) timestamp="2026-07-15T18:26:50+0000" logger="app.middleware.audit"
+INFO:     100.64.0.6:25712 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:27:00.316778271Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:51+0000" correlation_id="6e191820" logger="services.auth_service"
+2026-07-15T18:27:00.316786590Z [INFO] AUDIT GET /api/profile -> 401 (0.031s) timestamp="2026-07-15T18:26:51+0000" logger="app.middleware.audit"
+INFO:     100.64.0.21:60684 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.15:61284 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:27:00.316811065Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:51+0000" correlation_id="d49bd2b5" logger="services.auth_service"
+2026-07-15T18:27:00.316819217Z [INFO] AUDIT GET /api/profile -> 401 (0.031s) timestamp="2026-07-15T18:26:51+0000" logger="app.middleware.audit"
+2026-07-15T18:27:00.316826024Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:51+0000" correlation_id="c534f837" logger="services.auth_service"
+2026-07-15T18:27:00.316832387Z [INFO] AUDIT GET /api/profile -> 401 (0.036s) timestamp="2026-07-15T18:26:51+0000" logger="app.middleware.audit"
+INFO:     100.64.0.15:61284 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:27:00.317505032Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:52+0000" correlation_id="0b8a3f5d" logger="services.auth_service"
+2026-07-15T18:27:00.317512153Z [INFO] AUDIT GET /api/profile -> 401 (0.031s) timestamp="2026-07-15T18:26:52+0000" logger="app.middleware.audit"
+INFO:     100.64.0.12:37852 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:27:00.317524729Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:26:52+0000" correlation_id="862096ba" logger="services.auth_service"
+2026-07-15T18:27:00.317531956Z [INFO] AUDIT GET /api/profile -> 401 (0.030s) timestamp="2026-07-15T18:26:52+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:27888 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:27:20.309527551Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:27:10+0000" correlation_id="b638511a" logger="services.auth_service"
+2026-07-15T18:27:20.309535656Z [INFO] AUDIT GET /api/profile -> 401 (0.055s) timestamp="2026-07-15T18:27:10+0000" logger="app.middleware.audit"
+INFO:     100.64.0.17:23206 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:27:20.309548427Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:27:10+0000" correlation_id="32211120" logger="services.auth_service"
+2026-07-15T18:27:20.309554172Z [INFO] AUDIT GET /api/profile -> 401 (0.029s) timestamp="2026-07-15T18:27:10+0000" logger="app.middleware.audit"
+INFO:     100.64.0.6:43090 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:35:04.590028714Z [INFO] AUDIT OPTIONS /api/profile -> 200 (0.003s) timestamp="2026-07-15T18:35:00+0000" logger="app.middleware.audit"
+INFO:     100.64.0.18:16242 - "OPTIONS /api/profile HTTP/1.1" 200 OK
+2026-07-15T18:35:04.590048892Z [INFO] AUDIT OPTIONS /api/profile -> 200 (0.002s) timestamp="2026-07-15T18:35:00+0000" logger="app.middleware.audit"
+2026-07-15T18:35:04.590050488Z [INFO] AUDIT GET /api/profile -> 401 (0.049s) timestamp="2026-07-15T18:35:01+0000" logger="app.middleware.audit"
+INFO:     100.64.0.8:42306 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.13:25386 - "OPTIONS /api/profile HTTP/1.1" 200 OK
+2026-07-15T18:35:04.590203757Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:35:01+0000" correlation_id="efb828b7" logger="services.auth_service"
+2026-07-15T18:35:04.590208226Z [INFO] AUDIT GET /api/profile -> 401 (0.599s) timestamp="2026-07-15T18:35:01+0000" logger="app.middleware.audit"
+INFO:     100.64.0.11:16418 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:35:04.590221716Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:35:01+0000" correlation_id="b9c248ca" logger="services.auth_service"
+2026-07-15T18:38:05.867226007Z [INFO] AUDIT OPTIONS /api/profile -> 200 (0.001s) timestamp="2026-07-15T18:37:56+0000" logger="app.middleware.audit"
+INFO:     100.64.0.12:19236 - "OPTIONS /api/profile HTTP/1.1" 200 OK
+2026-07-15T18:38:05.867239746Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:37:56+0000" correlation_id="8f8557f7" logger="services.auth_service"
+2026-07-15T18:38:05.867246410Z [INFO] AUDIT PUT /api/profile -> 401 (0.164s) timestamp="2026-07-15T18:37:56+0000" logger="app.middleware.audit"
+INFO:     100.64.0.11:28044 - "PUT /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.17:28058 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T18:38:13.759422357Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:38:13+0000" correlation_id="5e2ed456" logger="services.auth_service"
+2026-07-15T18:38:13.759427702Z [INFO] AUDIT GET /api/profile -> 401 (0.037s) timestamp="2026-07-15T18:38:13+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:26198 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:38:13.759435917Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:38:13+0000" correlation_id="28acd274" logger="services.auth_service"
+2026-07-15T18:38:13.759440914Z [INFO] AUDIT GET /api/profile -> 401 (0.032s) timestamp="2026-07-15T18:38:13+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:26198 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:38:14.782442874Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:38:13+0000" correlation_id="8ac7ff97" logger="services.auth_service"
+2026-07-15T18:38:14.782448292Z [INFO] AUDIT GET /api/profile -> 401 (0.043s) timestamp="2026-07-15T18:38:13+0000" logger="app.middleware.audit"
+INFO:     100.64.0.4:50512 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:38:14.782458119Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:38:14+0000" correlation_id="c7b38713" logger="services.auth_service"
+2026-07-15T18:38:14.782462355Z [INFO] AUDIT GET /api/profile -> 401 (0.040s) timestamp="2026-07-15T18:38:14+0000" logger="app.middleware.audit"
+INFO:     100.64.0.19:36226 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:38:14.782472160Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:38:14+0000" correlation_id="d54800f9" logger="services.auth_service"
+2026-07-15T18:38:14.782476714Z [INFO] AUDIT GET /api/profile -> 401 (0.050s) timestamp="2026-07-15T18:38:14+0000" logger="app.middleware.audit"
+INFO:     100.64.0.8:10246 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:38:15.776004776Z [INFO] AUDIT OPTIONS /api/notebooks -> 200 (0.001s) timestamp="2026-07-15T18:38:14+0000" logger="app.middleware.audit"
+INFO:     100.64.0.4:50512 - "OPTIONS /api/notebooks HTTP/1.1" 200 OK
+2026-07-15T18:38:15.776025470Z [INFO] AUDIT OPTIONS /api/notebooks -> 200 (0.002s) timestamp="2026-07-15T18:38:14+0000" logger="app.middleware.audit"
+INFO:     100.64.0.22:37628 - "OPTIONS /api/notebooks HTTP/1.1" 200 OK
+2026-07-15T18:38:15.776045899Z [INFO] AUDIT OPTIONS /api/notebooks -> 200 (0.001s) timestamp="2026-07-15T18:38:14+0000" logger="app.middleware.audit"
+INFO:     100.64.0.15:54594 - "OPTIONS /api/notebooks HTTP/1.1" 200 OK
+2026-07-15T18:38:15.776537263Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:38:15+0000" correlation_id="d85c438a" logger="services.auth_service"
+2026-07-15T18:38:15.776547056Z [INFO] AUDIT GET /api/profile -> 401 (0.042s) timestamp="2026-07-15T18:38:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.11:21296 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:38:15.776563179Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:38:15+0000" correlation_id="073fbee6" logger="services.auth_service"
+2026-07-15T18:38:15.776570318Z [INFO] AUDIT GET /api/notebooks -> 401 (0.032s) timestamp="2026-07-15T18:38:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.15:54594 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T18:38:15.776583780Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:38:15+0000" correlation_id="e366af69" logger="services.auth_service"
+2026-07-15T18:38:15.781320267Z [INFO] AUDIT GET /api/profile -> 401 (0.032s) timestamp="2026-07-15T18:38:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.18:31960 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:38:15.781342678Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:38:15+0000" correlation_id="4973dc70" logger="services.auth_service"
+2026-07-15T18:38:15.781349719Z [INFO] AUDIT GET /api/notebooks -> 401 (0.039s) timestamp="2026-07-15T18:38:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.8:10246 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T18:38:15.781365317Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:38:15+0000" correlation_id="1d4bc0ed" logger="services.auth_service"
+2026-07-15T18:38:15.781371697Z [INFO] AUDIT GET /api/profile -> 401 (0.026s) timestamp="2026-07-15T18:38:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.12:25524 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:38:16.795535299Z [INFO] AUDIT GET /api/notebooks -> 401 (0.037s) timestamp="2026-07-15T18:38:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.7:27574 - "GET /api/notebooks HTTP/1.1" 401 Unauthorized
+2026-07-15T18:38:16.795548388Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:38:15+0000" correlation_id="e3b34eda" logger="services.auth_service"
+2026-07-15T18:38:16.795555475Z [INFO] AUDIT GET /api/profile -> 401 (0.028s) timestamp="2026-07-15T18:38:15+0000" logger="app.middleware.audit"
+INFO:     100.64.0.15:54594 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:38:16.795603156Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:38:15+0000" correlation_id="9d46d8dc" logger="services.auth_service"
+INFO:     100.64.0.10:26412 - "GET /api/health HTTP/1.1" 200 OK
+2026-07-15T18:40:17.382120200Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:40:08+0000" correlation_id="048f494b" logger="services.auth_service"
+2026-07-15T18:40:17.382128516Z [INFO] AUDIT GET /api/profile -> 401 (0.186s) timestamp="2026-07-15T18:40:08+0000" logger="app.middleware.audit"
+INFO:     100.64.0.18:62446 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+2026-07-15T18:40:17.382140452Z [WARN] Invalid Supabase credential: PyJWKClientError timestamp="2026-07-15T18:40:08+0000" correlation_id="2a5aab70" logger="services.auth_service"
+2026-07-15T18:40:17.382146488Z [INFO] AUDIT GET /api/profile -> 401 (0.040s) timestamp="2026-07-15T18:40:08+0000" logger="app.middleware.audit"
+INFO:     100.64.0.13:44552 - "GET /api/profile HTTP/1.1" 401 Unauthorized
+INFO:     100.64.0.13:27316 - "GET /api/healthz HTTP/1.1" 200 OK
