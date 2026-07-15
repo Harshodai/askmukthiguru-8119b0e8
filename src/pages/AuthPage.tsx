@@ -51,6 +51,23 @@ const friendlyError = (err: Error | { message: string }): string => {
   return err.message || 'Something went wrong. Please try again.';
 };
 
+const generateNonce = (): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let nonce = '';
+  if (typeof window !== 'undefined' && window.crypto) {
+    const values = new Uint32Array(16);
+    window.crypto.getRandomValues(values);
+    for (let i = 0; i < values.length; i++) {
+      nonce += chars[values[i] % chars.length];
+    }
+  } else {
+    for (let i = 0; i < 16; i++) {
+      nonce += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+  }
+  return nonce;
+};
+
 type GoogleStep = 'idle' | 'connecting' | 'redirecting' | 'returning' | 'finalizing';
 
 const AuthPage = () => {
@@ -78,6 +95,9 @@ const AuthPage = () => {
   const redirectingRef = useRef(false);
   const sessionHandleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const googleButtonRef = useRef<HTMLDivElement>(null);
+  const googleInitializedRef = useRef(false);
+  const nonceRef = useRef<string | null>(null);
+  const handleCallbackRef = useRef<any>(null);
 
   useEffect(() => {
     if (!isNativePlatform) return;
@@ -606,6 +626,7 @@ const AuthPage = () => {
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'google',
         token: response.credential,
+        nonce: nonceRef.current || undefined,
       });
       
       if (error) throw error;
@@ -626,6 +647,11 @@ const AuthPage = () => {
     }
   }, [toast, t]);
 
+  // Keep stable callback ref to avoid re-initializing GSI SDK on tab changes
+  useEffect(() => {
+    handleCallbackRef.current = handleGoogleOneTapResponse;
+  }, [handleGoogleOneTapResponse]);
+
   useEffect(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId || isNativePlatform) return;
@@ -642,12 +668,20 @@ const AuthPage = () => {
 
     const initGoogleSDK = () => {
       if (typeof window.google !== 'undefined') {
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleGoogleOneTapResponse,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
+        if (!googleInitializedRef.current) {
+          if (!nonceRef.current) {
+            nonceRef.current = generateNonce();
+          }
+
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: (res) => handleCallbackRef.current?.(res),
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            nonce: nonceRef.current,
+          });
+          googleInitializedRef.current = true;
+        }
 
         // Prompt One Tap only on the Sign In tab
         if (!isSignUp && !loading) {
@@ -681,7 +715,7 @@ const AuthPage = () => {
         script.removeEventListener('load', initGoogleSDK);
       };
     }
-  }, [isSignUp, loading, handleGoogleOneTapResponse]);
+  }, [isSignUp, loading]);
 
   const googleStepLabel: Record<GoogleStep, string> = {
     idle: t('auth.continueWithGoogle'),
