@@ -235,7 +235,7 @@ ReasonLiteral = Literal[
 ]
 
 
-from pydantic import BaseModel  # noqa: E402
+from pydantic import BaseModel, Field  # noqa: E402
 
 
 class CancelIntentRequest(BaseModel):

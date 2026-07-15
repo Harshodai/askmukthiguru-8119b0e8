@@ -32,6 +32,7 @@ ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
 COPY index.html vite.config.ts tsconfig*.json tailwind.config.ts postcss.config.js components.json ./
 COPY src/ ./src/
 COPY public/ ./public/
+COPY scripts/ ./scripts/
 
 # Build for production
 RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
