@@ -24,6 +24,16 @@ const TOUR_SHOWN_COUNT_KEY = 'askmukthiguru_tour_shown_count';
 const TOUR_MAX_SHOWS = 3;
 const ONBOARDED_KEY = 'askmukthiguru_onboarded';
 
+const BackendHealthBanner = () => {
+  const health = useBackendHealth();
+  if (health !== 'degraded') return null;
+  return (
+    <div className="w-full bg-amber-500/15 border-b border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs px-4 py-2 text-center">
+      ⚠️ The Guru is waking up — responses may be slower than usual for the next minute.
+    </div>
+  );
+};
+
 const ChatPage = () => {
   const { t } = useTranslation();
   const { loading, user } = useRequireAuth();
