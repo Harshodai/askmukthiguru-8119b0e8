@@ -152,6 +152,12 @@ class Settings(BaseSettings):
     # --- Supabase (Docker Local & Production Hybrid Modes) ---
     supabase_url: str = "http://host.docker.internal:54321"
     supabase_key: str = ""  # SERVICE_ROLE_KEY for backend write access
+    # Distinct service-role key for worker/admin paths (no RLS). Falls back
+    # to supabase_key when unset, matching auth_service.get_current_user_from_supabase.
+    supabase_service_key: Optional[str] = None
+    # Public-facing frontend URL (for reactivation links in win-back emails).
+    # Defaults to the Railway prod deploy; override via FRONTEND_URL env var.
+    frontend_url: str = "https://askmukthiguru-8119b0e8-production.up.railway.app"
     supabase_jwks_url: Optional[str] = None  # Optional JWKS URL for JWT validation (used in hybrid auth setups)
     supabase_jwt_issuer: Optional[str] = None  # Optional JWT Issuer for token validation (used in hybrid auth setups)
     qdrant_local_path: Optional[str] = None  # Set for local mode (no Docker)
@@ -294,9 +300,6 @@ class Settings(BaseSettings):
     notebook_rate_limit: str = "20/minute"
     memory_write_rate_limit: str = "10/minute"
     profile_rate_limit: str = "10/minute"
-    push_register_rate_limit: str = "10/minute"
-    push_send_rate_limit: str = "5/minute"
-
     # --- Support / Contact (SMTP) ---
     smtp_host: Optional[str] = None
     smtp_port: int = 587
@@ -372,6 +375,9 @@ class Settings(BaseSettings):
     use_hyper_extract_enrichment: bool = False  # Enable lightweight structure/entity/fact extraction
     hyper_extract_min_chars: int = 200  # Skip texts shorter than this
     hyper_extract_max_chars: int = 50_000  # Hard cap to keep enrichment fast and safe
+
+    # --- KG Phase 6: Auto-extraction from ingestion ---
+    write_ontology_to_neo4j: bool = True  # Materialize hyper_extract entities/relationships into Neo4j during ingestion
 
     # --- Semantic Cache ---
     semantic_cache_enabled: bool = True  # Embedding-based semantic caching

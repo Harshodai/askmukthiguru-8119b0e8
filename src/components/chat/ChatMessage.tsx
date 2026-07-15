@@ -737,11 +737,20 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
                   <span className="font-medium">{message.content}</span>
                 )}
                 {isStreaming && (
-                  <motion.span
-                    animate={{ opacity: [1, 0] }}
-                    transition={{ duration: 0.6, repeat: Infinity, repeatType: 'reverse' }}
-                    className="inline-block w-[2px] h-[1em] bg-ojas ml-0.5 align-text-bottom"
-                  />
+                  <span className="inline-flex items-center gap-1 ml-0.5 align-text-bottom">
+                    {/* Serene UI: warm-sand breathing ring around the cursor.
+                        Uses tailwind animate-breathe + animate-pulse-soft keyframes
+                        registered in tailwind.config.ts (serene namespace). */}
+                    <span
+                      className="inline-block w-2 h-2 rounded-full bg-ojas/30 animate-breathe"
+                      aria-hidden
+                    />
+                    <motion.span
+                      animate={{ opacity: [1, 0] }}
+                      transition={{ duration: 0.6, repeat: Infinity, repeatType: 'reverse' }}
+                      className="inline-block w-[2px] h-[1em] bg-ojas"
+                    />
+                  </span>
                 )}
               </div>
 

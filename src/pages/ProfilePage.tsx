@@ -85,6 +85,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
 import { useTranslation } from 'react-i18next';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { CancelFlow } from '@/components/profile/CancelFlow';
 
 const tones: { value: GuruTone; label: string; hint: string }[] = [
   { value: 'gentle', label: 'Gentle', hint: 'Soft, nurturing replies' },
@@ -126,6 +135,7 @@ const ProfilePage = () => {
   const [tab, setTab] = useState(initialTab);
   const { profile, update } = useProfile();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { setTheme: applyThemeNow } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { teaching: dailyTeaching } = useDailyTeaching();
@@ -156,6 +166,7 @@ const ProfilePage = () => {
   const [retention, setRetention] = useState<number>(getMaxConversations());
   const [retentionDays, setRetentionDays_] = useState<number>(getRetentionDays());
   const [deleteAllConfirm, setDeleteAllConfirm] = useState<string>('');
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [personalInsights, setPersonalInsights] = useState<PersonalInsight[]>([]);
   const [recalledTeachings, setRecalledTeachings] = useState<{ content: string; recall_count: number }[]>([]);
 
@@ -914,44 +925,64 @@ const ProfilePage = () => {
                       </AlertDialogContent>
                     </AlertDialog>
 
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
+                    <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+                      <DialogTrigger asChild>
                         <Button variant="destructive" className="flex-1 gap-2">
                           <Trash2 className="w-4 h-4" /> Delete Account
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Permanently delete your account?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This deletes your account and ALL server-side data: profile, chats,
-                            meditation sessions, roles. You will be signed out immediately. This
-                            cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-destructive hover:bg-destructive/90"
-                            onClick={async () => {
-                              try {
-                                const { error } = await supabase.functions.invoke('delete-my-account', { method: 'POST' });
-                                if (error) throw error;
-                                deleteAllData();
-                                resetProfile();
-                                await supabase.auth.signOut();
-                                toast({ title: 'Account deleted' });
-                                navigate('/', { replace: true });
-                              } catch (e) {
-                                toast({ title: 'Delete failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>{t('cancelFlow.dialogTitle', 'Cancel your account')}</DialogTitle>
+                          <DialogDescription>
+                            {t('cancelFlow.dialogDescription', 'A short retention flow before we say goodbye.')}
+                          </DialogDescription>
+                        </DialogHeader>
+                        {cancelOpen && (
+                          <CancelFlow
+                            onComplete={async ({ saved, retention }) => {
+                              setCancelOpen(false);
+                              if (saved) {
+                                toast({ title: 'Offer applied', description: 'Glad you are staying.' });
+                                return;
+                              }
+                              // Cancellation confirmed. Distinguish immediate
+                              // deletion from grace-period retention: only
+                              // delete_immediately tears down local data + signs
+                              // out now; keep_30_days / keep_90_days schedule a
+                              // future deletion the user can reactivate from.
+                              if (retention === 'delete_immediately') {
+                                try {
+                                  const { error } = await supabase.functions.invoke('delete-my-account', { method: 'POST' });
+                                  if (error) throw error;
+                                  deleteAllData();
+                                  resetProfile();
+                                  await supabase.auth.signOut();
+                                  toast({ title: 'Account deleted' });
+                                  navigate('/', { replace: true });
+                                } catch (e) {
+                                  toast({ title: 'Sign-out failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                                }
+                              } else {
+                                // Grace period: sign out without local teardown so
+                                // the user can reactivate before the deletion date.
+                                try {
+                                  await supabase.auth.signOut();
+                                  toast({
+                                    title: 'Deletion scheduled',
+                                    description: 'Your account is scheduled for deletion. You can reactivate anytime before the deletion date.',
+                                  });
+                                  navigate('/', { replace: true });
+                                } catch (e) {
+                                  toast({ title: 'Sign-out failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                                }
                               }
                             }}
-                          >
-                            Permanently Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                            onClose={() => setCancelOpen(false)}
+                          />
+                        )}
+                      </DialogContent>
+                    </Dialog>
                   </div>
 
                   <p className="text-[11px] text-muted-foreground pt-1">

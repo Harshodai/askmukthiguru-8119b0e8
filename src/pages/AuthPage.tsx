@@ -22,8 +22,13 @@ import {
   endAuthRun,
   getActiveRun,
 } from '@/lib/authTelemetry';
+import {
+  GOOGLE_STEP_KEY,
+  ONBOARDED_FLAG_KEY,
+  NATIVE_REDIRECT,
+  GOOGLE_GSI_SDK_URL,
+} from '@/lib/authConstants';
 
-const NATIVE_REDIRECT = 'com.askmukthiguru.app://auth-callback';
 const isNativePlatform = Capacitor.isNativePlatform();
 
 /** Map Supabase error messages/codes to user-friendly descriptions */
@@ -45,9 +50,6 @@ const friendlyError = (err: Error | { message: string }): string => {
     return 'Password must be at least 6 characters long.';
   return err.message || 'Something went wrong. Please try again.';
 };
-
-const ONBOARDED_FLAG_KEY = 'askmukthiguru_onboarded';
-const GOOGLE_STEP_KEY = 'askmukthiguru_google_step';
 
 type GoogleStep = 'idle' | 'connecting' | 'redirecting' | 'returning' | 'finalizing';
 
@@ -75,6 +77,7 @@ const AuthPage = () => {
   const { toast } = useToast();
   const redirectingRef = useRef(false);
   const sessionHandleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isNativePlatform) return;
@@ -595,47 +598,6 @@ const AuthPage = () => {
     });
   }, [toast, t]);
   
-  useEffect(() => {
-    if (loading || isSignUp) return;
-    
-    const initializeGoogleOneTap = () => {
-      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-      if (!clientId) {
-        console.warn('[Google One Tap] VITE_GOOGLE_CLIENT_ID not configured');
-        return;
-      }
-      
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        if (typeof window.google !== 'undefined') {
-          window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: handleGoogleOneTapResponse,
-            auto_select: false,
-            cancel_on_tap_outside: true,
-          });
-          
-          window.google.accounts.id.prompt((notification: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean; getNotDisplayedReason: () => string; getSkippedReason: () => string }) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-              console.log('[Google One Tap]', notification.getNotDisplayedReason() || notification.getSkippedReason());
-            }
-          });
-        }
-      };
-      document.body.appendChild(script);
-      
-      return () => {
-        document.body.removeChild(script);
-      };
-    };
-    
-    const timer = setTimeout(initializeGoogleOneTap, 1000);
-    return () => clearTimeout(timer);
-  }, [loading, isSignUp]);
-  
   const handleGoogleOneTapResponse = useCallback(async (response: { credential: string }) => {
     try {
       setLoading(true);
@@ -663,6 +625,63 @@ const AuthPage = () => {
       setLoading(false);
     }
   }, [toast, t]);
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId || isNativePlatform) return;
+
+    // Load GIS script if not already present
+    let script = document.querySelector(`script[src="${GOOGLE_GSI_SDK_URL}"]`) as HTMLScriptElement;
+    if (!script) {
+      script = document.createElement('script');
+      script.src = GOOGLE_GSI_SDK_URL;
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+
+    const initGoogleSDK = () => {
+      if (typeof window.google !== 'undefined') {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleOneTapResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        // Prompt One Tap only on the Sign In tab
+        if (!isSignUp && !loading) {
+          window.google.accounts.id.prompt((notification: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean; getNotDisplayedReason: () => string; getSkippedReason: () => string }) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              console.log('[Google One Tap]', notification.getNotDisplayedReason() || notification.getSkippedReason());
+            }
+          });
+        }
+
+        // Render the Google Sign In button if the ref container is present
+        if (googleButtonRef.current) {
+          window.google.accounts.id.renderButton(googleButtonRef.current, {
+            type: 'standard',
+            theme: 'outline',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'rectangular',
+            width: googleButtonRef.current.clientWidth || 340,
+          });
+        }
+      }
+    };
+
+    if (typeof window.google !== 'undefined') {
+      const timer = setTimeout(initGoogleSDK, 100);
+      return () => clearTimeout(timer);
+    } else {
+      script.addEventListener('load', initGoogleSDK);
+      return () => {
+        script.removeEventListener('load', initGoogleSDK);
+      };
+    }
+  }, [isSignUp, loading, handleGoogleOneTapResponse]);
 
   const googleStepLabel: Record<GoogleStep, string> = {
     idle: t('auth.continueWithGoogle'),
@@ -717,29 +736,36 @@ const AuthPage = () => {
         )}
 
         <div className="space-y-2">
-          <Button
-            variant="outline"
-            className="w-full h-11 gap-2 relative overflow-hidden"
-            onClick={handleGoogleSignIn}
-            disabled={loading || googleBusy}
-            aria-live="polite"
-          >
-            {googleBusy && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
-            <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48" aria-hidden="true">
-              <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
-              <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-              <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.3l-6.2-5.2c-2 1.4-4.5 2.3-7.2 2.3-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-              <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.2 5.2C40.8 35.4 44 30.1 44 24c0-1.3-.1-2.4-.4-3.5z"/>
-            </svg>
-            <span className="text-sm">{googleStepLabel[googleStep]}</span>
-            {googleBusy && (
-              <span
-                aria-hidden="true"
-                className="absolute bottom-0 left-0 h-0.5 bg-ojas/70 transition-all duration-500 ease-out"
-                style={{ width: `${Math.max(15, currentStepIdx * 25)}%` }}
-              />
-            )}
-          </Button>
+          {!isNativePlatform && import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
+            <div 
+              ref={googleButtonRef} 
+              className="w-full flex justify-center min-h-[44px]"
+            />
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full h-11 gap-2 relative overflow-hidden"
+              onClick={handleGoogleSignIn}
+              disabled={loading || googleBusy}
+              aria-live="polite"
+            >
+              {googleBusy && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48" aria-hidden="true">
+                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
+                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.3l-6.2-5.2c-2 1.4-4.5 2.3-7.2 2.3-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.2 5.2C40.8 35.4 44 30.1 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+              </svg>
+              <span className="text-sm">{googleStepLabel[googleStep]}</span>
+              {googleBusy && (
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-0 left-0 h-0.5 bg-ojas/70 transition-all duration-500 ease-out"
+                  style={{ width: `${Math.max(15, currentStepIdx * 25)}%` }}
+                />
+              )}
+            </Button>
+          )}
 
           {isNativePlatform && (
             <Button

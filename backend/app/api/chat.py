@@ -180,6 +180,54 @@ async def chat_endpoint(
     return await orchestrator.orchestrate(request, chat_body, background_tasks, user)
 
 
+@router.post("/chat/v2")
+@limiter.limit(settings.chat_rate_limit)
+@record_token_usage(endpoint="/api/chat/v2")
+async def chat_v2_endpoint(
+    request: Request,
+    chat_body: ChatRequest,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+    _tenant=Depends(set_tenant_from_request),
+):
+    """Alternative chat endpoint backed by the ChatEngine facade (C3).
+
+    A/B surface for the unified ``app.chat_engine.ChatEngine`` deep-module
+    facade. Delegates to the SAME ``PipelineCoordinator.execute`` as the
+    primary ``/api/chat`` route — only the wrapping surface differs. The
+    legacy route stays untouched; this exists purely for low-risk rollout.
+    """
+    chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
+    from app.chat_engine import ChatEngine
+
+    engine = ChatEngine(container)
+    result = await engine.chat_advanced(
+        chat_body,
+        user=user or {"id": "anonymous"},
+        is_benchmark=request.headers.get("X-Test-Key") == getattr(settings, "jwt_secret", None),
+    )
+    return ChatResponse(
+        response=result.final_answer,
+        intent=result.intent,
+        meditation_step=result.meditation_step,
+        citations=result.citations,
+        blocked=result.blocked,
+        block_reason=result.block_reason or None,
+        trace_id=result.trace_id,
+        latency_ms=result.latency_ms,
+        model_used=result.model_used or None,
+        model_provider=result.model_provider or None,
+        route_decision=result.route_decision or None,
+        query_tier=result.query_tier or None,
+        cache_hit=result.cache_hit,
+        proactive_serene_mind=result.proactive_serene_mind,
+        faithfulness_score=result.faithfulness_score,
+        hallucination_flag=result.hallucination_flag,
+        node_timings=result.node_timings or None,
+    )
+
+
 @router.post("/chat/stream")
 @limiter.limit(settings.chat_rate_limit)
 async def chat_stream_endpoint(

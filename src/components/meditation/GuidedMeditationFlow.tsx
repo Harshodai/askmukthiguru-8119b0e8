@@ -455,14 +455,22 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
             {/* Breathing visualization */}
             {step.breathPattern && isPlaying && (
               <motion.div className="flex flex-col items-center gap-2">
-                <motion.div
-                  animate={{
-                    scale: breathPhase === 'inhale' ? 1.4 : breathPhase === 'hold' ? 1.4 : 1,
-                    opacity: breathPhase === 'hold' ? 0.7 : 1,
-                  }}
-                  transition={{ duration: breathPhase === 'inhale' ? step.breathPattern.inhale : step.breathPattern.exhale, ease: 'easeInOut' }}
-                  className="w-16 h-16 rounded-full bg-gradient-to-br from-ojas/30 to-ojas-light/30 border border-ojas/40"
-                />
+                <div className="relative flex items-center justify-center">
+                  {/* Serene UI: warm-sand breathing halo (CSS keyframe animate-breathe).
+                      Sits behind the framer-motion breath circle as an ambient glow. */}
+                  <div
+                    className="absolute w-24 h-24 rounded-full bg-ojas/10 animate-breathe"
+                    aria-hidden
+                  />
+                  <motion.div
+                    animate={{
+                      scale: breathPhase === 'inhale' ? 1.4 : breathPhase === 'hold' ? 1.4 : 1,
+                      opacity: breathPhase === 'hold' ? 0.7 : 1,
+                    }}
+                    transition={{ duration: breathPhase === 'inhale' ? step.breathPattern.inhale : step.breathPattern.exhale, ease: 'easeInOut' }}
+                    className="relative w-16 h-16 rounded-full bg-gradient-to-br from-ojas/30 to-ojas-light/30 border border-ojas/40"
+                  />
+                </div>
                 <p className="text-sm text-muted-foreground capitalize">{breathPhase}</p>
               </motion.div>
             )}
