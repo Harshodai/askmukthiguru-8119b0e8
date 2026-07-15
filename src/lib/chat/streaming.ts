@@ -58,7 +58,7 @@ export async function* sendMessageStreaming(
   });
 
   const doFetch = (tok: string | undefined) =>
-    fetch(streamEndpoint, {
+    fetchWithRetry(streamEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -66,8 +66,7 @@ export async function* sendMessageStreaming(
         ...(tok ? { Authorization: `Bearer ${tok}` } : {}),
       },
       body: buildBody(),
-      signal,
-    });
+    }, 3, signal);
 
   let token = await getAccessToken();
 

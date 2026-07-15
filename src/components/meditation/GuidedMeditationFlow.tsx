@@ -9,6 +9,8 @@ import { GUIDED_STEPS, TOTAL_DURATION_SECONDS, type MeditationStep } from './med
 import { MeditationProgressIndicator } from './MeditationProgressIndicator';
 import { PostCompletionStreak } from './PostCompletionStreak';
 import { useMeditationAudio } from './useMeditationAudio';
+import { useMeditationTTS } from './useMeditationTTS';
+import { Volume2, VolumeX } from 'lucide-react';
 import {
   generateSessionId,
   completeMeditationSession,
