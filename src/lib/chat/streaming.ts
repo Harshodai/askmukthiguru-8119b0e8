@@ -2,6 +2,7 @@ import { getCurrentConfig } from './config';
 import { getAccessToken, refreshAccessToken } from './auth';
 import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
+import { fetchWithRetry } from './fetchWithRetry';
 import { recordMetric } from './telemetry';
 import type { MessagePayload, StreamChunk } from './types';
 
@@ -58,7 +59,7 @@ export async function* sendMessageStreaming(
   });
 
   const doFetch = (tok: string | undefined) =>
-    fetch(streamEndpoint, {
+    fetchWithRetry(streamEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -66,8 +67,7 @@ export async function* sendMessageStreaming(
         ...(tok ? { Authorization: `Bearer ${tok}` } : {}),
       },
       body: buildBody(),
-      signal,
-    });
+    }, 3, signal);
 
   let token = await getAccessToken();
 
