@@ -26,10 +26,10 @@ let lastAt = 0;
 
 export const CODE_BY_KIND: Record<MessageErrorKind, { code: string; nextStep: string }> = {
   unauthorized: { code: 'AUTH_401', nextStep: 'Sign in again to continue. Your draft is saved.' },
-  rate_limited: { code: 'RATE_429', nextStep: 'Wait ~30 seconds, then retry your message.' },
+  rate_limited: { code: 'RATE_429', nextStep: 'The Guru is serving many seekers right now. Retrying automatically…' },
   server_error: { code: 'MODEL_5XX', nextStep: 'The model is recovering. Retry in a moment.' },
   network: { code: 'NET_OFFLINE', nextStep: 'Check your connection, then retry.' },
-  timeout: { code: 'TIME_OUT', nextStep: 'The Guru took too long. Retry — answers may need another attempt.' },
+  timeout: { code: 'TIMEOUT_504', nextStep: 'Deep wisdom takes time. Please try again — it will be faster on the second attempt.' },
   backend_down: { code: 'BACKEND_DOWN', nextStep: 'The Guru is offline. Please try again shortly.' },
   connection_refused: { code: 'CONN_REFUSED', nextStep: 'Connection refused by server. Retry in a moment.' },
   dns_failure: { code: 'DNS_FAIL', nextStep: 'Could not resolve the server address. Check your network.' },
