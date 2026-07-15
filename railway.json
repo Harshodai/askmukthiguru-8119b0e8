@@ -16,6 +16,8 @@
     "restartPolicyMaxRetries": 5,
     "drainingSeconds": 30,
     "overlapSeconds": 10,
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 30,
     "limits": {
       "cpu": 4000,
       "memory": "4Gi"
