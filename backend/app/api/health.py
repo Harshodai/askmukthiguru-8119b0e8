@@ -34,6 +34,11 @@ async def _health_check(name: str, coro) -> dict:
 @router.get("/api/healthz")
 async def healthz(container: ServiceContainer = Depends(get_container)) -> JSONResponse:
     """Aggregate deep-health check for Qdrant, Redis, and Ollama."""
+    if not _app_deps.startup_complete:
+        return JSONResponse(
+            {"ok": True, "status": "starting", "message": "Server is starting up"},
+            status_code=http_status.HTTP_200_OK,
+        )
     loop = asyncio.get_running_loop()
 
     async def _qdrant_coro() -> bool:
