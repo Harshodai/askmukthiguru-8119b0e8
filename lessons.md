@@ -4083,3 +4083,23 @@ Decision for AskMukthiGuru: Use ozmjeuqbholoxypfxixb everywhere. Lovable = UI co
 1. **Ensure URLs are completely clean**: Use `http://qdrant.railway.internal:6333` directly without any backslashes or escape sequences.
 2. **Synchronize all linked services**: Update `QDRANT_URL` on both the main API service and the celery worker service since they maintain independent variable sheets.
 3. **Verify CLI raw JSON values**: Always run `railway variables --json` and inspect values to make sure no hidden escapes exist.
+
+### RULE 26 — Scroll lock root cause in combined selectors (overflow-x on html and body)
+
+**Problem**: Applying `overflow-x: hidden` to both `html` and `body` selectors in CSS (e.g. `html, body { overflow-x: hidden; }`) when combined with dynamic viewport heights (`min-height: 100dvh` / `height: 100%`) disables page scrolling on Chrome/Safari. The browser treats both elements as independent scroll containers but because their heights are auto-calculated to content height, they don't scroll internally, trapping the viewport.
+
+**Hard rules**:
+1. **Never combine html and body overflow-x settings**: Keep them separate.
+2. **Delegate viewport scroll to html**: Set `overflow-x: hidden` and `overflow-y: auto` on `html`, and set `overflow-y: visible` on `body` to let scroll events bubble up.
+
+### RULE 27 — Dynamic environment variable overrides to bypass Lovable Cloud build injections
+
+**Problem**: Lovable Cloud builds inject their own Supabase project credentials at compile time, ignoring `.env.production` files.
+
+**Solution**: Intercept and dynamically override the Supabase project configuration in the client initialization code (`src/integrations/supabase/client.ts`) at runtime if it detects the Lovable project ID or domain names:
+```typescript
+const rawUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const isLovableProject = rawUrl.includes('fynkjimvuimakgtidvuq') || (typeof window !== 'undefined' && (window.location.hostname === 'askmukthiguru.lovable.app' || window.location.hostname.endsWith('.lovableproject.com')));
+// override URL and key
+```
+This forces the frontend to talk to the user's custom Supabase project, enabling Google Sign-In and other custom providers to work correctly.
