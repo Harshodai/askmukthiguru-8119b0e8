@@ -9,26 +9,32 @@
 */
 
 @layer base {
-  html,
-  body,
-  #root {
+  html {
     margin: 0;
     padding: 0;
-    min-height: 100%;
     min-height: 100dvh;
     width: 100%;
-  }
-
-  /* Allow page-level vertical scroll; horizontal overflow is still clipped to
-     prevent decorative absolute-positioned elements from creating scrollbars. */
-  html {
+    /* html is the ONE scroll container for the page */
     overflow-x: hidden;
     overflow-y: auto;
   }
 
   body {
-    overflow-x: hidden;
-    overflow-y: visible;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    /* body must NOT be a scroll container — height:auto lets content flow freely */
+    height: auto;
+    overflow: visible;
+  }
+
+  #root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    /* #root must NOT be a scroll container either */
+    height: auto;
+    overflow: visible;
   }
 
   :root {
