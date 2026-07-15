@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { PrePracticeGate } from '@/components/chat/PrePracticeGate';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { useBackendHealth } from '@/hooks/useBackendHealth';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Loader2, MonitorCheck, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -141,6 +142,7 @@ const ChatPage = () => {
   return (
     <PrePracticeGate>
       <h1 className="sr-only">{t('chat.srOnlyTitle')}</h1>
+      <BackendHealthBanner />
       <ChatInterface />
       <GuidedTour isOpen={tourOpen} onComplete={handleTourComplete} onDismiss={handleTourDismiss} />
       <Dialog open={showContinuePrompt} onOpenChange={setShowContinuePrompt}>
