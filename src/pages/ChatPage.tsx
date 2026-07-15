@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { PrePracticeGate } from '@/components/chat/PrePracticeGate';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { useBackendHealth } from '@/hooks/useBackendHealth';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Loader2, MonitorCheck, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +23,16 @@ const TOUR_COMPLETED_KEY = 'askmukthiguru_tour_completed';
 const TOUR_SHOWN_COUNT_KEY = 'askmukthiguru_tour_shown_count';
 const TOUR_MAX_SHOWS = 3;
 const ONBOARDED_KEY = 'askmukthiguru_onboarded';
+
+const BackendHealthBanner = () => {
+  const health = useBackendHealth();
+  if (health !== 'degraded') return null;
+  return (
+    <div className="w-full bg-amber-500/15 border-b border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs px-4 py-2 text-center">
+      ⚠️ The Guru is waking up — responses may be slower than usual for the next minute.
+    </div>
+  );
+};
 
 const ChatPage = () => {
   const { t } = useTranslation();
@@ -141,6 +152,7 @@ const ChatPage = () => {
   return (
     <PrePracticeGate>
       <h1 className="sr-only">{t('chat.srOnlyTitle')}</h1>
+      <BackendHealthBanner />
       <ChatInterface />
       <GuidedTour isOpen={tourOpen} onComplete={handleTourComplete} onDismiss={handleTourDismiss} />
       <Dialog open={showContinuePrompt} onOpenChange={setShowContinuePrompt}>
