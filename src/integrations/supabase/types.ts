@@ -149,6 +149,24 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       assistant_access: {
         Row: {
           assistant_id: string
@@ -922,27 +940,33 @@ export type Database = {
       prompt_versions: {
         Row: {
           active: boolean
+          author: string | null
           body: string | null
           created_at: string
+          description: string | null
           id: string
           name: string
-          version: number
+          version: string
         }
         Insert: {
           active?: boolean
+          author?: string | null
           body?: string | null
           created_at?: string
+          description?: string | null
           id?: string
           name: string
-          version?: number
+          version?: string
         }
         Update: {
           active?: boolean
+          author?: string | null
           body?: string | null
           created_at?: string
+          description?: string | null
           id?: string
           name?: string
-          version?: number
+          version?: string
         }
         Relationships: []
       }
