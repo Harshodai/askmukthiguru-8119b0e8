@@ -3,9 +3,9 @@
 ---
 
 ## ✅ Deployment Status
-- Build `f544af3b` = **BUILDING** (triggered at 03:12 IST) — ~8-12min build time
-- Previous working build: `965a3802` (still serving while new one builds)
-- Commit pushed: `dad48dc0` — PYTHONOPTIMIZE fix + schema + audio
+- **celery-worker**: ● Online (Successfully deployed!)
+- **askmukthiguru-8119b0e8** (Main API): ● Deploying / Initializing (latest commit `18ff4c2f` pushed and building)
+- Web health check path `/api/healthz` successfully configured in the Railway UI under service-specific settings.
 
 ---
 
@@ -27,14 +27,15 @@ This is why EVERY version from 4.44.2 to 4.48.2 failed — it's not a version bu
 
 ---
 
-## Changes Made (commit `dad48dc0`)
+## Changes Made & Tasks Completed
 
-| File | Change |
-|------|--------|
-| `backend/Dockerfile.railway` | `PYTHONOPTIMIZE=2` → `PYTHONOPTIMIZE=1` (**critical**) |
-| `backend/requirements.txt` | `transformers==4.46.3` → `==4.51.0`, `peft==0.13.2` → `==0.14.0` |
-| `supabase/migrations/20260715010000_*.sql` | Adds `prompt_versions.author`, `app_settings` table |
-| `src/components/meditation/useMeditationAudio.ts` | `onerror` handler silences 404 audio errors |
+- [x] **Dockerfile.railway**: Changed `PYTHONOPTIMIZE=2` → `PYTHONOPTIMIZE=1` (fixes embedding models crash)
+- [x] **requirements.txt**: Bumped `transformers` to `4.51.0` and `peft` to `0.14.0` for security updates
+- [x] **useMeditationAudio.ts**: Added `onerror` handler to silence PWA asset 404 errors
+- [x] **health.py**: Fixed `startup_complete` import binding bug (so `/api/health` updates to `healthy` dynamically)
+- [x] **railway.json**: Removed global `healthcheckPath` and `healthcheckTimeout` (fixes Celery worker deploy loop)
+- [x] **lessons.md**: Added lesson documenting multi-service healthcheck collision on Railway
+- [x] **Service settings**: Configured API health check path `/api/healthz` specifically in the Railway dashboard UI
 
 ---
 

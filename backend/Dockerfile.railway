@@ -46,7 +46,7 @@ RUN mkdir -p /app/data /app/.cache && chown -R appuser:appuser /app
 # Production environment flags — TOKEN OPTIMIZATION ENABLED
 ENV ENV=production \
     IS_PRODUCTION=true \
-    WEB_CONCURRENCY=2 \
+    WEB_CONCURRENCY=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1 \
@@ -72,5 +72,5 @@ USER appuser
 # Railway sets $PORT; uvicorn reads it via start_railway.py (which overrides CMD).
 # This CMD is the fallback when running outside Railway (e.g. local Docker).
 # exec form cannot expand env vars; use shell form instead.
-CMD python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --loop uvloop
+CMD python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-1} --loop uvloop
 

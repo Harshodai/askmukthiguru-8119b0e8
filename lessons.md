@@ -3861,6 +3861,171 @@ Monthly Cost = Σ (vCPU_hours * $0.00000772 + GB_hours * $0.00000386 + Volume_GB
 
 ---
 
+## Jul 15, 2026 — RAILWAY HARD RULES (Consolidated Reference)
+
+> **AGENTS MUST READ THIS SECTION FIRST before any Railway task.** These are permanent hard rules derived from every Railway session. Violating them causes multi-hour stuck builds, duplicate charges, or data loss.
+
+---
+
+### RULE 1 — Never define HTTP healthchecks globally in `railway.json`
+
+- **Why**: A shared `railway.json` with `healthcheckPath` applies to ALL services in the repo. Celery workers, cron jobs, and any non-HTTP service will fail their healthcheck forever and produce a perpetual deploy loop.
+- **Hard rule**: Keep `railway.json` free of `healthcheckPath` and `healthcheckTimeout`. Configure healthcheck path **only** in the Railway dashboard under `Service → Settings → Healthcheck` for the specific web service.
+- **OK in `railway.json`**: memory limits (`"memoryMb": 4096`), restart policy, watch patterns.
+
+---
+
+### RULE 2 — `PYTHONOPTIMIZE=2` destroys the transformers library
+
+- **Why**: Level 2 (`-OO`) strips all docstrings. The `transformers` library uses `@replace_return_docstrings` which calls `func_doc.split("\n")` where `func_doc` is `None` after docstring removal → `NoneType` crash at import.
+- **Hard rule**: Always set `ENV PYTHONOPTIMIZE=1` (not 2) in `Dockerfile.railway`. Level 1 removes only `assert` statements; docstrings are preserved.
+- **Symptom to look for**: `'NoneType' object has no attribute 'split'` in build/startup logs → root cause is always `PYTHONOPTIMIZE=2`.
+
+---
+
+### RULE 3 — Import module references, not boolean values, from dependency modules
+
+- **Why**: `from app.dependencies import startup_complete` binds the local name to `False` at import time. When the background startup task later sets `startup_complete = True`, the local name never updates.
+- **Hard rule**: Always import the module itself: `import app.dependencies as deps` and read `deps.startup_complete`. Never bind a mutable flag to a local name at import time.
+- **Symptom**: Health endpoint perpetually returns `"status": "starting"` even though the app is fully initialized.
+
+---
+
+### RULE 4 — Cross-service references must use Railway's `${{SERVICE.VAR}}` syntax
+
+- **Why**: Hardcoding internal hostnames like `redis.railway.internal` works at runtime but hides the dependency from Railway's project Canvas — no connecting lines are drawn, no automatic restarts if the dependency restarts.
+- **Hard rule**: Always use the Railway reference syntax for cross-service connections:
+  ```
+  REDIS_URL=${{Redis.REDIS_URL}}
+  QDRANT_URL=http://${{qdrant.RAILWAY_PRIVATE_DOMAIN}}:${{qdrant.PORT}}
+  NEO4J_BOLT_URL=bolt://${{gb-neo4j-railway-template.RAILWAY_PRIVATE_DOMAIN}}:7687
+  ```
+- **Side effect**: This draws the visual connection lines on the Railway canvas and enables dependency-ordered restarts.
+
+---
+
+### RULE 5 — A build stuck `INITIALIZING` for > 10 minutes is hung, not slow
+
+- **Why**: Normal Railway Docker builds take 5–10 minutes. If a deployment stays in `INITIALIZING` beyond 15 minutes with no runtime logs, the Railway builder itself is hung (queue deadlock, layer pull timeout, or resource starvation).
+- **Hard rule**: If `railway deployment list` shows `INITIALIZING` for > 10 minutes AND `railway logs <deploy-id>` returns empty output, push an empty commit immediately to queue a new build:
+  ```bash
+  git commit --allow-empty -m "chore: force redeploy to unblock stuck Railway build"
+  git push origin main
+  ```
+- **Note**: `railway deployment redeploy` does NOT work when the deployment is still building — it returns "cannot be redeployed". Only a new commit unblocks it.
+
+---
+
+### RULE 6 — Worker services must NOT have HTTP healthchecks
+
+- **Why**: Celery workers, cron runners, and any background process do not bind to a port. Railway's HTTP health probe will always fail → perpetual `INITIALIZING` / deploy loop.
+- **Hard rule**: For worker services in Railway dashboard: leave Healthcheck URL blank. Railway will use process-exit health only. Do not add `HEALTHCHECK` instructions in the Dockerfile for worker containers unless they use `celery inspect ping`.
+- **Correct Celery healthcheck** (optional, in Dockerfile only):
+  ```dockerfile
+  HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD celery -A celery_config inspect ping -d celery@$$HOSTNAME --timeout 5 || exit 1
+  ```
+
+---
+
+### RULE 7 — `railway variable` (singular) vs `railway variables` (plural)
+
+- **Why**: The Railway CLI uses inconsistent naming that causes silent failures in scripts.
+- **Hard rule**:
+  - `railway variables` → list all variables (plural)
+  - `railway variable get KEY` → get a single variable (singular)
+  - `railway variable set KEY=value` → set a variable (singular)
+  - `railway variables get KEY` → **WRONG**, fails silently
+
+---
+
+### RULE 8 — Each template deploy creates a new volume; delete orphans
+
+- **Why**: Running `railway deploy --template qdrant` (or any stateful template) always creates a new volume even if one already exists for that service. Old volumes detach and accumulate, costing money indefinitely.
+- **Hard rule**: Before deploying any stateful template, run `railway volume list` and delete any `serviceName: null` volumes:
+  ```bash
+  railway volume list
+  # Delete orphans shown with no service name
+  railway volume delete -v <volume-id>
+  ```
+
+---
+
+### RULE 9 — Rolling deployments keep the old container alive; `INITIALIZING` ≠ downtime
+
+- **Why**: Railway uses rolling deployments by default. While a new container is building, the previous successful container (`SUCCESS` status) stays active and serves 100% of live traffic.
+- **Hard rule**: Never panic when you see `INITIALIZING` alongside an active `SUCCESS` deployment. The site is up. Intermediate builds between the current success and the latest commit will be automatically `REMOVED` once the new build completes. No manual rollback needed unless the new build `CRASHED`.
+
+---
+
+### RULE 10 — Qdrant snapshot upload uses the public Railway domain
+
+- **Why**: The Qdrant HTTP API is fully exposed via Railway's public domain. The internal `railway.internal` hostname is only reachable from within the Railway network.
+- **Hard rule**: For Qdrant snapshot restores/uploads from local machine, use the public URL:
+  ```bash
+  curl -X POST "https://qdrant-production-XXXX.up.railway.app/collections/spiritual_wisdom/snapshots/upload" \
+    -F "snapshot=@qdrant_snapshot.snapshot"
+  ```
+- **Note**: After upload, verify collection count with `GET /collections/spiritual_wisdom`.
+
+---
+
+### RULE 11 — `WEB_CONCURRENCY=1` is correct for ML-heavy FastAPI on Railway
+
+- **Why**: BGE-M3 and other embedding models load ~550MB into RAM per process. `WEB_CONCURRENCY=2` doubles memory to 1.1GB baseline + spikes, often hitting OOM and causing Railway OOMKill restarts. FastAPI/uvicorn is async — 1 process handles hundreds of concurrent connections.
+- **Hard rule**: Keep `WEB_CONCURRENCY=1` in Railway env. To scale beyond 1 instance, use Railway Replicas (Settings → Scaling → Replicas), not multiple workers. Each replica = independent pod sharing the same Redis coalescer.
+
+---
+
+### RULE 12 — Railway memory limit must be set per-service, not globally
+
+- **Why**: Without a memory limit, a runaway OOM (embedding model leak, uncontrolled cache growth) will consume all available RAM and kill neighbor services.
+- **Hard rule**: Set memory limits for every service in Railway dashboard (Settings → Resources):
+  - Backend API: `4096 MB` (4 GB)
+  - Celery Worker: `4096 MB` (4 GB)  
+  - Neo4j: `2048 MB`
+  - Qdrant: per-collection size (minimum `1024 MB`)
+- **Monitor**: `railway metric memory --service <name> --period 24h` — alert if > 80% of limit.
+
+---
+
+### RULE 13 — Railway CLI polling pattern for build status
+
+- **Why**: Railway's web dashboard and CLI show different information. The CLI is the source of truth for scripted monitoring.
+- **Hard rule**: Use this sequence to determine build state:
+  1. `railway deployment list --service <name>` → get latest deployment ID and status
+  2. `railway logs <deployment-id> -n 50` → if empty, container hasn't booted (still building)
+  3. `railway logs <deployment-id> -n 50` → if has content, container started (check for errors)
+  4. `curl -s https://<app>.up.railway.app/api/healthz` → final runtime health check
+  5. If `INITIALIZING` > 10 min AND logs empty → push empty commit to unblock
+
+---
+
+### RULE 14 — Service Worker must pre-cache PWA manifest icons
+
+- **Why**: If `/icon-192.png` and `/icon-512.png` are not in the SW pre-cache list (`ASSETS_TO_CACHE`), Railway's CDN/Cloudflare may serve the icon with a delay during SW registration. The browser PWA validator fetches the icon during SW install. If the SW's `.catch()` fallback returns a 503 plain-text response instead of the binary PNG, Chrome logs: `Error while trying to use the following icon from the Manifest: ... (Download error or resource isn't a valid image)`.
+- **Hard rule**: Always add `/icon-192.png` and `/icon-512.png` to `ASSETS_TO_CACHE` in `public/sw.js`.
+
+### RULE 15 — Browser extension console errors are not app errors
+
+- **Why**: `embed_script.js`, `load_embeds.js`, and `chrome-extension://` errors in the browser console come from third-party extensions (Grammarly, Honey, Loom, etc.) injected into the page. They are not application bugs.
+- **Hard rule**: Add global `error` and `unhandledrejection` listeners in `src/main.tsx` to suppress extension-sourced noise. Pattern:
+  ```typescript
+  window.addEventListener("unhandledrejection", (event) => {
+    const msg = event.reason?.message || String(event.reason || "");
+    if (msg.includes("message port closed") || msg.includes("message channel closed")) {
+      event.preventDefault();
+    }
+  }, true);
+  ```
+
+
+### RULE 16 — Railway Pro cost is ~$13–15/mo for this stack; monitor daily
+
+- **Hard rule**: Run `railway usage --period 24h` weekly. Alert if daily spend > $0.50 ($15/mo threshold). Primary cost drivers: memory (GB-hr), compute (vCPU-hr), egress (GB). Idle ML models in RAM are the #1 cost driver — `WEB_CONCURRENCY=1` is critical.
+
+---
+
 ## Jul 15, 2026 — Railway Multi-Service Healthchecks
 
 ### Shared railway.json Healthcheck Path Crash on Worker Services
