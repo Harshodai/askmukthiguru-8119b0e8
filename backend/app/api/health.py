@@ -49,7 +49,17 @@ async def healthz(container: ServiceContainer = Depends(get_container)) -> JSONR
         _health_check("redis", _redis_coro()),
         _health_check("ollama", container.ollama.health_check()),
     )
-    ok = all(x["ok"] for x in checks)
+    
+    is_external = settings.llm_provider.lower() in ("openrouter", "sarvam_cloud", "nim", "krutrim")
+    if is_external:
+        # If external cloud provider check failed, we log a warning but still mark overall health as OK
+        # to prevent deployment boot-loops caused by external rate limits / network glitches.
+        ok = all(x["ok"] for x in checks if x["name"] != "ollama")
+        if not next((x["ok"] for x in checks if x["name"] == "ollama"), True):
+            logger.warning("External LLM provider healthcheck failed but marked healthy to prevent deployment loop.")
+    else:
+        ok = all(x["ok"] for x in checks)
+
     return JSONResponse(
         {"ok": ok, "checks": checks},
         status_code=http_status.HTTP_200_OK if ok else http_status.HTTP_503_SERVICE_UNAVAILABLE,
