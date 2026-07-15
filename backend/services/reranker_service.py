@@ -333,3 +333,48 @@ class RerankerService:
                 return result[:top_k]
 
         return []
+
+    def ontology_boost(
+        self,
+        documents: list[dict[str, Any]],
+        concepts: list[Any],
+        overlap_weight: float = 0.1,
+        validated_weight: float = 0.05,
+    ) -> list[dict[str, Any]]:
+        """Additive ontology-aware rerank boost (Task B2).
+
+        Composes with the existing ``rerank()`` pipeline: call ``rerank()``
+        first to get ``rerank_score``, then this method to apply the ontology
+        boost on top. Boosts documents that reference multiple expanded
+        concepts (+0.1 per overlap) and ontology-validated docs (+0.05).
+
+        ``concepts`` is a list of ``SpiritualConcept`` (or any object with a
+        ``label`` attribute). The boost is added to ``rerank_score`` and
+        exposed as ``ontology_boosted_score``; the input list is returned
+        sorted by the boosted score.
+        """
+        if not documents or not concepts:
+            return list(documents)
+
+        concept_labels = {
+            str(getattr(c, "label", c)).lower() for c in concepts if getattr(c, "label", None)
+        }
+        scored: list[dict[str, Any]] = []
+        for doc in documents:
+            base = float(doc.get("rerank_score", doc.get("score", 0.0)))
+            text_low = (doc.get("text") or "").lower()
+            tags_low = [str(t).lower() for t in (doc.get("tags") or [])]
+            overlap = sum(
+                1 for label in concept_labels
+                if label and (label in text_low or label in tags_low)
+            )
+            score = base + overlap * overlap_weight
+            if doc.get("ontology_validated"):
+                score += validated_weight
+            scored.append({
+                **doc,
+                "ontology_overlap": overlap,
+                "ontology_boosted_score": score,
+            })
+        scored.sort(key=lambda d: d["ontology_boosted_score"], reverse=True)
+        return scored

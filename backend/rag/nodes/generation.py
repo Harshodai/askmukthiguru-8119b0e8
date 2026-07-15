@@ -1112,6 +1112,20 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     # tier3_complex / deep queries never leak the raw CCR tag to the user.
     answer = re.sub(r"\[RETRIEVE:\s*[^\]]+\]", "", answer)
 
+    # --- A3: Humanizer (config-gated). Runs after strip_cot + CCR strip so
+    # chain-of-thought markers and [RETRIEVE] tags are not mangled, and before
+    # citation-by-sentence attachment so citations attach to humanized text.
+    # Skipped unless settings.strip_canned_footer is True — same flag that
+    # governs canned-footer removal, so existing deployments with it off see
+    # no change.
+    if getattr(settings, "strip_canned_footer", True) and answer:
+        try:
+            from services.humanizer import apply_humanizer_to_response
+            _intent = state.get("intent", "general") or "general"
+            answer = apply_humanizer_to_response(answer, intent=_intent)
+        except Exception as _humanizer_err:
+            logger.warning("Humanizer skipped (non-fatal): %s", _humanizer_err)
+
     # Step 1 — Intent-gated factual slot corrections (NEC-style, removed per P1-10)
     # Step 2 — Append missing doctrine keywords as footnotes (removed per P1-10)
 
@@ -1387,4 +1401,68 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     }
     if state.get("intent") == "DISTRESS":
         result["meditation_step"] = 1
+
+    # --- B1: Ontology validation SOFT-GATE (deep tier only) ---
+    # Runs `OntologyValidator` against the final answer, stores the result in
+    # graph state as `ontology_validation`, logs contradictions (warning), and
+    # increments the `ontology_contradiction_count` prometheus gauge. Does NOT
+    # modify or block the response. Wrapped in try/except — never crashes
+    # generation. See services/ontology_validator.py.
+    if query_tier in ("deep", "tier3_complex") and answer and len(answer.strip()) > 0:
+        try:
+            from services.ontology_validator import run_ontology_soft_gate
+
+            cited_concepts = [
+                (d.get("title") or d.get("source_url") or "")
+                for d in relevant_docs
+            ]
+            soft_gate_timeout = get_node_timeout("ontology_soft_gate", 10.0)
+            ontology_validation = await asyncio.wait_for(
+                run_ontology_soft_gate(answer, cited_concepts),
+                timeout=soft_gate_timeout,
+            )
+            result["ontology_validation"] = ontology_validation
+            if ontology_validation.get("contradictions", 0) > 0:
+                logger.warning(
+                    "ontology soft-gate (deep): %d contradiction(s) — "
+                    "response NOT blocked. validation=%s",
+                    ontology_validation.get("contradictions", 0),
+                    {
+                        k: v
+                        for k, v in ontology_validation.items()
+                        if k in ("supported", "unsupported", "contradictions", "confidence", "is_valid")
+                    },
+                )
+            else:
+                logger.info(
+                    "ontology soft-gate (deep): supported=%s unsupported=%s "
+                    "confidence=%s",
+                    ontology_validation.get("supported", 0),
+                    ontology_validation.get("unsupported", 0),
+                    ontology_validation.get("confidence", 1.0),
+                )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "ontology soft-gate (deep) timed out (>%.1fs); response NOT blocked",
+                soft_gate_timeout,
+            )
+            result["ontology_validation"] = {
+                "supported": 0,
+                "unsupported": 0,
+                "contradictions": 0,
+                "confidence": 1.0,
+                "is_valid": True,
+                "error": "timeout",
+            }
+        except Exception as exc:  # pragma: no cover - soft-gate must never block
+            logger.warning(f"ontology soft-gate (deep) failed: {exc}; response NOT blocked")
+            result["ontology_validation"] = {
+                "supported": 0,
+                "unsupported": 0,
+                "contradictions": 0,
+                "confidence": 1.0,
+                "is_valid": True,
+                "error": str(exc),
+            }
+
     return result

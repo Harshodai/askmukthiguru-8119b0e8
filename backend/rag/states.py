@@ -244,3 +244,9 @@ class GraphState(TypedDict):
     # RAGFlow Gap 1 — Deep Research (recursive sufficiency retrieval)
     deep_research_done: bool
     deep_research_queries: list[str]
+
+    # B1 — Ontology validation soft-gate (deep tier only).
+    # Set by format_final_answer when query_tier == "deep". A dict with
+    # supported/unsupported/contradictions/confidence/is_valid. Soft-gate:
+    # never blocks or modifies the response. See services/ontology_validator.py.
+    ontology_validation: Optional[dict]

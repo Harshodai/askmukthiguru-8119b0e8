@@ -32,7 +32,12 @@ celery_app = Celery(
     "mukthi_guru",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=["tasks.ingest_tasks", "tasks.okf_extract_tasks", "tasks.okf_compile_tasks"],
+    include=[
+        "tasks.ingest_tasks",
+        "tasks.okf_extract_tasks",
+        "tasks.okf_compile_tasks",
+        "tasks.cancel_flow_tasks",
+    ],
 )
 
 celery_app.conf.update(
@@ -50,6 +55,13 @@ celery_app.conf.update(
     task_time_limit=2400,
     # Exponential backoff on retry: 2^retry_count * base_delay
     task_acks_on_failure_or_timeout=True,
+    # Celery Beat — daily dispatch of due win-back emails (Task B3a).
+    beat_schedule={
+        "dispatch-due-win-back-emails": {
+            "task": "tasks.cancel_flow_tasks.dispatch_due_win_back_emails",
+            "schedule": 86400.0,  # every 24h
+        },
+    },
 )
 
 # Queue routing by task type
@@ -114,6 +126,5 @@ def update_job_progress(job_id: str, status: str, progress_pct: int = 0, chunks_
 
 def retry_backoff(self, exc: Exception) -> None:
     """Exponential backoff: 2^retry * base_delay (30s max)."""
-    import math
     delay = min(2 ** self.request.retries * 5, 30)
     raise self.retry(exc=exc, countdown=delay)

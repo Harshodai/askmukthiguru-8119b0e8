@@ -312,10 +312,11 @@ export function ConversationSourcesPanel({
     <>
       <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <SheetContent
-          className="w-full sm:max-w-md p-0 flex flex-col"
+          side="right"
+          className="w-full sm:max-w-md p-0 flex flex-col h-[100dvh]"
           aria-label={t('chat.sources')}
         >
-          <SheetHeader className="px-5 pt-5 pb-3 border-b border-border/60 space-y-2">
+          <SheetHeader className="px-4 sm:px-5 pt-5 pb-3 border-b border-border/60 space-y-2">
             <SheetTitle className="flex items-center gap-2 text-h3">
               <Library className="w-5 h-5 text-ojas" aria-hidden />
               {t('chat.sources')}
@@ -325,15 +326,15 @@ export function ConversationSourcesPanel({
             </SheetDescription>
             {HeaderMeta}
           </SheetHeader>
-          <ScrollArea className="flex-1 px-5 py-4">
+          <ScrollArea className="flex-1 px-4 sm:px-5 py-4">
             <List />
           </ScrollArea>
         </SheetContent>
       </Sheet>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-2xl w-[92vw] p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-5 pb-3 border-b border-border/60 space-y-2">
+        <DialogContent className="max-w-2xl w-[92vw] sm:w-full p-0 overflow-hidden rounded-xl">
+          <DialogHeader className="px-5 sm:px-6 pt-5 pb-3 border-b border-border/60 space-y-2">
             <DialogTitle className="flex items-center gap-2">
               <Library className="w-5 h-5 text-ojas" aria-hidden />
               {t('chat.fullConversationSources')}
@@ -343,7 +344,7 @@ export function ConversationSourcesPanel({
             </DialogDescription>
             {HeaderMeta}
           </DialogHeader>
-          <ScrollArea className="max-h-[70vh] px-6 py-4">
+          <ScrollArea className="max-h-[70vh] px-5 sm:px-6 py-4">
             <List inModal />
           </ScrollArea>
         </DialogContent>

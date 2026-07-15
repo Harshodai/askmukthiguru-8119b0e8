@@ -331,11 +331,15 @@ async def _resolve_chunk_speakers_with_llm(
 
     async def _classify_one(idx: int, chunk: str) -> tuple[int, Optional[str]]:
         try:
-            resp = await llm.generate(
-                system_prompt=system_prompt,
-                user_prompt=chunk[:2000],  # cap input length
-                temperature=0.0,
-                operation="speaker_role_classification",
+            _timeout = getattr(settings, "llm_generate_timeout", 60.0)
+            resp = await asyncio.wait_for(
+                llm.generate(
+                    system_prompt=system_prompt,
+                    user_prompt=chunk[:2000],  # cap input length
+                    temperature=0.0,
+                    operation="speaker_role_classification",
+                ),
+                timeout=_timeout,
             )
             role = (resp or "").strip().lower()
             # Sanitize: take first word, must be in allowed set
@@ -830,6 +834,9 @@ class IngestionPipeline:
                 "summaries_created": 0,
             }
 
+        # Hyper-Extract enrichment (same gate as other ingestion paths).
+        hyper_extract_result = self._enrich_text(clean_text)
+
         # Chunk → embed → index (uses adaptive chunking via _split_text)
         self._notify(on_progress, "Chunking and indexing...", 0.55)
         backup_collection = self._backup_before_reindex(url)
@@ -867,6 +874,21 @@ class IngestionPipeline:
             return {"status": "error", "message": f"Rolled back — downstream step failed: {e}",
                     "source_url": url, "chunks_indexed": 0, "summaries_created": 0}
 
+        # KG Phase 6: materialize extracted entities/relationships into Neo4j.
+        if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
+            try:
+                from ingest.ontology_writer import write_extraction_to_neo4j
+                driver = self._get_neo4j_driver()
+                await write_extraction_to_neo4j(
+                    driver,
+                    hyper_extract_result.get("entities", []),
+                    hyper_extract_result.get("relationships", []),
+                    source_doc_id=url,
+                    source_chunk_id=hashlib.sha256(clean_text.strip().encode("utf-8")).hexdigest(),
+                )
+            except Exception as e:
+                logger.warning(f"ontology write skipped (post-success): {e}")
+
         self._notify(on_progress, "Social media ingestion complete!", 1.0)
         return {
             "status": "success",
@@ -876,6 +898,7 @@ class IngestionPipeline:
             "chunks_indexed": chunks_count,
             "summaries_created": summaries_count,
             "duration_seconds": result.get("duration_seconds", 0),
+            "hyper_extract": hyper_extract_result,
         }
 
     async def ingest_raw_text(
@@ -1004,6 +1027,33 @@ class IngestionPipeline:
 
         # Consolidate duplicate entities in Neo4j to keep graph clean and high quality
         await self._consolidate_graph_entities()
+
+        # KG Phase 6: materialize extracted entities/relationships into Neo4j
+        # after all downstream work (chunking, indexing, RAPTOR, LightRAG) is
+        # complete and the checkpoint is about to fire — makes the ontology write
+        # post-success so both the standard video path and _ingest_video_enhanced
+        # invoke it exactly once, after rollback-prone work has finished.
+        # Failure propagates so checkpoint is NOT saved — prevents silent non-retry.
+        if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
+            try:
+                from ingest.ontology_writer import write_extraction_to_neo4j
+                driver = self._get_neo4j_driver()
+                await write_extraction_to_neo4j(
+                    driver,
+                    hyper_extract_result.get("entities", []),
+                    hyper_extract_result.get("relationships", []),
+                    source_doc_id=source_url,
+                    source_chunk_id=content_hash,
+                )
+            except Exception as e:
+                logger.error(f"ontology write failed for {source_url}, checkpoint NOT saved: {e}")
+                return {
+                    "status": "error",
+                    "message": f"Ontology materialization failed: {e}",
+                    "source_url": source_url,
+                    "chunks_indexed": 0,
+                    "summaries_created": 0,
+                }
 
         checkpoint.save(content_hash)
         self._notify(on_progress, "Complete!", 1.0)
@@ -1210,6 +1260,31 @@ class IngestionPipeline:
                 "summaries_created": 0,
             }
 
+        # KG Phase 6: materialize extracted entities/relationships into Neo4j.
+        # Runs after the RAPTOR/LightRAG rollback-prone block but BEFORE the
+        # checkpoint save — failure propagates so the content is NOT marked
+        # processed and will be retried on the next ingestion attempt.
+        if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
+            try:
+                from ingest.ontology_writer import write_extraction_to_neo4j
+                driver = self._get_neo4j_driver()
+                await write_extraction_to_neo4j(
+                    driver,
+                    hyper_extract_result.get("entities", []),
+                    hyper_extract_result.get("relationships", []),
+                    source_doc_id=url,
+                    source_chunk_id=video_id,
+                )
+            except Exception as e:
+                logger.error(f"ontology write failed for {url}, checkpoint NOT saved: {e}")
+                return {
+                    "status": "error",
+                    "message": f"Ontology materialization failed: {e}",
+                    "source_url": url,
+                    "chunks_indexed": 0,
+                    "summaries_created": 0,
+                }
+
         checkpoint.save(content_hash)
 
         # OKF auto-extraction: fire-and-forget for newly ingested content.
@@ -1331,6 +1406,10 @@ class IngestionPipeline:
         if pii_found:
             logger.warning(f"PII redacted from enhanced video url={url} — {pii_found} instances")
 
+        # KG Phase 6: Hyper-Extract enrichment (same gate as _ingest_video).
+        self._notify(on_progress, "Extracting structure, entities, and atomic facts...", 0.37)
+        hyper_extract_result = self._enrich_text(clean_text)
+
         # 4. Partition into topic-based sub-sections
         self._notify(on_progress, "Partitioning by topic relevance...", 0.6)
         sections = self._topic_partition(clean_text, topics)
@@ -1447,6 +1526,22 @@ class IngestionPipeline:
 
         checkpoint.save(content_hash)
 
+        # KG Phase 6: materialize extracted entities/relationships into Neo4j.
+        # Post-success, same pattern as _ingest_video.
+        if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
+            try:
+                from ingest.ontology_writer import write_extraction_to_neo4j
+                driver = self._get_neo4j_driver()
+                await write_extraction_to_neo4j(
+                    driver,
+                    hyper_extract_result.get("entities", []),
+                    hyper_extract_result.get("relationships", []),
+                    source_doc_id=url,
+                    source_chunk_id=video_id,
+                )
+            except Exception as e:
+                logger.warning(f"ontology write skipped (post-success): {e}")
+
         # OKF auto-extraction hook (same gate as _ingest_video).
         # ponytail: simplified from the previous to_thread(asyncio.run(...)) wrapper —
         # we're already inside a running event loop here, so create_task() directly
@@ -1469,6 +1564,7 @@ class IngestionPipeline:
             "topics_detected": list(sections.keys()),
             "chunks_indexed": total_chunks,
             "method": "enhanced_diarization",
+            "hyper_extract": hyper_extract_result,
         }
 
     async def _extract_topics(self, text: str) -> list[str]:
@@ -1657,6 +1753,10 @@ class IngestionPipeline:
                 clean_text, pii_found = redact_pii(clean_text)
                 if pii_found:
                     logger.warning(f"PII redacted from playlist video url={video['url']} — {pii_found} instances")
+
+                # Hyper-Extract enrichment (same gate as _ingest_video).
+                pl_hyper_extract = self._enrich_text(clean_text)
+
                 video_title = transcript.get("title", "")
                 video_speaker = transcript.get("speaker", "Unknown")
                 video_topic = transcript.get("topic", "Spiritual")
@@ -1737,6 +1837,22 @@ class IngestionPipeline:
 
                 content_hash_pl = hashlib.sha256(clean_text.strip().encode("utf-8")).hexdigest()
                 checkpoint.save(content_hash_pl)
+
+                # KG Phase 6: materialize extracted entities/relationships into Neo4j.
+                if pl_hyper_extract and getattr(settings, "write_ontology_to_neo4j", True):
+                    try:
+                        from ingest.ontology_writer import write_extraction_to_neo4j
+                        driver = self._get_neo4j_driver()
+                        await write_extraction_to_neo4j(
+                            driver,
+                            pl_hyper_extract.get("entities", []),
+                            pl_hyper_extract.get("relationships", []),
+                            source_doc_id=video["url"],
+                            source_chunk_id=content_hash_pl,
+                        )
+                    except Exception as e:
+                        logger.warning(f"ontology write skipped (post-success): {e}")
+
                 processed += 1
 
                 # OKF auto-extraction: fire-and-forget per video. Fix: playlist path
@@ -1805,6 +1921,9 @@ class IngestionPipeline:
         if pii_found:
             logger.warning(f"PII redacted from file url={url} — {pii_found} instances")
 
+        # Hyper-Extract enrichment (same gate as other paths).
+        img_hyper_extract = self._enrich_text(clean_text)
+
         chunks_count = self._chunk_embed_index(
             clean_text,
             source_url=url,
@@ -1813,6 +1932,22 @@ class IngestionPipeline:
             source_type="image",
             tags=tags,
         )
+
+        # KG Phase 6: materialize extracted entities/relationships into Neo4j.
+        if img_hyper_extract and getattr(settings, "write_ontology_to_neo4j", True):
+            try:
+                from ingest.ontology_writer import write_extraction_to_neo4j
+                driver = self._get_neo4j_driver()
+                content_hash = hashlib.sha256(clean_text.strip().encode("utf-8")).hexdigest()
+                await write_extraction_to_neo4j(
+                    driver,
+                    img_hyper_extract.get("entities", []),
+                    img_hyper_extract.get("relationships", []),
+                    source_doc_id=url,
+                    source_chunk_id=content_hash,
+                )
+            except Exception as e:
+                logger.warning(f"ontology write skipped (post-success): {e}")
 
         self._notify(on_progress, "Complete!", 1.0)
         return {
@@ -1823,6 +1958,7 @@ class IngestionPipeline:
             "chunks_indexed": chunks_count,
             "summaries_created": 0,  # Too few for RAPTOR
             "text_length": len(clean_text),
+            "hyper_extract": img_hyper_extract,
         }
 
     def _enrich_text(self, text: str) -> Optional[dict]:

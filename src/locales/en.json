@@ -436,6 +436,7 @@
     "sourceCount_one": "{{count}} unique source · {{citationCount}} citation",
     "sourceCount_other": "{{count}} unique sources · {{citationCount}} citations",
     "showingOneAnswer": "Showing 1 answer — clear",
+    "copyAll": "Copy all",
     "fullView": "Full view",
     "sourcesWillAppear": "Sources will appear here as the Guru cites teachings.",
     "fullConversationSources": "Full conversation sources",
@@ -963,5 +964,74 @@
   "seo": {
     "practicesTitle": "Daily Practices — Guided Meditations | AskMukthiGuru",
     "practicesDescription": "Soul Sync, Serene Mind, Beautiful State, and Daily Reflection — short guided practices rooted in the teachings of Sri Preethaji & Sri Krishnaji."
+  },
+  "cancelFlow": {
+    "dialogTitle": "Cancel your account",
+    "dialogDescription": "A short retention flow before we say goodbye.",
+    "back": "Back",
+    "optional": "optional",
+    "intent": {
+      "title": "Pause or leave your journey",
+      "subtitle": "Before you go, we'd love to understand how we can better serve you.",
+      "explore": "Explore options to stay",
+      "definite": "Continue to cancellation",
+      "stay": "Stay — I want to keep learning"
+    },
+    "survey": {
+      "title": "What's the main reason you're leaving?",
+      "subtitle": "Your feedback shapes our path forward.",
+      "details": "Anything else you want to share?",
+      "detailsPlaceholder": "Share more about your experience...",
+      "continue": "Continue",
+      "reasons": {
+        "journey_complete": "Completed my journey",
+        "too_expensive": "Too expensive",
+        "not_using": "Not using enough",
+        "missing_feature": "Missing a feature",
+        "found_alternative": "Found an alternative",
+        "too_complicated": "Too complicated",
+        "taking_break": "Taking a break",
+        "technical_issues": "Technical issues"
+      },
+      "hints": {
+        "journey_complete": "You feel you've learned enough.",
+        "too_expensive": "Price sensitivity — we may have options.",
+        "not_using": "Low engagement lately.",
+        "missing_feature": "Tell us what's missing.",
+        "found_alternative": "We'd love to know what worked better.",
+        "too_complicated": "UX friction — we can simplify.",
+        "taking_break": "Pause and keep your data.",
+        "technical_issues": "Bugs or performance — let us help."
+      }
+    },
+    "offer": {
+      "decline": "No thanks, continue cancellation"
+    },
+    "confirm": {
+      "title": "Permanently delete your account?",
+      "warning": "This deletes your account and all server-side data: profile, chats, meditation sessions. You will be signed out immediately.",
+      "retention": "Data retention",
+      "retentionLabels": {
+        "keep_30_days": "Keep 30 days",
+        "keep_90_days": "Keep 90 days",
+        "delete_immediately": "Delete immediately"
+      },
+      "retentionHints": {
+        "keep_30_days": "Grace period for reactivation.",
+        "keep_90_days": "Longer grace period — data preserved.",
+        "delete_immediately": "No grace period; deleted right away."
+      },
+      "acknowledge": "I understand this action is irreversible and my account will be permanently deleted.",
+      "permanent": "Permanently Delete"
+    },
+    "done": {
+      "savedTitle": "We're so glad you're staying.",
+      "savedBody": "Your offer has been applied. Continue your journey whenever you are ready.",
+      "cancelledTitle": "Your account is scheduled for deletion",
+      "cancelledBody": "Your account will be deleted on {{deletionDate}}. You can reactivate anytime before then.",
+      "cancelledBodyNoDate": "Your account is scheduled for deletion. You can reactivate anytime before then.",
+      "reactivate": "A reactivation link has been sent to your email.",
+      "close": "Close"
+    }
   }
 }

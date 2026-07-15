@@ -64,6 +64,19 @@ export default {
           light: "hsl(var(--prana-blue-light))",
           dark: "hsl(var(--prana-blue-dark))",
         },
+        // Serene UI design tokens (namespaced to avoid collisions)
+        serene: {
+          primary: "#D4A574",
+          secondary: "#7B9E87",
+          accent: "#C9A96E",
+          background: "#FAF7F2",
+          surface: "#FFFFFF",
+          textPrimary: "#2C2420",
+          textSecondary: "#6B5E54",
+          textMuted: "#9B8E84",
+          border: "#E8E0D8",
+          error: "#C47065",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -74,6 +87,7 @@ export default {
         sans: ['Inter', 'sans-serif'],
         display: ['Outfit', 'sans-serif'],
         serif: ['Playfair Display', 'serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
       keyframes: {
         "accordion-down": {
@@ -113,6 +127,19 @@ export default {
           "0%, 100%": { transform: "scale(1)", opacity: "0.5" },
           "50%": { transform: "scale(1.3)", opacity: "0" },
         },
+        // Serene UI keyframes
+        breathe: {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.02)" },
+        },
+        "pulse-soft": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.7" },
+        },
+        "slide-up": {
+          "0%": { transform: "translateY(20px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -124,6 +151,10 @@ export default {
         "lotus-bloom": "lotus-bloom 1.5s ease-out forwards",
         "petal-sway": "petal-sway 4s ease-in-out infinite",
         "voice-pulse": "voice-pulse 1.5s ease-in-out infinite",
+        // Serene UI animations
+        breathe: "breathe 4s ease-in-out infinite",
+        "pulse-soft": "pulse-soft 2s ease-in-out infinite",
+        "slide-up": "slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
       },
     },
   },

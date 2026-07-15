@@ -27,8 +27,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app.config import settings
 from app.dependencies import get_container
 from services.auth_service import get_current_user_from_supabase  # auth guard
+from services.ontology_exporter import OntologyExporter
+from domain.spiritual_ontology import ONTOLOGY_VERSION, SEED_CONCEPTS, SEED_RELATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +229,138 @@ async def kg_subgraph(
         edges=edges,
         query=query,
         count=len(nodes),
+    )
+
+
+# ── A2: Ontology export (Turtle / JSON-LD) ────────────────────────────────────
+
+
+@router.get("/ontology/export")
+async def export_ontology(
+    format: str = Query("jsonld", pattern="^(turtle|jsonld)$"),
+    user: dict = Depends(get_current_user_from_supabase),
+) -> Any:
+    """Export the live Neo4j ontology to Turtle or JSON-LD.
+
+    Ponytail: thin wrapper over ``OntologyExporter.materialize_from_graph``
+    + a serializer. 30s timeout headroom for large graphs. Admin-gated in
+    production (matches the established kg.py pattern); locally the auth
+    guard still runs but ``is_production=false`` skips the admin check.
+    """
+    if settings.is_production:
+        _require_admin(user)
+
+    container = get_container()
+    driver = container.neo4j_driver
+    if driver is None:
+        raise HTTPException(status_code=503, detail="Neo4j driver unavailable.")
+
+    exporter = OntologyExporter(neo4j_driver=driver)
+
+    import asyncio
+
+    try:
+        concepts, relations = await asyncio.wait_for(
+            asyncio.to_thread(exporter.materialize_from_graph),
+            timeout=30.0,
+        )
+    except (asyncio.TimeoutError, TimeoutError) as _to_exc:  # noqa: BLE001
+        logger.warning("ontology/export timed out (>30s): %s", _to_exc)
+        raise HTTPException(status_code=504, detail="Ontology export timed out (>30s).")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("ontology/export materialization failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Ontology export failed.")
+
+    if format == "turtle":
+        from fastapi import Response
+
+        body = exporter.to_rdf_turtle(concepts, relations)
+        return Response(content=body, media_type="text/turtle; charset=utf-8")
+    # default: jsonld
+    return exporter.to_jsonld(concepts, relations)
+
+
+# ── Phase 7: Ontology versioning ─────────────────────────────────────────────
+
+
+class OntologyVersionResponse(BaseModel):
+    version: str
+    concept_count: int
+    relation_count: int
+    source: str  # "neo4j" | "seed_fallback"
+
+
+@router.get("/ontology/version", response_model=OntologyVersionResponse)
+async def ontology_version(
+    user: dict = Depends(get_current_user_from_supabase),
+) -> OntologyVersionResponse:
+    """Return the current ontology version + live concept/relation counts.
+
+    Ponytail: prefer Neo4j counts; fall back to SEED_CONCEPTS/SEED_RELATIONS
+    when the driver is missing so the endpoint stays useful without infra.
+    30s timeout headroom; admin-gated in production (matches /ontology/export).
+    """
+    if settings.is_production:
+        _require_admin(user)
+
+    container = get_container()
+    driver = container.neo4j_driver
+
+    if driver is not None:
+        import asyncio
+
+        def _version_and_counts() -> dict:
+            with driver.session() as session:
+                # Read the ontology_version persisted on any node — all
+                # ontology writer writes stamp the same version on every
+                # node and relationship, so the first non-null value is
+                # authoritative. Returns the imported constant only when
+                # no persisted version exists (pre-versioning graph).
+                version_row = session.run(
+                    "MATCH (n) WHERE n.ontology_version IS NOT NULL "
+                    "RETURN n.ontology_version AS v LIMIT 1"
+                ).single()
+                persisted_version = str(version_row["v"]) if version_row and version_row.get("v") else ONTOLOGY_VERSION
+                # Count only records matching the persisted version.
+                c = session.run(
+                    "MATCH (n) WHERE any(l IN labels(n) WHERE l IN "
+                    "['Concept', 'Practice', 'Teacher']) "
+                    "AND n.ontology_version = $v RETURN count(n) AS c",
+                    v=persisted_version,
+                ).single()
+                r = session.run(
+                    "MATCH (a)-[r]->(b) WHERE any(la IN labels(a) WHERE la IN "
+                    "['Concept', 'Practice', 'Teacher']) AND any(lb IN labels(b) "
+                    "WHERE lb IN ['Concept', 'Practice', 'Teacher']) "
+                    "AND r.ontology_version = $v RETURN count(r) AS c",
+                    v=persisted_version,
+                ).single()
+                return {
+                    "version": persisted_version,
+                    "concept_count": int(c["c"] if c else 0),
+                    "relation_count": int(r["c"] if r else 0),
+                }
+
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(_version_and_counts), timeout=30.0
+            )
+            return OntologyVersionResponse(
+                version=result["version"],
+                concept_count=result["concept_count"],
+                relation_count=result["relation_count"],
+                source="neo4j",
+            )
+        except TimeoutError:
+            logger.warning("ontology/version: Neo4j count timed out; using seed fallback.")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("ontology/version: Neo4j count failed: %s; using seed fallback.", exc)
+
+    return OntologyVersionResponse(
+        version=ONTOLOGY_VERSION,
+        concept_count=len(SEED_CONCEPTS),
+        relation_count=len(SEED_RELATIONS),
+        source="seed_fallback",
     )
 
 
