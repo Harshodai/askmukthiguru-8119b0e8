@@ -2,6 +2,7 @@ import { getCurrentConfig } from './config';
 import { getAccessToken, refreshAccessToken } from './auth';
 import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
+import { fetchWithRetry } from './fetchWithRetry';
 import { recordMetric } from './telemetry';
 import type { MessagePayload, StreamChunk } from './types';
 
