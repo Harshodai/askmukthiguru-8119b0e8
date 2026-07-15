@@ -18,8 +18,9 @@ dist-ssr/
 *.css
 *.html
 
-# Keep only backend and config
+# Keep only backend, memory, and config
 !backend/
+!memory/
 !railway.json
 !.railwayignore
 
