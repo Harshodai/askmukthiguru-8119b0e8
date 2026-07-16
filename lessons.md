@@ -1,12 +1,27 @@
 # Agentic Lessons & Memory
 
-## Jul 16, 2026 — start_railway.py Shadowing /api/health
+## Jul 16, 2026 — Graph Timeouts, Health Services, Background Init
 
-### start_railway.py health-first wrapper intercepts BOTH /api/healthz AND /api/health
-- **Problem**: Adding a comprehensive `/api/health` endpoint to `health.py` had no effect — the endpoint always returned `{"ok":true,"status":"alive"}`.
-- **Root Cause**: `start_railway.py:84` had `if path in ("/api/healthz", "/api/health"):` — the ASGI wrapper intercepted **both** paths and returned the fast healthz body. The real FastAPI app's `/api/health` handler was never reached.
-- **Fix**: Changed to `if path in ("/api/healthz",):` — only the Railway liveness probe (`/api/healthz`) stays fast in the wrapper. `/api/health` passes through to the real FastAPI app for comprehensive per-service go/no-go checks.
-- **Pattern**: When using a health-first ASGI wrapper (like `start_railway.py`), be explicit about which paths the wrapper handles. Add new health endpoints to the real FastAPI app, not the wrapper. The wrapper should only intercept `healthz` (the platform liveness probe).
+### STANDARD graph compilation hangs startup — ThreadPoolExecutor timeout
+- **Problem**: `_build_graphs()` called `build_rag_graph()` (STANDARD) and `build_deep_graph()` synchronously. With 20+ LangGraph nodes, STANDARD compilation could hang indefinitely, blocking the entire lifespan.
+- **Fix**: Wrap both STANDARD and DEEP graph builds in `ThreadPoolExecutor` with 60s timeout. On timeout, fall back to the FAST graph (or STANDARD for DEEP). This prevents startup hangs.
+- **Pattern**: For sync code that may hang (model compilation, network calls), use `concurrent.futures.ThreadPoolExecutor` with `.result(timeout=N)`. Never use `await asyncio.wait_for(asyncio.to_thread(...))` from sync methods.
+
+### start_railway.py health-first wrapper intercepts /api/health
+- **Problem**: Adding a comprehensive `/api/health` endpoint had no effect — returned `{"ok":true,"status":"alive"}`.
+- **Root Cause**: `start_railway.py:84` had `if path in ("/api/healthz", "/api/health"):` — ASGI wrapper intercepted both paths.
+- **Fix**: Changed to `if path in ("/api/healthz",:)`.
+- **Pattern**: Wrapper should only intercept `healthz` (liveness probe). New health endpoints go in the real FastAPI app.
+
+### _background_startup encoder reload hangs via asyncio.to_thread
+- **Problem**: `_background_startup` called `await asyncio.to_thread(container.embedding._ensure_encoder)` but the encoder was already loaded during `startup()` (ContainerBuilder calls it during graph build). The redundant `to_thread` could deadlock if the thread pool was starved by concurrent `prewarm_remaining` downloads.
+- **Fix**: Removed the redundant encoder reload. Pre-warming (reranker/colbert) kept as fire-and-forget via `asyncio.create_task(asyncio.to_thread(...))`.
+- **Pattern**: Only load models once. Track which services were loaded during `startup()` and skip re-load in `_background_startup`. Use fire-and-forget for non-critical background warm-up.
+
+### startup_complete should be set early, not deferred to background init
+- **Problem**: `startup_complete = False` was set in the lifespan, and only set to `True` after `_background_startup` completed (LightRAG, ontology, schedulers, queues). If background init hung, `/api/health` never reported services.
+- **Fix**: Set `startup_complete = True` immediately after `startup()` (synchronous container build). Background init is fire-and-forget.
+- **Pattern**: The health endpoint should reflect the container's actual state (which services are up/down), not whether background tasks finished. Set `startup_complete` when the core container is ready, not when optional init completes.
 
 ## Jul 12, 2026 — Tour Slides, Chat Crash, Google Sign-In, CSP
 
