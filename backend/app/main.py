@@ -213,7 +213,9 @@ async def _background_startup(container, fastapi_app) -> None:
         # (the FastAPI instance) is not shadowed by the import binding.
         import app.dependencies as _app_deps
 
-        # Encoder already loaded during startup() — skip re-load.
+        # Pre-warm remaining models (reranker, colbert) in background thread.
+        # Encoder is already loaded during startup() — skip re-load.
+        asyncio.create_task(asyncio.to_thread(container.embedding._ensure_reranker))
 
         # Async services initialization (LightRAG)
         logger.info("Lifespan: about to init LightRAG...")
