@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["teachings"])
 
-TIPS_CACHE_KEY = "teachings:tips:v1"
+TIPS_CACHE_KEY = "teachings:tips:v2"  # v2: reject malformed topic labels + strip RAPTOR/Source headers
 TIPS_TTL_SECONDS = int(getattr(settings, "teachings_tips_ttl_seconds", 604_800))  # 7 days
 TIP_MIN_CHARS = 80
 TIP_MAX_CHARS = 400

@@ -261,6 +261,14 @@ class RaptorIndexer:
                             topic_prompt,
                         )
                         topic_label = topic_label.strip().strip('"').strip("'")
+                        # Some models echo an elaborate reasoning breakdown instead of
+                        # following the "3-6 words" instruction — a real label is a
+                        # short phrase, never a multi-line/multi-sentence dump. Reject
+                        # anything that doesn't look like one rather than baking a
+                        # leaked prompt-analysis into the stored chunk header.
+                        if len(topic_label) > 60 or "\n" in topic_label or topic_label.count(".") > 1:
+                            logger.warning(f"Rejected malformed topic label ({len(topic_label)} chars): {topic_label[:80]!r}")
+                            topic_label = ""
                     except Exception as te:
                         logger.debug(f"Topic label generation failed: {te}")
 
