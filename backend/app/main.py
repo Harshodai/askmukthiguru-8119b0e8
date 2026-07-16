@@ -213,31 +213,7 @@ async def _background_startup(container, fastapi_app) -> None:
         # (the FastAPI instance) is not shadowed by the import binding.
         import app.dependencies as _app_deps
 
-        # Ensure encoder is loaded first (resolves primary/fallback models & dimension)
-        try:
-            logger.info("Startup: Loading embedding encoder...")
-            await asyncio.to_thread(container.embedding._ensure_encoder)
-            logger.info(
-                f"Startup: Encoder loaded (Model: {settings.embedding_model}, "
-                f"Dimension: {settings.embedding_dimension})"
-            )
-        except Exception as e:
-            logger.error(f"Startup: Failed to load embedding encoder: {e}", exc_info=True)
-
-        # Pre-warm remaining models (reranker, colbert) in background thread
-        def prewarm_remaining():
-            logger.info("Background pre-warming (reranker/colbert): starting...")
-            try:
-                container.embedding._ensure_reranker()
-                if settings.enable_colbert:
-                    container.embedding._ensure_colbert()
-                    logger.info("Background pre-warming (reranker/colbert): complete.")
-                else:
-                    logger.info("Background pre-warming: complete (ColBERT disabled).")
-            except Exception as ex:
-                logger.warning(f"Background pre-warming (reranker/colbert) failed: {ex}")
-
-        asyncio.create_task(asyncio.to_thread(prewarm_remaining))
+        # Encoder already loaded during startup() — skip re-load.
 
         # Async services initialization (LightRAG)
         logger.info("Lifespan: about to init LightRAG...")
@@ -336,7 +312,7 @@ async def lifespan(app: FastAPI):
     startup()
     container = get_container()
     import app.dependencies
-    app.dependencies.startup_complete = False
+    app.dependencies.startup_complete = True
     app.dependencies.startup_error = None
 
     # Register a global shutdown_scheduler noop so cleanup always works
