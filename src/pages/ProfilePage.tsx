@@ -229,10 +229,9 @@ const ProfilePage = () => {
     });
     setDirty(false);
     toast({ title: 'Profile saved', description: 'Your preferences are updated.' });
+  };
 
   // Sync conversation list for profile UI
-  const [localConversationCount, setConversationCount] = useState(0);
-
   useEffect(() => {
     const reload = () => {
       const convs = loadConversations();
@@ -247,8 +246,6 @@ const ProfilePage = () => {
       window.removeEventListener('conversation:updated', reload);
     };
   }, []);
-
-  };
 
   const handleAvatarPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

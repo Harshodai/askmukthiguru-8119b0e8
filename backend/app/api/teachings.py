@@ -101,7 +101,9 @@ def _get_redis():
 
 
 def _clean_tip_text(raw: str) -> str:
-    return re.sub(r"\s+", " ", raw or "").strip()
+    from rag.nodes.generation import _clean_inline_citations
+
+    return re.sub(r"\s+", " ", _clean_inline_citations(raw or "")).strip()
 
 
 def _first_sentences(text: str, max_chars: int) -> str:
