@@ -1,5 +1,26 @@
 # Agentic Lessons & Memory
 
+## Jul 16, 2026 — Background Init: asyncio.create_task Never Scheduled, scheduler_shutdown, startup_complete
+
+### Deferred init via asyncio.create_task() may never schedule
+- **Problem**: `_background_startup` was created as an `asyncio.create_task()` in the lifespan but never ran — no logs from the task body ever appeared. The event loop never scheduled it, even with `await asyncio.sleep(0)` after creation. `/api/health` stayed on `startup_error: null` because the timeout wrapper never fired.
+- **Fix**: **Stop using `create_task` for critical init.** Run all init inline in the lifespan before `yield`, wrapped in `asyncio.wait_for(timeout=180)`. The `start_railway.py` wrapper returns 200 for `/api/healthz` for 90s, so Railway won't kill the container. The real `/api/health` returns `ready: false` until `startup_complete = True` at the end of the inline init.
+- **Pattern**: If a `create_task`'s body never executes but no exception occurs, the event loop is not scheduling it. Don't debug why — switch to inline `wait_for`. ASGI lifespan wrappers (like Railway's) provide enough grace period for this.
+
+### scheduler_shutdown callback must be stored on app.state
+- **Problem**: The lifespan created a no-op `shutdown_scheduler = lambda: None` at module-top scope. `start_scheduler()` had a real `shutdown_scheduler()` function in `infrastructure/scheduler.py` but it was never wired to teardown.
+- **Fix**: Import `shutdown_scheduler` alongside `start_scheduler` in `_background_startup_body`. After successful start, store `fastapi_app.state.scheduler_shutdown = shutdown_scheduler`. In the lifespan teardown, read `getattr(app.state, "scheduler_shutdown", None) or shutdown_scheduler` (fallback to no-op).
+- **Pattern**: When startup code creates resources that need cleanup, store the cleanup callback on `app.state` as close to the creation site as possible. The lifespan teardown then reads it generically.
+
+### startup_complete should reflect actual deferred init state
+- **Problem**: `startup_complete = True` was set immediately after `startup()` (synchronous container build), before LightRAG init, ontology seeding, or queues started. The health endpoint reported "ready" while critical services were still uninitialized.
+- **Fix**: Changed to `app.dependencies.startup_complete = False` initially. Only set to `True` at the end of `_background_startup_body`, after all deferred init completes. Timeout/failure paths keep it `False` and set `startup_error`.
+- **Pattern**: `startup_complete` should represent "all initialization finished", not "core container constructed". The ASGI wrapper provides a grace period for `/api/healthz`; the real `/api/health` exposes the true state.
+
+### job_queue health check should not check _running flag
+- **Fix**: Changed health check from `container.job_queue._running` to `getattr(container, "job_queue", None) is not None`. The queue object is created at construction time — `_running` only becomes True after `job_queue.start()` which may not happen.
+- **Pattern**: For health probes, distinguish between "service object exists" (created at construction) and "service worker is active" (started later). Report the former as healthy; the latter as degraded if non-critical.
+
 ## Jul 16, 2026 — Graph Timeouts, Health Services, Background Init
 
 ### STANDARD graph compilation hangs startup — ThreadPoolExecutor timeout
