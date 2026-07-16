@@ -55,7 +55,9 @@ async def test_memory_service_search_semantic():
         {
             "p_user_id": "user123",
             "p_query_embedding": [0.1] * 1024,
-            "p_k": 5,
+            # search_semantic over-fetches limit*2 to re-rank with decay
+            # (see the "p_k": limit * 2 comment in memory_service.py).
+            "p_k": 10,
             "p_min_sim": 0.6,
         }
     )
@@ -191,12 +193,12 @@ async def test_memory_service_extract_and_write(monkeypatch):
     # Mock add_explicit
     add_explicit_mock = AsyncMock(return_value={})
 
-    # Mock supabase insert for summary
+    # Mock supabase upsert for summary (upsert, not insert — handles re-ingestion)
     table_mock = MagicMock()
     insert_mock = MagicMock()
     execute_mock = MagicMock()
     supabase_mock.table.return_value = table_mock
-    table_mock.insert.return_value = insert_mock
+    table_mock.upsert.return_value = insert_mock
     insert_mock.execute.return_value = execute_mock
 
     # Mock instructor and openai
@@ -243,11 +245,14 @@ async def test_memory_service_extract_and_write(monkeypatch):
         }
     )
     supabase_mock.table.assert_called_with("guru_session_summaries")
-    table_mock.insert.assert_called_with({
-        "user_id": "user123",
-        "session_id": "session123",
-        "summary": "User discussed anxiety and is a seeker."
-    })
+    table_mock.upsert.assert_called_with(
+        {
+            "user_id": "user123",
+            "session_id": "session123",
+            "summary": "User discussed anxiety and is a seeker."
+        },
+        on_conflict="user_id,session_id",
+    )
 
 
 @pytest.mark.asyncio

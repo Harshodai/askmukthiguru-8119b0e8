@@ -115,9 +115,12 @@ def test_classify_is_deterministic():
 
 
 def test_precompute_caches_vectors():
+    """Precompute is lazy (see __init__: avoids eager model load / OOM risk at startup),
+    triggered by the first classify call — not by construction alone."""
     fake = _FakeEmbedding()
     router = SemanticModelRouter(fake)
     total = sum(len(v) for v in router._TIER_UTTERANCES.values())
+    router.classify_with_score("trigger lazy precompute")
     assert len(router._utterance_vectors) == total
     assert len(router._tiers) == total
 
