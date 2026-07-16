@@ -1,6 +1,8 @@
 import os
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 def test_transformers_no_advisory_warnings_set():
     """Verify that TRANSFORMERS_NO_ADVISORY_WARNINGS environment variable is successfully set to true."""
@@ -48,3 +50,63 @@ def test_embedding_service_ragatouille_optional_graceful_fallback(monkeypatch):
 
     # ColBERT should be set to False (fallback path)
     assert service._colbert is False
+
+
+def test_ensure_encoder_clears_cache_and_retries_on_load_failure(monkeypatch):
+    """A corrupted HF cache on the primary model self-heals via clear+retry instead of falling back.
+
+    Regression test for the 2026-07-16 production incident: bge-m3's cached
+    weights were corrupted, load failed, and the service silently fell back
+    to a 384-dim model against the 1024-dim Qdrant collection.
+    """
+    from app.config import settings
+    from services.embedding_service import EmbeddingService
+
+    service = EmbeddingService()
+    calls = {"load": 0, "cleared": []}
+
+    def fake_load_encoder(self, model_name, device):
+        calls["load"] += 1
+        if calls["load"] == 1:
+            raise OSError("Unable to load weights from pytorch checkpoint file")
+        self._encoder = MagicMock()
+
+    monkeypatch.setattr(EmbeddingService, "_load_encoder", fake_load_encoder)
+    monkeypatch.setattr(
+        EmbeddingService,
+        "_clear_hf_cache_for",
+        lambda self, model_id: calls["cleared"].append(model_id),
+    )
+    monkeypatch.setattr(settings, "embedding_model", "BAAI/bge-m3")
+    monkeypatch.setattr(settings, "embedding_dimension", 1024)
+
+    service._ensure_encoder()
+
+    assert calls["cleared"] == ["BAAI/bge-m3"]
+    assert calls["load"] == 2
+    assert settings.embedding_model == "BAAI/bge-m3"
+
+
+def test_ensure_encoder_refuses_wrong_dimension_fallback(monkeypatch):
+    """A fallback model of a different dimension than the Qdrant collection must never be silently accepted."""
+    from app.config import settings
+    from services.embedding_service import EmbeddingService
+
+    service = EmbeddingService()
+
+    def fake_load_encoder(self, model_name, device):
+        if model_name == settings.embedding_model:
+            raise OSError("primary model unavailable")
+        self._encoder = MagicMock()  # every fallback "loads" fine, but is 384-dim
+
+    monkeypatch.setattr(EmbeddingService, "_load_encoder", fake_load_encoder)
+    monkeypatch.setattr(EmbeddingService, "_clear_hf_cache_for", lambda self, model_id: None)
+    monkeypatch.setattr(settings, "embedding_model", "BAAI/bge-m3")
+    monkeypatch.setattr(settings, "embedding_dimension", 1024)
+
+    with pytest.raises(Exception):
+        service._ensure_encoder()
+
+    # Must never silently swap to a wrong-dimension model
+    assert settings.embedding_model == "BAAI/bge-m3"
+    assert settings.embedding_dimension == 1024

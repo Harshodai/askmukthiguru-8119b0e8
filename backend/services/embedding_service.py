@@ -227,24 +227,56 @@ class EmbeddingService:
                 "BAAI/bge-small-en-v1.5": 384,
                 "sentence-transformers/all-MiniLM-L6-v2": 384,
             }
+            # Qdrant's collection is created once at container startup with this
+            # dimension (app/container.py, before any encoder loads). A fallback
+            # model of a DIFFERENT dimension can't search that collection — every
+            # dense query 400s ("Vector dimension error") while this function
+            # reports success. Never swap to one silently (2026-07-16 production
+            # incident: bge-m3's HF cache was corrupted, silently fell back to a
+            # 384-dim model against the 1024-dim collection — see handoff.md).
+            required_dim = settings.embedding_dimension
 
             last_error = None
             for i, model_name in enumerate(FALLBACK_CHAIN):
                 try:
-                    self._load_encoder(model_name, device)
+                    try:
+                        self._load_encoder(model_name, device)
+                    except Exception as first_err:
+                        # A corrupted/truncated HF cache (e.g. an earlier OOM-kill
+                        # mid-download) throws the same kind of error as a real
+                        # incompatibility. Clear and retry once — cheap, and
+                        # fixes the common case outright instead of degrading.
+                        logger.warning(
+                            f"Failed to load embedding model '{model_name}': {first_err}. "
+                            f"Clearing HF cache and retrying once."
+                        )
+                        self._clear_hf_cache_for(model_name)
+                        self._load_encoder(model_name, device)
+                        logger.info(f"Recovered '{model_name}' after clearing HF cache")
+
+                    model_dim = (
+                        required_dim
+                        if model_name == settings.embedding_model
+                        else FALLBACK_DIMS.get(model_name)
+                    )
+                    if model_dim != required_dim:
+                        raise ValueError(
+                            f"'{model_name}' is {model_dim}-dim, Qdrant collection is "
+                            f"{required_dim}-dim — refusing silent dimension swap"
+                        )
+
                     logger.info(
                         f"Successfully loaded embedding model '{model_name}'"
                     )
                     if model_name != settings.embedding_model:
                         settings.embedding_model = model_name
-                        if model_name in FALLBACK_DIMS:
-                            settings.embedding_dimension = FALLBACK_DIMS[model_name]
                         logger.info(
                             f"Config updated: model={model_name}, "
                             f"dim={settings.embedding_dimension}"
                         )
                     return
                 except Exception as e:
+                    self._encoder = None
                     last_error = e
                     logger.warning(
                         f"Failed to load embedding model '{model_name}': {e}."
@@ -256,7 +288,7 @@ class EmbeddingService:
                         ).inc()
 
             logger.error(
-                f"Failed to load all {len(FALLBACK_CHAIN)} embedding models. "
+                f"Failed to load a {required_dim}-dim-compatible embedding model. "
                 f"Tried: {', '.join(FALLBACK_CHAIN)}. Last error: {last_error}",
                 exc_info=True,
             )
