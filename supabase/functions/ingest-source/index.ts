@@ -46,8 +46,25 @@ function validateExternalUrl(raw: string): URL {
 }
 
 async function fetchUrlText(url: string): Promise<string> {
-  const safe = validateExternalUrl(url);
-  const r = await fetch(safe.toString(), { headers: { "User-Agent": "MukthiGuruIngest/1.0" }, redirect: "follow" });
+  // Manually follow redirects, re-validating each hop against the private-network blocklist
+  // to prevent SSRF via public URL → internal IP redirects (e.g. cloud metadata endpoints).
+  let current = validateExternalUrl(url).toString();
+  let r: Response | null = null;
+  for (let hop = 0; hop < 5; hop++) {
+    r = await fetch(current, {
+      headers: { "User-Agent": "MukthiGuruIngest/1.0" },
+      redirect: "manual",
+    });
+    if (r.status >= 300 && r.status < 400) {
+      const loc = r.headers.get("location");
+      if (!loc) break;
+      const next = new URL(loc, current);
+      current = validateExternalUrl(next.toString()).toString();
+      continue;
+    }
+    break;
+  }
+  if (!r) throw new Error("fetch_failed_no_response");
   if (!r.ok) throw new Error(`fetch_failed_${r.status}`);
   const ct = r.headers.get("content-type") ?? "";
   const body = await r.text();
