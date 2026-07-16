@@ -54,6 +54,7 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
             "ready": False,
             "status": "starting",
             "message": "Server is still starting up",
+            "startup_error": _app_deps.startup_error,
             "services": {},
         })
 
