@@ -44,30 +44,129 @@ async def healthz() -> JSONResponse:
 
 @router.get("/api/health")
 async def health_endpoint(container: ServiceContainer = Depends(get_container)) -> JSONResponse:
-    """
-    Health check endpoint.
+    """Comprehensive service health with go/no-go status for each service.
 
-    Returns fast during startup (before heavy services initialize).
-    Once initialized, returns status of all backend services.
+    Returns per-service status, latency, and an overall 'ready' flag.
+    Useful for debugging startup hangs and production monitoring.
     """
     if not _app_deps.startup_complete:
-        return JSONResponse({"status": "starting", "message": "Server is starting up"})
+        return JSONResponse({
+            "ready": False,
+            "status": "starting",
+            "message": "Server is still starting up",
+            "services": {},
+        })
 
-    health = await container.health_status()
+    loop = asyncio.get_running_loop()
+    results = {}
 
-    core_services = {"qdrant", "embedding", "ollama"}
-    all_healthy = all(v for k, v in health.items() if k in core_services)
+    async def check(name: str, coro, critical: bool = False):
+        s = time.perf_counter()
+        try:
+            ok = await asyncio.wait_for(coro, timeout=3.0)
+            latency = int((time.perf_counter() - s) * 1000)
+            results[name] = {"ok": ok, "latency_ms": latency, "critical": critical}
+        except asyncio.TimeoutError:
+            results[name] = {"ok": False, "latency_ms": 3000, "critical": critical, "error": "timeout"}
+        except Exception as exc:
+            results[name] = {"ok": False, "latency_ms": int((time.perf_counter() - s) * 1000), "critical": critical, "error": str(exc)[:200]}
 
-    body = {
-        "status": "healthy" if all_healthy else "degraded",
-        "services": {
-            k: (v if isinstance(v, bool) else True)
-            for k, v in health.items()
-            if k not in ["qdrant_count", "guardrails_provider"]
-        },
-        "total_chunks": 0 if not all_healthy else -1,
+    # Infrastructure
+    await check("qdrant", loop.run_in_executor(None, container.qdrant.health_check), critical=True)
+    await check("redis", _check_redis(container), critical=True)
+    await check("neo4j", _check_neo4j(container), critical=False)
+
+    # LLM
+    await check("llm", container.ollama.health_check(), critical=True)
+
+    # Embedding
+    try:
+        embed_ok = container.embedding.health_check()
+        results["embedding"] = {"ok": embed_ok, "latency_ms": 0, "critical": True}
+    except Exception as exc:
+        results["embedding"] = {"ok": False, "latency_ms": 0, "critical": True, "error": str(exc)[:200]}
+
+    # Guardrails
+    results["guardrails"] = {
+        "ok": container.guardrails.is_available,
+        "latency_ms": 0,
+        "critical": False,
+        "provider": container.guardrails.provider_name,
     }
-    return JSONResponse(body)
+
+    # Caches
+    results["exact_cache"] = {
+        "ok": container.exact_cache.is_available if container.exact_cache else False,
+        "latency_ms": 0,
+        "critical": False,
+    }
+    results["semantic_cache"] = {
+        "ok": container.semantic_cache.is_available if container.semantic_cache else False,
+        "latency_ms": 0,
+        "critical": False,
+    }
+
+    # Graphs
+    results["fast_graph"] = {"ok": container.fast_graph is not None, "latency_ms": 0, "critical": True}
+    results["standard_graph"] = {"ok": container.standard_graph is not None, "latency_ms": 0, "critical": True}
+    results["deep_graph"] = {"ok": container.deep_graph is not None, "latency_ms": 0, "critical": False}
+
+    # Job Queue
+    results["job_queue"] = {
+        "ok": container.job_queue is not None and container.job_queue._running if hasattr(container, "job_queue") and container.job_queue else False,
+        "latency_ms": 0,
+        "critical": True,
+        "queue_size": container.job_queue.queue_size if hasattr(container, "job_queue") and container.job_queue else 0,
+    }
+
+    # LightRAG
+    results["lightrag"] = {
+        "ok": not container.lightrag_degraded,
+        "latency_ms": 0,
+        "critical": False,
+    }
+
+    # OCR
+    await check("ocr", loop.run_in_executor(None, container.ocr.health_check), critical=False)
+
+    # Overall
+    critical_ok = all(v["ok"] for v in results.values() if v.get("critical"))
+    all_ok = all(v["ok"] for v in results.values())
+
+    return JSONResponse({
+        "ready": critical_ok,
+        "status": "healthy" if all_ok else ("degraded" if critical_ok else "unhealthy"),
+        "services": results,
+    })
+
+
+async def _check_redis(container) -> bool:
+    try:
+        import redis.asyncio as aioredis
+        r = aioredis.from_url(settings.redis_url, decode_responses=True)
+        await asyncio.wait_for(r.ping(), timeout=2.0)
+        await r.close()
+        return True
+    except Exception:
+        return False
+
+
+async def _check_neo4j(container) -> bool:
+    try:
+        driver = container.neo4j_driver
+        if driver is None:
+            return False
+        with driver.session() as session:
+            session.run("RETURN 1")
+        return True
+    except Exception:
+        return False
+
+
+@router.get("/api/health/services")
+async def services_health_endpoint(container: ServiceContainer = Depends(get_container)) -> JSONResponse:
+    """Alias for /api/health — comprehensive service health with go/no-go per service."""
+    return await health_endpoint(container)
 
 
 @router.get("/api/ready")

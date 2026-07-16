@@ -362,9 +362,11 @@ class ServiceContainer:
 
     def _build_graphs(self) -> None:
         """Layer 8: RAG graph variants (depends on core services + serene mind)."""
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
         # LightRAG degraded-service flag: if Neo4j was unreachable during
         # lightrag.initialize(), the graph still builds but without graph
         # enrichment. The service itself logs the warning.
+        logger.info("ContainerBuilder: building FAST graph...")
         self.fast_graph = build_fast_graph(
             ollama_service=self.ollama,
             embedding_service=self.embedding,
@@ -374,24 +376,51 @@ class ServiceContainer:
             web_search=self.web_search,
             doctrine_service=self.doctrine_service,
         )
-        self.standard_graph = build_rag_graph(
-            ollama_service=self.ollama,
-            embedding_service=self.embedding,
-            qdrant_service=self.qdrant,
-            lightrag_service=self.lightrag,
-            serene_mind_engine=self.serene_mind,
-            web_search=self.web_search,
-            doctrine_service=self.doctrine_service,
-        )
-        self.deep_graph = build_deep_graph(
-            ollama_service=self.ollama,
-            embedding_service=self.embedding,
-            qdrant_service=self.qdrant,
-            lightrag_service=self.lightrag,
-            serene_mind_engine=self.serene_mind,
-            web_search=self.web_search,
-            doctrine_service=self.doctrine_service,
-        )
+        logger.info("ContainerBuilder: FAST graph built")
+
+        logger.info("ContainerBuilder: building STANDARD graph...")
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            fut = pool.submit(
+                build_rag_graph,
+                ollama_service=self.ollama,
+                embedding_service=self.embedding,
+                qdrant_service=self.qdrant,
+                lightrag_service=self.lightrag,
+                serene_mind_engine=self.serene_mind,
+                web_search=self.web_search,
+                doctrine_service=self.doctrine_service,
+            )
+            try:
+                self.standard_graph = fut.result(timeout=60.0)
+                logger.info("ContainerBuilder: STANDARD graph built")
+            except FutureTimeoutError:
+                logger.warning("ContainerBuilder: STANDARD graph compilation timed out after 60s — falling back to FAST graph")
+                self.standard_graph = self.fast_graph
+            except Exception as e:
+                logger.warning(f"ContainerBuilder: STANDARD graph compilation failed: {e} — falling back to FAST graph")
+                self.standard_graph = self.fast_graph
+
+        logger.info("ContainerBuilder: building DEEP graph...")
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            fut = pool.submit(
+                build_deep_graph,
+                ollama_service=self.ollama,
+                embedding_service=self.embedding,
+                qdrant_service=self.qdrant,
+                lightrag_service=self.lightrag,
+                serene_mind_engine=self.serene_mind,
+                web_search=self.web_search,
+                doctrine_service=self.doctrine_service,
+            )
+            try:
+                self.deep_graph = fut.result(timeout=60.0)
+                logger.info("ContainerBuilder: DEEP graph built")
+            except FutureTimeoutError:
+                logger.warning("ContainerBuilder: DEEP graph compilation timed out after 60s — falling back to STANDARD graph")
+                self.deep_graph = self.standard_graph
+            except Exception as e:
+                logger.warning(f"ContainerBuilder: DEEP graph compilation failed: {e} — falling back to STANDARD graph")
+                self.deep_graph = self.standard_graph
         # Backward-compatible alias — defaults to standard graph
         self.rag_graph = self.standard_graph
 

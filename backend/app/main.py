@@ -247,14 +247,14 @@ async def _background_startup(container, fastapi_app) -> None:
         except Exception as e:
             logger.warning(f"LightRAG init failed (GraphRAG unavailable): {e}")
 
-        # Seed Neo4j Spiritual Ontology Schema
+        # Seed Neo4j Spiritual Ontology Schema (non-blocking, best-effort)
         logger.info("Lifespan: about to seed ontology...")
         try:
             from app.db.seed_ontology import seed_spiritual_ontology
             await asyncio.to_thread(seed_spiritual_ontology)
             logger.info("Lifespan: ontology seeding done")
         except Exception as e:
-            logger.error(f"Ontology seeding failed: {e}")
+            logger.warning(f"Ontology seeding skipped (non-critical): {e}")
 
         # Observability tracing (OpenTelemetry + Jaeger)
         logger.info("Lifespan: about to init observability...")
