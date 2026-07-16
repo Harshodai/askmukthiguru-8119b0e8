@@ -206,98 +206,76 @@ _startup_complete = False
 _startup_error: str | None = None
 
 
-async def _background_startup(container, fastapi_app) -> None:
-    """Run heavy initialization after the server starts accepting requests."""
+async def _background_startup_body(container, fastapi_app) -> None:
+    """Run deferred initialization (ontology seeding, queues, telemetry).
+
+    Called inline from lifespan before yield, wrapped in asyncio.wait_for(180s).
+    """
+    import app.dependencies as _app_deps
+
+    # Seed Neo4j Spiritual Ontology Schema (non-blocking, best-effort)
+    logger.info("Lifespan: about to seed ontology...")
     try:
-        # Importing the `app` package as `_app_mod` so the parameter `fastapi_app`
-        # (the FastAPI instance) is not shadowed by the import binding.
-        import app.dependencies as _app_deps
-
-        # Pre-warm remaining models (reranker, colbert) in background thread.
-        # Encoder is already loaded during startup() — skip re-load.
-        asyncio.create_task(asyncio.to_thread(container.embedding._ensure_reranker))
-
-        # Async services initialization (LightRAG)
-        logger.info("Lifespan: about to init LightRAG...")
-        try:
-            await container.lightrag.initialize()
-            logger.info("Lifespan: LightRAG init done")
-        except Exception as e:
-            logger.warning(f"LightRAG init failed (GraphRAG unavailable): {e}")
-
-        # Seed Neo4j Spiritual Ontology Schema (non-blocking, best-effort)
-        logger.info("Lifespan: about to seed ontology...")
-        try:
-            from app.db.seed_ontology import seed_spiritual_ontology
-            await asyncio.to_thread(seed_spiritual_ontology)
-            logger.info("Lifespan: ontology seeding done")
-        except Exception as e:
-            logger.warning(f"Ontology seeding skipped (non-critical): {e}")
-
-        # Observability tracing (OpenTelemetry + Jaeger)
-        logger.info("Lifespan: about to init observability...")
-        init_observability(fastapi_app)
-        logger.info("Lifespan: observability done")
-
-        # Schedule recurring jobs
-        logger.info("Lifespan: about to start scheduler...")
-        try:
-            from infrastructure.scheduler import start_scheduler
-            start_scheduler()
-            logger.info("Lifespan: scheduler started")
-        except Exception as e:
-            logger.warning(f"Failed to initialize APScheduler: {e}")
-
-        # Start Telemetry Background Worker
-        logger.info("Lifespan: about to start telemetry worker...")
-        telemetry_worker.start()
-        logger.info("Lifespan: telemetry worker started")
-
-        # Config Watcher
-        logger.info("Lifespan: about to start config watcher...")
-        from services.config_watcher import start_config_watcher
-        await start_config_watcher()
-        logger.info("Lifespan: config watcher started")
-
-        # Wire NodeObservers for the RAG pipeline
-        logger.info("Lifespan: about to register node observers...")
-        _register_node_observers()
-        logger.info("Lifespan: node observers registered")
-
-        # Start Job Queue workers
-        if getattr(container, "job_queue", None):
-            try:
-                from app.orchestrator import queue_worker_factory
-                logger.info(f"About to start JobQueue: job_queue={container.job_queue!r}")
-                await container.job_queue.start(queue_worker_factory)
-                logger.info("JobQueue workers started")
-            except Exception as e:
-                logger.warning(f"Failed to start JobQueue workers: {e}")
-
-        # Start LLM Queue
-        if getattr(container, "llm_queue", None):
-            try:
-                await container.llm_queue.start()
-                logger.info("LLMQueue started")
-            except Exception as e:
-                logger.warning(f"Failed to start LLMQueue: {e}")
-
-        # Start Request Queue
-        if getattr(container, "request_queue", None):
-            try:
-                await container.request_queue.start()
-                logger.info("RequestQueue started")
-            except Exception as e:
-                logger.warning(f"Failed to start RequestQueue: {e}")
-
-        _app_deps.startup_complete = True
-        logger.info("=== Mukthi Guru Backend Ready ===")
+        from app.db.seed_ontology import seed_spiritual_ontology
+        await asyncio.to_thread(seed_spiritual_ontology)
+        logger.info("Lifespan: ontology seeding done")
     except Exception as e:
+        logger.warning(f"Ontology seeding skipped (non-critical): {e}")
+
+    # Observability tracing (OpenTelemetry + Jaeger)
+    logger.info("Lifespan: about to init observability...")
+    init_observability(fastapi_app)
+    logger.info("Lifespan: observability done")
+
+    # Schedule recurring jobs
+    logger.info("Lifespan: about to start scheduler...")
+    try:
+        from infrastructure.scheduler import start_scheduler, shutdown_scheduler
+        start_scheduler()
+        fastapi_app.state.scheduler_shutdown = shutdown_scheduler
+        logger.info("Lifespan: scheduler started")
+    except Exception as e:
+        logger.warning(f"Failed to initialize APScheduler: {e}")
+
+    # Start Telemetry Background Worker
+    logger.info("Lifespan: about to start telemetry worker...")
+    telemetry_worker.start()
+    logger.info("Lifespan: telemetry worker started")
+
+    # Config Watcher
+    logger.info("Lifespan: about to start config watcher...")
+    from services.config_watcher import start_config_watcher
+    await start_config_watcher()
+    logger.info("Lifespan: config watcher started")
+
+    # Start Job Queue workers
+    if getattr(container, "job_queue", None):
         try:
-            _app_deps.startup_error = str(e)  # noqa: F821 — may not be bound if import failed
-        except (NameError, UnboundLocalError):
-            pass
-        logger.error(f"Background startup failed: {e}", exc_info=True)
+            from app.orchestrator import queue_worker_factory
+            logger.info(f"About to start JobQueue: job_queue={container.job_queue!r}")
+            await container.job_queue.start(queue_worker_factory)
+            logger.info("JobQueue workers started")
+        except Exception as e:
+            logger.warning(f"Failed to start JobQueue workers: {e}")
+
+    # Start LLM Queue
+    if getattr(container, "llm_queue", None):
+        try:
+            await container.llm_queue.start()
+            logger.info("LLMQueue started")
+        except Exception as e:
+            logger.warning(f"Failed to start LLMQueue: {e}")
+
+    # Start Request Queue
+    if getattr(container, "request_queue", None):
+        try:
+            await container.request_queue.start()
+            logger.info("RequestQueue started")
+        except Exception as e:
+            logger.warning(f"Failed to start RequestQueue: {e}")
+
+    _app_deps.startup_complete = True
+    logger.info("=== Mukthi Guru Backend Ready ===")
 
 
 # === Lifespan (startup/shutdown) ===
@@ -314,25 +292,44 @@ async def lifespan(app: FastAPI):
     startup()
     container = get_container()
     import app.dependencies
-    app.dependencies.startup_complete = True
+    app.dependencies.startup_complete = False
     app.dependencies.startup_error = None
 
     # Register a global shutdown_scheduler noop so cleanup always works
     shutdown_scheduler = lambda: None
 
-    # 3. Defer heavy initialization to background — yield immediately so uvicorn accepts requests
-    bg_init = asyncio.create_task(_background_startup(container, app))  # noqa: F821 — `app` is the FastAPI instance at module scope
+    # 3. Initialize LightRAG inline with timeout (critical for answer quality)
+    try:
+        logger.info("Lifespan: initializing LightRAG (timeout 120s)...")
+        await asyncio.wait_for(container.lightrag.initialize(), timeout=120)
+        logger.info("Lifespan: LightRAG initialized")
+    except asyncio.TimeoutError:
+        logger.warning("Lifespan: LightRAG init timed out — degraded mode")
+    except Exception as e:
+        logger.warning(f"Lifespan: LightRAG init failed — {e}")
+
+    # Wire NodeObservers (sync, fast)
+    _register_node_observers()
+
+    # 4. Run remaining background init inline with timeout
+    # The start_railway.py wrapper returns 200 for /api/healthz for 90s
+    # so Railway won't kill us during init. The /api/health endpoint returns
+    # ready:false until startup_complete=True at the end of this block.
+    try:
+        await asyncio.wait_for(
+            _background_startup_body(container, app),
+            timeout=180
+        )
+    except asyncio.TimeoutError:
+        logger.warning("Background init timed out after 180s")
+        app.dependencies.startup_error = "Background init timed out"
+    except Exception as e:
+        logger.warning(f"Background init failed: {e}")
+        app.dependencies.startup_error = str(e)
 
     # YIELD NOW — Railway health check can reach /api/health
-    logger.info("=== Server accepting requests (background init in progress) ===")
+    logger.info("=== Server accepting requests ===")
     yield
-
-    # Shutdown — cancel background init if still running
-    bg_init.cancel()
-    try:
-        await bg_init
-    except asyncio.CancelledError:
-        pass
 
     logger.info("Shutting down — waiting for in-flight requests (R3 graceful drain)...")
     drain_waited = 0.0
@@ -347,7 +344,7 @@ async def lifespan(app: FastAPI):
         logger.info(f"Graceful drain complete in {drain_waited:.1f}s")
 
     try:
-        scheduler_shutdown = shutdown_scheduler
+        scheduler_shutdown = getattr(app.state, "scheduler_shutdown", None) or shutdown_scheduler
         if callable(scheduler_shutdown):
             scheduler_shutdown()
     except Exception as e:
