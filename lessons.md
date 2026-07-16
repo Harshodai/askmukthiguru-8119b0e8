@@ -1,5 +1,51 @@
 # Agentic Lessons & Memory
 
+## Jul 16, 2026 — Embedding Dimension Drift: Silent Model Fallback Causes Qdrant Dimension Mismatch
+
+### The Bug
+**Railway logs showed "Vector dimension error: expected dim: 1024, got 384" for ALL dense searches.**
+
+Root cause: `EmbeddingService._ensure_encoder()` silently falls back from `BAAI/bge-m3` (1024-dim) to `intfloat/multilingual-e5-small` (384-dim) when primary model fails to load on Railway's constrained resources. The fallback **mutates global `settings.embedding_dimension`** (lines 238-245) AFTER Qdrant collection was already created with 1024-dim vectors.
+
+### Failure Chain
+1. Container starts → `ContainerBuilder.build()` initializes embedding service
+2. Primary model `BAAI/bge-m3` fails to load (OOM/timeout on Railway)
+3. Fallback chain loads `intfloat/multilingual-e5-small` (384-dim)
+4. Code mutates `settings.embedding_dimension = 384` in-place
+5. Qdrant collection already exists with 1024-dim
+6. **Every dense search fails** with dimension mismatch
+7. Retrieval returns empty → OKF injection skipped (gated on `all_docs`)
+8. Generation with empty context → OpenRouter 429 → graceful degradation returns "connection issue"
+
+### Why It Was Missed
+- Fallback happens silently during startup; logs show "Batches: 100%..." progress bars but no clear "DIMENSION CHANGED" warning
+- Config mutation happens at runtime; tests mock embedding service, never catch dimension drift
+- No startup validation that `qdrant_collection.dim == settings.embedding_dimension`
+- "Connection issue" message misled diagnosis (looked like LLM failure, actually retrieval failure)
+
+### Fix Options (Priority Order)
+**A. Fail Fast (Recommended)**: Remove silent dimension mutation. Only allow primary model. If it fails to load, raise — don't silently downgrade dimension.
+```python
+FALLBACK_CHAIN = [settings.embedding_model]  # Only primary
+```
+
+**B. Recreate Collection on Dimension Change**: In `QdrantService` or `ContainerBuilder`, assert dimension match. If mismatch: delete + recreate collection (loses vectors but fixes correctness).
+
+**C. Pre-load Model in Docker Build**: Cache model in image to avoid runtime download/OOM:
+```dockerfile
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3')"
+```
+
+**D. Add Startup Validation**:
+```python
+assert qdrant_collection_dim == settings.embedding_dimension, f"Dim mismatch: {qdrant_collection_dim} vs {settings.embedding_dimension}"
+```
+
+### Key Lesson
+**Never mutate global config dimension at runtime.** Embedding dimension is a contract between encoder and vector store. Changing it silently breaks the contract. Either pin the dimension at build time, or fail fast and require explicit migration.
+
+---
+
 ## Jul 16, 2026 — Background Init: asyncio.create_task Never Scheduled, scheduler_shutdown, startup_complete
 
 ### Deferred init via asyncio.create_task() may never schedule
