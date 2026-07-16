@@ -111,8 +111,12 @@ export const sendMessage = async (
         if (!jobId) {
           return { content: '', error: 'Queue returned 202 but no job_id', errorCode: 'unknown' };
         }
+        // poll_url from the backend is host-relative — resolve it against baseUrl
+        // (see streaming.ts) so cross-origin deploys (Lovable + Railway) don't
+        // fetch it against the frontend's own origin.
         const baseUrl = endpoint.replace(/\/api\/chat\/?$/, '');
-        const pollUrl = jobData.poll_url || `${baseUrl}/api/jobs/${jobId}`;
+        const rawPollUrl = jobData.poll_url || `/api/jobs/${jobId}`;
+        const pollUrl = /^https?:\/\//.test(rawPollUrl) ? rawPollUrl : `${baseUrl}${rawPollUrl}`;
         const pollStart = Date.now();
         while (Date.now() - pollStart < 120_000) {
           await new Promise(r => setTimeout(r, 2000));

@@ -8,7 +8,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: { auth: { getSession: mocks.getSession } },
 }));
 
-import { generateConversationTitle, submitFeedbackToBackend } from '@/lib/chat/transport';
+import { generateConversationTitle, submitFeedbackToBackend, sendMessage } from '@/lib/chat/transport';
 import { setAIProvider } from '@/lib/chat/config';
 
 describe('chat/transport helpers', () => {
@@ -64,5 +64,27 @@ describe('chat/transport helpers', () => {
     fetchMock.mockClear();
     await submitFeedbackToBackend({ query: 'q', answer: 'a', rating: 1 });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('sendMessage resolves a host-relative queue poll_url against the backend origin', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        status: 202,
+        json: async () => ({ job_id: 'job_1', poll_url: '/api/jobs/job_1' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: 'completed', result: { response: 'namaste' } }),
+      });
+
+    await sendMessage([], 'hello');
+
+    // Second call is the poll — must hit the backend origin, not a bare relative path.
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8000/api/jobs/job_1',
+      expect.anything(),
+    );
   });
 });

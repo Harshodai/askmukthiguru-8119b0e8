@@ -100,8 +100,13 @@ export async function* sendMessageStreaming(
         : 'Request queued…',
       jobId,
     };
+    // The backend returns a host-relative stream_url (e.g. `/api/chat/stream/{id}`).
+    // On Lovable, the frontend and Railway backend are different origins, so a
+    // relative fetch() would resolve against the frontend's own origin instead —
+    // always resolve it against baseUrl unless it's already absolute.
     const baseUrl = endpoint.replace(/\/api\/chat\/?$/, '');
-    const streamUrl = jobData.stream_url || `${baseUrl}/api/chat/stream/${jobId}`;
+    const rawStreamUrl = jobData.stream_url || `/api/chat/stream/${jobId}`;
+    const streamUrl = /^https?:\/\//.test(rawStreamUrl) ? rawStreamUrl : `${baseUrl}${rawStreamUrl}`;
     response = await fetch(streamUrl, {
       method: 'GET',
       headers: {

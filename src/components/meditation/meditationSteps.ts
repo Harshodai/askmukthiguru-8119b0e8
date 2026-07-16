@@ -20,7 +20,8 @@ export interface MeditationStep {
   /**
    * Optional narrated audio for this step. Drop the MP3 at
    * `public/audio/meditation/<id>.mp3` and the player will pick it up.
-   * When absent, the timeline still advances silently — flame + text carry the practice.
+   * When absent, or when the clip fails to load, browser TTS speaks the
+   * instruction instead — see useMeditationAudio/useMeditationTTS.
    */
   audioSrc?: string;
 }

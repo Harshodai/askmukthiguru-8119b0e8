@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MeditationStep } from './meditationSteps';
 
 /**
@@ -10,8 +10,8 @@ import type { MeditationStep } from './meditationSteps';
  * - When `isPlaying` toggles false, pauses. When true, resumes at current position.
  * - When a step has no `audioSrc`, the previous audio fades out — timeline continues silently.
  * - Preloads the next step's audio so transitions feel seamless.
- * - Failing `play()` (autoplay policy, missing file) is swallowed — the flame + text carry
- *   the practice regardless. This is intentional: meditation must not surface errors.
+ * - A missing/broken clip (`onerror`) is reported via the returned `audioFailed` flag so the
+ *   caller can fall back to `useMeditationTTS` instead of going silent.
  *
  * The hook takes an optional `muted` flag so the player's mute button just routes here.
  */
@@ -23,6 +23,8 @@ export function useMeditationAudio(
 ) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const preloadRef = useRef<HTMLAudioElement | null>(null);
+  const loadingStepRef = useRef<number>(-1);
+  const [failedStep, setFailedStep] = useState<number | null>(null);
 
   // Lazy-create the audio elements once, on the client.
   useEffect(() => {
@@ -31,8 +33,11 @@ export function useMeditationAudio(
       const el = new Audio();
       el.preload = 'auto';
       el.crossOrigin = 'anonymous';
-      // Silently swallow missing audio files — meditation continues without narration.
-      el.onerror = () => { el.removeAttribute('src'); };
+      // Missing/corrupt clip — drop the src and flag the step so TTS can take over.
+      el.onerror = () => {
+        el.removeAttribute('src');
+        setFailedStep(loadingStepRef.current);
+      };
       audioRef.current = el;
     }
     if (!preloadRef.current) {
@@ -64,12 +69,13 @@ export function useMeditationAudio(
     // Same src (e.g. React re-render) → do nothing.
     if (el.src.endsWith(src)) return;
 
+    loadingStepRef.current = stepIndex;
     el.src = src;
     el.currentTime = 0;
     el.volume = 0;
     if (isPlaying && !muted) {
       el.play().catch(() => {
-        /* autoplay blocked or file missing — silent fallback */
+        /* autoplay blocked — not a missing-file case, TTS fallback stays silent here */
       });
       fadeIn(el);
     }
@@ -100,6 +106,8 @@ export function useMeditationAudio(
     if (!el) return;
     el.muted = muted;
   }, [muted]);
+
+  return { audioFailed: failedStep === stepIndex };
 }
 
 function fadeIn(el: HTMLAudioElement, targetVolume = 1, durationMs = 400) {
