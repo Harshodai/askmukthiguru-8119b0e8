@@ -89,11 +89,10 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
   const isComplete = currentStepIndex >= steps.length;
   const stepProgress = step ? Math.min(elapsed / step.durationSeconds, 1) : 1;
 
-  // Per-step narrated audio, synced to the timeline. Silent fallback when the
-  // MP3 files are absent — the flame + text carry the practice.
-  useMeditationAudio(steps, currentStepIndex, isPlaying && !isComplete, muted);
-  // Free browser TTS fallback when no MP3 is present for a step.
-  useMeditationTTS(steps, currentStepIndex, isPlaying && !isComplete, muted);
+  // Per-step narrated audio, synced to the timeline.
+  const { audioFailed } = useMeditationAudio(steps, currentStepIndex, isPlaying && !isComplete, muted);
+  // Free browser TTS: speaks when a step has no MP3, or when its MP3 failed to load.
+  useMeditationTTS(steps, currentStepIndex, isPlaying && !isComplete, muted, audioFailed);
 
   // On open: detect unfinished prior session and offer resume.
   useEffect(() => {

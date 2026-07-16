@@ -7,6 +7,7 @@ import heroImage from '@/assets/hero-spiritual.webp';
 import { FloatingParticles } from './FloatingParticles';
 import { ContinuePracticeCard } from './ContinuePracticeCard';
 import { DemoModal, hasSeenTour, recordTourOutcome, WelcomePrompt } from './DemoModal';
+import { getConsent } from '@/components/common/CookieConsentBanner';
 
 export const HeroSection = () => {
   const { t } = useTranslation();
@@ -14,7 +15,10 @@ export const HeroSection = () => {
   const [welcomeVisible, setWelcomeVisible] = useState(false);
 
   useEffect(() => {
-    if (!hasSeenTour()) {
+    // Both this prompt and the cookie banner anchor bottom-right — showing both at
+    // once on a first-ever visit stacks them. Consent is the more important ask, so
+    // defer the tour prompt until it's resolved; "Take a Tour" stays in the user menu.
+    if (!hasSeenTour() && getConsent() !== null) {
       setWelcomeVisible(true);
     }
   }, []);
@@ -49,7 +53,7 @@ export const HeroSection = () => {
             alt=""
             width={1920}
             height={1080}
-            fetchPriority="high"
+            fetchpriority="high"
             decoding="async"
             className="w-full h-full object-cover"
           />
@@ -85,7 +89,7 @@ export const HeroSection = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.7 }}
-              className="text-5xl md:text-7xl font-bold mb-6 leading-tight"
+              className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 leading-tight"
             >
               <span className="text-foreground">{t('landing.hero.heading1')}</span>
               <br />

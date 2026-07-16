@@ -1,7 +1,9 @@
 /**
  * Meditation narration via the browser's built-in SpeechSynthesis API.
  * Zero cost, zero backend, works offline. When a step has a real `audioSrc`
- * MP3, `useMeditationAudio` takes over and this hook stays silent.
+ * MP3, `useMeditationAudio` takes over and this hook stays silent — unless
+ * `audioFailed` reports that clip missing/broken, in which case TTS speaks
+ * the instruction instead so the step is never silent.
  */
 import { useEffect, useRef, useCallback } from 'react';
 import type { MeditationStep } from './meditationSteps';
@@ -26,6 +28,7 @@ export function useMeditationTTS(
   stepIndex: number,
   isPlaying: boolean,
   muted = false,
+  audioFailed = false,
 ) {
   const spokenIndexRef = useRef<number>(-1);
 
@@ -52,11 +55,11 @@ export function useMeditationTTS(
     if (!isPlaying || muted) return;
     if (spokenIndexRef.current === stepIndex) return;
     const step = steps[stepIndex];
-    if (!step || step.audioSrc) return; // real MP3 takes priority
+    if (!step || (step.audioSrc && !audioFailed)) return; // real MP3 takes priority unless it failed to load
     spokenIndexRef.current = stepIndex;
     const t = setTimeout(() => speak(step.instruction), 600);
     return () => clearTimeout(t);
-  }, [steps, stepIndex, isPlaying, muted, speak]);
+  }, [steps, stepIndex, isPlaying, muted, speak, audioFailed]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
