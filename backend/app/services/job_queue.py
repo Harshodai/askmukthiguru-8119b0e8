@@ -55,7 +55,11 @@ class JobQueueService:
         if self._redis is None:
             import redis.asyncio as aioredis
             self._redis = aioredis.from_url(self._redis_url, decode_responses=True)
-            await self._redis.ping()
+            try:
+                await asyncio.wait_for(self._redis.ping(), timeout=5.0)
+            except asyncio.TimeoutError:
+                logger.error("Redis ping timed out after 5s — connection may be stalled")
+                raise
         return self._redis
 
     async def start(self, worker_factory: Callable) -> None:

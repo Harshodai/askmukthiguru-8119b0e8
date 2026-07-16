@@ -276,6 +276,7 @@ async def _background_startup(container, fastapi_app) -> None:
         if getattr(container, "job_queue", None):
             try:
                 from app.orchestrator import queue_worker_factory
+                logger.info(f"About to start JobQueue: job_queue={container.job_queue!r}")
                 await container.job_queue.start(queue_worker_factory)
                 logger.info("JobQueue workers started")
             except Exception as e:
