@@ -1721,7 +1721,7 @@ return (
                       searchContext={showInstantPill ? pendingQuery : undefined}
                       fallbackLabel={
                         isStreaming && streamingContent === ''
-                          ? 'The Guru is reflecting on the sacred teachings…'
+                          ? (rotatingThinkingLabel ?? 'The Guru is reflecting on the sacred teachings…')
                           : 'Analyzing your question…'
                       }
                     />
