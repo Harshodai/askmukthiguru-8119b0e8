@@ -121,7 +121,7 @@ export const ThinkingPills = ({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -3 }}
               transition={{ duration: 0.25 }}
-              className="font-serif italic text-muted-foreground truncate max-w-[180px] sm:max-w-[260px]"
+              className="font-serif italic text-foreground/75 truncate max-w-[220px] sm:max-w-[380px]"
             >
               · {subLabel}
             </motion.span>
