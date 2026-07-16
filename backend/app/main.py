@@ -240,37 +240,51 @@ async def _background_startup(container, fastapi_app) -> None:
         asyncio.create_task(asyncio.to_thread(prewarm_remaining))
 
         # Async services initialization (LightRAG)
+        logger.info("Lifespan: about to init LightRAG...")
         try:
             await container.lightrag.initialize()
+            logger.info("Lifespan: LightRAG init done")
         except Exception as e:
             logger.warning(f"LightRAG init failed (GraphRAG unavailable): {e}")
 
         # Seed Neo4j Spiritual Ontology Schema
+        logger.info("Lifespan: about to seed ontology...")
         try:
             from app.db.seed_ontology import seed_spiritual_ontology
             await asyncio.to_thread(seed_spiritual_ontology)
+            logger.info("Lifespan: ontology seeding done")
         except Exception as e:
             logger.error(f"Ontology seeding failed: {e}")
 
         # Observability tracing (OpenTelemetry + Jaeger)
+        logger.info("Lifespan: about to init observability...")
         init_observability(fastapi_app)
+        logger.info("Lifespan: observability done")
 
         # Schedule recurring jobs
+        logger.info("Lifespan: about to start scheduler...")
         try:
             from infrastructure.scheduler import start_scheduler
             start_scheduler()
+            logger.info("Lifespan: scheduler started")
         except Exception as e:
             logger.warning(f"Failed to initialize APScheduler: {e}")
 
         # Start Telemetry Background Worker
+        logger.info("Lifespan: about to start telemetry worker...")
         telemetry_worker.start()
+        logger.info("Lifespan: telemetry worker started")
 
         # Config Watcher
+        logger.info("Lifespan: about to start config watcher...")
         from services.config_watcher import start_config_watcher
         await start_config_watcher()
+        logger.info("Lifespan: config watcher started")
 
         # Wire NodeObservers for the RAG pipeline
+        logger.info("Lifespan: about to register node observers...")
         _register_node_observers()
+        logger.info("Lifespan: node observers registered")
 
         # Start Job Queue workers
         if getattr(container, "job_queue", None):
