@@ -42,6 +42,7 @@ import { DailyTeaching } from './DailyTeaching';
 import { ChatEmptyState } from './ChatEmptyState';
 import { ConversationSourcesPanel } from './ConversationSourcesPanel';
 import { ThinkingPills, type PipelineStep, mapStatusToLabel } from './ThinkingPills';
+import { useThinkingStatus } from '@/hooks/useThinkingStatus';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useProfile } from '@/hooks/useProfile';
