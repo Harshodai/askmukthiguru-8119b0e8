@@ -2440,8 +2440,12 @@ class IngestionPipeline:
                 children.append(" ".join(current_child_sentences))
 
             for child in children:
-                # Prepend full parent context to each child chunk
-                child_with_context = f"{parent_context}\n{child}"
+                # Prepend a [Source: Title] tag (same citation convention as
+                # _split_text) ahead of the full parent context, so hierarchical
+                # chunks stay attributable — they were previously indexed with
+                # no source marker at all.
+                source_prefix = f"[Source: {title}]\n" if title else ""
+                child_with_context = f"{source_prefix}{parent_context}\n{child}"
                 all_child_texts.append(child_with_context)
                 all_child_metadatas.append(
                     {"parent_id": parent_id, "parent_text": parent_text, "is_child": True}

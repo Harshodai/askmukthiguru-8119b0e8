@@ -99,9 +99,13 @@ async def test_health_check_all_services():
 async def test_health_check_one_failing():
     """One failing service → overall response marks that service unhealthy; no exception raised.
 
-    Qdrant.health_check() raises; the checker catches and reports qdrant=False,
-    qdrant_count=0 while the other services remain healthy. The overall dict
-    is still returned (the checker never raises on a single-service failure).
+    Qdrant.health_check() raises; the checker catches and reports qdrant=False.
+    qdrant_count comes from a *separate* independent check (container.qdrant.count)
+    in its own try/except — "Run blocking checks independently so one failure
+    does not mask another" — so it stays whatever count() itself reports (42
+    from the healthy fixture) even though health_check() failed.
+    The overall dict is still returned (the checker never raises on a
+    single-service failure).
     """
     container = _make_healthy_container()
     container.qdrant.health_check = MagicMock(side_effect=RuntimeError("qdrant down"))
@@ -110,9 +114,7 @@ async def test_health_check_one_failing():
 
     assert isinstance(result, dict)
     assert result["qdrant"] is False
-    assert result["qdrant_count"] == 0
-    # ocr lives in the same try block as qdrant in app.health, so a qdrant
-    # exception short-circuits the whole executor block → ocr also False.
+    assert result["qdrant_count"] == 42
     # Boundary contract: a failing infra service marks itself unhealthy and
     # does NOT raise out of check(); the remaining services stay healthy.
     assert result["ollama"] is True

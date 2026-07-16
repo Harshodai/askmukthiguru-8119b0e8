@@ -104,3 +104,21 @@ def _restore_event_loop():
     yield
     asyncio.set_event_loop(asyncio.new_event_loop())
 
+
+@pytest.fixture(autouse=True)
+def _clear_dependency_overrides():
+    # ponytail: app.dependency_overrides is a dict on the single shared `app`
+    # object imported by every test module; several tests (test_edge_cases.py,
+    # test_chat_endpoint.py) set app.dependency_overrides[get_container] /
+    # [get_current_user_from_supabase] and never clear it, so it leaks into
+    # every test that runs later in the same process and shares `app` (e.g.
+    # test_health.py's client = TestClient(app) — the exact failure this fixes).
+    # Snapshot + restore rather than blind-clear, in case a future test wants
+    # a genuinely persistent override across its own sub-tests.
+    from app.main import app as _app
+
+    saved = dict(_app.dependency_overrides)
+    yield
+    _app.dependency_overrides.clear()
+    _app.dependency_overrides.update(saved)
+
