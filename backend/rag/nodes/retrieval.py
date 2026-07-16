@@ -1110,7 +1110,6 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # (see app/config.py:269), not an opt-in extra.
     if (
         getattr(settings, "rag_okf_injection_enabled", False)
-        and all_docs
         and intent not in ("CASUAL", "GREETING")
     ):
         try:
