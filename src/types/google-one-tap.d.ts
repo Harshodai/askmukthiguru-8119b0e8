@@ -24,6 +24,16 @@ interface GoogleOneTapConfig {
   cancel_on_tap_outside?: boolean;
   context?: 'signin' | 'signup' | 'use';
   itp_support?: boolean;
+  nonce?: string;
+  data_fedcm?: boolean;
+  allowed_parent_origin?: string | string[];
+  native_callback?: (response: GoogleOneTapResponse) => void;
+  ux_mode?: 'popup' | 'redirect';
+  redirect_uri?: string;
+  state?: string;
+  login_uri?: string;
+  prompt_parent_id?: string;
+  intermediate_iframe_close_callback?: () => void;
 }
 
 interface GoogleOneTapResponse {
