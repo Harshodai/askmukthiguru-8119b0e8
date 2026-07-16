@@ -42,6 +42,7 @@ import { DailyTeaching } from './DailyTeaching';
 import { ChatEmptyState } from './ChatEmptyState';
 import { ConversationSourcesPanel } from './ConversationSourcesPanel';
 import { ThinkingPills, type PipelineStep, mapStatusToLabel } from './ThinkingPills';
+import { useThinkingStatus } from '@/hooks/useThinkingStatus';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useProfile } from '@/hooks/useProfile';
@@ -156,6 +157,7 @@ export const ChatInterface = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>();
   const [streamingContent, setStreamingContent] = useState<string>('');
+  const rotatingThinkingLabel = useThinkingStatus(isStreaming, streamingContent.length > 0);
   const { open: openSereneMind, setOnComplete: setSereneMindOnComplete } = useSereneMind();
   const [isAwaitingSereneMind, setIsAwaitingSereneMind] = useState(false);
   const [showMobileSheet, setShowMobileSheet] = useState(false);
@@ -1719,7 +1721,7 @@ return (
                       searchContext={showInstantPill ? pendingQuery : undefined}
                       fallbackLabel={
                         isStreaming && streamingContent === ''
-                          ? 'The Guru is reflecting on the sacred teachings…'
+                          ? (rotatingThinkingLabel ?? 'The Guru is reflecting on the sacred teachings…')
                           : 'Analyzing your question…'
                       }
                     />
