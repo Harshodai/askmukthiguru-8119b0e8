@@ -807,6 +807,24 @@ Services: **backend**, **qdrant**, **redis**, **neo4j**, **jaeger**
 - `k8s/helm/mukthiguru/` — Helm chart for Kubernetes deployment
 - `k8s/skaffold.yaml` — Skaffold configuration for local k8s development
 
+### Railway (Production Deployment)
+- **Project**: `resilient-embrace` | **Service**: `askmukthiguru-8119b0e8` | **Environment**: `production`
+- **Deploy method**: Use `railway up` (tarball upload) — **NOT** `railway redeploy --from-source`
+  - `railway up` uploads a tarball and deploys reliably
+  - `railway redeploy --from-source` gets stuck at INITIALIZING on this repo
+- **Replicas**: Set to **1 replica** in `railway.json` — 2 replicas caused second replica to fail init timeout
+- **Health checks**: 
+  - `/api/healthz` — intercepted by `start_railway.py` wrapper, returns 200 for 90s grace period
+  - `/api/health` — real per-service health, returns `ready: false` until `startup_complete=True`
+- **Docker path for CLI**: `export PATH="/Users/harshodaikolluru/.docker/bin:$PATH" && railway <cmd>`
+- **Link service**:
+  ```bash
+  railway link --project resilient-embrace --service askmukthiguru-8119b0e8
+  ```
+- **View logs**: `railway logs` (shows interleaved from all deployments; use `--deployment <id>` for specific)
+- **Environment variables**: Set via `railway variables --json '{"KEY": "value"}'` or dashboard
+- **Key env vars for backend**: `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `REDIS_URL`, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `IS_PRODUCTION=true`
+
 ### CI/CD (`.github/workflows/`)
 - `build-deploy.yml` — Build and deploy pipeline
 - `dependency-check.yml` — Dependency vulnerability scanning
