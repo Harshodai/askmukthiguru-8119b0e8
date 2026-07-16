@@ -2,6 +2,7 @@ import asyncio
 import functools
 import logging
 import os
+import time
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -12,11 +13,25 @@ _real_app = None
 _lifespan_startup_done = False
 _lifespan_task: asyncio.Task | None = None
 _shutdown_event = asyncio.Event()
+_process_start = time.monotonic()
 
-_health_body = b'{"ok":true,"status":"alive"}'
-_health_headers = [
+# How long the wrapper reports healthy on faith alone (normal boot has been
+# observed to take up to ~70s for ContainerBuilder + graph strategies). Past
+# this, the health check must reflect real lifespan completion, not just
+# "process is alive" — otherwise Railway keeps routing traffic to a
+# deployment whose real app (and its job-queue workers) never finished
+# initializing, and that failure is invisible to platform monitoring.
+_HEALTH_GRACE_SECONDS = 90
+
+_health_body_ok = b'{"ok":true,"status":"alive"}'
+_health_headers_ok = [
     (b"content-type", b"application/json"),
-    (b"content-length", str(len(_health_body)).encode()),
+    (b"content-length", str(len(_health_body_ok)).encode()),
+]
+_health_body_not_ready = b'{"ok":false,"status":"lifespan_not_ready"}'
+_health_headers_not_ready = [
+    (b"content-type", b"application/json"),
+    (b"content-length", str(len(_health_body_not_ready)).encode()),
 ]
 
 
@@ -67,12 +82,14 @@ async def app(scope, receive, send):
     path = scope.get("path", "")
 
     if path in ("/api/healthz", "/api/health"):
+        within_grace = (time.monotonic() - _process_start) < _HEALTH_GRACE_SECONDS
+        healthy = _lifespan_startup_done or within_grace
         await send({
             "type": "http.response.start",
-            "status": 200,
-            "headers": _health_headers,
+            "status": 200 if healthy else 503,
+            "headers": _health_headers_ok if healthy else _health_headers_not_ready,
         })
-        await send({"type": "http.response.body", "body": _health_body})
+        await send({"type": "http.response.body", "body": _health_body_ok if healthy else _health_body_not_ready})
         return
 
     if _real_app is None:
