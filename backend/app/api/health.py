@@ -124,7 +124,7 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     results["lightrag"] = {
         "ok": not container.lightrag_degraded,
         "latency_ms": 0,
-        "critical": False,
+        "critical": True,
     }
 
     # OCR
