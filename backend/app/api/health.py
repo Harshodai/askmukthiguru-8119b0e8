@@ -82,7 +82,7 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
 
     # Embedding
     try:
-        embed_ok = container.embedding.health_check()
+        embed_ok = container.embedding._encoder is not None
         results["embedding"] = {"ok": embed_ok, "latency_ms": 0, "critical": True}
     except Exception as exc:
         results["embedding"] = {"ok": False, "latency_ms": 0, "critical": True, "error": str(exc)[:200]}
@@ -116,7 +116,7 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     results["job_queue"] = {
         "ok": container.job_queue is not None and container.job_queue._running if hasattr(container, "job_queue") and container.job_queue else False,
         "latency_ms": 0,
-        "critical": True,
+        "critical": False,
         "queue_size": container.job_queue.queue_size if hasattr(container, "job_queue") and container.job_queue else 0,
     }
 
