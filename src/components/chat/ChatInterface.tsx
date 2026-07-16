@@ -157,6 +157,7 @@ export const ChatInterface = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>();
   const [streamingContent, setStreamingContent] = useState<string>('');
+  const rotatingThinkingLabel = useThinkingStatus(isStreaming, streamingContent.length > 0);
   const { open: openSereneMind, setOnComplete: setSereneMindOnComplete } = useSereneMind();
   const [isAwaitingSereneMind, setIsAwaitingSereneMind] = useState(false);
   const [showMobileSheet, setShowMobileSheet] = useState(false);
