@@ -114,10 +114,10 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
 
     # Job Queue
     results["job_queue"] = {
-        "ok": container.job_queue is not None and container.job_queue._running if hasattr(container, "job_queue") and container.job_queue else False,
+        "ok": getattr(container, "job_queue", None) is not None,
         "latency_ms": 0,
         "critical": False,
-        "queue_size": container.job_queue.queue_size if hasattr(container, "job_queue") and container.job_queue else 0,
+        "queue_size": getattr(container.job_queue, "queue_size", 0) if getattr(container, "job_queue", None) else 0,
     }
 
     # LightRAG
