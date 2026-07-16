@@ -81,7 +81,7 @@ async def app(scope, receive, send):
 
     path = scope.get("path", "")
 
-    if path in ("/api/healthz", "/api/health"):
+    if path in ("/api/healthz",):
         within_grace = (time.monotonic() - _process_start) < _HEALTH_GRACE_SECONDS
         healthy = _lifespan_startup_done or within_grace
         await send({
