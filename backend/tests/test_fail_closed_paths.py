@@ -239,5 +239,10 @@ async def test_retrieve_documents_empty_results_is_safe(monkeypatch):
 
     assert "error" not in result
     assert "documents" in result
-    assert result["documents"] == []
-    assert result["evaluation_trace"].get("retrieved_count") == 0
+    # P2 fix (handoff.md, 2026-07-16 incident): OKF injection no longer
+    # requires non-empty vector-search results, so an empty Qdrant response
+    # can still surface curated OKF docs — that IS the graceful outcome now.
+    # The safety property under test is "no crash on empty vector search",
+    # not "always exactly empty".
+    assert isinstance(result["documents"], list)
+    assert isinstance(result["evaluation_trace"].get("retrieved_count"), int)

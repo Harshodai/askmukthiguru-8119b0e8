@@ -518,6 +518,42 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     lang = state.get("detected_language", "en")
     ollama = _services._ollama
 
+    if not relevant_docs and not state.get("assistant_system_prompt"):
+        # Nothing survived retrieval + grading (or OKF injection — see
+        # retrieval.py). Calling the LLM with zero context either hallucinates
+        # or, per the 2026-07-16 incident, surfaces the LLM service's generic
+        # "connection issue" fallback for what is actually a content gap. Say
+        # the true thing and skip the call rather than guess at a cause.
+        # Custom assistants (assistant_system_prompt set) legitimately answer
+        # from their own persona without doctrine docs — never short-circuit them.
+        answer = (
+            "I couldn't find relevant teachings in my knowledge base for this "
+            "question. Could you try rephrasing it, or ask about a specific "
+            "practice or teaching?"
+        )
+        logger.warning(
+            "generate_answer: zero relevant_docs — returning content-gap "
+            "message without calling the LLM"
+        )
+        return {
+            "answer": answer,
+            "citations": [],
+            "citation_reasoning": {},
+            "is_faithful": True,
+            "confidence_score": 8.0,
+            "faithfulness_score": 1.0,
+            "verification": {"passed": True, "method": "no_context_short_circuit"},
+            "evaluation_trace": _trace_update(
+                state,
+                generated_answer_chars=len(answer),
+                citation_urls=[],
+                memory_used=bool(state.get("memory_context")),
+                model_used=None,
+                model_provider=None,
+                route_decision="no_context_short_circuit",
+            ),
+        }
+
     router = LanguageRouter()
     lang_suffix = router.get_system_prompt_suffix(LanguageCode(lang))
 

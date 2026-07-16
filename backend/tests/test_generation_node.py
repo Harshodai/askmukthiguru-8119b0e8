@@ -77,6 +77,34 @@ def _aiter_chunks(chunks):
 
 
 @pytest.mark.asyncio
+async def test_generate_answer_short_circuits_on_empty_relevant_docs(mock_services):
+    """Zero relevant_docs must return the honest content-gap message without calling the LLM.
+
+    Regression test for the 2026-07-16 incident (handoff.md P3): calling the
+    LLM with empty context surfaced a misleading generic "connection issue"
+    fallback instead of the true cause (nothing was retrieved).
+    """
+    mock_ollama = mock_services
+
+    state = GraphState(
+        question="Who is Sri Preethaji?",
+        relevant_docs=[],
+        chat_history=[],
+        detected_language="en",
+        intent="FACTUAL",
+        ab_model="primary",
+    )
+
+    result = await generate_answer(state)
+
+    assert "couldn't find relevant teachings" in result["answer"]
+    assert result["citations"] == []
+    assert result["is_faithful"] is True
+    assert result["verification"]["method"] == "no_context_short_circuit"
+    mock_ollama.generate.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_generate_answer_falls_back_on_anthropic_config_error(mock_services, monkeypatch):
     """AnthropicGateway.from_settings errors must not crash the node."""
     mock_ollama = mock_services

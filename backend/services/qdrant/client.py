@@ -191,6 +191,7 @@ class QdrantClientManager:
                 )
             else:
                 logger.info(f"Collection exists: {self._collection}")
+                self._verify_collection_dimension()
                 # Ensure text-FTS index exists on already-created collections.
                 # Older collections may only have the stale `content` index; create
                 # the `text` index idempotently so BM25 search matches ingested payloads.
@@ -229,6 +230,34 @@ class QdrantClientManager:
                 logger.info(f"Collection already exists (concurrent create): {self._collection}")
             else:
                 raise
+
+    def _verify_collection_dimension(self) -> None:
+        """Fail loud if the existing collection's dense-vector size disagrees with config.
+
+        A collection is created once with whatever dimension was active at the
+        time (see init_collection above) and never migrated. If
+        EMBEDDING_DIMENSION changes afterwards — or an encoder silently
+        resolves to a different dimension, see embedding_service.py's
+        _ensure_encoder — every dense search 400s with a Qdrant-side "Vector
+        dimension error" while the app looks healthy (2026-07-16 incident).
+        Catch that at startup instead of discovering it query-by-query.
+        """
+        try:
+            existing = self._client.get_collection(self._collection)
+            actual_dim = existing.config.params.vectors["dense"].size
+        except Exception as shape_err:
+            logger.warning(
+                f"Could not verify collection dimension for '{self._collection}' "
+                f"(skipping check): {shape_err}"
+            )
+            return
+        if actual_dim != self._dimension:
+            raise RuntimeError(
+                f"Qdrant collection '{self._collection}' is {actual_dim}-dim but "
+                f"settings.embedding_dimension is {self._dimension}-dim. Every dense "
+                f"search will fail until this is resolved — recreate the collection "
+                f"at the correct dimension or fix EMBEDDING_DIMENSION."
+            )
 
     def scroll_content(
         self,
