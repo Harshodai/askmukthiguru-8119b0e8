@@ -622,26 +622,34 @@ const AuthPage = () => {
     try {
       setLoading(true);
       startAuthRun('google_one_tap');
-      
+
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'google',
         token: response.credential,
         nonce: nonceRef.current || undefined,
       });
-      
+
       if (error) throw error;
-      
+
       recordStep('google_one_tap', 'ok', 0);
       endAuthRun('ok');
-      
+
       toast({
         title: t('auth.welcomeBack'),
         description: t('auth.signedInOneTap'),
       });
     } catch (err) {
       console.error('[Google One Tap Error]', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      if (msg.includes('Nonces mismatch') || msg.includes('nonce')) {
+        const { error: oauthError } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: window.location.origin },
+        });
+        if (!oauthError) return;
+      }
       setError(t('auth.oneTapFailed'));
-      endAuthRun('error', err instanceof Error ? err.message : 'Unknown error');
+      endAuthRun('error', msg);
     } finally {
       setLoading(false);
     }
@@ -669,9 +677,12 @@ const AuthPage = () => {
     const initGoogleSDK = () => {
       if (typeof window.google !== 'undefined') {
         if (!googleInitializedRef.current) {
-          if (!nonceRef.current) {
-            nonceRef.current = generateNonce();
-          }
+          nonceRef.current = generateNonce();
+
+          const allowedOrigins = [
+            window.location.origin,
+            'https://askmukthiguru.lovable.app',
+          ].filter(Boolean);
 
           window.google.accounts.id.initialize({
             client_id: clientId,
@@ -679,6 +690,8 @@ const AuthPage = () => {
             auto_select: false,
             cancel_on_tap_outside: true,
             nonce: nonceRef.current,
+            data_fedcm: true,
+            allowed_parent_origin: allowedOrigins,
           });
           googleInitializedRef.current = true;
         }
