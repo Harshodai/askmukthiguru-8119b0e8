@@ -241,13 +241,27 @@ class QdrantClientManager:
         _ensure_encoder — every dense search 400s with a Qdrant-side "Vector
         dimension error" while the app looks healthy (2026-07-16 incident).
         Catch that at startup instead of discovering it query-by-query.
+
+        get_collection() itself is intentionally unguarded here: get_collections()
+        already succeeded earlier in init_collection(), so a failure now is a real
+        transport/auth/server problem, not a routine condition — it should propagate
+        (init_collection()'s own try/except re-raises anything that isn't a benign
+        "already exists"/"conflict" message). Only the shape of the *returned* config
+        is uncertain — Qdrant represents vectors as either a single VectorParams
+        (unnamed collection) or a dict of named VectorParams (our own collections use
+        the "dense"/"sparse" named-vector convention, but a differently-configured
+        collection is possible) — so only that narrow lookup is guarded.
         """
+        existing = self._client.get_collection(self._collection)
         try:
-            existing = self._client.get_collection(self._collection)
-            actual_dim = existing.config.params.vectors["dense"].size
-        except Exception as shape_err:
+            vectors_config = existing.config.params.vectors
+            vector_params = (
+                vectors_config["dense"] if isinstance(vectors_config, dict) else vectors_config
+            )
+            actual_dim = vector_params.size
+        except (AttributeError, KeyError, TypeError) as shape_err:
             logger.warning(
-                f"Could not verify collection dimension for '{self._collection}' "
+                f"Could not read vector dimension shape for '{self._collection}' "
                 f"(skipping check): {shape_err}"
             )
             return
