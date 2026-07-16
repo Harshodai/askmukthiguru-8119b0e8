@@ -4118,3 +4118,160 @@ This forces the frontend to talk to the user's custom Supabase project, enabling
 
 **Solution**: Define both singular and plural forms (e.g. `breath` and `breaths`) across all locales under the `meditation` namespace. Do a periodic grep audit of translation call sites (like `t('...')`) against the keys in `en.json` to verify zero omissions, and ensure time-relative translations are grammatically correct in each supported locale.
 
+---
+
+## Jul 16, 2026 — ASGI Health-First Wrapper, Qdrant Pinning, Google FedCM Fix
+
+### RULE 30 — ASGI health-first wrapper for Railway deployments with slow module imports
+
+**Problem**: FastAPI healthz endpoint was unreachable until the ASGI `lifespan` yielded. Python module-level imports (transformers, torch, sentence-transformers, etc.) take ~50s, then lifespan pre-yield (`ContainerBuilder().build()` with synchronous Redis/Qdrant/Supabase connections) takes ~27s — total ~80s before uvicorn accepts ANY HTTP. Railway's deploy healthcheck (configured in dashboard) got no response and timed out, marking the deployment FAILED.
+
+**Solution**: Build an ASGI health-first wrapper (`backend/start_railway.py`) that:
+1. Listens at raw ASGI level for `/api/healthz` — returns `200 {"ok": true, "status": "alive"}` *before* the real FastAPI app is imported
+2. Imports the real FastAPI app in a background thread via `asyncio.to_thread()` so the main event loop stays free to respond to healthz during the ~50s import time
+3. Routes all non-healthz requests to the real app once it's loaded
+
+```python
+# start_railway.py — core pattern
+HEALTHZ_PATH = "/api/healthz"
+
+async def app(scope, receive, send):
+    if scope["type"] == "lifespan":
+        # start real app import in background
+        import_task = asyncio.create_task(import_real_app())
+        while not real_app_loaded:
+            await asyncio.sleep(0.1)
+        await import_task
+        return
+
+    if scope["type"] == "http" and scope["path"] == HEALTHZ_PATH:
+        await send_200(send)
+        return
+
+    # delegate to real FastAPI app
+    await real_app(scope, receive, send)
+```
+
+**Hard rules**:
+1. **Always serve a zero-dependency healthz endpoint** at the ASGI level before the real app imports. Uvicorn's startup doesn't count — it waits for lifespan to yield.
+2. **Set `RAILWAY_HEALTHCHECK_TIMEOUT_SEC=600`** (double the default 300s) for safety with heavy ML imports.
+3. **Set `PORT=8080` as explicit Railway variable** — matches the target port so Railway's healthcheck knows where to probe.
+4. **`railway.json` builder must be `DOCKERFILE`** (not RAILPACK) when using a custom Dockerfile that listens on a specific port.
+
+### RULE 31 — Railway deployment phases and stuck INITIALIZING
+
+**Phases**: INITIALIZING → BUILDING (Railpack/Dockerfile) → DEPLOYING (container starts + healthcheck) → ACTIVE/FAILED/CRASHED/SKIPPED
+
+**Stuck INITIALIZING**: A deployment gets stuck in INITIALIZING when Railway can't schedule it (resource contention, queued behind another deploy). It self-clears when a new `railway up --detach` deployment progresses — the stuck one is automatically REMOVED.
+
+**Hard rules**:
+1. **Use `railway up --detach` for CLI deploys** — uploads source tarball directly, bypasses GitHub webhook queue.
+2. **`railway deployment redeploy` on SKIPPED is undefined behavior** — Railway docs explicitly list SUCCESS/FAILED/CRASHED as redeployable, SKIPPED is not.
+3. **`railway up --detach` bypasses stuck INITIALIZING queue** — creates a new deployment that self-clears the stuck one.
+4. **Deployment pileup self-clears** — older stuck/INITIALIZING deployments are auto-REMOVED when a newer deployment progresses.
+
+### RULE 32 — Pin all service container image versions on Railway
+
+**Problem**: Qdrant on Railway was using `qdrant/qdrant` (unpinned — `:latest`). Railway uses RAILPACK builder for Docker images, which pulls the latest tag. Unpinned images can introduce breaking changes on redeploy.
+
+**Solution**: Pin the Docker image tag explicitly via `railway connect_service_source`:
+```bash
+railway disconnect-service-source
+railway connect-service-source --sourceImage qdrant/qdrant:v1.17.1
+```
+
+**Hard rules**:
+1. **Always pin third-party Docker images** to a specific version tag on Railway, matching local `docker-compose.yml`.
+2. **Use `railway disconnect-service-source` then `railway connect-service-source --sourceImage <image:tag>`** — there's no single update command.
+3. **Verify after pinning**: check `railway service-config` shows the pinned tag, then confirm readiness endpoint reports the service healthy.
+4. **Disconnect/reconnect IS the update mechanism** — Railway has no "update service image in place" command.
+
+### RULE 33 — Google One Tap FedCM migration (nonce, data_fedcm, allowed_parent_origin)
+
+**Problem**: `supabase.auth.signInWithIdToken()` fails with `AuthApiError: Nonces mismatch` because Chrome is rolling out FedCM (Federated Credential Management), which changes how Google handles the `nonce` parameter in the ID token. Three compounding issues:
+1. The `nonce` was generated once on component mount and never refreshed — stale nonce if FedCM cached a prior token.
+2. GSI SDK initialized without `data_fedcm: true`, so it didn't handle FedCM properly.
+3. Missing `allowed_parent_origin` caused cross-origin message blocking on the Lovable domain.
+
+**Solution** (3 files changed):
+
+**`src/types/google-one-tap.d.ts`** — Add missing GSI config fields:
+```typescript
+interface GoogleOneTapConfig {
+  // ...existing fields...
+  nonce?: string;                    // was missing — caused TS error at runtime
+  data_fedcm?: boolean;              // FedCM opt-in
+  allowed_parent_origin?: string | string[];  // cross-origin embed support
+  native_callback?: (response: GoogleOneTapResponse) => void;
+  ux_mode?: 'popup' | 'redirect';
+  redirect_uri?: string;
+  state?: string;
+}
+```
+
+**`src/pages/AuthPage.tsx`** — Three changes:
+1. **Fresh nonce per init** — removed the `if (!nonceRef.current)` guard so a new nonce is generated every time GSI initializes:
+   ```typescript
+   nonceRef.current = generateNonce();  // was: if (!nonceRef.current) nonceRef.current = generateNonce();
+   ```
+2. **FedCM opt-in + allowed origins**:
+   ```typescript
+   window.google.accounts.id.initialize({
+     client_id: clientId,
+     callback: (res) => handleCallbackRef.current?.(res),
+     auto_select: false,
+     cancel_on_tap_outside: true,
+     nonce: nonceRef.current,
+     data_fedcm: true,                    // new — FedCM support
+     allowed_parent_origin: [             // new — Lovable embed support
+       window.location.origin,
+       'https://askmukthiguru.lovable.app',
+     ].filter(Boolean),
+   });
+   ```
+3. **Fallback on nonce mismatch**: When `signInWithIdToken` fails with "Nonces mismatch", fall back to OAuth redirect flow:
+   ```typescript
+   catch (err) {
+     const msg = err instanceof Error ? err.message : 'Unknown error';
+     if (msg.includes('Nonces mismatch') || msg.includes('nonce')) {
+       const { error: oauthError } = await supabase.auth.signInWithOAuth({
+         provider: 'google',
+         options: { redirectTo: window.location.origin },
+       });
+       if (!oauthError) return;  // redirect happened, don't show error
+     }
+     setError(t('auth.oneTapFailed'));
+   }
+   ```
+
+**Hard rules**:
+1. **Always generate a fresh nonce** per GSI initialization attempt, not once on mount.
+2. **Always set `data_fedcm: true`** in `google.accounts.id.initialize()` — FedCM is being enforced by Chrome and the GSI SDK needs explicit opt-in.
+3. **Always set `allowed_parent_origin`** to the deployment domains (Lovable, Railway, custom) to prevent cross-origin message blocking.
+4. **Always add a nonce-mismatch fallback** to OAuth redirect — FedCM behavior varies by browser/version and the nonce flow is not guaranteed.
+5. **Keep `GoogleOneTapConfig` type in sync** with the actual GSI SDK API — the type definition was missing `nonce`, `data_fedcm`, and `allowed_parent_origin`, which means TypeScript should have caught the error but didn't because the `window.google` type used `any` fallthrough.
+
+### RULE 34 — Performance auditing on Lovable platform: know what you can and can't control
+
+**Context**: When running Lighthouse/Chrome DevTools traces on `askmukthiguru.lovable.app`, many performance signals come from Lovable's platform infrastructure, not the application's own code.
+
+**Platform-injected (not controllable by app)**:
+- `antd@4/dist/antd.min.css` — 1.5s render-blocking CSS injected by Lovable
+- `fonts.googleapis.com/css2?family=DM+Sans...` + `Roboto` woff2 — Lovable's platform fonts
+- `~flock.js` — Lovable's analytics/embed script (~42ms on main thread, 54.2kB)
+- Service Worker intercepting document requests — adds TTFB overhead (799ms observed) because the SW must start up before fetching from origin
+- Cache headers (`max-age=300` on built assets) — controlled by Lovable's hosting, not the app's configuration
+
+**Application-controlled (measurable and fixable)**:
+- Bundle splitting — already working (AuthPage-C-ltQ8sS.js at 0.4ms self-time, chart-vendor at 0.6ms)
+- Font loading — our `index.html` already uses `media="print"` swap trick, preconnect to `fonts.gstatic.com`
+- Missing PWA icon — `icon-192.png` 404s (fixable by adding the file)
+- Auth nonce error — fixed in RULE 33
+
+**Hard rules**:
+1. **Always trace on your own domain first** — traces on Lovable's preview domain mix platform overhead with app performance. The Railway-hosted backend (`api.askmukthiguru.com`) returns healthz in ~5ms.
+2. **Don't chase "optimizations" for resources you don't control** — antd CSS, flock.js, Lovable SW, and Lovable-injected fonts are not your code. Inlining their critical CSS or preloading their fonts from your app code does nothing.
+3. **LCP < 1s on Lovable is fine** — the platform's SW overhead adds a baseline of 600-800ms TTFB that you cannot eliminate. The app's own code renders in <200ms after HTML arrives.
+4. **CLS < 0.1 is acceptable** — the 0.02 CLS from platform font swap is negligible.
+5. **Test in incognito with extensions disabled** — Careerflow and other extensions can add 300ms+ of main thread time to the trace, distorting results.
+
