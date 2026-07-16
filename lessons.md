@@ -1,5 +1,13 @@
 # Agentic Lessons & Memory
 
+## Jul 16, 2026 — start_railway.py Shadowing /api/health
+
+### start_railway.py health-first wrapper intercepts BOTH /api/healthz AND /api/health
+- **Problem**: Adding a comprehensive `/api/health` endpoint to `health.py` had no effect — the endpoint always returned `{"ok":true,"status":"alive"}`.
+- **Root Cause**: `start_railway.py:84` had `if path in ("/api/healthz", "/api/health"):` — the ASGI wrapper intercepted **both** paths and returned the fast healthz body. The real FastAPI app's `/api/health` handler was never reached.
+- **Fix**: Changed to `if path in ("/api/healthz",):` — only the Railway liveness probe (`/api/healthz`) stays fast in the wrapper. `/api/health` passes through to the real FastAPI app for comprehensive per-service go/no-go checks.
+- **Pattern**: When using a health-first ASGI wrapper (like `start_railway.py`), be explicit about which paths the wrapper handles. Add new health endpoints to the real FastAPI app, not the wrapper. The wrapper should only intercept `healthz` (the platform liveness probe).
+
 ## Jul 12, 2026 — Tour Slides, Chat Crash, Google Sign-In, CSP
 
 ### Guided Tour Slides for First-Time Visitors
