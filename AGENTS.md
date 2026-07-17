@@ -91,6 +91,10 @@ cp -rf source dest          # NOT: cp -r source dest
 - **Symptom**: `code-review-graph: INFO Starting MCP server 'code-review-graph' with transport 'stdio' : context canceled`
 - **Action**: This is normal behavior when the IDE restarts or the agent session ends. Do **NOT** try to "fix" the MCP server code. If it fails to start entirely, verify `mcp_config.json` is valid JSON and points to `.venv/bin/code-review-graph`.
 
+### "Connection issue" chat responses that are actually retrieval failures
+- **Symptom**: `/api/health` reports `ready: true`, but chat answers come back as a generic "I'm experiencing a temporary connection issue" instead of doctrine, and Railway logs show `Qdrant dense search failed ... Vector dimension error`.
+- **Action**: This is the 2026-07-16 embedding-dimension incident — see root `CLAUDE.md`'s "Embedding dimension contract" section for the full invariant, fix locations, and still-open items (Docker model pre-caching, OpenRouter→NIM failover). Don't re-diagnose from scratch; verify the fix is still in place in `embedding_service.py`/`qdrant/client.py` first.
+
 ## Post-Change Documentation Checklist
 Agents MUST update the following documentation after completing a fix, feature, or architectural change:
 - [ ] **lessons.md**: Document the specific implementation pattern, architectural decision, or "lesson learned".
