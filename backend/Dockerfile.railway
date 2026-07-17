@@ -84,8 +84,8 @@ EXPOSE 8000
 
 USER appuser
 
-# Railway sets $PORT; uvicorn reads it via start_railway.py (which overrides CMD).
-# This CMD is the fallback when running outside Railway (e.g. local Docker).
-# exec form cannot expand env vars; use shell form instead.
-CMD python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-1} --loop uvloop
+# Railway sets $PORT; start_railway.py reads it and runs the ASGI wrapper.
+# railway.json's startCommand also points here; this CMD is the fallback for
+# local Docker runs or when Railway ignores the overridden startCommand.
+CMD ["python", "start_railway.py"]
 
