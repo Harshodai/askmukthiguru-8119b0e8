@@ -206,6 +206,12 @@ class CacheUpdateStage(Stage):
             # It is cheap to regenerate and MUST NOT be cached: the semantic cache would
             # otherwise replay it for teaching queries about Ekam (e.g. "what is Ekam?").
             "i don't have current schedules",
+            # openrouter_service.py/nim_service.py's _graceful_degradation() text
+            # ("...temporary connectivity issue..." / "...temporary connection
+            # issue..."). Was missing here, so a transient LLM failure got cached
+            # and permanently replayed to everyone asking a similar question even
+            # after the underlying provider recovered (2026-07-17 incident).
+            "temporary connect",
         ]
         ans_lower = final_answer.lower()
         if not final_answer.strip() or any(indicator in ans_lower for indicator in refusal_indicators):

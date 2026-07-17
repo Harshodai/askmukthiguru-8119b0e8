@@ -74,3 +74,22 @@ async def test_unpersonalized_answer_is_still_cached():
     cached = hot_cache.get(CACHE_KEY)
     assert cached is not None, "generic answers must remain cacheable"
     assert cached[0] == ANSWER
+
+
+@pytest.mark.asyncio
+async def test_graceful_degradation_text_is_not_cached():
+    """openrouter_service.py/nim_service.py's _graceful_degradation() text must
+    never be cached — a transient LLM failure otherwise gets replayed as the
+    permanent answer to everyone asking a similar question, even after the
+    provider recovers (2026-07-17 incident)."""
+    degraded_ctx = _ctx(memory_context="")
+    degraded_ctx.final_answer = (
+        "I'm here and listening. However, I'm experiencing a temporary connection "
+        "issue with my backend services. Please try again shortly."
+    )
+
+    await CacheUpdateStage().run(degraded_ctx)
+
+    assert hot_cache.get(CACHE_KEY) is None, (
+        "a graceful-degradation fallback message was written to the shared cache"
+    )
