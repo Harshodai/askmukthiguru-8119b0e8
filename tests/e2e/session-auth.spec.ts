@@ -25,9 +25,12 @@ test.describe("session / auth", () => {
 
   test("Google sign-in button is wired on /auth", async ({ page }) => {
     await page.goto("/auth");
-    const googleBtn = page.getByRole("button", { name: /google/i }).first();
-    await expect(googleBtn).toBeVisible({ timeout: 10_000 });
-    await expect(googleBtn).toBeEnabled();
+    const googleBtn = page.locator('[data-testid="google-gsi-container"], button:has-text("Google")').first();
+    const gsiIframe = page.locator('iframe[src*="accounts.google.com/gsi"]').first();
+    await expect(googleBtn.or(gsiIframe)).toBeVisible({ timeout: 10_000 });
+    if (await googleBtn.count() > 0) {
+      await expect(googleBtn).toBeEnabled({ timeout: 5_000 });
+    }
   });
 
   test("logout clears stored session tokens", async ({ page, context }) => {

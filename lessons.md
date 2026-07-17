@@ -1,5 +1,132 @@
 # Agentic Lessons & Memory
 
+## Jul 17, 2026 — React State Update Serialization & Vitest Microtask Race Conditions
+
+### The Bug
+**After serializing a background save function via Promise ref chaining in a React component, vitest unit tests that synchronously fire user events (e.g., change input and click send) suddenly fail because state updates are deferred to subsequent microtask ticks, leaving the component state stale (null or empty) during the synchronous event handling.**
+
+Root cause: Chaining async tasks (e.g. `lastSavePromise.current.catch(() => {}).then(performSave)`) adds additional microtask ticks before updating the component state (e.g. `setCurrentConversation`). Because vitest synchronous event flushes (like `fireEvent.click`) do not wait for the microtask queue to drain, the click is processed before the state updates are flushed, causing assertions to fail.
+
+### Fix
+1. **Refined Serialization Guard**: Use a ref `isSavingRef.current` to determine if a save is currently active. If no save is active, invoke the save function synchronously (which yields a 1-tick microtask delay just like the original code). Only chain on the promise ref if a save is already in progress.
+2. **Asynchronous Test Waiters**: Update vitest integration tests to wait for the asynchronous mount/save state changes using `await screen.findByRole('heading', ...)` before executing user actions. This drains the microtask queue properly and ensures state parity.
+
+## Jul 17, 2026 — Blocking Import on Event Loop Freezes Health Check (Railway Deployment)
+
+### The Bug
+**Railway build succeeds, image pushes, but deployment FAILS with "Attempt #1 failed with service unavailable" immediately — no Python output in logs.**
+
+Root cause: `start_railway.py`'s `_run_real_lifespan()` ran `from app.main import app` (imports PyTorch, FlagEmbedding, FastAPI, all services) directly on the asyncio event loop inside an `async def`. This blocked the event loop for 10-30s while models loaded. Railway's health check hit the port during this window, the event loop couldn't respond because it was stuck on the import, and `uvicorn` returned "service unavailable" — the connection was accepted but no HTTP response came back before the retry window expired.
+
+### Failure Chain
+1. `start_railway.py` sends `lifespan.startup.complete` immediately (correct)
+2. `create_task(_run_real_lifespan())` starts the real app import in background
+3. The `async def _run_real_lifespan()` function's first line is `from app.main import app` — a **blocking** call on the event loop
+4. Event loop freezes for 10-30s loading PyTorch models, Qdrant client, Neo4j driver, etc.
+5. Railway health check hits `/api/healthz` on the port
+6. Event loop is frozen — no response possible within 4-15s retry window
+7. Railway marks deployment as FAILED ("service unavailable" — port is listening but no HTTP response)
+
+### Why asyncio.to_thread Was Required
+The ORIGINAL code had `from app.main import app` imported directly on the event loop inside `_run_real_lifespan()`. This blocked the event loop for 10-30s while PyTorch and all services loaded.
+- `asyncio.to_thread` is needed NOT because of thread safety, but because the import **blocks** and must not block the event loop
+- PyTorch model loading is CPU-bound during import; running it in a thread leaves the event loop free for health checks
+- The ASGI wrapper's `lifespan.startup.complete` is sent BEFORE `create_task`, so uvicorn starts accepting connections while the import runs in the background thread
+- Use `asyncio.to_thread` for blocking model-loading imports so health checks remain responsive
+
+### Fix
+```python
+def _import_real_app():
+    from app.main import app, lifespan
+    return app, lifespan
+
+async def _run_real_lifespan():
+    real_app, real_lifespan = await asyncio.to_thread(_import_real_app)
+    ...
+```
+
+### Pattern
+When an ASGI wrapper sends `startup.complete` and then starts background init via `create_task`:
+1. Any CPU-bound or blocking code in the task must run off the event loop (`asyncio.to_thread` or `run_in_executor`)
+2. The event loop must stay free to handle health check requests during initialization
+3. "service unavailable" in Railway health check means the PORT IS LISTENING but NOT RESPONDING — usually the event loop is blocked
+4. If `railway logs --latest` shows build output but NO Python runtime output, the process is crashing or the event loop is blocked before any log line flushes
+
+### Railway Env Access via CLI
+`railway run --service <name> --environment <name> -- <command>` injects Railway service env vars into a local process. Useful for:
+- Getting `JWT_SECRET`, `SUPABASE_KEY`, `SUPABASE_URL` without dashboard access
+- Running scripts with production credentials locally
+
+```bash
+railway run --service askmukthiguru-8119b0e8 --environment production -- python3 -c "import os; print(os.environ.get('SUPABASE_URL'))"
+```
+
+### Supabase Admin API — Create Confirmed Test User
+When `mailer_autoconfirm: false` and `anonymous_users: false`, use the service_role key to create confirmed users:
+
+```bash
+SERVICE_KEY="<service_role_key>"
+curl -X POST "${SUPABASE_URL}/auth/v1/admin/users" \
+  -H "Authorization: Bearer ${SERVICE_KEY}" \
+  -H "apikey: ${SERVICE_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "password": "Str0ng!Pass", "email_confirm": true}'
+```
+
+Then sign in with password grant to get `access_token`.
+
+### Railway "SKIPPED" Deployment
+`railway up` may skip builds if the tarball hash matches the previous upload. To force a build:
+1. Make an actual file change (add a comment with timestamp)
+2. Or delete the deployment via dashboard
+
+### Custom Domain DNS
+`api.askmukthiguru.com` has NXDOMAIN — the domain is not registered. Cannot work until registered at a registrar. Users access the app via `https://askmukthiguru-8119b0e8-production.up.railway.app`.
+
+---
+
+## Jul 17, 2026 — ASGI Lifespan Protocol Bug: Skipped `receive()` Causes Premature Shutdown
+
+### The Bug
+**Railway deployment starts, initializes fully, then instantly shuts down in the same microsecond — then restarts in a cycle.**
+
+Root cause: `start_railway.py` sent `lifespan.startup.complete` without first calling `receive()` to consume the `lifespan.startup` message from uvicorn. The ASGI lifespan protocol requires:
+1. App calls `receive()` → gets `{"type": "lifespan.startup"}`
+2. App does startup work
+3. App sends `{"type": "lifespan.startup.complete"}`
+4. App calls `receive()` → blocks until uvicorn sends `{"type": "lifespan.shutdown"}`
+
+The buggy code skipped step 1, leaving `lifespan.startup` in the queue. When step 4 ran, it returned `lifespan.startup` (not `shutdown`), immediately setting `_shutdown_event`. The real lifespan (running as a sibling asyncio task) would yield, hit the already-set event, and begin shutting down in the same microsecond.
+
+### Failure Chain
+1. Wrapper sends startup.complete without consuming startup message
+2. Real lifespan starts in background task
+3. Wrapper calls `await receive()` → gets stale `lifespan.startup` from queue
+4. Code treats this as a shutdown signal → `_shutdown_event.set()`
+5. Real lifespan finishes initialization, yields, calls `await _shutdown_event.wait()`
+6. Event is already set → wait() returns immediately
+7. Real lifespan exits context manager → shutdown handlers run
+8. Process exits
+9. Railway restarts → cycle repeats
+
+### Fix
+Add the missing `msg = await receive()` at the start of the lifespan handler, with an assertion that it's `lifespan.startup`. Then call `receive()` again for the actual shutdown message.
+
+### Pattern
+When writing raw ASGI lifespan handlers, **always** follow the protocol order:
+```python
+msg = await receive()
+assert msg["type"] == "lifespan.startup"
+# ... startup work ...
+await send({"type": "lifespan.startup.complete"})
+msg = await receive()
+assert msg["type"] == "lifespan.shutdown"
+# ... shutdown work ...
+await send({"type": "lifespan.shutdown.complete"})
+```
+
+Also: avoid importing PyTorch-heavy modules (`from app.main import app`) inside `asyncio.to_thread()` — PyTorch is not thread-safe on first import and can SIGABRT the process. Import directly on the event loop (the import is fast, <1s; the heavy init is async in the lifespan).
+
 ## Jul 16, 2026 — Embedding Dimension Drift: Silent Model Fallback Causes Qdrant Dimension Mismatch
 
 ### The Bug

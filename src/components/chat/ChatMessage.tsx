@@ -481,7 +481,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.15) }}
-          className={`group flex items-start gap-3 ${isGuru ? 'justify-start' : 'justify-end'}`}
+          className={`group message-bubble flex items-start gap-3 ${isGuru ? 'justify-start' : 'justify-end'}`}
           data-message-id={message.id}
         >
           {isGuru && (

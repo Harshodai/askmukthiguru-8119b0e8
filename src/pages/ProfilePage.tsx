@@ -155,14 +155,35 @@ const ProfilePage = () => {
     setDirty(false);
   }, [profile.id]);
 
+  const resolveName = (): string => {
+    const raw = profile.displayName || user?.user_metadata?.full_name || '';
+    return raw && raw !== 'Seeker' ? raw : '';
+  };
+
+  const resolveEmail = (): string => {
+    return user?.email || '';
+  };
+
+  useEffect(() => {
+    if (user || profile) {
+      const resolvedName = resolveName();
+      const resolvedEmail = resolveEmail();
+      setSupportForm(prev => ({
+        ...prev,
+        name: resolvedName || prev.name || '',
+        email: resolvedEmail || prev.email || '',
+      }));
+    }
+  }, [user, profile]);
+
   useEffect(() => {
     setSearchParams(tab === 'profile' ? {} : { tab }, { replace: true });
   }, [tab, setSearchParams]);
 
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
   const [sessions, setSessions] = useState(() => loadMeditationSessions());
-  const [conversationCount, setConversationCount] = useState<number>(() => loadConversations().length);
-  const [conversations, setConversations] = useState<Conversation[]>(() => loadConversations());
+  const [conversationCount, setConversationCount] = useState<number>(0);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [retention, setRetention] = useState<number>(getMaxConversations());
   const [retentionDays, setRetentionDays_] = useState<number>(getRetentionDays());
   const [deleteAllConfirm, setDeleteAllConfirm] = useState<string>('');
@@ -233,15 +254,19 @@ const ProfilePage = () => {
 
   // Sync conversation list for profile UI
   useEffect(() => {
-    const reload = () => {
-      const convs = loadConversations();
-      setConversations(convs);
-      setConversationCount(convs.length);
+    let cancelled = false;
+    const reload = async () => {
+      const convs = await loadConversations();
+      if (!cancelled) {
+        setConversations(convs);
+        setConversationCount(convs.length);
+      }
     };
     reload();
     window.addEventListener('storage', reload);
     window.addEventListener('conversation:updated', reload);
     return () => {
+      cancelled = true;
       window.removeEventListener('storage', reload);
       window.removeEventListener('conversation:updated', reload);
     };
@@ -303,7 +328,13 @@ const ProfilePage = () => {
         attachments: supportFiles,
       });
       setSupportSent(true);
-      setSupportForm({ name: '', email: '', subject: '', message: '', category: 'Feedback' });
+      setSupportForm({
+        name: resolveName(),
+        email: resolveEmail(),
+        subject: '',
+        message: '',
+        category: 'Feedback'
+      });
       setSupportFiles([]);
       toast({ title: 'Message sent', description: 'We will get back to you within 24-48 hours.' });
     } catch (err) {
@@ -645,10 +676,9 @@ const ProfilePage = () => {
                       onValueChange={([v]) => setRetentionDays_(Math.max(1, Math.min(365, v)))}
                     />
                     <Button
-                      onClick={() => {
+                      onClick={async () => {
                         saveRetentionDays(retentionDays);
-                        // Refresh conversation list after purge
-                        setConversations(loadConversations());
+                        setConversations(await loadConversations());
                         toast({ title: `Retention set to ${retentionDays} days` });
                       }}
                     >
@@ -666,7 +696,7 @@ const ProfilePage = () => {
                             <p className="font-medium">{conv.preview || 'Untitled'}</p>
                             <p className="text-xs text-muted-foreground">{formatRelativeTime(conv.updatedAt)}</p>
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => { deleteConversation(conv.id); setConversations(prev => prev.filter(c => c.id !== conv.id)); setConversationCount(prev => Math.max(0, prev - 1)); }} aria-label={`Delete conversation: ${conv.preview || 'Untitled'}`}>
+                          <Button variant="ghost" size="sm" onClick={async () => { await deleteConversation(conv.id); setConversations(prev => prev.filter(c => c.id !== conv.id)); setConversationCount(prev => Math.max(0, prev - 1)); }} aria-label={`Delete conversation: ${conv.preview || 'Untitled'}`}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </li>
@@ -690,11 +720,13 @@ const ProfilePage = () => {
                       </div>
                       <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setDeleteAllConfirm('')}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => {
+                        <AlertDialogAction onClick={async () => {
                           if (deleteAllConfirm.trim().toUpperCase() === 'DELETE') {
-                            const currentId = getCurrentConversationId();
+                            const currentId = await getCurrentConversationId();
                             const toDelete = conversations.filter(c => c.id !== currentId);
-                            toDelete.forEach(c => deleteConversation(c.id));
+                            for (const c of toDelete) {
+                              await deleteConversation(c.id);
+                            }
                             setConversations(prev => prev.filter(c => c.id === currentId));
                             setConversationCount(prev => Math.max(0, prev - toDelete.length));
                             setDeleteAllConfirm('');
@@ -1022,11 +1054,11 @@ const ProfilePage = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label htmlFor="s-name">Name <span className="text-muted-foreground">(optional)</span></Label>
-                          <Input id="s-name" value={supportForm.name} onChange={e => setSupportForm(p => ({ ...p, name: e.target.value }))} placeholder="Your name" />
+                          <Input id="s-name" value={supportForm.name} onChange={e => setSupportForm(p => ({ ...p, name: e.target.value }))} placeholder="Your name" disabled={!!resolveName()} />
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="s-email">Your Email <span className="text-destructive">*</span></Label>
-                          <Input id="s-email" type="email" value={supportForm.email} onChange={e => setSupportForm(p => ({ ...p, email: e.target.value }))} placeholder="you@example.com" required />
+                          <Input id="s-email" type="email" value={supportForm.email} onChange={e => setSupportForm(p => ({ ...p, email: e.target.value }))} placeholder="you@example.com" required disabled={!!resolveEmail()} />
                         </div>
                       </div>
 

@@ -54,7 +54,9 @@ export const DesktopSidebar = ({
     }).catch(() => {});
   }, []);
 
-  const reload = useCallback(() => setConversations(loadConversations()), []);
+  const reload = useCallback(async () => {
+    setConversations(await loadConversations());
+  }, []);
 
   useEffect(() => {
     reload();
@@ -77,9 +79,9 @@ export const DesktopSidebar = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [onToggleCollapse]);
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    deleteConversation(id);
+    await deleteConversation(id);
     reload();
   };
 
@@ -89,9 +91,9 @@ export const DesktopSidebar = ({
     setEditValue(conv.preview || t('desktopSidebar.newConversation'));
   };
 
-  const commitRename = (id: string) => {
+  const commitRename = async (id: string) => {
     if (editValue.trim()) {
-      renameConversation(id, editValue.trim());
+      await renameConversation(id, editValue.trim());
       reload();
     }
     setEditingId(null);
@@ -375,12 +377,12 @@ export const DesktopSidebar = ({
                     {t('common.cancel')}
                   </button>
                   <button
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
                       if (onDeleteConversation) {
                         onDeleteConversation(deleteConfirmId);
                       } else {
-                        deleteConversation(deleteConfirmId);
+                        await deleteConversation(deleteConfirmId);
                         reload();
                       }
                       setDeleteConfirmId(null);

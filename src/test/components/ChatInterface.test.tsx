@@ -80,9 +80,9 @@ vi.mock('@/lib/aiService', () => ({
 
 vi.mock('@/lib/chatStorage', () => ({
   generateId: () => 'test-msg-id',
-  saveConversation: vi.fn(),
-  loadConversation: vi.fn().mockReturnValue(null),
-  loadConversations: vi.fn().mockReturnValue([]),
+  saveConversation: vi.fn(async () => {}),
+  loadConversation: vi.fn(async () => null),
+  loadConversations: vi.fn(async () => []),
   createNewConversation: vi.fn().mockReturnValue({
     id: 'test-conv-id',
     messages: [],
@@ -90,9 +90,9 @@ vi.mock('@/lib/chatStorage', () => ({
     preview: '',
   }),
   getConversationPreview: vi.fn().mockReturnValue('preview'),
-  getCurrentConversationId: vi.fn().mockReturnValue(null),
-  setCurrentConversationId: vi.fn(),
-  updateConversationSummary: vi.fn(),
+  getCurrentConversationId: vi.fn(async () => null),
+  setCurrentConversationId: vi.fn(async () => {}),
+  updateConversationSummary: vi.fn(async () => {}),
   hashMessages: vi.fn().mockReturnValue('mockhash'),
 }));
 
@@ -218,16 +218,19 @@ describe('ChatInterface (regression)', () => {
     expect(screen.getByTestId('chat-header')).toBeInTheDocument();
   });
 
-  it('shows landing state on a new conversation', () => {
+  it('shows landing state on a new conversation', async () => {
     render(
       <BrowserRouter>
         <ChatInterface />
       </BrowserRouter>
     );
     // Greeting h2 always contains an English spiritual greeting (no Indic terms)
-    const h2 = document.querySelector('h2');
-    expect(h2).not.toBeNull();
-    expect(h2!.textContent!.length).toBeGreaterThan(3);
+    const heading = await screen.findByRole('heading', {
+      level: 2,
+      name: /Test/i
+    });
+    expect(heading).not.toBeNull();
+    expect(heading.textContent).toMatch(/^(Good|Welcome|A |The |quiet|still|fresh).*Test/i);
   });
 
   it('allows user to type and sends a message via streaming', async () => {
@@ -236,6 +239,8 @@ describe('ChatInterface (regression)', () => {
         <ChatInterface />
       </BrowserRouter>
     );
+
+    await screen.findByRole('heading', { level: 2, name: /Test/i });
 
     const input = screen.getByLabelText('Your message');
     const sendButton = screen.getByLabelText('Send message');
@@ -269,6 +274,8 @@ describe('ChatInterface (regression)', () => {
         <ChatInterface />
       </BrowserRouter>
     );
+
+    await screen.findByRole('heading', { level: 2, name: /Test/i });
 
     const input = screen.getByLabelText('Your message');
     const sendButton = screen.getByLabelText('Send message');
@@ -306,6 +313,8 @@ describe('ChatInterface (regression)', () => {
         <ChatInterface />
       </BrowserRouter>
     );
+
+    await screen.findByRole('heading', { level: 2, name: /Test/i });
 
     const input = screen.getByLabelText('Your message');
     const sendButton = screen.getByLabelText('Send message');

@@ -44,6 +44,8 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
             unregister: () => Promise.resolve(true),
             update: () => Promise.resolve(),
           }),
+          getRegistration: () => Promise.resolve(undefined),
+          getRegistrations: () => Promise.resolve([]),
           addEventListener: () => {},
           removeEventListener: () => {},
         }),
@@ -238,6 +240,53 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
       }
     });
 
+    await page.route(/\/rest\/v1\/conversations/, async (route) => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify([{
+            id: '00000000-0000-4000-8000-000000000001',
+            title: 'Mock Conversation',
+            created_at: '2026-05-20T00:00:00Z',
+            user_id: '00000000-0000-4000-8000-000000000002',
+          }]),
+        });
+      }
+    });
+
+    await page.route(/\/rest\/v1\/chat_messages/, async (route) => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey',
+          },
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify([]),
+        });
+      }
+    });
+
     // Intercept speech TTS calls to bypass live edge functions
     await page.route(/\/api\/speech\/tts/, async (route) => {
       await route.fulfill({
@@ -361,8 +410,19 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
     // Mock chat SSE streaming endpoint explicitly using RegExp for perfect match
     await page.route(/\/api\/chat/, async (route) => {
       const request = route.request();
-      console.log(`[ROUTE MOCK] Intercepted /api/chat: method=${request.method()} url=${request.url()}`);
+      const url = request.url();
+      console.log(`[ROUTE MOCK] Intercepted /api/chat: method=${request.method()} url=${url}`);
+      
       if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 200,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          },
+        });
+      } else if (url.includes('/title')) {
         await route.fulfill({
           status: 200,
           headers: {

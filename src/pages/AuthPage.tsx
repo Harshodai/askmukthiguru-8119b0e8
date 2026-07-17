@@ -788,6 +788,7 @@ const AuthPage = () => {
             <div 
               ref={googleButtonRef} 
               className="w-full flex justify-center min-h-[44px]"
+              data-testid="google-gsi-container"
             />
           ) : (
             <Button

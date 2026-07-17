@@ -84,7 +84,12 @@ const STARTER_CARDS = [
 
 const STARTER_SUGGESTIONS = STARTER_CARDS.map((c) => c.prompt);
 
+const MAX_ATTACHMENTS = 5;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
+const PASTE_ATTACHMENT_THRESHOLD = 2000;
+
 export const ChatInterface = () => {
+  const { toast } = useToast();
   const { greetingContext } = useVisitContext();
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -129,25 +134,34 @@ export const ChatInterface = () => {
   const [inputValue, setInputValue] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string; content: string }[]>([]);
 
-  const handleAddFile = useCallback((file: { name: string; content: string }) => {
-    setAttachedFiles(prev => {
-      if (prev.length >= MAX_ATTACHMENTS) {
-        return prev;
+  const handleAddFile = useCallback((file: { name: string; content: string }): boolean => {
+    if (attachedFiles.length >= MAX_ATTACHMENTS) {
+      toast({
+        title: "Attachment Limit Reached",
+        description: `You can upload a maximum of ${MAX_ATTACHMENTS} files.`,
+        variant: "destructive"
+      });
+      return false;
+    }
+    const currentSize = attachedFiles.reduce((sum, f) => sum + f.content.length, 0);
+    if (currentSize + file.content.length > MAX_ATTACHMENT_BYTES) {
+      toast({
+        title: "File Too Large",
+        description: `Total attachment size cannot exceed ${MAX_ATTACHMENT_BYTES / (1024 * 1024)} MB.`,
+        variant: "destructive"
+      });
+      return false;
+    }
+    setAttachedFiles(prev => [
+      ...prev,
+      {
+        id: Math.random().toString(36).substring(2, 9),
+        name: file.name,
+        content: file.content
       }
-      const newSize = prev.reduce((sum, f) => sum + f.content.length, 0) + file.content.length;
-      if (newSize > MAX_ATTACHMENT_BYTES) {
-        return prev;
-      }
-      return [
-        ...prev,
-        {
-          id: Math.random().toString(36).substring(2, 9),
-          name: file.name,
-          content: file.content
-        }
-      ];
-    });
-  }, []);
+    ]);
+    return true;
+  }, [attachedFiles, toast]);
 
   const handleRemoveFile = useCallback((id: string) => {
     setAttachedFiles(prev => prev.filter(f => f.id !== id));
@@ -209,7 +223,6 @@ export const ChatInterface = () => {
   const currentJobIdRef = useRef<string | null>(null);
   const tokenBufferRef = useRef('');
   const rafScheduledRef = useRef(false);
-  const { toast } = useToast();
 
   // ── Scroll tracking ──────────────────────────────────────────────
   const handleScroll = useCallback(() => {
@@ -310,16 +323,18 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
     const currentText = e.currentTarget.value;
     const combinedLength = currentText.length + pastedText.length;
     if (pastedText && combinedLength > PASTE_ATTACHMENT_THRESHOLD) {
-      e.preventDefault();
-      handleAddFile({
+      const added = handleAddFile({
         name: `pasted-text-${attachedFiles.length + 1}.txt`,
         content: currentText ? `${currentText}\n\n${pastedText}` : pastedText,
       });
-      setInputValue('');
-      toast({
-        title: 'Converted to Attachment',
-        description: 'Text paste exceeded 2,000 characters and was converted to a text file.',
-      });
+      if (added) {
+        e.preventDefault();
+        setInputValue('');
+        toast({
+          title: 'Converted to Attachment',
+          description: 'Text paste exceeded 2,000 characters and was converted to a text file.',
+        });
+      }
     }
   }, [attachedFiles.length, handleAddFile, toast]);
 
@@ -357,27 +372,30 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
   // Initialize or load conversation on mount
   useEffect(() => {
     if (profileLoading) return;
-    const currentId = getCurrentConversationId();
-    let conversation: Conversation | null = null;
+    let cancelled = false;
+    (async () => {
+      const currentId = await getCurrentConversationId();
+      let conversation: Conversation | null = null;
 
-    if (currentId) {
-      conversation = loadConversation(currentId);
-    }
-
-    if (!conversation) {
-      const existingConversations = loadConversations();
-      if (existingConversations.length > 0) {
-        conversation = existingConversations[0];
-      } else {
-        conversation = createNewConversation();
+      if (currentId) {
+        conversation = await loadConversation(currentId);
       }
-    }
 
-    setCurrentConversation(conversation);
+      if (!conversation) {
+        const existingConversations = await loadConversations();
+        if (existingConversations.length > 0) {
+          conversation = existingConversations[0];
+        } else {
+          conversation = createNewConversation();
+        }
+      }
 
-    if (conversation.messages.length > 0) {
-      setMessages(conversation.messages);
-    } else {
+      if (cancelled) return;
+      setCurrentConversation(conversation);
+
+      if (conversation.messages.length > 0) {
+        setMessages(conversation.messages);
+      } else {
       const welcomeMessage: Message = {
         id: generateId(),
         role: 'guru',
@@ -395,7 +413,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
       setMessages([welcomeMessage]);
     }
 
-    setCurrentConversationId(conversation.id);
+    await setCurrentConversationId(conversation.id);
 
     // ── Restore partial stream checkpoint ─────────────────────────────
     try {
@@ -411,7 +429,6 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
             timestamp: new Date(cp.timestamp),
           };
           setMessages(prev => {
-            // Only add if not already in the list
             if (prev.some(m => m.id === cp.messageId)) return prev;
             return [...prev, restoredMsg];
           });
@@ -419,14 +436,14 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
         sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
       }
     } catch { /* non-fatal */ }
-    // ────────────────────────────────────────────────────────────────
 
-    // Scroll to bottom on mount after a tick
     requestAnimationFrame(() => {
       if (scrollContainerRef.current) {
         scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
       }
     });
+  })();
+    return () => { cancelled = true; };
   }, [profileLoading]);
 
   // Auto-speak ONLY for newly generated guru messages — never on initial mount
@@ -594,6 +611,10 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
   const currentConversationRef = useRef(currentConversation);
   currentConversationRef.current = currentConversation;
 
+  const lastSavePromiseRef = useRef<Promise<any>>(Promise.resolve());
+  const latestSaveIdRef = useRef<number>(0);
+  const isSavingRef = useRef<boolean>(false);
+
   useEffect(() => {
     const conv = currentConversationRef.current;
     if (conv && messages.length > 0) {
@@ -607,25 +628,45 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
         updatedAt: new Date(),
         summary: conv.summary,
       };
-      saveConversation(updatedConversation);
-      setCurrentConversation(updatedConversation);
-      setRefreshTrigger(prev => prev + 1);
-      // Write-back: track last conversation for multi-device resume.
-      // Fire-and-forget; never blocks UI; ignores errors (e.g. anon user).
-      void (async () => {
+
+      const mySaveId = ++latestSaveIdRef.current;
+
+      const performSave = async () => {
+        isSavingRef.current = true;
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) return;
-          await supabase.from('profiles').update({
-            last_conversation_id: updatedConversation.id,
-            last_message_id: messages[messages.length - 1]?.id ?? null,
-            last_active_at: new Date().toISOString(),
-          }).eq('id', session.user.id);
-          localStorage.setItem('askmukthiguru_last_seen', Date.now().toString());
-        } catch {
-          // best-effort
+          await saveConversation(updatedConversation);
+          if (mySaveId === latestSaveIdRef.current) {
+            setCurrentConversation(updatedConversation);
+            setRefreshTrigger(prev => prev + 1);
+          }
+          // Write-back: track last conversation for multi-device resume.
+          // Fire-and-forget; never blocks UI; ignores errors (e.g. anon user).
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            await supabase.from('profiles').update({
+              last_conversation_id: updatedConversation.id,
+              last_message_id: messages[messages.length - 1]?.id ?? null,
+              last_active_at: new Date().toISOString(),
+            }).eq('id', session.user.id);
+            localStorage.setItem('askmukthiguru_last_seen', Date.now().toString());
+          } catch {
+            // best-effort
+          }
+        } finally {
+          if (mySaveId === latestSaveIdRef.current) {
+            isSavingRef.current = false;
+          }
         }
-      })();
+      };
+
+      if (!isSavingRef.current) {
+        lastSavePromiseRef.current = performSave();
+      } else {
+        lastSavePromiseRef.current = lastSavePromiseRef.current
+          .catch(() => {})
+          .then(performSave);
+      }
     }
   }, [messages]);
 
@@ -773,13 +814,12 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
     if (isFirstUserMessage && currentConversation?.id && !titleGenerationRef.current.has(currentConversation.id)) {
       titleGenerationRef.current.add(currentConversation.id);
       // Title generation uses the original user text (their language), which is more natural
-      generateConversationTitle(userMessage.content).then((title) => {
-        setCurrentConversation((prev) => {
-          if (!prev || prev.id !== currentConversation.id) return prev;
-          const updated = { ...prev, preview: title, updatedAt: new Date() };
-          saveConversation(updated);
-          return updated;
-        });
+      generateConversationTitle(userMessage.content).then(async (title) => {
+        if (currentConversationRef.current?.id === currentConversation.id) {
+          const updated = { ...currentConversationRef.current, preview: title, updatedAt: new Date() };
+          setCurrentConversation(updated);
+          await saveConversation(updated);
+        }
         setRefreshTrigger((prev) => prev + 1);
       }).catch(() => {
         titleGenerationRef.current.delete(currentConversation.id);
@@ -790,9 +830,9 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
     const maybeSummarize = () => {
       const userMsgCount = allMsgs.filter(m => m.role === 'user').length;
       if (userMsgCount > 0 && userMsgCount % 6 === 0 && currentConversation?.id) {
-        generateSummary(allMsgs).then(summary => {
+        generateSummary(allMsgs).then(async (summary) => {
           if (summary) {
-            updateConversationSummary(currentConversation.id, summary);
+            await updateConversationSummary(currentConversation.id, summary);
             setCurrentConversation(prev => prev ? { ...prev, summary } : null);
           }
         }).catch(() => { /* non-fatal */ });
@@ -1369,7 +1409,7 @@ const handleSubmitEdit = useCallback((messageId: string, newContent: string) => 
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [isStreaming, isTyping, messages]);
 
-const handleNewConversation = () => {
+const handleNewConversation = async () => {
   stopSpeaking();
   const newConversation = createNewConversation();
 
@@ -1382,18 +1422,18 @@ const handleNewConversation = () => {
 
   newConversation.messages = [welcomeMessage];
   newConversation.preview = getConversationPreview([welcomeMessage]);
-  saveConversation(newConversation);
+  await saveConversation(newConversation);
 
   setCurrentConversation(newConversation);
-  setCurrentConversationId(newConversation.id);
+  await setCurrentConversationId(newConversation.id);
   setMessages([welcomeMessage]);
   setRefreshTrigger(prev => prev + 1);
 };
 
-const handleSelectConversation = (conversation: Conversation) => {
+const handleSelectConversation = async (conversation: Conversation) => {
   stopSpeaking();
   setCurrentConversation(conversation);
-  setCurrentConversationId(conversation.id);
+  await setCurrentConversationId(conversation.id);
   setMessages(conversation.messages);
   // Scroll to bottom when switching conversations
   isNearBottomRef.current = true;

@@ -30,10 +30,6 @@ export default function StudyNotebookPage() {
   const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
   const createRef = useRef<HTMLInputElement>(null);
 
-  if (authLoading) {
-    return <BrandedSpinner />;
-  }
-
   const voice = useSpeechRecognition({
     lang: currentLang,
     useSarvam: currentLang !== 'en',
@@ -41,6 +37,10 @@ export default function StudyNotebookPage() {
       if (isFinal) setNewTitle((prev) => (prev ? `${prev} ${text}` : text).slice(0, 100));
     },
   });
+
+  if (authLoading) {
+    return <BrandedSpinner />;
+  }
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;

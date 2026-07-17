@@ -12,7 +12,7 @@ import { SereneMindProvider } from "@/components/common/SereneMindProvider";
 import { PushPermissionPrompt } from "@/components/common/PushPermissionPrompt";
 import { PushNotificationsManager } from "@/components/common/PushNotificationsManager";
 import { purgeConversationsByAge, getRetentionDays } from "@/lib/chatStorage";
-import { trackPageview } from "@/lib/sentry";
+import { trackPageview, captureFeatureError } from "@/lib/sentry";
 
 // Pages
 const Index = lazyWithRetry(() => import("./pages/Index"));
@@ -128,11 +128,29 @@ const RouteTracker = () => {
 const App = () => {
   useEffect(() => {
     console.log('[App] Mounted');
-    // Silently purge conversations older than the user-configured retention window.
-    // Never deletes the currently active conversation.
-    purgeConversationsByAge(getRetentionDays());
+    
+    const runPurge = () => {
+      purgeConversationsByAge(getRetentionDays()).catch((err) => {
+        captureFeatureError(err, 'chat', { action: 'purgeConversationsByAge' });
+      });
+    };
+
+    runPurge();
+
+    const handleRetry = () => {
+      runPurge();
+    };
+
+    window.addEventListener('retry-retention-purge', handleRetry);
+    (window as any).retryRetentionPurge = handleRetry;
+
     // Preload critical route chunks after initial render
     preloadCriticalRoutes();
+
+    return () => {
+      window.removeEventListener('retry-retention-purge', handleRetry);
+      delete (window as any).retryRetentionPurge;
+    };
   }, []);
 
   return (

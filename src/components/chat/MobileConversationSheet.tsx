@@ -34,14 +34,14 @@ export const MobileConversationSheet = ({
 
   useEffect(() => {
     if (isOpen) {
-      setConversations(loadConversations());
+      loadConversations().then(setConversations);
     }
   }, [isOpen]);
 
-  const handleDeleteConversation = (id: string, e: React.MouseEvent) => {
+  const handleDeleteConversation = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    deleteConversation(id);
-    setConversations(loadConversations());
+    await deleteConversation(id);
+    setConversations(await loadConversations());
   };
 
   const handleSelectConversation = (conv: Conversation) => {

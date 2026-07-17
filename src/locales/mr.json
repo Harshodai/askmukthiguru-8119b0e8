@@ -105,7 +105,10 @@
     "hideDetails": "तपशील लपवा",
     "details": "तपशील",
     "redeem": "रिडीम करा",
-    "keep": "ठेवा"
+    "keep": "ठेवा",
+    "complete": "पूर्ण",
+    "resume": "पुन्हा सुरू करा",
+    "cookiesConsent": "तुमचा अनुभव सुधारण्यासाठी ही वेबसाइट कुकीज वापरते."
   },
   "nav": {
     "appName": "मुक्तिगुरु",
@@ -447,7 +450,9 @@
     "startFreshWithGurus": "गुरूंसोबत नव्याने सुरुवात करा",
     "messagesCount": "{{count}} संदेश",
     "backToHome": "होमवर परत जा",
-    "newConversation": "नवीन संभाषण"
+    "newConversation": "नवीन संभाषण",
+    "howRelatesQuery": "हे माझ्याशी कसे संबंधित आहे: {{content}}",
+    "openSources": "{{count}} स्त्रोत उघडा"
   },
   "privacy": {
     "lastUpdated": "शेवटचे अद्यतनित केले: {{date}}",
@@ -549,7 +554,11 @@
     "noAccount": "खाते नाही का?",
     "byContinuing": "सुरू ठेवून तुम्ही आमच्या सेवा अटींशी सहमत आहात",
     "terms": "अटी",
-    "privacyPolicy": "गोपनीयता धोरण"
+    "privacyPolicy": "गोपनीयता धोरण",
+    "continueWithApple": "Apple सह सुरू ठेवा",
+    "appleConnecting": "Apple शी कनेक्ट करत आहे...",
+    "appleRedirecting": "Apple कडे रिडायरेक्ट करत आहे...",
+    "appleFinalizing": "Apple साइन-इन पूर्ण करत आहे..."
   },
   "admin": {
     "queries": "प्रश्न",
@@ -924,5 +933,10 @@
     "benefits": "फायदे",
     "howItWorks": "हे कसे कार्य करते",
     "perPracticeHint": "पाठीचा कणा ताठ ठेवून आरामात बसा. डोळे बंद, तोंड बंद. श्वास वाहू द्या."
+  },
+  "language": {
+    "searchPlaceholder": "23 भाषा शोधा…",
+    "translationNotice": "इंग्रजी नसलेले संदेश गुरूकडे पाठवण्यापूर्वी स्वयंचलितपणे अनुवादित केले जातात.",
+    "ariaLabel": "निवडलेली भाषा: {{name}}. बदलण्यासाठी क्लिक करा."
   }
 }

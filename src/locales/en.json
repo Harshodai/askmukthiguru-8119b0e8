@@ -33,6 +33,9 @@
     "signIn": "Sign in",
     "register": "Register",
     "switch": "Switch",
+    "complete": "Complete",
+    "resume": "Resume",
+    "cookiesConsent": "This website uses cookies to improve your experience.",
     "enable": "Enable",
     "disable": "Disable",
     "settings": "Settings",
@@ -286,6 +289,8 @@
     "explainSimply": "Explain simply",
     "explainSimplyQuery": "Explain this in simpler terms: {{content}}",
     "howRelates": "How relates to me",
+    "howRelatesQuery": "How does this relate to me: {{content}}",
+    "openSources": "Open {{count}} sources",
     "engagement": {
       "didThisHelp": "Did this help?",
       "yes": "Yes",
@@ -456,7 +461,7 @@
     "message": "Oops! Page not found",
     "returnHome": "Return to Home"
   },
-"privacy": {
+  "privacy": {
     "pageTitle": "Privacy Policy — AskMukthiGuru",
     "pageDescription": "How AskMukthiGuru handles your data: minimum collection, no third-party sharing, full export and deletion rights under DPDP Act and GDPR.",
     "title": "Privacy Policy",
@@ -523,6 +528,10 @@
     "connectingToGoogle": "Connecting to Google…",
     "redirectingToGoogle": "Redirecting to Google…",
     "returningFromGoogle": "Returning from Google…",
+    "continueWithApple": "Continue with Apple",
+    "appleConnecting": "Connecting to Apple...",
+    "appleRedirecting": "Redirecting to Apple...",
+    "appleFinalizing": "Finalizing Apple Sign-In...",
     "signingYouIn": "Signing you in…",
     "stepConnect": "Connect",
     "stepAuthorize": "Authorize",
@@ -1035,5 +1044,10 @@
       "reactivate": "A reactivation link has been sent to your email.",
       "close": "Close"
     }
+  },
+  "language": {
+    "searchPlaceholder": "Search 23 languages…",
+    "translationNotice": "Non-English messages are auto-translated before being sent to the Guru.",
+    "ariaLabel": "Selected language: {{name}}. Click to change."
   }
 }
