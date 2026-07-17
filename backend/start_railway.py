@@ -1,5 +1,17 @@
+"""
+Railway health-first ASGI wrapper.
+
+Sends lifespan.startup.complete immediately so uvicorn enters its main loop
+and accepts connections quickly. The real FastAPI app's lifespan runs as a
+background task. Health checks (/api/healthz) respond fast:
+
+  - /api/healthz → 200 within a 180s grace period, then reflects real readiness
+  - All other paths → proxied to the real app once loaded, else 503
+
+On shutdown, signals the real lifespan to exit, then waits for cleanup.
+"""
+
 import asyncio
-import functools
 import logging
 import os
 import time
@@ -11,103 +23,103 @@ port = int(os.environ.get("PORT", 8000))
 
 _real_app = None
 _lifespan_startup_done = False
-_lifespan_task: asyncio.Task | None = None
 _shutdown_event = asyncio.Event()
 _process_start = time.monotonic()
 
-# How long the wrapper reports healthy on faith alone (normal boot has been
-# observed to take up to ~70s for ContainerBuilder + graph strategies). Past
-# this, the health check must reflect real lifespan completion, not just
-# "process is alive" — otherwise Railway keeps routing traffic to a
-# deployment whose real app (and its job-queue workers) never finished
-# initializing, and that failure is invisible to platform monitoring.
-_HEALTH_GRACE_SECONDS = 90
+_GRACE_SECONDS = 180
 
-_health_body_ok = b'{"ok":true,"status":"alive"}'
-_health_headers_ok = [
+_OK_BODY = b'{"ok":true,"status":"alive"}'
+_OK_HEADERS = [
     (b"content-type", b"application/json"),
-    (b"content-length", str(len(_health_body_ok)).encode()),
+    (b"content-length", str(len(_OK_BODY)).encode()),
 ]
-_health_body_not_ready = b'{"ok":false,"status":"lifespan_not_ready"}'
-_health_headers_not_ready = [
+_NOT_READY_BODY = b'{"ok":false,"status":"starting"}'
+_NOT_READY_HEADERS = [
     (b"content-type", b"application/json"),
-    (b"content-length", str(len(_health_body_not_ready)).encode()),
+    (b"content-length", str(len(_NOT_READY_BODY)).encode()),
 ]
 
 
-def _import_real_app():
-    from app.main import app
-    return app
+async def _run_real_lifespan():
+    global _real_app, _lifespan_startup_done
 
-
-async def _run_real_lifespan(app):
-    global _lifespan_startup_done
     try:
-        async with app.router.lifespan_context(app):
+        from app.main import app as real_app, lifespan as real_lifespan
+
+        _real_app = real_app
+        logger.info("Real app imported, starting lifespan...")
+
+        async with real_lifespan(real_app):
             _lifespan_startup_done = True
             logger.info("Real app lifespan yielded — fully initialized")
             await _shutdown_event.wait()
-    except Exception as e:
-        logger.error("Real app lifespan failed: %s", e)
+            logger.info("Real lifespan exiting on shutdown event")
+    except asyncio.CancelledError:
+        logger.warning("Real lifespan task cancelled during startup")
+    except BaseException:
+        logger.exception("Fatal error in real lifespan")
         raise
 
 
-async def _load_real_app_background():
-    global _real_app, _lifespan_task
-    logger.info("Background: loading real FastAPI app in thread...")
-    try:
-        real_app = await asyncio.to_thread(_import_real_app)
-        _real_app = real_app
-        logger.info("Background: real app imported, starting lifespan...")
-        _lifespan_task = asyncio.create_task(_run_real_lifespan(real_app))
-        logger.info("Background: lifespan task scheduled")
-    except Exception as e:
-        logger.error("Background: failed to load real app: %s", e)
+async def _send_http(send, status, headers, body):
+    await send({"type": "http.response.start", "status": status, "headers": headers})
+    await send({"type": "http.response.body", "body": body})
 
 
 async def app(scope, receive, send):
+    path = scope.get("path", "")
+
     if scope["type"] == "lifespan":
+        # ASGI lifespan protocol: consume startup message BEFORE responding.
+        # Older code omitted this receive(), leaving a stale lifespan.startup in
+        # the queue — the next receive() got startup instead of shutdown,
+        # immediately setting _shutdown_event and killing the real lifespan
+        # the instant it yielded.  Fixes the "starts then instantly shuts down"
+        # cycle on Railway.  See start_railway.py::_REWRITE_RATIONALE
+        msg = await receive()
+        assert msg["type"] == "lifespan.startup", f"expected startup, got {msg['type']}"
+
         await send({"type": "lifespan.startup.complete"})
-        asyncio.create_task(_load_real_app_background())
-        await receive()
+
+        lifespan_task = asyncio.create_task(_run_real_lifespan())
+
+        msg = await receive()
+        assert msg["type"] == "lifespan.shutdown", f"expected shutdown, got {msg['type']}"
+        logger.info("Wrapper received shutdown signal — notifying real lifespan")
+
         _shutdown_event.set()
-        if _lifespan_task is not None:
-            try:
-                await asyncio.wait_for(_lifespan_task, timeout=30)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
-                pass
+
+        try:
+            await asyncio.wait_for(lifespan_task, timeout=60)
+        except asyncio.TimeoutError:
+            logger.warning("Real lifespan shutdown timed out after 60s")
+        except asyncio.CancelledError:
+            logger.warning("Real lifespan task was cancelled")
+
         await send({"type": "lifespan.shutdown.complete"})
         return
 
-    path = scope.get("path", "")
-
-    if path in ("/api/healthz",):
-        within_grace = (time.monotonic() - _process_start) < _HEALTH_GRACE_SECONDS
+    if path == "/api/healthz":
+        within_grace = (time.monotonic() - _process_start) < _GRACE_SECONDS
         healthy = _lifespan_startup_done or within_grace
-        await send({
-            "type": "http.response.start",
-            "status": 200 if healthy else 503,
-            "headers": _health_headers_ok if healthy else _health_headers_not_ready,
-        })
-        await send({"type": "http.response.body", "body": _health_body_ok if healthy else _health_body_not_ready})
+        if healthy:
+            await _send_http(send, 200, _OK_HEADERS, _OK_BODY)
+        else:
+            await _send_http(send, 503, _NOT_READY_HEADERS, _NOT_READY_BODY)
         return
 
     if _real_app is None:
-        body = b'{"status":"starting","message":"Server still loading"}'
-        headers = [
-            (b"content-type", b"application/json"),
-            (b"content-length", str(len(body)).encode()),
-        ]
-        await send({"type": "http.response.start", "status": 503, "headers": headers})
-        await send({"type": "http.response.body", "body": body})
+        await _send_http(send, 503, _NOT_READY_HEADERS, _NOT_READY_BODY)
         return
 
     await _real_app(scope, receive, send)
 
 
 if __name__ == "__main__":
-    logger.info("Starting Railway health-first wrapper on port %s", port)
+    logger.info("Starting Mukthi Guru backend on port %s", port)
+
     import uvicorn
+
     uvicorn.run(
         "start_railway:app",
         host="0.0.0.0",
