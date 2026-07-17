@@ -64,8 +64,20 @@ graph LR
 | 32 | Anthropic Gateway Integration: direct `AnthropicGateway` with prompt caching + Citations API, `--use-batch` in `eval_runner.py`, migrate 12 hardcoded P1 thresholds to Settings | `main` | June 2026 |
 | 33 | Production Audit Fixes (2026 Audit Report): cache LettuceDetect results in state, scale context budget by query tier, query rewrite validation fallback, `confidence_gating_floor` setting, dev docker-compose password fallbacks | `main` | June 2026 |
 | 34 | Personal KG Visualizer: `seed_personal_kg.py` (40 ontology concepts), `GET /api/memory/knowledge-graph`, `MemoryManager.tsx` SVG graph visualizer, `memoryApi.ts`, 435 tests pass | `main` | Jul 8, 2026 |
+| 35 | **Embedding dimension invariants (2026-07-16 incident fix)**: `_ensure_encoder()` rejects mismatched dim; `_verify_collection_dimension()` asserts at startup; `generate_answer()` short-circuits on empty context; Docker pre-cache with pinned model revision; fail-closed validation for malformed vector config | `main` | Jul 16, 2026 |
+| 36 | **Security audit: remove NIM cross-provider failover**: External API calls as silent fallback removed from container DI; `_call_api()` fallback_model branch eliminated; `failover_provider.py` catches fallback exceptions | `main` | Jul 17, 2026 |
+| 37 | **Streaming short-circuit fix**: `generate_answer()` emits fallback answer through stream_queue protocol before early return; regression test coverage | `main` | Jul 17, 2026 |
 
 ---
+
+## In Progress
+
+| # | Feature | Branch | Status |
+|---|---------|--------|--------|
+| 1 | Remaining 357-video ingestion run (Qdrant + Neo4j KG) | `main` | Deferred per user direction, June 2026 — 359 extracted, 75 ingested, 357 remaining; 29 permanently failed (DLQ) |
+| 2 | LightRAG KG backfill sweep for 72 Qdrant-only videos (`--retry-lightrag-missing`) | `main` | Deferred per user direction, June 2026 |
+| 3 | Full-suite test isolation for `test_health_check` and `test_retrieve_documents_empty_results_is_safe` | `main` | Known order-dependence under full ~925-test run; not yet isolated |
+| 4 | Cross-provider LLM failover for OpenRouter 429s | `main` | NIM provider exists but wiring removed per security audit (external silent fallback); revisit if natively available local fallback is desired |
 
 ## In Progress
 

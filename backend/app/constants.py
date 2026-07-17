@@ -15,6 +15,18 @@ class LLMProvider(str, Enum):
     NIM = "nim"
 
 
+# openrouter_service.py's/nim_service.py's _graceful_degradation() text ("...temporary
+# connectivity issue..." / "...temporary connection issue..."). Shared so any consumer
+# that needs to recognize a degraded/fallback answer (cache guards, provider failover)
+# checks the same canonical marker instead of duplicating the substring.
+GRACEFUL_DEGRADATION_MARKER = "temporary connect"
+
+
+def is_graceful_degradation(text: str) -> bool:
+    """True if `text` is a provider's generic connectivity-failure fallback message."""
+    return bool(text) and GRACEFUL_DEGRADATION_MARKER in text.lower()
+
+
 class CircuitBreakerProvider(str, Enum):
     """Circuit breaker provider identifiers - must match LLMProvider values."""
 

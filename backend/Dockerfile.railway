@@ -34,14 +34,29 @@ COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt && \
     pip cache purge
 
-# Copy app code
-COPY backend/ .
+# Pre-cache the primary embedding model at build time — avoids the runtime
+# cold-start download (and the corruption/OOM risk under Railway's constrained
+# resources) that caused the 2026-07-16 dimension-mismatch incident. See
+# CLAUDE.md "Embedding dimension contract". HF_HOME must match at runtime
+# (unset elsewhere, so this is the only place it's defined) for the encoder
+# load in embedding_service.py to hit this cache instead of re-downloading.
+# Pinned to commit hash 3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef so the
+# digest is immutable across rebuilds — see lessons.md "Embedding dimension
+# contract" for the full incident analysis.
+ENV HF_HOME=/app/.cache/huggingface
+RUN mkdir -p /app/.cache/huggingface && chown -R appuser:appuser /app/.cache
+USER appuser
+RUN python -c "from FlagEmbedding import BGEM3FlagModel; BGEM3FlagModel('BAAI/bge-m3', revision='3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef', use_fp16=False, device='cpu')"
+USER root
+
+# Copy app code with explicit ownership
+COPY --chown=appuser:appuser backend/ .
 
 # OKF compiled index and memory files from repo root
-COPY memory/ ./memory/
+COPY --chown=appuser:appuser memory/ ./memory/
 
-# Create data and cache directories and ensure proper permissions for non-root user
-RUN mkdir -p /app/data /app/.cache && chown -R appuser:appuser /app
+# Create data directory and ensure proper permissions for non-root user
+RUN mkdir -p /app/data
 
 # Production environment flags — TOKEN OPTIMIZATION ENABLED
 ENV ENV=production \

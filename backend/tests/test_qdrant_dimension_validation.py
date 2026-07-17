@@ -40,14 +40,15 @@ def test_verify_collection_dimension_raises_on_mismatch():
         manager._verify_collection_dimension()
 
 
-def test_verify_collection_dimension_skips_on_unexpected_shape():
-    """A returned config missing the 'dense' key (SDK/config shape surprise) must warn, not crash."""
+def test_verify_collection_dimension_raises_on_unexpected_shape():
+    """A returned config missing the 'dense' key must raise, not silently pass."""
     manager = _manager_with_dimension(1024)
     collection_info = MagicMock()
     collection_info.config.params.vectors = {}  # named-vector dict present but no "dense" entry
     manager._client.get_collection.return_value = collection_info
 
-    manager._verify_collection_dimension()  # must not raise
+    with pytest.raises(RuntimeError, match="dense"):
+        manager._verify_collection_dimension()
 
 
 def test_verify_collection_dimension_passes_on_unnamed_vector_match():

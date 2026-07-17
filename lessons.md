@@ -44,6 +44,24 @@ assert qdrant_collection_dim == settings.embedding_dimension, f"Dim mismatch: {q
 ### Key Lesson
 **Never mutate global config dimension at runtime.** Embedding dimension is a contract between encoder and vector store. Changing it silently breaks the contract. Either pin the dimension at build time, or fail fast and require explicit migration.
 
+### Implemented Fix (Three Invariants)
+Three guards deployed to prevent silent re-occurrence (see CLAUDE.md "Embedding dimension contract"):
+
+1. **`EmbeddingService._ensure_encoder()`** — clears HF cache and retries once on load failure; never accepts a fallback model whose dimension differs from `settings.embedding_dimension`. Raises instead of silently downgrading.
+
+2. **`QdrantClientManager._verify_collection_dimension()`** — asserts the existing collection's vector size matches settings at startup; raises loud on mismatch. Handles named ("dense"/"sparse") and unnamed vector configs. Also invoked on concurrent-create race paths so dimension drift is never silently accepted.
+
+3. **`generate_answer()`** — returns an honest "couldn't find relevant teachings" message and skips the LLM call when `relevant_docs` is empty (custom-assistant chats exempted). Prevents hallucination or LLM error when retrieval returns nothing.
+
+Additional hardening:
+- **Docker pre-caching**: `BAAI/bge-m3` is downloaded at build time via `Dockerfile.railway` (line 44) pinned to an immutable commit hash (`3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef`), eliminating runtime download/corruption risk entirely.
+- **Cache ownership**: The HF cache directory is created and chowned to `appuser` before downloading, and `COPY --chown` is used for all file copies — no more recursive `chown -R /app` after-the-fact.
+- **Startup validation fails closed**: Malformed vector shape configuration (missing "dense" key, AttributeError/KeyError/TypeError) raises `RuntimeError` instead of logging a warning and silently passing.
+
+### Open Items (Tracked in ROADMAP.md)
+- Full-suite test isolation for `test_health_check` and `test_retrieve_documents_empty_results_is_safe` — known order-dependence under full ~925-test run.
+- Cross-provider LLM failover for OpenRouter 429s — NIM provider exists but is no longer wired per security audit decision (external API calls as silent fallback removed).
+
 ---
 
 ## Jul 16, 2026 — Background Init: asyncio.create_task Never Scheduled, scheduler_shutdown, startup_complete
