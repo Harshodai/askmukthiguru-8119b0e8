@@ -38,7 +38,7 @@ pypinyin>=0.55.0
 sentence-transformers==3.4.1
 transformers==4.51.0
 peft==0.14.0
-FlagEmbedding>=1.2.10
+FlagEmbedding==1.4.0
 ragatouille>=0.0.8
 
 # --- YouTube Ingestion ---
