@@ -123,7 +123,8 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_fast_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
-    openrouter_generation_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    openrouter_generation_model: str = "qwen/qwen3-30b-a3b-instruct-2507"
+    openrouter_generation_model_fallback: str = "google/gemini-2.5-flash"
     openrouter_classify_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     openrouter_rpm_limit: int = 20
 

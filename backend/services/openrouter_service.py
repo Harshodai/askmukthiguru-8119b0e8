@@ -66,6 +66,7 @@ class OpenRouterService:
         # Free models can be queried without key occasionally, but key is highly recommended
         self._base_url = getattr(settings, "openrouter_base_url", "https://openrouter.ai/api/v1")
         self._gen_model = settings.openrouter_generation_model
+        self._gen_model_fallback = settings.openrouter_generation_model_fallback
         self._cls_model = settings.openrouter_classify_model
         self._timeout = getattr(settings, "llm_timeout", 60)
         self._max_retries = getattr(settings, "llm_max_retries", 3)
@@ -197,13 +198,25 @@ class OpenRouterService:
         max_tokens: int = 2048,
         temperature: float = 0.1,
         operation: str = "generate",
+        fallback_model: Optional[str] = None,
+        _is_fallback_attempt: bool = False,
         **kwargs,
     ) -> str:
         """Call OpenRouter API with circuit breaker, rate limit, retries, and token tracking.
-        
-        Falls back to graceful degradation when OpenRouter is unavailable.
+
+        On a 429/connection-error, retries once against `fallback_model` (a
+        different model — a different rate-limit bucket entirely — before
+        falling back to graceful degradation). Falls back to graceful
+        degradation when OpenRouter is unavailable for both.
+
+        The local `_enforce_rate_limit`/`_record_rate_limit_response` counters
+        track this account's calls against the *primary* model's quota, not
+        a per-model quota — a fallback attempt is deliberately a different
+        model, so it must not inherit the primary model's just-triggered
+        "sleep until window resets" state.
         """
-        await self._enforce_rate_limit()
+        if not _is_fallback_attempt:
+            await self._enforce_rate_limit()
 
         if not self._circuit.can_execute():
             logger.warning(f"OpenRouter circuit breaker open — graceful degradation for {operation}")
@@ -306,6 +319,21 @@ class OpenRouterService:
                 if is_rate_limit:
                     await self._record_rate_limit_response()
                 reason = "rate limited (429)" if is_rate_limit else type(exc).__name__
+                if fallback_model and fallback_model != model:
+                    logger.warning(
+                        f"OpenRouter {reason} during {operation} on '{model}' — "
+                        f"retrying with fallback model '{fallback_model}'"
+                    )
+                    return await self._call_api(
+                        messages=messages,
+                        model=fallback_model,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        operation=operation,
+                        fallback_model=None,  # one fallback hop only — no chained fallback
+                        _is_fallback_attempt=True,
+                        **kwargs,
+                    )
                 logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation")
                 return await self._graceful_degradation(messages, operation=operation)
             self._circuit.record_failure()
@@ -335,6 +363,11 @@ class OpenRouterService:
         max_tokens = kwargs.pop("max_tokens", 8192)
         model = kwargs.pop("model", self._gen_model)
         operation = kwargs.pop("operation", "generate")
+        # Only auto-fallback when using the default generation model — an
+        # explicit model= override means the caller already picked deliberately.
+        fallback_model = kwargs.pop(
+            "fallback_model", self._gen_model_fallback if model == self._gen_model else None
+        )
 
         return await self._call_api(
             messages=messages,
@@ -342,6 +375,7 @@ class OpenRouterService:
             max_tokens=max_tokens,
             temperature=temperature,
             operation=operation,
+            fallback_model=fallback_model,
             **kwargs,
         )
 
