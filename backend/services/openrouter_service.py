@@ -18,7 +18,18 @@ from typing import Any, Optional
 
 from anyio import Lock as AsyncLock
 import httpx
-from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait_exponential
+
+
+def _is_retryable_openrouter_error(exc: BaseException) -> bool:
+    """429 can't be fixed by retrying the same model within seconds — the
+    quota that's exhausted doesn't refill that fast. Retrying just adds
+    latency before the inevitable graceful-degradation fallback. Other
+    transient httpx/timeout errors are still worth a retry.
+    """
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429:
+        return False
+    return isinstance(exc, (httpx.HTTPError, asyncio.TimeoutError))
 
 from app.config import settings
 from app.constants import CircuitBreakerProvider
@@ -246,7 +257,7 @@ class OpenRouterService:
             retryer = AsyncRetrying(
                 stop=stop_after_attempt(self._max_retries),
                 wait=wait_exponential(multiplier=1, min=1, max=8),
-                retry=retry_if_exception_type((httpx.HTTPError, asyncio.TimeoutError)),
+                retry=retry_if_exception(_is_retryable_openrouter_error),
                 reraise=True,
             )
             

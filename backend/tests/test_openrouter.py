@@ -69,6 +69,42 @@ async def test_openrouter_service_generate(monkeypatch):
     assert res == "A wise teaching on mindfulness."
 
 
+class FakeResponse429:
+    status_code = 429
+
+    def raise_for_status(self):
+        import httpx
+        raise httpx.HTTPStatusError("rate limited", request=None, response=self)
+
+    def json(self):
+        return {}
+
+
+@pytest.mark.asyncio
+async def test_openrouter_429_does_not_retry_same_model(monkeypatch):
+    """A 429 must fail fast to graceful degradation, not burn retries against the
+    same exhausted quota (that quota won't refill within a few seconds of backoff)."""
+    monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
+    monkeypatch.setattr(settings, "openrouter_generation_model", "some-model")
+
+    call_count = {"n": 0}
+
+    class FakeRateLimitedClient:
+        async def post(self, url, json=None, **kwargs):
+            call_count["n"] += 1
+            return FakeResponse429()
+
+    async def fake_get_client(self):
+        return FakeRateLimitedClient()
+    monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
+
+    service = OpenRouterService()
+    res = await service.generate(system_prompt="Be a monk.", user_prompt="What is Zen?")
+
+    assert call_count["n"] == 1
+    assert isinstance(res, str) and res
+
+
 @pytest.mark.asyncio
 async def test_openrouter_provider_delegation(monkeypatch):
     monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
