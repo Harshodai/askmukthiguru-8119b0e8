@@ -86,6 +86,7 @@ async def test_openrouter_429_does_not_retry_same_model(monkeypatch):
     same exhausted quota (that quota won't refill within a few seconds of backoff)."""
     monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
     monkeypatch.setattr(settings, "openrouter_generation_model", "some-model")
+    monkeypatch.setattr(settings, "openrouter_generation_model_fallback", "")
 
     call_count = {"n": 0}
 
@@ -103,6 +104,36 @@ async def test_openrouter_429_does_not_retry_same_model(monkeypatch):
 
     assert call_count["n"] == 1
     assert isinstance(res, str) and res
+
+
+@pytest.mark.asyncio
+async def test_openrouter_429_falls_back_to_secondary_model(monkeypatch):
+    """A 429 on the primary generation model retries once against the
+    configured fallback model (a separate rate-limit bucket) before
+    resorting to graceful degradation."""
+    monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
+    monkeypatch.setattr(settings, "openrouter_generation_model", "primary-model")
+    monkeypatch.setattr(settings, "openrouter_generation_model_fallback", "fallback-model")
+
+    calls = []
+
+    class FakeFallbackClient:
+        async def post(self, url, json=None, **kwargs):
+            model = json.get("model") if json else None
+            calls.append(model)
+            if model == "primary-model":
+                return FakeResponse429()
+            return FakeResponse()
+
+    async def fake_get_client(self):
+        return FakeFallbackClient()
+    monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
+
+    service = OpenRouterService()
+    res = await service.generate(system_prompt="Be a monk.", user_prompt="What is Zen?")
+
+    assert calls == ["primary-model", "fallback-model"]
+    assert res == "A wise teaching on mindfulness."
 
 
 @pytest.mark.asyncio
