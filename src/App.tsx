@@ -223,8 +223,9 @@ const App = () => {
           <CookieConsentBanner />
           <PushPermissionPrompt />
           <PushNotificationsManager />
-          <SonnerToaster richColors closeButton position="top-right" />
+          <SonnerToaster />
           <Toaster />
+
 
         </AppRouter>
       </SereneMindProvider>
