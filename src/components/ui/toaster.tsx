@@ -1,24 +1,9 @@
-import { useToast } from "@/hooks/use-toast";
-import { Toast, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from "@/components/ui/toast";
-
+/**
+ * Legacy Radix `<Toaster />` — kept as a no-op mount point so `App.tsx` and
+ * historical imports continue to type-check. The real toast rendering lives
+ * in `@/components/ui/sonner` (Warm Sacred theme), which every callsite —
+ * including the legacy `useToast()` hook — now routes through.
+ */
 export function Toaster() {
-  const { toasts } = useToast();
-
-  return (
-    <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
-        return (
-          <Toast key={id} {...props}>
-            <div className="grid gap-1">
-              {title && <ToastTitle>{title}</ToastTitle>}
-              {description && <ToastDescription>{description}</ToastDescription>}
-            </div>
-            {action}
-            <ToastClose />
-          </Toast>
-        );
-      })}
-      <ToastViewport />
-    </ToastProvider>
-  );
+  return null;
 }
