@@ -615,6 +615,7 @@ const AuthPage = () => {
     toast({
       title: t('auth.resetComplete'),
       description: t('auth.tryAgain'),
+      variant: 'success',
     });
   }, [toast, t]);
   
