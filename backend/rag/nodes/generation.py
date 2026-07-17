@@ -518,14 +518,15 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     lang = state.get("detected_language", "en")
     ollama = _services._ollama
 
+    configurable = {}
+    if config:
+        if hasattr(config, "get"):
+            configurable = config.get("configurable", {})
+        elif hasattr(config, "configurable"):
+            configurable = config.configurable
+    stream_queue = configurable.get("stream_queue")
+
     if not relevant_docs and not state.get("assistant_system_prompt"):
-        # Nothing survived retrieval + grading (or OKF injection — see
-        # retrieval.py). Calling the LLM with zero context either hallucinates
-        # or, per the 2026-07-16 incident, surfaces the LLM service's generic
-        # "connection issue" fallback for what is actually a content gap. Say
-        # the true thing and skip the call rather than guess at a cause.
-        # Custom assistants (assistant_system_prompt set) legitimately answer
-        # from their own persona without doctrine docs — never short-circuit them.
         answer = (
             "I couldn't find relevant teachings in my knowledge base for this "
             "question. Could you try rephrasing it, or ask about a specific "
@@ -535,6 +536,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "generate_answer: zero relevant_docs — returning content-gap "
             "message without calling the LLM"
         )
+        if stream_queue:
+            await stream_queue.put(answer)
         return {
             "answer": answer,
             "citations": [],
@@ -802,14 +805,6 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "You MUST base your answer STRICTLY on the provided context. "
             "If the context doesn't fully answer the question, say so clearly rather than making things up."
         )
-
-    configurable = {}
-    if config:
-        if hasattr(config, "get"):
-            configurable = config.get("configurable", {})
-        elif hasattr(config, "configurable"):
-            configurable = config.configurable
-    stream_queue = configurable.get("stream_queue")
 
     ab_model = state.get("ab_model", "primary")
     generation_kwargs = _generation_route(state, context_chars=len(context))

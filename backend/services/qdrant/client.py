@@ -38,6 +38,23 @@ def _bm25_overlap_score(query: str, text: str) -> float:
 class QdrantClientManager:
     """Owns the Qdrant client lifecycle, collection creation, and health checks."""
 
+    # Every payload index that must exist for retrieval, filtering, and BM25 search.
+    # Shared between fresh-creation and existing-collection/race-handler paths.
+    _PAYLOAD_INDEXES: list[tuple[str, str]] = [
+        ("raptor_level", "integer"),
+        ("phonetic_tokens", "keyword"),
+        ("source_url", "keyword"),
+        ("source_type", "keyword"),
+        ("language", "keyword"),
+        ("tags", "keyword"),
+        ("text", "text"),
+        ("speaker", "keyword"),
+        ("topic", "keyword"),
+        ("content_type", "keyword"),
+        ("title", "keyword"),
+        ("teacher_id", "keyword"),
+    ]
+
     def __init__(self, collection: Optional[str] = None) -> None:
         # Use a generous timeout for complex hybrid queries with 4 prefetches + RRF fusion.
         # The default 5s is too short and causes cascading timeout/retry loops.
@@ -93,143 +110,63 @@ class QdrantClientManager:
                     ScalarType,
                 )
 
-                self._client.create_collection(
-                    collection_name=self._collection,
-                    vectors_config={
-                        "dense": VectorParams(
-                            size=self._dimension,
-                            distance=Distance.COSINE,
+                try:
+                    self._client.create_collection(
+                        collection_name=self._collection,
+                        vectors_config={
+                            "dense": VectorParams(
+                                size=self._dimension,
+                                distance=Distance.COSINE,
+                            ),
+                        },
+                        sparse_vectors_config={
+                            "sparse": SparseVectorParams(
+                                index=SparseIndexParams(),
+                            ),
+                        },
+                        hnsw_config=HnswConfigDiff(
+                            m=32,
+                            ef_construct=200,
+                            full_scan_threshold=10000,
                         ),
-                    },
-                    sparse_vectors_config={
-                        "sparse": SparseVectorParams(
-                            index=SparseIndexParams(),
+                        quantization_config=ScalarQuantization(
+                            scalar=ScalarQuantizationConfig(
+                                type=ScalarType.INT8,
+                                always_ram=True,
+                            )
                         ),
-                    },
-                    hnsw_config=HnswConfigDiff(
-                        m=32,
-                        ef_construct=200,
-                        full_scan_threshold=10000,
-                    ),
-                    quantization_config=ScalarQuantization(
-                        scalar=ScalarQuantizationConfig(
-                            type=ScalarType.INT8,
-                            always_ram=True,
+                        on_disk_payload=True,
+                    )
+                except Exception as create_err:
+                    err_msg = str(create_err).lower()
+                    if "already exists" in err_msg or "conflict" in err_msg:
+                        logger.info(f"Collection already exists (concurrent create): {self._collection}")
+                        self._verify_collection_dimension()
+                        _created_by_race = True
+                    else:
+                        raise
+                else:
+                    _created_by_race = False
+
+                if _created_by_race:
+                    self._ensure_existing_collection_indexes()
+                else:
+                    for field_name, field_schema in self._PAYLOAD_INDEXES:
+                        self._client.create_payload_index(
+                            collection_name=self._collection,
+                            field_name=field_name,
+                            field_schema=field_schema,
                         )
-                    ),
-                    on_disk_payload=True,
-                )
-                # Create payload index on raptor_level for fast level-based filtering
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="raptor_level",
-                    field_schema="integer",
-                )
-                # Create payload index on phonetic_tokens for fast keyword/phonetic matching
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="phonetic_tokens",
-                    field_schema="keyword",
-                )
-                # Metadata filter indexes for retrieval-quality improvements + assistants
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="source_url",
-                    field_schema="keyword",
-                )
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="source_type",
-                    field_schema="keyword",
-                )
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="language",
-                    field_schema="keyword",
-                )
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="tags",
-                    field_schema="keyword",
-                )
-                # Full-text index on text for BM25-like keyword search
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="text",
-                    field_schema="text",
-                )
-                # Additional payload indexes for filtered queries
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="speaker",
-                    field_schema="keyword",
-                )
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="topic",
-                    field_schema="keyword",
-                )
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="content_type",
-                    field_schema="keyword",
-                )
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="title",
-                    field_schema="keyword",
-                )
-                # Multi-teacher payload partitioning index (per-teacher isolation)
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="teacher_id",
-                    field_schema="keyword",
-                )
-                logger.info(
-                    f"Created collection: {self._collection} "
-                    f"(dense={self._dimension}d + sparse, raptor_level, phonetic, text-FTS, teacher_id, and metadata indexes)"
-                )
+                    logger.info(
+                        f"Created collection: {self._collection} "
+                        f"(dense={self._dimension}d + sparse, raptor_level, phonetic, text-FTS, teacher_id, and metadata indexes)"
+                    )
             else:
                 logger.info(f"Collection exists: {self._collection}")
                 self._verify_collection_dimension()
-                # Ensure text-FTS index exists on already-created collections.
-                # Older collections may only have the stale `content` index; create
-                # the `text` index idempotently so BM25 search matches ingested payloads.
-                try:
-                    self._client.create_payload_index(
-                        collection_name=self._collection,
-                        field_name="text",
-                        field_schema="text",
-                    )
-                    logger.info(f"Created text-FTS index on existing collection: {self._collection}")
-                except Exception as idx_err:
-                    err_msg = str(idx_err).lower()
-                    if "already exists" in err_msg or "conflict" in err_msg:
-                        logger.info(f"text-FTS index already exists on {self._collection}")
-                    else:
-                        logger.warning(f"Failed to ensure text-FTS index on {self._collection}: {idx_err}")
-
-                # Ensure teacher_id index exists on already-created collections
-                # (added in Phase E5 for multi-teacher payload partitioning).
-                try:
-                    self._client.create_payload_index(
-                        collection_name=self._collection,
-                        field_name="teacher_id",
-                        field_schema="keyword",
-                    )
-                    logger.info(f"Created teacher_id index on existing collection: {self._collection}")
-                except Exception as idx_err:
-                    err_msg = str(idx_err).lower()
-                    if "already exists" in err_msg or "conflict" in err_msg:
-                        logger.info(f"teacher_id index already exists on {self._collection}")
-                    else:
-                        logger.warning(f"Failed to ensure teacher_id index on {self._collection}: {idx_err}")
-        except Exception as e:
-            err_msg = str(e).lower()
-            if "already exists" in err_msg or "conflict" in err_msg:
-                logger.info(f"Collection already exists (concurrent create): {self._collection}")
-            else:
-                raise
+                self._ensure_existing_collection_indexes()
+        except Exception:
+            raise
 
     def _verify_collection_dimension(self) -> None:
         """Fail loud if the existing collection's dense-vector size disagrees with config.
@@ -260,11 +197,12 @@ class QdrantClientManager:
             )
             actual_dim = vector_params.size
         except (AttributeError, KeyError, TypeError) as shape_err:
-            logger.warning(
-                f"Could not read vector dimension shape for '{self._collection}' "
-                f"(skipping check): {shape_err}"
-            )
-            return
+            raise RuntimeError(
+                f"Could not read vector dimension shape for collection "
+                f"'{self._collection}' (dense={self._dimension}d): {shape_err}. "
+                f"Vector config is malformed or missing the 'dense' named-vector entry — "
+                f"fix the collection schema or recreate it."
+            ) from shape_err
         if actual_dim != self._dimension:
             raise RuntimeError(
                 f"Qdrant collection '{self._collection}' is {actual_dim}-dim but "
@@ -272,6 +210,29 @@ class QdrantClientManager:
                 f"search will fail until this is resolved — recreate the collection "
                 f"at the correct dimension or fix EMBEDDING_DIMENSION."
             )
+
+    def _ensure_existing_collection_indexes(self) -> None:
+        """Idempotently create payload indexes on an existing collection.
+
+        Called from both the existing-collection path and the concurrent-create
+        race-handler path to ensure every index in _PAYLOAD_INDEXES exists.
+        "already exists"/"conflict" responses are logged at info and silently
+        swallowed; every other exception is re-raised to avoid silent data loss.
+        """
+        for field_name, field_schema in self._PAYLOAD_INDEXES:
+            try:
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name=field_name,
+                    field_schema=field_schema,
+                )
+                logger.info(f"Created {field_name} index on existing collection: {self._collection}")
+            except Exception as idx_err:
+                err_msg = str(idx_err).lower()
+                if "already exists" in err_msg or "conflict" in err_msg:
+                    logger.info(f"{field_name} index already exists on {self._collection}")
+                else:
+                    raise
 
     def scroll_content(
         self,

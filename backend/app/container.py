@@ -185,6 +185,10 @@ class ServiceContainer:
                 # Non-Ollama provider without Sarvam: keep a placeholder that passes text through
                 self.translation = _NoopTranslationProvider()
 
+        # Cross-provider failover via NIM was removed per security audit:
+        # external API calls must not be introduced as a silent fallback.
+        # self.ollama stays unwrapped so isinstance checks below work directly.
+
         # OpenRouter free-tier service for fast/simple queries
         self.openrouter = OpenRouterService()
 
