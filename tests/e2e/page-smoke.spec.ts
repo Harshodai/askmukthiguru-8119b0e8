@@ -35,12 +35,14 @@ for (const route of PUBLIC_ROUTES) {
     expect(res?.status(), `HTTP status for ${route}`).toBeLessThan(500);
     // Tolerate redirects to /auth for protected pages.
     await expect(page.locator('body')).toBeVisible();
+    const finalPathname = new URL(page.url()).pathname;
     const fatal = errors.filter(
       (e) =>
         !e.includes('React Router Future Flag') &&
         !e.includes('Download the React DevTools') &&
         !e.toLowerCase().includes('hydrat') &&
-        !e.includes('404 Error'),
+        !e.includes('404 Error') &&
+        !(finalPathname === '/auth' && e.includes('Refused to frame') && e.includes('https://accounts.google.com/')),
     );
     expect(fatal, `Uncaught errors on ${route}:\n${fatal.join('\n')}`).toHaveLength(0);
   });

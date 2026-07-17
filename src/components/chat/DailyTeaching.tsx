@@ -193,6 +193,7 @@ export const DailyTeaching = () => {
 
             <button
               onClick={handleDismiss}
+              data-testid="receive-wisdom-button"
               className="w-full py-3 px-4 rounded-xl bg-ojas hover:bg-ojas-light text-primary-foreground font-medium text-sm transition-all shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ojas/50"
             >
               {t('chat.receiveWisdom')}

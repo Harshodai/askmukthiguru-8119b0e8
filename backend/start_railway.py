@@ -11,6 +11,8 @@ background task. Health checks (/api/healthz) respond fast:
 On shutdown, signals the real lifespan to exit, then waits for cleanup.
 """
 
+# BUILD BUSTER: 2026-07-17T12:15 — force new Railway build with ASGI protocol fix
+
 import asyncio
 import logging
 import os
@@ -43,9 +45,12 @@ _NOT_READY_HEADERS = [
 async def _run_real_lifespan():
     global _real_app, _lifespan_startup_done
 
-    try:
-        from app.main import app as real_app, lifespan as real_lifespan
+    def _import_real_app():
+        from app.main import app, lifespan
+        return app, lifespan
 
+    try:
+        real_app, real_lifespan = await asyncio.to_thread(_import_real_app)
         _real_app = real_app
         logger.info("Real app imported, starting lifespan...")
 

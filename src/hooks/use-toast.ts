@@ -32,12 +32,36 @@ const renderNode = (node: React.ReactNode): string | React.ReactNode => {
 };
 
 function toast(args: LegacyToastArgs) {
-  const { title, description, variant = 'default', duration, id } = args;
+  const { title, description, variant = 'default', duration, id, action } = args;
+
+  let sonnerAction: { label: string; onClick: () => void } | undefined = undefined;
+  if (action && React.isValidElement(action)) {
+    const props = action.props as any;
+    if (props && (props.onClick || props.children)) {
+      let actionLabel = 'Action';
+      if (typeof props.children === 'string') {
+        actionLabel = props.children;
+      } else if (Array.isArray(props.children)) {
+        actionLabel = props.children.join('');
+      } else if (props.altText) {
+        actionLabel = props.altText;
+      }
+      sonnerAction = {
+        label: actionLabel,
+        onClick: (event) => {
+          if (typeof props.onClick === 'function') {
+            props.onClick(event);
+          }
+        }
+      };
+    }
+  }
 
   const opts: ExternalToast = {
     description: description ? renderNode(description) : undefined,
     duration,
     id,
+    action: sonnerAction,
   };
 
   const label = renderNode(title) || '';

@@ -50,21 +50,21 @@ describe('chatStorage', () => {
       expect(conv.messageCount).toBe(0);
     });
 
-    it('saves and loads conversations', () => {
+    it('saves and loads conversations', async () => {
       const conv = createNewConversation();
       conv.preview = 'Test preview';
-      saveConversation(conv);
-      const loaded = loadConversations();
+      await saveConversation(conv);
+      const loaded = await loadConversations();
       expect(loaded).toHaveLength(1);
       expect(loaded[0].preview).toBe('Test preview');
     });
 
-    it('deletes conversations', () => {
+    it('deletes conversations', async () => {
       const conv = createNewConversation();
-      saveConversation(conv);
-      expect(loadConversations()).toHaveLength(1);
-      deleteConversation(conv.id);
-      expect(loadConversations()).toHaveLength(0);
+      await saveConversation(conv);
+      expect(await loadConversations()).toHaveLength(1);
+      await deleteConversation(conv.id);
+      expect(await loadConversations()).toHaveLength(0);
     });
 
     it('getConversationPreview returns first user message', () => {

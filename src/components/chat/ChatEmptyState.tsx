@@ -33,11 +33,16 @@ export const ChatEmptyState = ({
   const { teaching } = useDailyTeaching();
 
   useEffect(() => {
-    const all = loadConversations();
-    const candidate = all
-      .filter((c) => c.id !== currentConversationId && c.messages.some((m) => m.role === 'user'))
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
-    setLastConvo(candidate ?? null);
+    let cancelled = false;
+    (async () => {
+      const all = await loadConversations();
+      if (cancelled) return;
+      const candidate = all
+        .filter((c) => c.id !== currentConversationId && c.messages.some((m) => m.role === 'user'))
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+      setLastConvo(candidate ?? null);
+    })();
+    return () => { cancelled = true; };
   }, [currentConversationId]);
 
   if (!lastConvo && !teaching?.caption) return null;

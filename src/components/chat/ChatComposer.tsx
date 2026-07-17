@@ -289,6 +289,7 @@ export function ChatComposer({
           <PromptInputTools>
             {(
               <Button
+                data-testid="start-voice-input-button"
                 type="button"
                 size="icon-sm"
                 variant="ghost"

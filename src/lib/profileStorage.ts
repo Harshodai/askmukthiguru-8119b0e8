@@ -61,8 +61,16 @@ const EMPTY_PRE_PRACTICE_LOG: PrePracticeLog = {
 const PROFILE_KEY = 'askmukthiguru_profile';
 const MAX_AVATAR_BYTES = 200 * 1024; // 200KB cap to avoid quota issues
 
-const generateId = (): string =>
-  Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
+const generateId = (): string => {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 export const createDefaultProfile = (): UserProfile => {
   const now = new Date();

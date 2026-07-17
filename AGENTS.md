@@ -369,3 +369,22 @@ Full 5-phase emergent security audit. 93% pass rate. 30+ fixes across rate limit
 - **View logs**: `railway logs` (shows interleaved from all deployments; use `--deployment <id>` for specific)
 - **Environment variables**: Set via `railway variables --json '{"KEY": "value"}'` or dashboard
 - **Key env vars for backend**: `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `REDIS_URL`, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `IS_PRODUCTION=true`
+
+### Railway Env Access
+To read Railway service env vars locally (useful for Supabase Admin API, debugging):
+```bash
+railway run --service askmukthiguru-8119b0e8 --environment production -- python3 -c "import os; print(os.environ.get('SUPABASE_URL'))"
+```
+
+### Forcing Railway Deploy
+`railway up` skips if tarball hash matches. Make a real file change to force build. `railway up --message "..."` alone does NOT force a build.
+
+### Supabase — Create E2E Test User in Production
+Supabase project `ozmjeuqbholoxypfxixb` has `mailer_autoconfirm: false`. Use service_role key via `railway run` + Admin API:
+1. `railway run --service askmukthiguru-8119b0e8 --environment production -- python3 -c "import os; supabase_key = os.environ.get('SUPABASE_KEY', ''); print('SERVICE_KEY obtained (not printed)', len(supabase_key) > 0)"` to confirm SERVICE_KEY is available (don't print the key)
+2. Use the key directly in the Admin API request: `curl -X POST https://ozmjeuqbholoxypfxixb.supabase.co/auth/v1/admin/users -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY" -H "Content-Type: application/json" -d '{"email":"test@example.com","password":"test123","email_confirm":true}'`
+3. Sign in with password grant to get `access_token`
+4. Delete user after: `DELETE /auth/v1/admin/users/{id}`
+
+### start_railway.py — Blocking Import Fix
+`_run_real_lifespan()` must NOT import `app.main` directly on the event loop — PyTorch model loading blocks for 10-30s, freezing health checks. Use `asyncio.to_thread(_import_real_app)`. If Railway health check says "service unavailable" but build succeeds, the event loop is likely blocked by a synchronous import. See `lessons.md` "Jul 17, 2026 — Blocking Import on Event Loop Freezes Health Check".

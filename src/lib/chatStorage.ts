@@ -1,5 +1,22 @@
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
+import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
+import type { SupportedStorage } from '@supabase/supabase-js';
+
+const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+
+const storage: SupportedStorage = isNative
+  ? {
+      async getItem(key: string) { return (await Preferences.get({ key }))?.value ?? null; },
+      async setItem(key: string, value: string) { await Preferences.set({ key, value }); },
+      async removeItem(key: string) { await Preferences.remove({ key }); },
+    }
+  : {
+      getItem(key: string) { return Promise.resolve(localStorage.getItem(key)); },
+      setItem(key: string, value: string) { localStorage.setItem(key, value); return Promise.resolve(); },
+      removeItem(key: string) { localStorage.removeItem(key); return Promise.resolve(); },
+    };
 
 export interface MessageFeedback {
   vote: 'up' | 'down';
@@ -162,7 +179,14 @@ export const setRetentionDays = (days: number): void => {
 const MAX_CONVERSATIONS = getMaxConversations();
 
 export const generateId = (): string => {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 };
 
 // Legacy functions for backward compatibility
@@ -249,10 +273,148 @@ async function syncConversationToDb(conversation: Conversation): Promise<void> {
   }
 }
 
-// Multi-conversation functions
-export const saveConversation = (conversation: Conversation, notify: boolean = true): void => {
+const isUuid = (str: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
+async function readConversationsRaw(): Promise<string | null> {
+  return storage.getItem(CONVERSATIONS_KEY);
+}
+
+async function writeConversationsRaw(value: string): Promise<void> {
+  await storage.setItem(CONVERSATIONS_KEY, value);
+}
+
+async function removeConversationsRaw(): Promise<void> {
+  await storage.removeItem(CONVERSATIONS_KEY);
+}
+
+async function readCurrentIdRaw(): Promise<string | null> {
+  return storage.getItem(CURRENT_CONVERSATION_KEY);
+}
+
+async function writeCurrentIdRaw(value: string): Promise<void> {
+  await storage.setItem(CURRENT_CONVERSATION_KEY, value);
+}
+
+export const loadConversations = async (): Promise<Conversation[]> => {
+  let stored: string | null = null;
+  let currentId: string | null = null;
+
   try {
-    const conversations = loadConversations();
+    stored = await readConversationsRaw();
+    currentId = await readCurrentIdRaw();
+  } catch (storageError) {
+    console.error('Storage read error — preserving data and degrading gracefully:', storageError);
+    return [];
+  }
+
+  if (stored) {
+    let parsed: any;
+    try {
+      parsed = JSON.parse(stored);
+    } catch (parseError) {
+      console.error('Failed to parse conversations JSON — clearing corrupted data:', parseError);
+      await removeConversationsRaw().catch(() => {});
+      return [];
+    }
+
+    if (!Array.isArray(parsed)) {
+      console.error('Parsed conversations is not an array — clearing corrupted data');
+      await removeConversationsRaw().catch(() => {});
+      return [];
+    }
+
+    let migrated = false;
+    let replacementCurrentId: string | null = null;
+
+    try {
+      parsed = parsed.map((conv: any) => {
+        let convChanged = false;
+        let newConvId = conv.id;
+
+        if (!isUuid(conv.id)) {
+          newConvId = generateId();
+          convChanged = true;
+          migrated = true;
+        }
+
+        if (currentId === conv.id && convChanged) {
+          replacementCurrentId = newConvId;
+        }
+
+        const messages = (conv.messages || []).map((msg: any) => {
+          let msgChanged = false;
+          let newMsgId = msg.id;
+
+          if (!isUuid(msg.id)) {
+            newMsgId = generateId();
+            msgChanged = true;
+            migrated = true;
+          }
+
+          if (msgChanged || convChanged) {
+            return {
+              ...msg,
+              id: newMsgId,
+            };
+          }
+          return msg;
+        });
+
+        if (convChanged) {
+          return {
+            ...conv,
+            id: newConvId,
+            messages,
+          };
+        } else if (migrated) {
+          return {
+            ...conv,
+            messages,
+          };
+        }
+        return conv;
+      });
+
+      if (migrated) {
+        await writeConversationsRaw(JSON.stringify(parsed));
+      }
+
+      if (replacementCurrentId) {
+        await writeCurrentIdRaw(replacementCurrentId);
+      }
+    } catch (migrationError) {
+      console.error('Migration error — preserving data and degrading gracefully:', migrationError);
+      return [];
+    }
+
+    const result = z.array(ConversationSchema).safeParse(parsed);
+    if (!result.success) {
+      console.error('Corrupted conversations — clearing:', result.error.message);
+      await removeConversationsRaw().catch(() => {});
+      return [];
+    }
+    return result.data as Conversation[];
+  }
+
+  return [];
+};
+
+export const loadConversation = async (id: string): Promise<Conversation | null> => {
+  try {
+    const conversations = await loadConversations();
+    return conversations.find(c => c.id === id) || null;
+  } catch (error) {
+    console.error('Failed to load conversation:', error);
+  }
+  return null;
+};
+
+export const saveConversation = async (conversation: Conversation, notify: boolean = true): Promise<void> => {
+  try {
+    const conversations = await loadConversations();
     const existingIndex = conversations.findIndex(c => c.id === conversation.id);
 
     if (existingIndex >= 0) {
@@ -261,70 +423,36 @@ export const saveConversation = (conversation: Conversation, notify: boolean = t
       conversations.unshift(conversation);
     }
 
-    // Keep only the last MAX_CONVERSATIONS
     const trimmed = conversations.slice(0, getMaxConversations());
-    localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(trimmed));
+    await writeConversationsRaw(JSON.stringify(trimmed));
 
-    // Notify sidebar (DesktopSidebar listens for this to reload its list).
-    // Streaming checkpoints can opt out to avoid sidebar reload jank every 500ms.
     if (notify) {
       window.dispatchEvent(new CustomEvent('conversation:updated'));
-      // Mirror to DB on user-visible checkpoints (not every streaming tick).
       void syncConversationToDb(conversation);
     }
   } catch (error) {
     console.error('Failed to save conversation:', error);
+    throw error;
   }
 };
 
 
-export const loadConversations = (): Conversation[] => {
+export const deleteConversation = async (id: string): Promise<void> => {
   try {
-    const stored = localStorage.getItem(CONVERSATIONS_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      const result = z.array(ConversationSchema).safeParse(parsed);
-      if (!result.success) {
-        console.error('Corrupted conversations — clearing:', result.error.message);
-        localStorage.removeItem(CONVERSATIONS_KEY);
-        return [];
-      }
-      return result.data as Conversation[];
+    const conversations = await loadConversations();
+    const filtered = conversations.filter(c => c.id !== id);
+    await writeConversationsRaw(JSON.stringify(filtered));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      await supabase.from('chat_messages').delete().eq('conversation_id', id);
+      await supabase.from('conversations').delete().eq('id', id);
+    } catch (e) {
+      console.warn('Cloud delete skipped:', e);
     }
   } catch (error) {
-    console.error('Failed to load conversations — clearing corrupted data:', error);
-    localStorage.removeItem(CONVERSATIONS_KEY);
-  }
-  return [];
-};
-
-export const loadConversation = (id: string): Conversation | null => {
-  try {
-    const conversations = loadConversations();
-    return conversations.find(c => c.id === id) || null;
-  } catch (error) {
-    console.error('Failed to load conversation:', error);
-  }
-  return null;
-};
-
-export const deleteConversation = (id: string): void => {
-  try {
-    const conversations = loadConversations();
-    const filtered = conversations.filter(c => c.id !== id);
-    localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(filtered));
-    void (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user?.id) return;
-        await supabase.from('chat_messages').delete().eq('conversation_id', id);
-        await supabase.from('conversations').delete().eq('id', id);
-      } catch (e) {
-        console.warn('Cloud delete skipped:', e);
-      }
-    })();
-  } catch (error) {
     console.error('Failed to delete conversation:', error);
+    throw error;
   }
 };
 
@@ -332,75 +460,76 @@ export const deleteConversation = (id: string): void => {
  * Purge conversations older than `days` days from local storage.
  * Never deletes the currently active conversation.
  */
-export const purgeConversationsByAge = (days: number): void => {
+export const purgeConversationsByAge = async (days: number): Promise<void> => {
   try {
-    const currentId = getCurrentConversationId();
+    const currentId = await getCurrentConversationId();
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    const conversations = loadConversations();
+    const conversations = await loadConversations();
     const keep = conversations.filter(
       (c) => c.id === currentId || new Date(c.updatedAt).getTime() >= cutoff
     );
     if (keep.length < conversations.length) {
-      localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(keep));
+      await writeConversationsRaw(JSON.stringify(keep));
     }
   } catch (error) {
     console.error('Failed to purge old conversations:', error);
   }
 };
 
-export const renameConversation = (id: string, newTitle: string): void => {
+export const renameConversation = async (id: string, newTitle: string): Promise<void> => {
   try {
-    const conversations = loadConversations();
+    const conversations = await loadConversations();
     const index = conversations.findIndex(c => c.id === id);
     if (index >= 0) {
       conversations[index].preview = newTitle;
       conversations[index].updatedAt = new Date();
-      localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
-      void (async () => {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session?.user?.id) return;
-          await supabase
-            .from('conversations')
-            .update({ title: newTitle, preview: newTitle, updated_at: new Date().toISOString() })
-            .eq('id', id);
-        } catch (e) {
-          console.warn('Cloud rename skipped:', e);
-        }
-      })();
+      await writeConversationsRaw(JSON.stringify(conversations));
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) return;
+        await supabase
+          .from('conversations')
+          .update({ title: newTitle, preview: newTitle, updated_at: new Date().toISOString() })
+          .eq('id', id);
+      } catch (e) {
+        console.warn('Cloud rename skipped:', e);
+      }
     }
   } catch (error) {
     console.error('Failed to rename conversation:', error);
+    throw error;
   }
 };
 
 
-export const updateConversationSummary = (id: string, summary: string): void => {
+export const updateConversationSummary = async (id: string, summary: string): Promise<void> => {
   try {
-    const conversations = loadConversations();
+    const conversations = await loadConversations();
     const index = conversations.findIndex(c => c.id === id);
     if (index >= 0) {
       conversations[index].summary = summary;
-      localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
+      await writeConversationsRaw(JSON.stringify(conversations));
     }
   } catch (error) {
     console.error('Failed to update conversation summary:', error);
+    throw error;
   }
 };
 
-export const getCurrentConversationId = (): string | null => {
+export const getCurrentConversationId = async (): Promise<string | null> => {
   try {
-    return localStorage.getItem(CURRENT_CONVERSATION_KEY);
+    return await storage.getItem(CURRENT_CONVERSATION_KEY);
   } catch (error) {
     return null;
   }
 };
 
-export const setCurrentConversationId = (id: string): void => {
+export const setCurrentConversationId = async (id: string): Promise<void> => {
   try {
-    localStorage.setItem(CURRENT_CONVERSATION_KEY, id);
+    await storage.setItem(CURRENT_CONVERSATION_KEY, id);
   } catch (error) {
     console.error('Failed to set current conversation:', error);
+    throw error;
   }
 };
 
