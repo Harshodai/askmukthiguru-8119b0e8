@@ -55,8 +55,8 @@ COPY --chown=appuser:appuser backend/ .
 # OKF compiled index and memory files from repo root
 COPY --chown=appuser:appuser memory/ ./memory/
 
-# Create data directory and ensure proper permissions for non-root user
-RUN mkdir -p /app/data
+# Create data and logs directories with proper ownership for non-root runtime user
+RUN mkdir -p /app/data /app/logs && chown -R appuser:appuser /app/data /app/logs
 
 # Production environment flags — TOKEN OPTIMIZATION ENABLED
 ENV ENV=production \
