@@ -93,6 +93,11 @@ export default function AdminLoginPage() {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Signing in…" : "Sign in"}
               </Button>
+              <div className="mt-3 text-center">
+                <Link to="/auth" className="text-xs text-muted-foreground hover:text-foreground hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
             </form>
             <div className="mt-4 text-center text-sm text-muted-foreground">
               <Link to="/" className="hover:text-foreground">
