@@ -661,6 +661,48 @@ def enforce_source_diversity(citations: list[dict | str], min_distinct: int = 2)
     return result
 
 
+_CITE_MARKER_RE = re.compile(r"\[\[CITE:(\d{1,3})\]\]")
+
+
+def remap_citation_markers(answer: str, relevant_docs: list[dict], final_citations: list) -> str:
+    """Rewrite inline [N] markers so they point at `final_citations` positions.
+
+    [N] markers are generated (by `_cite_sentences` and the [Source: Title]
+    conversion in format_final_answer) using 1-based position in the RAW
+    `relevant_docs` list. But the `citations` array actually sent to the
+    frontend is a DIFFERENT list — `_grounded_citation_urls` drops docs
+    without a resolvable URL (shifting positions), and `enforce_source_diversity`
+    reorders the top 3 for variety (also shifting positions) — both AFTER the
+    markers are already baked into the text. Without this remap, [N] in the
+    answer can point at the wrong entry in the citations array the frontend
+    indexes into. Call once, after `final_citations` is fully finalized
+    (post-injection, post-diversity, post-stringification).
+    """
+    if not answer or "[" not in answer:
+        return answer
+
+    final_urls = [
+        (c.get("url") or c.get("source")) if isinstance(c, dict) else c
+        for c in final_citations
+    ]
+
+    def _replace(m: re.Match) -> str:
+        n = int(m.group(1))
+        if n < 1 or n > len(relevant_docs):
+            logger.debug("dropping out-of-range citation index [%d]", n)
+            return ""
+        url = (relevant_docs[n - 1].get("source_url") or "").strip()
+        if not url:
+            return ""  # this doc never had a citable URL; marker shouldn't exist
+        try:
+            new_pos = final_urls.index(url) + 1
+        except ValueError:
+            return ""  # dropped from the final citations list (e.g. deduped)
+        return f"[{new_pos}]"
+
+    return _CITE_MARKER_RE.sub(_replace, answer)
+
+
 def _persist_trace_span(request_id: str, node_name: str, start_time: float, duration_ms: float, status: str = "ok", metadata: dict = None) -> None:
     """Persist a trace span to the telemetry DB asynchronously (fire-and-forget)."""
     if not request_id:

@@ -167,6 +167,8 @@ class Settings(BaseSettings):
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = ""
+    kg_max_query_len: int = Field(default=4_000, gt=0)
+    kg_query_timeout_s: float = Field(default=5.0, gt=0)
 
     # --- Embeddings (config-driven: switch models via env vars) ---
     # Supported: "BAAI/bge-m3" (default, best multilingual, 1024-dim dense+sparse+ColBERT)
@@ -456,6 +458,34 @@ class Settings(BaseSettings):
     # Ingestion, ontology seeder, and Qdrant-only paths are unaffected.
     knowledge_graph_query_enabled: bool = True
 
+    # --- GraphRAG Fusion (multi-hop vector + KG) ---
+    graphrag_fusion_enabled: bool = Field(default=False, description="Enable GraphRAG fusion (multi-hop vector+KG)")
+    graphrag_max_hops: int = Field(default=2, gt=0, le=5)
+    graphrag_token_budget: int = Field(default=4000, gt=0, le=8000)
+
+    @model_validator(mode="after")
+    def validate_graphrag_token_budget(self):
+        """Ensure graphrag_token_budget leaves safety headroom under max_tokens_per_request."""
+        max_tokens = getattr(self, "max_tokens_per_request", 12000)
+        budget = getattr(self, "graphrag_token_budget", 4000)
+        # Reserve 20% headroom for prompt overhead, system instructions, history
+        headroom = max_tokens * 0.8
+        if budget > headroom:
+            raise ValueError(
+                f"graphrag_token_budget ({budget}) exceeds 80% of max_tokens_per_request "
+                f"({max_tokens}). Reduce budget or increase max_tokens_per_request."
+            )
+        return self
+
+    # --- Web Ingestion ---
+    web_ingest_max_response_bytes: int = Field(default=5 * 1024 * 1024, ge=1024, le=50 * 1024 * 1024)
+    web_ingest_page_timeout: int = Field(default=30_000, ge=5000, le=120_000)
+    web_ingest_max_dom_chars: int = Field(default=500_000, ge=10_000, le=2_000_000)
+    ingest_url_max_retries: int = Field(default=2, ge=0, le=10)
+    ingest_url_retry_delay: int = Field(default=30, ge=1, le=3600)
+    ingest_url_soft_time_limit: int = Field(default=120, ge=30, le=600)
+    ingest_url_time_limit: int = Field(default=180, ge=60, le=900)
+
     # --- Observability ---
     enable_correlation_ids: bool = True  # Add UUID correlation IDs to all logs/traces
 
@@ -492,6 +522,13 @@ class Settings(BaseSettings):
         "anthropic:claude-haiku-4-5-20251001,"
         "openai:gpt-5.4"
     )
+
+    # --- LLM Gateway cross-provider fallback (services/llm_gateway.py — the
+    # actual LLMGateway class; distinct from the emergentintegrations concept
+    # above). Default OFF: routing a failed request to a DIFFERENT vendor is a
+    # deliberate security-audit decision (see app/container.py:188-190) — only
+    # flip this on as an explicit opt-in.
+    llm_gateway_cross_provider_fallback: bool = False
 
     # --- Persona controls (Phase B — guru voice quality) ---
     # When True, the generation node strips the canned "*Note: Based on what I found...*"
@@ -781,6 +818,16 @@ def get_settings() -> Settings:
 # Module-level convenience — import from anywhere:
 # from app.config import settings
 settings = get_settings()
+
+if __name__ == "__main__":
+    import json
+
+    s = get_settings()
+    validated = {
+        "kg_max_query_len": s.kg_max_query_len,
+        "kg_query_timeout_s": s.kg_query_timeout_s,
+    }
+    print(f"Settings ok: {json.dumps(validated)}")
 
 
 

@@ -1,0 +1,76 @@
+# ============================================================================
+# DPROD-style Semantic Data Product descriptor for the AskMukthiGuru
+# doctrine knowledge graph.
+#
+# Tony Seale's "Philosophy Eats AI": publish your KG as a governed semantic
+# data product — described, discoverable, licensed, with SLOs — rather than
+# an anonymous Neo4j bucket. This descriptor is the contract.
+# Spec inspiration: DPROD (Data Product Descriptor) + DCAT + ODRL.
+# ============================================================================
+
+dprod: "1.0"
+id: "urn:dprod:askmukthiguru:doctrine-kg"
+name: "Ekam Doctrine Knowledge Graph"
+version: "1.0.0"                 # keep in lockstep with domain.spiritual_ontology.ONTOLOGY_VERSION
+status: "active"
+
+description: >
+  The canonical, ontology-governed knowledge graph of the Ekam (Sri Preethaji
+  & Sri Krishnaji) teachings: concepts, practices, states, teachers, texts,
+  and the typed relations between them. Powers knowledge-graph retrieval and
+  the KG browsing UI. Grounded — every teaching cites its source.
+
+# --- Ownership & governance -------------------------------------------------
+owner:
+  team: "knowledge-engineering"
+  contact: "kg@askmukthiguru.com"
+domain: "spiritual-teachings"
+maturity: "production"
+
+# --- Schema (the ontological core) ------------------------------------------
+schema:
+  ontology: "backend/domain/spiritual_ontology.py"
+  ontology_version: "1.0.0"
+  upper_alignment: "backend/domain/upper_ontology_mapping.py"
+  validation_shapes: "backend/domain/ontology_shapes.ttl"
+  vocabularies: ["schema.org", "SKOS", "BFO", "DCTERMS", "OWL"]
+
+# --- Data contract ----------------------------------------------------------
+output_ports:
+  - name: "neo4j-bolt"
+    type: "graph-database"
+    protocol: "bolt"
+    environment: "railway"
+  - name: "rdf-export"
+    type: "rest"
+    format: "text/turtle"
+    path: "/api/ontology/export?format=turtle"
+    generated_by: "services/ontology_exporter.py::OntologyExporter.to_rdf_turtle"
+  - name: "jsonld-export"
+    type: "rest"
+    format: "application/ld+json"
+    path: "/api/ontology/export?format=jsonld"
+    generated_by: "services/ontology_exporter.py::OntologyExporter.to_jsonld"
+  - name: "kg-query-api"
+    type: "rest"
+    path: "/api/kg/sparql"
+    access: "admin-only, read-only, token-boundary-guarded (see app/api/kg.py)"
+
+# --- Quality SLOs -------------------------------------------------------------
+slo:
+  grounding_coverage: ">= 0.98"   # teachings with a cited source (SHACL TeachingShape)
+  concept_definition_coverage: "= 1.0"   # every concept has skos:definition
+  shacl_conformance: "100% SHACL shape conformance on errors (fatal violations block ingestion); warnings reviewed monthly — requires pyshacl (optional dep, container images should pre-install it)"
+  freshness: "re-seeded on each ontology MINOR release"
+
+# --- License & access ---------------------------------------------------------
+license: "proprietary — internal product use; not for redistribution"
+access_control: "admin read-only via hardened endpoint; no public SPARQL"
+pii: "none (doctrine only — no user data in this graph)"
+
+# --- Change management ----------------------------------------------------------
+change_policy: >
+  Ontology changes follow semantic versioning (MAJOR=breaking, MINOR=additive,
+  PATCH=docs). Every release bumps ONTOLOGY_VERSION, regenerates the RDF export,
+  re-runs SHACL validation, and records a changelog entry. Relations are
+  asserted with provenance (source, confidence, valid_from/valid_until).

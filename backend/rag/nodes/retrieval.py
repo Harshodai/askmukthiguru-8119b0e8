@@ -1010,6 +1010,25 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             f"Fallback search added {len(all_docs) - (len(all_docs) - len(fallback_results))} docs. Total: {len(all_docs)}"
         )
 
+    # GraphRAG Fusion — multi-hop vector + KG retrieval fused via RRF.
+    # Runs BEFORE score cutoff, dedup, MMR, compression, and budget processing
+    # so fused results participate in all downstream quality safeguards.
+    if (
+        _services._graphrag_fusion is not None
+        and getattr(settings, "graphrag_fusion_enabled", False)
+    ):
+        try:
+            from services.graphrag_fusion import ContextItem
+            fused = await _services._graphrag_fusion.retrieve(base_question)
+            if fused.items:
+                fused_docs = [
+                    {"text": i.text, "score": i.score, "channel": i.channel, "provenance": i.provenance}
+                    for i in fused.items
+                ]
+                all_docs = fused_docs + all_docs
+        except Exception as e:
+            logger.warning("GraphRAG fusion failed (non-fatal): %s", type(e).__name__)
+
     # Drop documents far below the top score (fewer-but-better chunks)
     if getattr(settings, "retrieval_score_delta_enabled", False):
         all_docs = _apply_score_delta_cutoff(all_docs, score_key="score")

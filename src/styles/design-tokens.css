@@ -1,0 +1,115 @@
+/* ============================================================================
+   AskMukthiGuru — "Sacred Minimal" design tokens (canonical single import)
+   Reconciles tailwind.config.ts + src/index.css into one source of truth.
+   Import once in src/index.css:  @import "./styles/design-tokens.css";
+   ========================================================================== */
+
+:root {
+  /* --- core surfaces (light) --- */
+  --background: 40 30% 96%;
+  --foreground: 25 25% 20%;
+  --card: 40 33% 98%;
+  --card-foreground: 25 25% 20%;
+  --popover: 40 33% 98%;
+  --popover-foreground: 25 25% 20%;
+  --muted: 38 20% 90%;
+  --muted-foreground: 28 15% 42%;
+  --border: 36 18% 85%;
+  --input: 36 18% 85%;
+  --ring: 200 60% 40%;
+  --focus: 200 60% 25%;
+
+  /* --- sacred gold (ojas) --- */
+  --primary: 43 96% 56%;
+  --primary-foreground: 40 30% 10%;
+  --ojas-gold: 43 96% 56%;
+  --ojas-gold-light: 45 100% 70%;
+  --ojas-gold-dark: 40 90% 45%;
+
+  /* --- inner radiance (tejas) --- */
+  --tejas-white: 35 30% 25%;
+  --tejas-glow: 40 40% 35%;
+
+  /* --- calm breath (prana) --- */
+  --prana-blue: 200 60% 55%;
+  --prana-blue-light: 195 65% 70%;
+  --prana-blue-dark: 205 55% 45%;
+
+  /* --- functional --- */
+  --secondary: 38 25% 92%;
+  --secondary-foreground: 28 20% 25%;
+  --accent: 43 60% 90%;
+  --accent-foreground: 40 30% 15%;
+  --destructive: 8 45% 58%;       /* terracotta, not harsh red */
+  --destructive-foreground: 40 30% 98%;
+  --success: 150 20% 55%;         /* sage */
+  --warning: 40 55% 60%;          /* amber */
+
+  /* --- radius --- */
+  --radius: 1rem;
+  --radius-bubble: 1.25rem;
+  --radius-card: 1rem;
+  --radius-pill: 999px;
+
+  /* --- elevation (warm) --- */
+  --shadow-sm: 0 1px 2px hsl(25 30% 10% / 0.06);
+  --shadow-md: 0 4px 16px hsl(25 30% 10% / 0.08);
+  --shadow-lg: 0 12px 40px hsl(25 30% 10% / 0.12);
+  --glow-gold: 0 0 24px hsl(var(--ojas-gold) / 0.35);
+
+  /* --- motion --- */
+  --ease-sacred: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 150ms;
+  --dur-med: 300ms;
+  --dur-slow: 600ms;
+
+  /* --- type --- */
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+.dark {
+  --background: 25 18% 8%;
+  --foreground: 40 30% 92%;
+  --card: 25 20% 11%;
+  --card-foreground: 40 30% 92%;
+  --popover: 25 20% 11%;
+  --popover-foreground: 40 30% 92%;
+  --muted: 25 15% 18%;
+  --muted-foreground: 38 15% 62%;
+  --border: 30 15% 20%;
+  --input: 30 15% 20%;
+  --ring: 200 50% 60%;
+  --focus: 200 60% 70%;
+
+  --primary: 43 96% 60%;
+  --primary-foreground: 25 30% 8%;
+  --ojas-gold: 43 96% 60%;
+
+  --secondary: 28 18% 16%;
+  --secondary-foreground: 40 25% 85%;
+  --accent: 40 30% 18%;
+  --accent-foreground: 43 80% 75%;
+
+  --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.3);
+  --shadow-md: 0 4px 16px hsl(0 0% 0% / 0.4);
+  --shadow-lg: 0 12px 40px hsl(0 0% 0% / 0.5);
+}
+
+/* --- reduced motion: respect the user's nervous system --- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --- sacred focus ring (keyboard users) --- */
+:focus-visible {
+  outline: 2px solid hsl(var(--focus));
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}

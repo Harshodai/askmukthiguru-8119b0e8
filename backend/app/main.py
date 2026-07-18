@@ -97,6 +97,7 @@ from routers.notebooks import router as notebooks_router
 from app.api.srs import router as srs_router
 from app.api.push import router as push_router
 from app.api.cancel_flow import router as cancel_flow_router
+from app.api.retention import router as retention_router
 
 # Job and trace routers are imported where needed below to avoid
 # heavy imports during module load.
@@ -702,9 +703,14 @@ app.include_router(notebooks_router, prefix="/api")
 app.include_router(srs_router, prefix="/api")
 app.include_router(push_router, prefix="/api")
 app.include_router(cancel_flow_router, prefix="/api")
+app.include_router(retention_router)
 from app.api.kg import router as kg_router
 
 app.include_router(kg_router, prefix="/api")
+
+from app.api.second_brain import router as second_brain_router
+
+app.include_router(second_brain_router, prefix="/api")
 
 from app.api.job_routes import router as job_router
 

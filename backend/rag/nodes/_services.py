@@ -21,6 +21,8 @@ _reranker: Any = None
 _web_search: Any = None
 _sarvam_cloud: Any = None
 _doctrine_service: Any = None
+_llm_gateway: Any = None
+_graphrag_fusion: Any = None
 
 
 # InMemoryCacheAdapter fallback removed (Unit 8) — missing service is now a hard error
@@ -37,6 +39,8 @@ def init_services(
     semantic_cache: Any = None,
     sarvam_cloud: Any = None,
     doctrine_service: Any = None,
+    llm_gateway: Any = None,
+    graphrag_fusion: Any = None,
 ) -> None:
     """Inject service dependencies into the nodes module.
 
@@ -59,7 +63,7 @@ def init_services(
     from services.lettuce_detect_service import LettuceDetectService
     from services.reranker_service import RerankerService
 
-    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _semantic_cache, _sarvam_cloud, _doctrine_service
+    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _semantic_cache, _sarvam_cloud, _doctrine_service, _llm_gateway, _graphrag_fusion
 
     _ollama = ollama
     _embedder = embedder
@@ -70,6 +74,8 @@ def init_services(
     _sarvam_cloud = sarvam_cloud
     _semantic_cache = semantic_cache
     _doctrine_service = doctrine_service
+    _llm_gateway = llm_gateway
+    _graphrag_fusion = graphrag_fusion
 
     _reranker = RerankerService()
     _lettuce_detect = LettuceDetectService(embedder)
@@ -103,7 +109,7 @@ def init_services(
 
 def clear_services() -> None:
     """Clear all injected service references. Called during container shutdown."""
-    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _semantic_cache, _sarvam_cloud, _doctrine_service
+    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _semantic_cache, _sarvam_cloud, _doctrine_service, _graphrag_fusion
     _ollama = None
     _embedder = None
     _qdrant = None
@@ -115,6 +121,7 @@ def clear_services() -> None:
     _semantic_cache = None
     _sarvam_cloud = None
     _doctrine_service = None
+    _graphrag_fusion = None
 
 
 def get_services_status() -> dict:
@@ -131,6 +138,7 @@ def get_services_status() -> dict:
         "semantic_cache": _semantic_cache is not None,
         "sarvam_cloud": _sarvam_cloud is not None,
         "doctrine_service": _doctrine_service is not None,
+        "graphrag_fusion": _graphrag_fusion is not None,
     }
 
 

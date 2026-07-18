@@ -1,0 +1,63 @@
+# =============================================================================
+# Fastlane — iOS (App Store Connect / TestFlight) for AskMukthiGuru
+# Place at: ios/fastlane/Fastfile
+# Requires: App Store Connect API key (AuthKey.p8) + bundle id + team id set
+# in ios/fastlane/Appfile. Capacitor already generated the Xcode project.
+#
+#   fastlane beta     → build + upload to TestFlight
+#   fastlane release  → submit for App Store review
+# =============================================================================
+
+default_platform(:ios)
+
+APP_ID   = "com.askmukthiguru.app"
+SCHEME   = "App"               # Capacitor default scheme; confirm in Xcode
+
+platform :ios do
+  before_all do
+    app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_filepath: "fastlane/AuthKey.p8"
+    )
+  end
+
+  desc "Sync signing via match (recommended) — run `fastlane match init` once"
+  lane :signing do
+    match(type: "appstore", app_identifier: APP_ID, readonly: true)
+  end
+
+  desc "Build + upload to TestFlight"
+  lane :beta do
+    signing
+    build_number = ENV["CI_BUILD_NUMBER"] || (latest_testflight_build_number(app_identifier: APP_ID) + 1 rescue 1)
+    increment_build_number(build_number: build_number, xcodeproj: "App/App.xcodeproj")
+    build_app(
+      scheme: SCHEME,
+      export_method: "app-store",
+      output_directory: "build",
+      output_name: "AskMukthiGuru.ipa"
+    )
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      notify_external_testers: false
+    )
+    UI.success("iOS build uploaded to TestFlight")
+  end
+
+  desc "Submit for App Store review (manual release)"
+  lane :release do
+    signing
+    build_number = ENV["CI_BUILD_NUMBER"] || (latest_testflight_build_number(app_identifier: APP_ID) + 1 rescue 1)
+    increment_build_number(build_number: build_number, xcodeproj: "App/App.xcodeproj")
+    build_app(scheme: SCHEME, export_method: "app-store")
+    upload_to_app_store(
+      submit_for_review: true,
+      automatic_release: false,        # you press "release" after approval
+      force: true,
+      skip_metadata: false,
+      skip_screenshots: true,
+      precheck_include_in_app_purchases: false
+    )
+  end
+end

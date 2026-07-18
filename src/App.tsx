@@ -38,6 +38,7 @@ const SpiritualGuideForAnxietyPage = lazyWithRetry(() => import("./pages/guides/
 const SufferingToBeautifulStatePage = lazyWithRetry(() => import("./pages/guides/SufferingToBeautifulStatePage"));
 const StudyNotebookPage = lazyWithRetry(() => import("./pages/StudyNotebookPage"));
 const KnowledgeGraphPage = lazyWithRetry(() => import("./pages/KnowledgeGraphPage"));
+const SecondBrainPage = lazyWithRetry(() => import("./pages/SecondBrainPage"));
 
 // Admin — gated by VITE_ADMIN_ENABLED (default true). Set to 'false' to strip
 // admin routes + page chunks from the production bundle. Vite replaces
@@ -234,6 +235,7 @@ const App = () => {
               <Route path="/guides/suffering-to-beautiful-state" element={<Suspense fallback={<BrandedSpinner />}><SufferingToBeautifulStatePage /></Suspense>} />
               <Route path="/notebooks" element={<Suspense fallback={<BrandedSpinner />}><StudyNotebookPage /></Suspense>} />
               <Route path="/knowledge-graph" element={<Suspense fallback={<BrandedSpinner />}><KnowledgeGraphPage /></Suspense>} />
+              <Route path="/second-brain" element={<Suspense fallback={<BrandedSpinner />}><SecondBrainPage /></Suspense>} />
               <Route path="*" element={<Suspense fallback={<BrandedSpinner />}><NotFound /></Suspense>} />
             </Route>
           </Routes>

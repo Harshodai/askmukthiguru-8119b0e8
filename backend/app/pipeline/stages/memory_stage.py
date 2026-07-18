@@ -41,6 +41,29 @@ class MemoryStage(Stage):
         citations = ctx.citations
         distress_level = ctx.assessment.level.value if ctx.assessment else 0
 
+        second_brain = getattr(container, "second_brain", None)
+        if second_brain is not None and user_id and user_id != "anonymous":
+
+            async def _second_brain_extract():
+                from services.second_brain.crypto import VaultLockedError
+
+                try:
+                    vault = await second_brain.unlock(user_id)
+                except VaultLockedError:
+                    return
+                except Exception as e:
+                    logger.warning(f"Second Brain unlock failed (non-fatal): {e}")
+                    return
+                with vault:
+                    try:
+                        await second_brain.extract_and_write(
+                            user_id, user_msg, final_answer, vault=vault
+                        )
+                    except Exception as e:
+                        logger.warning(f"Second Brain extraction failed (non-fatal): {e}")
+
+            asyncio.create_task(_second_brain_extract())
+
         if not container.user_profile:
             return None
         try:

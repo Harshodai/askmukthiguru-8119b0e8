@@ -40,6 +40,13 @@ spec:
       labels:
         app.kubernetes.io/component: backend
         {{- include "mukthiguru.selectorLabels" . | nindent 8 }}
+      {{- if and .Values.externalSecret.enabled .Values.externalSecret.target.name }}
+      annotations:
+        checksum/secret-{{ .Values.externalSecret.target.name }}: {{ include (print $.Template.BasePath "/externalsecret.yaml") . | sha256sum }}
+        # Reloader watches the generated Secret (target.name) and triggers rollout on data change
+        reloader.stakater.com/auto: "true"
+        reloader.stakater.com/match: 'secret={{ include "mukthiguru.fullname" . }}-secrets'
+      {{- end }}
     spec:
       imagePullSecrets:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}

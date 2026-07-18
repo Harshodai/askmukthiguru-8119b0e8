@@ -1,5 +1,113 @@
 # Agentic Lessons & Memory
 
+## Jul 18, 2026 — Emergent Security Audit Fixes (30+ issues)
+
+### GraphRAG Token Budget Cross-Field Validation (config.py)
+Added a `model_validator(mode="after")` that bounds `graphrag_token_budget` to 80% of `max_tokens_per_request`. Prevents environment-provided values from creating oversized GraphRAG contexts while preserving positive-value validation and leaving safety headroom for transient service limits.
+
+```python
+@model_validator(mode="after")
+def validate_graphrag_token_budget(self):
+    max_tokens = getattr(self, "max_tokens_per_request", 12000)
+    budget = getattr(self, "graphrag_token_budget", 4000)
+    headroom = max_tokens * 0.8
+    if budget > headroom:
+        raise ValueError(f"graphrag_token_budget ({budget}) exceeds 80% of max_tokens_per_request ({max_tokens})")
+    return self
+```
+
+### Container.py: Neo4j max_hops as Literal + Dual Timeouts
+- `max_hops` validated as `int` >= 1, interpolated as **literal** into Cypher variable-length pattern `-[r*1..{max_hops}]-` (Neo4j doesn't support `$hops` binding in variable-length patterns).
+- Both `_vector_search` (Qdrant) and `_traverse_graph` (Neo4j) wrapped in `asyncio.wait_for(asyncio.to_thread(...), timeout=15)` with inner client timeouts (10s) for safety headroom. Timeout errors logged and return empty results instead of propagating unhandled exceptions.
+
+```python
+# max_hops literal interpolation
+cypher = f"MATCH path = (c:Concept {{uri: $uri}})-[r*1..{max_hops}]-(n) ..."
+
+# Dual timeout pattern
+hits = await asyncio.wait_for(asyncio.to_thread(qdrant.search, ... timeout=10), timeout=15)
+records = await asyncio.wait_for(asyncio.to_thread(_run), timeout=15)
+```
+
+### Retrieval.py: GraphRAG Fusion Before Quality Pipeline
+Moved GraphRAG fusion call **before** score-delta cutoff, dedup, MMR, compression, and budget processing. Fused documents now participate in all downstream safeguards instead of being prepended after.
+
+```python
+# BEFORE score delta, dedup, MMR, compression, budget
+if _services._graphrag_fusion and settings.graphrag_fusion_enabled:
+    fused = await _services._graphrag_fusion.retrieve(base_question)
+    all_docs = fused_docs + all_docs
+```
+
+### System Prompt: Emotional Acknowledgment Only for Emotional Conversations
+Updated voice guidance: "For emotional conversations, acknowledge the person's feeling first, then offer the teaching. For factual and casual questions, begin with the answer directly — do not invent feelings or add emotional framing." Preserves existing "Begin with the answer" behavior for non-emotional queries.
+
+### Humanizer: AI Vocab Detections → report.detections (Not changes)
+`_scrub_ai_vocab` now records detected hype words in `report.detections` (e.g., `"ai-vocab:delve"`) while returning text unchanged. `report.changed` and humanization-rate metrics remain unaffected by these detections. `_NEGATIVE_PARALLELISM` already empty with comment explaining dual-clause constructions ("Not only X, but also Y") are valid rhetorical devices — removing them corrupts meaning.
+
+### Retention Service Fixes
+- `retention_curve`: activity query now constrained by `gte("created_at", cutoff_iso)` — no longer fetches full practice history.
+- `_load_state`: validates `user_id` non-empty before Supabase query; returns default `StreakState()` for anonymous.
+- `_retention_curve`: each horizon `h` counts retained users only within eligible cohort (signup timestamp ≥ `h` days old).
+- `record_practice`: atomic via Supabase RPC `record_practice` (loads, calculates, upserts, logs practice+milestone in single transaction); fallback preserves milestone logging on streak change.
+
+### Web Ingestion Pipeline
+- URL validation (`_validate_and_normalize`, `_validate_redirect`) called **before** every network request and redirect follow; enforces allowlist (Sri Preethaji/Sri Krishnaji YouTube), denies private/cloud-metadata addresses, embedded credentials.
+- `fetch_static`/`fetch_dynamic`/`fetch_stealth` import limits from `app.config.settings`; enforce bounded response/DOM size; configure timeouts from settings with headroom.
+- `to_chunks` loop advance: `advance = max(1, step // 5)` — clamps to ≥1, preventing infinite loop.
+
+### Citation Service
+- `_check_grounding`: requires ≥1 citation in **every substantive paragraph** (>25 words); single short answer (≤25 words) also requires citation; empty context = grounded.
+- `_to_source`: `id` fallback uses `prov["uri"]` before `ctx-{pos}`; `url` populated from `prov["uri"]` when no direct URL.
+- `strip_orphan_markers`: removes `[^0]` and indices > `max_n`; retains only 1..len(context_items).
+
+### GraphRAG Fusion _budget
+Skips oversized items with `continue` instead of breaking iteration; later items fitting within `token_budget` are evaluated and appended.
+
+### Tests
+- `test_grounding_check`: added explicit 25+ word paragraphs; cited = grounded, uncited = not grounded.
+- `test_token_budget`: asserts exactly 4 items (deterministic boundary).
+- `test_self_test`: invokes module `__main__` via `subprocess.run(..., timeout=30)`.
+- `test_at_risk_true_after_two_day_gap`: passes `today=d + timedelta(days=2)` for exact boundary.
+- `test_duplicate_practice_same_day_does_not_increment`: snapshots `before_current`/`before_total` before second call.
+
+---
+
+## Jul 18, 2026 — Phase 2: Second Brain, KG Hardening, Citation Tokens
+
+### Crypto: `_b64d` Strict Mode & KEK Length Enforcement
+**`base64.b64decode(data, validate=True)` rejects padding/length errors eagerly instead of silently mis-decoding.** `derive_server_kek` enforces the decoded output is exactly 32 bytes — no SHA-256 fallback, no silent truncation. A wrong-length `BRAIN_KEK` raises `ValueError` at startup, preventing a weak key from entering production.
+
+Related tests: `test_second_brain.py` — test KEK must be exactly 32 bytes after decode; the fixture `"dGVzdC1vcGVyYXRvci1rZWstMzItYnl0ZXMteHh4eHg="` decodes to `b"test-operator-kek-32-bytes-xxxxx"` (32 bytes exactly). **The old 24-byte test key `"dGVzdC1rZWs="` will now fail.**
+
+### `neo4j.Query(…, timeout=…)` — Query-Level Timeout Over `tx.run(timeout=…)`
+`session.execute_read(_read)` does NOT accept a `timeout` kwarg. Instead, wrap the normalized Cypher in `neo4j.Query(normalized, timeout=db_timeout_s)` and pass it as the first argument to `tx.run(query_obj, **params)`.
+
+**Safety margin pattern:** `db_timeout_s = max(0.5, timeout_s - 0.5)` — gives 500ms headroom for cancellation/cleanup before the asyncio outer deadline. The outer `asyncio.wait_for(…, timeout=timeout_s)` catches anything that exceeds the total budget.
+
+### Token-Aware CALL Scanner (KG Endpoint)
+`_find_call_tokens()` uses `re.finditer` to find `CALL` tokens that are **not inside single/double-quoted strings or backtick identifiers**. Prevents false positives on patterns like `WHERE n.name = 'DO NOT CALL ME'` or `` RETURN `CALL` AS x ``. The naive `query.split("CALL")` approach from Phase 1 flagged those as write operations.
+
+**`_ALLOWED_CALLS` regex:** `^CALL\s+(db\.(labels|relationshiptypes|propertykeys|schema\.visualization|indexes|constraints)|n10s\.inference\.\w+)\s*\(` — only these subprocedures pass the write guard.
+
+### Citation Token Internal Format: `[[CITE:N]]`
+**Internal markers use double-bracket notation `[[CITE:N]]` to avoid collision with ordinary bracketed numbers `[n]`.** The generation stage emits `[[CITE:N]]` from `_cite_sentences` / `replace_source_match`. The `remap_citation_markers` node strips the `CITE:` prefix and outer brackets, producing `[N]` in the final answer. Out-of-range indices are **fully stripped** (return `""` with `logger.debug`) instead of preserving a bare `[n]`.
+
+### VaultIndex Reuses QdrantService's `_client`
+`VaultIndex.__init__` accepts an optional `qdrant_service` parameter. When provided, it reuses `qdrant_service._client` instead of creating a standalone `QdrantClient`. Also accepts direct `QdrantClient` or `AsyncQdrantClient` fallback. Prevents double-connection overhead in the request path.
+
+### `prepare_user_memory` — Second Brain Recall Before User Profile Guard
+The second_brain recall fires **before** the `if not container.user_profile: return None` early return. Otherwise a user who has vault data but no profile entry would never get their personal context injected.
+
+### Atomic Vault Provision Upsert
+`SecondBrainService.provision_vault` uses a try/except `INSERT … ON CONFLICT DO NOTHING` pattern — not a separate `SELECT` check+insert race. If the row already exists, the wrapped DEK is returned from a fallback `SELECT`. This eliminates the TOCTOU race between check and insert.
+
+### `NOTIFY pgrst, 'reload schema'` After FK DDL
+The migration's `alter table … add constraint … deferrable initially deferred` must be followed by `NOTIFY pgrst, 'reload schema'` so PostgREST picks up the new FK constraints without a full restart.
+
+### Test Pattern: Async Guardrails Mock for KG
+`test_kg_endpoint.py` mocks `GuardrailsChain.check_input` as a synchronous `lambda q: {"blocked": False}` — even though the endpoint calls it inside an `async def`. The mock's `execute_read` mock must accept `**kwargs` because `neo4j.Query(normalized, timeout=…)` is passed as a positional arg and the `timeout` is not a kwarg of the mock.
+
 ## Jul 17, 2026 — React State Update Serialization & Vitest Microtask Race Conditions
 
 ### The Bug
@@ -4509,4 +4617,23 @@ interface GoogleOneTapConfig {
 3. **LCP < 1s on Lovable is fine** — the platform's SW overhead adds a baseline of 600-800ms TTFB that you cannot eliminate. The app's own code renders in <200ms after HTML arrives.
 4. **CLS < 0.1 is acceptable** — the 0.02 CLS from platform font swap is negligible.
 5. **Test in incognito with extensions disabled** — Careerflow and other extensions can add 300ms+ of main thread time to the trace, distorting results.
+
+## Worldclass Pack Completion (Jul 18, 2026)
+
+**All 28 code files from the worldclass pack are implemented in the repo.** 9 planning/audit/research docs excluded (not project deliverables). Full inventory at `scripts/security/worldclass_inventory.md` if needed.
+
+### Retention Engine (implemented Jul 18)
+- Worldclass `retention/retention_engine.py` → `backend/services/retention_service.py`
+- `StreakEngine` pure logic kept verbatim. Wrapped in `RetentionService` for Supabase-backed persistence via `user_streaks` + `retention_events` tables.
+- API: `GET /api/retention/streak`, `POST /api/retention/practice`, `GET /api/retention/curve`
+- Migration: `supabase/migrations/20260718000000_user_streaks.sql`
+- Ponytail: no new deps, thin wrapper over worldclass logic, 17 tests pass.
+- CHURN_PLAYBOOK.md → `docs/CHURN_PLAYBOOK.md` (Part 1 usable now; Parts 2-3 reference when Stripe paid tier launches).
+
+### Design Principle: Worldclass → Repo Translation
+1. **Keep core logic pure** — `StreakEngine`, `_retention_curve`, `StreakState` are copy-paste from worldclass with zero changes. All behaviour preserved.
+2. **Wrap in service for I/O** — add a `RetentionService` class that bridges pure logic to Supabase (or Redis, Postgres, etc.) without polluting the pure functions.
+3. **Ponytail integration** — 3 lines in `container.py`, import + include_router in `main.py`, simple migration SQL. No new abstractions.
+4. **Test the pure math** — 17 tests for loop invariants (freeze consumption, regen, at-risk detection, curve math) with zero mocking. The Supabase I/O is trivially simple and tested implicitly via integration.
+5. **Graceful degradation** — `self.retention_service = None` if Supabase unavailable; endpoints return 503. Container build never fails.
 
