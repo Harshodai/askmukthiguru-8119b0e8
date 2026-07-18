@@ -86,7 +86,10 @@ export default {
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
         display: ['Outfit', 'sans-serif'],
-        serif: ['Playfair Display', 'serif'],
+        // Sacred serif — Cormorant Garamond evokes timelessness / temple manuscripts.
+        // Replaces Playfair Display per the Digital Ashram design system.
+        serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+        sacred: ['"Cormorant Garamond"', 'Georgia', 'serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       keyframes: {
