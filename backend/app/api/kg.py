@@ -21,7 +21,10 @@ translation is out of scope (YAGNI).
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
+import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -35,11 +38,109 @@ from domain.spiritual_ontology import ONTOLOGY_VERSION, SEED_CONCEPTS, SEED_RELA
 
 logger = logging.getLogger(__name__)
 
+# Bounded admission control for Neo4j read queries.
+# Limits concurrent residual work when asyncio.wait_for times out
+# (the underlying sync driver thread continues running; this semaphore
+# caps total in-flight queries to prevent unbounded thread pool growth).
+_KG_QUERY_SEMAPHORE = asyncio.Semaphore(10)
+
 router = APIRouter(tags=["kg"])
+
+# Bounded admission control: limit concurrent Neo4j query threads to prevent
+# unbounded residual work when asyncio.wait_for times out. The inner thread
+# (neo4j sync driver) continues executing after timeout; this semaphore
+# caps the total in-flight queries to settings.kg_max_concurrent_queries
+# (default 10) to bound resource consumption.
+_KG_QUERY_SEMAPHORE = asyncio.Semaphore(getattr(settings, "kg_max_concurrent_queries", 10))
+
+
+_COMMENT_RE = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
+_WS_RE = re.compile(r"\s+")
+
+# Word-boundary denylist, checked against every token in the WHOLE normalized
+# query (not just a literal substring search), so a write smuggled inside e.g.
+# FOREACH still gets caught. Comments are stripped and whitespace collapsed
+# first, so 'SET\t' / 'SE/**/T' normalize to a plain 'SET' token and can't
+# dodge this the way the old uppercased-substring check could be dodged.
+_WRITE_TOKENS = {
+    "CREATE", "MERGE", "SET", "DELETE", "DETACH", "REMOVE", "DROP",
+    "CALL", "LOAD", "PERIODIC", "COMMIT", "START", "FOREACH",
+}
+
+# Read-only CALL subprocedures this endpoint explicitly allows: schema
+# inspection plus the n10s inference hook documented above.
+_ALLOWED_CALLS = re.compile(
+    r"^CALL\s+(db\.(labels|relationshiptypes|propertykeys|schema\.visualization|"
+    r"indexes|constraints)|n10s\.inference\.\w+)\s*\(",
+    re.I,
+)
+
+
+def _normalize(query: str) -> str:
+    """Strip Cypher comments and collapse whitespace runs to one space."""
+    no_comments = _COMMENT_RE.sub(" ", query)
+    return _WS_RE.sub(" ", no_comments).strip()
+
+
+_CALL_KW_RE = re.compile(r"\bCALL\b", re.I)
+
+
+def _find_call_tokens(query: str) -> list[int]:
+    """Return start positions of actual Cypher CALL keywords,
+    skipping occurrences inside single/double-quoted strings
+    and backtick-delimited identifiers."""
+    positions: list[int] = []
+    i = 0
+    while i < len(query):
+        if query[i] in ("'", '"'):
+            quote = query[i]
+            i += 1
+            while i < len(query) and query[i] != quote:
+                if query[i] == "\\":
+                    i += 1
+                i += 1
+            i += 1
+        elif query[i] == "`":
+            i += 1
+            while i < len(query) and query[i] != "`":
+                if query[i] == "\\":
+                    i += 1
+                i += 1
+            i += 1
+        elif query[i:i+4].upper() == "CALL" and (i + 4 >= len(query) or not query[i+4].isalnum() or query[i+4] == "_"):
+            positions.append(i)
+            i += 4
+        else:
+            i += 1
+    return positions
+
+
+def _assert_read_only(normalized: str) -> None:
+    tokens = set(_WS_RE.split(normalized.upper()))
+    bad = tokens & _WRITE_TOKENS
+    if "CALL" in bad:
+        call_positions = _find_call_tokens(normalized)
+        if call_positions:
+            all_allowed = True
+            for pos in call_positions:
+                rest = normalized[pos:]
+                if not _ALLOWED_CALLS.match(rest):
+                    all_allowed = False
+                    break
+            if all_allowed:
+                bad.discard("CALL")
+        else:
+            bad.discard("CALL")
+    if bad:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Read-only endpoint. Disallowed token(s): {', '.join(sorted(bad))}",
+        )
 
 
 class SparqlRequest(BaseModel):
-    query: str = Field(..., description="SPARQL or Cypher query string (read-only)")
+    query: str = Field(..., min_length=1, max_length=settings.kg_max_query_len,
+                        description="SPARQL or Cypher query string (read-only)")
     inference: bool = Field(
         False,
         description="If true, also invoke n10s.inference.nodesLabelled for inferred labels.",
@@ -53,15 +154,6 @@ class SparqlResponse(BaseModel):
     count: int
     inference: bool
     note: str | None = None
-
-
-# Read-only guard: reject queries that look like writes.
-_WRITE_KEYWORDS = ("CREATE", "MERGE", "DELETE", "DETACH", "SET ", "DROP", "REMOVE", "CALL APOC", "LOAD CSV")
-
-
-def _is_read_only(query: str) -> bool:
-    q = query.upper()
-    return not any(kw in q for kw in _WRITE_KEYWORDS)
 
 
 def _require_admin(user: Any) -> None:
@@ -80,47 +172,90 @@ def _require_admin(user: Any) -> None:
 
 @router.post("/kg/sparql", response_model=SparqlResponse)
 async def kg_sparql(req: SparqlRequest, user=Depends(get_current_user_from_supabase)) -> SparqlResponse:
-    _require_admin(user)
     """Forward a (read-only) graph query to Neo4j via n10s.
 
     n10s 5.x has no SPARQL engine; the query is executed as read-only Cypher.
-    Prefix with `CYPHER:` to make intent explicit. Writes are rejected.
+    Prefix with `CYPHER:` to make intent explicit. Writes are rejected — both
+    by the token-boundary guard below and, in case that guard is ever
+    bypassed, by the server itself: the query runs inside
+    `session.execute_read`, a Neo4j-enforced read-only transaction, not a
+    plain auto-commit `session.run`.
     """
-    query = req.query.strip()
+    _require_admin(user)
+
+    raw_query = req.query.strip()
+    if not raw_query:
+        raise HTTPException(status_code=400, detail="Empty query.")
+
+    guardrails = getattr(get_container(), "guardrails", None)
+    if guardrails is not None:
+        gr_result = await guardrails.check_input(raw_query)
+        if gr_result.get("blocked"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Query blocked by guardrail: {gr_result.get('reason', 'unknown')}",
+            )
+
+    query = raw_query
     if query.upper().startswith("CYPHER:"):
         query = query[len("CYPHER:"):].strip()
+        if not query:
+            raise HTTPException(status_code=400, detail="Empty query after CYPHER: prefix.")
 
-    if not _is_read_only(query):
-        raise HTTPException(status_code=400, detail="Only read-only queries are accepted.")
+    normalized = _normalize(query)
+    if not normalized:
+        raise HTTPException(status_code=400, detail="Empty query after normalization.")
+    _assert_read_only(normalized)
 
     container = get_container()
     driver = container.neo4j_driver
     if driver is None:
         raise HTTPException(status_code=503, detail="Neo4j driver unavailable.")
 
-    columns: list[str] = []
-    rows: list[dict[str, Any]] = []
-    note = "Executed as read-only Cypher (n10s 5.x has no SPARQL engine)."
+    import asyncio
 
-    try:
-        with driver.session() as session:
-            result = session.run(query)
-            # Bolt 5 gives keys via .keys() after first consumption; collect records.
+    import neo4j
+
+    timeout_s = settings.kg_query_timeout_s
+    db_timeout_s = max(0.5, timeout_s - 0.5)
+    _query = neo4j.Query(normalized, timeout=db_timeout_s)
+
+    def _run() -> tuple[list[str], list[dict[str, Any]]]:
+        def _read(tx):
+            result = tx.run(_query)
             recs = []
             for rec in result:
                 recs.append(rec)
                 if len(recs) >= req.limit:
                     break
-            if recs:
-                columns = list(recs[0].keys())
-            for rec in recs:
-                rows.append({k: rec.get(k) for k in columns})
+            cols = list(recs[0].keys()) if recs else []
+            return cols, [{k: rec.get(k) for k in cols} for rec in recs]
+
+        with driver.session() as session:
+            return session.execute_read(_read)
+
+    uid = user.get("id") if isinstance(user, dict) else getattr(user, "id", "?")
+    started = time.monotonic()
+    try:
+        async with _KG_QUERY_SEMAPHORE:
+            columns, rows = await asyncio.wait_for(asyncio.to_thread(_run), timeout=timeout_s)
+    except (asyncio.TimeoutError, TimeoutError):
+        logger.warning("kg/sparql query timed out (>%.0fs) user=%s", timeout_s, uid)
+        raise HTTPException(status_code=504, detail="Query timed out.")
+    except HTTPException:
+        raise
     except Exception as exc:  # noqa: BLE001
         logger.warning("kg/sparql query failed: %s", exc)
         raise HTTPException(status_code=400, detail="Query execution failed. Check syntax and try again.")
 
+    logger.info(
+        "kg_audit user=%s len=%d rows=%d ms=%.0f query=%s",
+        uid, len(normalized), len(rows), (time.monotonic() - started) * 1000, normalized[:300],
+    )
+
     # Inference hook: when requested, document that n10s.inference.nodesLabelled
     # is available to expand label sets. Full integration is out of scope (YAGNI).
+    note = "Executed as read-only Cypher (n10s 5.x has no SPARQL engine)."
     if req.inference:
         note = (
             "Executed as read-only Cypher. n10s.inference.nodesLabelled/<label> "
@@ -364,8 +499,26 @@ async def ontology_version(
 
 
 if __name__ == "__main__":
-    # Self-check: import + model sanity.
+    # Self-check: import + model sanity + read-only guard bypass coverage.
     assert SubgraphResponse(nodes=[], edges=[], query="x", count=0).count == 0
     assert _teacher_from_labels(["Ekam chunk"]) == "Ekam"
     assert _teacher_from_labels(["Misc"]) == "Misc"
+
+    def _blocked(q: str) -> bool:
+        try:
+            _assert_read_only(_normalize(q))
+            return False
+        except HTTPException:
+            return True
+
+    # legit reads pass
+    _assert_read_only(_normalize("MATCH (n:Concept) RETURN n LIMIT 10"))
+    _assert_read_only(_normalize("CALL db.labels()"))
+    # writes the old uppercased-substring guard missed are all now blocked
+    assert _blocked("MATCH (n) DETACH DELETE n")
+    assert _blocked("MATCH (n) SET\tn.x = 1")                       # whitespace variant
+    assert _blocked("MATCH (n) CALL/**/apoc.create.node([],{})")     # comment-split phrase
+    assert _blocked("LOAD CSV FROM 'file:///etc/passwd' AS row RETURN row")
+    assert _blocked("MATCH (n) FOREACH (x IN [1] | CREATE (m))")
+    assert _blocked("CALL dbms.security.createUser('x','y',false)")  # non-allowlisted CALL
     print("kg.py ok")

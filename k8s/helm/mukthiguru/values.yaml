@@ -208,6 +208,36 @@ jaeger:
       memory: "4Gi"
       cpu: "2"
 
+# --- NetworkPolicy ---
+networkPolicy:
+  enabled: false
+  # Egress proxy (Cilium egress gateway or similar) for controlled external access
+  egressProxy:
+    enabled: false
+    namespace: kube-system
+    labels:
+      app.kubernetes.io/name: egress-proxy
+  # Explicit Supabase destination CIDRs (used when egressProxy.enabled=false)
+  # Replace with your actual Supabase project egress IPs / CIDRs.
+  # Example: ["1.2.3.4/32", "5.6.7.0/24"]
+  supabaseEgressCIDRs: []
+
+# --- ExternalSecret (Vault KEK) ---
+externalSecret:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef:
+    name: prod-secrets
+    kind: ClusterSecretStore
+  target:
+    name: brain-vault
+    creationPolicy: Orphan
+  data:
+    secretKey: BRAIN_KEK
+    remoteRef:
+      key: askmukthiguru/brain
+      property: kek
+
 # --- Service Account ---
 serviceAccount:
   create: false

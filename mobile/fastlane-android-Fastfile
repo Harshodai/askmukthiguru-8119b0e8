@@ -1,0 +1,72 @@
+# =============================================================================
+# Fastlane — Android (Google Play) for AskMukthiGuru
+# Place at: android/fastlane/Fastfile
+# Requires: android/fastlane/Appfile + play-console.json (service account)
+#
+#   fastlane internal   → build AAB + upload to internal track
+#   fastlane beta       → promote internal → closed (beta)
+#   fastlane release    → promote → production
+# =============================================================================
+
+default_platform(:android)
+
+PACKAGE_NAME = "com.askmukthiguru.app"
+AAB_PATH     = "app/build/outputs/bundle/release/app-release.aab"
+
+platform :android do
+  desc "Build a signed release AAB"
+  lane :build do
+    # Derive monotonic versionCode from git commit count
+    version_code = ENV["CI_BUILD_NUMBER"] || `git rev-list --count HEAD`.strip.to_i
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      properties: {
+        "android.injected.signing.store.file" => ENV["KEYSTORE_PATH"],
+        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["KEY_PASSWORD"],
+        "android.injected.version.code" => version_code.to_s,
+      }
+    )
+  end
+
+  desc "Build + upload to Play internal track"
+  lane :internal do
+    build
+    upload_to_play_store(
+      track: "internal",
+      aab: AAB_PATH,
+      json_key: "fastlane/play-console.json",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+    slack_or_log("Android internal build uploaded")
+  end
+
+  desc "Promote internal → closed beta"
+  lane :beta do
+    upload_to_play_store(
+      track: "internal",
+      track_promote_to: "beta",
+      json_key: "fastlane/play-console.json",
+      skip_upload_aab: true
+    )
+  end
+
+  desc "Promote → production (draft; review in Play Console before rolling out)"
+  lane :release do
+    upload_to_play_store(
+      track: "beta",
+      track_promote_to: "production",
+      json_key: "fastlane/play-console.json",
+      skip_upload_aab: true,
+      release_status: "draft"   # never auto-rollout; you press the button
+    )
+  end
+end
+
+def slack_or_log(msg)
+  UI.success(msg)
+end

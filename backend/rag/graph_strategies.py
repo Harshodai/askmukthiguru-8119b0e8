@@ -244,6 +244,8 @@ class StandardGraphStrategy(GraphStrategy):
                 web_search=kwargs.get("web_search"),
                 semantic_cache=kwargs.get("semantic_cache"),
                 sarvam_cloud=kwargs.get("sarvam_cloud"),
+                llm_gateway=kwargs.get("llm_gateway"),
+                graphrag_fusion=kwargs.get("graphrag_fusion"),
             )
 
         graph = StateGraph(GraphState)
@@ -393,6 +395,8 @@ class FastGraphStrategy(GraphStrategy):
                 web_search=kwargs.get("web_search"),
                 semantic_cache=kwargs.get("semantic_cache"),
                 sarvam_cloud=kwargs.get("sarvam_cloud"),
+                llm_gateway=kwargs.get("llm_gateway"),
+                graphrag_fusion=kwargs.get("graphrag_fusion"),
             )
 
         graph = StateGraph(GraphState)

@@ -357,35 +357,67 @@ async def prepare_user_memory(
     container: ServiceContainer,
     user_id: str,
     chat_history: list[dict[str, Any]],
+    user_msg_en: str = "",
 ) -> tuple[str, list[dict[str, Any]]]:
     """Fetch user profile and memory context to guide the prompt generation."""
-    if not container.user_profile:
-        return "", []
+    memory_context = ""
+    distress_history: list[dict[str, Any]] = []
+    last_query = chat_history[-1]["content"] if chat_history else ""
+    recall_query = user_msg_en or last_query
 
-    # Anonymous users have no persistent profile — skip all DB calls
+    if getattr(container, "second_brain", None) is not None:
+        try:
+            from services.second_brain.crypto import VaultLockedError
+
+            async def fetch_second_brain():
+                vault = await container.second_brain.unlock(user_id)
+                with vault:
+                    return await container.second_brain.personal_context(
+                        user_id, recall_query, vault=vault, limit=5
+                    )
+
+            brain_items = await asyncio.wait_for(fetch_second_brain(), timeout=0.200)
+            if brain_items:
+                brain_block = "YOUR SECOND BRAIN (private, recalled for this seeker):\n- " + "\n- ".join(
+                    i.text for i in brain_items
+                )
+                memory_context = brain_block
+        except VaultLockedError:
+            pass
+        except asyncio.TimeoutError:
+            logger.warning(f"Second Brain recall timed out for user {user_id} (exceeded 200ms budget)")
+        except Exception as e:
+            logger.warning(f"Second Brain recall failed: {e}")
+
+    if not container.user_profile:
+        return memory_context, distress_history
+
     if not user_id or user_id == "anonymous":
-        return "", []
+        return memory_context, distress_history
 
     profile = await container.user_profile.get_or_create_profile(user_id)
     profile.total_conversations += 1
     await container.user_profile.update_profile(profile)
 
     recent_memories = await container.user_profile.get_recent_memories(user_id, limit=3)
-    memory_context = build_memory_context(
+    profile_context = build_memory_context(
         recent_memories=recent_memories,
         chat_history=chat_history,
     )
+    if profile_context:
+        if memory_context:
+            memory_context = f"{memory_context}\n\n{profile_context}"
+        else:
+            memory_context = profile_context
 
     if settings.feature_memory_enabled and getattr(container, "memory_service", None):
         try:
-            last_query = chat_history[-1]["content"] if chat_history else ""
-
             async def fetch_memory_layer():
                 core_m = await container.memory_service.get_core(user_id)
                 semantic_m = []
-                if last_query:
+                if recall_query:
                     semantic_m = await container.memory_service.search_semantic(
-                        user_id, last_query, limit=3, min_similarity=0.6
+                        user_id, recall_query, limit=3, min_similarity=0.6
                     )
                 return core_m, semantic_m
 
@@ -399,16 +431,12 @@ async def prepare_user_memory(
 
             if memory_blocks:
                 new_memory_context = "\n\n".join(memory_blocks)
-                if memory_context:
-                    memory_context = f"{memory_context}\n\n{new_memory_context}"
-                else:
-                    memory_context = new_memory_context
+                memory_context = f"{memory_context}\n\n{new_memory_context}" if memory_context else new_memory_context
         except asyncio.TimeoutError:
             logger.warning(f"Memory layer fetch timed out for user {user_id} (exceeded 200ms budget)")
         except Exception as e:
             logger.warning(f"Memory layer fetch failed: {e}")
 
-    distress_history = []
     for mem in recent_memories:
         if mem.emotional_arc:
             recent_emotion = mem.emotional_arc[-1]

@@ -174,9 +174,18 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
     if traversal_context and _has_meaningful_traversal(traversal_context):
         traversal_doc = _format_traversal_as_document(traversal_context)
 
-        # Get existing relevant_docs or create new list
-        existing_docs = state.get("relevant_docs", [])
-        result["relevant_docs"] = [traversal_doc] + existing_docs
+        # rerank_documents (the very next node) reads state["documents"], not
+        # state["relevant_docs"] — and grade_documents (after that) always
+        # overwrites relevant_docs from its own grading pass regardless of
+        # what's here. Without also writing "documents", the traversal doc
+        # is silently discarded before generation ever sees it. Write both:
+        # "documents" so it actually flows through reranking + CRAG grading
+        # like every other candidate (correctly gradeable, not force-injected
+        # ungraded), and "relevant_docs" too as a harmless fallback in case
+        # grading is ever bypassed for this tier.
+        existing_docs = state.get("documents") or state.get("relevant_docs", [])
+        result["documents"] = [traversal_doc] + existing_docs
+        result["relevant_docs"] = [traversal_doc] + state.get("relevant_docs", [])
 
     return result
 

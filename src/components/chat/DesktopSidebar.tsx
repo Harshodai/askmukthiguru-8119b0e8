@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Plus, Flame, MessageCircle, Trash2, Edit2, Search, X,
-  ChevronLeft, ChevronRight, BookOpen, Brain, Compass
+  ChevronLeft, ChevronRight, BookOpen, Brain, Compass, Lock, HardDrive
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
@@ -162,6 +162,14 @@ export const DesktopSidebar = ({
             <Brain className="w-4 h-4" />
           </button>
 
+          <button
+            onClick={() => navigate('/second-brain')}
+            title={t('nav.secondBrain', 'Your Second Brain')}
+            className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-all"
+          >
+            <Lock className="w-4 h-4" />
+          </button>
+
           {conversations.length > 0 && (
             <div className="flex flex-col items-center gap-0.5 mt-1">
               {conversations.slice(0, 4).map((c, i) => (
@@ -249,6 +257,13 @@ export const DesktopSidebar = ({
             >
               <Brain className="w-3.5 h-3.5 flex-shrink-0" />
               {t('nav.knowledgeGraph')}
+            </button>
+            <button
+              onClick={() => navigate('/second-brain')}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm text-muted-foreground hover:bg-ojas/10 hover:text-ojas border border-transparent hover:border-ojas/20 transition-all"
+            >
+              <HardDrive className="w-3.5 h-3.5 flex-shrink-0" />
+              {t('nav.secondBrain', 'Second Brain')}
             </button>
           </div>
 

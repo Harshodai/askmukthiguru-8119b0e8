@@ -3,7 +3,7 @@ from rag.nodes.generation import format_final_answer, _cite_sentences
 from rag.states import GraphState
 
 def test_cite_sentences_index_mapping():
-    """Verify that _cite_sentences maps sentences directly to 1-based index citations [N] instead of [Source: Title]."""
+    """Verify that _cite_sentences maps sentences to internal [[CITE:N]] tokens instead of [Source: Title]."""
     answer = "Meditation is good. Wisdom is clean."
     docs = [
         {"title": "Meditation Guide", "text": "Meditation is good and healthy."},
@@ -11,8 +11,8 @@ def test_cite_sentences_index_mapping():
     ]
     
     cited = _cite_sentences(answer, docs, threshold=0.08)
-    assert "[1]" in cited
-    assert "[2]" in cited
+    assert "[[CITE:1]]" in cited
+    assert "[[CITE:2]]" in cited
     assert "[Source: Meditation Guide]" not in cited
     assert "[Source: Wisdom Teachings]" not in cited
     assert "[Source:" not in cited
@@ -47,8 +47,11 @@ async def test_format_final_answer_source_mapping():
     # "Wisdom Teachings" -> [2] (matches relevant_docs[1])
     assert "[2]" in final_answer
     
-    # "Soul Sync" -> canonical URL pkconsciousness -> [3] (since pkconsciousness is citations[2])
-    assert "[3]" in final_answer
+    # "Soul Sync" out-of-range (relevant_docs has only 2 items) -> stripped
+    assert "Soul Sync helps" in final_answer
+    assert "[3]" not in final_answer
+    assert "[[CITE:3]]" not in final_answer
+    assert "[1] Soul Sync" not in final_answer   # not remapped to Meditation Guide
     
     # Verify the original Source texts are removed
     assert "[Source: Meditation Guide]" not in final_answer

@@ -1,0 +1,94 @@
+# ============================================================================
+# SHACL validation shapes for the AskMukthiGuru doctrine knowledge graph.
+# Tony Seale principle: validate with SHACL so the graph is trustworthy at
+# write time, not debugged at read time.
+#
+# Validate via domain/upper_ontology_mapping.py::validate_shacl(turtle_text),
+# which degrades gracefully if `pyshacl` isn't installed. Or directly:
+#   pip install pyshacl
+#   pyshacl -s ontology_shapes.ttl -m -f human your_graph.ttl
+# (export your Neo4j subgraph to Turtle first — GET /api/ontology/export?format=turtle)
+# ============================================================================
+
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix amg:    <https://askmukthiguru.org/ontology/> .
+@prefix schema: <https://schema.org/> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+
+# --------------------------------------------------------------------------
+# Every concept (any skos:Concept in our namespace) must be well-formed.
+# --------------------------------------------------------------------------
+amg:ConceptShape
+    a sh:NodeShape ;
+    sh:targetClass skos:Concept ;
+
+    sh:property [
+        sh:path rdfs:label ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Every concept needs exactly one rdfs:label." ;
+    ] ;
+
+    sh:property [
+        sh:path skos:definition ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:minLength 20 ;
+        sh:message "Concepts need a skos:definition of at least 20 chars." ;
+    ] ;
+
+    sh:property [
+        sh:path <http://purl.org/dc/terms/identifier> ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "Concepts need exactly one dcterms:identifier." ;
+    ] .
+
+# --------------------------------------------------------------------------
+# A Teaching (schema:CreativeWork in our domain) must cite a source.
+# Grounding rule: no teaching without provenance — the anti-hallucination
+# guarantee enforced at the data layer, not just the generation prompt.
+# --------------------------------------------------------------------------
+amg:TeachingShape
+    a sh:NodeShape ;
+    sh:targetClass schema:CreativeWork ;
+    sh:property [
+        sh:path schema:isBasedOn ;
+        sh:minCount 1 ;
+        sh:message "A Teaching must cite at least one source (schema:isBasedOn)." ;
+    ] ;
+    sh:property [
+        sh:path schema:inLanguage ;
+        sh:minCount 1 ;
+        sh:message "A Teaching must declare its language." ;
+    ] .
+
+# --------------------------------------------------------------------------
+# A Practice (schema:HowTo) should map to at least one intended state.
+# Keeps the practice->state backbone multi-hop retrieval relies on.
+# --------------------------------------------------------------------------
+amg:PracticeShape
+    a sh:NodeShape ;
+    sh:targetClass schema:HowTo ;
+    sh:property [
+        sh:path amg:leadsToState ;
+        sh:minCount 1 ;
+        sh:severity sh:Warning ;
+        sh:message "Practices should declare a leadsToState link for multi-hop retrieval." ;
+    ] .
+
+# --------------------------------------------------------------------------
+# A Being (schema:Person in our domain — teachers, gurus) must have a name.
+# --------------------------------------------------------------------------
+amg:BeingShape
+    a sh:NodeShape ;
+    sh:targetClass schema:Person ;
+    sh:property [
+        sh:path schema:name ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "A Being must have exactly one schema:name." ;
+    ] .

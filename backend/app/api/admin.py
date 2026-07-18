@@ -7,7 +7,7 @@ Unit 13 — moved from `routers/admin.py` into `app.api`.
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.core.limiter import limiter
@@ -1004,4 +1004,32 @@ async def reject_okf_entry(
     except Exception as e:
         logger.error(f"Failed to reject OKF entry: {e}")
         raise HTTPException(status_code=500, detail="Failed to reject entry. Please try again.")
+
+
+# ── Web Ingestion ─────────────────────────────────────────────────
+
+@admin_router.post("/admin/ingest-url")
+async def admin_ingest_url(
+    url: str = Body(..., embed=True),
+    mode: str = Body("auto", embed=True),
+    user=Depends(get_current_user_from_supabase),
+):
+    """Admin-only: trigger web ingestion for a URL."""
+    _require_admin(user)
+    valid_modes = {"auto", "static", "dynamic", "stealth"}
+    if mode not in valid_modes:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid mode '{mode}'. Must be one of: {', '.join(sorted(valid_modes))}"
+        )
+    # Validate URL before queueing — reuse ingestion pipeline validator
+    from ingestion.web_ingest_pipeline import _validate_and_normalize
+    try:
+        url = await _validate_and_normalize(url)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Invalid URL: {e}")
+    from tasks.web_ingest_tasks import ingest_url_task
+
+    task = ingest_url_task.delay(url, mode=mode)
+    return {"task_id": task.id, "url": url, "status": "queued"}
 

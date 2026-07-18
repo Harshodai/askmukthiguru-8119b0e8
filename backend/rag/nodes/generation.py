@@ -18,6 +18,7 @@ from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.doc_utils import doc_text
 from services.cache_service import InMemoryCacheAdapter
+from services.humanizer import scrub
 from services.language_router import LanguageCode, LanguageRouter
 
 from app.tracing import trace_rag_node
@@ -30,6 +31,7 @@ from .utils import (
     emit_status,
     enforce_source_diversity,
     log_metrics,
+    remap_citation_markers,
     settings,
     strip_cot,
 )
@@ -498,7 +500,7 @@ def _cite_sentences(
                 None
             )
             if doc_idx:
-                result_parts.append(f"{stripped} [{doc_idx}]")
+                result_parts.append(f"{stripped} [[CITE:{doc_idx}]]")
             else:
                 result_parts.append(stripped)
         else:
@@ -995,6 +997,12 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 kwargs = dict(generation_kwargs)
                 if add_timeout:
                     kwargs["timeout"] = get_node_timeout("generate_answer", 60.0)
+                if _services._llm_gateway is not None:
+                    return await _services._llm_gateway.generate(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        **kwargs,
+                    )
                 return await provider.generate(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
@@ -1268,7 +1276,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         for idx, doc in enumerate(relevant_docs):
             t = (doc.get("title") or doc.get("source_url") or "").strip().lower()
             if t and (title_lower == t or title_lower in t or t in title_lower):
-                return f"[{idx + 1}]"
+                return f"[[CITE:{idx + 1}]]"
         
         # Fallback: check against canonical URL map keyword match
         from rag.nodes.utils import _CANONICAL_URL_MAP
@@ -1278,7 +1286,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
                 for idx, c in enumerate(citations):
                     c_url = c.get("url") if isinstance(c, dict) else str(c)
                     if c_url and url.lower() in c_url.lower():
-                        return f"[{idx + 1}]"
+                        return f"[[CITE:{idx + 1}]]"
         return "" # If no match, strip it so it doesn't leak raw bracket text
         
     answer = re.sub(r'\[Source:\s*([^\]]+)\]', replace_source_match, answer)
@@ -1296,6 +1304,8 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             if isinstance(c, dict) else str(c)
             for c in citations
         ]
+        answer = remap_citation_markers(answer, relevant_docs, citations)
+        answer = scrub(answer)
         return {
             "final_answer": answer,
             "citations": citations,
@@ -1314,6 +1324,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         if isinstance(c, dict) else str(c)
         for c in citations
     ]
+    answer = remap_citation_markers(answer, relevant_docs, citations)
 
     if is_faithful and verified and confidence >= settings.confidence_gating_floor:
         pass
@@ -1405,6 +1416,8 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
 
     # Citations are returned in the citations field, we do not append them to the answer text.
     pass
+
+    answer = scrub(answer)
 
     # Follow-up suggestions removed per P1-11 (was an extra LLM call per turn)
     follow_up_suggestions: list[str] = []

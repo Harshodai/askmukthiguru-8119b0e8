@@ -289,6 +289,133 @@ class ServiceContainer:
         from app.coalescer import build_coalescer
         self.coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
 
+        # LLM Gateway — same-provider model-tier fallback, opt-in cross-provider
+        # fallback, coalescing. See services/llm_gateway.py.
+        from services.llm_gateway import LLMGateway
+        _primary_provider_name = settings.llm_provider.lower()
+        self.llm_gateway = LLMGateway(
+            primary=self.ollama,
+            coalescer=self.coalescer,
+            secondary=self.openrouter,
+            primary_name=_primary_provider_name,
+            secondary_name="openrouter",
+            primary_model_fallback=(
+                settings.openrouter_generation_model_fallback
+                if _primary_provider_name == "openrouter"
+                else None
+            ),
+            cross_provider_fallback_enabled=settings.llm_gateway_cross_provider_fallback,
+        )
+        logger.info(
+            f"LLMGateway initialized (primary={_primary_provider_name}, "
+            f"cross_provider_fallback={settings.llm_gateway_cross_provider_fallback})"
+        )
+
+        # Second Brain (Mukthi Vault) — owner-blind encrypted per-user KG.
+        # Degrades to None (endpoints 503) rather than failing container build:
+        # BRAIN_KEK absence only blocks Mode-A provisioning at request time, and
+        # a Qdrant hiccup here should not take down the whole backend.
+        self.second_brain = None
+        if self.supabase_client is not None:
+            try:
+                from services.second_brain.second_brain_service import SecondBrainService
+                from services.second_brain.vault_index import VaultIndex
+
+                vault_index = VaultIndex(qdrant_service=self.qdrant)
+                try:
+                    vault_index.ensure_collection()
+                except Exception as exc:
+                    logger.warning(f"SecondBrain: vault_index.ensure_collection() failed (will retry lazily): {exc}")
+                self.second_brain = SecondBrainService(
+                    supabase_client=self.supabase_client,
+                    embedding_service=self.embedding,
+                    llm_service=self.llm_gateway,
+                    qdrant_client=vault_index,
+                )
+                logger.info("SecondBrainService initialized")
+            except Exception as exc:
+                logger.warning(f"SecondBrain: initialization failed, vault endpoints will 503: {exc}")
+        else:
+            logger.info("SecondBrain: skipped (no supabase_client configured)")
+
+        # GraphRAG Fusion — multi-hop vector + knowledge-graph retrieval
+        self.graphrag_fusion = None
+        try:
+            from services.graphrag_fusion import GraphRAGFusion
+            from domain.spiritual_ontology import SEED_CONCEPTS
+
+            async def _resolve_entities(q: str) -> list[str]:
+                ql = q.lower()
+                return [c.uri for c in SEED_CONCEPTS
+                        if any(w in ql for w in c.label.lower().split())]
+
+            async def _vector_search(q: str, k: int):
+                vec = await asyncio.to_thread(self.embedding.encode_single_full, q)
+                try:
+                    hits = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            self.qdrant.search,
+                            query_vector=vec["dense"],
+                            limit=k,
+                            sparse_vector=vec["sparse"],
+                            query=q,
+                            timeout=10,
+                        ),
+                        timeout=15,
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("Qdrant vector search timed out after 15s")
+                    return []
+                return [{"id": h.get("id"), "text": h.get("text", ""),
+                         "score": h.get("score", 0.0), "source": h.get("source", "")} for h in hits]
+
+            async def _traverse_graph(uris: list[str], max_hops: int):
+                if not isinstance(max_hops, int) or max_hops < 1:
+                    max_hops = 2
+                # max_hops must be interpolated as literal in Cypher variable-length pattern
+                cypher = f"""
+                MATCH path = (c:Concept {{uri: $uri}})-[r*1..{max_hops}]-(n)
+                RETURN n.text AS text, n.uri AS uri, type(last(relationships(path))) AS relation,
+                       length(path) AS hop, n.source AS source
+                LIMIT 40
+                """
+                rows = []
+                driver = self.neo4j_driver
+                if driver is None:
+                    return rows
+                for u in uris:
+                    def _run(u=u):
+                        with driver.session() as session:
+                            return list(session.run(cypher, {"uri": u}, timeout=10))
+                    try:
+                        records = await asyncio.wait_for(
+                            asyncio.to_thread(_run),
+                            timeout=15,
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(f"Neo4j graph traversal timed out after 15s for URI: {u}")
+                        continue
+                    for record in records:
+                        rows.append({
+                            "uri": record.get("uri"),
+                            "text": record.get("text"),
+                            "relation": record.get("relation"),
+                            "hop": record.get("hop", 0),
+                            "source": record.get("source"),
+                        })
+                return rows
+
+            self.graphrag_fusion = GraphRAGFusion(
+                vector_search=_vector_search,
+                resolve_entities=_resolve_entities,
+                traverse_graph=_traverse_graph,
+                max_hops=settings.graphrag_max_hops,
+                token_budget=settings.graphrag_token_budget,
+                enable_graph=getattr(settings, "knowledge_graph_query_enabled", False),
+            )
+        except Exception as exc:
+            logger.warning(f"GraphRAGFusion init failed (non-fatal): {exc}")
+
         # Web Search (real-time temporal queries, config-gated)
         if settings.web_search_enabled:
             # Load dynamic allowed domains from Supabase settings table, fallback to env config list
@@ -353,6 +480,17 @@ class ServiceContainer:
         from services.push_service import PushService
         self.push_service = PushService()
 
+        # Retention service — streak tracking + lifecycle events.
+        # Degrades gracefully to None if supabase_client is unavailable.
+        self.retention_service = None
+        if self.supabase_client is not None:
+            try:
+                from services.retention_service import RetentionService
+                self.retention_service = RetentionService(supabase_client=self.supabase_client)
+                logger.info("RetentionService initialized")
+            except Exception as exc:
+                logger.warning(f"RetentionService init failed (non-fatal): {exc}")
+
     def _build_ingestion(self) -> None:
         """Layer 7: Ingestion pipeline (depends on core services)."""
         self.ingestion = IngestionPipeline(
@@ -379,6 +517,8 @@ class ServiceContainer:
             serene_mind_engine=self.serene_mind,
             web_search=self.web_search,
             doctrine_service=self.doctrine_service,
+            llm_gateway=self.llm_gateway,
+            graphrag_fusion=self.graphrag_fusion,
         )
         logger.info("ContainerBuilder: FAST graph built")
 
@@ -393,6 +533,8 @@ class ServiceContainer:
                 serene_mind_engine=self.serene_mind,
                 web_search=self.web_search,
                 doctrine_service=self.doctrine_service,
+                llm_gateway=self.llm_gateway,
+                graphrag_fusion=self.graphrag_fusion,
             )
             try:
                 self.standard_graph = fut.result(timeout=60.0)
@@ -415,6 +557,8 @@ class ServiceContainer:
                 serene_mind_engine=self.serene_mind,
                 web_search=self.web_search,
                 doctrine_service=self.doctrine_service,
+                llm_gateway=self.llm_gateway,
+                graphrag_fusion=self.graphrag_fusion,
             )
             try:
                 self.deep_graph = fut.result(timeout=60.0)
