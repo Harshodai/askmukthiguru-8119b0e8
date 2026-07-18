@@ -503,6 +503,16 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                 {muted ? <VolumeX className="w-4 h-4 text-muted-foreground" /> : <Volume2 className="w-4 h-4 text-muted-foreground" />}
               </button>
             </div>
+
+            {/* Watch on YouTube — Sri Preethaji's original Serene Mind guidance */}
+            <a
+              href="https://youtu.be/igSp4H0OWLE"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-muted-foreground hover:text-ojas underline underline-offset-4 transition-colors"
+            >
+              Watch Sri Preethaji guide this practice on YouTube
+            </a>
           </div>
         )}
 
