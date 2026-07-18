@@ -32,8 +32,9 @@ export function useMeditationAudio(
     if (!audioRef.current) {
       const el = new Audio();
       el.preload = 'auto';
-      el.crossOrigin = 'anonymous';
-      // Missing/corrupt clip — drop the src and flag the step so TTS can take over.
+      // No crossOrigin: the Lovable asset CDN does not send CORS headers for
+      // <audio>, and setting it to 'anonymous' blocks the load entirely,
+      // which was leaving Serene Mind silent in production.
       el.onerror = () => {
         el.removeAttribute('src');
         setFailedStep(loadingStepRef.current);
@@ -43,7 +44,6 @@ export function useMeditationAudio(
     if (!preloadRef.current) {
       const el = new Audio();
       el.preload = 'auto';
-      el.crossOrigin = 'anonymous';
       el.onerror = () => { el.removeAttribute('src'); };
       preloadRef.current = el;
     }
