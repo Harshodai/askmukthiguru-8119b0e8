@@ -48,9 +48,9 @@ function toast(args: LegacyToastArgs) {
       }
       sonnerAction = {
         label: actionLabel,
-        onClick: (event) => {
+        onClick: () => {
           if (typeof props.onClick === 'function') {
-            props.onClick(event);
+            props.onClick();
           }
         }
       };
