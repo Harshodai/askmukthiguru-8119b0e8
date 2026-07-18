@@ -320,7 +320,7 @@ class SupabaseTelemetrySink:
                         logger.warning(f"Upserting session failed in sink (non-fatal): {e}")
 
                 # 1. Insert chat_queries
-                self.client.table("chat_queries").insert(query_payload).execute()
+                self.client.table("chat_queries").upsert(query_payload).execute()
 
                 # 2. Insert chat_responses
                 if response_payload:

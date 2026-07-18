@@ -114,7 +114,8 @@ class QueuedLLMProvider:
         return await self._queue.execute(priority, self._provider.generate, *args, **kwargs)
 
     async def generate_stream(self, *args, **kwargs):
-        return await self._provider.generate_stream(*args, **kwargs)
+        async for chunk in self._provider.generate_stream(*args, **kwargs):
+            yield chunk
 
     async def classify(self, **kwargs):
         return await self._queue.execute(LLMPriority.CLASSIFY, self._provider.classify, **kwargs)

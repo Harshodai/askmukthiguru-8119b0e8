@@ -212,6 +212,27 @@ class LLMGateway:
             logger.error(f"LLMGateway: secondary '{self._secondary_name}' also failed: {secondary_exc}")
             raise secondary_exc
 
+    async def generate_stream(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        context: str = "",
+        *,
+        task: TaskType = "standard",
+        use_cache: bool = True,
+        **kwargs: Any,
+    ) -> AsyncIterator[str]:
+        """Streaming generation — delegates to primary provider's generate_stream."""
+        # For now, we don't cache streaming responses
+        if not use_cache:
+            async for chunk in self._primary.generate_stream(system_prompt, user_prompt, context=context, **kwargs):
+                yield chunk
+            return
+
+        # With cache - we don't support streaming with cache yet
+        # Fall back to non-streaming
+        result = await self.generate(system_prompt, user_prompt, context, task=task, use_cache=use_cache, **kwargs)
+        yield result
 
 if __name__ == "__main__":
     # Self-check — full suite lives in backend/tests/test_llm_gateway.py.
