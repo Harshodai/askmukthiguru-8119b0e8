@@ -1,5 +1,36 @@
 # Agentic Lessons & Memory
 
+## Jul 20, 2026 — Capability-Question Detection: Regex Patterns Over Prefix Allowlists
+
+### Prefix-based `startswith` allowlists falsely flag distress queries as capability questions
+`backend/config/router_routes.yaml` — `capability_question_stems` used prefix matching (`head.startswith("what is")`), causing "what is wrong with me" to be treated as a capability question and excluded from DISTRESS routing. Fix: replaced with explicit regex patterns (`capability_question_patterns`) that require "you"/"this" + capability verb combination — matching "what can you help me with" while rejecting "what is wrong with me".
+
+```yaml
+# Before: broad prefix allowlist
+capability_question_stems:
+  en: ["what is", "what are", "what does", ...]
+
+# After: explicit regex patterns
+capability_question_patterns:
+  en:
+    - "what (can|could) (you|this) (help|do|cover|tell|teach|offer|provide|answer|know|have)"
+    - "what (kind|type|sort) of (teachings?|topics?|things?|knowledge|questions?)"
+    - "how (do|does) you (work|function|operate|help|assist)"
+    - "tell (me|us) about (yourself|you)"
+    - "what topics (do|does|can) you (cover|have|know|teach|offer)"
+    - "what questions (can|do) you (answer|ask|handle)"
+    - "who are you"
+```
+
+Key design rule: distress queries use "I"/"me" (self-referential); capability queries use "you"/"this" (tool-referential). Patterns must anchor on this distinction to avoid false negatives on crisis language.
+
+### Test the mechanism against its own training data AND edge cases, not just the bug report
+The original fix was verified only against the reported query ("what kind of teachings you had for me") — which worked. But it failed against:
+1. **DISTRESS route's own training utterances** — one tripped on substring containment (`"how to"` matched mid-sentence `"...know how to go on"`)
+2. **Question-phrased distress** — "why do I feel so hopeless", "how do I stop crying", "should I just give up" would all be falsely excluded by a blanket interrogative veto
+
+Fix: added `test_linguistic_is_capability_question` (17 cases: 10 positive, 7 negative) and `test_distress_not_excluded_by_capability_patterns` (4 cases). The narrowest test that catches this: assert that `is_capability_question("what is wrong with me")` returns `False`.
+
 ## Jul 19, 2026 — Comprehensive Fixes (KG, Auth, Design-Sync, Tests)
 
 ### Knowledge Graph — Obsidian-Style Force-Directed Graph
