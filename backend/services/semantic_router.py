@@ -343,6 +343,11 @@ class IntentSemanticRouter:
         is_imperative = self.linguistic.is_imperative(lower)
         is_capability_question = self.linguistic.is_capability_question(lower)
 
+        # Collect (score, route) for all embedding-eligible routes so we can
+        # log top-3 and detect near-ties even when the winning route fires early.
+        scored: list[tuple[float, str]] = []
+        query_vec = None  # encode once, lazily
+
         for route in self._routes:
             if route.name == "MEDITATION" and meditation_step > 0:
                 # Active session: defer to in-session handler, not the router.
@@ -358,19 +363,48 @@ class IntentSemanticRouter:
             if self._use_regex_safety_net and route.regex_patterns:
                 for pattern in route.regex_patterns:
                     if pattern.search(text):
+                        logger.debug(
+                            "router:regex route=%s score=1.0 query=%r",
+                            route.name, text[:80],
+                        )
                         return RouteMatch(route=route.name, score=1.0, reason="regex")
 
             # Embedding layer (semantic match) — only if primed.
             if self._encoder is None or not route.utterance_vectors:
                 continue
-            query_vec = self._encoder.encode(text)
-            # Per-utterance max similarity. Mirrors aurelio-labs semantic-router.
-            score = max(_cosine(query_vec, uv) for uv in route.utterance_vectors)
+            if query_vec is None:
+                query_vec = self._encoder.encode(text)
+            score = float(max(_cosine(query_vec, uv) for uv in route.utterance_vectors))
+            scored.append((score, route.name))
             if score >= route.threshold:
+                # Log top-3 before returning for observability.
+                scored.sort(reverse=True)
+                top3 = scored[:3]
+                logger.debug(
+                    "router:match route=%s score=%.4f top3=%s query=%r",
+                    route.name, score,
+                    [(r, f"{s:.4f}") for s, r in top3],
+                    text[:80],
+                )
+                # Near-tie warning: if runner-up is within 0.05, taxonomy may overlap.
+                if len(top3) >= 2 and (top3[0][0] - top3[1][0]) < 0.05:
+                    logger.warning(
+                        "router:near_tie winner=%s(%.4f) runner_up=%s(%.4f) gap=%.4f query=%r",
+                        top3[0][1], top3[0][0], top3[1][1], top3[1][0],
+                        top3[0][0] - top3[1][0], text[:80],
+                    )
                 return RouteMatch(
-                    route=route.name, score=float(score), reason="embedding"
+                    route=route.name, score=score, reason="embedding"
                 )
 
+        # No route fired — log top-3 for threshold-tuning visibility.
+        if scored:
+            scored.sort(reverse=True)
+            logger.debug(
+                "router:no_match top3=%s query=%r",
+                [(r, f"{s:.4f}") for s, r in scored[:3]],
+                text[:80],
+            )
         return None
 
     @property
