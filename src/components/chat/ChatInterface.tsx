@@ -17,6 +17,7 @@ import {
   updateConversationSummary,
   setIncognitoMode,
   isIncognitoMode,
+  deleteConversation,
 } from '@/lib/chatStorage';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
 import { chatErrorBus } from '@/lib/chatErrorBus';
@@ -1450,7 +1451,15 @@ const handleNewConversation = async () => {
   const welcomeMessage: Message = {
     id: generateId(),
     role: 'guru',
-    content: 'The slate is clean, dear one. Let us begin anew. What would you like to explore?',
+    content: buildPersonalisedWelcome(profile.prePracticeLog, selected?.slug, (() => {
+      try {
+        const sessions = loadMeditationSessions();
+        const last = sessions.filter(s => s.completed).sort((a, b) =>
+          (b.completedAt ?? b.startedAt).getTime() - (a.completedAt ?? a.startedAt).getTime()
+        )[0];
+        return last?.mood;
+      } catch { return undefined; }
+    })()),
     timestamp: new Date(),
   };
 
@@ -1504,6 +1513,14 @@ const handleSelectConversation = async (conversation: Conversation) => {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   });
+};
+
+const handleDeleteConversation = async (id: string) => {
+  await deleteConversation(id);
+  window.dispatchEvent(new CustomEvent('conversation:updated'));
+  if (currentConversation?.id === id) {
+    await handleNewConversation();
+  }
 };
 
 const handleExportConversation = useCallback(() => {
@@ -1632,6 +1649,7 @@ return (
       onNewIncognitoConversation={handleNewIncognitoConversation}
       onOpenSereneMind={() => openSereneMind()}
       onSelectConversation={handleSelectConversation}
+      onDeleteConversation={handleDeleteConversation}
       currentConversationId={currentConversation?.id}
     />
 
