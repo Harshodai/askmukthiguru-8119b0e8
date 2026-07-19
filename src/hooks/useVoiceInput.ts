@@ -1,4 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import i18n from '@/i18n';
+
+const LANG_BCP47: Record<string, string> = {
+  hi: 'hi-IN',
+  te: 'te-IN',
+  ta: 'ta-IN',
+  mr: 'mr-IN',
+  ml: 'ml-IN',
+  kn: 'kn-IN',
+  bn: 'bn-IN',
+  gu: 'gu-IN',
+};
 
 const API_BASE =
   (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL ?? '';
@@ -12,6 +24,8 @@ export interface UseVoiceInputResult {
   reset: () => void;
   setTranscript: (text: string) => void;
   supported: boolean;
+  /** Native SpeechRecognition API is absent in Firefox */
+  browserSpeechSupported: boolean;
 }
 
 export const useVoiceInput = (): UseVoiceInputResult => {
@@ -27,6 +41,10 @@ export const useVoiceInput = (): UseVoiceInputResult => {
     typeof window !== 'undefined' &&
     'MediaRecorder' in window &&
     !!navigator.mediaDevices?.getUserMedia;
+
+  const browserSpeechSupported =
+    typeof window !== 'undefined' &&
+    ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
 
   const cleanup = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -86,8 +104,11 @@ export const useVoiceInput = (): UseVoiceInputResult => {
         const mimeType = recorder.mimeType || 'audio/webm';
         const extension = getExtensionFromMimeType(mimeType);
         const blob = new Blob(chunksRef.current, { type: mimeType });
+        const preferredLanguage = i18n.language?.split('-')[0] || 'en';
+        const langTag = LANG_BCP47[preferredLanguage] || 'en-IN';
         const form = new FormData();
         form.append('audio', blob, `voice.${extension}`);
+        form.append('language', langTag);
         try {
           if (!API_BASE) {
             setError('Voice endpoint not configured');
@@ -135,5 +156,6 @@ export const useVoiceInput = (): UseVoiceInputResult => {
     reset,
     setTranscript,
     supported,
+    browserSpeechSupported,
   };
 };

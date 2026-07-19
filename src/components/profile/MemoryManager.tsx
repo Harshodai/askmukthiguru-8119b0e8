@@ -688,6 +688,13 @@ export const MemoryManager = () => {
                 }}
               >
                 <defs>
+                  <filter id="kg-glow">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
                   <marker
                     id="arrow"
                     markerWidth="8"
@@ -774,6 +781,9 @@ export const MemoryManager = () => {
                     const isUser = node.type === 'User';
                     const isHovered = hoveredNode?.id === node.id;
                     const isSelected = selectedNode?.id === node.id;
+                    const degree = kgEdges.filter(e => e.source === node.id || e.target === node.id).length;
+                    const dynamicR = Math.max(8, Math.min(28, degree * 3 + 8));
+                    const isGlowing = isHovered || (hoveredNode && connectedNodeIds.has(node.id));
 
                     // Fade out nodes not in focused neighbor set
                     let opacity = 1.0;
@@ -822,21 +832,22 @@ export const MemoryManager = () => {
                         {/* Glow / Ring on hover or selection */}
                         {(isHovered || isSelected) && (
                           <circle
-                            r={cfg.r + 6}
+                            r={dynamicR + 6}
                             fill={cfg.color}
                             opacity={isSelected ? 0.35 : 0.18}
                             className={isSelected ? 'animate-pulse' : ''}
                           />
                         )}
                         <circle
-                          r={cfg.r}
+                          r={dynamicR}
                           fill={cfg.color}
                           stroke={isSelected ? 'white' : (isHovered ? cfg.color : cfg.stroke)}
                           strokeWidth={isSelected ? 2.5 : 1.5}
+                          filter={isGlowing ? 'url(#kg-glow)' : undefined}
                         />
 
                         {/* Text formatting inside and outside */}
-                        {cfg.r >= 18 && (
+                        {dynamicR >= 18 && (
                           <text
                             textAnchor="middle"
                             dy="0.3em"
@@ -851,10 +862,10 @@ export const MemoryManager = () => {
                           </text>
                         )}
 
-                        {cfg.r < 18 && (isHovered || isSelected || searchQuery) && (
+                        {dynamicR < 18 && (isHovered || isSelected || searchQuery) && (
                           <text
                             textAnchor="middle"
-                            y={cfg.r + 10}
+                            y={dynamicR + 10}
                             className="font-sans fill-white/90"
                             style={{
                               fontSize: 7.5,

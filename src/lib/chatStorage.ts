@@ -136,6 +136,16 @@ const CURRENT_CONVERSATION_KEY = 'askmukthiguru_current_conversation';
 const MAX_CONVERSATIONS_KEY = 'askmukthiguru_max_conversations';
 const RETENTION_DAYS_KEY = 'askmukthiguru_retention_days';
 
+let _incognito = false;
+
+export function setIncognitoMode(val: boolean): void {
+  _incognito = val;
+}
+
+export function isIncognitoMode(): boolean {
+  return _incognito;
+}
+
 export const getMaxConversations = (): number => {
   try {
     const raw = localStorage.getItem(MAX_CONVERSATIONS_KEY);
@@ -413,6 +423,7 @@ export const loadConversation = async (id: string): Promise<Conversation | null>
 };
 
 export const saveConversation = async (conversation: Conversation, notify: boolean = true): Promise<void> => {
+  if (_incognito) return;
   try {
     const conversations = await loadConversations();
     const existingIndex = conversations.findIndex(c => c.id === conversation.id);

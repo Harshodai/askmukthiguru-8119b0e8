@@ -1,5 +1,55 @@
 # Agentic Lessons & Environment Context
 
+## Deployment Readiness Checklist (Jul 19, 2026)
+
+### Language Selection
+- 14 language codes registered, **6 with real translations**: en, hi, te, kn, ta, mr
+- 8 languages fall back to English (bn, gu, ml, ur, or, pa, as, sa)
+- `ml` (Malayalam) now visible in dropdown (added to filter)
+- Hardcoded English strings still exist — need `t()` coverage audit
+- Chat backend translates responses if `preferredLanguage` is set
+
+### Google Login — Single Redirect ✅
+- `redirectTo` set to `/auth` (not origin root)
+- Duplicate OAuth guard via `sessionStorage.lastOAuthRedirect` (5s cooldown)
+- Intended path stored/restored after OAuth
+
+### Forgot Password
+- Flow exists: `AuthPage` → `resetPasswordForEmail` → `/reset-password` route → `ResetPasswordPage`
+- Error handling improved: `AuthApiError` catch with user-friendly messages (expired link detection)
+- E2E test verifies button exists + route mounts + form renders
+
+### Knowledge Graph — Obsidian Style
+- Public `/knowledge-graph` page: force-directed graph with glow, drag, hover, zoom
+- Auth gate removed — loads for all visitors
+- Falls back to demo data if backend cold (never shows blank)
+- Profile `MemoryManager` graph synced with same visual style
+
+### Design Sync — Sacred Minimal
+- Chat components: unified `rounded-2xl`, `shadow-sm`, consistent spacing/colors
+- Auth pages: gradient backgrounds, `shadow-xl`, `rounded-xl` buttons
+- `design-tokens.css` imported as canonical source (dedup started)
+
+### Responsiveness
+- Tested at 375px (mobile), 768px (tablet), 1024px (desktop)
+- Chat composer: `max-h-[120px]`, compact buttons, `px-2 sm:px-4`
+- Sidebar: `hidden md:flex` (correct 768px breakpoint)
+- KG: responsive viewBox via ResizeObserver
+- Weakest area: tablet (768–1024) — not fully stress-tested
+
+### Mic/STT
+- Web Speech API with per-language BCP47 mapping (`hi-IN`, `te-IN`, etc.)
+- Firefox: explicitly unsupported (returns `{ unsupported: true }`)
+- Native app: uses Capacitor speech plugin
+- Language read from `i18n.language`, forwarded to backend in FormData
+
+### Remaining Before Prod Deploy
+1. Language coverage: audit `t()` usage vs translation keys, add missing keys to 6 real locales
+2. Full responsive stress-test at every breakpoint (especially 768–1024)
+3. Google login E2E test using dedicated OAuth test identities or an isolated provider test app with CI-injected secrets (verify single redirect in staging or with tight production safeguards)
+4. Forgot password E2E test with real Supabase email (verify email sent + link works)
+5. Audio E2E on production (CDN-accessible Lovable asset, not `:8080`)
+
 This file serves as a knowledge base for AI agents interacting with this workspace.
 
 ## Plan & Review

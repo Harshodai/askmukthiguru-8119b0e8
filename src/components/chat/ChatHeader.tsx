@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { PanelLeft, PanelLeftClose, Home, Download, Library } from 'lucide-react';
+import { PanelLeft, PanelLeftClose, Home, Download, Library, EyeOff } from 'lucide-react';
 import { UserMenu } from '@/components/common/UserMenu';
 import { Button } from '@/components/ui/button';
 
@@ -13,6 +13,8 @@ interface ChatHeaderProps {
   onOpenSources?: () => void;
   sourcesCount?: number;
   hasMessages?: boolean;
+  isIncognito?: boolean;
+  onCloseIncognito?: () => void;
 }
 
 export const ChatHeader = ({
@@ -23,11 +25,13 @@ export const ChatHeader = ({
   onOpenSources,
   sourcesCount = 0,
   hasMessages = false,
+  isIncognito = false,
+  onCloseIncognito,
 }: ChatHeaderProps) => {
   const { t } = useTranslation();
 
   return (
-    <header className="relative z-20 sticky top-0 backdrop-blur-md bg-background/85 border-b border-hairline safe-top" data-testid="chat-header-simplified">
+    <header className={`relative z-20 sticky top-0 backdrop-blur-md border-b border-border/30 h-[56px] sm:h-[64px] safe-top ${isIncognito ? 'bg-amber-950/15' : 'bg-background/85 bg-gradient-to-r from-ojas/5 to-transparent'}`} data-testid="chat-header-simplified">
       <div className="flex items-center justify-between px-3 sm:px-5 h-[52px]">
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           {onToggleSidebar && (
@@ -70,16 +74,38 @@ export const ChatHeader = ({
             </Button>
           )}
 
-          <span
-            className={`flex items-center gap-1.5 font-serif font-semibold text-foreground text-sm ml-1 select-none ${sidebarCollapsed ? '' : 'md:hidden'}`}
-            data-testid="chat-header-wordmark"
-          >
-            <span className="text-sm leading-none" aria-hidden="true">🙏</span>
-            {t('nav.appName')}
-          </span>
+          {isIncognito ? (
+            <div className="flex items-center gap-2 ml-1">
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-amber-600/40 bg-amber-950/20 text-amber-600 text-[11px] font-medium">
+                <EyeOff className="w-3 h-3" />
+                {t('chat.incognito')}
+              </div>
+              {onCloseIncognito && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onCloseIncognito}
+                  className="h-7 text-[11px] text-muted-foreground hover:text-foreground px-2"
+                >
+                  {t('chat.closeIncognito')}
+                </Button>
+              )}
+            </div>
+          ) : (
+            <span
+              className={`flex items-center gap-1.5 font-serif font-semibold text-foreground text-sm ml-1 select-none ${sidebarCollapsed ? '' : 'md:hidden'}`}
+              data-testid="chat-header-wordmark"
+            >
+              <span className="text-sm leading-none" aria-hidden="true">🙏</span>
+              {t('nav.appName')}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5">
+          {isIncognito && (
+            <span className="text-[10px] text-amber-600/70 hidden sm:block mr-1">{t('chat.incognitoDescription')}</span>
+          )}
           {hasMessages && onOpenSources && (
             <Button
               size="icon"

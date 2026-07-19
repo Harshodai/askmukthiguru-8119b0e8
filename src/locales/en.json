@@ -299,6 +299,10 @@
     "howRelates": "How relates to me",
     "howRelatesQuery": "How does this relate to me: {{content}}",
     "openSources": "Open {{count}} sources",
+    "incognito": "Incognito",
+    "incognitoDescription": "Conversations are not saved to history.",
+    "closeIncognito": "Close Incognito",
+    "closeIncognitoConfirm": "Close incognito and discard this conversation?",
     "engagement": {
       "didThisHelp": "Did this help?",
       "yes": "Yes",
@@ -824,7 +828,9 @@
     "memories": "{{count}} memory",
     "memories_plural": "{{count}} memories",
     "deleteTitle": "Delete conversation?",
-    "deleteWarning": "This action cannot be undone and your teaching history will be lost."
+    "deleteWarning": "This action cannot be undone and your teaching history will be lost.",
+    "newIncognitoChat": "New incognito chat",
+    "incognitoTooltip": "Start a private conversation that won't be saved"
   },
   "notes": {
     "yourNotes": "Your Notes",

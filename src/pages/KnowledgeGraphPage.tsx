@@ -1,23 +1,16 @@
 import { KGConceptMap } from '@/components/kg/KGConceptMap';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useRequireAuth } from '@/hooks/useRequireAuth';
-import { BrandedSpinner } from '@/components/common/BrandedSpinner';
 
 export default function KnowledgeGraphPage() {
   const { t } = useTranslation();
-  const { loading: authLoading } = useRequireAuth();
   const [params] = useSearchParams();
   const initialQuery = params.get('q') ?? '';
-
-  if (authLoading) {
-    return <BrandedSpinner />;
-  }
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border/30">
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <h1 className="font-serif text-2xl text-foreground">{t('kg.title', 'Wisdom Map')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {t('kg.subtitle', 'Explore how the sacred concepts of the Ekam teachings connect.')}

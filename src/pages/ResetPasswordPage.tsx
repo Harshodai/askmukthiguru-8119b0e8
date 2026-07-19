@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { AuthApiError } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,20 +46,32 @@ const ResetPasswordPage = () => {
     if (password !== confirm) return setError('Passwords do not match.');
 
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setLoading(false);
-
-    if (updateError) {
-      setError(updateError.message);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) throw updateError;
+    } catch (error: unknown) {
+      setLoading(false);
+      const msg = error instanceof AuthApiError
+        ? (error.message.includes('expired')
+          ? 'Password reset link has expired. Please request a new one.'
+          : error.message)
+        : 'Failed to reset password. Please try again.';
+      setError(msg);
+      toast({
+        title: 'Password Reset Failed',
+        description: msg,
+        variant: 'destructive',
+      });
       return;
     }
+    setLoading(false);
     toast({ title: 'Password updated', description: 'You can now sign in with your new password.' });
     navigate('/auth', { replace: true });
   };
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-background via-ojas/5 to-background px-4">
+      <div className="w-full max-w-[400px] mx-4 sm:mx-auto space-y-6 shadow-xl shadow-foreground/5 border border-border/40 rounded-xl p-6 sm:p-8">
         <div className="text-center space-y-2">
           <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center mx-auto">
             <Sparkles className="w-6 h-6 text-ojas" />

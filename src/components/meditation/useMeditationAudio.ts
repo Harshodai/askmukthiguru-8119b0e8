@@ -36,6 +36,7 @@ export function useMeditationAudio(
       // <audio>, and setting it to 'anonymous' blocks the load entirely,
       // which was leaving Serene Mind silent in production.
       el.onerror = () => {
+        console.error('[useMeditationAudio] failed to load src=', el.src, 'error code=', el.error?.code, 'network state=', el.networkState, 'ready state=', el.readyState);
         el.removeAttribute('src');
         setFailedStep(loadingStepRef.current);
       };
@@ -74,8 +75,8 @@ export function useMeditationAudio(
     el.currentTime = 0;
     el.volume = 0;
     if (isPlaying && !muted) {
-      el.play().catch(() => {
-        /* autoplay blocked — not a missing-file case, TTS fallback stays silent here */
+      el.play().catch((e) => {
+        if (e instanceof DOMException && e.name !== 'AbortError') console.warn('[useMeditationAudio] play rejected:', e.message);
       });
       fadeIn(el);
     }
@@ -92,8 +93,8 @@ export function useMeditationAudio(
     const el = audioRef.current;
     if (!el) return;
     if (isPlaying && !muted && el.src) {
-      el.play().catch(() => {
-        /* silent */
+      el.play().catch((e) => {
+        if (e instanceof DOMException && e.name !== 'AbortError') console.warn('[useMeditationAudio] play rejected:', e.message);
       });
     } else {
       el.pause();

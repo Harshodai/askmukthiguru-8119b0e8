@@ -15,6 +15,8 @@ import {
   getCurrentConversationId,
   setCurrentConversationId,
   updateConversationSummary,
+  setIncognitoMode,
+  isIncognitoMode,
 } from '@/lib/chatStorage';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
 import { chatErrorBus } from '@/lib/chatErrorBus';
@@ -93,6 +95,7 @@ export const ChatInterface = () => {
   const { greetingContext } = useVisitContext();
   const [searchParams] = useSearchParams();
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
+  const [isIncognito, setIsIncognito] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sourcesPanelOpen, setSourcesPanelOpen] = useState(false);
   const [sourcesFilterMessageId, setSourcesFilterMessageId] = useState<string | null>(null);
@@ -642,6 +645,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
   const isSavingRef = useRef<boolean>(false);
 
   useEffect(() => {
+    if (isIncognito) return;
     const conv = currentConversationRef.current;
     if (conv && messages.length > 0) {
       const updatedConversation: Conversation = {
@@ -1437,6 +1441,10 @@ const handleSubmitEdit = useCallback((messageId: string, newContent: string) => 
 
 const handleNewConversation = async () => {
   stopSpeaking();
+  if (isIncognito) {
+    setIsIncognito(false);
+    setIncognitoMode(false);
+  }
   const newConversation = createNewConversation();
 
   const welcomeMessage: Message = {
@@ -1454,6 +1462,34 @@ const handleNewConversation = async () => {
   await setCurrentConversationId(newConversation.id);
   setMessages([welcomeMessage]);
   setRefreshTrigger(prev => prev + 1);
+};
+
+const handleNewIncognitoConversation = async () => {
+  stopSpeaking();
+  setIsIncognito(true);
+  setIncognitoMode(true);
+  const newConversation = createNewConversation();
+
+  const welcomeMessage: Message = {
+    id: generateId(),
+    role: 'guru',
+    content: 'Your questions remain confidential. Nothing from this session will be saved. What would you like to explore?',
+    timestamp: new Date(),
+  };
+
+  newConversation.messages = [welcomeMessage];
+  newConversation.preview = 'Incognito';
+
+  setCurrentConversation(newConversation);
+  setMessages([welcomeMessage]);
+  setRefreshTrigger(prev => prev + 1);
+};
+
+const handleCloseIncognito = async () => {
+  stopSpeaking();
+  setIsIncognito(false);
+  setIncognitoMode(false);
+  await handleNewConversation();
 };
 
 const handleSelectConversation = async (conversation: Conversation) => {
@@ -1593,6 +1629,7 @@ return (
       isCollapsed={sidebarCollapsed}
       onToggleCollapse={toggleSidebar}
       onNewConversation={handleNewConversation}
+      onNewIncognitoConversation={handleNewIncognitoConversation}
       onOpenSereneMind={() => openSereneMind()}
       onSelectConversation={handleSelectConversation}
       currentConversationId={currentConversation?.id}
@@ -1610,6 +1647,8 @@ return (
         onOpenSources={() => setSourcesPanelOpen(true)}
         sourcesCount={uniqueSourcesCount}
         hasMessages={messages.some(m => m.role === 'user')}
+        isIncognito={isIncognito}
+        onCloseIncognito={handleCloseIncognito}
       />
 
 
@@ -1991,6 +2030,7 @@ return (
       isOpen={showMobileSheet}
       onClose={() => setShowMobileSheet(false)}
       onNewConversation={handleNewConversation}
+      onNewIncognitoConversation={handleNewIncognitoConversation}
       onOpenSereneMind={() => openSereneMind()}
       onSelectConversation={handleSelectConversation}
       currentConversationId={currentConversation?.id}

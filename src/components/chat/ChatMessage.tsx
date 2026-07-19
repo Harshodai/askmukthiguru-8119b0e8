@@ -489,14 +489,14 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
               <Sparkles className="w-3.5 h-3.5 text-ojas" />
             </div>
           )}
-          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'flex-1 min-w-0' : 'max-w-[85%] sm:max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
+          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'flex-1 min-w-0 max-w-[85%] sm:max-w-[75%]' : 'max-w-[85%] sm:max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
             {/* Message body */}
             <div
-              className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 ${isGuru
-                  ? 'px-0 py-0.5 text-[15.5px] leading-[1.75] text-foreground/90 font-normal'
-                  : isEditing
-                    ? 'bg-card border border-hairline rounded-2xl px-4 py-3 shadow-sm'
-                    : 'bg-chat-user rounded-[var(--radius-bubble)] rounded-tr-md px-4 py-2.5 text-[15px] leading-[1.55] font-normal shadow-[0_1px_2px_hsl(var(--foreground)/0.04)]'
+className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 ${isGuru
+                    ? 'rounded-2xl rounded-tl-sm p-3 sm:p-4 shadow-sm text-[15.5px] leading-[1.75] text-foreground/90 font-normal'
+                    : isEditing
+                      ? 'bg-card border border-hairline rounded-2xl p-3 sm:p-4 shadow-sm'
+                      : 'bg-chat-user rounded-2xl p-3 sm:p-4 text-[15px] leading-[1.55] font-normal shadow-sm'
                 }`}
             >
               <div

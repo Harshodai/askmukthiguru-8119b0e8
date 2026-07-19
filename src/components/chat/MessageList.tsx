@@ -155,7 +155,7 @@ export const MessageList = React.memo(({
   });
 
   return (
-    <>
+    <div className="space-y-4 sm:space-y-5 scrollbar-thin scrollbar-thumb-muted-foreground/20">
       {groups.map((group) => (
         <React.Fragment key={group.label}>
           {/* Date separator — Claude.ai style */}
@@ -209,7 +209,7 @@ export const MessageList = React.memo(({
           })}
         </React.Fragment>
       ))}
-    </>
+    </div>
   );
 });
 MessageList.displayName = 'MessageList';
