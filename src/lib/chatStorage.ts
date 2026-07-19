@@ -59,6 +59,7 @@ export interface Message {
 const FEEDBACK_KEY = 'askmukthiguru_feedback';
 
 export const saveFeedback = (messageId: string, feedback: MessageFeedback): void => {
+  if (_incognito) return;
   try {
     const all = loadAllFeedback();
     all[messageId] = feedback;

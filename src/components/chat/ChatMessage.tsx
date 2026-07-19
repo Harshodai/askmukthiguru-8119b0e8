@@ -1,17 +1,18 @@
 import { useTranslation } from 'react-i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, ThumbsUp, ThumbsDown, X, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX } from 'lucide-react';
 import { useNotes } from '@/hooks/useNotes';
 import { useStudyNotebooks } from '@/hooks/useStudyNotebooks';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { Message, saveFeedback, type MessageFeedback } from '@/lib/chatStorage';
+import { Message } from '@/lib/chatStorage';
 import { useProfile } from '@/hooks/useProfile';
-import { submitFeedbackToBackend, translateText } from '@/lib/aiService';
+import { translateText } from '@/lib/aiService';
 import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { InlineActions, EngagementCard } from './InlineActions';
+import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { createPortal } from 'react-dom';
 import { memoryApi } from '@/lib/memoryApi';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
@@ -299,15 +300,10 @@ const getSourceDisplayName = (url: string, index: number): string => {
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage, onSubmitEdit, onAction, onCitationClick }, ref) => {
     const { t } = useTranslation();
-    const FEEDBACK_TAGS = [
-      t('chat.clearAnswer') === 'chat.clearAnswer' ? 'Clear answer' : t('chat.clearAnswer'),
-      t('chat.relevantSources') === 'chat.relevantSources' ? 'Relevant sources' : t('chat.relevantSources'),
-      t('chat.calmingTone') === 'chat.calmingTone' ? 'Calming tone' : t('chat.calmingTone'),
-      t('chat.insightful') === 'chat.insightful' ? 'Insightful' : t('chat.insightful'),
-    ];
     const isGuru = message.role === 'guru';
     const navigate = useNavigate();
     const { profile } = useProfile();
+    const { open: openSereneMind } = useSereneMind();
     // Extract any https:// URL from the guru's response as a fallback citation.
     // Covers: YouTube links, source references like "Source: https://...", inline citations.
     const inlineUrls = isGuru
@@ -324,10 +320,6 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const [copied, setCopied] = useState(false);
     const [saved, setSaved] = useState(false);
     const [savingMemory, setSavingMemory] = useState(false);
-    const [feedback, setFeedback] = useState<MessageFeedback | null>(message.feedback ?? null);
-    const [showFeedbackPanel, setShowFeedbackPanel] = useState(false);
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
-    const [feedbackComment, setFeedbackComment] = useState('');
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(message.content);
     const [noteSaved, setNoteSaved] = useState(false);
@@ -436,43 +428,6 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         setSavingMemory(false);
       }
     }, [saved, savingMemory, queryText, message.content, toast]);
-
-    const handleVote = useCallback((vote: 'up' | 'down') => {
-      if (feedback) return;
-      setFeedback({ vote, tags: [], timestamp: new Date() });
-      setShowFeedbackPanel(true);
-    }, [feedback]);
-
-    const handleSubmitFeedback = useCallback(() => {
-      if (!feedback) return;
-      const finalFeedback: MessageFeedback = {
-        ...feedback,
-        tags: selectedTags,
-        comment: feedbackComment.trim() || undefined,
-      };
-      saveFeedback(message.id, finalFeedback);
-      setFeedback(finalFeedback);
-      setShowFeedbackPanel(false);
-
-      if (queryText && message.content) {
-        submitFeedbackToBackend({
-          query: queryText,
-          answer: message.content,
-          rating: finalFeedback.vote === 'up' ? 1 : -1,
-          comment: finalFeedback.comment || finalFeedback.tags.join(', ')
-        });
-      }
-    }, [feedback, selectedTags, feedbackComment, message.id, queryText, message.content]);
-
-    const handleDismissFeedback = useCallback(() => {
-      if (!feedback) return;
-      saveFeedback(message.id, feedback);
-      setShowFeedbackPanel(false);
-    }, [feedback, message.id]);
-
-    const toggleTag = (tag: string) => {
-      setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
-    };
 
     return (
       <>
@@ -764,10 +719,26 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   Never shown on crisis/helpline answers — a feedback widget under a
                   helpline is unsafe (see isCrisisAnswer). */}
               {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
-                <EngagementCard messageContent={message.content} queryText={queryText} />
+                <EngagementCard messageId={message.id} messageContent={message.content} queryText={queryText} />
               )}
 
-
+              {/* Practice nudge: offer to turn the last answer into a guided Serene
+                  Mind session. Suppressed on crisis/helpline answers like the rest
+                  of this footer. */}
+              {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
+                <div className="mt-3 rounded-2xl border border-ojas/20 bg-gradient-to-br from-ojas/10 to-prana/5 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[13px] font-semibold text-foreground">{t('chat.practiceNudge.title')}</div>
+                    <div className="text-[12px] text-muted-foreground mt-0.5">{t('chat.practiceNudge.body')}</div>
+                  </div>
+                  <button
+                    onClick={() => openSereneMind('audio', true)}
+                    className="flex-shrink-0 rounded-full bg-ojas px-4 py-2 text-[12.5px] font-semibold text-primary-foreground hover:bg-ojas-light transition-colors whitespace-nowrap"
+                  >
+                    {t('chat.practiceNudge.cta')}
+                  </button>
+                </div>
+              )}
 
               {/* Hover-only timestamp */}
               <time className="opacity-0 group-hover:opacity-60 text-[11px] text-muted-foreground transition-opacity mt-1 block">
@@ -786,30 +757,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       <RotateCcw className="w-4 h-4" />
                     </button>
                   )}
-                  <button
-                    onClick={() => handleVote('up')}
-                    className={`p-1 rounded-full transition-colors ${feedback?.vote === 'up'
-                        ? 'bg-green-500/15 text-green-600 dark:text-green-400'
-                        : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                    title="Helpful"
-                    aria-label="Mark response as helpful"
-                    disabled={!!feedback}
-                  >
-                    <ThumbsUp className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleVote('down')}
-                    className={`p-1 rounded-full transition-colors ${feedback?.vote === 'down'
-                        ? 'bg-red-500/15 text-red-600 dark:text-red-400'
-                        : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                      }`}
-                    title="Not helpful"
-                    aria-label="Mark response as not helpful"
-                    disabled={!!feedback}
-                  >
-                    <ThumbsDown className="w-4 h-4" />
-                  </button>
                   <button
                     onClick={handleCopy}
                     className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
@@ -906,54 +853,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 )}
               </div>
             )}
-
-            {/* Feedback panel */}
-            <AnimatePresence>
-              {showFeedbackPanel && feedback && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="w-full rounded-xl border border-border/50 bg-card/90 backdrop-blur-sm px-3 py-2.5 space-y-2 overflow-hidden"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-medium text-muted-foreground">
-                      {feedback.vote === 'up' ? 'What helped?' : 'What could improve?'}
-                    </p>
-                    <button onClick={handleDismissFeedback} aria-label="Close feedback panel" className="p-0.5 rounded hover:bg-muted">
-                      <X className="w-3 h-3 text-muted-foreground" />
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {FEEDBACK_TAGS.map(tag => (
-                      <button
-                        key={tag}
-                        onClick={() => toggleTag(tag)}
-                        className={`px-2.5 py-1 rounded-full text-[11px] border transition-all ${selectedTags.includes(tag)
-                            ? 'border-ojas/50 bg-ojas/10 text-ojas font-medium'
-                            : 'border-border/60 text-muted-foreground hover:border-ojas/30'
-                          }`}
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Optional: tell us more…"
-                    value={feedbackComment}
-                    onChange={(e) => setFeedbackComment(e.target.value)}
-                    className="w-full bg-transparent border-b border-border/30 text-[12px] py-1 outline-none focus:border-ojas/40 text-foreground placeholder:text-muted-foreground/75"
-                  />
-                  <button
-                    onClick={handleSubmitFeedback}
-                    className="text-[11px] font-medium text-ojas hover:text-ojas-light transition-colors"
-                  >
-                    Submit feedback
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             {/* Confidence score — color-coded badge + dynamic bar + hover reason (E6.4) */}
             {isGuru && message.confidenceScore != null && message.confidenceScore > 0 && (() => {

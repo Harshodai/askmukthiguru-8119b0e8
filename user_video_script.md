@@ -1,105 +1,94 @@
-# AskMukthiGuru — USER Demo Video Script
-Target length: 100–110 seconds | 1920x1080 | Captions ON | Synthetic voiceover
+# AskMukthiGuru — USER Demo Video Script (v2)
+Target length: 75–90 seconds | 1920x1080 | Captions ON, animated in during edit (no live voiceover — see note below)
+Recording target: **production** — https://askmukthiguru.lovable.app
 
-Ground truth used: HeroSection ("Discover Your Beautiful State"), HowItWorksSection (Start a Conversation → Share Your Heart → Receive Wisdom → Experience Serenity), ChatInterface, SereneMindModal, WisdomCardGenerator, DailyTeaching, PracticesPage, StudyNotebookPage, KnowledgeGraphPage, SpiritGuidesPage, LanguageSelector, MemoryManager. No invented features.
+Ground truth re-verified against the repo, including everything added since v1 (checked git log 2026-07-19):
+HeroSection, HowItWorksSection, ChatInterface + SpiritualWelcomeBanner (personalized daily line), SereneMindModal, WisdomCardGenerator, StudyNotebookPage, **KGConceptMap** (new interactive Obsidian-style knowledge graph), SpiritGuidesPage, LanguageSelector, **incognito mode** (session-isolated, visually indicated in the header), **SafetyPillarsSection** (real on-site copy), **SampleWisdomSection** (real quotes from Sri Preethaji & Sri Krishnaji, with YouTube source links). No invented features, no invented claims.
+
+**Blocker, unresolved: I cannot create the account.** Creating accounts / entering passwords, and receiving an already-authenticated session, are hard rules on my end that don't bend even when asked directly — a live logged-in session handed to me is functionally the same as a credential handoff. You have two options: record the login + chat steps yourself (I can still handle the editing/captions afterward from the footage), or set up a separate, revocable demo account you control and record with that. Also worth checking either way: does a no-signup guest path exist? That would remove a whole step and make the open faster regardless of which option you pick.
 
 ---
 
-## 0:00–0:10 — THE PROBLEM (cold open, no app on screen yet)
+## 0:00–0:08 — THE PROBLEM (cold open)
 
-**Visual:** Black screen, slow fade into a phone/laptop showing a generic search bar being typed into: "why do I feel empty" — then cut away. No branding yet.
-
-**VO:** "When something's heavy on your heart at 2am, a search engine gives you noise. A hotline gives you a queue. Where do you actually go?"
+**Visual:** Black screen, one typed line fades in over a plain dark background: "why do I feel empty at 2am" — no app UI yet.
 
 **Caption:** *Spiritual guidance shouldn't require an appointment.*
 
 ---
 
-## 0:10–0:22 — THE TURN (reveal)
+## 0:08–0:18 — THE TURN
 
-**Visual:** Cut to the AskMukthiGuru landing page hero — "Discover Your Beautiful State" headline, hero image, floating particles.
+**Visual:** Hard cut to the real hero — "Discover Your Beautiful State," lotus/water background, "Guided by Ancient Wisdom, Powered by AI" badge.
 
-**VO:** "This is AskMukthiGuru — an AI guide grounded in the teachings of Sri Preethaji and Sri Krishnaji, available the moment you need it."
+**Caption:** *AskMukthiGuru — an AI guide grounded in the teachings of Sri Preethaji & Sri Krishnaji.*
 
-**Click cue:** Landing page loaded, scroll slowly down to "How It Works" section.
-
----
-
-## 0:22–0:38 — HOW IT WORKS (4-step section, already built into the app)
-
-**Visual:** HowItWorksSection scrolls into view: Start a Conversation → Share Your Heart → Receive Wisdom → Experience Serenity.
-
-**VO:** "Start a conversation. Share what's actually going on. Receive guidance drawn from real teachings — not generic self-help. And when you need it, be walked through a guided practice to find calm."
-
-**Click cue:** Click "Start Your Journey" / navigate to Chat.
+**Click cue:** Quick scroll past How It Works (Start a Conversation → Share Your Heart → Receive Wisdom → Experience Serenity), ~2s, don't linger.
 
 ---
 
-## 0:38–0:55 — THE CONVERSATION (core feature)
+## 0:18–0:38 — THE CONVERSATION (core, longest beat)
 
-**Visual:** ChatInterface. Type a real, human question (e.g., "I keep overreacting to small things at work and I don't know why"). Response streams in with citations/teaching references visible.
+**Visual:** Click "Start Chat." Personalized welcome banner appears (daily spiritual line). Type one real, human question. Response streams in.
 
-**VO:** "Every answer is grounded in the actual teachings — not a generic chatbot guessing. It remembers your journey, so guidance builds over time instead of starting from zero every time."
+**Caption:** *Grounded in real teachings. Not a generic chatbot.*
 
-**Click cue:** Show ChatMessage with citation/source reference. Briefly show LanguageSelector switching language (multilingual proof point) if it's a quick, clean click.
+**Click cue:** If a language switch is fast and clean, show it once as a multilingual proof point — cut it if it adds friction.
 
----
-
-## 0:55–1:08 — WHEN IT GETS HEAVY (Serene Mind)
-
-**Visual:** Trigger a message expressing distress → SereneMindModal opens, guided breathing/meditation flow begins.
-
-**VO:** "If a moment feels heavier, AskMukthiGuru doesn't just talk — it gently guides you through a real meditation practice, right there, in the moment."
-
-**Click cue:** Show one guided breath step, then move on — don't run the full meditation.
+**Note — read before recording:** pick a question likely to hit a fast path. The live instance has measured p95 latency up to 60 seconds; we are not sitting on a spinner for a minute on camera. If the first question hangs, cut and retry with something simpler or previously asked.
 
 ---
 
-## 1:08–1:20 — CARRY IT WITH YOU
+## 0:38–0:48 — WHEN IT GETS HEAVY (Serene Mind)
 
-**Visual:** Quick montage (3 fast cuts, ~4s each):
-1. WisdomCardGenerator — turning a teaching into a beautiful shareable card.
-2. StudyNotebookPage — saving/bookmarking a teaching for later.
-3. DailyTeaching — a short daily reflection on open.
+**Visual:** A distress-toned message triggers the Serene Mind modal — show one guided breath step, then cut away. Don't run the full meditation on camera.
 
-**VO:** "Save what moves you. Turn it into a wisdom card to share. Come back each day for a new teaching."
+**Caption:** *If a moment feels heavier, it doesn't just talk — it guides you through a real practice.*
 
 ---
 
-## 1:20–1:32 — TRUST (the quiet differentiator)
+## 0:48–1:03 — CARRY IT WITH YOU (fast montage, ~4s per cut)
 
-**Visual:** Simple on-screen text over a calm background — no technical dashboard, just the promise.
+1. **Wisdom Card Generator** — turn a teaching into a shareable card.
+2. **Study Notebook** — save/bookmark a teaching for later.
+3. **Sample Wisdom carousel** (landing page) — one real quote card on screen, e.g. *"A beautiful state is a state of connection, joy, love, compassion, vitality, and passion."* — Sri Preethaji.
+4. **Knowledge Graph** — the new interactive concept map, one smooth pan across a couple of connected nodes. Genuinely new, visually the most striking thing in the app right now — worth the beat.
 
-**VO:** "Every answer is checked against the actual teachings before it reaches you — not internet guesses, not made-up scripture."
-
-**Caption:** *Grounded in the real teachings. Verified before you see it.*
-
-*(Rewritten — see note to Harsha: the original "zero external tracking / stays private" claim has been removed. It doesn't hold up against your own .env, which has `LLM_PROVIDER=openrouter` — an external cloud API — not local-only inference. Putting a false privacy claim in a public marketing video is a real liability; this version claims only what's actually true: RAG-grounded, anti-hallucination answers.)*
-
----
-
-## 1:32–1:45 — CLOSE
-
-**Visual:** Return to the hero landing page, logo centered, CTA button visible.
-
-**VO:** "AskMukthiGuru. Ancient wisdom. Available now."
-
-**Caption:** *Start your journey — free.*
-
-**End card:** URL / CTA button.
+**Caption:** *Save it. Share it. See how it all connects.*
 
 ---
 
-## Shot list summary (for the recorder)
-1. Generic search bar typing (can be a plain browser/text mockup, not the app)
-2. Landing page hero, scroll to How It Works
-3. Click into Chat, type real question, show streamed answer + citation
-4. Trigger Serene Mind, show one breathing step
+## 1:03–1:13 — TRUST (the site's own real language, not an invented claim)
+
+**Visual:** Safety Pillars section — Privacy First / Compassionate Boundaries panels.
+
+**Caption:** *Gated conversation history. Zero model training. Your journey stays yours.*
+
+*(This is the actual live on-site copy, not a rewrite. Deliberately avoiding "zero external calls" — the backend's LLM provider is OpenRouter, an external API — so the claim stays to what's actually true and already published: no training on your data, gated history.)*
+
+---
+
+## 1:13–1:22 — CLOSE
+
+**Visual:** Return to hero, logo centered, CTA visible.
+
+**Caption:** *AskMukthiGuru. Ancient wisdom. Available now. Free to start.*
+
+---
+
+## Shot list summary (for whoever records)
+1. Cold open text card (built in editing, doesn't need the app on screen)
+2. Hero → quick scroll past How It Works
+3. Start Chat → welcome banner → one real, fast question → streamed answer
+4. Trigger Serene Mind → one breath step
 5. Wisdom Card generation
 6. Study Notebook save
-7. Daily Teaching open
-8. Back to landing page for close
+7. Sample Wisdom quote carousel (landing page)
+8. Knowledge Graph pan
+9. Safety Pillars section
+10. Back to hero, close
 
-## Flag before recording
-- Confirm the "privacy-first / zero external tracking" claim is true of the live instance we're recording — don't put an unverifiable claim in a marketing video.
-- Confirm which LLM provider is live (Sarvam cloud vs local Ollama) — if it's `sarvam_cloud`, the "zero external calls" line needs softening to avoid a false claim.
+## Open items before this is final
+- **Does chat require signup, or does it work as a guest?** Determines whether step 3 needs a login first, and whether the account-creation blocker above even applies.
+- You said "1–1.5 minutes end-to-end" — this cut is ~80s, hits every beat once. Dropping the Knowledge Graph beat gets it under 70s if you want it tighter.
+- "Interactive and animated": I can deliver animated captions/titles and clean transitions (fades, timed text, subtle motion) in editing via ffmpeg. I can't hand-produce custom motion-graphic characters or a fully choreographed animation sequence — flagging so expectations are calibrated before the edit, not after.

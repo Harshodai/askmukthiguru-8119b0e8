@@ -8,6 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 import { MeditationStats } from './MeditationStats';
+import { getMeditationStats } from '@/lib/meditationStorage';
 import { UserMenu } from '@/components/common/UserMenu';
 import {
   Conversation, loadConversations, deleteConversation,
@@ -45,6 +46,17 @@ export const DesktopSidebar = ({
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [search, setSearch] = useState('');
+  const [streakDays, setStreakDays] = useState(() => getMeditationStats().streakDays);
+
+  useEffect(() => {
+    const refresh = () => setStreakDays(getMeditationStats().streakDays);
+    window.addEventListener('askmukthiguru:meditation_completed', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.removeEventListener('askmukthiguru:meditation_completed', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -297,6 +309,30 @@ export const DesktopSidebar = ({
               )}
             </div>
           </div>
+
+          {streakDays > 0 && (
+            <div className="px-2 pb-1">
+              <div className="rounded-2xl border border-ojas/20 bg-gradient-to-br from-ojas/10 to-prana/5 p-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Flame className="w-4 h-4 text-ojas" />
+                  <span className="text-xs font-semibold text-foreground">
+                    {t('desktopSidebar.dayFlame', { count: streakDays })}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed mb-2.5">
+                  {t('desktopSidebar.flameEncouragement')}
+                </p>
+                <div className="flex gap-1">
+                  {Array.from({ length: 7 }, (_, i) => (
+                    <div
+                      key={i}
+                      className={`flex-1 h-1 rounded-full ${i < Math.min(streakDays, 7) ? 'bg-ojas' : 'bg-ojas/20'}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="px-2 pb-1">
             <MeditationStats compact />

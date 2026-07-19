@@ -139,6 +139,7 @@ const AuthPage = () => {
   const googleInitializedRef = useRef(false);
   const nonceRef = useRef<string | null>(null);
   const handleCallbackRef = useRef<any>(null);
+  const oneTapInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!isNativePlatform) return;
@@ -692,6 +693,16 @@ const AuthPage = () => {
   }, [toast, t]);
   
   const handleGoogleOneTapResponse = useCallback(async (response: { credential: string }) => {
+    // GSI can invoke this callback twice for one sign-in (the auto-prompt corner
+    // popup and the rendered button both funnel into it) — without this guard the
+    // second call reuses an already-consumed nonce, hits the mismatch fallback
+    // below, and fires a second, visible signInWithOAuth redirect on top of the
+    // first successful sign-in. That's the "Google sign-in happens twice" report.
+    if (oneTapInFlightRef.current) {
+      console.warn('[Auth] One Tap response already in flight — suppressed duplicate');
+      return;
+    }
+    oneTapInFlightRef.current = true;
     try {
       setLoading(true);
       startAuthRun('google_one_tap');
@@ -715,6 +726,15 @@ const AuthPage = () => {
       console.error('[Google One Tap Error]', err);
       const msg = err instanceof Error ? err.message : 'Unknown error';
       if (msg.includes('Nonces mismatch') || msg.includes('nonce')) {
+        // A nonce is single-use — a mismatch here often means an earlier call
+        // already redeemed it and signed the user in. Only fall back to a full
+        // OAuth redirect if there's genuinely no session yet, or a signed-in
+        // user gets bounced through a second, redundant Google redirect.
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          endAuthRun('ok');
+          return;
+        }
         const { error: oauthError } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: { redirectTo: window.location.origin },
@@ -725,6 +745,7 @@ const AuthPage = () => {
       endAuthRun('error', msg);
     } finally {
       setLoading(false);
+      oneTapInFlightRef.current = false;
     }
   }, [toast, t]);
 
