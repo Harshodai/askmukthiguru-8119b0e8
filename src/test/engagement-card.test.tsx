@@ -2,15 +2,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const TRANSLATIONS: Record<string, string> = {
-  'chat.engagement.didThisHelp': 'Did this help?',
+  'chat.engagement.didThisLand': 'Did this land?',
   'chat.engagement.yes': 'Yes',
-  'chat.engagement.needsWork': 'Needs work',
-  'chat.engagement.no': 'No',
+  'chat.engagement.notQuite': 'Not quite',
   'chat.engagement.thanks': 'Thanks',
+  'chat.clearAnswer': 'Clear answer',
+  'chat.relevantSources': 'Relevant sources',
+  'chat.calmingTone': 'Calming tone',
+  'chat.insightful': 'Insightful',
 };
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => TRANSLATIONS[key] ?? key }),
+}));
+
+vi.mock('@/lib/chatStorage', () => ({
+  saveFeedback: vi.fn(),
+  isIncognitoMode: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock('@/lib/chat', () => ({
@@ -26,38 +34,45 @@ describe('EngagementCard', () => {
   });
 
   const renderCard = (props = {}) =>
-    render(<EngagementCard messageContent="Test answer" queryText="What is truth?" {...props} />);
+    render(
+      <EngagementCard
+        messageId="msg-001"
+        messageContent="Test answer"
+        queryText="What is truth?"
+        {...props}
+      />,
+    );
 
-  it('renders "Did this help?" prompt', () => {
+  it('renders prompt text', () => {
     renderCard();
-    expect(screen.getByText('Did this help?')).toBeInTheDocument();
+    expect(screen.getByText('Did this land?')).toBeInTheDocument();
   });
 
-  it('fires feedback with rating=2 on Yes', async () => {
+  it('renders Yes and Not quite buttons', () => {
     renderCard();
-    fireEvent.click(screen.getByLabelText('Yes'));
+    expect(screen.getByTestId('engagement-yes')).toBeInTheDocument();
+    expect(screen.getByTestId('engagement-not-quite')).toBeInTheDocument();
+  });
+
+  it('fires feedback with rating=1 on Yes', async () => {
+    renderCard();
+    fireEvent.click(screen.getByTestId('engagement-yes'));
     await waitFor(() => expect(submitFeedbackToBackend).toHaveBeenCalledTimes(1));
     expect(submitFeedbackToBackend).toHaveBeenCalledWith(
-      expect.objectContaining({ rating: 2, answer: 'Test answer', query: 'What is truth?' }),
+      expect.objectContaining({ rating: 1, answer: 'Test answer', query: 'What is truth?' }),
     );
   });
 
-  it('fires feedback with rating=1 on Needs work', async () => {
+  it('shows thanks state after Yes click', async () => {
     renderCard();
-    fireEvent.click(screen.getByLabelText('Needs work'));
-    await waitFor(() => expect(submitFeedbackToBackend).toHaveBeenCalledWith(expect.objectContaining({ rating: 1 })));
+    fireEvent.click(screen.getByTestId('engagement-yes'));
+    await waitFor(() => expect(screen.getByTestId('engagement-thanks')).toBeInTheDocument());
+    expect(screen.queryByTestId('engagement-yes')).not.toBeInTheDocument();
   });
 
-  it('fires feedback with rating=0 on No', async () => {
+  it('opens refine panel after Not quite click', async () => {
     renderCard();
-    fireEvent.click(screen.getByLabelText('No'));
-    await waitFor(() => expect(submitFeedbackToBackend).toHaveBeenCalledWith(expect.objectContaining({ rating: 0 })));
-  });
-
-  it('collapses to Thanks after click', async () => {
-    renderCard();
-    fireEvent.click(screen.getByLabelText('Yes'));
-    await waitFor(() => expect(screen.getByText('Thanks')).toBeInTheDocument());
-    expect(screen.queryByLabelText('Yes')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('engagement-not-quite'));
+    await waitFor(() => expect(screen.getByText('Clear answer')).toBeInTheDocument());
   });
 });

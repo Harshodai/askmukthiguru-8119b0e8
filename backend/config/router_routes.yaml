@@ -188,14 +188,27 @@ routes:
     # (priority 1000, fires regardless of phrasing).
     exclude_if_capability_question: true
     utterances:
+      # Declarative distress — high-confidence anchors
       - "I feel completely hopeless and I do not know how to go on"
       - "I am crying every day and I cannot stop"
       - "I have severe anxiety that does not let me sleep"
       - "I am having a panic attack right now"
       - "Everything feels meaningless and I am alone"
       - "I am drowning in sadness and grief"
+      - "I feel so broken inside and I cannot carry this anymore"
+      - "I am exhausted from pretending that everything is fine"
+      - "I do not see any reason to keep going"
+      # Question-phrased distress — these pass capability_question veto correctly
+      # but weren't in the centroid; adding them raises their cosine score
+      - "why do I feel so hopeless all the time"
+      - "how do I stop the pain inside me"
+      - "why do I keep crying for no reason"
+      - "how do I get through this darkness"
+      - "why does life feel so empty and pointless"
+      # Multilingual
       - "Mera mann bilkul tut chuka hai"
       - "Mujhe lagta hai main bilkul akela hu duniya mein"
+      - "Main bahut dard mein hoon aur kuch samajh nahi aa raha"
       - "Naan romba kashtama irukken epadi seyradhunu theriyaadhu"
 
   # ---------------------------------------------------------------------------
