@@ -88,13 +88,13 @@ describe('ChatMessage', () => {
     expect(screen.queryByTitle('Helpful')).not.toBeInTheDocument();
   });
 
-  it('shows confidence score badge when present', () => {
+  it('confidence score is computed but not displayed', () => {
     const msgWithScore: Message = {
       ...guruMessage,
       confidenceScore: 8,
     };
     render(<ChatMessage message={msgWithScore} />, { wrapper });
-    expect(screen.getByText(/High confidence/)).toBeInTheDocument();
-    expect(screen.getByText(/80%/)).toBeInTheDocument();
+    expect(screen.queryByText(/High confidence/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/80%/)).not.toBeInTheDocument();
   });
 });

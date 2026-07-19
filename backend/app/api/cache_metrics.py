@@ -1,4 +1,4 @@
-"""Cache tier metrics and observability endpoint.
+"""Cache tier metrics, observability, and invalidation endpoints.
 
 Exposes hit rates, sizes, and health for all cache tiers:
   1. Hot cache (in-memory dict)
@@ -7,14 +7,17 @@ Exposes hit rates, sizes, and health for all cache tiers:
 """
 from __future__ import annotations
 
+import logging
 import time
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.dependencies import ServiceContainer, get_container
 from services.auth_service import get_current_user_from_supabase
 from services.hot_cache import hot_cache
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Metrics"])
 
@@ -66,4 +69,57 @@ async def cache_metrics(
             "exact": exact_stats,
             "semantic": semantic_stats,
         },
+    })
+
+
+@router.post("/admin/clear-cache")
+async def clear_cache(
+    container: ServiceContainer = Depends(get_container),
+    user: dict = Depends(get_current_user_from_supabase),
+) -> JSONResponse:
+    """Flush all cache tiers. Admin only.
+
+    Invalidates:
+      - Hot cache (in-memory LRU)
+      - Exact cache (Redis key-value)
+      - Semantic cache (Qdrant vector-search collection)
+    """
+    if not user or not user.get("is_superuser"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    results: dict[str, str] = {}
+
+    # 1. Hot cache
+    try:
+        hot_cache.clear()
+        results["hot"] = "cleared"
+    except Exception as e:
+        results["hot"] = f"error: {e}"
+        logger.warning("hot cache clear failed: %s", e)
+
+    # 2. Exact cache (Redis)
+    try:
+        if container.exact_cache:
+            container.exact_cache.invalidate_all()
+            results["exact"] = "cleared"
+        else:
+            results["exact"] = "not available"
+    except Exception as e:
+        results["exact"] = f"error: {e}"
+        logger.warning("exact cache clear failed: %s", e)
+
+    # 3. Semantic cache (Qdrant)
+    try:
+        if container.semantic_cache and container.semantic_cache.is_available:
+            container.semantic_cache.invalidate_all()
+            results["semantic"] = "cleared"
+        else:
+            results["semantic"] = "not available"
+    except Exception as e:
+        results["semantic"] = f"error: {e}"
+        logger.warning("semantic cache clear failed: %s", e)
+
+    return JSONResponse({
+        "status": "ok",
+        "tiers": results,
     })
