@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useIngestionRuns, useIngestionHealth } from "@/admin/hooks/useAdminData";
 import { triggerReingest } from "@/admin/lib/mockData";
-import { submitIngestion, getIngestionStatus } from "@/admin/lib/api";
+import { submitIngestion, getIngestionStatus, clearCache } from "@/admin/lib/api";
 import { KpiCard } from "@/admin/components/KpiCard";
 import {
   Table,
@@ -20,7 +20,7 @@ import {
 import { fmtDateTime, fmtInt, fmtMs } from "@/admin/lib/formatters";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { RefreshCw, Upload, Loader2, CheckCircle2, AlertCircle, Link2, Info } from "lucide-react";
+import { RefreshCw, Upload, Loader2, CheckCircle2, AlertCircle, Link2, Info, Trash2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface IngestionJob {
@@ -229,6 +229,35 @@ export default function IngestionPage() {
         <KpiCard label="Failed" value={fmtInt(health?.failed ?? 0)} tone={health?.failed ? "bad" : "default"} />
         <KpiCard label="Chunks added" value={fmtInt(health?.total_chunks ?? 0)} />
       </div>
+
+      {/* Cache Management */}
+      <Card className="border-amber-200/30 bg-amber-50/30 dark:bg-amber-950/10 dark:border-amber-800/20">
+        <CardContent className="flex items-center justify-between p-4">
+          <div>
+            <p className="text-sm font-medium">Cache</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Flush exact (Redis), semantic (Qdrant), and hot (in-memory) caches after ingestion or to force fresh responses.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-2 shrink-0 ml-4"
+            onClick={async () => {
+              try {
+                const res = await clearCache();
+                toast.success(`Cache cleared: ${Object.values(res.tiers).join(", ")}`);
+                qc.invalidateQueries();
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to clear cache");
+              }
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear Cache
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Runs Table */}
       <Card>
