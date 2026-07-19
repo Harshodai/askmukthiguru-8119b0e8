@@ -46,3 +46,6 @@ GRANT ALL ON public.user_retention_cards TO service_role;
 CREATE TRIGGER trg_user_retention_cards_touch 
     BEFORE UPDATE ON public.user_retention_cards 
     FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+-- Reload PostgREST schema cache to apply changes immediately
+NOTIFY pgrst, 'reload schema';

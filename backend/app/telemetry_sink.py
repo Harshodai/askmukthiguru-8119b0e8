@@ -71,6 +71,14 @@ class SupabaseTelemetrySink:
         except ValueError:
             return str(uuid.uuid5(uuid.NAMESPACE_DNS, val_str))
 
+    def _stable_child_id(self, query_id: str, logical: str) -> str:
+        """Deterministic UUID for a trace child row, derived from the parent
+        trace id plus a logical event identity (e.g. 'response'). The worker is
+        at-least-once, so a re-processed telemetry message must not create a
+        second row: a stable id + upsert makes the write idempotent, unlike the
+        previous per-attempt uuid4() which duplicated on every replay."""
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{query_id}:{logical}"))
+
     async def log_query_trace(
         self,
         query_id: str,
@@ -228,11 +236,12 @@ class SupabaseTelemetrySink:
         }
         query_payload = {k: v for k, v in query_payload.items() if v is not None}
 
-        # 2. chat_responses
+        # 2. chat_responses — deterministic id so worker replays (at-least-once)
+        # upsert the same row instead of inserting a duplicate every attempt.
         response_payload = None
         if response_text is not None:
             response_payload = {
-                "id": str(uuid.uuid4()),
+                "id": self._stable_child_id(query_id, "response"),
                 "query_id": query_id,
                 "response_text": response_text,
                 "citations": citations or [],
@@ -322,9 +331,9 @@ class SupabaseTelemetrySink:
                 # 1. Insert chat_queries
                 self.client.table("chat_queries").upsert(query_payload).execute()
 
-                # 2. Insert chat_responses
+                # 2. Insert chat_responses (upsert on stable id — idempotent on replay)
                 if response_payload:
-                    self.client.table("chat_responses").insert(response_payload).execute()
+                    self.client.table("chat_responses").upsert(response_payload).execute()
 
                 # 3. Insert retrieval_events
                 if retrieval_payload:

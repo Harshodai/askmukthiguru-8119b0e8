@@ -8,6 +8,7 @@
 
 import { getAccessToken } from './chat/auth';
 import { BACKEND_URL } from './backendUrl';
+import i18n from '@/i18n';
 
 export interface BrainItem {
   id: string;
@@ -44,11 +45,11 @@ async function authedFetch<T>(
   unlockPassphrase?: string,
 ): Promise<T> {
   if (!BACKEND_URL) {
-    throw new SecondBrainApiError('Second Brain requires the backend to be configured.');
+    throw new SecondBrainApiError(i18n.t('brain.errors.notConfigured'));
   }
   const token = await getAccessToken();
   if (!token) {
-    throw new SecondBrainApiError('Sign in to access your Second Brain.', 401);
+    throw new SecondBrainApiError(i18n.t('brain.errors.signInRequired'), 401);
   }
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -65,7 +66,7 @@ async function authedFetch<T>(
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
     throw new SecondBrainApiError(
-      detail?.detail || `Second Brain request failed (${res.status}).`,
+      detail?.detail || i18n.t('brain.errors.requestFailed', { status: res.status }),
       res.status,
     );
   }

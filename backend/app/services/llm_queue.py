@@ -92,6 +92,39 @@ class LLMQueueService:
                 self._total_failed += 1
                 raise
 
+    async def execute_stream(self, priority: LLMPriority, stream_factory, *args, **kwargs):
+        """Streaming twin of execute(): holds the semaphore for the FULL stream
+        lifetime so an in-flight stream counts against max_concurrent.
+
+        Without this, generate_stream bypassed the queue and every concurrent
+        streaming request opened an unbounded provider connection — a root
+        cause of memory spikes under load. Metrics (enqueue/wait/complete/fail)
+        are updated consistently with execute(). `priority` is accepted for
+        parity with execute() (which likewise does not use it for ordering —
+        the semaphore is the sole concurrency gate today).
+        """
+        if not self._running:
+            async for chunk in stream_factory(*args, **kwargs):
+                yield chunk
+            return
+
+        self._total_enqueued += 1
+        wait_start = time.monotonic()
+
+        async with self._semaphore:
+            wait_time = time.monotonic() - wait_start
+            self._wait_times.append(wait_time)
+            if len(self._wait_times) > self._max_wait_time_log:
+                self._wait_times.pop(0)
+
+            try:
+                async for chunk in stream_factory(*args, **kwargs):
+                    yield chunk
+                self._total_completed += 1
+            except Exception:
+                self._total_failed += 1
+                raise
+
     def get_stats(self) -> dict:
         return {
             "max_concurrent": self._max_concurrent,
@@ -114,7 +147,10 @@ class QueuedLLMProvider:
         return await self._queue.execute(priority, self._provider.generate, *args, **kwargs)
 
     async def generate_stream(self, *args, **kwargs):
-        async for chunk in self._provider.generate_stream(*args, **kwargs):
+        priority = kwargs.pop("priority", LLMPriority.GENERATE)
+        async for chunk in self._queue.execute_stream(
+            priority, self._provider.generate_stream, *args, **kwargs
+        ):
             yield chunk
 
     async def classify(self, **kwargs):

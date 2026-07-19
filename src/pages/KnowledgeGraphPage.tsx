@@ -5,6 +5,7 @@ import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { BrandedSpinner } from '@/components/common/BrandedSpinner';
 
 export default function KnowledgeGraphPage() {
+  const { t } = useTranslation();
   const { loading: authLoading } = useRequireAuth();
   const [params] = useSearchParams();
   const initialQuery = params.get('q') ?? '';
@@ -17,9 +18,9 @@ export default function KnowledgeGraphPage() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border/30">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <h1 className="font-serif text-2xl text-foreground">Knowledge Graph</h1>
+          <h1 className="font-serif text-2xl text-foreground">{t('kg.title', 'Wisdom Map')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Explore how the sacred concepts of the Ekam teachings connect.
+            {t('kg.subtitle', 'Explore how the sacred concepts of the Ekam teachings connect.')}
           </p>
         </div>
       </header>

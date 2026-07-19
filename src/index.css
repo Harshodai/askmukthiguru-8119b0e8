@@ -43,6 +43,13 @@
     --ojas-gold-light: 45 100% 70%;
     --ojas-gold-dark: 40 90% 45%;
 
+    /* Palette Alias Layer */
+    --sacred-sand: 40 30% 96%;
+    --deep-earth: 25 25% 20%;
+    --saffron-gold: 43 96% 56%;
+    --pale-gold: 45 100% 70%;
+    --lotus-rose: 350 65% 65%;
+
     --tejas-white: 35 30% 25%;
     --tejas-glow: 40 40% 35%;
 
@@ -127,6 +134,13 @@
     --spiritual-gradient-start: 25 20% 8%;
     --spiritual-gradient-mid: 30 25% 10%;
     --spiritual-gradient-end: 35 30% 12%;
+
+    /* Palette Alias Layer (Dark) */
+    --sacred-sand: 25 18% 8%;
+    --deep-earth: 40 30% 92%;
+    --saffron-gold: 43 96% 60%;
+    --pale-gold: 45 90% 55%;
+    --lotus-rose: 350 45% 45%;
 
     --background: 25 18% 8%;
     --foreground: 40 30% 92%;

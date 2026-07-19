@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw, Square, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import {
   Message,
@@ -91,6 +91,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
 export const ChatInterface = () => {
   const { toast } = useToast();
   const { greetingContext } = useVisitContext();
+  const [searchParams] = useSearchParams();
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [sourcesPanelOpen, setSourcesPanelOpen] = useState(false);
@@ -353,6 +354,31 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
     setTtsEnabled(profile.ttsEnabled);
     setAILanguage(profile.preferredLanguage);
   }, [profile.preferredLanguage, profile.ttsEnabled]);
+
+  // Pre-seed chat composer if intent exists in query parameters
+  useEffect(() => {
+    const intent = searchParams.get('intent');
+    if (intent) {
+      let message = '';
+      if (intent === 'anxious') {
+        message = 'I am feeling anxious and overwhelmed. Can you guide me to find calm?';
+      } else if (intent === 'restless') {
+        message = 'My mind is restless and full of thoughts. How can I return to stillness?';
+      } else if (intent === 'peace') {
+        message = 'I want to experience deeper inner peace. What teachings or practices do you suggest?';
+      } else if (intent === 'gratitude') {
+        message = 'I want to connect with gratitude and love today. How can I shift my state?';
+      }
+
+      if (message) {
+        setInputValue(message);
+        // Focus the composer
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 300);
+      }
+    }
+  }, [searchParams]);
 
   // Text-to-Speech hook
   const { speak, stop: stopSpeaking, isSpeaking, isSupported: ttsSupported } = useTextToSpeech({

@@ -9,9 +9,10 @@ describe('chat/errors', () => {
     [401, 'unauthorized'],
     [403, 'unauthorized'],
     [429, 'rate_limited'],
+    [408, 'timeout'],
     [500, 'server_error'],
     [502, 'server_error'],
-    [504, 'server_error'],
+    [504, 'timeout'],
   ];
 
   it.each(cases)('maps %i to %s', (status, expected) => {

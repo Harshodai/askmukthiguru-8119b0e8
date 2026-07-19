@@ -134,6 +134,10 @@ class OllamaService:
         # Queue metrics tracking (Phase 1.1)
         self._queue_semaphore = asyncio.Semaphore(1)  # Single thread per model (Ollama limitation)
         self._pending_requests = 0
+        # ponytail: capped at _MAX_HIST_LEN — unbounded lists here grew by one
+        # entry per request for the life of the process (used only for a
+        # rolling average, so a bounded window is equivalent).
+        self._MAX_HIST_LEN = 1000
         self._queue_depth_hist = []
         self._queue_time_hist = []
 
@@ -227,12 +231,16 @@ class OllamaService:
         # Phase 1.1: Queue metrics — track depth before entering try so finally always decrements
         self._pending_requests += 1
         self._queue_depth_hist.append(self._pending_requests)
+        if len(self._queue_depth_hist) > self._MAX_HIST_LEN:
+            del self._queue_depth_hist[: -self._MAX_HIST_LEN]
         queue_start = time.monotonic()
 
         try:
             async with self._queue_semaphore:
                 queue_wait = time.monotonic() - queue_start
                 self._queue_time_hist.append(queue_wait * 1000)  # ms
+                if len(self._queue_time_hist) > self._MAX_HIST_LEN:
+                    del self._queue_time_hist[: -self._MAX_HIST_LEN]
 
                 async for attempt in retryer:
                     with attempt:
@@ -342,6 +350,8 @@ class OllamaService:
         # Phase 1.1: Queue metrics — track depth for fast model too; finally always decrements
         self._pending_requests += 1
         self._queue_depth_hist.append(self._pending_requests)
+        if len(self._queue_depth_hist) > self._MAX_HIST_LEN:
+            del self._queue_depth_hist[: -self._MAX_HIST_LEN]
 
         try:
             async for attempt in retryer:

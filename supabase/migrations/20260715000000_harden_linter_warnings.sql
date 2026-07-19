@@ -44,12 +44,26 @@ CREATE POLICY "Admins manage daily-teachings bucket" ON storage.objects
 -- and granted only to authenticated role or kept fully restricted (internal functions)
 
 -- Internal trigger functions (no public/client execution needed)
-REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC, anon, authenticated;
+DO $$
+BEGIN
+  BEGIN
+    REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC, anon, authenticated;
+  EXCEPTION WHEN undefined_function THEN
+    NULL;
+  END;
+END $$;
 REVOKE EXECUTE ON FUNCTION public.touch_user_last_message() FROM PUBLIC, anon, authenticated;
 
 -- Client-accessible RPC functions (restrict to authenticated role only)
-REVOKE EXECUTE ON FUNCTION public.meditation_streak(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.meditation_streak(uuid) TO authenticated;
+DO $$
+BEGIN
+  BEGIN
+    REVOKE EXECUTE ON FUNCTION public.meditation_streak(uuid) FROM PUBLIC, anon;
+    GRANT EXECUTE ON FUNCTION public.meditation_streak(uuid) TO authenticated;
+  EXCEPTION WHEN undefined_function THEN
+    NULL;
+  END;
+END $$;
 
 REVOKE EXECUTE ON FUNCTION public.ensure_profile_and_role() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.ensure_profile_and_role() TO authenticated;
@@ -63,8 +77,15 @@ GRANT EXECUTE ON FUNCTION public.match_kb_chunks(public.vector, integer, double 
 REVOKE EXECUTE ON FUNCTION public.match_user_memories(public.vector, integer, double precision) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.match_user_memories(public.vector, integer, double precision) TO authenticated;
 
-REVOKE EXECUTE ON FUNCTION public.match_user_memories_by_user(uuid, public.vector, integer, double precision) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.match_user_memories_by_user(uuid, public.vector, integer, double precision) TO authenticated;
+DO $$
+BEGIN
+  BEGIN
+    REVOKE EXECUTE ON FUNCTION public.match_user_memories_by_user(uuid, public.vector, integer, double precision) FROM PUBLIC, anon;
+    GRANT EXECUTE ON FUNCTION public.match_user_memories_by_user(uuid, public.vector, integer, double precision) TO authenticated;
+  EXCEPTION WHEN undefined_function THEN
+    NULL;
+  END;
+END $$;
 
 REVOKE EXECUTE ON FUNCTION public.whoami_diagnostics() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.whoami_diagnostics() TO authenticated;

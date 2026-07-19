@@ -30,6 +30,12 @@ import {
 } from '@/lib/authConstants';
 
 const isNativePlatform = Capacitor.isNativePlatform();
+// GSI's iframe (accounts.google.com/gsi/iframe) gets "Refused to frame" when
+// this page itself is embedded in another iframe (e.g. the Lovable builder
+// preview) — same nested-iframe case main.tsx already special-cases for the
+// service worker. One Tap/renderButton only run at top level; the plain
+// redirect button (handleGoogleSignIn) covers the embedded-preview case.
+const isTopLevelFrame = typeof window !== 'undefined' && window.self === window.top;
 
 /** Map Supabase error messages/codes to user-friendly descriptions */
 const friendlyError = (err: Error | { message: string }): string => {
@@ -663,7 +669,7 @@ const AuthPage = () => {
 
   useEffect(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId || isNativePlatform) return;
+    if (!clientId || isNativePlatform || !isTopLevelFrame) return;
 
     // Load GIS script if not already present
     let script = document.querySelector(`script[src="${GOOGLE_GSI_SDK_URL}"]`) as HTMLScriptElement;
@@ -784,13 +790,13 @@ const AuthPage = () => {
         )}
 
         <div className="space-y-2">
-          {!isNativePlatform && import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
-            <div 
-              ref={googleButtonRef} 
+          {!isNativePlatform && import.meta.env.VITE_GOOGLE_CLIENT_ID && isTopLevelFrame ? (
+            <div
+              ref={googleButtonRef}
               className="w-full flex justify-center min-h-[44px]"
               data-testid="google-gsi-container"
             />
-          ) : (
+          ) : !isNativePlatform && (
             <Button
               variant="outline"
               className="w-full h-11 gap-2 relative overflow-hidden"

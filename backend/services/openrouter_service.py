@@ -319,7 +319,21 @@ class OpenRouterService:
                 if is_rate_limit:
                     await self._record_rate_limit_response()
                 reason = "rate limited (429)" if is_rate_limit else type(exc).__name__
-                logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation (fallback_model branch removed per security audit)")
+                if fallback_model and not _is_fallback_attempt:
+                    logger.warning(
+                        f"OpenRouter {reason} during {operation} — retrying against "
+                        f"fallback model {fallback_model} (same provider, separate rate-limit bucket)"
+                    )
+                    return await self._call_api(
+                        messages,
+                        fallback_model,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        operation=operation,
+                        _is_fallback_attempt=True,
+                        **kwargs,
+                    )
+                logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation")
                 return await self._graceful_degradation(messages, operation=operation)
             self._circuit.record_failure()
             logger.error(f"OpenRouter call failed during {operation} (model={model}): {exc}")

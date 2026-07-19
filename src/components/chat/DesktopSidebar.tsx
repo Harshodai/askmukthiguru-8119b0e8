@@ -155,7 +155,7 @@ export const DesktopSidebar = ({
 
           <button
             onClick={() => navigate('/knowledge-graph')}
-            title={t('nav.knowledgeGraph')}
+            title={t('nav.knowledgeGraph', 'Wisdom Map')}
             data-tour="knowledge-graph"
             className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-all"
           >
@@ -164,7 +164,7 @@ export const DesktopSidebar = ({
 
           <button
             onClick={() => navigate('/second-brain')}
-            title={t('nav.secondBrain', 'Your Second Brain')}
+            title={t('nav.secondBrain', 'My Reflections')}
             className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-all"
           >
             <Lock className="w-4 h-4" />
@@ -256,14 +256,14 @@ export const DesktopSidebar = ({
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm text-muted-foreground hover:bg-ojas/10 hover:text-ojas border border-transparent hover:border-ojas/20 transition-all"
             >
               <Brain className="w-3.5 h-3.5 flex-shrink-0" />
-              {t('nav.knowledgeGraph')}
+              {t('nav.knowledgeGraph', 'Wisdom Map')}
             </button>
             <button
               onClick={() => navigate('/second-brain')}
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm text-muted-foreground hover:bg-ojas/10 hover:text-ojas border border-transparent hover:border-ojas/20 transition-all"
             >
               <HardDrive className="w-3.5 h-3.5 flex-shrink-0" />
-              {t('nav.secondBrain', 'Second Brain')}
+              {t('nav.secondBrain', 'My Reflections')}
             </button>
           </div>
 

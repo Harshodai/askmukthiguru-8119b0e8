@@ -1,7 +1,7 @@
 import asyncio
 import hashlib
 import logging
-import time
+from cachetools import TTLCache
 from neo4j import GraphDatabase
 from rag.states import GraphState
 from app.config import settings
@@ -9,9 +9,11 @@ from app.tracing import trace_rag_node
 
 logger = logging.getLogger(__name__)
 
-# ponytail: Neo4j cross-teacher query cache (5min TTL)
-_neo4j_query_cache = {}
+# ponytail: Neo4j cross-teacher query cache (5min TTL). Bounded TTLCache, not a
+# plain dict — a dict here only checked TTL on read and never evicted expired
+# entries, growing by one entry per unique teacher-set forever.
 _cache_ttl_seconds = 300
+_neo4j_query_cache: TTLCache = TTLCache(maxsize=500, ttl=_cache_ttl_seconds)
 
 # Shared driver: constructing a driver does a handshake/routing-table fetch,
 # so open one per process and reuse it instead of per-request.
@@ -79,25 +81,24 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
 
     # ponytail: Check cache before Neo4j query
     cache_key = hashlib.md5(",".join(sorted(teachers)).encode()).hexdigest()
-    if cache_key in _neo4j_query_cache:
-        cached_results, ts = _neo4j_query_cache[cache_key]
-        if time.time() - ts < _cache_ttl_seconds:
-            logger.info(f"Neo4j cross-teacher cache hit (age={time.time()-ts:.1f}s)")
-            if cached_results:
-                comparison_doc = {
-                    "content": "\n".join(cached_results),
-                    "score": 0.95,
-                    "title": "Cross-Teacher Ontology Mapping",
-                    "source": "neo4j://ontology/comparison",
-                    "content_type": "ontology_comparison"
-                }
-                current_docs = state.get("relevant_docs") or []
-                return {
-                    "relevant_docs": [comparison_doc] + current_docs,
-                    "is_cross_teacher": True,
-                    "compared_teachers": teachers
-                }
-            return {}
+    cached_results = _neo4j_query_cache.get(cache_key)
+    if cached_results is not None:
+        logger.info("Neo4j cross-teacher cache hit")
+        if cached_results:
+            comparison_doc = {
+                "content": "\n".join(cached_results),
+                "score": 0.95,
+                "title": "Cross-Teacher Ontology Mapping",
+                "source": "neo4j://ontology/comparison",
+                "content_type": "ontology_comparison"
+            }
+            current_docs = state.get("relevant_docs") or []
+            return {
+                "relevant_docs": [comparison_doc] + current_docs,
+                "is_cross_teacher": True,
+                "compared_teachers": teachers
+            }
+        return {}
 
     # Query Neo4j for relationships between these teachers and common concepts
     relationships_found = []
@@ -115,8 +116,12 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
             driver = _get_driver()
             if driver is None:
                 raise RuntimeError("Neo4j driver unavailable")
-            with driver.session() as session:
-                records = await asyncio.to_thread(session.execute_read, _query_paths)
+
+            def _run_query():
+                with driver.session() as session:
+                    return session.execute_read(_query_paths)
+
+            records = await asyncio.to_thread(_run_query)
 
             for r in records:
                 relationships_found.append(
@@ -129,7 +134,7 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
     # If we found ontology connections, construct a comparison context and add to documents
     if relationships_found:
         # Cache the results before returning
-        _neo4j_query_cache[cache_key] = (relationships_found, time.time())
+        _neo4j_query_cache[cache_key] = relationships_found
 
         comparison_doc = {
             "content": "\n".join(relationships_found),
@@ -148,5 +153,5 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
         }
 
     # Cache empty result too to avoid repeated queries with no results
-    _neo4j_query_cache[cache_key] = ([], time.time())
+    _neo4j_query_cache[cache_key] = []
     return {}

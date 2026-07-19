@@ -25,7 +25,7 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Literal, Optional
+from typing import Any, AsyncIterator, Literal, Optional
 
 from services.circuit_breaker import (
     CircuitBreakerConfig,
@@ -222,17 +222,69 @@ class LLMGateway:
         use_cache: bool = True,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
-        """Streaming generation — delegates to primary provider's generate_stream."""
-        # For now, we don't cache streaming responses
-        if not use_cache:
-            async for chunk in self._primary.generate_stream(system_prompt, user_prompt, context=context, **kwargs):
-                yield chunk
+        """Streaming generation.
+
+        Cached path defers to generate() (which routes + coalesces + counts).
+        Uncached path streams through _stream_routed so it is NOT a bare
+        provider call: it honors the circuit breaker, counts metrics, records
+        failures, and does same-provider model fallback (before the first
+        chunk is emitted — a stream can't be cleanly restarted mid-flight).
+        """
+        kwargs.setdefault("operation", task)
+        if use_cache:
+            # No streaming cache yet — fall back to a single buffered chunk.
+            result = await self.generate(
+                system_prompt, user_prompt, context, task=task, use_cache=use_cache, **kwargs
+            )
+            yield result
             return
 
-        # With cache - we don't support streaming with cache yet
-        # Fall back to non-streaming
-        result = await self.generate(system_prompt, user_prompt, context, task=task, use_cache=use_cache, **kwargs)
-        yield result
+        self.metrics.calls += 1
+        async for chunk in self._stream_routed(system_prompt, user_prompt, context, **kwargs):
+            yield chunk
+
+    async def _stream_routed(
+        self, system_prompt: str, user_prompt: str, context: str, **kwargs: Any
+    ) -> AsyncIterator[str]:
+        """Circuit-breaker-guarded primary stream with pre-first-chunk model
+        fallback. Mid-stream cross-provider fallback is intentionally NOT done
+        (unsafe to re-emit partial output, and cross-vendor routing is the
+        opt-in path guarded by cross_provider_fallback_enabled elsewhere)."""
+        if not self._primary_breaker.can_execute():
+            self.metrics.circuit_rejections += 1
+            logger.warning(f"LLMGateway(stream): primary '{self._primary_name}' circuit OPEN — rejected")
+            raise CircuitOpenException(self._primary_name)
+
+        emitted = False
+        try:
+            async for chunk in self._primary.generate_stream(
+                system_prompt, user_prompt, context=context, **kwargs
+            ):
+                emitted = True
+                yield chunk
+            self._primary_breaker.record_success()
+        except Exception as primary_exc:
+            self._primary_breaker.record_failure(primary_exc)
+            self.metrics.record_error(self._primary_name)
+            logger.warning(f"LLMGateway(stream): primary '{self._primary_name}' failed: {primary_exc}")
+            if emitted or not self._primary_model_fallback:
+                raise
+            
+            fallback_kwargs = kwargs.copy()
+            fallback_kwargs.pop("model", None)
+            try:
+                async for chunk in self._primary.generate_stream(
+                    system_prompt, user_prompt, context=context,
+                    model=self._primary_model_fallback, **fallback_kwargs,
+                ):
+                    yield chunk
+                self._primary_breaker.record_success()
+                self.metrics.fallbacks += 1
+            except Exception as fallback_exc:
+                self._primary_breaker.record_failure(primary_exc)
+                self.metrics.record_error(self._primary_name)
+                raise fallback_exc
+
 
 if __name__ == "__main__":
     # Self-check — full suite lives in backend/tests/test_llm_gateway.py.

@@ -27,13 +27,21 @@ def test_embedding_service_ragatouille_optional_graceful_fallback(monkeypatch):
         def __init__(self, *args, **kwargs):
             pass
 
-    # Mock the imports of FlagEmbedding and sentence_transformers
+    # Mock the imports of FlagEmbedding and sentence_transformers.
+    # monkeypatch.setitem (not a raw sys.modules[...] = ...) so these revert
+    # after the test — a bare assignment here previously left a broken
+    # FlagEmbedding.BGEM3FlagModel mock (no .encode()) in sys.modules for the
+    # rest of the test session, breaking any later test whose EmbeddingService
+    # actually loads a real encoder.
     import sys
 
-    sys.modules["FlagEmbedding"] = MagicMock()
-    sys.modules["FlagEmbedding"].BGEM3FlagModel = MockBGEM3FlagModel
-    sys.modules["sentence_transformers"] = MagicMock()
-    sys.modules["sentence_transformers"].CrossEncoder = MockCrossEncoder
+    fake_flag_embedding = MagicMock()
+    fake_flag_embedding.BGEM3FlagModel = MockBGEM3FlagModel
+    monkeypatch.setitem(sys.modules, "FlagEmbedding", fake_flag_embedding)
+
+    fake_sentence_transformers = MagicMock()
+    fake_sentence_transformers.CrossEncoder = MockCrossEncoder
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_sentence_transformers)
 
     # Mock importing ragatouille to raise an ImportError (as if not installed)
     original_import = __import__
