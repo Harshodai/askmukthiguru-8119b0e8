@@ -172,3 +172,71 @@ def test_safety_violation_regex_fires(query):
 def test_linguistic_is_interrogative(query, expected):
     router = _build_router_with_stub()
     assert router.linguistic.is_interrogative(query) is expected
+
+
+# ---------------------------------------------------------------------------
+# Capability-question detection — explicit patterns vs prefix allowlist
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "query, expected",
+    [
+        # Must match: actual capability questions
+        ("What can you help me with", True),
+        ("What topics do you cover", True),
+        ("How do you work", True),
+        ("What kind of teachings do you have", True),
+        ("What questions can you answer", True),
+        ("Tell me about yourself", True),
+        ("Who are you", True),
+        ("What topics can you teach", True),
+            ("What sort of knowledge do you have", True),
+        # Must NOT match: distress questions that share a "what is" prefix
+        ("What is wrong with me", False),
+        ("What is happening to me", False),
+        # Must NOT match: other interrogatives that are not capability questions
+        ("How do I stop crying", False),
+        ("Why do I feel so hopeless", False),
+        ("Can I ask you something", False),
+        ("What is the Beautiful State", False),
+        ("Who is Sri Preethaji", False),
+    ],
+)
+def test_linguistic_is_capability_question(query, expected):
+    router = _build_router_with_stub()
+    assert router.linguistic.is_capability_question(query) is expected
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        # Queries that look like capability questions but are actually distress
+        "What is wrong with me",
+        "What is happening to me",
+        # Non-capability distress that must still route to DISTRESS
+        "I feel completely hopeless",
+        "I am having a panic attack",
+    ],
+)
+def test_distress_not_excluded_by_capability_patterns(query):
+    """DISTRESS route must fire for queries that are not capability questions,
+    even when the old prefix-based allowlist would have vetoed them."""
+    router = _build_router_with_stub()
+    match = router.classify(query, meditation_step=0)
+    # The query should either route to DISTRESS or None (defer to LLM),
+    # but never to another route that would override DISTRESS.
+    if match is not None:
+        assert match.route == "DISTRESS" or match.route == "SAFETY_VIOLATION", (
+            f"Expected DISTRESS or SAFETY_VIOLATION for {query!r}, got {match.route}"
+        )
+
+
+def test_capability_query_not_excluded_by_empty_route():
+    """A query that is a capability question should not crash the router
+    on routes without exclude_if_capability_question set."""
+    router = _build_router_with_stub()
+    match = router.classify("What can you help me with", meditation_step=0)
+    # Should match CAPABILITY route or defer — never crash
+    assert match is not None
+    assert match.route == "CAPABILITY"

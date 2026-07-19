@@ -929,8 +929,11 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
         setIsTyping(false);
 
         // ── 500ms stream persistence checkpoint ────────────────────────
+        // Skipped entirely in incognito — writing live answer text to
+        // sessionStorage would leak "confidential" content the incognito
+        // banner explicitly promises not to save.
         checkpointInterval = setInterval(() => {
-          if (fullContent.length > 20) {
+          if (!isIncognito && fullContent.length > 20) {
             try {
               sessionStorage.setItem('askmukthiguru_stream_checkpoint', JSON.stringify({
                 conversationId: currentConversation?.id ?? '',
@@ -1654,7 +1657,9 @@ return (
     />
 
     {/* Main Chat Area */}
-    <div className="flex-1 flex flex-col min-w-0 min-h-0 relative z-10">
+    {/* Incognito gets a persistent tint across the whole surface (header, messages,
+        composer) — not just the header pill — so the mode reads as unmissable while active. */}
+    <div className={`flex-1 flex flex-col min-w-0 min-h-0 relative z-10 ${isIncognito ? 'bg-amber-950/[0.03] dark:bg-amber-950/[0.1]' : ''}`}>
       {/* Header */}
       <ChatHeader
         onClearChat={handleNewConversation}

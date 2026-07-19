@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.config import settings
 from app.dependencies import ServiceContainer, get_container
 from services.auth_service import get_current_user_from_supabase
+from services.okf_quality_filter import _LEAKAGE_RE
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +125,11 @@ def _first_sentences(text: str, max_chars: int) -> str:
 
 
 def _looks_like_complete_thought(text: str) -> bool:
+    # Same artifact-rejection the OKF doctrine layer applies (CLAUDE.md OKF
+    # invariant #3) — raw Qdrant scrolls carry the same extraction-LLM
+    # commentary and RAPTOR debug headers OKFQualityFilter was built to catch.
+    if _LEAKAGE_RE.search(text):
+        return False
     return len(text) >= TIP_MIN_CHARS and text[-1] in ".!?…\"'”"
 
 

@@ -804,6 +804,16 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
         )
         response = crisis_info + "\n\n" + response
 
+    # handle_distress returns straight to END (graph_strategies.py), bypassing
+    # format_final_answer — so it also bypasses the URL/citation cleanup that
+    # normally strips a hallucinated link. STIMULUS_RAG_PROMPT tells the model
+    # to cite a "Watch more here" URL when context has one, but the context
+    # built above (line ~757) never includes source_url, so a distress-routed
+    # answer can free-generate a fake video ID. Reuse the same cleanup the
+    # QUERY path already applies instead of duplicating URL-validation logic.
+    from rag.nodes.generation import _clean_inline_citations
+    response = _clean_inline_citations(response)
+
     logger.info(
         f"Distress handler: level={assessment.level.name}, has_teachings={bool(relevant_docs)}"
     )

@@ -46,6 +46,9 @@ interrogative_stems:
     - "what are"
     - "what does"
     - "what's"
+    - "what kind"
+    - "what type"
+    - "what sort"
     - "how do"
     - "how does"
     - "how can"
@@ -82,6 +85,26 @@ interrogative_stems:
     - "emi "
     - "ela "
     - "endhuku"
+
+# Explicit regex patterns for capability-question detection, replacing the
+# previous prefix-based allowlist (capability_question_stems). Each pattern
+# captures the specific phrasing of a query asking about the guru's capabilities
+# ("what can you help me with", "what topics do you cover", "how do you work")
+# while excluding distress-oriented questions that happen to start with a
+# similar stem ("what is wrong with me" must NOT match). Deliberately omits
+# "why"/"how do I"/"can I"/"should I"/"is there" — those overlap with genuine
+# crisis language routinely phrased as questions ("why do I feel so hopeless",
+# "how do I stop crying"). Used by DISTRESS's exclude_if_capability_question;
+# see services/semantic_router.py LinguisticConfig.
+capability_question_patterns:
+  en:
+    - "what (can|could) (you|this) (help|do|cover|tell|teach|offer|provide|answer|know|have)"
+    - "what (kind|type|sort) of (teachings?|topics?|things?|knowledge|questions?)"
+    - "how (do|does) you (work|function|operate|help|assist)"
+    - "tell (me|us) about (yourself|you)"
+    - "what topics (do|does|can) you (cover|have|know|teach|offer)"
+    - "what questions (can|do) you (answer|ask|handle)"
+    - "who are you"
 
 # Imperative verbs — used by is_meditation_imperative and the MEDITATION route.
 # Soft preferences ("I want to", "I'd like to") are intentionally NOT in this
@@ -148,6 +171,22 @@ routes:
   - name: DISTRESS
     priority: 900
     threshold: 0.66
+    # A factual question like "what kind of teachings you had for me" was
+    # scoring above threshold against these declarative utterances and
+    # hijacking into the distress/Serene Mind script instead of QUERY.
+    # exclude_if_capability_question (narrower than MEDITATION's blanket
+    # exclude_if_interrogative below) only vetoes "what kind/type/is/are/
+    # does/which/who" topic-questions — NOT "why do"/"how do"/"can i"/etc,
+    # because genuine distress is routinely phrased as exactly that kind of
+    # question ("why do I feel so hopeless", "how do I stop crying"), and a
+    # blanket interrogative veto would silently drop it. Also: the keyword-
+    # based Serene Mind check in rag/nodes/intent.py's _early_filter already
+    # runs BEFORE this router and catches most real distress by keyword
+    # regardless of phrasing; this veto only applies to the narrower set of
+    # borderline cases that reach the embedding-similarity fallback. Genuine
+    # crisis language is additionally caught by SAFETY_VIOLATION's regex net
+    # (priority 1000, fires regardless of phrasing).
+    exclude_if_capability_question: true
     utterances:
       - "I feel completely hopeless and I do not know how to go on"
       - "I am crying every day and I cannot stop"

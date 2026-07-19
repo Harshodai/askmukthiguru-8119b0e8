@@ -75,6 +75,7 @@ class Route:
     regex_patterns: list[re.Pattern]
     require_imperative: bool
     exclude_if_interrogative: bool
+    exclude_if_capability_question: bool = False
     # Per-utterance embeddings. We use per-utterance max similarity instead of a
     # centroid because (a) it preserves precision for short utterances, (b) it
     # matches the behaviour of aurelio-labs semantic-router in production, and
@@ -164,6 +165,18 @@ class LinguisticConfig:
         self.interrogative_stems: tuple[str, ...] = tuple(
             _flatten_lists(stems.values())
         )
+        # Explicit regex patterns for capability-question detection, replacing
+        # the previous prefix-based allowlist. Each pattern captures specific
+        # phrasing of queries asking about the guru's capabilities while
+        # excluding distress-oriented questions ("what is wrong with me") that
+        # happen to share a prefix with the old allowlist. Deliberately omits
+        # "why"/"how do I"/"can I"/"should I"/"is there" — those overlap with
+        # genuine crisis language. Used by exclude_if_capability_question.
+        raw_patterns = cfg.get("capability_question_patterns") or {}
+        self.capability_question_patterns: tuple[re.Pattern, ...] = tuple(
+            re.compile(p, re.IGNORECASE)
+            for p in _flatten_lists(raw_patterns.values())
+        )
         verbs = cfg.get("imperative_verbs") or {}
         self.imperative_verbs: tuple[str, ...] = tuple(_flatten_lists(verbs.values()))
 
@@ -171,7 +184,20 @@ class LinguisticConfig:
         if not text:
             return False
         head = text.lower().lstrip()[:60]
-        return any(stem in head for stem in self.interrogative_stems)
+        # startswith, not substring-containment: the config's own docs already
+        # claim "drop the match if the query starts with an interrogative
+        # stem" (router_routes.yaml header), but the old `stem in head` check
+        # matched anywhere in the first 60 chars — so a stem like "how to"
+        # would false-positive on DISTRESS's own training utterance "I feel
+        # hopeless and I do not know how to go on" (mid-sentence "how to"),
+        # which would then get wrongly vetoed by DISTRESS's own
+        # exclude_if_interrogative flag. Caught while verifying that fix.
+        return any(head.startswith(stem) for stem in self.interrogative_stems)
+
+    def is_capability_question(self, text: str) -> bool:
+        if not text:
+            return False
+        return any(pattern.search(text) for pattern in self.capability_question_patterns)
 
     def is_imperative(self, text: str) -> bool:
         if not text:
@@ -259,6 +285,9 @@ class IntentSemanticRouter:
                         exclude_if_interrogative=bool(
                             raw.get("exclude_if_interrogative", False)
                         ),
+                        exclude_if_capability_question=bool(
+                            raw.get("exclude_if_capability_question", False)
+                        ),
                     )
                 )
             except (KeyError, ValueError, re.error) as exc:
@@ -312,12 +341,15 @@ class IntentSemanticRouter:
 
         is_interrogative = self.linguistic.is_interrogative(lower)
         is_imperative = self.linguistic.is_imperative(lower)
+        is_capability_question = self.linguistic.is_capability_question(lower)
 
         for route in self._routes:
             if route.name == "MEDITATION" and meditation_step > 0:
                 # Active session: defer to in-session handler, not the router.
                 continue
             if route.exclude_if_interrogative and is_interrogative:
+                continue
+            if route.exclude_if_capability_question and is_capability_question:
                 continue
             if route.require_imperative and not is_imperative:
                 continue

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { LanguageSelector } from '@/components/chat/LanguageSelector';
+import { LanguageSelector, LANGUAGES } from '@/components/chat/LanguageSelector';
 
 const setLanguageMock = vi.fn();
 const toastMock = vi.fn();
@@ -40,22 +40,21 @@ describe('LanguageSelector (regression)', () => {
     expect(screen.getByText('Hindi')).toBeInTheDocument();
   });
 
-  it('filters languages by search input', () => {
+  it('renders all languages as a flat list with no search input', () => {
     render(<LanguageSelector value="en" />);
     fireEvent.click(screen.getByRole('button', { expanded: false }));
 
-    // Not getByPlaceholderText: the placeholder is i18n-driven
-    // (t('language.searchPlaceholder', {count})) and this test doesn't
-    // initialize react-i18next, so t() returns the raw key, not translated
-    // text. The dropdown renders exactly one text input, so role suffices.
-    const searchInput = screen.getByRole('textbox');
-    fireEvent.change(searchInput, { target: { value: 'telugu' } });
-
-    expect(screen.getByText('Telugu')).toBeInTheDocument();
-    expect(screen.queryByText('Hindi')).not.toBeInTheDocument();
+    // Search box was removed — 7 languages is short enough for a flat list
+    // (matches Claude.ai/ChatGPT's <10-item picker pattern). Assert every
+    // supported language renders, not just two of them, so a future filter
+    // regression (e.g. dropping a language from LANGUAGES) is caught here.
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    LANGUAGES.forEach((lang) => {
+      expect(screen.getByText(lang.name)).toBeInTheDocument();
+    });
   });
 
-  it('calls onLanguageChange and setLanguage when a language is selected', () => {
+  it('calls onLanguageChange and setLanguage when a language is selected, without a toast', () => {
     const onLanguageChange = vi.fn();
     render(<LanguageSelector value="en" onLanguageChange={onLanguageChange} />);
     fireEvent.click(screen.getByRole('button', { expanded: false }));
@@ -63,9 +62,9 @@ describe('LanguageSelector (regression)', () => {
     fireEvent.click(screen.getByText('हिन्दी'));
     expect(setLanguageMock).toHaveBeenCalledWith('hi');
     expect(onLanguageChange).toHaveBeenCalledWith('hi');
-    expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: expect.stringContaining('Language Changed') }),
-    );
+    // The parent (ChatInterface) owns the confirmation toast now — showing
+    // one here too was a double-toast on every language switch.
+    expect(toastMock).not.toHaveBeenCalled();
   });
 
   it('toggles voice mode when microphone button is clicked', () => {

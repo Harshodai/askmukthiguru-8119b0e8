@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import i18n from '@/i18n';
-import { Globe, Mic, MicOff, Volume2, VolumeX, AlertCircle, ChevronDown, Languages } from 'lucide-react';
+import { Globe, Mic, MicOff, Volume2, VolumeX, ChevronDown, Languages } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { setLanguage } from '@/lib/aiService';
-import { useToast } from '@/hooks/use-toast';
 // ScrollArea removed in favor of native scrollable div to prevent Radix popover collapsing
 
 interface Language {
@@ -136,12 +135,12 @@ export const LanguageSelector = ({
 }: LanguageSelectorProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [internalLang, setInternalLang] = useState('en');
-  const [search, setSearch] = useState('');
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const selectedLanguage = value ?? internalLang;
+  // ponytail: voice-capability detection kept as-is (not touching bcp47/voice logic),
+  // just no longer rendered as a per-row badge — implementation detail, not user-facing value.
   const [voiceCapable, setVoiceCapable] = useState<Set<string>>(new Set(['en']));
-  const { toast } = useToast();
   const { t } = useTranslation();
 
   const [coords, setCoords] = useState<{ bottom: number; left: number; maxHeight: number } | null>(null);
@@ -223,36 +222,25 @@ export const LanguageSelector = ({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen]);
 
+  // ponytail: no toast here — the parent (ChatInterface.handleLanguageChange)
+  // already surfaces a single confirmation toast; showing one here too was
+  // producing a double-toast on every switch.
   const handleLanguageChange = (code: string) => {
-    const lang = LANGUAGES.find((l) => l.code === code);
     setInternalLang(code);
     setLanguage(code);
     onLanguageChange?.(code);
     setIsOpen(false);
-
-    toast({
-      title: '🌐 Language Changed',
-      description: `Now using ${lang?.name} (${lang?.native})`,
-      duration: 2500,
-    });
   };
 
   const currentLang = LANGUAGES.find((l) => l.code === selectedLanguage);
-  const filteredLanguages = useMemo(() => {
-    if (!search.trim()) return LANGUAGES;
-    const q = search.toLowerCase();
-    return LANGUAGES.filter((l) =>
-      l.name.toLowerCase().includes(q) ||
-      l.native.toLowerCase().includes(q) ||
-      l.code.toLowerCase().includes(q)
-    );
-  }, [search]);
 
-  const renderLanguageRows = (showVoiceBadges: boolean) => (
+  // ponytail: flat list, no search — LANGUAGES is a fixed 7-item set, a search
+  // box was pure friction (matches Claude.ai/ChatGPT's <10-item picker pattern).
+  // Add search back only if LANGUAGES grows past ~12 entries.
+  const renderLanguageRows = () => (
     <>
-      {filteredLanguages.map((lang) => {
+      {LANGUAGES.map((lang) => {
         const isSelected = selectedLanguage === lang.code;
-        const hasVoice = voiceCapable.has(lang.code);
         return (
           <button
             key={lang.code}
@@ -263,38 +251,18 @@ export const LanguageSelector = ({
             role="option"
             aria-selected={isSelected}
           >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <span
-                  className={`font-semibold truncate ${
-                    lang.code === 'en' ? 'text-base' : 'text-lg'
-                  } ${isSelected ? 'text-ojas' : 'text-foreground'}`}
-                  lang={lang.bcp47}
-                >
-                  {lang.native}
-                </span>
-                <span className="text-muted-foreground text-sm truncate">
-                  {lang.name}
-                </span>
-              </div>
-              {showVoiceBadges && (
-                hasVoice ? (
-                  <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-prana/90 font-medium">
-                    <Volume2 className="w-2.5 h-2.5" />
-                    Local Voice Enabled
-                  </span>
-                ) : lang.code === 'en' ? (
-                  <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground">
-                    <AlertCircle className="w-2.5 h-2.5" />
-                    Voice not supported in this browser
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] text-ojas/90 font-medium">
-                    <Volume2 className="w-2.5 h-2.5" />
-                    Cloud Voice (Sarvam)
-                  </span>
-                )
-              )}
+            <div className="flex-1 min-w-0 flex items-baseline gap-2 flex-wrap">
+              <span
+                className={`font-semibold truncate ${
+                  lang.code === 'en' ? 'text-base' : 'text-lg'
+                } ${isSelected ? 'text-ojas' : 'text-foreground'}`}
+                lang={lang.bcp47}
+              >
+                {lang.native}
+              </span>
+              <span className="text-muted-foreground text-sm truncate">
+                {lang.name}
+              </span>
             </div>
             {isSelected && (
               <span className="w-2 h-2 rounded-full bg-ojas flex-shrink-0" />
@@ -302,11 +270,6 @@ export const LanguageSelector = ({
           </button>
         );
       })}
-      {filteredLanguages.length === 0 && (
-        <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-          No language matches "{search}"
-        </div>
-      )}
     </>
   );
 
@@ -324,6 +287,7 @@ export const LanguageSelector = ({
             data-tour="language-selector"
             onClick={(e) => {
               e.stopPropagation();
+              if (!isOpen) updatePosition();
               setIsOpen(!isOpen);
             }}
             className={`flex items-center gap-1.5 px-2.5 h-9 rounded-full transition-all font-semibold border ${
@@ -343,7 +307,7 @@ export const LanguageSelector = ({
             <span className="text-sm leading-none">{flag}</span>
             <span className={`font-medium ${isNonEnglish ? 'text-base leading-none' : ''}`}>{label}</span>
             {isNonEnglish && (
-              <span className="flex items-center gap-0.5 text-[9px] font-bold text-ojas/80 bg-ojas/10 px-1 rounded">
+              <span className="flex items-center gap-1 text-[10px] font-bold text-ojas/90 bg-ojas/10 px-1.5 py-0.5 rounded">
                 <Languages className="w-2.5 h-2.5" />
                 AUTO
               </span>
@@ -352,7 +316,7 @@ export const LanguageSelector = ({
           </motion.button>
 
           <AnimatePresence>
-            {isOpen && (
+            {isOpen && coords && (
               <>
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -367,30 +331,20 @@ export const LanguageSelector = ({
                   exit={{ opacity: 0, y: 8, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
                   ref={popoverRef}
-                  className="absolute bottom-full left-0 mb-2 z-[100] flex flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl w-72 max-w-[calc(100vw-2rem)]"
-                  style={{ maxHeight: Math.min(360, coords?.maxHeight ?? 360) }}
+                  className="fixed z-[100] flex flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl w-72 max-w-[calc(100vw-2rem)]"
+                  style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
                   role="listbox"
                   aria-label="Select language"
                 >
                   {/* Header */}
-                  <div className="px-3 pt-3 pb-2 border-b border-border bg-card/95">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Globe className="w-3.5 h-3.5 text-ojas" />
-                      <span className="text-xs font-semibold text-foreground">Select Language</span>
-                    </div>
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder={t('language.searchPlaceholder', { count: LANGUAGES.length })}
-                      className="w-full px-3 py-1.5 text-sm rounded-lg bg-muted/40 border border-border focus:outline-none focus:border-ojas/50 text-foreground placeholder:text-muted-foreground"
-                      autoFocus
-                    />
+                  <div className="px-3 py-2.5 border-b border-border bg-card/95 flex items-center gap-2">
+                    <Globe className="w-3.5 h-3.5 text-ojas" />
+                    <span className="text-xs font-semibold text-foreground">Select Language</span>
                   </div>
 
                   {/* Language list */}
                   <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
-                    <div className="py-1">{renderLanguageRows(false)}</div>
+                    <div className="py-1">{renderLanguageRows()}</div>
                   </div>
 
                   {/* Translation notice footer */}
@@ -416,6 +370,7 @@ export const LanguageSelector = ({
           ref={triggerRef}
           onClick={(e) => {
             e.stopPropagation();
+            if (!isOpen) updatePosition();
             setIsOpen(!isOpen);
           }}
           className="flex items-center gap-2 px-3 py-2 min-h-[44px] rounded-full bg-card hover:bg-ojas/10 border border-border hover:border-ojas/30 transition-all text-sm shadow-sm"
@@ -435,7 +390,7 @@ export const LanguageSelector = ({
         </motion.button>
 
         <AnimatePresence>
-          {isOpen && (
+          {isOpen && coords && (
             <>
               <motion.div
                 initial={{ opacity: 0 }}
@@ -450,30 +405,25 @@ export const LanguageSelector = ({
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
                 ref={popoverRef}
-                className="absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] max-h-[min(60vh,420px)] flex flex-col bg-popover border border-border rounded-xl shadow-2xl z-[100] overflow-hidden"
+                className="fixed w-72 max-w-[calc(100vw-2rem)] flex flex-col bg-popover border border-border rounded-xl shadow-2xl z-[100] overflow-hidden"
+                style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
                 role="listbox"
                 aria-label="Select language"
               >
-                <div className="px-3 py-2 border-b border-border bg-card sticky top-0 z-10">
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder={t('language.searchPlaceholder', { count: LANGUAGES.length })}
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-muted/40 border border-border focus:outline-none focus:border-ojas/50 text-foreground placeholder:text-muted-foreground"
-                    autoFocus
-                  />
+                <div className="px-3 py-2.5 border-b border-border bg-card flex items-center gap-2">
+                  <Globe className="w-3.5 h-3.5 text-ojas" />
+                  <span className="text-xs font-semibold text-foreground">Select Language</span>
                 </div>
                 <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
                   <div className="py-1">
-                    {renderLanguageRows(true)}
+                    {renderLanguageRows()}
                   </div>
                 </div>
-                <div className="px-4 py-2.5 text-xs text-muted-foreground border-t border-border bg-muted/30">
-                  <span className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-prana animate-pulse" />
-                    <span>{t('language.supportedCount', { count: LANGUAGES.length })}</span>
-                  </span>
+                <div className="px-3 py-2 border-t border-border bg-muted/30 flex items-start gap-2">
+                  <Languages className="w-3.5 h-3.5 text-ojas flex-shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    {t('language.translationNotice')}
+                  </p>
                 </div>
               </motion.div>
             </>

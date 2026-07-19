@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import type { Message } from '@/lib/chatStorage';
@@ -91,22 +91,22 @@ describe('ChatMessage (regression)', () => {
   });
 
   it('does not show feedback buttons on user messages', () => {
-    render(<ChatMessage message={makeUserMessage()} />, { wrapper });
-    expect(screen.queryByTitle('Helpful')).not.toBeInTheDocument();
-    expect(screen.queryByTitle('Not helpful')).not.toBeInTheDocument();
+    render(<ChatMessage message={makeUserMessage()} isLastGuru />, { wrapper });
+    expect(screen.queryByTestId('engagement-yes')).not.toBeInTheDocument();
   });
 
-  it('opens feedback panel after thumbs up click', () => {
-    render(<ChatMessage message={makeGuruMessage()} />, { wrapper });
-    fireEvent.click(screen.getByTitle('Helpful'));
-    expect(screen.getByText('What helped?')).toBeInTheDocument();
+  it('submits yes feedback immediately without a refine panel', async () => {
+    render(<ChatMessage message={makeGuruMessage()} isLastGuru />, { wrapper });
+    fireEvent.click(screen.getByTestId('engagement-yes'));
+    await waitFor(() => {
+      expect(screen.getByTestId('engagement-thanks')).toBeInTheDocument();
+    });
+  });
+
+  it('opens the refine panel after "Not quite" click', () => {
+    render(<ChatMessage message={makeGuruMessage()} isLastGuru />, { wrapper });
+    fireEvent.click(screen.getByTestId('engagement-not-quite'));
     expect(screen.getByText('Clear answer')).toBeInTheDocument();
-  });
-
-  it('opens feedback panel after thumbs down click', () => {
-    render(<ChatMessage message={makeGuruMessage()} />, { wrapper });
-    fireEvent.click(screen.getByTitle('Not helpful'));
-    expect(screen.getByText('What could improve?')).toBeInTheDocument();
   });
 
   it('shows confidence score badge when present', () => {

@@ -305,11 +305,16 @@
     "closeIncognitoConfirm": "Close incognito and discard this conversation?",
     "engagement": {
       "didThisHelp": "Did this help?",
+      "didThisLand": "Did this land?",
       "yes": "Yes",
       "needsWork": "Needs work",
+      "notQuite": "Not quite",
       "no": "No",
-      "thanks": "Thanks"
+      "thanks": "Thank you for walking this path with us",
+      "whatWouldServe": "What would have served you better?"
     },
+    "closeFeedbackPanel": "Close feedback panel",
+    "feedbackCommentPlaceholder": "Optional: tell us more…",
     "teachingReference": "Teaching Reference",
     "teaching": "Teaching",
     "clearAnswer": "Clear answer",
@@ -317,6 +322,11 @@
     "calmingTone": "Calming tone",
     "insightful": "Insightful",
     "savedFromChat": "Saved from Chat",
+    "practiceNudge": {
+      "title": "Turn this into a practice",
+      "body": "A short guided Serene Mind session to carry this teaching forward.",
+      "cta": "Begin practice"
+    },
     "guruWillRecall": "The Guru will recall this in future conversations.",
     "switchAssistant": "Switch assistant",
     "assistants": "Assistants",
@@ -812,6 +822,8 @@
   },
   "desktopSidebar": {
     "newConversation": "New Conversation",
+    "dayFlame": "{{count}}-day flame",
+    "flameEncouragement": "You've returned every day this week. Keep the flame alive.",
     "searchPlaceholder": "Search conversations…",
     "noResults": "No results",
     "noConversations": "No conversations yet.\nStart a new one above.",
