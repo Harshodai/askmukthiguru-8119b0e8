@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Flame, MessageCircle, ArrowLeft, Trash2 } from 'lucide-react';
+import { X, Plus, Flame, MessageCircle, ArrowLeft, Trash2, EyeOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 import { MeditationStats } from './MeditationStats';
@@ -16,6 +16,7 @@ interface MobileConversationSheetProps {
   isOpen: boolean;
   onClose: () => void;
   onNewConversation: () => void;
+  onNewIncognitoConversation?: () => void;
   onOpenSereneMind: () => void;
   onSelectConversation?: (conversation: Conversation) => void;
   currentConversationId?: string;
@@ -25,6 +26,7 @@ export const MobileConversationSheet = ({
   isOpen,
   onClose,
   onNewConversation,
+  onNewIncognitoConversation,
   onOpenSereneMind,
   onSelectConversation,
   currentConversationId,
@@ -151,6 +153,25 @@ export const MobileConversationSheet = ({
                   <p className="text-xs text-muted-foreground">{t('chat.breathworkDesc')}</p>
                 </div>
               </button>
+
+              {/* Incognito Chat */}
+              {onNewIncognitoConversation && (
+                <button
+                  onClick={() => {
+                    onNewIncognitoConversation();
+                    onClose();
+                  }}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl bg-amber-950/10 border border-amber-600/20 hover:border-amber-600/40 hover:bg-amber-950/15 transition-all group"
+                >
+                  <div className="w-10 h-10 rounded-full bg-amber-950/20 flex items-center justify-center group-hover:bg-amber-950/30 transition-colors">
+                    <EyeOff className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-foreground">{t('chat.incognito')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chat.incognitoDescription')}</p>
+                  </div>
+                </button>
+              )}
 
               {/* Conversation History */}
               {Object.keys(groupedConversations).length > 0 && (

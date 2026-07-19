@@ -135,8 +135,7 @@ export function ChatComposer({
 
   return (
     <motion.div
-
-      className="w-full max-w-3xl mx-auto"
+      className="w-full max-w-3xl mx-auto px-2 sm:px-4 py-2 sm:py-3"
     >
       <div className="flex items-center justify-start gap-2 mb-2 px-1">
         <LanguageSelector
@@ -156,10 +155,10 @@ export function ChatComposer({
         onSubmit={handleFormSubmit}
         role="form"
         aria-label={t('chat.messageComposer')}
-        className={`rounded-[var(--radius-card)] border bg-card/95 backdrop-blur-xl transition-all duration-300 overflow-visible ${
+        className={`rounded-2xl border border-border/50 bg-card/95 backdrop-blur-xl transition-all duration-300 overflow-visible ${
           inputFocused || isListening
             ? 'border-ojas/40 shadow-lg shadow-ojas/[0.06]'
-            : 'border-hairline shadow-sm'
+            : 'border-border/50 shadow-sm'
         }`}
       >
         {isAwaitingSereneMind && (
@@ -246,7 +245,7 @@ export function ChatComposer({
           }
           rows={1}
           aria-label={t('chat.yourMessage') === 'chat.yourMessage' ? 'Your message' : t('chat.yourMessage')}
-          className="min-h-9 max-h-80 w-full bg-transparent border-none outline-none resize-none px-4 pt-4 pb-1 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual disabled:opacity-50 disabled:cursor-not-allowed"
+          className="min-h-9 max-h-[120px] w-full bg-transparent border-none outline-none resize-none px-4 pt-4 pb-1 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus:ring-1 focus:ring-ojas/30 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ minHeight: '28px' }}
           disabled={isAwaitingSereneMind}
         />
@@ -297,7 +296,7 @@ export function ChatComposer({
                 aria-label={isListening ? t('chat.stopRecording') : t('chat.startVoiceInput')}
                 aria-pressed={isListening}
                 title={isListening ? t('chat.stopRecording') : t('chat.startVoiceInput')}
-                className={`h-8 w-8 rounded-full transition-all ${
+                className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full transition-all ${
                   isListening
                     ? 'bg-red-500/15 text-red-500 hover:bg-red-500/25'
                     : 'text-muted-foreground hover:text-foreground'
@@ -330,7 +329,7 @@ export function ChatComposer({
                 type="submit"
                 size="icon-sm"
                 disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind}
-                className="h-8 w-8 rounded-full bg-ojas text-primary-foreground hover:bg-ojas-light disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all"
+                className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-ojas text-white hover:bg-ojas-dark disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all"
                 aria-label={t('chat.send') === 'chat.send' ? 'Send message' : t('chat.send')}
               >
                 <Send className="w-4 h-4" />

@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Plus, Flame, MessageCircle, Trash2, Edit2, Search, X,
-  ChevronLeft, ChevronRight, BookOpen, Brain, Compass, Lock, HardDrive
+  ChevronLeft, ChevronRight, BookOpen, Brain, Compass, Lock, HardDrive, EyeOff
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
@@ -22,6 +22,7 @@ const EXPANDED_WIDTH = 280;
 
 interface DesktopSidebarProps {
   onNewConversation: () => void;
+  onNewIncognitoConversation?: () => void;
   onOpenSereneMind: () => void;
   onSelectConversation?: (conversation: Conversation) => void;
   currentConversationId?: string;
@@ -32,6 +33,7 @@ interface DesktopSidebarProps {
 
 export const DesktopSidebar = ({
   onNewConversation,
+  onNewIncognitoConversation,
   onOpenSereneMind,
   onSelectConversation,
   currentConversationId,
@@ -264,6 +266,17 @@ export const DesktopSidebar = ({
             >
               <HardDrive className="w-3.5 h-3.5 flex-shrink-0" />
               {t('nav.secondBrain', 'My Reflections')}
+            </button>
+          </div>
+
+          <div className="px-2 pb-1 border-b border-hairline">
+            <button
+              onClick={onNewIncognitoConversation}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm text-muted-foreground hover:bg-amber-950/10 hover:text-amber-600 border border-transparent hover:border-amber-600/20 transition-all"
+              title={t('desktopSidebar.incognitoTooltip')}
+            >
+              <EyeOff className="w-3.5 h-3.5 flex-shrink-0" />
+              {t('desktopSidebar.newIncognitoChat')}
             </button>
           </div>
 

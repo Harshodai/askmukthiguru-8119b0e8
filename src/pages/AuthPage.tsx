@@ -15,6 +15,7 @@ import { LanguageOnboardingStep } from '@/components/onboarding/LanguageOnboardi
 import { Capacitor } from '@capacitor/core';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
+import { Preferences } from '@capacitor/preferences';
 import {
   startAuthRun,
   recordStep,
@@ -30,6 +31,38 @@ import {
 } from '@/lib/authConstants';
 
 const isNativePlatform = Capacitor.isNativePlatform();
+
+const PREFERENCES_TIMEOUT = 5000;
+
+const nativeWithTimeout = async <T,>(promise: Promise<T>, key: string): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Preferences '${key}' timed out`)), PREFERENCES_TIMEOUT),
+    ),
+  ]);
+};
+
+const getSessionItem = async (key: string): Promise<string | null> => {
+  if (isNativePlatform) return nativeWithTimeout(Preferences.get({ key }), key).then(r => r?.value ?? null).catch(() => null);
+  return Promise.resolve(sessionStorage.getItem(key));
+};
+const setSessionItem = async (key: string, value: string): Promise<void> => {
+  if (isNativePlatform) { await nativeWithTimeout(Preferences.set({ key, value }), key).catch(() => {}); return; }
+  sessionStorage.setItem(key, value);
+};
+const removeSessionItem = async (key: string): Promise<void> => {
+  if (isNativePlatform) { await nativeWithTimeout(Preferences.remove({ key }), key).catch(() => {}); return; }
+  sessionStorage.removeItem(key);
+};
+const removeSessionItems = async (keys: string[]): Promise<void> => {
+  await Promise.allSettled(keys.map(k => removeSessionItem(k)));
+};
+// Sync-only wrapper for useState initializer (never hits async on browser)
+const getSessionItemSync = (key: string): string | null => {
+  if (isNativePlatform) return null;
+  return sessionStorage.getItem(key);
+};
 // GSI's iframe (accounts.google.com/gsi/iframe) gets "Refused to frame" when
 // this page itself is embedded in another iframe (e.g. the Lovable builder
 // preview) — same nested-iframe case main.tsx already special-cases for the
@@ -91,7 +124,7 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [googleStep, setGoogleStep] = useState<GoogleStep>(() =>
-    typeof window !== 'undefined' && sessionStorage.getItem(GOOGLE_STEP_KEY) === '1'
+    typeof window !== 'undefined' && getSessionItemSync(GOOGLE_STEP_KEY) === '1'
       ? 'returning'
       : 'idle',
   );
@@ -99,6 +132,8 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const redirectingRef = useRef(false);
+  const oauthInFlightRef = useRef(false);
+  const processingAuthRef = useRef(false);
   const sessionHandleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const googleInitializedRef = useRef(false);
@@ -183,7 +218,7 @@ const AuthPage = () => {
       }
     };
 
-    const handleSession = async (session: import('@supabase/supabase-js').Session) => {
+    const handleSession = async (session: import('@supabase/supabase-js').Session, intendedPathParam?: string | null) => {
       if (redirectingRef.current) {
         console.log('[Auth] handleSession blocked - already redirecting');
         return;
@@ -251,13 +286,13 @@ const AuthPage = () => {
         }
 
 
-        const isGoogleReturn =
-        sessionStorage.getItem(GOOGLE_STEP_KEY) === '1' ||
-        getActiveRun()?.provider === 'google';
-      const isFacebookReturn = 
-        sessionStorage.getItem('askmukthiguru_facebook_step') === '1' ||
-        getActiveRun()?.provider === 'facebook';
-        
+        const [googleKey, fbKey] = await Promise.all([
+          getSessionItem(GOOGLE_STEP_KEY),
+          getSessionItem('askmukthiguru_facebook_step'),
+        ]);
+        const isGoogleReturn = googleKey === '1' || getActiveRun()?.provider === 'google';
+      const isFacebookReturn = fbKey === '1' || getActiveRun()?.provider === 'facebook';
+
       if (isGoogleReturn) {
         console.log('[Auth] Detected Google OAuth return');
         setGoogleStep('finalizing');
@@ -266,9 +301,11 @@ const AuthPage = () => {
         console.log('[Auth] Detected Facebook OAuth return');
         setFacebookStep('finalizing');
       }
-      
-      sessionStorage.removeItem(GOOGLE_STEP_KEY);
-      sessionStorage.removeItem('askmukthiguru_facebook_step');
+
+      await Promise.all([
+        removeSessionItem(GOOGLE_STEP_KEY),
+        removeSessionItem('askmukthiguru_facebook_step'),
+      ]);
 
       const active = getActiveRun();
       if (active && !active.steps.some((s) => s.name === 'provider_return')) {
@@ -297,7 +334,7 @@ const AuthPage = () => {
       } catch { /* non-fatal */ }
       recordStep('session_hydrate', 'ok', Math.round(performance.now() - hydrateT0));
 
-      const redirectPath = sessionStorage.getItem('auth_redirect_path');
+      const redirectPath = intendedPathParam || sessionStorage.getItem('auth_redirect_path');
       if (redirectPath) {
         sessionStorage.removeItem('auth_redirect_path');
         recordStep('navigate', 'ok', 0, { meta: { to: redirectPath } });
@@ -370,14 +407,24 @@ const AuthPage = () => {
       }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
-        handleSession(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (processingAuthRef.current) return;
+      processingAuthRef.current = true;
+      try {
+        if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+          const intended = await getSessionItem('intendedPath');
+          if (intended && intended !== '/auth') {
+            await removeSessionItem('intendedPath');
+          }
+          handleSession(session, intended && intended !== '/auth' ? intended : null);
+        }
+      } finally {
+        processingAuthRef.current = false;
       }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) handleSession(session);
+      if (session?.user) handleSession(session, null);
     });
 
     return () => {
@@ -463,6 +510,19 @@ const AuthPage = () => {
   };
 
   const handleGoogleSignIn = async () => {
+    if (oauthInFlightRef.current) {
+      console.warn('[Auth] OAuth already in flight — suppressed');
+      return;
+    }
+    oauthInFlightRef.current = true;
+    const lastRedirect = await getSessionItem('lastOAuthRedirect').finally(() => {});
+    if (lastRedirect && Date.now() - Number(lastRedirect) < 5000) {
+      console.warn('[Auth] Duplicate OAuth redirect suppressed');
+      setError(t('auth.authTimeout'));
+      oauthInFlightRef.current = false;
+      return;
+    }
+    await setSessionItem('lastOAuthRedirect', String(Date.now()));
     setLoading(true);
     setError(null);
     setGoogleStep('connecting');
@@ -473,13 +533,17 @@ const AuthPage = () => {
       setGoogleStep((s) => (s === 'connecting' ? 'redirecting' : s));
     }, 400);
     try {
-      sessionStorage.setItem(GOOGLE_STEP_KEY, '1');
+      await setSessionItem(GOOGLE_STEP_KEY, '1');
+      const existingPath = await getSessionItem('intendedPath');
+      if (!existingPath || existingPath === '/auth') {
+        await setSessionItem('intendedPath', window.location.pathname);
+      }
 
       const initT0 = performance.now();
       const { error: supabaseError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: isNativePlatform ? NATIVE_REDIRECT : window.location.origin,
+          redirectTo: isNativePlatform ? NATIVE_REDIRECT : window.location.origin + '/auth',
         },
       });
       recordStep('oauth_init', supabaseError ? 'error' : 'ok', Math.round(performance.now() - initT0), {
@@ -493,12 +557,13 @@ const AuthPage = () => {
       const message = err instanceof Error ? err.message : t('auth.couldNotConnectGoogle');
       console.error('[Google Auth Error]', err);
       setError(t('auth.couldNotConnectGoogleRetry'));
-      sessionStorage.removeItem(GOOGLE_STEP_KEY);
+      await removeSessionItems(['lastOAuthRedirect', GOOGLE_STEP_KEY]);
       setGoogleStep('idle');
       endAuthRun('error', message);
     } finally {
       window.clearTimeout(redirectTimer);
       setLoading(false);
+      oauthInFlightRef.current = false;
     }
   };
 
@@ -517,7 +582,7 @@ const AuthPage = () => {
     }, 400);
     
     try {
-      sessionStorage.setItem('askmukthiguru_facebook_step', '1');
+      await setSessionItem('askmukthiguru_facebook_step', '1');
 
       const initT0 = performance.now();
       const { error: supabaseError } = await supabase.auth.signInWithOAuth({
@@ -537,7 +602,7 @@ const AuthPage = () => {
       const message = err instanceof Error ? err.message : t('auth.couldNotConnectFacebook');
       console.error('[Facebook Auth Error]', err);
       setError(t('auth.couldNotConnectFacebookRetry'));
-      sessionStorage.removeItem('askmukthiguru_facebook_step');
+      await removeSessionItems(['askmukthiguru_facebook_step']);
       setFacebookStep('idle');
       endAuthRun('error', message);
     } finally {
@@ -547,7 +612,6 @@ const AuthPage = () => {
   };
 
   const [appleStep, setAppleStep] = useState<'idle' | 'connecting' | 'redirecting' | 'finalizing'>('idle');
-
   const handleAppleSignIn = async () => {
     setLoading(true);
     setError(null);
@@ -559,7 +623,7 @@ const AuthPage = () => {
       setAppleStep((s) => (s === 'connecting' ? 'redirecting' : s));
     }, 400);
     try {
-      sessionStorage.setItem('askmukthiguru_apple_step', '1');
+      await setSessionItem('askmukthiguru_apple_step', '1');
       const initT0 = performance.now();
       const { error: supabaseError } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
@@ -578,7 +642,7 @@ const AuthPage = () => {
       const message = err instanceof Error ? err.message : 'Could not connect to Apple. Please try again.';
       console.error('[Apple Auth Error]', err);
       setError('Could not connect to Apple. Please try again.');
-      sessionStorage.removeItem('askmukthiguru_apple_step');
+      await removeSessionItems(['askmukthiguru_apple_step']);
       setAppleStep('idle');
       endAuthRun('error', message);
     } finally {
@@ -603,7 +667,7 @@ const AuthPage = () => {
     }
   }, [googleBusy, facebookBusy, appleBusy]);
   
-  const handleResetAuth = useCallback(() => {
+  const handleResetAuth = useCallback(async () => {
     console.log('[Auth] Manual reset triggered');
     redirectingRef.current = false;
     setGoogleStep('idle');
@@ -611,9 +675,11 @@ const AuthPage = () => {
     setAppleStep('idle');
     setLoading(false);
     setError(null);
-    sessionStorage.removeItem(GOOGLE_STEP_KEY);
-    sessionStorage.removeItem('askmukthiguru_facebook_step');
-    sessionStorage.removeItem('askmukthiguru_apple_step');
+    await removeSessionItems([
+      GOOGLE_STEP_KEY,
+      'askmukthiguru_facebook_step',
+      'askmukthiguru_apple_step',
+    ]);
     if (sessionHandleTimeoutRef.current) {
       clearTimeout(sessionHandleTimeoutRef.current);
       sessionHandleTimeoutRef.current = null;
@@ -770,8 +836,8 @@ const AuthPage = () => {
   }
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-background via-ojas/5 to-background px-4">
+      <div className="w-full max-w-[400px] mx-4 sm:mx-auto space-y-6 shadow-xl shadow-foreground/5 border border-border/40 p-6 sm:p-8">
         <div className="text-center space-y-2">
           <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center mx-auto">
             <Sparkles className="w-6 h-6 text-ojas" />
@@ -789,7 +855,33 @@ const AuthPage = () => {
           </Alert>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground text-center">{t('auth.continueWith', { defaultValue: 'Continue with' })}</p>
+
+          {isNativePlatform && (
+            <Button
+              variant="outline"
+              className="w-full h-11 sm:h-12 gap-2.5 rounded-xl relative overflow-hidden bg-black text-white hover:bg-black/90 border-black"
+              onClick={handleAppleSignIn}
+              disabled={loading || appleBusy}
+              aria-live="polite"
+            >
+              {appleBusy ? (
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              ) : (
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                </svg>
+              )}
+              <span className="text-sm">
+                {appleStep === 'idle' && t('auth.continueWithApple')}
+                {appleStep === 'connecting' && t('auth.appleConnecting')}
+                {appleStep === 'redirecting' && t('auth.appleRedirecting')}
+                {appleStep === 'finalizing' && t('auth.appleFinalizing')}
+              </span>
+            </Button>
+          )}
+
           {!isNativePlatform && import.meta.env.VITE_GOOGLE_CLIENT_ID && isTopLevelFrame ? (
             <div
               ref={googleButtonRef}
@@ -799,7 +891,7 @@ const AuthPage = () => {
           ) : !isNativePlatform && (
             <Button
               variant="outline"
-              className="w-full h-11 gap-2 relative overflow-hidden"
+              className="w-full h-11 sm:h-12 gap-2.5 rounded-xl relative overflow-hidden"
               onClick={handleGoogleSignIn}
               disabled={loading || googleBusy}
               aria-live="polite"
@@ -821,31 +913,6 @@ const AuthPage = () => {
               )}
             </Button>
           )}
-
-          {isNativePlatform && (
-            <Button
-              variant="outline"
-              className="w-full h-11 gap-2 relative overflow-hidden bg-black text-white hover:bg-black/90 border-black"
-              onClick={handleAppleSignIn}
-              disabled={loading || appleBusy}
-              aria-live="polite"
-            >
-              {appleBusy ? (
-                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-              ) : (
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                </svg>
-              )}
-              <span className="text-sm">
-                {appleStep === 'idle' && t('auth.continueWithApple', { defaultValue: 'Continue with Apple' })}
-                {appleStep === 'connecting' && t('auth.appleConnecting', { defaultValue: 'Connecting…' })}
-                {appleStep === 'redirecting' && t('auth.appleRedirecting', { defaultValue: 'Redirecting…' })}
-                {appleStep === 'finalizing' && t('auth.appleFinalizing', { defaultValue: 'Finalizing…' })}
-              </span>
-            </Button>
-          )}
-
 
           {googleBusy && (
             <ol
@@ -881,7 +948,7 @@ const AuthPage = () => {
               })}
             </ol>
           )}
-          
+
           {showResetButton && (googleBusy || facebookBusy || appleBusy) && (
             <div className="text-center pt-2">
               <Button
@@ -894,34 +961,7 @@ const AuthPage = () => {
               </Button>
             </div>
           )}
-          
-{/*
-           <Button
-             variant="outline"
-             className="w-full h-11 gap-2 relative overflow-hidden"
-             onClick={handleFacebookSignIn}
-             disabled={loading || facebookBusy}
-             aria-live="polite"
-           >
-             {facebookBusy && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
-             <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48" aria-hidden="true">
-               <path fill="#1877F2" d="M48 24C48 10.745 37.255 0 24 0S0 10.745 0 24c0 11.979 8.776 21.908 20.25 23.708v-16.77h-6.094V24h6.094v-5.288c0-6.014 3.583-9.337 9.065-9.337 2.625 0 5.372.469 5.372.469v5.906h-3.026c-2.981 0-3.911 1.850-3.911 3.75V24h6.656l-1.064 6.938H27.75v16.77C39.224 45.908 48 35.978 48 24z"/>
-               <path fill="#fff" d="M33.342 30.938L34.406 24H27.75v-4.5c0-1.9.93-3.75 3.911-3.75h3.026V9.844s-2.747-.469-5.372-.469c-5.482 0-9.065 3.323-9.065 9.337V24h-6.094v6.938h6.094v16.77a24.175 24.175 0 007.5 0v-16.77h5.592z"/>
-             </svg>
-             <span className="text-sm">
-               {facebookStepLabel}
-             </span>
-             {facebookBusy && (
-               <span
-                 aria-hidden="true"
-                 className="absolute bottom-0 left-0 h-0.5 bg-[#1877F2]/70 transition-all duration-500 ease-out"
-                 style={{ width: '50%' }}
-               />
-             )}
-           </Button>
-           */}
         </div>
-
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
@@ -1018,28 +1058,28 @@ const AuthPage = () => {
           </div>
         )}
 
-        <p className="text-center text-xs text-muted-foreground">
-          {isSignUp ? t('auth.alreadyAccount') : t('auth.noAccount')}{' '}
-          <button
-            onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
-            className="text-ojas hover:underline font-medium"
-          >
-            {isSignUp ? t('auth.signInBtn') : t('auth.signUpBtn')}
-          </button>
-        </p>
-
-        <p className="text-center text-[11px] text-muted-foreground/70 pt-2">
-          {t('auth.byContinuing')}{' '}
-          <a href="/terms" className="hover:text-ojas hover:underline">{t('auth.terms')}</a>{t('auth.and')}{' '}
-          <a href="/privacy" className="hover:text-ojas hover:underline">{t('auth.privacyPolicy')}</a>.
-        </p>
-
-        <p className="text-center text-[11px] text-muted-foreground/60 pt-1">
-          {t('auth.troubleSigningIn')}{' '}
-          <a href="/auth/diagnostics" className="text-ojas hover:underline">
-            {t('auth.runDiagnostics')}
-          </a>
-        </p>
+        <div className="text-center space-y-1 pt-2 border-t border-border/30">
+          <p className="text-xs text-muted-foreground">
+            {isSignUp ? t('auth.alreadyAccount') : t('auth.noAccount')}{' '}
+            <button
+              onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
+              className="text-ojas hover:underline font-medium"
+            >
+              {isSignUp ? t('auth.signInBtn') : t('auth.signUpBtn')}
+            </button>
+          </p>
+          <p className="text-[11px] text-muted-foreground/60">
+            {t('auth.troubleSigningIn')}{' '}
+            <a href="/auth/diagnostics" className="text-ojas hover:underline">
+              {t('auth.runDiagnostics')}
+            </a>
+          </p>
+          <p className="text-[11px] text-muted-foreground/50">
+            {t('auth.byContinuing')}{' '}
+            <a href="/terms" className="hover:text-ojas hover:underline">{t('auth.terms')}</a>{t('auth.and')}{' '}
+            <a href="/privacy" className="hover:text-ojas hover:underline">{t('auth.privacyPolicy')}</a>.
+          </p>
+        </div>
       </div>
     </div>
   );

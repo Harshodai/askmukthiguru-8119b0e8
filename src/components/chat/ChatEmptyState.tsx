@@ -54,7 +54,7 @@ export const ChatEmptyState = ({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2, duration: 0.5 }}
-      className={`grid gap-3 w-full ${
+      className={`bg-gradient-to-b from-gray-950/5 via-background to-gray-950/5 max-w-lg mx-auto text-center grid gap-3 w-full ${
         lastConvo && teaching?.caption ? 'md:grid-cols-5' : 'grid-cols-1'
       }`}
     >
