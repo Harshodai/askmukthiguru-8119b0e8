@@ -1,34 +1,23 @@
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Search, ZoomIn, ZoomOut, RotateCcw, ArrowUp } from 'lucide-react';
+import { Loader2, Search, ZoomIn, ZoomOut, RotateCcw, ArrowUp, Settings } from 'lucide-react';
 
 import { getAIConfig } from '@/lib/chat/config';
 import { getAccessToken } from '@/lib/chat/auth';
 
-interface KGNode {
-  id: string;
-  label: string;
-  type: string;
-  teacher?: string | null;
-}
-interface KGEdge {
-  source: string;
-  target: string;
-  label?: string | null;
-}
-interface Subgraph {
-  nodes: KGNode[];
-  edges: KGEdge[];
-}
+interface KGNode { id: string; label: string; type: string; teacher?: string | null; }
+interface KGEdge { source: string; target: string; label?: string | null; }
+interface Subgraph { nodes: KGNode[]; edges: KGEdge[]; }
 
 interface SimNode extends KGNode {
   x: number;
   y: number;
   vx: number;
   vy: number;
-  fx: number;
-  fy: number;
+  fx: number | null;
+  fy: number | null;
   pinned: boolean;
+  degree: number;
 }
 
 const DEMO_DATA: Subgraph = {
@@ -69,6 +58,14 @@ const TYPE_COLORS: Record<string, string> = {
 const typeColor = (type: string): string =>
   TYPE_COLORS[type?.toLowerCase()] ?? '#6b7280';
 
+/** Deterministic hue from teacher — stable colors across renders. */
+const teacherHue = (t: string | null | undefined): number => {
+  if (!t) return 210;
+  let h = 0;
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) % 360;
+  return h;
+};
+
 export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState(initialQuery);
@@ -77,6 +74,15 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
+
+  // Layout forces / controls
+  const [repulsion, setRepulsion] = useState(600);
+  const [linkDist, setLinkDist] = useState(95);
+  const [gravity, setGravity] = useState(0.008);
+  const [labelScale, setLabelScale] = useState(1.2);
+  const [sizeByDegree, setSizeByDegree] = useState(true);
+  const [colorByTeacher, setColorByTeacher] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -140,17 +146,31 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
     setLoading(true);
     setError(null);
     setData(null);
+
     try {
       const { endpoint } = getAIConfig();
       const baseUrl = (endpoint ?? '').replace(/\/api\/chat\/?$/, '');
-      const url = `${baseUrl}/api/kg/subgraph?query=${encodeURIComponent(q.trim())}&limit=20`;
+      const url = `${baseUrl}/api/kg/subgraph?query=${encodeURIComponent(q.trim() || 'beautiful state')}&limit=24`;
       const token = await getAccessToken();
-      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as Subgraph;
-      setData(json);
-      setError(null);
-      setIsDemo(false);
+      
+      if (!json.nodes || json.nodes.length === 0) {
+        setData(DEMO_DATA);
+        setIsDemo(true);
+        setError(t('kg.noConceptsFor', 'No matching concepts — showing the core teaching map.'));
+      } else {
+        setData(json);
+        setError(null);
+        setIsDemo(false);
+      }
       setPan({ x: 0, y: 0 });
       setZoom(1);
     } catch {
@@ -167,6 +187,12 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
     }
   }, [t]);
 
+  // Auto-load on mount so the page never looks empty.
+  useEffect(() => {
+    fetchSubgraph(submitted || 'beautiful state');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (submitted) fetchSubgraph(submitted);
   }, [submitted, fetchSubgraph]);
@@ -182,6 +208,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
 
   const prevDataRef = useRef<typeof data>(null);
 
+  // Force-directed simulation loop
   useEffect(() => {
     if (!data || !data.nodes.length) {
       simRef.current = { nodes: [], edges: [], tick: 0, running: false };
@@ -190,6 +217,11 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
     const isNewData = prevDataRef.current !== data;
     prevDataRef.current = data;
     if (isNewData) {
+      const degree = new Map<string, number>();
+      for (const e of data.edges) {
+        degree.set(e.source, (degree.get(e.source) ?? 0) + 1);
+        degree.set(e.target, (degree.get(e.target) ?? 0) + 1);
+      }
       const spread = Math.min(containerWidth, viewBoxHeight) * 0.35;
       const simNodes: SimNode[] = data.nodes.map((n) => ({
         ...n,
@@ -197,9 +229,10 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         y: centerY + (Math.random() - 0.5) * spread * 1.4,
         vx: 0,
         vy: 0,
-        fx: 0,
-        fy: 0,
+        fx: null,
+        fy: null,
         pinned: false,
+        degree: degree.get(n.id) ?? 0,
       }));
       simRef.current.nodes = simNodes;
       simRef.current.edges = data.edges;
@@ -216,8 +249,8 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       const edges = simRef.current.edges;
 
       for (const n of nodes) {
-        n.fx = 0;
-        n.fy = 0;
+        n.fx = null;
+        n.fy = null;
       }
 
       for (let i = 0; i < nodes.length; i++) {
@@ -228,9 +261,13 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
           const dy = b.y - a.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
           if (dist < 220) {
-            const force = 800 / (dist * dist);
+            const force = repulsion / (dist * dist);
             const fx = (dx / dist) * force;
             const fy = (dy / dist) * force;
+            if (a.fx === null) a.fx = 0;
+            if (a.fy === null) a.fy = 0;
+            if (b.fx === null) b.fx = 0;
+            if (b.fy === null) b.fy = 0;
             a.fx -= fx;
             a.fy -= fy;
             b.fx += fx;
@@ -246,10 +283,14 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         const dx = t.x - s.x;
         const dy = t.y - s.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const disp = dist - 95;
+        const disp = dist - linkDist;
         const force = disp * 0.005;
         const fx = (dx / dist) * force;
         const fy = (dy / dist) * force;
+        if (s.fx === null) s.fx = 0;
+        if (s.fy === null) s.fy = 0;
+        if (t.fx === null) t.fx = 0;
+        if (t.fy === null) t.fy = 0;
         s.fx += fx;
         s.fy += fy;
         t.fx -= fx;
@@ -258,14 +299,16 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
 
       for (const n of nodes) {
         if (n.pinned) continue;
-        n.fx -= (n.x - centerX) * 0.008;
-        n.fy -= (n.y - centerY) * 0.008;
+        if (n.fx === null) n.fx = 0;
+        if (n.fy === null) n.fy = 0;
+        n.fx -= (n.x - centerX) * gravity;
+        n.fy -= (n.y - centerY) * gravity;
       }
 
       for (const n of nodes) {
         if (n.pinned) continue;
-        n.vx += n.fx;
-        n.vy += n.fy;
+        n.vx += n.fx ?? 0;
+        n.vy += n.fy ?? 0;
         n.vx *= 0.82;
         n.vy *= 0.82;
         n.x += n.vx;
@@ -286,7 +329,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       simRef.current.running = false;
       cancelAnimationFrame(animId);
     };
-  }, [data, containerWidth, viewBoxHeight, centerX, centerY]);
+  }, [data, containerWidth, viewBoxHeight, centerX, centerY, repulsion, linkDist, gravity]);
 
   const nodeDegree = useMemo(() => {
     if (!data) return new Map<string, number>();
@@ -301,8 +344,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
 
   const onWheel = useCallback((e: React.WheelEvent<SVGSVGElement>) => {
     e.preventDefault();
-    const delta = -e.deltaY * 0.0015;
-    setZoom((z) => Math.min(3, Math.max(0.3, z + delta)));
+    setZoom((z) => Math.min(3, Math.max(0.3, z + -e.deltaY * 0.0015)));
   }, []);
 
   const backgroundPointerDown = useCallback(
@@ -343,7 +385,11 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
   const pointerUp = useCallback(() => {
     if (draggedNodeId) {
       const node = simRef.current.nodes.find((n) => n.id === draggedNodeId);
-      if (node) node.pinned = false;
+      if (node) {
+        // Keep node pinned when dragging finishes in Obsidian style
+        node.vx = 0;
+        node.vy = 0;
+      }
       setDraggedNodeId(null);
       simRef.current.tick = 0;
       simRef.current.running = true;
@@ -357,8 +403,31 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       e.stopPropagation();
       (e.target as Element).setPointerCapture?.(e.pointerId);
       const node = simRef.current.nodes.find((n) => n.id === nodeId);
-      if (node) node.pinned = true;
+      if (node) {
+        node.pinned = true;
+        node.fx = node.x;
+        node.fy = node.y;
+      }
       setDraggedNodeId(nodeId);
+    },
+    [],
+  );
+
+  const handleNodeDoubleClick = useCallback(
+    (e: React.MouseEvent, nodeId: string) => {
+      e.stopPropagation();
+      const node = simRef.current.nodes.find((n) => n.id === nodeId);
+      if (node) {
+        node.pinned = !node.pinned;
+        if (!node.pinned) {
+          node.fx = null;
+          node.fy = null;
+        }
+        // Wake up simulation to stabilize
+        simRef.current.tick = 0;
+        simRef.current.running = true;
+        setSimHeat((h) => h + 1);
+      }
     },
     [],
   );
@@ -389,30 +458,38 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
     [data, simHeat],
   );
 
+  const getNodeColor = (n: SimNode) => {
+    if (colorByTeacher && n.teacher) {
+      const hue = teacherHue(n.teacher);
+      return `hsl(${hue} 70% 60%)`;
+    }
+    return typeColor(n.type);
+  };
+
   return (
-    <div className="flex flex-col gap-4 w-full max-w-4xl mx-auto p-4">
+    <div className="flex flex-col gap-4 w-full max-w-5xl mx-auto p-4">
       <form onSubmit={submit} className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('kg.searchPlaceholderDetailed')}
+            placeholder={t('kg.searchPlaceholderDetailed', 'Search a concept, teaching, or practice…')}
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ojas/40"
             aria-label="Knowledge graph query"
           />
         </div>
         <button
           type="submit"
-          disabled={loading || !query.trim()}
+          disabled={loading}
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ojas text-white text-sm font-medium disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-          {t('kg.explore')}
+          {t('kg.explore', 'Explore')}
         </button>
       </form>
 
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground select-none">
         <button
           onClick={() => setZoom((z) => Math.min(3, z + 0.2))}
           className="p-1.5 rounded border border-border hover:bg-muted"
@@ -431,18 +508,27 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
           onClick={() => {
             setZoom(1);
             setPan({ x: 0, y: 0 });
+            // Unpin all nodes on reset view
+            simRef.current.nodes.forEach((n) => {
+              n.pinned = false;
+              n.fx = null;
+              n.fy = null;
+            });
+            simRef.current.tick = 0;
+            simRef.current.running = true;
+            setSimHeat((h) => h + 1);
           }}
           className="p-1.5 rounded border border-border hover:bg-muted"
-          title="Reset view"
+          title="Reset view & unpin all"
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
-        <span className="ml-1">{t('kg.dragToPan')}</span>
+        <span className="ml-1">Drag to pan · scroll to zoom · double-click node to pin</span>
       </div>
 
       {error && (
         <div className="text-sm text-destructive">
-          {t('kg.errorLoading', { error })}
+          {error}
         </div>
       )}
 
@@ -480,6 +566,120 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         ref={containerRef}
         className="relative rounded-xl border border-border overflow-hidden bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950"
       >
+        {/* Floating Settings Trigger */}
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className="absolute top-3 right-3 z-10 p-2 rounded-lg bg-black/60 border border-white/10 hover:bg-black/80 hover:border-white/20 transition-all text-white"
+          title="Graph view settings"
+        >
+          <Settings className={`w-4 h-4 ${showSettings ? 'animate-spin' : ''}`} />
+        </button>
+
+        {/* Floating Settings Drawer */}
+        {showSettings && (
+          <div className="absolute top-14 right-3 z-10 w-64 p-4 rounded-xl bg-black/85 border border-white/10 backdrop-blur-md shadow-2xl flex flex-col gap-4 text-white text-xs select-none">
+            <h3 className="font-semibold text-sm border-b border-white/10 pb-2">Graph view settings</h3>
+            
+            {/* Repulsion Force */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>Repel Force</span>
+                <span>{repulsion}</span>
+              </div>
+              <input
+                type="range"
+                min="100"
+                max="2000"
+                step="50"
+                value={repulsion}
+                onChange={(e) => setRepulsion(Number(e.target.value))}
+                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-ojas"
+              />
+            </div>
+
+            {/* Link Distance */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>Link Distance</span>
+                <span>{linkDist}px</span>
+              </div>
+              <input
+                type="range"
+                min="40"
+                max="250"
+                step="5"
+                value={linkDist}
+                onChange={(e) => setLinkDist(Number(e.target.value))}
+                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-ojas"
+              />
+            </div>
+
+            {/* Center Gravity */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>Center Gravity</span>
+                <span>{gravity.toFixed(3)}</span>
+              </div>
+              <input
+                type="range"
+                min="0.001"
+                max="0.05"
+                step="0.001"
+                value={gravity}
+                onChange={(e) => setGravity(Number(e.target.value))}
+                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-ojas"
+              />
+            </div>
+
+            {/* Label Density */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>Label Threshold</span>
+                <span>{labelScale.toFixed(1)}x</span>
+              </div>
+              <input
+                type="range"
+                min="0.5"
+                max="2.5"
+                step="0.1"
+                value={labelScale}
+                onChange={(e) => setLabelScale(Number(e.target.value))}
+                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-ojas"
+              />
+            </div>
+
+            <div className="border-t border-white/10 my-1 pt-3 flex flex-col gap-2.5">
+              {/* Sizing by Connection Degree */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sizeByDegree}
+                  onChange={(e) => setSizeByDegree(e.target.checked)}
+                  className="rounded border-white/20 bg-white/5 text-ojas focus:ring-ojas w-3.5 h-3.5"
+                />
+                <span>Scale node size by connections</span>
+              </label>
+
+              {/* Color by Teacher */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={colorByTeacher}
+                  onChange={(e) => setColorByTeacher(e.target.checked)}
+                  className="rounded border-white/20 bg-white/5 text-ojas focus:ring-ojas w-3.5 h-3.5"
+                />
+                <span>Color code by teacher</span>
+              </label>
+            </div>
+            
+            <div className="text-[10px] text-muted-foreground border-t border-white/5 pt-2 flex flex-col gap-1">
+              <div>• Drag nodes to reposition them</div>
+              <div>• Double-click to pin/unpin a node</div>
+              <div>• Scroll on map to zoom in/out</div>
+            </div>
+          </div>
+        )}
+
         <svg
           ref={svgRef}
           width="100%"
@@ -531,12 +731,13 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
 
             {activeNodes.map((n) => {
               const deg = nodeDegree.get(n.id) || 0;
-              const r = Math.max(8, Math.min(28, deg * 3 + 8));
-              const color = typeColor(n.type);
+              const r = sizeByDegree ? Math.max(8, Math.min(28, deg * 3 + 8)) : 14;
+              const color = getNodeColor(n);
               const isHovered = hoveredNodeId === n.id;
               const faded = neighborSet !== null && !neighborSet.has(n.id);
               const pulsing = pulsingNodeId === n.id;
               const displayR = pulsing ? r * 1.4 : r;
+              const showLabel = isHovered || zoom >= labelScale || deg >= 3;
 
               return (
                 <g
@@ -547,6 +748,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                   onPointerEnter={() => setHoveredNodeId(n.id)}
                   onPointerLeave={() => setHoveredNodeId(null)}
                   onPointerDown={(e) => handleNodePointerDown(e, n.id)}
+                  onDoubleClick={(e) => handleNodeDoubleClick(e, n.id)}
                   onClick={(e) => handleNodeClick(e, n.id)}
                 >
                   <circle
@@ -557,10 +759,19 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                   <circle
                     r={displayR}
                     fill={`${color}90`}
-                    stroke={color}
+                    stroke={isHovered ? '#ffffff' : color}
                     strokeWidth={isHovered ? 2.5 : 1.5}
                     filter={isHovered ? 'url(#glow-strong)' : undefined}
                   />
+                  {n.pinned && (
+                    <circle
+                      r={displayR + 5}
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="1.5"
+                      strokeDasharray="2,2"
+                    />
+                  )}
                   {n.teacher && (
                     <text
                       textAnchor="middle"
@@ -571,31 +782,33 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                       {n.teacher.length > 16 ? n.teacher.slice(0, 16) + '\u2026' : n.teacher}
                     </text>
                   )}
-                  <text
-                    textAnchor="middle"
-                    dy="0.35em"
-                    fill="#f4f4f5"
-                    style={{
-                      fontSize: Math.max(8, Math.min(11, r * 0.55)),
-                      fontWeight: 500,
-                      pointerEvents: 'none',
-                      textShadow: '0 1px 4px rgba(0,0,0,0.9)',
-                    }}
-                  >
-                    {n.label.length > 16 ? n.label.slice(0, 16) + '\u2026' : n.label}
-                  </text>
+                  {showLabel && (
+                    <text
+                      textAnchor="middle"
+                      dy="0.35em"
+                      fill="#f4f4f5"
+                      style={{
+                        fontSize: Math.max(8, Math.min(11, r * 0.55)),
+                        fontWeight: 500,
+                        pointerEvents: 'none',
+                        textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+                      }}
+                    >
+                      {n.label.length > 16 ? n.label.slice(0, 16) + '\u2026' : n.label}
+                    </text>
+                  )}
                 </g>
               );
             })}
           </g>
         </svg>
 
-        {uniqueTypes.length > 0 && (
-          <div className="absolute bottom-2 left-2 flex flex-wrap gap-3 pointer-events-none">
+        {uniqueTypes.length > 0 && !colorByTeacher && (
+          <div className="absolute bottom-2 left-2 flex flex-wrap gap-3 pointer-events-none bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 backdrop-blur-sm">
             {uniqueTypes.map((type) => (
               <div key={type} className="flex items-center gap-1.5">
                 <span
-                  className="w-2.5 h-2.5 rounded-full"
+                  className="w-2 h-2 rounded-full"
                   style={{ backgroundColor: typeColor(type) }}
                 />
                 <span className="text-[10px] text-muted-foreground capitalize">{type}</span>
