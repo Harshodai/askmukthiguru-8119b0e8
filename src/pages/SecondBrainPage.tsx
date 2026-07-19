@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Brain, Lock, Plus, Trash2, Download, ShieldAlert, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ const KIND_OPTIONS: BrainItem["kind"][] = [
 ];
 
 export default function SecondBrainPage() {
+  const { t } = useTranslation();
   const { loading: authLoading } = useRequireAuth();
   const { toast } = useToast();
 
@@ -60,7 +62,7 @@ export default function SecondBrainPage() {
         setUnlocked(false); // Mode-B, wrong or missing passphrase
       } else {
         toast({
-          title: "Couldn't load your Second Brain",
+          title: t('brain.loadError', "Couldn't load your reflections"),
           description: err instanceof Error ? err.message : String(err),
           variant: "destructive",
         });
@@ -84,7 +86,7 @@ export default function SecondBrainPage() {
       } catch (err) {
         setLoading(false);
         toast({
-          title: "Second Brain unavailable",
+          title: t('brain.unavailable', "Reflections unavailable"),
           description: err instanceof Error ? err.message : String(err),
           variant: "destructive",
         });
@@ -107,10 +109,10 @@ export default function SecondBrainPage() {
       await secondBrainApi.addItem(newKind, newText.trim(), brainUnlockKey);
       setNewText("");
       await loadItems(brainUnlockKey);
-      toast({ title: "Saved to your Second Brain" });
+      toast({ title: t('brain.saved', "Saved to your reflections") });
     } catch (err) {
       toast({
-        title: "Couldn't save",
+        title: t('brain.couldNotSave', "Couldn't save"),
         description: err instanceof Error ? err.message : String(err),
         variant: "destructive",
       });
@@ -125,7 +127,7 @@ export default function SecondBrainPage() {
       setItems((prev) => prev.filter((i) => i.id !== id));
     } catch (err) {
       toast({
-        title: "Couldn't delete",
+        title: t('brain.couldNotDelete', "Couldn't delete"),
         description: err instanceof Error ? err.message : String(err),
         variant: "destructive",
       });
@@ -139,12 +141,12 @@ export default function SecondBrainPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "second-brain-export.json";
+      a.download = "my-reflections-export.json";
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
       toast({
-        title: "Export failed",
+        title: t('brain.exportFailed', "Export failed"),
         description: err instanceof Error ? err.message : String(err),
         variant: "destructive",
       });
@@ -153,11 +155,11 @@ export default function SecondBrainPage() {
 
   const handleEnablePrivateMode = async () => {
     if (enablePassphrase.length < 8) {
-      toast({ title: "Passphrase must be at least 8 characters", variant: "destructive" });
+      toast({ title: t('brain.passphraseMinLength', "Passphrase must be at least 8 characters"), variant: "destructive" });
       return;
     }
     if (enablePassphrase !== enablePassphraseConfirm) {
-      toast({ title: "Passphrases don't match", variant: "destructive" });
+      toast({ title: t('brain.passphrasesDontMatch', "Passphrases don't match"), variant: "destructive" });
       return;
     }
     try {
@@ -169,11 +171,11 @@ export default function SecondBrainPage() {
       setShowEnablePrivate(false);
       setEnablePassphrase("");
       setEnablePassphraseConfirm("");
-      toast({ title: "Private Mode enabled — even we can't read your Second Brain now." });
+      toast({ title: t('brain.privateModeEnabled', "Private Mode enabled — even we can't read your reflections now.") });
       await loadItems(derived);
     } catch (err) {
       toast({
-        title: "Couldn't enable Private Mode",
+        title: t('brain.couldNotEnablePrivate', "Couldn't enable Private Mode"),
         description: err instanceof Error ? err.message : String(err),
         variant: "destructive",
       });
@@ -194,10 +196,10 @@ export default function SecondBrainPage() {
       } else {
         setLoading(false);
       }
-      toast({ title: "Second Brain permanently deleted." });
+      toast({ title: t('brain.permanentlyDeleted', "Reflections permanently deleted.") });
     } catch (err) {
       toast({
-        title: "Couldn't delete vault",
+        title: t('brain.couldNotDeleteVault', "Couldn't delete vault"),
         description: err instanceof Error ? err.message : String(err),
         variant: "destructive",
       });
@@ -220,36 +222,33 @@ export default function SecondBrainPage() {
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Brain className="w-6 h-6 text-ojas" />
-            Your Second Brain
+            {t('brain.title', "My Reflections")}
           </h1>
           {wrapMode === "session_unlock" && (
             <Badge variant="outline" className="gap-1">
-              <Lock className="w-3 h-3" /> Private Mode
+              <Lock className="w-3 h-3" /> {t('brain.privateMode', "Private Mode")}
             </Badge>
           )}
         </div>
         <p className="text-sm text-muted-foreground mb-6">
-          A private, encrypted knowledge graph of your reflections, entities, and preferences —
-          used to personalize your guidance. Encrypted at rest; in Private Mode, even we can't
-          read it.
+          {t('brain.subtitle', "A private, encrypted log of your reflections, insights, and preferences — used to personalize your guidance.")}
         </p>
 
         {wrapMode === "session_unlock" && !unlocked && !loading && (
           <Card className="p-6 mb-6">
             <p className="text-sm text-muted-foreground mb-3">
-              Private Mode is on — enter your passphrase to unlock your Second Brain for this
-              session. It's never sent anywhere except this one request, and never stored.
+              {t('brain.privateModeIntro', "Private Mode is on — enter your passphrase to unlock your reflections for this session. It's never sent anywhere except this one request, and never stored.")}
             </p>
             <div className="flex gap-2">
               <Input
                 type="password"
-                placeholder="Your passphrase"
+                placeholder={t('brain.passphrasePlaceholder', "Your passphrase")}
                 value={passphrase}
                 onChange={(e) => setPassphrase(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
               />
               <Button onClick={handleUnlock} disabled={!passphrase.trim()}>
-                Unlock
+                {t('brain.unlockButton', "Unlock")}
               </Button>
             </div>
           </Card>
@@ -278,7 +277,7 @@ export default function SecondBrainPage() {
                 </select>
               </div>
               <Textarea
-                placeholder="Something worth remembering — a reflection, a goal, a preference..."
+                placeholder={t('brain.addPlaceholder', "Something worth remembering — a reflection, a goal, a preference...")}
                 value={newText}
                 onChange={(e) => setNewText(e.target.value)}
                 maxLength={8000}
@@ -286,7 +285,7 @@ export default function SecondBrainPage() {
               />
               <div className="flex justify-end mt-2">
                 <Button onClick={handleAdd} disabled={adding || !newText.trim()}>
-                  <Plus className="w-4 h-4 mr-1" /> Add
+                  <Plus className="w-4 h-4 mr-1" /> {t('brain.addButton', "Add")}
                 </Button>
               </div>
             </Card>
@@ -294,7 +293,7 @@ export default function SecondBrainPage() {
             <div className="space-y-3 mb-6">
               {items.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  Nothing here yet — your reflections will appear as you use the app, or add one above.
+                  {t('brain.emptyState', "Nothing here yet — your reflections will appear as you use the app, or you can add one above.")}
                 </p>
               )}
               {items.map((item) => (
@@ -312,7 +311,7 @@ export default function SecondBrainPage() {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleForget(item.id)}
-                    title="Forget this"
+                    title={t('brain.forgetTooltip', "Forget this")}
                   >
                     <Trash2 className="w-4 h-4 text-muted-foreground" />
                   </Button>
@@ -322,11 +321,11 @@ export default function SecondBrainPage() {
 
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={handleExport}>
-                <Download className="w-4 h-4 mr-1" /> Export
+                <Download className="w-4 h-4 mr-1" /> {t('brain.exportButton', "Export")}
               </Button>
               {wrapMode !== "session_unlock" && (
                 <Button variant="outline" onClick={() => setShowEnablePrivate(true)}>
-                  <Lock className="w-4 h-4 mr-1" /> Enable Private Mode
+                  <Lock className="w-4 h-4 mr-1" /> {t('brain.enablePrivateMode', "Enable Private Mode")}
                 </Button>
               )}
               <Button
@@ -334,7 +333,7 @@ export default function SecondBrainPage() {
                 className="text-destructive hover:text-destructive"
                 onClick={() => setShowShredConfirm(true)}
               >
-                <ShieldAlert className="w-4 h-4 mr-1" /> Delete Everything
+                <ShieldAlert className="w-4 h-4 mr-1" /> {t('brain.deleteEverything', "Delete Everything")}
               </Button>
             </div>
           </>
@@ -344,30 +343,28 @@ export default function SecondBrainPage() {
       <Dialog open={showEnablePrivate} onOpenChange={(open) => !open && handleCloseEnablePrivate()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Enable Private Mode</DialogTitle>
+            <DialogTitle>{t('brain.enablePrivateTitle', "Enable Private Mode")}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Once enabled, your Second Brain is encrypted with a key derived from this passphrase.
-            <strong className="text-foreground"> We will never see it, and if you forget it, your
-            Second Brain cannot be recovered — by anyone, including us.</strong> This is by design.
+            {t('brain.enablePrivateWarning', "Once enabled, your reflections are encrypted with a key derived from this passphrase. We will never see it, and if you forget it, your reflections cannot be recovered by anyone, including us. This is by design.")}
           </p>
           <Input
             type="password"
-            placeholder="Choose a passphrase (min. 8 characters)"
+            placeholder={t('brain.passphraseChoose', "Choose a passphrase (min. 8 characters)")}
             value={enablePassphrase}
             onChange={(e) => setEnablePassphrase(e.target.value)}
           />
           <Input
             type="password"
-            placeholder="Confirm passphrase"
+            placeholder={t('brain.passphraseConfirm', "Confirm passphrase")}
             value={enablePassphraseConfirm}
             onChange={(e) => setEnablePassphraseConfirm(e.target.value)}
           />
           <DialogFooter>
             <Button variant="outline" onClick={handleCloseEnablePrivate}>
-              Cancel
+              {t('brain.cancel', "Cancel")}
             </Button>
-            <Button onClick={handleEnablePrivateMode}>Enable Private Mode</Button>
+            <Button onClick={handleEnablePrivateMode}>{t('brain.enablePrivateMode', "Enable Private Mode")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -375,18 +372,17 @@ export default function SecondBrainPage() {
       <Dialog open={showShredConfirm} onOpenChange={setShowShredConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete your entire Second Brain?</DialogTitle>
+            <DialogTitle>{t('brain.deleteTitle', "Delete all reflections?")}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            This permanently destroys the encryption key for every item in your Second Brain.
-            This cannot be undone — not by you, not by us, not by anyone.
+            {t('brain.deleteWarning', "This permanently destroys the encryption key for every item in your reflections. This cannot be undone by anyone.")}
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowShredConfirm(false)}>
-              Cancel
+              {t('brain.cancel', "Cancel")}
             </Button>
             <Button variant="destructive" onClick={handleShred}>
-              Delete Everything
+              {t('brain.deleteEverything', "Delete Everything")}
             </Button>
           </DialogFooter>
         </DialogContent>

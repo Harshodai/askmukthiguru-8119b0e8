@@ -99,7 +99,7 @@ export function DistressIndicator({
       <button
         type="button"
         onClick={handleOfferHelp}
-        className="px-4 py-2 bg-white dark:bg-[#2C2420] rounded-full text-sm font-medium text-[#2C2420] dark:text-[#F0EBE3] shadow-sm hover:shadow-md transition-shadow flex-shrink-0"
+        className="px-4 py-2 bg-sacred-sand dark:bg-[#2C2420] rounded-full text-sm font-medium text-[#2C2420] dark:text-[#F0EBE3] shadow-sm hover:shadow-md transition-shadow flex-shrink-0"
       >
         {ctaLabel}
       </button>

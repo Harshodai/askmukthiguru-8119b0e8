@@ -2,12 +2,38 @@ import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import { motion, MotionConfig } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Play, Sparkles } from 'lucide-react';
+import { ArrowRight, Play, Sparkles, Cloud, Activity, Compass, Heart } from 'lucide-react';
 import heroImage from '@/assets/hero-spiritual.webp';
 import { FloatingParticles } from './FloatingParticles';
 import { ContinuePracticeCard } from './ContinuePracticeCard';
 import { DemoModal, hasSeenTour, recordTourOutcome, WelcomePrompt } from './DemoModal';
 import { getConsent } from '@/components/common/CookieConsentBanner';
+
+const MandalaSVG = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 200 200"
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="0.5"
+  >
+    <circle cx="100" cy="100" r="90" strokeDasharray="2,2" />
+    <circle cx="100" cy="100" r="70" />
+    <circle cx="100" cy="100" r="50" strokeDasharray="4,4" />
+    <circle cx="100" cy="100" r="30" />
+    <circle cx="100" cy="100" r="10" />
+    {Array.from({ length: 16 }).map((_, i) => {
+      const angle = (i * 360) / 16;
+      return (
+        <g key={i} transform={`rotate(${angle} 100 100)`}>
+          <path d="M100 30 Q95 65 100 100 Q105 65 100 30" />
+          <circle cx="100" cy="30" r="1.5" fill="currentColor" />
+          <path d="M100 10 Q97 55 100 100" strokeDasharray="1,2" />
+        </g>
+      );
+    })}
+  </svg>
+);
 
 export const HeroSection = () => {
   const { t } = useTranslation();
@@ -46,8 +72,12 @@ export const HeroSection = () => {
   return (
     <MotionConfig reducedMotion="user">
       <section className="relative min-h-dvh flex items-center justify-center overflow-hidden">
-        {/* Background Image with Light Overlay */}
-        <div className="absolute inset-0">
+        {/* Background Image with Ambient Breath Motion */}
+        <motion.div
+          className="absolute inset-0"
+          animate={{ scale: [1, 1.03, 1] }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+        >
           <img
             src={heroImage}
             alt=""
@@ -60,7 +90,11 @@ export const HeroSection = () => {
 
           <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/25 to-background/80" />
           <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-background/20" />
-        </div>
+        </motion.div>
+
+        {/* Mandala Corner Motifs */}
+        <MandalaSVG className="absolute -top-24 -left-24 w-72 h-72 text-saffron-gold/30 dark:text-saffron-gold/20 opacity-[0.08] pointer-events-none z-10" />
+        <MandalaSVG className="absolute -top-24 -right-24 w-72 h-72 text-saffron-gold/30 dark:text-saffron-gold/20 opacity-[0.08] pointer-events-none z-10" />
 
         {/* Floating Particles */}
         <FloatingParticles />
@@ -101,10 +135,42 @@ export const HeroSection = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.7 }}
-              className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed"
+              className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed"
             >
               {t('landing.hero.subtitle')}
             </motion.p>
+
+            {/* State Check-In */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.7 }}
+              className="mb-10"
+            >
+              <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-4">
+                {t('landing.hero.stateCheckIn', 'How is your inner state right now?')}
+              </h2>
+              <div className="flex justify-center gap-3 flex-wrap">
+                {[
+                  { key: 'anxious', label: t('mood.anxious', 'Anxious'), icon: Cloud, color: 'hover:text-amber-600 hover:border-amber-600/30 hover:bg-amber-500/5' },
+                  { key: 'restless', label: t('mood.restless', 'Restless'), icon: Activity, color: 'hover:text-orange-600 hover:border-orange-600/30 hover:bg-orange-500/5' },
+                  { key: 'peace', label: t('mood.seekingPeace', 'Seeking Peace'), icon: Compass, color: 'hover:text-saffron-gold hover:border-saffron-gold/30 hover:bg-saffron-gold/5' },
+                  { key: 'gratitude', label: t('mood.gratitude', 'Gratitude'), icon: Heart, color: 'hover:text-rose-600 hover:border-rose-600/30 hover:bg-rose-500/5' },
+                ].map((mood) => {
+                  const Icon = mood.icon;
+                  return (
+                    <Link
+                      key={mood.key}
+                      to={`/chat?intent=${mood.key}`}
+                      className={`inline-flex items-center gap-2 px-5 py-2 rounded-full border border-border bg-background/40 backdrop-blur-sm text-sm font-medium text-foreground transition-all duration-300 hover:-translate-y-0.5 hover:shadow-sm ${mood.color}`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{mood.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </motion.div>
 
             {/* CTA Row — primary CTA + premium play button side by side */}
             <motion.div
@@ -222,6 +288,16 @@ export const HeroSection = () => {
                 </motion.span>
               </button>
             </motion.div>
+
+            {/* Microcopy */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8, duration: 0.5 }}
+              className="mt-4 text-xs font-light text-muted-foreground/80 tracking-wide"
+            >
+              {t('landing.hero.microcopy', 'No account needed. Your peace is private.')}
+            </motion.p>
 
             {/* Continue your practice (only if user has favorites) */}
             <ContinuePracticeCard />

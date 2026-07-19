@@ -258,7 +258,7 @@ const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
         loading="lazy"
       />
       <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
-        <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+        <div className="w-12 h-12 rounded-full bg-background/90 flex items-center justify-center shadow-lg">
           <Play className="w-5 h-5 text-red-600 fill-red-600 ml-0.5" />
         </div>
       </div>

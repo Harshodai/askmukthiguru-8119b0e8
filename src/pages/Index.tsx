@@ -3,7 +3,9 @@ import { HeroSection } from '@/components/landing/HeroSection';
 import { MeetTheGurusSection } from '@/components/landing/MeetTheGurusSection';
 import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
 import { PracticesSection } from '@/components/landing/PracticesSection';
+import { SampleWisdomSection } from '@/components/landing/SampleWisdomSection';
 import { AboutMeditationSection } from '@/components/landing/AboutMeditationSection';
+import { SafetyPillarsSection } from '@/components/landing/SafetyPillarsSection';
 import { Footer } from '@/components/landing/Footer';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useTranslation } from 'react-i18next';
@@ -72,7 +74,9 @@ const Index = () => {
       <MeetTheGurusSection />
       <HowItWorksSection />
       <PracticesSection />
+      <SampleWisdomSection />
       <AboutMeditationSection />
+      <SafetyPillarsSection />
       <Footer />
     </div>
   );

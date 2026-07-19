@@ -40,7 +40,7 @@ export function TeachingCard({
   return (
     <div
       className={cn(
-        'group bg-white dark:bg-[#2C2420] rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden border border-[#E8E0D8]/60',
+        'group bg-sacred-sand dark:bg-[#2C2420] rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden border border-[#E8E0D8]/60',
         className,
       )}
     >

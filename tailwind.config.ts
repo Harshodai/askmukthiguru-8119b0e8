@@ -64,6 +64,12 @@ export default {
           light: "hsl(var(--prana-blue-light))",
           dark: "hsl(var(--prana-blue-dark))",
         },
+        // Palette Alias Layer
+        "sacred-sand": "hsl(var(--sacred-sand))",
+        "deep-earth": "hsl(var(--deep-earth))",
+        "saffron-gold": "hsl(var(--saffron-gold))",
+        "lotus-rose": "hsl(var(--lotus-rose))",
+        "pale-gold": "hsl(var(--pale-gold))",
         // Serene UI design tokens (namespaced to avoid collisions)
         serene: {
           primary: "#D4A574",

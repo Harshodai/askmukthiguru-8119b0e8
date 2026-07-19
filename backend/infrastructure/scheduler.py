@@ -29,9 +29,8 @@ async def sync_youtube_playlist():
             on_progress=lambda msg, pct: logger.info(f"Auto-Sync: {msg} ({pct * 100:.1f}%)"),
         )
         # Invalidate semantic cache after new data
-        from app.main import response_cache
-
-        response_cache.invalidate_all()
+        if container.semantic_cache is not None:
+            container.semantic_cache.invalidate_all()
 
         logger.info("Weekly YouTube playlist sync completed successfully.")
 

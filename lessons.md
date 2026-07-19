@@ -4637,3 +4637,15 @@ interface GoogleOneTapConfig {
 4. **Test the pure math** — 17 tests for loop invariants (freeze consumption, regen, at-risk detection, curve math) with zero mocking. The Supabase I/O is trivially simple and tested implicitly via integration.
 5. **Graceful degradation** — `self.retention_service = None` if Supabase unavailable; endpoints return 503. Container build never fails.
 
+
+### RULE 35 — Secure Google iframe origin matching in E2E tests
+
+**Problem**: Using generic regex or wildcard selectors like `iframe[src*="accounts.google.com"]` in E2E tests is insecure because it can match non-Google domains containing `accounts.google.com` (e.g., `https://accounts.google.com.attacker.com`). This fails to verify the exact Google origin of the embedded iframe.
+
+**Solution**: Anchor the iframe source locator selector to the strict origin prefix, e.g., `iframe[src^="https://accounts.google.com/"]` (with protocol and trailing slash). This ensures that the iframe origin is exactly `https://accounts.google.com` and prevents potential origin bypasses or spoofing in tests.
+
+**Hard rules**:
+1. **Always use prefix matching `^=`** with trailing slash for origin verification: `iframe[src^="https://accounts.google.com/"]`.
+2. **Never use wildcard matching `*=`** for third-party OAuth provider domains where verification of the exact origin is required.
+
+

@@ -292,9 +292,9 @@ async def lifespan(app: FastAPI):
     # 2. Create service container (fast, synchronous — no network calls beyond Qdrant handshake)
     startup()
     container = get_container()
-    import app.dependencies
-    app.dependencies.startup_complete = False
-    app.dependencies.startup_error = None
+    from app import dependencies as app_dependencies
+    app_dependencies.startup_complete = False
+    app_dependencies.startup_error = None
 
     # Register a global shutdown_scheduler noop so cleanup always works
     shutdown_scheduler = lambda: None
@@ -323,10 +323,10 @@ async def lifespan(app: FastAPI):
         )
     except asyncio.TimeoutError:
         logger.warning("Background init timed out after 180s")
-        app.dependencies.startup_error = "Background init timed out"
+        app_dependencies.startup_error = "Background init timed out"
     except Exception as e:
         logger.warning(f"Background init failed: {e}")
-        app.dependencies.startup_error = str(e)
+        app_dependencies.startup_error = str(e)
 
     # YIELD NOW — Railway health check can reach /api/health
     logger.info("=== Server accepting requests ===")

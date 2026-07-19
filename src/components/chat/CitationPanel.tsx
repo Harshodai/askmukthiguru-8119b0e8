@@ -138,7 +138,7 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                                     loading="lazy"
                                   />
                                   <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                    <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                    <div className="w-12 h-12 rounded-full bg-background/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                                       <Play className="w-5 h-5 text-red-600 fill-red-600 ml-0.5" />
                                     </div>
                                   </div>

@@ -28,6 +28,30 @@ export const MeetTheGurusSection = () => {
           </p>
         </motion.div>
 
+        {/* Social Proof Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.1 }}
+          transition={{ duration: 0.7, delay: 0.1 }}
+          className="max-w-4xl mx-auto mb-16"
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-card/45 backdrop-blur-sm border border-border/80 p-6 md:p-8 rounded-2xl shadow-sm">
+            {[
+              { value: '30M+', label: t('landing.meetGurus.stat1', 'Souls Guided'), sub: t('landing.meetGurus.stat1Sub', 'Worldwide') },
+              { value: '#1', label: t('landing.meetGurus.stat2', 'Bestseller'), sub: t('landing.meetGurus.stat2Sub', 'USA Today & More') },
+              { value: 'TEDx', label: t('landing.meetGurus.stat3', 'TEDx Speaker'), sub: t('landing.meetGurus.stat3Sub', 'Global Leaders') },
+              { value: '800K+', label: t('landing.meetGurus.stat4', 'Ekam Meditators'), sub: t('landing.meetGurus.stat4Sub', 'Mass Gatherings') },
+            ].map((stat, i) => (
+              <div key={i} className="text-center px-2 flex flex-col justify-center border-border/30 border-r even:border-r-0 md:border-r md:last:border-r-0">
+                <span className="font-sacred text-3xl sm:text-4xl md:text-5xl font-bold text-saffron-gold mb-2 block">{stat.value}</span>
+                <span className="text-sm font-semibold text-deep-earth dark:text-foreground/90 leading-tight block">{stat.label}</span>
+                <span className="text-xs text-muted-foreground mt-0.5 block">{stat.sub}</span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
         {/* Guru Card */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}

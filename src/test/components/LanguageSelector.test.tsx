@@ -44,7 +44,11 @@ describe('LanguageSelector (regression)', () => {
     render(<LanguageSelector value="en" />);
     fireEvent.click(screen.getByRole('button', { expanded: false }));
 
-    const searchInput = screen.getByPlaceholderText(/Search 23 languages/i);
+    // Not getByPlaceholderText: the placeholder is i18n-driven
+    // (t('language.searchPlaceholder', {count})) and this test doesn't
+    // initialize react-i18next, so t() returns the raw key, not translated
+    // text. The dropdown renders exactly one text input, so role suffices.
+    const searchInput = screen.getByRole('textbox');
     fireEvent.change(searchInput, { target: { value: 'telugu' } });
 
     expect(screen.getByText('Telugu')).toBeInTheDocument();

@@ -214,6 +214,12 @@ async def test_retrieve_documents_empty_results_is_safe(monkeypatch):
     monkeypatch.setattr(nodes, "_qdrant", mock_qdrant)
     monkeypatch.setattr(nodes, "_lightrag", None)
     monkeypatch.setattr(nodes, "_semantic_cache", None)
+    # _web_search isn't in NodesModule's proxy whitelist (rag/nodes/__init__.py),
+    # so it must be patched directly on the _services submodule — otherwise a
+    # real WebSearchService left behind by an earlier test (module-level global
+    # state) makes this test hit the live network on the empty-Qdrant-results
+    # fallback path, causing suite-order-dependent flakiness.
+    monkeypatch.setattr(nodes._services, "_web_search", None)
 
     # Build a settings namespace that disables the semantic cache branch while
     # preserving the real configuration values needed by the retrieval node.

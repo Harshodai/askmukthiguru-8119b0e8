@@ -4,9 +4,9 @@ import asyncio
 import hashlib
 import logging
 import os
-import time
 from typing import Optional
 
+from cachetools import TTLCache
 from lightrag.lightrag import LightRAG
 from lightrag.utils import EmbeddingFunc
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -32,8 +32,11 @@ class LightRAGService:
         return cls._instance
 
     def __init__(self):
-        self._query_cache = {}  # {query_hash: (results, timestamp)}
         self._cache_ttl_seconds = 300  # 5 min TTL
+        # ponytail: bounded TTL cache — a plain dict here never evicted expired
+        # entries (only skipped them on read), so it grew by one entry per
+        # unique query for the life of the process. maxsize caps worst case.
+        self._query_cache: TTLCache = TTLCache(maxsize=2000, ttl=self._cache_ttl_seconds)
 
     async def initialize(self):
         if self._initialized:
@@ -369,11 +372,10 @@ class LightRAGService:
         """
         # ponytail: 5min TTL cache for identical queries
         cache_key = hashlib.md5(f"{query}:{mode}:{only_need_context}".encode()).hexdigest()
-        if cache_key in self._query_cache:
-            results, ts = self._query_cache[cache_key]
-            if time.time() - ts < self._cache_ttl_seconds:
-                logger.info(f"LightRAG cache hit for query (age={time.time()-ts:.1f}s)")
-                return results
+        cached = self._query_cache.get(cache_key)
+        if cached is not None:
+            logger.info("LightRAG cache hit for query")
+            return cached
 
         if not self._initialized:
             await self.initialize()
@@ -392,7 +394,7 @@ class LightRAGService:
                 query, param=QueryParam(mode=mode, only_need_context=only_need_context)
             )
             # Cache result
-            self._query_cache[cache_key] = (result, time.time())
+            self._query_cache[cache_key] = result
             return result
         except Exception as e:
             # Check for common initialization error and retry once
@@ -402,7 +404,7 @@ class LightRAGService:
                 result = await self.rag.aquery(
                     query, param=QueryParam(mode=mode, only_need_context=only_need_context)
                 )
-                self._query_cache[cache_key] = (result, time.time())
+                self._query_cache[cache_key] = result
                 return result
             logger.error(f"LightRAG query failed: {e}")
             return ""
@@ -428,6 +430,8 @@ class LightRAGService:
         logger.info(f"Extracting graph entities for inserted text ({len(text)} chars)...")
         try:
             await asyncio.wait_for(self.rag.ainsert(text, file_paths=file_paths), timeout=timeout)
+            # Cached query results may now be missing this newly-written content.
+            self._query_cache.clear()
         except TimeoutError:
             logger.warning(
                 f"LightRAG ainsert timed out after {timeout:.0f}s for text ({len(text)} chars). "
@@ -442,6 +446,7 @@ class LightRAGService:
                     await asyncio.wait_for(
                         self.rag.ainsert(text, file_paths=file_paths), timeout=timeout
                     )
+                    self._query_cache.clear()
                 except TimeoutError:
                     logger.warning(
                         f"LightRAG ainsert timed out after retry ({timeout:.0f}s). Skipping."

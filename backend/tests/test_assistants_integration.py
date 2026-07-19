@@ -269,7 +269,7 @@ async def test_telemetry_includes_assistant_slug(monkeypatch):
     mock_client = MagicMock()
     mock_table = MagicMock()
     mock_client.table.return_value = mock_table
-    mock_table.insert.return_value.execute = MagicMock()
+    mock_table.upsert.return_value.execute = MagicMock()
     sink.client = mock_client
 
     await sink.log_query_trace(
@@ -284,8 +284,10 @@ async def test_telemetry_includes_assistant_slug(monkeypatch):
         assistant_slug="health-assistant",
     )
 
-    inserted = mock_table.insert.call_args[0][0]
-    assert inserted["assistant_slug"] == "health-assistant"
+    # chat_queries is upserted (idempotent — see the "duplicate chat queries"
+    # fix); it's the last upsert on the shared mock_table.
+    upserted = mock_table.upsert.call_args[0][0]
+    assert upserted["assistant_slug"] == "health-assistant"
 
 
 @pytest.mark.asyncio

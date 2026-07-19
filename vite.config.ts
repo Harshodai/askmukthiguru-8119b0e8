@@ -52,8 +52,16 @@ export default defineConfig(({ mode }) => {
               if (id.includes('framer-motion') || id.includes('lucide-react')) {
                 return 'ui-vendor';
               }
-              if (id.includes('recharts') || id.includes('d3-')) {
-                return 'chart-vendor';
+              if (id.includes('recharts') || id.includes('victory-vendor') || id.includes('d3-')) {
+                // No manualChunks assignment: these ship only via the admin
+                // sub-app's lazy routes (see src/App.tsx ADMIN_ENABLED block).
+                // Force-naming them 'chart-vendor' merged them with a copy of
+                // React's runtime in rolldown's output, which made the whole
+                // chunk eagerly modulepreloaded from index.html. Returning
+                // undefined lets rolldown's default async-chunk splitting
+                // place them in a chunk that's only fetched when an admin
+                // route actually imports them.
+                return undefined;
               }
               if (id.includes('@supabase/supabase-js')) {
                 return 'supabase-vendor';

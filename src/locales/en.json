@@ -110,6 +110,13 @@
     "redeem": "Redeem",
     "keep": "Keep"
   },
+  "crisisDialog": {
+    "heading": "Crisis Support Resources",
+    "indiaHelplines": "India Helplines",
+    "icallAvailability": "Monday–Saturday, 10:00–20:00 IST",
+    "unitedStates": "United States",
+    "usLifeline": "Suicide & Crisis Lifeline"
+  },
   "nav": {
     "appName": "AskMukthiGuru",
     "meetGurus": "Meet the Gurus",
@@ -123,7 +130,8 @@
     "profile": "Profile",
     "admin": "Admin",
     "notebooks": "Notebooks",
-    "knowledgeGraph": "Knowledge Graph"
+    "knowledgeGraph": "Wisdom Map",
+    "secondBrain": "My Reflections"
   },
   "landing": {
     "continuePractice": "Continue your practice",
@@ -752,7 +760,7 @@
         "description": "Save teachings that resonate with you for later reflection"
       },
       "step5": {
-        "title": "Knowledge Graph",
+        "title": "Wisdom Map",
         "description": "Explore how spiritual concepts connect and relate"
       },
       "step6": {
@@ -766,7 +774,7 @@
     }
   },
   "kg": {
-    "title": "Knowledge Graph",
+    "title": "Wisdom Map",
     "searchPlaceholder": "Search concepts...",
     "searchPlaceholderDetailed": "Search a concept — e.g. suffering, deeksha, serene mind…",
     "noResults": "No concepts found",
@@ -778,13 +786,14 @@
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "reset": "Reset view",
-    "loading": "Loading knowledge graph...",
+    "loading": "Loading wisdom map...",
     "explore": "Explore",
     "dragToPan": "Drag to pan · scroll to zoom",
     "errorLoading": "Couldn't load graph: {{error}}",
     "noConceptsFor": "No concepts found for {{query}}.",
-    "searchToVisualise": "Search a concept to visualise the knowledge graph.",
-    "conceptRelationshipCount": "{{nodeCount}} concepts · {{edgeCount}} relationships"
+    "searchToVisualise": "Search a concept to visualise the wisdom map.",
+    "conceptRelationshipCount": "{{nodeCount}} concepts · {{edgeCount}} relationships",
+    "subtitle": "Explore how the sacred concepts of the Ekam teachings connect."
   },
   "layout": {
     "navigate": "Navigate",
@@ -1046,8 +1055,48 @@
     }
   },
   "language": {
-    "searchPlaceholder": "Search 23 languages…",
+    "searchPlaceholder": "Search {{count}} languages…",
     "translationNotice": "Non-English messages are auto-translated before being sent to the Guru.",
-    "ariaLabel": "Selected language: {{name}}. Click to change."
+    "ariaLabel": "Selected language: {{name}}. Click to change.",
+    "supportedCount": "{{count}} languages supported"
+  },
+  "brain": {
+    "title": "My Reflections",
+    "subtitle": "A private, encrypted log of your reflections, insights, and preferences — used to personalize your guidance.",
+    "privateMode": "Private Mode",
+    "privateModeIntro": "Private Mode is on — enter your passphrase to unlock your reflections for this session. It's never sent anywhere except this one request, and never stored.",
+    "passphrasePlaceholder": "Your passphrase",
+    "unlockButton": "Unlock",
+    "addPlaceholder": "Something worth remembering — a reflection, a goal, a preference...",
+    "addButton": "Add",
+    "emptyState": "Nothing here yet — your reflections will appear as you use the app, or you can add one above.",
+    "forgetTooltip": "Forget this",
+    "exportButton": "Export",
+    "enablePrivateMode": "Enable Private Mode",
+    "deleteEverything": "Delete Everything",
+    "enablePrivateTitle": "Enable Private Mode",
+    "enablePrivateWarning": "Once enabled, your reflections are encrypted with a key derived from this passphrase. We will never see it, and if you forget it, your reflections cannot be recovered by anyone, including us. This is by design.",
+    "passphraseChoose": "Choose a passphrase (min. 8 characters)",
+    "passphraseConfirm": "Confirm passphrase",
+    "cancel": "Cancel",
+    "deleteTitle": "Delete all reflections?",
+    "deleteWarning": "This permanently destroys the encryption key for every item in your reflections. This cannot be undone by anyone.",
+    "loadError": "Couldn't load your reflections",
+    "unavailable": "Reflections unavailable",
+    "saved": "Saved to your reflections",
+    "couldNotSave": "Couldn't save",
+    "couldNotDelete": "Couldn't delete",
+    "exportFailed": "Export failed",
+    "passphraseMinLength": "Passphrase must be at least 8 characters",
+    "passphrasesDontMatch": "Passphrases don't match",
+    "privateModeEnabled": "Private Mode enabled — even we can't read your reflections now.",
+    "couldNotEnablePrivate": "Couldn't enable Private Mode",
+    "permanentlyDeleted": "Reflections permanently deleted.",
+    "couldNotDeleteVault": "Couldn't delete vault",
+    "errors": {
+      "notConfigured": "Reflections require the backend to be configured.",
+      "signInRequired": "Sign in to access your reflections.",
+      "requestFailed": "Reflections request failed ({{status}})."
+    }
   }
 }

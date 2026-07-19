@@ -10,6 +10,7 @@ nothing to any answer, in production only.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 import pytest
@@ -35,7 +36,11 @@ def test_dockerfile_copies_okf_index(dockerfile: Path):
     """Each backend image must copy the repo-root memory/ tree into /app/memory."""
     assert dockerfile.exists(), f"{dockerfile} is missing"
     body = dockerfile.read_text(encoding="utf-8")
-    assert "COPY memory/" in body, (
+    assert re.search(
+        r"^COPY\s+(?:--\S+\s+)*memory/\s+(?:\./memory/?|memory/?|/app/memory/?)\s*$",
+        body,
+        re.MULTILINE,
+    ), (
         f"{dockerfile.name} does not copy memory/ — OKF injection is silently "
         "disabled in the built image"
     )
