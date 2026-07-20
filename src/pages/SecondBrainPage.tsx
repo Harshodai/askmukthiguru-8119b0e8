@@ -292,9 +292,39 @@ export default function SecondBrainPage() {
 
             <div className="space-y-3 mb-6">
               {items.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  {t('brain.emptyState', "Nothing here yet — your reflections will appear as you use the app, or you can add one above.")}
-                </p>
+                <div className="relative overflow-hidden rounded-2xl border border-ojas/15 bg-gradient-to-br from-ojas/[0.04] via-transparent to-transparent p-10 sm:p-14 text-center">
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      background:
+                        'radial-gradient(ellipse 60% 50% at 50% 0%, hsl(var(--ojas-gold) / 0.12), transparent 70%)',
+                    }}
+                  />
+                  <div className="relative flex flex-col items-center gap-4">
+                    <div className="w-16 h-16 rounded-full bg-ojas/10 ring-1 ring-ojas/25 flex items-center justify-center shadow-[0_0_32px_hsl(var(--ojas-gold)/0.25)]">
+                      <Brain className="w-7 h-7 text-ojas" />
+                    </div>
+                    <div className="max-w-sm space-y-2">
+                      <h2 className="font-sacred text-2xl text-foreground">
+                        {t('brain.emptyHeadline', 'Your inner journey begins here')}
+                      </h2>
+                      <p className="text-sm text-muted-foreground italic">
+                        {t('brain.emptyState', 'A private, encrypted place for reflections, insights, and preferences — visible only to you.')}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        setNewKind('reflection');
+                        document.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+                      }}
+                      className="mt-2 bg-ojas hover:bg-ojas-light text-primary-foreground gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      {t('brain.emptyCta', 'Write your first reflection')}
+                    </Button>
+                  </div>
+                </div>
               )}
               {items.map((item) => (
                 <Card key={item.id} className="p-4 flex items-start justify-between gap-3">
