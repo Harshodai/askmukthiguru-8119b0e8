@@ -43,8 +43,7 @@ ragatouille>=0.0.8
 
 # --- YouTube Ingestion ---
 youtube-transcript-api>=1.0.0
-# yt-dlp>=2026.6.9  # LICENSE-EXCEPTION: Un licensed release not approved; use a known public-domain build
-yt-dlp>=2025.10.14
+yt-dlp>=2026.3.3
 
 # --- Web Ingestion ---
 playwright>=1.40.0,<2.0

@@ -129,7 +129,7 @@ class CacheCheckStage(Stage):
         SEARCH_PATH_TOTAL.labels(path="p99").inc()
 
         # --- 3. Exact + Semantic cache ---
-        cached = container.exact_cache.get(cache_key)
+        cached = await asyncio.to_thread(container.exact_cache.get, cache_key)
         if cached is None and container.semantic_cache and container.semantic_cache.is_available:
             cached = await asyncio.to_thread(container.semantic_cache.get, cache_key, threshold=threshold)
 
@@ -228,7 +228,8 @@ class CacheUpdateStage(Stage):
                 hot_cache.put(cache_key, final_answer, citations, ttl=300.0, intent=intent)
 
                 # Update exact cache (Redis)
-                container.exact_cache.put(
+                await asyncio.to_thread(
+                    container.exact_cache.put,
                     query=cache_key,
                     response=final_answer,
                     intent=intent,

@@ -301,17 +301,40 @@ def _transcribe_tier2(video_url: str, language: str) -> tuple[str, str]:
         model = WhisperModel(model_size, device="cuda" if _cuda_available() else "cpu", compute_type=compute_type)
 
         # Download audio via yt-dlp
+        import shutil
         import subprocess
         import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             audio_path = os.path.join(tmpdir, "audio.mp3")
-            subprocess.run(
-                ["yt-dlp", "-x", "--audio-format", "mp3", "-o", audio_path, video_url],
-                check=True,
-                capture_output=True,
-                timeout=300,
-            )
+            cmd = ["yt-dlp", "-x", "--audio-format", "mp3", "--no-playlist",
+                   "--extractor-args", "youtube:player-client=android,web",
+                   "-o", audio_path, video_url]
+
+            # Add --cookies only when a readable cookie file exists; otherwise
+            # let yt-dlp attempt an unauthenticated download (no --cookies-from-browser).
+            cookie_path = None
+            try:
+                from app.config import settings
+                possible = [os.path.join(os.getcwd(), "cookies.txt")]
+                if hasattr(settings, "cookies_file") and settings.cookies_file:
+                    possible.insert(0, settings.cookies_file)
+                for p in possible:
+                    if os.path.exists(p):
+                        cookie_path = p
+                        break
+            except Exception:
+                pass
+            if cookie_path:
+                cmd.extend(["--cookies", cookie_path])
+
+            # Resolve Node path for nsig challenge
+            node_path = shutil.which("node")
+            if node_path:
+                cmd.extend(["--js-runtimes", f"node:{node_path}"])
+            cmd.extend(["--remote-components", "ejs:github"])
+
+            subprocess.run(cmd, check=True, capture_output=True, timeout=300)
             segments, info = model.transcribe(audio_path, language=language if language != "en" else None)
             full_text = " ".join(s.text for s in segments)
 
@@ -386,9 +409,10 @@ def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optiona
 
     child_tasks = []
     supabase_client = None
-    if settings.supabase_url and settings.supabase_key:
+    key = settings.supabase_service_key or settings.supabase_key
+    if settings.supabase_url and key:
         try:
-            supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+            supabase_client = create_client(settings.supabase_url, key)
         except Exception as e:
             logger.warning(f"Could not init Supabase in ingest_playlist: {e}")
 
@@ -397,10 +421,9 @@ def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optiona
         if supabase_client:
             try:
                 resp = supabase_client.table("ingest_jobs").insert({
-                    "source": video["url"],
-                    "status": "queued",
+                    "source_url": video["url"],
+                    "status": "pending",
                     "progress_pct": 0,
-                    "tags": tags or ["general"],
                 }).execute()
                 if resp.data:
                     child_job_id = resp.data[0]["id"]

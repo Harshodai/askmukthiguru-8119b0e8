@@ -77,7 +77,7 @@ class GraphStage(Stage):
 
             # Pre-classify intent before graph selection for fast-path routing
             from rag.nodes.on_device_intent import classify_with_reason
-            on_device_result = classify_with_reason(user_msg_en)
+            on_device_result = await asyncio.to_thread(classify_with_reason, user_msg_en)
             detected_intent = on_device_result[0] if on_device_result else None
             if detected_intent:
                 initial_state["intent"] = detected_intent

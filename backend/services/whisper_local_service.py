@@ -115,6 +115,8 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
 
         cmd.extend(
             [
+                "--extractor-args",
+                "youtube:player-client=android,web",
                 "--remote-components",
                 "ejs:github",
                 "-x",  # Extract audio only
@@ -239,6 +241,7 @@ def transcribe_with_whisper(
     try:
         result = mlx_whisper.transcribe(
             audio_path, path_or_hf_repo=model, verbose=False,
+            language=language if language != "en" else None,
             initial_prompt=get_whisper_initial_prompt(),
         )
         text = result.get("text", "").strip()
@@ -309,24 +312,28 @@ def transcribe_with_whisper_enhanced(
         logger.warning("whisperx_pipeline module not importable — falling back to MLX Whisper")
         return transcribe_with_whisper(video_id, audio_path, model=model, language=language)
 
-    allowed = None
-    transcript_langs = getattr(settings, "transcript_languages", "")
-    if transcript_langs:
-        allowed = {code.strip() for code in transcript_langs.split(",") if code.strip()}
+    try:
+        allowed = None
+        transcript_langs = getattr(settings, "transcript_languages", "")
+        if transcript_langs:
+            allowed = {code.strip() for code in transcript_langs.split(",") if code.strip()}
 
-    result = transcribe_with_alignment(
-        video_id,
-        audio_path,
-        language=language if language != "en" else None,  # let whisperx detect unless forced
-        allowed_languages=allowed,
-        whisper_model_name=getattr(settings, "whisperx_model", "large-v3"),
-        device=getattr(settings, "whisperx_device", "auto"),
-        compute_type=getattr(settings, "whisperx_compute_type", "auto"),
-        batch_size=getattr(settings, "whisperx_batch_size", 16),
-        min_speakers=getattr(settings, "diarization_min_speakers", 1),
-        max_speakers=getattr(settings, "diarization_max_speakers", 10),
-        hf_token=getattr(settings, "hf_token", None),
-    )
+        result = transcribe_with_alignment(
+            video_id,
+            audio_path,
+            language=language if language != "en" else None,  # let whisperx detect unless forced
+            allowed_languages=allowed,
+            whisper_model_name=getattr(settings, "whisperx_model", "large-v3"),
+            device=getattr(settings, "whisperx_device", "auto"),
+            compute_type=getattr(settings, "whisperx_compute_type", "auto"),
+            batch_size=getattr(settings, "whisperx_batch_size", 16),
+            min_speakers=getattr(settings, "diarization_min_speakers", 1),
+            max_speakers=getattr(settings, "diarization_max_speakers", 10),
+            hf_token=getattr(settings, "hf_token", None),
+        )
+    except Exception as exc:
+        logger.warning(f"[{video_id}] WhisperX transcribe_with_alignment raised {exc} — falling back to MLX Whisper")
+        return transcribe_with_whisper(video_id, audio_path, model=model, language=language)
 
     if result is None:
         logger.info(f"[{video_id}] WhisperX returned None — falling back to MLX Whisper")

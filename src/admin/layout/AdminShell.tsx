@@ -25,6 +25,7 @@ import {
   Quote,
   Menu,
   X,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,7 @@ const NAV = [
   { to: "/admin/queries", label: "Queries", icon: MessagesSquare },
   { to: "/admin/quality", label: "Quality", icon: ShieldCheck },
   { to: "/admin/retrieval", label: "Retrieval", icon: Database },
+  { to: "/admin/data-sources", label: "Data Sources", icon: BarChart3 },
   { to: "/admin/rag-flow", label: "RAG Flow", icon: Network },
   { to: "/admin/feedback", label: "Feedback", icon: ThumbsUp },
   { to: "/admin/daily-teaching", label: "Daily Teaching", icon: Image },

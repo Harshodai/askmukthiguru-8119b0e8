@@ -13,6 +13,7 @@ import type {
   DataPoint,
   QualityData,
   IngestionHealth,
+  DataStoreInfo,
   ChatQuery as _ChatQueryUnused2,
   TelemetryEvent,
   TelemetryFilters,
@@ -456,6 +457,19 @@ export async function getIngestionHealth(): Promise<IngestionHealth> {
         total_chunks: 0,
       };
     },
+  );
+}
+
+// ── Data Stores (Qdrant / Neo4j / LightRAG) ──────────────────────────────────
+export async function getDataStores(): Promise<DataStoreInfo> {
+  return withDevFallback(
+    'getDataStores',
+    () => fetchWithAuth('/api/admin/data-stores'),
+    async () => ({
+      qdrant: { error: 'No mock data available' },
+      neo4j: { error: 'No mock data available', nodes_by_label: {}, total_nodes: 0, relationships_by_type: {}, total_relationships: 0 },
+      lightrag: { error: 'No mock data available', initialized: false, embedding_dim: null, max_embed_tokens: null, chunk_token_size: 1500, cache_size: 0 } as any,
+    }),
   );
 }
 
