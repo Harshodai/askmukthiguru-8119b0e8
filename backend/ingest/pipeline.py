@@ -161,6 +161,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.config import settings
 from ingest.boundary_chunker import chunk_with_contextual_headers, split_text_at_boundaries
 from ingest.cleaner import clean_transcript
+from ingest.chunkers.youtube_chunker import chunk_youtube_transcript
 from ingest.deduplication import deduplicate_by_payload
 from ingest.hyper_extract_adapter import enrich_text, is_eligible
 from ingest.image_loader import is_image_url, process_image_url
@@ -1171,12 +1172,15 @@ class IngestionPipeline:
             )
             chunks = final_chunks
         else:
-            chunks = self._split_text(
-                clean_text, title=video_title, speaker=video_speaker, topic=video_topic
+            yt_chunks = chunk_youtube_transcript(
+                video_id,
+                clean_text,
+                chunk_size=settings.rag_chunk_size,
+                chunk_overlap=settings.rag_chunk_overlap,
+                languages=settings.transcript_languages_list,
             )
+            chunks = [c["text"] for c in yt_chunks]
 
-            # Step 4: Document Augmentation (Standard only)
-            # Pass clean_text as full_document to activate contextual enrichment
             self._notify(on_progress, "Augmenting chunks with potential questions...", 0.6)
             final_chunks = await self._augment_chunks(chunks, full_document=clean_text)
 

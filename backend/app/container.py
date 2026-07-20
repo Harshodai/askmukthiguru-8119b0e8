@@ -119,9 +119,10 @@ class ServiceContainer:
 
     def _build_infrastructure(self) -> None:
         """Layer 1: Core infrastructure services with no external dependencies."""
-        # State: Active ingestion progress — shared across pods via Redis
+        # State: Active ingestion progress — backed by Supabase ingest_jobs table
         self.ingestion_tracker: IngestionTracker = build_ingestion_tracker(
-            redis_url=getattr(settings, "redis_url", None)
+            supabase_url=getattr(settings, "supabase_url", None),
+            supabase_key=getattr(settings, "supabase_key", None),
         )
 
         # Vector / graph infrastructure

@@ -42,7 +42,7 @@ const MASTER_LANGUAGES: Language[] = [
 ];
 
 export const LANGUAGES: Language[] = MASTER_LANGUAGES.filter((lang) => {
-  return ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'ml'].includes(lang.code);
+  return ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'ml', 'bn', 'gu', 'as', 'sa'].includes(lang.code);
 });
 
 /**

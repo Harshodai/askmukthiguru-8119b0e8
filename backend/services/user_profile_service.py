@@ -54,6 +54,10 @@ class LanguagePreference(str, Enum):
     GUJARATI = "gu"
     MARATHI = "mr"
     PUNJABI = "pa"
+    URDU = "ur"
+    ORIYA = "or"
+    ASSAMESE = "as"
+    SANSKRIT = "sa"
     HINGLISH = "hinglish"  # Code-mixed Hindi-English
 
 
@@ -222,7 +226,13 @@ class UserProfileService:
         hinglish_patterns = [r"\b(kya|kaise|kyun|acha|theek|nahi|haan|bas|yaar)\b"]
 
         # Script-based detection
-        if any("\u0900" <= c <= "\u097f" for c in message):
+        if any("\u0600" <= c <= "\u06ff" for c in message):
+            detected = LanguagePreference.URDU
+        elif any("\u0b00" <= c <= "\u0b7f" for c in message):
+            detected = LanguagePreference.ORIYA
+        elif any("\u0a00" <= c <= "\u0a7f" for c in message):
+            detected = LanguagePreference.PUNJABI
+        elif any("\u0900" <= c <= "\u097f" for c in message):
             detected = LanguagePreference.HINDI
         elif any("\u0b80" <= c <= "\u0bff" for c in message):
             detected = LanguagePreference.TAMIL

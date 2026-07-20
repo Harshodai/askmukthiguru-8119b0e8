@@ -1,10 +1,10 @@
 """Specialized Celery tasks for the ingestion pipeline.
 
 4 task types routed to separate queues:
-  1. transcribe_video — YouTube URL → text transcript (3-tier: captions → Whisper → auto)
-  2. embed_chunks — text chunks → vector embeddings (project's all-MiniLM-L6-v2)
-  3. index_vectors — vectors → Qdrant storage (batch upload, 1000-pt batches)
-  4. orchestrate_ingestion — full pipeline coordinator with job tracking
+  1. embed_chunks — text chunks → vector embeddings (project's all-MiniLM-L6-v2)
+  2. index_vectors — vectors → Qdrant storage (batch upload, 1000-pt batches)
+  3. orchestrate_ingestion — full pipeline coordinator with job tracking
+  4. ingest_playlist — playlist/channel ingestion via Celery chord
 """
 
 from __future__ import annotations
@@ -17,15 +17,39 @@ from typing import Any, Optional
 
 from celery import Task
 
-from celery_config import celery_app, update_job_progress, retry_backoff
+from celery_config import celery_app, update_job_progress
 
 logger = logging.getLogger(__name__)
 
 
 class AsyncTask(Task):
-    """Base task with async support via asyncio.run()."""
+    """Base task with async support via asyncio.run() and failed-job tracking."""
 
     _loop: Optional[asyncio.AbstractEventLoop] = None
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        job_id = (kwargs.get('job_id') or kwargs.get('parent_job_id')) if kwargs else None
+        if job_id is None and args:
+            # Extract job_id from positional args using each task's documented signature.
+            # Celery strips `self` for bound tasks, so indices are 0-based excluding self.
+            #
+            #   orchestrate_ingestion(video_url, language, metadata, job_id, tags, …) → args[3]
+            #   ingest_playlist(playlist_url, language, tags, job_id)                → args[3]
+            #   playlist_complete(results, playlist_url, parent_job_id, total_count) → args[2]
+            #
+            # Use self.name to avoid ambiguity; fall back to None rather than
+            # scanning and risking a serialised metadata/tags string being used.
+            task_name = self.name or ""
+            if "playlist_complete" in task_name:
+                candidate = args[2] if len(args) > 2 else None
+            else:
+                # orchestrate_ingestion and ingest_playlist both put job_id at index 3
+                candidate = args[3] if len(args) > 3 else None
+            if isinstance(candidate, str) and candidate:
+                job_id = candidate
+        if job_id:
+            update_job_progress(job_id, "failed", error_message=str(exc))
+        super().on_failure(exc, task_id, args, kwargs, einfo)
 
     @property
     def loop(self) -> asyncio.AbstractEventLoop:
@@ -38,61 +62,21 @@ class AsyncTask(Task):
         return self.loop.run_until_complete(coro)
 
 
-@celery_app.task(base=AsyncTask, bind=True, max_retries=3)
-def transcribe_video(self, video_url: str, language: str = "en", job_id: str = None) -> dict[str, Any]:
-    """Transcribe a YouTube video to text (3-tier: captions → Whisper → auto)."""
-    if job_id:
-        update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)
-
-    try:
-        video_id = _extract_video_id(video_url)
-        if not video_id:
-            raise ValueError(f"Could not extract video ID from {video_url}")
-
-        # Tier 1: Try manual/caption transcripts first (fastest)
-        full_text, tier_used = _transcribe_tier1(video_id, language)
-
-        # Tier 2: Whisper if captions unavailable
-        if not full_text:
-            full_text, tier_used = _transcribe_tier2(video_url, language)
-
-        # Tier 3: Auto-captions as last resort
-        if not full_text:
-            full_text, tier_used = _transcribe_tier3(video_id, language)
-
-        if not full_text:
-            raise RuntimeError(f"All transcription tiers failed for {video_url}")
-
-        chunks = _chunk_text(full_text, chunk_size=500, overlap=50)
-
-        if job_id:
-            update_job_progress(job_id, "running", progress_pct=40, chunks_indexed=0)
-
-        return {
-            "status": "success",
-            "video_url": video_url,
-            "video_id": video_id,
-            "transcription_tier": tier_used,
-            "full_text_length": len(full_text),
-            "chunk_count": len(chunks),
-            "chunks": chunks,
-            "content_hash": hashlib.sha256(full_text.encode()).hexdigest()[:16],
-        }
-    except Exception as exc:
-        logger.error(f"Transcription failed for {video_url}: {exc}")
-        if job_id:
-            update_job_progress(job_id, "failed", error_message=str(exc))
-        delay = min(2 ** self.request.retries * 5, 30)
-        raise self.retry(exc=exc, countdown=delay)
-
-
-@celery_app.task(base=AsyncTask, bind=True, max_retries=3)
+@celery_app.task(
+    base=AsyncTask, bind=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 3},
+    retry_backoff=True,
+    retry_jitter=True,
+)
 def embed_chunks(self, chunks: list[str], content_hash: str, job_id: str = None) -> dict[str, Any]:
     """Generate embeddings for text chunks using project's all-MiniLM-L6-v2."""
     logger.info(f"Embedding {len(chunks)} chunks (hash={content_hash})")
 
     if job_id:
         update_job_progress(job_id, "running", progress_pct=60)
+
+    self.update_state(state="STARTED", meta={"progress_pct": 50, "stage": "embedding"})
 
     try:
         from services.embedding_service import EmbeddingService
@@ -113,13 +97,16 @@ def embed_chunks(self, chunks: list[str], content_hash: str, job_id: str = None)
         }
     except Exception as exc:
         logger.error(f"Embedding failed: {exc}")
-        if job_id:
-            update_job_progress(job_id, "failed", error_message=str(exc))
-        delay = min(2 ** self.request.retries * 5, 30)
-        raise self.retry(exc=exc, countdown=delay)
+        raise
 
 
-@celery_app.task(base=AsyncTask, bind=True, max_retries=3)
+@celery_app.task(
+    base=AsyncTask, bind=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 3},
+    retry_backoff=True,
+    retry_jitter=True,
+)
 def index_vectors(
     self,
     chunks: list[str],
@@ -133,6 +120,8 @@ def index_vectors(
 
     if job_id:
         update_job_progress(job_id, "running", progress_pct=80)
+
+    self.update_state(state="STARTED", meta={"progress_pct": 70, "stage": "indexing"})
 
     try:
         from qdrant_client import QdrantClient
@@ -184,13 +173,16 @@ def index_vectors(
         }
     except Exception as exc:
         logger.error(f"Indexing failed: {exc}")
-        if job_id:
-            update_job_progress(job_id, "failed", error_message=str(exc))
-        delay = min(2 ** self.request.retries * 5, 30)
-        raise self.retry(exc=exc, countdown=delay)
+        raise
 
 
-@celery_app.task(base=AsyncTask, bind=True, max_retries=2)
+@celery_app.task(
+    base=AsyncTask, bind=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 3},
+    retry_backoff=True,
+    retry_jitter=True,
+)
 def orchestrate_ingestion(
     self,
     video_url: str,
@@ -205,6 +197,8 @@ def orchestrate_ingestion(
 
     if job_id:
         update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)
+
+    self.update_state(state="STARTED", meta={"progress_pct": 5, "stage": "fetching"})
 
     try:
         from app.dependencies import get_container
@@ -253,141 +247,16 @@ def orchestrate_ingestion(
         }
     except Exception as exc:
         logger.error(f"Orchestration failed for {video_url}: {exc}")
-        if job_id:
-            update_job_progress(job_id, "failed", error_message=str(exc))
-        delay = min(2 ** self.request.retries * 5, 30)
-        raise self.retry(exc=exc, countdown=delay)
+        raise
 
 
-# ---- Transcription tiers ----
-
-def _extract_video_id(url: str) -> Optional[str]:
-    """Extract YouTube video ID from various URL formats."""
-    import re
-
-    patterns = [
-        r"(?:v=)([\w-]{11})",
-        r"(?:youtu\.be/)([\w-]{11})",
-        r"(?:embed/)([\w-]{11})",
-        r"(?:shorts/)([\w-]{11})",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
-    return None
-
-
-def _transcribe_tier1(video_id: str, language: str) -> tuple[str, str]:
-    """Tier 1: Manual/caption transcripts (fastest)."""
-    try:
-        from youtube_transcript_api import YouTubeTranscriptApi
-
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=[language, "en"])
-        full_text = " ".join(entry["text"] for entry in transcript_list)
-        return full_text, "captions"
-    except Exception:
-        return "", ""
-
-
-def _transcribe_tier2(video_url: str, language: str) -> tuple[str, str]:
-    """Tier 2: Whisper (faster-whisper large-v3)."""
-    try:
-        from faster_whisper import WhisperModel
-
-        # ponytail: download model lazily, reuse across calls
-        model_size = os.environ.get("WHISPER_MODEL", "large-v3")
-        compute_type = os.environ.get("WHISPER_COMPUTE_TYPE", "float16")
-        model = WhisperModel(model_size, device="cuda" if _cuda_available() else "cpu", compute_type=compute_type)
-
-        # Download audio via yt-dlp
-        import shutil
-        import subprocess
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            audio_path = os.path.join(tmpdir, "audio.mp3")
-            cmd = ["yt-dlp", "-x", "--audio-format", "mp3", "--no-playlist",
-                   "--extractor-args", "youtube:player-client=android,web",
-                   "-o", audio_path, video_url]
-
-            # Add --cookies only when a readable cookie file exists; otherwise
-            # let yt-dlp attempt an unauthenticated download (no --cookies-from-browser).
-            cookie_path = None
-            try:
-                from app.config import settings
-                possible = [os.path.join(os.getcwd(), "cookies.txt")]
-                if hasattr(settings, "cookies_file") and settings.cookies_file:
-                    possible.insert(0, settings.cookies_file)
-                for p in possible:
-                    if os.path.exists(p):
-                        cookie_path = p
-                        break
-            except Exception:
-                pass
-            if cookie_path:
-                cmd.extend(["--cookies", cookie_path])
-
-            # Resolve Node path for nsig challenge
-            node_path = shutil.which("node")
-            if node_path:
-                cmd.extend(["--js-runtimes", f"node:{node_path}"])
-            cmd.extend(["--remote-components", "ejs:github"])
-
-            subprocess.run(cmd, check=True, capture_output=True, timeout=300)
-            segments, info = model.transcribe(audio_path, language=language if language != "en" else None)
-            full_text = " ".join(s.text for s in segments)
-
-        return full_text, "whisper"
-    except Exception as e:
-        logger.warning(f"Whisper transcription failed: {e}")
-        return "", ""
-
-
-def _transcribe_tier3(video_id: str, language: str) -> tuple[str, str]:
-    """Tier 3: Auto-generated captions (lowest quality)."""
-    try:
-        from youtube_transcript_api import YouTubeTranscriptApi
-
-        # Try auto-generated captions
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=[language, "en"], preserve_formatting=False)
-        # Filter for auto-generated (often lower quality)
-        full_text = " ".join(entry["text"] for entry in transcript_list)
-        return full_text, "auto_captions"
-    except Exception:
-        return "", ""
-
-
-def _chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
-    """Split text into overlapping chunks at sentence boundaries."""
-    sentences = text.replace("! ", "!||").replace("? ", "?||").replace(". ", ".||").split("||")
-    chunks: list[str] = []
-    current = ""
-    for sentence in sentences:
-        sentence = sentence.strip()
-        if not sentence:
-            continue
-        if len(current) + len(sentence) <= chunk_size:
-            current += (" " if current else "") + sentence
-        else:
-            if current:
-                chunks.append(current)
-            overlap_text = current[-overlap:] if len(current) > overlap else current
-            current = overlap_text + " " + sentence
-    if current:
-        chunks.append(current)
-    return chunks
-
-
-def _cuda_available() -> bool:
-    try:
-        import torch
-        return torch.cuda.is_available()
-    except Exception:
-        return False
-
-
-@celery_app.task(bind=True, max_retries=2)
+@celery_app.task(
+    base=AsyncTask, bind=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 2},
+    retry_backoff=True,
+    retry_jitter=True,
+)
 def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optional[list[str]] = None, job_id: str = None) -> dict[str, Any]:
     """Process a playlist: extract video URLs, create ingest_jobs for each, and chain them as a Celery chord."""
     from ingest.youtube_loader import get_playlist_video_urls
@@ -398,6 +267,8 @@ def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optiona
     logger.info(f"Extracting playlist videos for URL: {playlist_url}")
     if job_id:
         update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)
+
+    self.update_state(state="STARTED", meta={"progress_pct": 5, "stage": "extracting_playlist"})
 
     videos = get_playlist_video_urls(playlist_url)
     if not videos:
@@ -457,7 +328,13 @@ def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optiona
     }
 
 
-@celery_app.task(bind=True)
+@celery_app.task(
+    base=AsyncTask, bind=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 2},
+    retry_backoff=True,
+    retry_jitter=True,
+)
 def playlist_complete(self, results, playlist_url: str, parent_job_id: str = None, total_count: int = 0) -> dict[str, Any]:
     """Called when all orchestrate_ingestion tasks in the playlist chord finish."""
     success_count = 0

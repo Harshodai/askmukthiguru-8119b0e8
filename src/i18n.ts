@@ -8,11 +8,11 @@ import te from './locales/te.json';
 import kn from './locales/kn.json';
 import ta from './locales/ta.json';
 import mr from './locales/mr.json';
-
-// Additional Indian languages registered as English fallbacks until fully translated.
-// Users can select them in the LanguageSelector; text falls back to English via fallbackLng.
-// See USER_ACTIONS.md → "Translate remaining locales" for how to complete these.
-const enFallback = en;
+import bn from './locales/bn.json';
+import gu from './locales/gu.json';
+import ml from './locales/ml.json';
+import as from './locales/as.json';
+import sa from './locales/sa.json';
 
 i18n
   .use(LanguageDetector)
@@ -25,15 +25,11 @@ i18n
       kn: { translation: kn },
       ta: { translation: ta },
       mr: { translation: mr },
-      // Pending full translation — fall back to English resources for now.
-      bn: { translation: enFallback },
-      gu: { translation: enFallback },
-      ml: { translation: enFallback },
-      ur: { translation: enFallback },
-      or: { translation: enFallback },
-      pa: { translation: enFallback },
-      as: { translation: enFallback },
-      sa: { translation: enFallback },
+      bn: { translation: bn },
+      gu: { translation: gu },
+      ml: { translation: ml },
+      as: { translation: as },
+      sa: { translation: sa },
     },
     fallbackLng: 'en',
     ns: ['translation'],

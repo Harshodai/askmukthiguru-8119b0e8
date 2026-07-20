@@ -52,36 +52,45 @@ def fetch_youtube_title(video_id: str) -> Optional[str]:
 
 
 def _get_cookies_opts() -> dict:
-    """Get yt-dlp cookie options. Returns empty dict if no cookie file exists."""
-    import os
+    """Get yt-dlp cookie options.
+
+    Priority:
+    1. YOUTUBE_COOKIES_B64 env var (base64-encoded cookies.txt)
+    2. cookie_helper auto-extraction (macOS Darwin only)
+    3. Known filesystem paths
+
+    Returns empty dict if no cookies found.
+    """
+    import base64
     import platform
+    import tempfile
 
-    if platform.system() != "Darwin":
-        possible_paths = [
-            os.path.join(os.getcwd(), "cookies.txt"),
-            os.path.join("/app", "cookies.txt"),
-        ]
-        for path in possible_paths:
-            if os.path.exists(path):
-                return {"cookiefile": path}
-        return {}
+    cookies_b64 = os.environ.get("YOUTUBE_COOKIES_B64", "").strip()
+    if cookies_b64:
+        try:
+            decoded = base64.b64decode(cookies_b64).decode("utf-8")
+            tmp = os.path.join(tempfile.gettempdir(), "youtube_cookies.txt")
+            with open(tmp, "w") as f:
+                f.write(decoded)
+            return {"cookiefile": tmp}
+        except Exception as e:
+            logger.warning(f"Failed to decode YOUTUBE_COOKIES_B64: {e}")
 
-    try:
-        from services.cookie_helper import ensure_cookies_file
+    cookie_file = os.environ.get("YOUTUBE_COOKIES_FILE", "").strip()
+    if cookie_file and os.path.exists(cookie_file):
+        return {"cookiefile": cookie_file}
 
-        cookie_path = ensure_cookies_file()
-        if cookie_path and os.path.exists(cookie_path):
-            return {"cookiefile": cookie_path}
-    except Exception as e:
-        logger.warning(f"Failed to use automated cookie_helper in youtube_loader: {e}")
+    if platform.system() == "Darwin":
+        try:
+            from services.cookie_helper import ensure_cookies_file
+            cookie_path = ensure_cookies_file()
+            if cookie_path and os.path.exists(cookie_path):
+                return {"cookiefile": cookie_path}
+        except Exception as e:
+            logger.warning(f"Failed to use cookie_helper: {e}")
 
     possible_paths = [
         os.path.join(os.getcwd(), "cookies.txt"),
-        os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            "cookies.txt",
-        ),
-        "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt",
         os.path.join("/app", "cookies.txt"),
     ]
     for path in possible_paths:
@@ -112,6 +121,19 @@ def _get_js_runtime_opts() -> dict:
     else:
         logger.warning("JS runtime not found — using android_sdkless default")
     return opts
+
+
+def _apply_proxy() -> None:
+    """Set HTTP_PROXY/HTTPS_PROXY from WEBSHARE_PROXY_URL env var.
+
+    Both httpx and yt-dlp respect these env vars natively, so a single
+    call at the top of fetch_transcript_hybrid applies proxy to all backends.
+    """
+    proxy = os.environ.get("WEBSHARE_PROXY_URL", "").strip()
+    if proxy:
+        os.environ.setdefault("HTTP_PROXY", proxy)
+        os.environ.setdefault("HTTPS_PROXY", proxy)
+        logger.info("Webshare proxy configured for YouTube requests")
 
 
 # ============================================================
@@ -508,13 +530,6 @@ def _fetch_youtube_captions(
 
 # ============================================================
 # Main Transcript Fetcher + Council Logic
-# ============================================================
-
-# Pre-extracted transcript max age (seconds) — warn if older, skip if > 30 days
-PRE_EXTRACTED_MAX_AGE_WARN = 7 * 24 * 60 * 60    # 7 days
-PRE_EXTRACTED_MAX_AGE_SKIP = 30 * 24 * 60 * 60   # 30 days
-
-
 def fetch_transcript_hybrid(
     video_id: str,
     title: str = "",
@@ -526,9 +541,9 @@ def fetch_transcript_hybrid(
     Robust transcript fetcher with optional Transcript Council.
 
     Tries 3 distinct tiers:
-    1. Direct API manual captions
-    2. Direct API auto-generated captions
-    3. yt-dlp subtitle download + VTT parsing (fallback when API rate-limited)
+     1. Direct API manual captions
+     2. Direct API auto-generated captions
+     3. yt-dlp subtitle download + VTT parsing (fallback when API rate-limited)
 
     If Transcript Council is enabled:
     - ALSO runs local Whisper large-v3-turbo STT
@@ -539,6 +554,7 @@ def fetch_transcript_hybrid(
         Dict with 'text', 'source_url', 'title', 'speaker', 'topic', 'method', optionally 'error'
         and 'council' info (youtube_score, sarvam_score, winner)
     """
+    _apply_proxy()
     import json
     import os
     import time

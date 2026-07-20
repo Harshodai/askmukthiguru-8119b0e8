@@ -4932,3 +4932,23 @@ interface GoogleOneTapConfig {
 2. **Never use wildcard matching `*=`** for third-party OAuth provider domains where verification of the exact origin is required.
 
 
+### RULE 36 — Multi-locale scaling, background contrast safety, and backend enum sync
+
+**Problem**: 
+1. Adding new translation resource locales to the app requires both registering them in the frontend and matching them in the backend profile schemas to prevent validation crashes.
+2. Web Speech APIs and TTS hooks depend on dynamic locale codes mapped to correct BCP-47 tags (e.g. `ml-IN`, `od-IN` for Odia).
+3. Using theme-dependent background gradient overlays on a Hero section with hardcoded white text causes the text to wash out entirely in light mode.
+
+**Solutions**:
+1. **Locale Expansion**: Translate batch locales concurrently using high-performance models (like `google/gemma-3-12b-it`) and structure the prompt to strictly require raw JSON output, with a preprocessing step to strip any markdown ` ```json ` wrappers before calling `json.loads(..., strict=False)`.
+2. **Dynamic UI Locales**: Always add newly translated codes to the `UI_LOCALES` array inside `profileStorage.ts` and the `LANGUAGES` array filter in `LanguageSelector.tsx` so the dropdown pickers expose them.
+3. **Backend Enum Sync**: Keep the backend's `LanguagePreference` enum (`user_profile_service.py`) in lockstep with the frontend's supported locales. Add script-based ranges to `detect_language_preference` (e.g. `\u0600`–`\u06ff` for Urdu, `\u0b00`–`\u0b7f` for Oriya, `\u0a00`–`\u0a7f` for Punjabi).
+4. **Contrast Safety**: Avoid using theme variable tokens like `from-background` for overlays on hero sections containing static white text. Instead, use static black overlays (`from-black/85 via-black/75 to-background`) that fade into the theme at the bottom, keeping text legible in all modes.
+
+**Hard rules**:
+1. **Always synchronize** new language codes across `i18n.ts`, `profileStorage.ts`, `LanguageSelector.tsx`, and the backend `LanguagePreference` enum.
+2. **Always use strict-False JSON parsing** when processing LLM translations to avoid errors from unescaped control characters.
+3. **Never wash out white text in light mode** — ensure background images/overlays beneath white text remain dark.
+
+
+
