@@ -13,8 +13,10 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Primary location for cookies file
-COOKIES_PATH = "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt"
+from app.config import settings
+
+# Primary location for cookies file — configurable via YOUTUBE_COOKIES_PATH in .env
+COOKIES_PATH = settings.youtube_cookies_path or os.path.join(os.getcwd(), "cookies.txt")
 # Keychain password — loaded from env to keep secrets out of source code.
 # Set KEYCHAIN_PASS in backend/.env (gitignored).
 KEYCHAIN_PASS = os.environ.get("KEYCHAIN_PASS", "")
@@ -91,10 +93,10 @@ def ensure_cookies_file(force_refresh: bool = False) -> Optional[str]:
     # First unlock the keychain so yt-dlp can access Chrome safe storage
     unlock_keychain()
 
-    # Locate host yt-dlp in the host virtual environment
-    yt_dlp_path = "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.venv_host/bin/yt-dlp"
-    if not os.path.exists(yt_dlp_path):
-        logger.info("venv host yt-dlp not found, falling back to system yt-dlp")
+    # Locate host yt-dlp — configurable via YOUTUBE_YTDLP_HOST_PATH in .env
+    yt_dlp_path = settings.youtube_ytdlp_host_path or ""
+    if not yt_dlp_path or not os.path.exists(yt_dlp_path):
+        logger.info("Host yt-dlp not found at configured path, falling back to system yt-dlp")
         yt_dlp_path = "yt-dlp"
 
     test_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"

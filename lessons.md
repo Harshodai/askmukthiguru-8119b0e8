@@ -1,5 +1,66 @@
 # Agentic Lessons & Memory
 
+## Jul 20, 2026 — yt-dlp on Railway: No Browser, No Node.js — Android Client Saves the Day
+
+### The Bug: yt-dlp downloads fail on Railway because cookie extraction always runs on Linux
+
+yt-dlp audio download (`whisper_local_service.py::download_audio`, `youtube_loader.py` Tier 3, `ingest_tasks.py` Tier 2) consistently fails on Railway with "Audio download failed — file not found or too small". The transcript council gets both sources empty — YouTube captions: None, Whisper: None → council scores 0,0 → "Both sources failed."
+
+### Root Cause: macOS cookie automation code blocks the Linux download path
+
+1. **`cookie_helper.py::ensure_cookies_file()`** always runs `--cookies-from-browser chrome` → fails on Linux (no Chrome) → falls back to Safari → fails ("unsupported platform: linux") → returns `None`
+2. **`whisper_local_service.py::download_audio()`** gets `cookie_path=None` → falls back to `--cookies-from-browser chrome` → same failure loop
+3. The error matches the "auth/unknown" classifier → retries with `force_refresh=True` → worse cookie extraction loop → final failure
+4. **`youtube_loader.py::_get_cookies_opts()`** falls back to `{"cookiesfrombrowser": ("chrome",)}` as dict return when no cookie file — same problem for subtitle downloads
+
+### The Android player-client fix was already deployed but the cookie code ran first
+
+We had already added `--extractor-args youtube:player-client=android,web` and `--remote-components ejs:github` to all yt-dlp commands. The Android client bypasses YouTube's nsig (n-parameter) signature challenge without cookies or Node.js. But the cookie extraction code ran first and its errors (stderr matching "bot"/"auth"/"chrome") triggered retry loops that never reached the successful Android path.
+
+### Fix Applied (3 files):
+
+1. **`cookie_helper.py`**: `ensure_cookies_file()` returns `None` immediately on non-macOS (`if platform.system() != "Darwin": return None`). No wasted chrome/safari attempts, no noisy error logs, no retries. Changed `logger.error` to `logger.warning` for extraction failures (non-critical).
+
+2. **`whisper_local_service.py::download_audio()`**: Removed `--cookies-from-browser chrome` fallback. Only passes `--cookies` when `c_path and os.path.exists(c_path)`. Without cookies, logs `"No cookies available — relying on Android player-client for auth"` and runs without any cookie flags.
+
+3. **`youtube_loader.py::_get_cookies_opts()`**: On non-macOS, checks only physically present cookie files (cwd + `/app/cookies.txt`), returns `{}` if none exist. No `{"cookiesfrombrowser": ("chrome",)}` fallback. macOS path unchanged (still uses cookie_helper for `cookies.txt` generation).
+
+### Research: How Other Platforms Handle It
+
+**zabt-ai** (self-hosted meeting transcription):
+- Uses GPU workers (faster-whisper + pyannote) — transcription is the expensive part, not yt-dlp
+- YouTube ingestion is a minor feature: download audio → transcribe on GPU → done. No RAG pipeline, no Qdrant, no Neo4j, no LightRAG
+- Uses `--extractor-args youtube:player-client=android,web` (same as ours)
+- Their Docker topology has a cloud split (`docker-compose.cloud.yml`) routing transcription to RunPod serverless GPU endpoints
+- Key difference: their GPU workers make transcription fast regardless of yt-dlp quality
+
+**recall.it** *(the personal project, not the recall.ai meeting API)*:
+- Uses `youtube-transcript-api` only — NO yt-dlp at all
+- Multi-tier fallback: primary transcript API → HTML scraping → manual paste
+- Never downloads audio. Never needs yt-dlp, cookies, or Node.js
+- This would be the simpler approach if we only needed captions, but we need audio for Whisper STT
+
+**yt-dlp-rescue** *(CRtheHILLS, 2026 project)* — most relevant research:
+- SABR streaming: YouTube forces `web`/`web_safari` clients to use SABR-only streaming on datacenter IPs → only storyboard images available, no video/audio formats
+- Best client combo 2026: `web,android_vr,tv_downgraded` — `android_vr` gives full DASH (144p~4K), `tv_downgraded` most reliable fallback
+- PO Token Auto-Generation: `bgutil-ytdlp-pot-provider` plugin + `YT_DLP_POT_PROVIDER_URL` env var. Requires Node.js or Deno.
+- `player_skip=webpage` reduces HTTP calls = less rate limiting
+- `--force-ipv4` prevents IPv6 routing issues on cloud servers
+- yt-dlp must be installed via `pip install yt-dlp[default]` (not standalone binary) to include EJS scripts
+
+**yt-dlp v2026.03+** — default client changes:
+- Commit `23b8465` (Jan 2026): Default clients changed from `tv,android_sdkless,web` → `android_sdkless,web,web_safari`
+- JS-less default is now just `android_sdkless` — works without Node.js
+- `tv_embedded` removed from defaults — this previously worked on servers without PO tokens
+- Key server/serverless takeaway: `android_sdkless` is the only client guaranteed to work without Node.js on datacenter IPs, but limited to ~480p max quality
+
+### Key Lessons:
+- **Browser-centric cookie code must be gated behind `platform.system() == "Darwin"`** — cookie_helper.py's `ensure_cookies_file()` should never run on Linux servers. A 20-second cookie extraction attempt that always fails is worse than no attempt.
+- **`--cookies-from-browser chrome` on Linux is always wrong** — there is no Chrome browser on a server. The `--extractor-args youtube:player-client=android,web` with EJS remote components is sufficient for public YouTube videos.
+- **yt-dlp on datacenter IPs (Railway, AWS, GCP) faces additional SABR challenges** — even with valid cookies and PO tokens, YouTube may force SABR-only streaming. The `android_vr`, `tv_downgraded`, `web_creator`, and `mweb` clients are alternatives that work without SABR.
+- **For subtitle-only extraction, prefer `youtube-transcript-api` over yt-dlp** — it requires no cookies, no Node.js, no audio download. Use yt-dlp only when you need full audio for Whisper STT.
+- **Install yt-dlp via pip, not the standalone binary** — `pip install yt-dlp[default]` includes EJS scripts needed for JS challenge solving. The standalone binary doesn't bundle them.
+
 ## Jul 20, 2026 — Ingestion RLS Fix + Full Pipeline Flow Documentation
 
 ### `set_session()` overrides service_role key → RLS blocks ingest_jobs INSERT

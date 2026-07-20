@@ -416,3 +416,26 @@ export interface IngestionHealth {
   failed: number;
   total_chunks: number;
 }
+
+// ── Cache Management ─────────────────────────────────────────────────────
+export interface CacheTierStats {
+  available: boolean;
+  size?: number;
+  hits?: number;
+  misses?: number;
+  error?: string;
+}
+
+export interface CacheMetrics {
+  timestamp: number;
+  tiers: {
+    hot: CacheTierStats;
+    exact: CacheTierStats;
+    semantic: CacheTierStats;
+  };
+}
+
+export interface CacheClearResult {
+  status: string;
+  tiers: Record<string, string>;
+}

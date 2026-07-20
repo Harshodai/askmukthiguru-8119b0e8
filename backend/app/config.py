@@ -221,6 +221,12 @@ class Settings(BaseSettings):
     transcript_max_retries: int = 3  # Retry per tier before falling to next
     transcript_concurrent_workers: int = 1  # Kept at 1 to avoid YouTube 429 rate limits
 
+    # --- YouTube Cookie & Runtime Paths (macOS cookie extraction) ---
+    # Override with YOUTUBE_COOKIES_PATH in .env to point to a custom cookies.txt location.
+    youtube_cookies_path: str = ""
+    # Override with YOUTUBE_YTDLP_HOST_PATH in .env to point to the host yt-dlp binary.
+    youtube_ytdlp_host_path: str = ""
+
     # --- Transcript Council (Dual-STT Quality Check) ---
     # When enabled: fetches captions AND runs Sarvam STT on audio, then picks best result.
     enable_transcript_council: bool = True  # Run both YouTube captions + Sarvam STT per video

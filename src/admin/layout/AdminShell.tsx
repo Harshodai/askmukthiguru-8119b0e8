@@ -26,7 +26,9 @@ import {
   Menu,
   X,
   BarChart3,
+  Layers,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { logoutAdmin, getAdminSession } from "@/admin/lib/adminAuth";
@@ -52,7 +54,9 @@ const NAV = [
   { to: "/admin/evals", label: "Evals", icon: ClipboardCheck },
   { to: "/admin/queue", label: "Queue", icon: ListOrdered },
   { to: "/admin/ingestion", label: "Ingestion", icon: Boxes },
+  { to: "/admin/cache", label: "Cache", icon: Layers },
   { to: "/admin/logs", label: "Logs", icon: ScrollText },
+
   { to: "/admin/telemetry", label: "Telemetry", icon: Activity },
   { to: "/admin/monitoring", label: "Monitoring", icon: LineChart },
   { to: "/admin/alerts", label: "Alerts", icon: Bell },

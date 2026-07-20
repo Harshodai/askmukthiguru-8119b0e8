@@ -2,16 +2,16 @@
 Mukthi Guru — YouTube Content Loader (Multi-Strategy + Transcript Council)
 
 Design Patterns:
-  - Chain of Responsibility: 3-tier transcript fallback (v1.x API)
-    1. Manual captions via youtube-transcript-api v1.x
-    2. Auto-generated captions via youtube-transcript-api v1.x
-    3. yt-dlp subtitle download + VTT parsing (fallback when API rate-limited)
-  - Council Pattern: Sarvam Saaras v3 STT runs in parallel for quality comparison
-  - Adapter Pattern: Wraps youtube-transcript-api v1.x, Sarvam STT, and yt-dlp
+  - Chain of Responsibility: 3-backend transcript cascade
+    1. Watch page HTML scrape (ytInitialPlayerResponse → captions)
+    2. yt-dlp subtitle download (7-client rotation)
+    3. youtube-transcript-api (last resort, blocked on some cloud IPs)
+  - Council Pattern: Local Whisper STT runs in parallel for quality comparison
+  - Adapter Pattern: Wraps youtube-transcript-api, yt-dlp, and local Whisper
 
 Transcript Council (per video, when enable_transcript_council=True):
-  - Fetches captions via Tier 1/2 above
-  - ALSO downloads audio and runs Sarvam Batch STT
+  - Fetches captions via 3-backend cascade above
+  - ALSO downloads audio and runs local Whisper STT
   - Scores both results on quality heuristics
   - Ingests the best result (or merges both if both are long and close in quality)
 
@@ -97,21 +97,20 @@ def _get_js_runtime_opts() -> dict:
     Required to solve YouTube's nsig (n-parameter) signature challenge.
     Without this, yt-dlp cannot decode download URLs and returns
     'Requested format is not available'.
+    Falls back to android_sdkless client when no JS runtime is available
+    (yt-dlp >= 2026.01.29 default).
     """
     import shutil
 
-    node_path = "/opt/homebrew/bin/node"
-    if not os.path.exists(node_path):
-        node_path = shutil.which("node")
-
-    opts = {
-        "remote_components": ["ejs:github"],
-    }
+    node_path = shutil.which("node") or shutil.which("deno")
+    opts: dict = {}
     if node_path:
-        opts["js_runtimes"] = {"node": {"path": node_path}}
-        logger.debug(f"JS runtime: node={node_path}")
+        runtime = "node" if shutil.which("node") else "deno"
+        opts["remote_components"] = ["ejs:github"]
+        opts["js_runtimes"] = {runtime: {"path": node_path}}
+        logger.debug(f"JS runtime: {runtime}={node_path}")
     else:
-        logger.warning("JS runtime: node not found — nsig challenge may fail")
+        logger.warning("JS runtime not found — using android_sdkless default")
     return opts
 
 
@@ -210,15 +209,112 @@ def get_playlist_video_urls(playlist_url: str) -> list[dict]:
 
 
 # ============================================================
-# Tier 1 & 2: YouTube Transcript API v1.x
+# Cascade: Multi-Backend Transcript Fetcher
+# Three backends with independent rate-limit pools:
+#   1. watch HTML scrape (ytInitialPlayerResponse → captions)
+#   2. yt-dlp subtitle download (7-client rotation)
+#   3. youtube-transcript-api (last resort)
 # ============================================================
 
 
-def _fetch_youtube_captions(
+def _fetch_watch_page_captions(
     video_id: str, languages: list[str], allow_auto: bool = True
 ) -> Optional[str]:
     """
-    Fetch captions using youtube-transcript-api v1.x instance-based API.
+    Backend 1: Extract captions from YouTube watch page HTML.
+
+    Parses ytInitialPlayerResponse JSON from the page to find caption tracks,
+    then fetches and parses the timedtext XML. Hits YouTube's HTML-serving CDN,
+    which is a different rate-limit pool from the API.
+
+    Filters tracks by language (preferring the configured languages list) and
+    excludes ASR (auto-generated) tracks when allow_auto is False.
+    """
+    import html as html_module
+    from xml.etree import ElementTree
+
+    import httpx
+
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+    }
+
+    try:
+        resp = httpx.get(url, headers=headers, timeout=15, follow_redirects=True)
+        if resp.status_code != 200:
+            logger.debug(f"[{video_id}] Watch page returned {resp.status_code}")
+            return None
+
+        match = re.search(r'ytInitialPlayerResponse\s*=\s*({.*?});', resp.text, re.DOTALL)
+        if not match:
+            logger.debug(f"[{video_id}] No ytInitialPlayerResponse found in watch page")
+            return None
+
+        import json
+        data = json.loads(match.group(1))
+
+        captions = data.get("captions", {})
+        player_response = captions.get("playerCaptionsTracklistRenderer", {})
+        tracks = player_response.get("captionTracks", [])
+
+        if not tracks:
+            logger.debug(f"[{video_id}] No caption tracks in player response")
+            return None
+
+        preferred = None
+        fallback = None
+        for track in tracks:
+            kind = track.get("kind", "")
+            if not allow_auto and kind == "asr":
+                continue
+            lang = track.get("languageCode", "")
+            if languages and lang in languages:
+                preferred = track
+            if fallback is None:
+                fallback = track
+
+        selected = preferred or fallback
+        if not selected:
+            logger.debug(f"[{video_id}] No matching caption tracks after filtering")
+            return None
+
+        base_url = selected.get("baseUrl", "")
+        if not base_url:
+            return None
+
+        captions_resp = httpx.get(base_url, timeout=10)
+        if captions_resp.status_code != 200:
+            return None
+
+        root = ElementTree.fromstring(captions_resp.content)
+        texts = []
+        ns = "{http://www.w3.org/2005/11/its}"
+        for text_elem in root.iter(f"{ns}text"):
+            texts.append(text_elem.text or "")
+        if not texts:
+            for text_elem in root.iter("text"):
+                texts.append(text_elem.text or "")
+
+        result = html_module.unescape(" ".join(texts)).strip()
+        if result:
+            logger.info(f"[{video_id}] ✅ Watch page captions: {len(result)} chars")
+            return result
+
+    except Exception as e:
+        logger.debug(f"[{video_id}] Watch page scrape failed: {e}")
+
+    return None
+
+
+def _fetch_youtube_captions_api(
+    video_id: str, languages: list[str], allow_auto: bool = True
+    ) -> Optional[str]:
+    """
+    Backend 3: Fetch captions using youtube-transcript-api v1.x instance-based API.
 
     Tries manual captions first, then auto-generated.
     The v1.x API uses instance methods (not static), which fixes the
@@ -309,7 +405,7 @@ def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> Optional[str]
                 "outtmpl": f"{tmp_dir}/subs",
                 "quiet": True,
                 "no_warnings": True,
-                "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
+                "extractor_args": {"youtube": {"player_client": ["android", "android_vr", "tv_simply", "tv_embedded", "mweb", "web", "ios"]}},
             }
             ydl_opts.update(_get_cookies_opts())
             ydl_opts.update(_get_js_runtime_opts())
@@ -382,6 +478,32 @@ def _parse_subtitle_file(filepath: str) -> Optional[str]:
             lines.append(clean)
 
     return " ".join(lines)
+
+
+# ============================================================
+# Cascade Fetcher: three backends with independent rate-limit pools
+# ============================================================
+
+
+def _fetch_youtube_captions(
+    video_id: str, languages: list[str], allow_auto: bool = True
+) -> Optional[str]:
+    """
+    Fetch captions via multi-backend cascade.
+
+    Backend 1: watch HTML scrape (ytInitialPlayerResponse → captions)
+    Backend 2: yt-dlp subtitle download (7-client rotation)
+    Backend 3: youtube-transcript-api (last resort)
+    """
+    text = _fetch_watch_page_captions(video_id, languages, allow_auto=allow_auto)
+    if text:
+        return text
+
+    text = _tier3_ytdlp_subtitles(video_id, languages)
+    if text:
+        return text
+
+    return _fetch_youtube_captions_api(video_id, languages, allow_auto=allow_auto)
 
 
 # ============================================================
@@ -546,11 +668,6 @@ def fetch_transcript_hybrid(
         logger.info(f"[{video_id}] Fetching YouTube captions...")
         youtube_text = _fetch_youtube_captions(video_id, languages, allow_auto=(not max_accuracy))
 
-        # Tier 3 fallback: yt-dlp if YouTube API failed
-        if not youtube_text:
-            logger.info(f"[{video_id}] Tier 3: Trying yt-dlp subtitle download...")
-            youtube_text = _tier3_ytdlp_subtitles(video_id, languages)
-
     # ── Step 2: Council / Whisper Fallback ──
     if (
         settings.enable_transcript_council
@@ -567,11 +684,6 @@ def fetch_transcript_hybrid(
                 f"Falling back to YouTube captions API..."
             )
             youtube_text = _fetch_youtube_captions(video_id, languages, allow_auto=True)
-            if not youtube_text:
-                logger.info(
-                    f"[{video_id}] Tier 3: Trying yt-dlp subtitle download as final fallback..."
-                )
-                youtube_text = _tier3_ytdlp_subtitles(video_id, languages)
 
         from services.whisper_local_service import council_pick_best
 
