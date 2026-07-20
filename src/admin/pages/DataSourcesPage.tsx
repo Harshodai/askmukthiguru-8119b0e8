@@ -67,25 +67,21 @@ export default function DataSourcesPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard
-          icon={<Database className="h-4 w-4" />}
           label="Total Points (Qdrant)"
           value={qdrantError ? "—" : fmtInt(qdrantEntries.reduce((s, [, v]) => s + v.points, 0))}
           tone={qdrantError ? "warn" : "default"}
         />
         <KpiCard
-          icon={<BrainCircuit className="h-4 w-4" />}
           label="Graph Nodes (Neo4j)"
           value={neo4jError ? "—" : fmtInt(neo4j.total_nodes || 0)}
           tone={neo4jError ? "warn" : "default"}
         />
         <KpiCard
-          icon={<Share2 className="h-4 w-4" />}
           label="Graph Relations (Neo4j)"
           value={neo4jError ? "—" : fmtInt(neo4j.total_relationships || 0)}
           tone={neo4jError ? "warn" : "default"}
         />
         <KpiCard
-          icon={<HardDrive className="h-4 w-4" />}
           label="LightRAG Status"
           value={lightragError ? "—" : (lightrag.initialized ? "Active" : "Inactive")}
           tone={lightragError ? "warn" : (lightrag.initialized ? "good" : "warn")}
