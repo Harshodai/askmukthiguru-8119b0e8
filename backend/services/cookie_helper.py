@@ -75,9 +75,13 @@ def unlock_keychain() -> bool:
 
 def ensure_cookies_file(force_refresh: bool = False) -> Optional[str]:
     """
-    Ensure a valid cookies.txt file exists. If missing or force_refresh=True,
-    it unlocks the macOS keychain and extracts cookies from Chrome using yt-dlp.
+    Ensure a valid cookies.txt file exists.
+    macOS: unlocks keychain, extracts cookies from Chrome/Safari via yt-dlp.
+    Linux: returns None immediately — browser cookies don't exist on servers.
     """
+    if platform.system() != "Darwin":
+        return None
+
     # If file exists and we are not forcing a refresh, return it
     if not force_refresh and os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 1000:
         return COOKIES_PATH
@@ -138,13 +142,13 @@ def ensure_cookies_file(force_refresh: bool = False) -> Optional[str]:
                 logger.info("Successfully generated cookies.txt from Safari")
                 return COOKIES_PATH
             else:
-                logger.error(f"Safari cookie extraction also failed: {fallback_res.stderr.strip()}")
+                logger.warning(f"Safari cookie extraction also failed: {fallback_res.stderr.strip()}")
     except Exception as e:
-        logger.error(f"Exception during cookie extraction: {e}")
+        logger.warning(f"Exception during cookie extraction: {e}")
 
     # If extraction failed but file exists, return the existing file as fallback
     if os.path.exists(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 1000:
-        logger.warning("Using existing cookies.txt file despite generation failure")
+        logger.debug("Using existing cookies.txt file despite generation failure")
         return COOKIES_PATH
 
     return None

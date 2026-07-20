@@ -93,12 +93,11 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
         cmd = [
             "yt-dlp",
         ]
-        if c_path:
+        if c_path and os.path.exists(c_path):
             cmd.extend(["--cookies", c_path])
             logger.info(f"[{video_id}] Using cookies from: {c_path}")
         else:
-            cmd.extend(["--cookies-from-browser", "chrome"])
-            logger.info(f"[{video_id}] Using Chrome cookies-from-browser fallback")
+            logger.info(f"[{video_id}] No cookies available — relying on Android player-client for auth")
 
         # Resolve Node path for executing JS signature challenges (nsig/n-parameter)
         import shutil
