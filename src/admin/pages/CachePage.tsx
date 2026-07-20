@@ -16,7 +16,7 @@ import type { CacheMetrics } from '@/admin/types';
 
 // ─── Easing ────────────────────────────────────────────────────────────────
 const SPRING = { type: 'spring', damping: 22, stiffness: 260 } as const;
-const EASE_OUT = 'cubic-bezier(0.32,0.72,0,1)';
+const EASE_OUT: [number, number, number, number] = [0.32, 0.72, 0, 1];
 
 // ─── Tier config ───────────────────────────────────────────────────────────
 const TIERS = [
