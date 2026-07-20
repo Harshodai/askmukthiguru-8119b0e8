@@ -424,9 +424,11 @@ const AuthPage = () => {
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) handleSession(session, null);
-    });
+    // Note: `onAuthStateChange` above fires `INITIAL_SESSION` on subscribe with
+    // the current session — no separate `getSession()` call needed. Adding one
+    // causes `handleSession` to run twice on OAuth return (the reported
+    // "double redirect") since both calls race past the sync `processingAuthRef`
+    // guard before the async work finishes.
 
     return () => {
       subscription.unsubscribe();
