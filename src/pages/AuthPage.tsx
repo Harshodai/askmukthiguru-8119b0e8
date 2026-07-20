@@ -857,14 +857,23 @@ const AuthPage = () => {
   }
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-background via-ojas/5 to-background px-4">
-      <div className="w-full max-w-[400px] mx-4 sm:mx-auto space-y-6 shadow-xl shadow-foreground/5 border border-border/40 p-6 sm:p-8">
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-background via-ojas/5 to-background px-4 relative overflow-hidden">
+      {/* Ambient radial glow */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 60% 40% at 50% 0%, hsl(var(--ojas-gold) / 0.10), transparent 70%)',
+        }}
+      />
+      <div className="relative w-full max-w-[400px] mx-4 sm:mx-auto space-y-6 rounded-2xl backdrop-blur-2xl bg-card/60 ring-1 ring-border/40 shadow-2xl shadow-foreground/10 p-6 sm:p-8">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center mx-auto shadow-[0_0_24px_hsl(var(--ojas-gold)/0.35)]">
             <Sparkles className="w-6 h-6 text-ojas" />
           </div>
-          <h1 className="text-xl font-semibold text-foreground">{t('auth.signInTitle')}</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl font-sacred font-semibold text-foreground">{t('auth.signInTitle')}</h1>
+          <p className="text-sm text-muted-foreground italic">
             {isSignUp ? t('auth.createAccount') : t('auth.welcomeBack')}
           </p>
         </div>
@@ -912,7 +921,7 @@ const AuthPage = () => {
           ) : !isNativePlatform && (
             <Button
               variant="outline"
-              className="w-full h-11 sm:h-12 gap-2.5 rounded-xl relative overflow-hidden"
+              className="w-full h-11 sm:h-12 gap-2.5 rounded-xl relative overflow-hidden bg-foreground/[0.04] hover:bg-foreground/[0.08] ring-1 ring-border/60 border-transparent text-foreground backdrop-blur-sm transition-colors"
               onClick={handleGoogleSignIn}
               disabled={loading || googleBusy}
               aria-live="polite"
