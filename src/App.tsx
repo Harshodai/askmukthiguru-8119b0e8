@@ -60,6 +60,7 @@ let TopicsPage: any = null;
 let PromptsPage: any = null;
 let EvalsPage: any = null;
 let IngestionPage: any = null;
+let DataSourcesPage: any = null;
 let LogsPage: any = null;
 let TelemetryPage: any = null;
 let MonitoringPage: any = null;
@@ -71,6 +72,8 @@ let OkfManagerPage: any = null;
 let JobsPage: any = null;
 let RAGFlowPage: any = null;
 let AdminSelfCheckPage: any = null;
+let CachePage: any = null;
+
 
 if (ADMIN_ENABLED) {
   AdminLoginPage = lazyWithRetry(() => import("./admin/pages/AdminLoginPage"));
@@ -98,6 +101,7 @@ if (ADMIN_ENABLED) {
   JobsPage = lazyWithRetry(() => import("./admin/pages/JobsPage"));
   RAGFlowPage = lazyWithRetry(() => import("./admin/pages/RAGFlowPage"));
   AdminSelfCheckPage = lazyWithRetry(() => import("./pages/AdminSelfCheckPage"));
+  CachePage = lazyWithRetry(() => import("./admin/pages/CachePage"));
 }
 
 const queryClient = new QueryClient();
@@ -202,6 +206,7 @@ const App = () => {
                   <Route path="rag-flow" element={
                     <Suspense fallback={<BrandedSpinner />}><RAGFlowPage /></Suspense>
                   } />
+                  <Route path="cache" element={<CachePage />} />
                   <Route path="self-check" element={
                     <Suspense fallback={<BrandedSpinner />}><AdminSelfCheckPage /></Suspense>
                   } />

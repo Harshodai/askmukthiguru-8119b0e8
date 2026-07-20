@@ -99,18 +99,16 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
         else:
             logger.info(f"[{video_id}] No cookies available — relying on Android player-client for auth")
 
-        # Resolve Node path for executing JS signature challenges (nsig/n-parameter)
+        # Resolve JS runtime for executing signature challenges (nsig/n-parameter)
         import shutil
 
-        node_path = "/opt/homebrew/bin/node"
-        if not os.path.exists(node_path):
-            node_path = shutil.which("node")
-
+        node_path = shutil.which("node") or shutil.which("deno")
         if node_path:
-            logger.info(f"[{video_id}] JS runtime: node={node_path}")
-            cmd.extend(["--js-runtimes", f"node:{node_path}"])
+            runtime = "node" if shutil.which("node") else "deno"
+            logger.info(f"[{video_id}] JS runtime: {runtime}={node_path}")
+            cmd.extend(["--js-runtimes", f"{runtime}:{node_path}"])
         else:
-            logger.warning(f"[{video_id}] JS runtime: node NOT found — nsig challenge may fail")
+            logger.warning(f"[{video_id}] JS runtime not found — using android_sdkless default")
 
         cmd.extend(
             [

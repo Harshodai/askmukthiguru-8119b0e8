@@ -504,8 +504,12 @@ export async function getIngestionStatus() {
 }
 
 // ── Cache Management ──────────────────────────────────────────────────────
-export async function clearCache() {
-  return fetchWithAuth('/api/admin/clear-cache', { method: 'POST' });
+export async function getCacheMetrics(): Promise<import('@/admin/types').CacheMetrics> {
+  return fetchWithAuth('/api/metrics/cache');
+}
+
+export async function clearCache(): Promise<import('@/admin/types').CacheClearResult> {
+  return fetchWithAuth('/admin/clear-cache', { method: 'POST' });
 }
 
 // ── Eval runner (admin only) ────────────────────────────────────────────────
@@ -639,5 +643,3 @@ export async function reviewStagingItem(
     body: JSON.stringify({ action, notes }),
   });
 }
-
-

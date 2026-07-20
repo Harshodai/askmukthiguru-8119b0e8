@@ -21,7 +21,7 @@ RUN echo "Build: ${GIT_COMMIT:-$(date +%s)}" > /dev/null
 
 # System deps: curl for healthcheck, gcc for compiled extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl gcc g++ make && \
+    curl gcc g++ make ffmpeg nodejs && \
     rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -32,6 +32,7 @@ WORKDIR /app
 # Install Python deps before copying app code (cache layer)
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir "yt-dlp[default]" && \
     pip cache purge
 
 # Pre-cache the primary embedding model at build time — avoids the runtime
