@@ -52,8 +52,19 @@ def fetch_youtube_title(video_id: str) -> Optional[str]:
 
 
 def _get_cookies_opts() -> dict:
-    """Get yt-dlp cookie options. Falls back to Chrome cookies if cookies.txt is not found."""
+    """Get yt-dlp cookie options. Returns empty dict if no cookie file exists."""
     import os
+    import platform
+
+    if platform.system() != "Darwin":
+        possible_paths = [
+            os.path.join(os.getcwd(), "cookies.txt"),
+            os.path.join("/app", "cookies.txt"),
+        ]
+        for path in possible_paths:
+            if os.path.exists(path):
+                return {"cookiefile": path}
+        return {}
 
     try:
         from services.cookie_helper import ensure_cookies_file
@@ -71,12 +82,12 @@ def _get_cookies_opts() -> dict:
             "cookies.txt",
         ),
         "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt",
+        os.path.join("/app", "cookies.txt"),
     ]
     for path in possible_paths:
         if os.path.exists(path):
             return {"cookiefile": path}
-    # Fallback to direct Chrome cookie extraction
-    return {"cookiesfrombrowser": ("chrome",)}
+    return {}
 
 
 def _get_js_runtime_opts() -> dict:
