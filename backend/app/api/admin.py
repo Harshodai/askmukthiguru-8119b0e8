@@ -4,6 +4,7 @@ Admin dashboard API routes.
 Unit 13 — moved from `routers/admin.py` into `app.api`.
 """
 
+import asyncio
 import logging
 from typing import Any, Optional
 
@@ -292,6 +293,73 @@ async def get_retrieval_health_endpoint(
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
     return await get_retrieval_health(from_date, to_date)
+
+
+@admin_router.get("/data-stores")
+async def get_data_stores_endpoint(
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict[str, Any]:
+    """Get data quality stats for Qdrant, Neo4j, and LightRAG. Admin only."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    result: dict[str, Any] = {
+        "qdrant": {},
+        "neo4j": {},
+        "lightrag": {},
+    }
+
+    # ── Qdrant ──────────────────────────────────────────────────────────
+    try:
+        result["qdrant"] = await asyncio.to_thread(container.qdrant.get_stats)
+    except Exception as e:
+        result["qdrant"]["error"] = str(e)
+        logger.warning(f"Failed to query Qdrant: {e}")
+
+    # ── Neo4j ───────────────────────────────────────────────────────────
+    try:
+        driver = container.neo4j_driver
+        if driver:
+            def _query_neo4j():
+                with driver.session(database="neo4j", default_access_mode="READ") as session:
+                    node_rows = session.run(
+                        "MATCH (n) UNWIND labels(n) AS label RETURN label, count(*) AS cnt ORDER BY cnt DESC"
+                    ).data()
+                    rel_rows = session.run(
+                        "MATCH ()-[r]->() RETURN type(r) AS type, count(*) AS cnt ORDER BY cnt DESC"
+                    ).data()
+                    total = session.run("MATCH (n) RETURN count(n) AS cnt").single()
+                    return node_rows, rel_rows, total["cnt"] if total else 0
+
+            node_rows, rel_rows, total_nodes = await asyncio.to_thread(_query_neo4j)
+            result["neo4j"]["nodes_by_label"] = {}
+            for r in node_rows:
+                label = r["label"]
+                result["neo4j"]["nodes_by_label"][label] = result["neo4j"]["nodes_by_label"].get(label, 0) + r["cnt"]
+            result["neo4j"]["total_nodes"] = total_nodes
+            result["neo4j"]["relationships_by_type"] = {r["type"]: r["cnt"] for r in rel_rows}
+            result["neo4j"]["total_relationships"] = sum(r["cnt"] for r in rel_rows)
+        else:
+            result["neo4j"]["error"] = "Neo4j driver not available"
+    except Exception as e:
+        result["neo4j"]["error"] = str(e)
+        logger.warning(f"Failed to query Neo4j: {e}")
+
+    # ── LightRAG ────────────────────────────────────────────────────────
+    try:
+        lr = container.lightrag
+        result["lightrag"]["initialized"] = lr._initialized
+        if lr._initialized and lr.rag:
+            result["lightrag"]["embedding_dim"] = getattr(lr.rag, "embedding_dim", None)
+            result["lightrag"]["max_embed_tokens"] = getattr(lr.rag, "max_embed_tokens", None)
+            result["lightrag"]["chunk_token_size"] = getattr(lr.rag, "chunk_token_size", None)
+            result["lightrag"]["cache_size"] = len(lr._query_cache)
+    except Exception as e:
+        result["lightrag"]["error"] = str(e)
+        logger.warning(f"Failed to query LightRAG: {e}")
+
+    return result
 
 
 @admin_router.get("/quality-data")

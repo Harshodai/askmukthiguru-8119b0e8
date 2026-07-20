@@ -121,6 +121,25 @@ async def app(scope, receive, send):
 
 
 if __name__ == "__main__":
+    # When SERVICE_TYPE=celery, start the Celery worker instead of the ASGI server.
+    if os.environ.get("SERVICE_TYPE") == "celery":
+        logger.info("Starting Mukthi Guru Celery worker")
+        import subprocess
+        import sys
+        cmd = [
+            sys.executable, "-m", "celery",
+            "-A", "celery_config",
+            "worker",
+            "-Q", "ingestion,transcription,embedding,indexing,okf",
+            "--concurrency=1",
+            "--without-gossip",
+            "--without-mingle",
+            "--without-heartbeat",
+            "-l", "info",
+        ]
+        proc = subprocess.run(cmd)
+        sys.exit(proc.returncode)
+
     logger.info("Starting Mukthi Guru backend on port %s", port)
 
     import uvicorn

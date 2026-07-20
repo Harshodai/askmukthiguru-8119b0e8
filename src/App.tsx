@@ -86,6 +86,7 @@ if (ADMIN_ENABLED) {
   PromptsPage = lazyWithRetry(() => import("./admin/pages/PromptsPage"));
   EvalsPage = lazyWithRetry(() => import("./admin/pages/EvalsPage"));
   IngestionPage = lazyWithRetry(() => import("./admin/pages/IngestionPage"));
+  DataSourcesPage = lazyWithRetry(() => import("./admin/pages/DataSourcesPage"));
   LogsPage = lazyWithRetry(() => import("./admin/pages/LogsPage"));
   TelemetryPage = lazyWithRetry(() => import("./admin/pages/TelemetryPage"));
   MonitoringPage = lazyWithRetry(() => import("./admin/pages/MonitoringPage"));
@@ -189,6 +190,7 @@ const App = () => {
                   <Route path="evals" element={<EvalsPage />} />
                   <Route path="queue" element={<JobsPage />} />
                   <Route path="ingestion" element={<IngestionPage />} />
+                  <Route path="data-sources" element={<DataSourcesPage />} />
                   <Route path="logs" element={<LogsPage />} />
                   <Route path="telemetry" element={<TelemetryPage />} />
                   <Route path="monitoring" element={<MonitoringPage />} />

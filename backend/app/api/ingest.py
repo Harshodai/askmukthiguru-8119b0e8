@@ -7,6 +7,7 @@ import re
 import time
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -45,6 +46,7 @@ class IngestResponse(BaseModel):
     status: str
     message: str = ""
     source_url: str = ""
+    job_id: Optional[str] = None
     chunks_indexed: int = 0
     summaries_created: int = 0
 
@@ -96,19 +98,12 @@ async def ingest_endpoint(
 
     if is_yt and is_playlist_url(url):
         job_id = None
-        from supabase import create_client
-        if settings.supabase_url and settings.supabase_key:
+        if container.supabase_client:
             try:
-                supabase_client = create_client(settings.supabase_url, settings.supabase_key)
-                # Carry the caller's JWT so RLS sees auth.uid() instead of anon
-                _auth_header = request.headers.get("Authorization", "")
-                if _auth_header.startswith("Bearer "):
-                    supabase_client.auth.set_session(_auth_header[7:], "")
-                resp = supabase_client.table("ingest_jobs").insert({
-                    "source": url,
-                    "status": "queued",
+                resp = container.supabase_client.table("ingest_jobs").insert({
+                    "source_url": url,
+                    "status": "pending",
                     "progress_pct": 0,
-                    "tags": tags,
                 }).execute()
                 if resp.data:
                     job_id = resp.data[0]["id"]
@@ -121,24 +116,18 @@ async def ingest_endpoint(
             status="processing",
             message=f"Playlist ingestion queued via Celery. Job ID: {job_id or 'N/A'}",
             source_url=url,
+            job_id=job_id,
         )
 
     # For single video/media, queue it directly to Celery instead of running as BackgroundTasks.
     # We can use the orchestrate_ingestion task.
     job_id = None
-    from supabase import create_client
-    if settings.supabase_url and settings.supabase_key:
+    if container.supabase_client:
         try:
-            supabase_client = create_client(settings.supabase_url, settings.supabase_key)
-            # Carry the caller's JWT so RLS sees auth.uid() instead of anon
-            _auth_header = request.headers.get("Authorization", "")
-            if _auth_header.startswith("Bearer "):
-                supabase_client.auth.set_session(_auth_header[7:], "")
-            resp = supabase_client.table("ingest_jobs").insert({
-                "source": url,
-                "status": "queued",
+            resp = container.supabase_client.table("ingest_jobs").insert({
+                "source_url": url,
+                "status": "pending",
                 "progress_pct": 0,
-                "tags": tags,
             }).execute()
             if resp.data:
                 job_id = resp.data[0]["id"]
@@ -160,6 +149,7 @@ async def ingest_endpoint(
         status="processing",
         message=f"Ingestion queued via Celery. Job ID: {job_id or 'N/A'}",
         source_url=url,
+        job_id=job_id,
     )
 
 

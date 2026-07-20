@@ -186,6 +186,10 @@ export function useIngestionHealth() {
   return useQuery({ queryKey: ["admin", "ingest-health"], queryFn: api.getIngestionHealth });
 }
 
+export function useDataStores() {
+  return useQuery({ queryKey: ["admin", "data-stores"], queryFn: api.getDataStores });
+}
+
 export function usePromptMetrics() {
   return useQuery({ queryKey: ["admin", "prompt-metrics"], queryFn: api.getPromptMetricsByVersion });
 }

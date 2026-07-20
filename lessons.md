@@ -1,5 +1,135 @@
 # Agentic Lessons & Memory
 
+## Jul 20, 2026 — Ingestion RLS Fix + Full Pipeline Flow Documentation
+
+### `set_session()` overrides service_role key → RLS blocks ingest_jobs INSERT
+
+`backend/app/api/ingest.py` — The supabase client was created with `settings.supabase_key` (the service_role key on Railway), but then `supabase_client.auth.set_session(jwt, "")` was called to "carry the caller's JWT so RLS sees auth.uid() instead of anon". This switched the client from service_role mode to the authenticated user's role. Since `ingest_jobs` RLS only grants INSERT to `service_role` (not `authenticated`), every write failed with `new row violates row-level security policy`.
+
+**Failure chain:**
+1. `POST /api/ingest` with admin JWT → `get_current_user_from_supabase` validates JWT → `user` dict set
+2. `create_client(supabase_url, supabase_key)` creates client with service_role key
+3. `supabase_client.auth.set_session(jwt, "")` overrides to user JWT → client now scoped to `authenticated` role
+4. `.table("ingest_jobs").insert(...)` hits RLS → only `service_role` has INSERT → 42501 error
+5. Exception caught and logged as warning `Failed to create job in Supabase: RLS violation`
+6. Job ID is None → Celery task dispatched without tracking → backend response shows `Job ID: N/A`
+7. No row in `ingest_jobs` table → `/api/ingest/status` returns empty
+
+**Fix (lines 100, 125):**
+```python
+# Before:
+supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+_auth_header = request.headers.get("Authorization", "")
+if _auth_header.startswith("Bearer "):
+    supabase_client.auth.set_session(_auth_header[7:], "")
+resp = supabase_client.table("ingest_jobs").insert({...}).execute()
+
+# After — use container's supabase_client (service_role key, no set_session):
+if container.supabase_client:
+    resp = container.supabase_client.table("ingest_jobs").insert({...}).execute()
+```
+
+**Pattern:** Never call `set_session()` before a service_role write. The supabase-py client with a service_role key already runs without RLS restrictions. Overriding the session with a user JWT downgrades the client to that user's permission scope. The `ServiceContainer` already creates `self.supabase_client` (line 147) with `settings.supabase_key` — reuse it from routes instead of calling `create_client` again. Also applies to `ingest_tasks.py` line 389: same key selection (`settings.supabase_service_key or settings.supabase_key`).
+
+### Ingestion Pipeline Flow (End-to-End)
+
+```
+POST /api/ingest  (admin JWT + YouTube URL + tags)
+  │
+  ├─ 1. Check admin (get_current_user_from_supabase → user.is_superuser)
+  ├─ 2. Validate URL (YouTube / image format, security guardrails)
+  ├─ 3. Insert tracking row in `ingest_jobs` (via container.supabase_client — service_role key)
+  │      Table: ingest_jobs (id, source_url, source_type, status, progress_pct,
+  │                          chunks_indexed, error_message, worker_id, timestamps)
+  │      Status: 'pending' (CHECK constraint — NOT 'queued')
+  │
+  ├─ **Single video** → orchestrate_ingestion.delay(url, "en", metadata, job_id, tags, max_accuracy)
+  │      └─ ingestion_pipeline_runner() → updates job status pending→running→completed/failed
+  │
+  └─ **Playlist** → ingest_playlist.delay(url, "en", tags, parent_job_id)
+         └─ ingest_playlist():
+             1. Fetches all video URLs from the playlist
+             2. Insert a child job row per video (status: pending)
+             3. Creates a Celery chord: child `orchestrate_ingestion` tasks + finalize callback
+             4. `finish_playlist_ingestion` updates parent job → completed/failed
+             5. Each child follows the orchestrate_ingestion pipeline below
+
+**orchestrate_ingestion worker pipeline** (used by both paths):
+  └─ Celery Worker (celery_config.py):
+      ├─ Update job status: 'pending' → 'running'
+      ├─ Services:
+      │   ├─ yt-dlp / youtube-transcript-api (captions)
+      │   ├─ Whisper (STT fallback if no captions)
+      │   ├─ IngestionPipeline (chunk → embed → Qdrant `spiritual_wisdom`)
+      │   ├─ RAPTOR (summarize, hierarchical tree)
+      │   ├─ LightRAG (entity extraction → LightRAG Qdrant collections)
+      │   └─ Neo4j (graph entities, relationships, ontology mapping)
+      ├─ On success: job status → 'completed'
+      └─ On failure: job status → 'failed' + error_message set
+```
+
+**Data destinations per ingested video:**
+1. **Qdrant `spiritual_wisdom`** — text chunks + embeddings (dense 1024d) + sparse vectors + payload (title, speaker, language, tags, source_url)
+2. **LightRAG Qdrant collections** — `lightrag_vdb_entities_*`, `lightrag_vdb_chunks_*`, `lightrag_vdb_relationships_*`
+3. **Neo4j** — knowledge graph nodes (Entity, Concept, Teaching labels) + relationships (RELATES_TO, EXPOUNDS, PRACTICE_FOR)
+4. **OKF staging** — extracted doctrine markdown files in `memory/okf/staging/`
+
+### Supabase `ingest_jobs` schema (migration `20260627120000`)
+- Column `source_url` (NOT `source`) — used `source` which caused PGRST204
+- Status CHECK: `'pending'`, `'running'`, `'completed'`, `'failed'` — NOT `'queued'`
+- No `tags` column — tags flow directly to Qdrant payload metadata, not to the tracking table
+- RLS: only `service_role` can INSERT/UPDATE/DELETE; `anon` can SELECT
+
+### Railway env vars for Supabase access
+- `SUPABASE_KEY` = service_role key (`sb_secret_*` prefix) — used for backend writes
+- `SUPABASE_ANON_KEY` = publishable anon key (`sb_publishable_*` prefix) — used by frontend
+- `SUPABASE_SERVICE_KEY` = optional separate service key (not set on Railway — falls back to SUPABASE_KEY)
+- `SUPABASE_URL` = `https://ozmjeuqbholoxypfxixb.supabase.co`
+
+### Ingestion verification checklist
+1. `POST /api/ingest` returns `{status: "processing", source_url: "...", job_id: "<uuid>"}` (NOT `"N/A"`). IngestResponse model includes top-level `job_id: Optional[str]` field.
+2. `railway logs --service celery-worker -n 50 | grep -i "task"` shows `received` + task name
+3. `curl /api/ingest/status` (admin JWT) shows the job with progress
+4. `curl /api/admin/data-stores` (admin JWT) shows Qdrant/Neo4j/LightRAG growth
+5. Check Qdrant `spiritual_wisdom` points increased; Neo4j nodes/rels increased
+
+## Jul 19, 2026 — Clear-Cache Endpoint, Confidence Badge Removal, Data-Stores Admin API
+
+### Admin clear-cache endpoint flushes 3 cache tiers atomically
+`backend/app/api/cache_metrics.py` — Added `POST /api/admin/clear-cache` (router mounted at `/api` prefix, full URL `/api/api/admin/clear-cache`). Flushes hot in-memory cache (`hot_cache.clear()`), exact Redis cache (`exact_cache.invalidate_all()`), and semantic Qdrant cache (`semantic_cache.invalidate_all()`). The double `/api` prefix is a pre-existing routing artifact — new endpoints should follow the same pattern for consistency.
+
+### Confidence badge removal requires both component and test changes
+When removing a UI element that changes the DOM shape:
+1. Delete the JSX section from the component
+2. Remove unused imports (the linter won't warn if the import is from a barrel file like lucide-react)
+3. Update all test files — change `getByText`/`getByRole` to `queryByText` + `.not.toBeInTheDocument()` for the removed element
+4. Run full test suite to catch any hidden assertions: `npm test`
+Pattern: `src/components/chat/ChatMessage.tsx` (removed lines 857-898 confidence section + `HoverCard`) and `src/test/ChatMessage.test.tsx` + `src/test/components/ChatMessage.test.tsx` (assertions changed to verify absence).
+
+### Celery tasks queue but never execute without a worker
+`backend/tasks/ingest_tasks.py` — `orchestrate_ingestion.delay()` dispatches to Redis broker. Without a Celery worker process consuming the queue, the task remains in Redis perpetually. For Railway, there are two options:
+1. **Deploy a celery-worker service** — separate Railway service running `celery -A celery_config worker`
+2. **Inline async fallback** — modify the ingest endpoint to call `container.ingestion.ingest_url()` directly via `asyncio.create_task` instead of Celery dispatch (needs `ffmpeg` in Dockerfile)
+
+Option 2 is simpler but blocks the response until full pipeline completes if not backgrounded.
+
+### Supabase `ingest_jobs` schema mismatch: `source` vs `source_url`
+The code inserts `{"source": url, "status": "queued", ...}` but the Supabase table has column `source_url`, not `source`. PostgREST returns PGRST204 ("Could not find the 'source' column of 'ingest_jobs' in the schema cache"). After fixing the column name, reload schema: `NOTIFY pgrst, 'reload schema'`.
+
+### Data-stores admin endpoint for Qdrant/Neo4j/LightRAG stats
+`backend/app/api/admin.py` — `GET /api/admin/data-stores` uses `ServiceContainer` to:
+- **Qdrant**: `container.qdrant._client.get_collections()` + `get_collection()` for per-collection point counts, vector sizes, status
+- **Neo4j**: `container.neo4j_driver.session()` with Cypher `MATCH (n) RETURN labels(n)[0] AS label, count(*)` and `MATCH ()-[r]->() RETURN type(r) AS type, count(*)`
+- **LightRAG**: `container.lightrag._initialized`, `rag.chunk_token_size`, `_query_cache` size
+
+Frontend page at `/admin/data-sources` with KPI cards, Qdrant collection grid, Neo4j node/relation breakdown, LightRAG status panel. Pattern follows existing admin pages with `KpiCard`, `Card`, `Badge` from shadcn/ui and React Query via `useDataStores()` hook.
+
+### Live Railway data (as of Jul 19, 2026)
+- **Qdrant**: `spiritual_wisdom` collection has 89,053 points, 165,689 indexed vectors, status green. Other collections (vault, lightrag, semantic cache, global_memory) all empty.
+- **Neo4j**: 101 nodes (80 `base`, 18 `GlobalMemory`, 3 `User`), 139 relationships across 17 types (top: RELATES_TO 32, EXPOUNDS 30, PRACTICE_FOR 22, HAS_MEMORY 18).
+- **LightRAG**: Initialized but LightRAG-specific Qdrant collections empty — no entities/chunks/relationships indexed yet.
+- **Overall state**: `ready=True`, `status=degraded`. 13 of 15 services healthy. Two non-critical services unavailable: `ocr` and `job_queue`.
+
 ## Jul 20, 2026 — Capability-Question Detection: Regex Patterns Over Prefix Allowlists
 
 ### Prefix-based `startswith` allowlists falsely flag distress queries as capability questions

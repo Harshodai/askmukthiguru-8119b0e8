@@ -103,6 +103,35 @@ class QdrantService:
         """Check if Qdrant is reachable and collection exists."""
         return self._client_manager.health_check()
 
+    def get_stats(self) -> dict:
+        """Return per-collection statistics: points, indexed vectors, status, vector size."""
+        stats = {}
+        cols = self._client.get_collections()
+        for c in cols.collections:
+            try:
+                info = self._client.get_collection(c.name)
+                cfg = info.config.params
+                vector_size = None
+                if cfg.vectors:
+                    if isinstance(cfg.vectors, dict):
+                        dense = cfg.vectors.get("dense")
+                        if dense:
+                            vector_size = dense.size
+                        elif cfg.vectors:
+                            first = next(iter(cfg.vectors.values()), None)
+                            vector_size = first.size if first else None
+                    else:
+                        vector_size = getattr(cfg.vectors, "size", None)
+                stats[c.name] = {
+                    "points": info.points_count,
+                    "indexed_vectors": info.indexed_vectors_count,
+                    "status": str(info.status),
+                    "vector_size": vector_size,
+                }
+            except Exception:
+                stats[c.name] = {"error": f"Failed to query collection '{c.name}'"}
+        return stats
+
     def close(self) -> None:
         """Close the Qdrant client connection."""
         self._client_manager.close()

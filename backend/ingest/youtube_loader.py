@@ -298,9 +298,9 @@ def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> Optional[str]
                 "outtmpl": f"{tmp_dir}/subs",
                 "quiet": True,
                 "no_warnings": True,
+                "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
             }
             ydl_opts.update(_get_cookies_opts())
-            # Fix: solve YouTube nsig challenge so format URLs are valid
             ydl_opts.update(_get_js_runtime_opts())
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:

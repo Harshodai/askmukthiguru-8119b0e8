@@ -373,6 +373,38 @@ export interface QueueResponse {
   total: number;
 }
 
+export interface QdrantCollectionInfo {
+  points: number;
+  indexed_vectors: number;
+  status: string;
+  vector_size: number | null;
+}
+
+export interface Neo4jStats {
+  nodes_by_label: Record<string, number>;
+  total_nodes: number;
+  relationships_by_type: Record<string, number>;
+  total_relationships: number;
+}
+
+export interface LightRAGStats {
+  initialized: boolean;
+  embedding_dim: number | null;
+  max_embed_tokens: number | null;
+  chunk_token_size: number;
+  cache_size: number;
+}
+
+export interface DataStoreError {
+  error: string;
+}
+
+export interface DataStoreInfo {
+  qdrant: Record<string, QdrantCollectionInfo> | DataStoreError;
+  neo4j: Neo4jStats | DataStoreError;
+  lightrag: LightRAGStats | DataStoreError;
+}
+
 export interface IngestionHealth {
   status: string;
   last_run: ISODate;

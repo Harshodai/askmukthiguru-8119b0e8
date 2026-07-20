@@ -271,13 +271,13 @@ class PipelineCoordinator:
             if embedder is None:
                 return None
             if hasattr(embedder, "encode_single_full"):
-                enc = embedder.encode_single_full(query_text)
+                enc = await asyncio.to_thread(embedder.encode_single_full, query_text)
                 emb = enc.get("dense")
                 if hasattr(emb, "tolist"):
                     return emb.tolist()
                 return emb
             elif hasattr(embedder, "encode"):
-                result = embedder.encode(query_text)
+                result = await asyncio.to_thread(embedder.encode, query_text)
                 if isinstance(result, dict):
                     return result.get("dense") or result.get("embedding")
                 if hasattr(result, "tolist"):
