@@ -29,12 +29,13 @@ interface PracticeCardProps {
 const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: PracticeCardProps) => {
   const A = accentMap[p.accent];
   const { toast } = useToast();
+  const isSereneMind = p.slug === 'serene-mind';
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: i * 0.06 }}
-      className="relative"
+      className={cn("relative", isSereneMind && "sm:col-span-2")}
     >
       <button
         type="button"
@@ -50,7 +51,7 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
             description: `${p.title} has been ${isFavorited ? 'removed from' : 'added to'} your list.`,
           });
         }}
-        className="absolute top-3 right-3 z-10 p-2 rounded-full bg-background/70 backdrop-blur-sm hover:bg-background transition-colors"
+        className="absolute top-4 right-4 z-10 p-2 rounded-full bg-background/80 backdrop-blur-md hover:bg-background transition-colors ring-1 ring-border/20"
       >
         <Star
           className={cn(
@@ -60,23 +61,32 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
         />
       </button>
       <Link to={`/practices/${p.slug}`} className="block group">
-        <Card className={`h-full p-5 transition-all hover:shadow-lg ring-1 ${A.ring} hover:-translate-y-0.5`}>
-          <div className="flex items-start gap-4">
-            <div className={`w-11 h-11 rounded-xl ${A.bg} flex items-center justify-center shrink-0`}>
-              <A.icon className={`w-5 h-5 ${A.text}`} />
+        <Card className={cn(
+          "h-full p-6 transition-all duration-500 hover:shadow-2xl ring-1 hover:-translate-y-1 bg-card/40 backdrop-blur-xl",
+          A.ring,
+          isSereneMind ? "bg-gradient-to-br from-ojas/[0.08] via-card/50 to-card/30 hover:ring-ojas/50 shadow-[0_4px_30px_rgba(245,158,11,0.06)]" : "hover:ring-white/10"
+        )}>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+            <div className={cn(
+              "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner",
+              A.bg
+            )}>
+              <A.icon className={cn("w-5.5 h-5.5", A.text)} />
             </div>
             <div className="flex-1 min-w-0 pr-8">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold text-foreground truncate">{p.title}</h3>
-                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-ojas transition-colors shrink-0" />
+                <h3 className="font-sacred text-xl font-semibold text-foreground truncate">{p.title}</h3>
+                <span className="w-8 h-8 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors">
+                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-ojas transition-colors shrink-0" />
+                </span>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">{p.tagline}</p>
-              <div className="flex flex-wrap gap-2 mt-3">
-                <Badge variant="secondary" className="gap-1">
-                  <Clock className="w-3 h-3" /> {p.durationLabel}
+              <p className="text-sm text-muted-foreground mt-1.5 font-sans leading-relaxed">{p.tagline}</p>
+              <div className="flex flex-wrap gap-2 mt-4">
+                <Badge variant="secondary" className="gap-1 bg-white/5 border-none text-[11px]">
+                  <Clock className="w-3.5 h-3.5" /> {p.durationLabel}
                 </Badge>
                 {p.intentions.slice(0, 2).map((tag) => (
-                  <Badge key={tag} variant="outline" className="text-[10px]">
+                  <Badge key={tag} variant="outline" className="text-[10px] border-border/40 text-muted-foreground">
                     {tag}
                   </Badge>
                 ))}
@@ -88,6 +98,7 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
     </motion.div>
   );
 };
+
 
 const PracticesPage = () => {
   const { t, i18n } = useTranslation();

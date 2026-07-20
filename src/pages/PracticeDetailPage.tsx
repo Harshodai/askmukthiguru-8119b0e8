@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, ExternalLink, Headphones, PlayCircle, Star, Share2, Check } from 'lucide-react';
+import { ArrowLeft, Clock, ExternalLink, Headphones, PlayCircle, Star, Share2, Check, Play } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,8 @@ const PracticeDetailPage = () => {
 
   const fav = practice ? isFavorited(practice.slug) : false;
   const [shareCopied, setShareCopied] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+
 
   // Track this as the most recently opened practice for the landing "Continue" card.
   useEffect(() => {
@@ -191,17 +193,43 @@ const PracticeDetailPage = () => {
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="relative w-full overflow-hidden rounded-lg bg-muted" style={{ paddingTop: '56.25%' }}>
-              <iframe
-                className="absolute inset-0 w-full h-full"
-                src={embedSrc}
-                title={`${lp!.title} — guided video`}
-                loading="lazy"
-                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
+            <div className="relative w-full overflow-hidden rounded-lg bg-black/40 ring-1 ring-border/20" style={{ paddingTop: '56.25%' }}>
+              {!isPlaying && practice.videoId ? (
+                <div 
+                  className="absolute inset-0 cursor-pointer group"
+                  onClick={() => setIsPlaying(true)}
+                >
+                  <img
+                    src={`https://img.youtube.com/vi/${practice.videoId}/hqdefault.jpg`}
+                    alt={`${lp!.title} Preview`}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  {/* Subtle dark overlay */}
+                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/15 transition-colors duration-500" />
+                  
+                  {/* Gold aura play button */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="relative flex items-center justify-center">
+                      <div className="absolute inset-0 w-16 h-16 rounded-full bg-ojas/20 blur-md scale-125 group-hover:scale-150 transition-transform duration-500" />
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground flex items-center justify-center shadow-2xl transition-transform duration-300 group-hover:scale-110">
+                        <Play className="w-6 h-6 fill-primary-foreground text-primary-foreground ml-1" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <iframe
+                  className="absolute inset-0 w-full h-full"
+                  src={embedSrc ? `${embedSrc}${embedSrc.includes('?') ? '&' : '?'}autoplay=1` : ''}
+                  title={`${lp!.title} — guided video`}
+                  loading="lazy"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              )}
             </div>
+
           </CardContent>
         </Card>
         )}

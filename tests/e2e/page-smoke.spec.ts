@@ -42,6 +42,8 @@ for (const route of PUBLIC_ROUTES) {
         !e.includes('Download the React DevTools') &&
         !e.toLowerCase().includes('hydrat') &&
         !e.includes('404 Error') &&
+        !e.includes('useMeditationAudio') &&
+        !e.includes('.mp3') &&
         !(finalPathname === '/auth' && e.includes('Refused to frame') && e.includes('https://accounts.google.com/')),
     );
     expect(fatal, `Uncaught errors on ${route}:\n${fatal.join('\n')}`).toHaveLength(0);

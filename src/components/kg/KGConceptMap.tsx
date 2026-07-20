@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Search, ZoomIn, ZoomOut, RotateCcw, ArrowUp, Settings } from 'lucide-react';
+import { BackgroundParticles } from '@/components/common/ui/BackgroundParticles';
 
 import { getAIConfig } from '@/lib/chat/config';
 import { getAccessToken } from '@/lib/chat/auth';
@@ -468,21 +469,21 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
 
   return (
     <div className="flex flex-col gap-4 w-full max-w-5xl mx-auto p-4">
-      <form onSubmit={submit} className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <form onSubmit={submit} className="flex gap-3">
+        <div className="relative flex-1 rounded-full bg-card/45 ring-1 ring-border/40 backdrop-blur-xl shadow-lg flex items-center">
+          <Search className="absolute left-4.5 w-4.5 h-4.5 text-muted-foreground/80 pointer-events-none" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('kg.searchPlaceholderDetailed', 'Search a concept, teaching, or practice…')}
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ojas/40"
+            className="w-full pl-12 pr-4 py-3 bg-transparent border-none text-sm text-foreground focus:outline-none focus:ring-0 placeholder:text-muted-foreground/60 rounded-full"
             aria-label="Knowledge graph query"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ojas text-white text-sm font-medium disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 px-6 py-3 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground text-sm font-bold shadow-xl hover:scale-105 transition-all duration-300 disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
           {t('kg.explore', 'Explore')}
@@ -492,14 +493,14 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       <div className="flex items-center gap-2 text-xs text-muted-foreground select-none">
         <button
           onClick={() => setZoom((z) => Math.min(3, z + 0.2))}
-          className="p-1.5 rounded border border-border hover:bg-muted"
+          className="p-2 rounded-full border border-border/45 bg-card/40 hover:bg-muted transition-colors"
           title="Zoom in"
         >
           <ZoomIn className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={() => setZoom((z) => Math.max(0.3, z - 0.2))}
-          className="p-1.5 rounded border border-border hover:bg-muted"
+          className="p-2 rounded-full border border-border/45 bg-card/40 hover:bg-muted transition-colors"
           title="Zoom out"
         >
           <ZoomOut className="w-3.5 h-3.5" />
@@ -518,12 +519,12 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             simRef.current.running = true;
             setSimHeat((h) => h + 1);
           }}
-          className="p-1.5 rounded border border-border hover:bg-muted"
+          className="p-2 rounded-full border border-border/45 bg-card/40 hover:bg-muted transition-colors"
           title="Reset view & unpin all"
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
-        <span className="ml-1">Drag to pan · scroll to zoom · double-click node to pin</span>
+        <span className="ml-1 italic font-sans opacity-85">Drag to pan · scroll to zoom · double-click node to pin</span>
       </div>
 
       {error && (
@@ -533,39 +534,41 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       )}
 
       {isDemo && data && (
-        <div className="text-sm text-muted-foreground text-center">
+        <div className="text-sm text-muted-foreground text-center italic font-sans">
           {t('kg.showingDemo', 'Showing demo data instead')}
         </div>
       )}
 
       {loading && (
-        <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+        <div className="flex items-center justify-center py-16 text-muted-foreground gap-2 font-sans">
           <Loader2 className="w-5 h-5 animate-spin" />
           <span className="text-sm">{t('kg.loading')}</span>
         </div>
       )}
 
       {!data && !loading && !error && (
-        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-4">
+        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-4 font-sans">
           <div className="animate-bounce">
             <ArrowUp className="w-8 h-8 text-ojas/60" />
           </div>
-          <p className="text-sm text-center max-w-xs">
+          <p className="text-sm text-center max-w-xs italic">
             {t('kg.emptyPrompt', 'Explore the wisdom map \u2014 search above')}
           </p>
         </div>
       )}
 
       {data && data.nodes.length === 0 && !loading && (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">
-          <p className="text-sm">{t('kg.noConceptsFor', { query: submitted })}</p>
+        <div className="flex items-center justify-center py-16 text-muted-foreground font-sans">
+          <p className="text-sm italic">{t('kg.noConceptsFor', { query: submitted })}</p>
         </div>
       )}
 
       <div
         ref={containerRef}
-        className="relative rounded-xl border border-border overflow-hidden bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950"
+        className="relative rounded-2xl border border-border/40 overflow-hidden bg-gradient-to-b from-[#0A0905] via-[#12110B] to-[#0A0905] shadow-2xl shadow-black/80"
       >
+        <BackgroundParticles count={20} className="absolute inset-0 overflow-hidden pointer-events-none z-0 opacity-50" />
+
         {/* Floating Settings Trigger */}
         <button
           onClick={() => setShowSettings(!showSettings)}

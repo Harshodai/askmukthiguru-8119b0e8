@@ -21,11 +21,12 @@ export const Navbar = () => {
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="fixed top-0 left-0 right-0 z-50"
+      className="fixed top-0 left-0 right-0 z-50 flex justify-center"
     >
-      <div className="mx-4 mt-4">
-        <div className="glass-card px-6 py-4 shadow-md">
+      <div className="w-full max-w-5xl mx-4 mt-5">
+        <div className="rounded-full bg-background/60 backdrop-blur-2xl ring-1 ring-border/40 px-6 py-3.5 shadow-[0_8px_32px_0_rgba(0,0,0,0.12)]">
           <div className="flex items-center justify-between">
+
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
               <span className="text-lg" aria-hidden="true">🙏</span>
