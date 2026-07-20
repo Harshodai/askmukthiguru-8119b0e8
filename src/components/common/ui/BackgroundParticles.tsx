@@ -61,11 +61,12 @@ export const BackgroundParticles = ({
       x: Math.random() * 100,
       y: Math.random() * 110 - 10,
       delay: Math.random() * 6,
-      duration: 16 + Math.random() * 18,
-      size: (isMobile ? 4 : 6) + Math.random() * (isMobile ? 6 : 12),
-      opacity: 0.6 + Math.random() * 0.3,
+      duration: 28 + Math.random() * 32,
+      size: (isMobile ? 3 : 5) + Math.random() * (isMobile ? 5 : 10),
+      opacity: 0.18 + Math.random() * 0.22,
     }));
   }, [effectiveCount, isMobile]);
+
 
   if (prefersReducedMotion || effectiveCount === 0) {
     return <div className={className} />;

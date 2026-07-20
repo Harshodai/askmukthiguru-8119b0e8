@@ -90,7 +90,7 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
         display: ['Outfit', 'sans-serif'],
         // Sacred serif — Cormorant Garamond evokes timelessness / temple manuscripts.
         // Replaces Playfair Display per the Digital Ashram design system.

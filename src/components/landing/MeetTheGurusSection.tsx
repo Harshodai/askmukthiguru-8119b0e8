@@ -6,9 +6,16 @@ import gurusPhoto from '@/assets/gurus-photo.jpg';
 export const MeetTheGurusSection = () => {
   const { t } = useTranslation();
   return (
-    <section id="gurus" className="scroll-mt-28 py-12 sm:py-20 md:py-24 relative overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-celestial-gradient" />
+    <section id="gurus" className="scroll-mt-28 py-16 sm:py-24 relative overflow-hidden bg-background">
+      {/* Ambient radial glow */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 60% 40% at 50% 0%, hsl(var(--ojas-gold) / 0.07), transparent 70%)',
+        }}
+      />
 
       <div className="relative z-10 container mx-auto px-6">
         {/* Section Header */}
@@ -19,11 +26,11 @@ export const MeetTheGurusSection = () => {
           transition={{ duration: 0.7 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
+          <h2 className="text-4xl md:text-5xl font-sacred font-bold mb-4">
             <span className="text-foreground">{t('landing.meetGurus.heading1')}</span>{' '}
             <span className="text-gradient-gold">{t('landing.meetGurus.heading2')}</span>
           </h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto font-sans italic">
             {t('landing.meetGurus.subtitle')}
           </p>
         </motion.div>
@@ -36,17 +43,17 @@ export const MeetTheGurusSection = () => {
           transition={{ duration: 0.7, delay: 0.1 }}
           className="max-w-4xl mx-auto mb-16"
         >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-card/45 backdrop-blur-sm border border-border/80 p-6 md:p-8 rounded-2xl shadow-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-y-8 md:gap-y-0 py-8 bg-card/30 backdrop-blur-xl ring-1 ring-border/40 rounded-2xl shadow-xl">
             {[
               { value: '30M+', label: t('landing.meetGurus.stat1', 'Souls Guided'), sub: t('landing.meetGurus.stat1Sub', 'Worldwide') },
               { value: '#1', label: t('landing.meetGurus.stat2', 'Bestseller'), sub: t('landing.meetGurus.stat2Sub', 'USA Today & More') },
               { value: 'TEDx', label: t('landing.meetGurus.stat3', 'TEDx Speaker'), sub: t('landing.meetGurus.stat3Sub', 'Global Leaders') },
               { value: '800K+', label: t('landing.meetGurus.stat4', 'Ekam Meditators'), sub: t('landing.meetGurus.stat4Sub', 'Mass Gatherings') },
             ].map((stat, i) => (
-              <div key={i} className="text-center px-2 flex flex-col justify-center border-border/30 border-r even:border-r-0 md:border-r md:last:border-r-0">
-                <span className="font-sacred text-3xl sm:text-4xl md:text-5xl font-bold text-saffron-gold mb-2 block">{stat.value}</span>
-                <span className="text-sm font-semibold text-deep-earth dark:text-foreground/90 leading-tight block">{stat.label}</span>
-                <span className="text-xs text-muted-foreground mt-0.5 block">{stat.sub}</span>
+              <div key={i} className="text-center px-4 flex flex-col justify-center border-border/30 border-r last:border-0 odd:border-r even:border-r-0 md:even:border-r md:last:border-r-0">
+                <span className="font-sacred text-3xl sm:text-4xl md:text-5xl font-bold text-saffron-gold mb-1.5 block">{stat.value}</span>
+                <span className="text-[13px] font-semibold text-foreground/90 leading-tight block">{stat.label}</span>
+                <span className="text-[11px] text-muted-foreground mt-0.5 block">{stat.sub}</span>
               </div>
             ))}
           </div>
@@ -60,43 +67,48 @@ export const MeetTheGurusSection = () => {
           transition={{ duration: 0.7, delay: 0.2 }}
           className="max-w-2xl md:max-w-3xl lg:max-w-5xl mx-auto"
         >
-          <div className="glass-card-hover p-8 md:p-12 shadow-lg">
-            <div className="flex flex-col md:flex-row gap-8 items-center">
+          <div className="relative overflow-hidden rounded-[2rem] bg-card/45 backdrop-blur-xl ring-1 ring-border/40 p-8 md:p-12 shadow-2xl transition-all duration-500 hover:ring-white/10 group">
+            <div className="flex flex-col md:flex-row gap-8 lg:gap-12 items-center">
               {/* Guru Photo */}
               <motion.div
-                className="relative"
-                whileHover={{ scale: 1.02 }}
-                transition={{ duration: 0.3 }}
+                className="relative shrink-0"
+                whileHover={{ scale: 1.03 }}
+                transition={{ duration: 0.4 }}
               >
-                <div className="w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden ring-4 ring-ojas/30 shadow-xl relative">
-                  <img
-                    src={gurusPhoto}
-                    alt="Sri Preethaji & Sri Krishnaji"
-                    width={192}
-                    height={192}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-cover"
-                  />
+                {/* Aura shadow effect */}
+                <div className="absolute inset-0 rounded-full bg-ojas/10 blur-xl opacity-80 group-hover:scale-110 transition-transform duration-500" />
+                <div className="w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden p-[3px] bg-gradient-to-tr from-ojas via-ojas-light to-ojas-dark shadow-2xl relative">
+                  <div className="w-full h-full rounded-full overflow-hidden bg-background">
+                    <img
+                      src={gurusPhoto}
+                      alt="Sri Preethaji & Sri Krishnaji"
+                      width={192}
+                      height={192}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                  </div>
                   {/* Gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-background/10 to-transparent" />
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-t from-background/10 to-transparent pointer-events-none" />
                 </div>
-                <div className="absolute -top-2 -right-2 w-10 h-10 rounded-full bg-gradient-to-br from-ojas to-ojas-light flex items-center justify-center animate-pulse-glow shadow-md">
-                  <Heart className="w-5 h-5 text-primary-foreground" />
+                <div className="absolute -top-1 -right-1 w-9 h-9 rounded-full bg-gradient-to-br from-ojas to-ojas-light flex items-center justify-center shadow-lg">
+                  <Heart className="w-4.5 h-4.5 text-primary-foreground fill-primary-foreground" />
                 </div>
               </motion.div>
 
               {/* Content */}
               <div className="flex-1 text-center md:text-left">
-                <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+                <h3 className="text-2xl md:text-3xl font-sacred font-bold text-foreground mb-2">
                   {t('landing.meetGurus.name')}
                 </h3>
-                <p className="text-ojas font-medium mb-4">
+                <p className="text-ojas font-semibold text-sm uppercase tracking-wider mb-4">
                   {t('landing.meetGurus.title')}
                 </p>
-                <p className="text-muted-foreground leading-relaxed mb-6">
+                <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-6 font-sans">
                   {t('landing.meetGurus.description')}
                 </p>
+
 
                 {/* Key Teachings */}
                 <div className="flex flex-wrap gap-3 justify-center md:justify-start">

@@ -301,6 +301,16 @@ def _teacher_from_labels(labels: list[str] | None) -> str | None:
     return labels[0] if labels else None
 
 
+def _type_from_labels(labels: list[str] | None) -> str:
+    if not labels:
+        return "Concept"
+    generics = {"base", "entity", "__entity__", "node", "document", "chunk"}
+    for label in labels:
+        if label.lower() not in generics:
+            return label
+    return labels[0] if labels else "Concept"
+
+
 @router.get("/kg/subgraph", response_model=SubgraphResponse)
 async def kg_subgraph(
     query: str = Query(..., min_length=1, description="Concept or keyword to center the subgraph on"),
@@ -341,7 +351,7 @@ async def kg_subgraph(
                     nodes[src] = KGNode(
                         id=src,
                         label=src,
-                        type=(rec.get("src_labels") or ["Concept"])[0],
+                        type=_type_from_labels(rec.get("src_labels")),
                         teacher=_teacher_from_labels(rec.get("src_labels")),
                     )
                 dst = rec.get("dst_id")
@@ -350,7 +360,7 @@ async def kg_subgraph(
                         nodes[dst] = KGNode(
                             id=dst,
                             label=dst,
-                            type=(rec.get("dst_labels") or ["Concept"])[0],
+                            type=_type_from_labels(rec.get("dst_labels")),
                             teacher=_teacher_from_labels(rec.get("dst_labels")),
                         )
                     edges.append(KGEdge(source=src, target=dst, label=rec.get("rel")))

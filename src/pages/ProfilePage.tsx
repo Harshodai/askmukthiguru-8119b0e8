@@ -402,34 +402,38 @@ const ProfilePage = () => {
           <Tabs value={tab} onValueChange={setTab} className="w-full">
             {/* ── Scrollable tab rail — no cramped 7-col grid ── */}
             <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto momentum-scroll no-tap-highlight">
-              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-7 gap-1 mb-6 bg-muted/40 p-1 rounded-full sm:rounded-lg">
-                <TabsTrigger value="conversations" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Conversations</TabsTrigger>
-                <TabsTrigger value="profile" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Profile</TabsTrigger>
-                <TabsTrigger value="stats" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Insights</TabsTrigger>
-                <TabsTrigger value="notes" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Notes</TabsTrigger>
-                <TabsTrigger value="memory" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Memory</TabsTrigger>
-                <TabsTrigger value="settings" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Settings</TabsTrigger>
-                <TabsTrigger value="support" className="rounded-full sm:rounded-md text-xs sm:text-sm px-4">Support</TabsTrigger>
+              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-7 gap-1.5 mb-8 bg-black/40 ring-1 ring-border/30 p-1.5 rounded-full">
+                <TabsTrigger value="conversations" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">Conversations</TabsTrigger>
+                <TabsTrigger value="profile" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">Profile</TabsTrigger>
+                <TabsTrigger value="stats" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">Insights</TabsTrigger>
+                <TabsTrigger value="notes" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">Notes</TabsTrigger>
+                <TabsTrigger value="memory" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">Memory</TabsTrigger>
+                <TabsTrigger value="settings" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">Settings</TabsTrigger>
+                <TabsTrigger value="support" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">Support</TabsTrigger>
               </TabsList>
             </div>
 
             <TabsContent value="profile" className="space-y-6 mt-0">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Personal Details</CardTitle>
+              <Card className="bg-card/40 backdrop-blur-xl ring-1 ring-border/20">
+                <CardHeader className="border-l-2 border-ojas pl-5 py-4">
+                  <CardTitle className="text-lg font-sacred">Personal Details</CardTitle>
                   <CardDescription>Tell the Guru about yourself.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex flex-col sm:flex-row items-center gap-6 pb-2">
-                    <div className="relative group">
-                      <Avatar className="w-24 h-24 ring-2 ring-border transition-all group-hover:ring-ojas/40">
-                        {(profile.avatarDataUrl || profile.avatarUrl) ? (
-                          <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
-                        ) : null}
-                        <AvatarFallback className="bg-ojas/10 text-ojas text-xl font-bold">
-                          {getInitials(profile.displayName)}
-                        </AvatarFallback>
-                      </Avatar>
+                    <div className="relative group shrink-0">
+                      {/* Aura glow behind */}
+                      <div className="absolute inset-0 rounded-full bg-ojas/10 blur-md opacity-85 group-hover:scale-110 transition-transform duration-500" />
+                      <div className="w-24 h-24 rounded-full p-[2.5px] bg-gradient-to-tr from-ojas via-ojas-light to-ojas-dark shadow-xl relative">
+                        <Avatar className="w-full h-full border-none">
+                          {(profile.avatarDataUrl || profile.avatarUrl) ? (
+                            <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
+                          ) : null}
+                          <AvatarFallback className="bg-background text-ojas text-xl font-bold font-sacred">
+                            {getInitials(profile.displayName)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         aria-label="Change profile photo"
@@ -437,6 +441,7 @@ const ProfilePage = () => {
                       >
                         <Camera className="w-4 h-4" />
                       </button>
+
                       <input
                         ref={fileInputRef}
                         type="file"
