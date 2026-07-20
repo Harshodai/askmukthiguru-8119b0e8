@@ -130,7 +130,7 @@ if __name__ == "__main__":
             sys.executable, "-m", "celery",
             "-A", "celery_config",
             "worker",
-            "-Q", "ingestion,transcription,embedding,indexing,okf",
+            "-Q", "ingestion,embedding,indexing,okf",
             "--concurrency=1",
             "--without-gossip",
             "--without-mingle",

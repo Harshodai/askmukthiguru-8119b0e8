@@ -1,10 +1,10 @@
 """Celery Configuration for Mukthi Guru.
 
 Distributed task queue for ingestion pipeline:
-  - transcription: YouTube video → text
   - embedding: text → vector embeddings
   - indexing: vectors → Qdrant
   - ingestion: full pipeline orchestration
+  - okf: OKF knowledge extraction
 
 Requires Redis (already in docker-compose.yml) as broker + backend.
 """
@@ -50,10 +50,14 @@ celery_app.conf.update(
     task_acks_late=True,
     task_reject_on_worker_lost=True,
     worker_prefetch_multiplier=1,
+    broker_transport_options={"visibility_timeout": 3600},
     task_track_started=True,
     task_soft_time_limit=1800,
     task_time_limit=2400,
-    # Exponential backoff on retry: 2^retry_count * base_delay
+    # True: with task_acks_late=True, acknowledge exhausted-retry tasks so they are
+    # not redelivered indefinitely. Transient worker crashes are handled by
+    # task_reject_on_worker_lost=True; transient errors are retried via autoretry_for.
+    # NOTE: This option is deprecated in Celery 6.0 — remove when upgrading.
     task_acks_on_failure_or_timeout=True,
     # Celery Beat — daily dispatch of due win-back emails (Task B3a).
     beat_schedule={
@@ -66,7 +70,6 @@ celery_app.conf.update(
 
 # Queue routing by task type
 task_queues = (
-    Queue("transcription", Exchange("ingestion"), routing_key="transcription"),
     Queue("embedding", Exchange("ingestion"), routing_key="embedding"),
     Queue("indexing", Exchange("ingestion"), routing_key="indexing"),
     Queue("ingestion", Exchange("ingestion"), routing_key="ingestion"),
@@ -76,7 +79,6 @@ task_queues = (
 celery_app.conf.task_queues = task_queues
 
 celery_app.conf.task_routes = {
-    "tasks.ingest_tasks.transcribe_video": {"queue": "transcription"},
     "tasks.ingest_tasks.embed_chunks": {"queue": "embedding"},
     "tasks.ingest_tasks.index_vectors": {"queue": "indexing"},
     "tasks.ingest_tasks.orchestrate_ingestion": {"queue": "ingestion"},

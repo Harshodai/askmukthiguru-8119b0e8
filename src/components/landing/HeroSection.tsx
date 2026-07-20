@@ -88,8 +88,8 @@ export const HeroSection = () => {
             className="w-full h-full object-cover"
           />
 
-          <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/25 to-background/80" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/20 via-transparent to-background/20" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/75 to-background" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/35 via-transparent to-black/35" />
         </motion.div>
 
         {/* Mandala Corner Motifs */}
@@ -125,7 +125,7 @@ export const HeroSection = () => {
               transition={{ delay: 0.3, duration: 0.7 }}
               className="font-sacred text-center mb-8 leading-[1.1] tracking-tight"
             >
-              <span className="text-white/60 font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl block">{t('landing.hero.heading1')}</span>
+              <span className="text-white/85 font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl block">{t('landing.hero.heading1')}</span>
               <span className="text-gradient-gold font-bold text-6xl sm:text-7xl md:text-8xl lg:text-9xl block mt-2">{t('landing.hero.heading2')}</span>
             </motion.h1>
 
@@ -134,10 +134,11 @@ export const HeroSection = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.7 }}
-              className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed font-sans"
+              className="text-lg md:text-xl text-white/95 drop-shadow-md mb-8 max-w-2xl mx-auto leading-relaxed font-sans"
             >
               {t('landing.hero.subtitle')}
             </motion.p>
+
 
             {/* State Check-In */}
             <motion.div
@@ -146,7 +147,7 @@ export const HeroSection = () => {
               transition={{ delay: 0.6, duration: 0.7 }}
               className="mb-12"
             >
-              <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-5">
+              <h2 className="text-sm uppercase tracking-[0.2em] text-saffron-gold/90 font-sans font-semibold mb-5 drop-shadow">
                 {t('landing.hero.stateCheckIn', 'How is your inner state right now?')}
               </h2>
               <div className="flex justify-center gap-3.5 flex-wrap">

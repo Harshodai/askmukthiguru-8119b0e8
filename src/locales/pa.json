@@ -1115,11 +1115,11 @@
     "privateModeEnabled": "Private Mode enabled — even we can't read your reflections now.",
     "couldNotEnablePrivate": "Couldn't enable Private Mode",
     "permanentlyDeleted": "Reflections permanently deleted.",
-    "couldNotDeleteVault": "Couldn't delete vault",
+    "couldNotDeleteVault": "ਵਾਲਟ ਮਿਟਾਉਣ ਵਿੱਚ ਅਸਫਲ",
     "errors": {
-      "notConfigured": "Reflections require the backend to be configured.",
-      "signInRequired": "Sign in to access your reflections.",
-      "requestFailed": "Reflections request failed ({{status}})."
+      "notConfigured": "ਪ੍ਰਤੀਬਿੰਬਾਂ ਲਈ ਬੈਕਐਂਡ ਨੂੰ ਕੌਂਫਿਗਰ ਕਰਨ ਦੀ ਲੋੜ ਹੈ।",
+      "signInRequired": "ਆਪਣੇ ਪ੍ਰਤੀਬਿੰਬਾਂ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ।",
+      "requestFailed": "ਪ੍ਰਤੀਬਿੰਬਾਂ ਦੀ ਮੰਗ ਅਸਫਲ ਹੋ ਗਈ ({{status}})।"
     }
   }
 }
