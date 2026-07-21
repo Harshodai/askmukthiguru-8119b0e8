@@ -107,9 +107,14 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
             "relevancy_score": 1.0,
         }
 
+    query_tier = state.get("query_tier", "standard")
+    cove_enabled_tier = query_tier in ("tier3_complex", "tier4_deep") and query_tier not in getattr(
+        settings, "rag_cove_disabled_for_tiers", ["fast", "tier2_simple", "standard"]
+    )
+
     # Skip for standard tier with short answers (< 150 chars)
     answer = state.get("answer", "")
-    if state.get("query_tier") == "standard" and len(answer) < 150:
+    if query_tier == "standard" and len(answer) < 150:
         logger.info("Combined verify: standard tier with short answer – bypassing")
         return {
             "is_faithful": True,
@@ -118,6 +123,16 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
             "faithfulness_score": 1.0,
             "relevancy_score": 1.0,
         }
+
+    # CoVe is enabled for tier3_complex / tier4_deep when not in the disabled list.
+    # Use the LLM gateway for combined verification; if unavailable or it errors,
+    # fall through to the legacy LettuceDetect path (fail-closed behavior is kept
+    # inside _verify_with_gateway).
+    if cove_enabled_tier:
+        gateway_result = await _verify_with_gateway(state, config)
+        if gateway_result is not None:
+            return gateway_result
+        # If gateway is unavailable, continue to legacy verification below.
 
     # --- rag_parallel_verify fast-exit (Ruthless Audit Phase 1 TTFT) ---
     # Skips only the EXPENSIVE CoVe sub-question check (~60s LLM call) for
@@ -130,7 +145,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     # and TEMPORAL intents, not just "hard factual") passed verification with
     # zero actual check against retrieved context, because format_final_answer's
     # confidence gate (floor 6.5) was then fed a hardcoded 7.0 by this exact code.
-    if getattr(settings, "rag_parallel_verify", True) and state.get("query_tier") == "tier3_complex":
+    if getattr(settings, "rag_parallel_verify", True) and query_tier == "tier3_complex":
         answer = state["answer"]
         relevant_docs = state["relevant_docs"]
         question = state.get("rewritten_query") or state["question"]
@@ -278,6 +293,63 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     }
 
 
+
+
+async def _verify_with_gateway(state: GraphState, config: dict | None) -> dict:
+    """Verification path for tier3_complex / tier4_deep using container.llm_gateway.
+
+    Runs a single combined Self-RAG + CoVe call via the gateway and returns the
+    standard verification update keys that downstream nodes expect.
+    """
+    gateway = _services._llm_gateway
+    if gateway is None:
+        logger.warning("verify_with_gateway: no LLM gateway available, falling back to LettuceDetect")
+        return None
+
+    answer = state.get("answer", "")
+    relevant_docs = state.get("relevant_docs", [])
+    context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
+
+    if not context or len(context.strip()) < 200:
+        logger.warning("verify_with_gateway: context too short for CoVe verification")
+        return {
+            "is_faithful": False,
+            "verification": {"passed": False, "details": "Context too short for CoVe verification"},
+            "confidence_score": 0.0,
+            "faithfulness_score": 0.0,
+            "relevancy_score": 0.0,
+        }
+
+    await emit_status(config, "Verifying alignment with the teachings...")
+    try:
+        cove_result = await gateway.primary.verify_answer(answer=answer, context=context)
+    except Exception as exc:
+        logger.error(f"verify_with_gateway: gateway combined_verify failed: {exc}")
+        return {
+            "is_faithful": False,
+            "verification": {"passed": False, "details": f"Gateway CoVe error: {exc}"},
+            "confidence_score": 0.0,
+            "faithfulness_score": 0.0,
+            "relevancy_score": 0.0,
+        }
+
+    is_faithful = bool(cove_result.get("is_faithful", cove_result.get("passed", False)))
+    passed = bool(cove_result.get("passed", is_faithful))
+    confidence = float(cove_result.get("confidence", 7.0))
+    details = cove_result.get("details", "Gateway combined verification")
+
+    logger.info(
+        f"verify_with_gateway: tier={state.get('query_tier')} "
+        f"faithful={is_faithful} passed={passed} confidence={confidence:.1f}"
+    )
+
+    return {
+        "is_faithful": is_faithful,
+        "verification": {"passed": passed, "details": details},
+        "confidence_score": confidence,
+        "faithfulness_score": confidence / 10.0,
+        "relevancy_score": 1.0 if passed else confidence / 10.0,
+    }
 
 
 async def _cove_subquestion_check(question: str, answer: str, context: str, ollama):

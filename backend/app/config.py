@@ -664,6 +664,9 @@ class Settings(BaseSettings):
     # CoVe adds ~60s and up to 4 small LLM calls. LettuceDetect faithfulness scoring remains.
     # Default True (disabled) to reduce pipeline LLM calls.
     rag_cove_disabled: bool = True
+    # Tiers for which CoVe is explicitly disabled. Verification nodes check this list to
+    # keep fast/standard paths cheap while enabling Chain-of-Verification for tier3/tier4.
+    rag_cove_disabled_for_tiers: list[str] = ["fast", "tier2_simple", "standard"]
     # Agentic Graph Traversal configuration (for COMPARATIVE intent + tier3_complex)
     agentic_graph_traversal_enabled: bool = True
     agentic_graph_max_steps: int = 3

@@ -75,8 +75,35 @@ def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None
         "CAPABILITY":        ("FACTUAL",          "tier2_simple", False),
         "FACTUAL":           ("FACTUAL",          "tier2_simple", False),
         "COMPARATIVE":       ("COMPARATIVE",      "tier3_complex", False),
+        "DEEP":              ("FACTUAL",          "tier4_deep",   False),
     }
     return mapping.get(route_name)
+
+
+def _detect_tier4_deep_cues(question: str) -> bool:
+    """Heuristic cues that should route a query to tier4_deep.
+
+    Matches multi-hop doctrinal synthesis, cross-teacher comparison, and
+    explicit requests for deep analysis. Used by the intent router before
+    the cheaper fast/standard paths fire.
+    """
+    lower_q = question.lower()
+    deep_cues = [
+        r"\bdeep\b",
+        r"\bgo deeper\b",
+        r"\bexplore in depth\b",
+        r"\bthorough\b",
+        r"\bcomprehensive\b",
+        r"\bdoctrinal synthesis\b",
+        r"\bsynthesis of\b",
+        r"\bhow does .* connect to .* and .*(?:connect|relate|lead)",
+        r"\bcompare .* and .* in the (?:teachings|doctrine|tradition)",
+        r"\brelationship between .* and .* and .*",
+        r"\binterconnected\b",
+        r"\bmulti[- ]?hop\b",
+        r"\banalytical\b",
+    ]
+    return any(re.search(p, lower_q) for p in deep_cues)
 
 
 @trace_rag_node("intent_router")
@@ -474,6 +501,24 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                     ),
                 }
 
+    # ---- tier4_deep heuristic guard ----
+    # Detect multi-hop doctrinal synthesis / cross-teacher comparison / explicit
+    # "deep" cues before the cheaper fast/standard paths fire.
+    if _detect_tier4_deep_cues(question):
+        logger.info("Intent Router: tier4_deep heuristic cue matched: %s", question[:80])
+        return {
+            "intent": "FACTUAL",
+            "query_tier": "tier4_deep",
+            "complexity_score": complexity_score,
+            "confidence_tier": "low",
+            **_cache_hint("FACTUAL"),
+            "evaluation_trace": _trace_update(
+                state, intent="FACTUAL", query_tier="tier4_deep",
+                routing_reason="tier4_deep_cue",
+                complexity_score=complexity_score,
+            ),
+        }
+
     # ---- Heuristic fast-path #1: capability / meta questions ----
     if any(kw in lower_q for kw in _CAPABILITY_PATTERNS):
         logger.info("Intent Router: heuristic fast-path — capability/meta question, fast")
@@ -622,6 +667,10 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     elif intent == "COMPARATIVE":
         query_tier = "tier3_complex"
 
+    # Promote comparative/multi-hop or explicit "deep" phrasing to tier4_deep.
+    if intent in ("COMPARATIVE", "FACTUAL") and _detect_tier4_deep_cues(question):
+        query_tier = "tier4_deep"
+
     # Store in cache
     # Store in cache with TTL timestamp
     _intent_classification_cache[cache_key] = (intent, complexity, _time.time())
@@ -637,7 +686,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
         "complexity_score": complexity_score,
         "confidence_tier": (
             "high" if query_tier in ("tier2_simple", "fast") and intent != "CASUAL"
-            else "low" if query_tier == "tier3_complex"
+            else "low" if query_tier in ("tier3_complex", "tier4_deep")
             else "medium"
         ),
         **_cache_hint(intent),
