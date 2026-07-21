@@ -337,6 +337,8 @@ class ChatEngine:
                 response_text=result.final_answer,
                 citations=result.citations,
                 faithfulness=result.faithfulness_score,
+                citations_verified=result.citations_verified,
+                orphan_citations_stripped=result.orphan_citations_stripped,
             )
         except Exception as e:
             logger.warning(f"Telemetry logging failed (non-critical): {e}")

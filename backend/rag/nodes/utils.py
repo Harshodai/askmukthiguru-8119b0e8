@@ -849,3 +849,35 @@ def _require_state(state: GraphState, required: list[str]) -> Optional[dict]:
         logger.error(f"NodeContractError: missing required keys: {missing}")
         return {"error": f"NodeContractError: missing required keys: {missing}"}
     return None
+
+
+def _verify_inline_citations(answer: str, docs: list[dict]) -> tuple[str, bool, bool]:
+    """Resolve [[CITE:N]] markers, strip orphans, and strip sentences with unresolvable markers.
+
+    Returns (cleaned_answer, citations_verified, orphan_citations_stripped).
+    """
+    if not answer or "[[CITE:" not in answer:
+        return answer, True, False
+
+    from services.citation_service import resolve, strip_orphan_markers
+
+    stripped = strip_orphan_markers(answer, docs)
+    orphan_citations_stripped = stripped != answer
+
+    resolved = resolve(stripped, docs)
+    citations_verified = resolved.grounded
+
+    if not citations_verified:
+        # Strip any sentence that still contains an unresolved [[CITE:N]] marker.
+        import re
+        sentences = re.split(r"(?<=[.!?])\s+", stripped)
+        kept: list[str] = []
+        for sentence in sentences:
+            if re.search(r"\[\[CITE:\d{1,3}\]\]", sentence):
+                logger.warning("Stripping sentence with unverified citation: %s", sentence[:120])
+                orphan_citations_stripped = True
+            else:
+                kept.append(sentence)
+        stripped = " ".join(kept)
+
+    return stripped, citations_verified, orphan_citations_stripped

@@ -1262,13 +1262,48 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             route_decision=route_metadata.get("route_decision"),
         ),
     }
-    # Fast-tier queries skip verification nodes, so mark answer as faithful
-    # to prevent format_final_answer from rejecting it for default flags.
+    # Fast/tier2 queries skip the full verification node, so run a lightweight
+    # local LettuceDetect faithfulness check here to give format_final_answer an
+    # honest signal instead of a hardcoded pass.
     if is_tier2:
-        output["is_faithful"] = True
-        output["confidence_score"] = 8.0
-        output["faithfulness_score"] = 1.0
-        output["verification"] = {"passed": True, "method": "fast_tier_bypass"}
+        # Fast/tier2 queries skip the full verification node, so run a lightweight
+        # local LettuceDetect faithfulness check here to give format_final_answer an
+        # honest signal instead of a hardcoded pass. Use the module-level doc_text
+        # import (line 19) to avoid shadowing it inside this function's cell scope.
+        relevant_docs = state.get("relevant_docs", [])
+        question = state.get("rewritten_query") or state["question"]
+        hallucination_flag = False
+        faithfulness_score = 1.0
+        confidence_score = 8.0
+        verification = {"passed": True, "method": "fast_tier_bypass"}
+
+        if answer and relevant_docs:
+            try:
+                lettuce_detect = _services._lettuce_detect
+                context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
+                ld_result = await asyncio.to_thread(
+                    lettuce_detect.score_faithfulness, question, context, answer
+                )
+                faithfulness_score = ld_result.get("score", 1.0)
+                hallucination_flag = not ld_result.get("is_faithful", True)
+                confidence_score = faithfulness_score * 10.0
+                verification = {
+                    "passed": not hallucination_flag,
+                    "method": "lettuce_detect_fast_tier",
+                    "score": faithfulness_score,
+                }
+            except Exception as _ld_err:
+                logger.warning("Fast-tier faithfulness check failed (non-fatal): %s", _ld_err)
+                hallucination_flag = False
+                faithfulness_score = 1.0
+                confidence_score = 8.0
+                verification = {"passed": True, "method": "fast_tier_bypass"}
+
+        output["is_faithful"] = not hallucination_flag
+        output["confidence_score"] = confidence_score
+        output["faithfulness_score"] = faithfulness_score
+        output["hallucination_flag"] = hallucination_flag
+        output["verification"] = verification
     return output
 
 
@@ -1352,6 +1387,18 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         
     answer = re.sub(r'\[Source:\s*([^\]]+)\]', replace_source_match, answer)
     answer = _clean_inline_citations(answer)
+
+    relevant_docs = state.get("relevant_docs", [])
+    citations_verified = True
+    orphan_citations_stripped = False
+    if answer and "[[CITE:" in answer:
+        try:
+            answer, citations_verified, orphan_citations_stripped = _verify_inline_citations(
+                answer, relevant_docs
+            )
+        except Exception as _cite_err:
+            logger.warning("Citation post-verification failed (non-fatal): %s", _cite_err)
+            citations_verified = False
 
     # Fast-tier: accept unconditionally (skips full verification pipeline)
     if query_tier in ("fast", "tier2_simple") and answer and len(answer.strip()) > 20:
@@ -1496,12 +1543,16 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         "verification": state.get("verification") or {},
         "faithfulness_score": faithfulness_score,
         "confidence_score": confidence,
+        "citations_verified": citations_verified,
+        "orphan_citations_stripped": orphan_citations_stripped,
         "evaluation_trace": _trace_update(
             state,
             final_answer_chars=len(answer),
             final_citations=citations,
             verification_passed=verified,
             confidence_score=confidence,
+            citations_verified=citations_verified,
+            orphan_citations_stripped=orphan_citations_stripped,
         ),
     }
     if state.get("intent") == "DISTRESS":

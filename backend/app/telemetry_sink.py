@@ -112,6 +112,8 @@ class SupabaseTelemetrySink:
         cost_estimate: Optional[float] = None,
         evaluation_trace: Optional[dict[str, Any]] = None,
         assistant_slug: Optional[str] = None,
+        citations_verified: Optional[bool] = None,
+        orphan_citations_stripped: Optional[bool] = None,
     ) -> None:
         """
         Serialize trace data and append to Redis Stream.
@@ -153,6 +155,8 @@ class SupabaseTelemetrySink:
             "cost_estimate": cost_estimate,
             "evaluation_trace": evaluation_trace,
             "assistant_slug": assistant_slug,
+            "citations_verified": citations_verified,
+            "orphan_citations_stripped": orphan_citations_stripped,
         }
 
         if self.redis:
@@ -208,6 +212,8 @@ class SupabaseTelemetrySink:
         completion_tokens = p.get("completion_tokens")
         cost_estimate = p.get("cost_estimate")
         evaluation_trace = p.get("evaluation_trace")
+        citations_verified = p.get("citations_verified")
+        orphan_citations_stripped = p.get("orphan_citations_stripped")
         retrieval_metadata = p.get("retrieval_metadata")
         spans = p.get("spans")
         trigger_events = p.get("trigger_events")
@@ -253,6 +259,8 @@ class SupabaseTelemetrySink:
                 "confidence": confidence_score,
                 "judge_reasoning": judge_reasoning,
                 "evaluation_trace": evaluation_trace or {},
+                "citations_verified": citations_verified,
+                "orphan_citations_stripped": orphan_citations_stripped,
                 "created_at": created_at,
             }
 

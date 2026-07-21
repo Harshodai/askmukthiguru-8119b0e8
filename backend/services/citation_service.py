@@ -31,7 +31,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
-_MARKER_RE = re.compile(r"\[\^(\d{1,3})\]")
+_MARKER_RE = re.compile(r"\[\[CITE:(\d{1,3})\]\]|\[\^(\d{1,3})\]")
+
+
+def _marker_index(match: re.Match) -> int:
+    """Return the captured citation index from either [[CITE:N]] or [^N] markers."""
+    return int(match.group(1) or match.group(2))
 
 
 class CitationStyle(Enum):
@@ -110,7 +115,7 @@ def resolve(answer: str, context_items: list[Any],
 
     seen_order: list[int] = []
     for m in _MARKER_RE.finditer(answer):
-        n = int(m.group(1))
+        n = _marker_index(m)
         if n in sources and n not in seen_order:
             seen_order.append(n)
 
@@ -170,11 +175,11 @@ def _check_grounding(answer: str, context_items: list[Any]) -> bool:
 
 
 def strip_orphan_markers(answer: str, context_items: list[Any]) -> str:
-    """Remove `[^n]` markers that point past the provided context (the model
-    hallucinated a citation index). Prevents dead reference chips."""
+    """Remove `[^n]` / `[[CITE:n]]` markers that point past the provided context
+    (the model hallucinated a citation index). Prevents dead reference chips."""
     max_n = len(context_items)
     def _keep(m):
-        n = int(m.group(1))
+        n = _marker_index(m)
         return m.group(0) if 1 <= n <= max_n else ""
     return _MARKER_RE.sub(_keep, answer)
 
@@ -207,3 +212,11 @@ if __name__ == "__main__":
     bad = "This cites a fake source.[^9]"
     assert "[^9]" not in strip_orphan_markers(bad, ctx)
     print("orphan-marker stripping OK")
+
+    # [[CITE:N]] marker support
+    cited = "Breath awareness is the first step. [[CITE:1]]"
+    out2 = resolve(cited, ctx)
+    assert out2.citation_count == 1
+    assert out2.grounded is True
+    assert "[[CITE:1]]" not in strip_orphan_markers("[[CITE:9]]", ctx)
+    print("[[CITE:N]] marker support OK")
