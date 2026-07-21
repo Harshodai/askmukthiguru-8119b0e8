@@ -260,6 +260,8 @@ class ChatStreamRequestOrchestrator:
                 ) if result.latency_ms else 0.0,
                 evaluation_trace=result.evaluation_trace,
                 assistant_slug=assistant_slug,
+                citations_verified=result.citations_verified,
+                orphan_citations_stripped=result.orphan_citations_stripped,
             )
         except Exception as e:
             logger.warning(f"Telemetry logging failed (non-fatal): {e}")

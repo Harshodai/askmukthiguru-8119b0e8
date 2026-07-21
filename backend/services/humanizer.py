@@ -12,6 +12,9 @@ a calm human guide, not a chatbot. Two modes:
   * `scrub_with_report(text)` — same, plus a list of what was changed (for
     your eval/benchmark harness so the "humanization rate" is measurable).
 
+Citations: sentences containing `[[CITE:N]]` markers are preserved verbatim
+so inline attribution survives humanization.
+
 Keep it deterministic — do NOT call an LLM to "rewrite more human" in the
 hot path; that adds latency and cost for marginal gain.
 """
@@ -25,6 +28,13 @@ from dataclasses import dataclass, field
 # Pattern table: (compiled regex, replacement, label)
 # Order matters — run high-specificity first.
 # ---------------------------------------------------------------------------
+
+_CITE_RE = re.compile(r"\[\[CITE:\d{1,3}\]\]")
+
+
+def _sentence_has_citation(sentence: str) -> bool:
+    return bool(_CITE_RE.search(sentence))
+
 
 _SYCHOPHANTIC_OPENERS = [
     (r"^\s*(Certainly!|Of course!|Absolutely!|Great question!|Sure!|Happy to help!|What a (wonderful|lovely|great) question!)\s*", "", "sycophantic opener"),
@@ -110,21 +120,39 @@ def _scrub_ai_vocab(text: str, report: HumanizeReport | None) -> str:
 
 
 def scrub(text: str) -> str:
-    """Deterministic AI-pattern removal. Safe to run on every answer."""
+    """Deterministic AI-pattern removal. Safe to run on every answer.
+
+    Preserves sentences containing [[CITE:N]] markers so inline citations
+    survive humanization.
+    """
     if not text:
         return text
-    # two passes: removing a leading opener often exposes a second one
-    for _ in range(2):
-        text = _apply(text, _SYCHOPHANTIC_OPENERS, None)
-        text = _apply(text, _COLLAB_ARTIFACTS, None)
-        text = _apply(text, _FILLER, None)
-        text = _apply(text, _NEGATIVE_PARALLELISM, None)
-        text = _apply(text, _SIGNIFICANCE_INFLATION, None)
-        text = _apply(text, _HEDGING, None)
-        text = text.strip()
+
+    import re as _re
+    sentences = _re.split(r"(?<=[.!?])\s+", text)
+    cleaned_sentences: list[str] = []
+    for sentence in sentences:
+        stripped = sentence.strip()
+        if not stripped:
+            continue
+        if _sentence_has_citation(stripped):
+            cleaned_sentences.append(stripped)
+            continue
+        # two passes: removing a leading opener often exposes a second one
+        for _ in range(2):
+            stripped = _apply(stripped, _SYCHOPHANTIC_OPENERS, None)
+            stripped = _apply(stripped, _COLLAB_ARTIFACTS, None)
+            stripped = _apply(stripped, _FILLER, None)
+            stripped = _apply(stripped, _NEGATIVE_PARALLELISM, None)
+            stripped = _apply(stripped, _SIGNIFICANCE_INFLATION, None)
+            stripped = _apply(stripped, _HEDGING, None)
+            stripped = stripped.strip()
+        cleaned_sentences.append(stripped)
+
+    text = " ".join(cleaned_sentences)
     # tidy artifacts: collapse 3+ newlines, fix double spaces, lead capital
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    text = re.sub(r" {2,}", " ", text)
+    text = _re.sub(r"\n{3,}", "\n\n", text)
+    text = _re.sub(r" {2,}", " ", text)
     text = text.strip()
     if text and text[0].islower():
         text = text[0].upper() + text[1:]
@@ -135,15 +163,28 @@ def scrub_with_report(text: str) -> tuple[str, HumanizeReport]:
     report = HumanizeReport(original_len=len(text or ""))
     if not text:
         return text, report
-    out = text
-    for _ in range(2):  # second pass catches openers exposed by the first
-        for rules in (_SYCHOPHANTIC_OPENERS, _COLLAB_ARTIFACTS, _FILLER,
-                      _NEGATIVE_PARALLELISM, _SIGNIFICANCE_INFLATION, _HEDGING):
-            out = _apply(out, rules, report)
-        out = out.strip()
+
+    import re as _re
+    sentences = _re.split(r"(?<=[.!?])\s+", text)
+    cleaned_sentences: list[str] = []
+    for sentence in sentences:
+        stripped = sentence.strip()
+        if not stripped:
+            continue
+        if _sentence_has_citation(stripped):
+            cleaned_sentences.append(stripped)
+            continue
+        for _ in range(2):  # second pass catches openers exposed by the first
+            for rules in (_SYCHOPHANTIC_OPENERS, _COLLAB_ARTIFACTS, _FILLER,
+                          _NEGATIVE_PARALLELISM, _SIGNIFICANCE_INFLATION, _HEDGING):
+                stripped = _apply(stripped, rules, report)
+            stripped = stripped.strip()
+        cleaned_sentences.append(stripped)
+
+    out = " ".join(cleaned_sentences)
     out = _scrub_ai_vocab(out, report)
-    out = re.sub(r"\n{3,}", "\n\n", out)
-    out = re.sub(r" {2,}", " ", out).strip()
+    out = _re.sub(r"\n{3,}", "\n\n", out)
+    out = _re.sub(r" {2,}", " ", out).strip()
     if out and out[0].islower():
         out = out[0].upper() + out[1:]
     report.scrubbed_len = len(out)

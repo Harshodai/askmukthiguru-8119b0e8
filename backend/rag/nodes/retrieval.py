@@ -1150,6 +1150,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # RAGFlow Gap 1: adaptive deep-research sufficiency loop.
     # Auto-fires for tier3_complex + standard; opt-in via rag_deep_research_enabled.
     # ponytail: inline call — shortest diff, no new graph node. Non-fatal on failure.
+    deep_research_done = False
     if (
         getattr(settings, "rag_deep_research_enabled", False)
         and state.get("query_tier") == "tier3_complex"
@@ -1160,8 +1161,44 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             all_docs = await conduct_deep_research(
                 base_question, all_docs, state, depth=getattr(settings, "rag_deep_research_max_depth", 2)
             )
+            deep_research_done = True
         except Exception as e:
             logger.warning("Deep research failed (non-fatal): %s", e)
+
+    # Task 2: low-confidence escalation for standard/tier3/tier4.
+    # If CRAG marked retrieval as low confidence, run deep research and fall back
+    # to web search if the context is still thin. Non-fatal on every failure.
+    if (
+        state.get("low_confidence_retrieval")
+        and state.get("query_tier") in ("standard", "tier3_complex", "tier4_deep")
+        and not deep_research_done
+    ):
+        try:
+            from rag.nodes.deep_research import conduct_deep_research
+
+            all_docs = await conduct_deep_research(
+                base_question, all_docs, state,
+                depth=getattr(settings, "rag_deep_research_max_depth", 2)
+            )
+            deep_research_done = True
+        except Exception as e:
+            logger.warning("Low-confidence deep research failed (non-fatal): %s", e)
+
+        if len(all_docs) < 3:
+            web_search_service = getattr(_services, "_web_search", None)
+            if web_search_service is not None:
+                try:
+                    question = state.get("rewritten_query") or state["question"]
+                    user_id = state.get("user_id")
+                    web_results = await web_search_service.search(question, user_id=user_id)
+                    if web_results:
+                        all_docs = web_results + all_docs
+                        try:
+                            WEB_SEARCH_HIT_TOTAL.labels(trigger="low_confidence").inc()
+                        except Exception:
+                            pass
+                except Exception as exc:
+                    logger.warning("Low-confidence web search failed: %s", exc)
 
     if getattr(settings, "rag_context_compression_enabled", True):
         question = state.get("rewritten_query") or state["question"]

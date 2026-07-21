@@ -54,3 +54,31 @@ def test_scrub_with_report_tracks_changes():
     assert report.original_len == len(sample)
     assert "Certainly" not in cleaned
     assert "sycophantic opener" in report.changes
+
+
+def test_scrub_preserves_citation_sentence():
+    """Sentences containing [[CITE:N]] markers must survive humanization verbatim."""
+    # The sentence splitter breaks on "!" after the marker, producing two fragments:
+    # "[[CITE:1]] Great question!" and "It is important to note that you can meditate."
+    # Both fragments carry the marker visually, but only the first is detected as a
+    # citation sentence by the simple regex. We assert the expected actual behavior:
+    # the marker survives and the non-citation sentence is scrubbed.
+    raw = "[[CITE:1]] Great question! It is important to note that you can meditate."
+    cleaned = scrub(raw)
+    assert "[[CITE:1]]" in cleaned
+    assert "Great question" in cleaned
+    assert "It is important to note" not in cleaned
+
+
+def test_scrub_citation_alone_preserved():
+    assert scrub("[[CITE:2]]") == "[[CITE:2]]"
+
+
+def test_scrub_with_report_preserves_citations():
+    raw = "Certainly! [[CITE:1]] I hope this helps!"
+    cleaned, report = scrub_with_report(raw)
+    assert "[[CITE:1]]" in cleaned
+    assert "Certainly" not in cleaned
+    # Citation sentence preserved verbatim.
+    assert "I hope this helps" in cleaned
+    assert report.changed is True

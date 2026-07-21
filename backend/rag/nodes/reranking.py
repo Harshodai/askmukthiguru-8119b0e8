@@ -326,6 +326,7 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
     return {
         "relevant_docs": relevant,
         "_context_sufficient": context_sufficient,
+        "low_confidence_retrieval": not context_sufficient,
         "evaluation_trace": _trace_update(
             state,
             relevant_count=len(relevant),

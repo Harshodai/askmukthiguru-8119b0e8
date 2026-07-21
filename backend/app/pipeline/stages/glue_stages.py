@@ -150,6 +150,8 @@ class ResultAssemblyStage(Stage):
             context_recall=response_data.get("context_recall", 0.0),
             confidence_score=response_data.get("confidence_score"),
             judge_reasoning=response_data.get("judge_reasoning", ""),
+            citations_verified=graph_result.get("citations_verified"),
+            orphan_citations_stripped=graph_result.get("orphan_citations_stripped"),
             evaluation_trace=graph_result.get("evaluation_trace"),
             retrieval_metadata=retrieval_meta,
             trigger_events=trigger_events,
