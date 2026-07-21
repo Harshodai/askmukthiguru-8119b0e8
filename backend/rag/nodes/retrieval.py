@@ -327,6 +327,35 @@ def _apply_retrieval_dedup(docs: list[dict]) -> list[dict]:
         return docs
 
 
+def _bm25_sparse_search(
+    query: str,
+    embedder: EmbeddingService,
+    qdrant: QdrantService,
+    limit: int = 10,
+) -> list[dict]:
+    """Native BM25 sparse-vector search via Qdrant's sparse named vector.
+
+    Encodes the query with bge-m3 lexical weights and queries the ``sparse``
+    vector in Qdrant, returning Qdrant's own relevance scores instead of a
+    local word-overlap approximation.
+    """
+    query_embedding = embedder.encode_single_full(query)
+    sparse_vector = query_embedding.get("sparse")
+    if not sparse_vector:
+        return []
+
+    hits = qdrant.search(
+        query_vector=query_embedding["dense"],
+        limit=limit,
+        sparse_vector=sparse_vector,
+        raptor_level=0,
+    )
+
+    for hit in hits:
+        hit["source"] = "bm25_sparse"
+    return hits
+
+
 def _split_into_sentences(text: str) -> list[str]:
     """Split text into sentences using regex boundary detection."""
     sentence_ends = re.split(r"(?<=[.!?])\s+", text)
@@ -885,25 +914,20 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         return_exceptions=True,
     )
 
-    # --- BM25 text search fan-out (parallel with vector retrieval) ---
+    # --- BM25 sparse-vector search fan-out (parallel with vector retrieval) ---
     bm25_results: list[dict] = []
     if getattr(settings, "bm25_retrieval_enabled", True):
         try:
             bm25_query = sub_queries[0] if sub_queries else state.get("question", "")
-            bm25_raw = qdrant.scroll_content(
-                query=bm25_query,
+            bm25_results = _bm25_sparse_search(
+                bm25_query,
+                embedder,
+                qdrant,
                 limit=getattr(settings, "bm25_result_limit", 10),
             )
-            for r in bm25_raw:
-                bm25_results.append({
-                    "text": r.get("content", ""),
-                    "score": r.get("score", 0.5),
-                    "metadata": r.get("metadata", {}),
-                    "source": "bm25_text",
-                })
-            logger.info(f"BM25 text search returned {len(bm25_results)} results")
+            logger.info(f"BM25 sparse search returned {len(bm25_results)} results")
         except Exception as bm25_err:
-            logger.warning(f"BM25 text search failed (non-fatal): {bm25_err}")
+            logger.warning(f"BM25 sparse search failed (non-fatal): {bm25_err}")
 
     # Now consume the (likely already-completed) expansion task.
     # Cap total retrievals at 6 to bound LLM/Qdrant load.
