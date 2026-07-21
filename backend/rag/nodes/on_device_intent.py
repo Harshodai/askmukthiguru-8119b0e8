@@ -230,25 +230,7 @@ def classify_with_embeddings(text: str, *, threshold: float = 0.45) -> str | Non
     return None
 
 
-def _detect_tier4_deep_cues(text: str) -> bool:
-    """Heuristic cues that should route a query to tier4_deep."""
-    lower_q = text.lower()
-    deep_cues = [
-        r"\bdeep\b",
-        r"\bgo deeper\b",
-        r"\bexplore in depth\b",
-        r"\bthorough\b",
-        r"\bcomprehensive\b",
-        r"\bdoctrinal synthesis\b",
-        r"\bsynthesis of\b",
-        r"\bhow does .* connect to .* and .*(?:connect|relate|lead)",
-        r"\bcompare .* and .* in the (?:teachings|doctrine|tradition)",
-        r"\brelationship between .* and .* and .*",
-        r"\binterconnected\b",
-        r"\bmulti[- ]?hop\b",
-        r"\banalytical\b",
-    ]
-    return any(re.search(p, lower_q) for p in deep_cues)
+from rag.query_patterns import detect_tier4_deep_cues as _detect_tier4_deep_cues
 
 
 def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, str, str] | None:

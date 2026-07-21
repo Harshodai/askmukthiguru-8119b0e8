@@ -212,6 +212,81 @@ class LLMGateway:
             logger.error(f"LLMGateway: secondary '{self._secondary_name}' also failed: {secondary_exc}")
             raise secondary_exc
 
+    async def verify_answer(
+        self,
+        answer: str,
+        context: str,
+    ) -> dict[str, Any]:
+        """CoVe-style verification through the gateway.
+
+        Reuses the same circuit-breaker / metrics / fallback machinery as
+        generate(), but tailored for the provider's verify_answer API.
+        """
+        self.metrics.calls += 1
+        if not self._primary_breaker.can_execute():
+            self.metrics.circuit_rejections += 1
+            logger.warning(f"LLMGateway: primary '{self._primary_name}' circuit OPEN — verify rejected")
+            open_exc = CircuitOpenException(self._primary_name)
+            if self._cross_provider_fallback_enabled and self._secondary is not None:
+                return await self._verify_secondary(answer, context, open_exc)
+            raise open_exc
+
+        try:
+            result = await self._primary.verify_answer(answer=answer, context=context)
+            self._primary_breaker.record_success()
+            return result
+        except Exception as primary_exc:
+            self._primary_breaker.record_failure(primary_exc)
+            self.metrics.record_error(self._primary_name)
+            logger.warning(f"LLMGateway: primary '{self._primary_name}' verify failed: {primary_exc}")
+
+            if self._primary_model_fallback:
+                try:
+                    result = await self._primary.verify_answer(
+                        answer=answer,
+                        context=context,
+                        model=self._primary_model_fallback,
+                    )
+                    self._primary_breaker.record_success()
+                    self.metrics.fallbacks += 1
+                    return result
+                except Exception as fb_exc:
+                    self._primary_breaker.record_failure(fb_exc)
+                    self.metrics.record_error(self._primary_name)
+                    logger.warning(
+                        f"LLMGateway: primary '{self._primary_name}' model-fallback "
+                        f"'{self._primary_model_fallback}' verify also failed: {fb_exc}"
+                    )
+                    primary_exc = fb_exc
+
+            if self._cross_provider_fallback_enabled and self._secondary is not None:
+                return await self._verify_secondary(answer, context, primary_exc)
+            raise primary_exc
+
+    async def _verify_secondary(
+        self,
+        answer: str,
+        context: str,
+        upstream_exc: Exception,
+    ) -> dict[str, Any]:
+        if self._secondary_breaker is None:
+            raise upstream_exc
+        if not self._secondary_breaker.can_execute():
+            self.metrics.circuit_rejections += 1
+            logger.warning(f"LLMGateway: secondary '{self._secondary_name}' circuit OPEN — verify rejected")
+            raise upstream_exc
+        try:
+            result = await self._secondary.verify_answer(answer=answer, context=context)
+            self._secondary_breaker.record_success()
+            self.metrics.fallbacks += 1
+            logger.info(f"LLMGateway: cross-provider verify fallback to '{self._secondary_name}' succeeded")
+            return result
+        except Exception as secondary_exc:
+            self._secondary_breaker.record_failure(secondary_exc)
+            self.metrics.record_error(self._secondary_name)
+            logger.error(f"LLMGateway: secondary '{self._secondary_name}' verify also failed: {secondary_exc}")
+            raise secondary_exc
+
     async def generate_stream(
         self,
         system_prompt: str,

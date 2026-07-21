@@ -295,7 +295,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
 
 
 
-async def _verify_with_gateway(state: GraphState, config: dict | None) -> dict:
+async def _verify_with_gateway(state: GraphState, config: dict | None) -> dict | None:
     """Verification path for tier3_complex / tier4_deep using container.llm_gateway.
 
     Runs a single combined Self-RAG + CoVe call via the gateway and returns the
@@ -322,9 +322,9 @@ async def _verify_with_gateway(state: GraphState, config: dict | None) -> dict:
 
     await emit_status(config, "Verifying alignment with the teachings...")
     try:
-        cove_result = await gateway.primary.verify_answer(answer=answer, context=context)
+        cove_result = await gateway.verify_answer(answer=answer, context=context)
     except Exception as exc:
-        logger.error(f"verify_with_gateway: gateway combined_verify failed: {exc}")
+        logger.error(f"verify_with_gateway: gateway verify_answer failed: {exc}")
         return {
             "is_faithful": False,
             "verification": {"passed": False, "details": f"Gateway CoVe error: {exc}"},

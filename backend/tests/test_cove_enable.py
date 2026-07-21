@@ -81,8 +81,7 @@ def mock_gateway_services(monkeypatch):
     )
 
     gateway = MagicMock()
-    gateway.primary = MagicMock()
-    gateway.primary.verify_answer = AsyncMock(
+    gateway.verify_answer = AsyncMock(
         return_value={
             "is_faithful": True,
             "passed": True,
@@ -112,7 +111,7 @@ async def test_cove_called_for_high_tiers(mock_gateway_services, tier):
 
     result = await nodes.verify_answer(state)
 
-    gateway.primary.verify_answer.assert_awaited_once()
+    gateway.verify_answer.assert_awaited_once()
     assert result["is_faithful"] is True
     assert result["verification"]["passed"] is True
     assert result["confidence_score"] == 8.5
@@ -170,9 +169,19 @@ async def test_cove_falls_back_without_gateway(monkeypatch):
 
     monkeypatch.setattr(_services, "_llm_gateway", None)
 
+    mock_ld = MagicMock()
+    mock_ld.score_faithfulness.return_value = {
+        "is_faithful": True,
+        "score": 0.9,
+        "details": "Grounded.",
+        "unsupported_sentences": [],
+    }
+    nodes._lettuce_detect = mock_ld
+
     state = _mock_state("tier3_complex", answer="answer text " * 20)
     result = await nodes.verify_answer(state)
 
+    mock_ld.score_faithfulness.assert_called_once()
     assert result["is_faithful"] is True
     assert result["verification"]["passed"] is True
 
@@ -180,7 +189,7 @@ async def test_cove_falls_back_without_gateway(monkeypatch):
 @pytest.mark.asyncio
 async def test_cove_gateway_error_fails_closed(mock_gateway_services):
     gateway, _ = mock_gateway_services
-    gateway.primary.verify_answer = AsyncMock(side_effect=RuntimeError("gateway down"))
+    gateway.verify_answer = AsyncMock(side_effect=RuntimeError("gateway down"))
 
     state = _mock_state("tier3_complex", answer="answer text " * 20)
     result = await nodes.verify_answer(state)
