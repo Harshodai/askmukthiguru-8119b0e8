@@ -125,10 +125,47 @@ def mock_get_container():
         "total_chunks": 100,
     }
 
-    # Mock job queue (queue_enabled is true by default, but tests run synchronously)
-    mock_container.job_queue = None
+    # Mock Supabase client validating table, columns, and .eq() arguments
+    def mock_table(table_name):
+        query_mock = MagicMock()
+        if table_name == "conversations":
+            def select_fn(cols):
+                sel_mock = MagicMock()
+                def eq_fn(field, val):
+                    eq_mock = MagicMock()
+                    if field == "id" and val == "test-session":
+                        eq_mock.execute.return_value.data = [{"user_id": "test-user-id"}]
+                    else:
+                        eq_mock.execute.return_value.data = []
+                    return eq_mock
+                sel_mock.eq = eq_fn
+                return sel_mock
+            query_mock.select = select_fn
+        elif table_name == "chat_messages":
+            def select_fn(*args, **kwargs):
+                sel_mock = MagicMock()
+                def eq_fn(field, val):
+                    eq_mock = MagicMock()
+                    def order_fn(sort_col, desc=False):
+                        ord_mock = MagicMock()
+                        ord_mock.execute.return_value.data = []
+                        return ord_mock
+                    eq_mock.order = order_fn
+                    return eq_mock
+                sel_mock.eq = eq_fn
+                return sel_mock
+            query_mock.select = select_fn
+        return query_mock
 
+    mock_supabase = MagicMock()
+    mock_supabase.table.side_effect = mock_table
+    mock_container.supabase_client = mock_supabase
+    mock_container.job_queue = None
     return mock_container
+
+
+
+
 
 
 app.dependency_overrides[get_current_user_from_supabase] = mock_get_current_user
@@ -273,7 +310,12 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
         "semantic_cache": True,
         "total_chunks": 100,
     }
+    mock_supabase = MagicMock()
+    mock_supabase.table().select().eq().execute.return_value.data = [{"user_id": "test-user-id"}]
+    mock_supabase.table().select().eq().order().execute.return_value.data = []
+    mock_container.supabase_client = mock_supabase
     mock_container.job_queue = None
+
 
     # Temporarily override the container dependency
     app.dependency_overrides[get_container] = lambda: mock_container
@@ -295,3 +337,35 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
 
     # Restore original mock
     app.dependency_overrides[get_container] = mock_get_container
+
+
+def test_chat_endpoint_unauthorized_conversation_owner():
+    """Verify that accessing another user's conversation returns 403 Forbidden."""
+    def unauthorized_table(table_name):
+        query_mock = MagicMock()
+        if table_name == "conversations":
+            sel_mock = MagicMock()
+            def eq_fn(field, val):
+                eq_mock = MagicMock()
+                eq_mock.execute.return_value.data = [{"user_id": "different-user-id"}]
+                return eq_mock
+            sel_mock.eq = eq_fn
+            query_mock.select.return_value = sel_mock
+        return query_mock
+
+    mock_unauth_supabase = MagicMock()
+    mock_unauth_supabase.table.side_effect = unauthorized_table
+
+    container = mock_get_container()
+    container.supabase_client = mock_unauth_supabase
+
+    app.dependency_overrides[get_container] = lambda: container
+
+    try:
+        payload = {"user_message": "Hello", "session_id": "unauthorized-session", "messages": []}
+        response = client.post("/api/chat", json=payload)
+        assert response.status_code == 403
+        assert "Unauthorized" in response.json().get("detail", "")
+    finally:
+        app.dependency_overrides[get_container] = mock_get_container
+

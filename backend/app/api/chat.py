@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
-from app.schemas import ChatRequest, ChatResponse
+from app.schemas import ChatRequest, ChatResponse, MessagePayload
 from app.sanitization import sanitize_user_input
 from rag.memory import build_memory_context
 from services.auth_service import get_current_user_from_supabase
@@ -26,6 +26,66 @@ from services.tenant_context import TenantContext, set_tenant_from_request
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Chat"])
+
+
+async def populate_server_side_history(chat_body: ChatRequest, user: dict, container: ServiceContainer, is_benchmark: bool) -> None:
+    """Retrieves conversation history from Supabase for security (prevents client history injection)."""
+    if is_benchmark:
+        logger.info("Bypassing server-side history retrieval for benchmark client")
+        return
+
+    user_id = user.get("id", "anonymous") if user else "anonymous"
+
+    # If session_id is missing or user is anonymous, we force history to be empty.
+    if user_id == "anonymous" or not chat_body.session_id:
+        chat_body.messages = []
+        return
+
+    sc = container.supabase_client
+    if not sc:
+        logger.warning("Supabase client is not available in container. Clearing messages as fallback.")
+        chat_body.messages = []
+        return
+
+    try:
+        # Check if conversation exists and belongs to the user
+        resp = await asyncio.to_thread(
+            sc.table("conversations")
+            .select("user_id")
+            .eq("id", chat_body.session_id)
+            .execute
+        )
+        if not resp.data:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        owner_id = resp.data[0].get("user_id")
+        if str(owner_id) != str(user_id):
+            raise HTTPException(status_code=403, detail="Unauthorized access to conversation history")
+
+        # Fetch actual messages for the session
+        msg_resp = await asyncio.to_thread(
+            sc.table("chat_messages")
+            .select("role", "content")
+            .eq("conversation_id", chat_body.session_id)
+            .order("created_at", desc=False)
+            .execute
+        )
+
+        db_messages = []
+        for row in msg_resp.data or []:
+            db_role = row.get("role", "user")
+            role = "assistant" if db_role in ("guru", "assistant") else "user"
+            content = row.get("content") or ""
+            db_messages.append(MessagePayload(role=role, content=content))
+
+        chat_body.messages = db_messages
+        logger.info(f"Loaded {len(db_messages)} messages from database for session {chat_body.session_id}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error loading chat history from database: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load conversation history")
 
 
 def record_token_usage(endpoint: str):
@@ -134,7 +194,11 @@ async def chat_endpoint(
     """
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
 
-    is_benchmark = request.headers.get("X-Test-Key") == getattr(settings, "jwt_secret", None)
+    test_key = request.headers.get("X-Test-Key")
+    jwt_sec = getattr(settings, "jwt_secret", None)
+    is_benchmark = bool(test_key and jwt_sec and test_key == jwt_sec)
+
+    await populate_server_side_history(chat_body, user, container, is_benchmark)
 
     if container.job_queue and settings.queue_enabled and not is_benchmark:
         from app.services.job_queue import QueueFullError
@@ -199,13 +263,18 @@ async def chat_v2_endpoint(
     legacy route stays untouched; this exists purely for low-risk rollout.
     """
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
+    test_key = request.headers.get("X-Test-Key")
+    jwt_sec = getattr(settings, "jwt_secret", None)
+    is_benchmark = bool(test_key and jwt_sec and test_key == jwt_sec)
+    await populate_server_side_history(chat_body, user, container, is_benchmark)
+
     from app.chat_engine import ChatEngine
 
     engine = ChatEngine(container)
     result = await engine.chat_advanced(
         chat_body,
         user=user or {"id": "anonymous"},
-        is_benchmark=request.headers.get("X-Test-Key") == getattr(settings, "jwt_secret", None),
+        is_benchmark=is_benchmark,
     )
     return ChatResponse(
         response=result.final_answer,
@@ -247,7 +316,11 @@ async def chat_stream_endpoint(
     """
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
 
-    is_benchmark = request.headers.get("X-Test-Key") == getattr(settings, "jwt_secret", None)
+    test_key = request.headers.get("X-Test-Key")
+    jwt_sec = getattr(settings, "jwt_secret", None)
+    is_benchmark = bool(test_key and jwt_sec and test_key == jwt_sec)
+
+    await populate_server_side_history(chat_body, user, container, is_benchmark)
 
     if container.job_queue and settings.queue_enabled and not is_benchmark:
         from app.services.job_queue import QueueFullError

@@ -291,6 +291,8 @@ class Settings(BaseSettings):
     # Explicit opt-in for the X-Test-Key backdoor strategy. NEVER enable in production.
     enable_test_auth: bool = False
     jwt_secret: Optional[str] = None  # Shared with Supabase for token validation
+    jwt_private_key: Optional[str] = None  # Private key PEM for RS256 token signing
+    jwt_public_key: Optional[str] = None   # Public key PEM for RS256 token verification
     supabase_jwt_audience: str = "authenticated"
     benchmark_secret: Optional[str] = None
     # Default to disabled: the frontend uses Supabase auth, so the FastAPI
@@ -482,6 +484,48 @@ class Settings(BaseSettings):
                 f"({max_tokens}). Reduce budget or increase max_tokens_per_request."
             )
         return self
+
+    # --- HTTP Pool Limits ---
+    http_pool_max_connections: int = Field(default=50, gt=0)
+    http_pool_max_keepalive: int = Field(default=20, ge=0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_http_pool_limits(cls, data: Any) -> Any:
+        """Ensure HTTP pool limits are positive integers and keepalive <= max_connections prior to Field validation."""
+        if isinstance(data, dict):
+            import math
+
+            def _parse_int(val: Any, default: int, min_val: int = 1) -> int:
+                if val is None:
+                    return default
+                if isinstance(val, float):
+                    if not math.isfinite(val) or not val.is_integer():
+                        return default
+                elif isinstance(val, str):
+                    val_str = val.strip()
+                    if "." in val_str or "e" in val_str.lower() or "inf" in val_str.lower() or "nan" in val_str.lower():
+                        return default
+                try:
+                    res = int(val)
+                    if res < min_val:
+                        return default
+                    return res
+                except (ValueError, TypeError, OverflowError):
+                    return default
+
+            conn = _parse_int(data.get("http_pool_max_connections"), default=50, min_val=1)
+            keep = _parse_int(data.get("http_pool_max_keepalive"), default=20, min_val=0)
+
+            if keep > conn:
+                keep = conn
+
+            data["http_pool_max_connections"] = conn
+            data["http_pool_max_keepalive"] = keep
+        return data
+
+
+
 
     # --- Web Ingestion ---
     web_ingest_max_response_bytes: int = Field(default=5 * 1024 * 1024, ge=1024, le=50 * 1024 * 1024)
