@@ -1423,6 +1423,17 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             "verification": {"passed": True, "method": "fast_tier_bypass"},
             "faithfulness_score": 1.0,
             "confidence_score": 8.0,
+            "citations_verified": citations_verified,
+            "orphan_citations_stripped": orphan_citations_stripped,
+            "evaluation_trace": _trace_update(
+                state,
+                final_answer_chars=len(answer),
+                final_citations=citations,
+                verification_passed=True,
+                confidence_score=8.0,
+                citations_verified=citations_verified,
+                orphan_citations_stripped=orphan_citations_stripped,
+            ),
         }
 
     citations = _inject_canonical_citations(answer, citations)

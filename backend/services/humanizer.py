@@ -128,8 +128,7 @@ def scrub(text: str) -> str:
     if not text:
         return text
 
-    import re as _re
-    sentences = _re.split(r"(?<=[.!?])\s+", text)
+    sentences = re.split(r"(?<=[.!?])\s+", text)
     cleaned_sentences: list[str] = []
     for sentence in sentences:
         stripped = sentence.strip()
@@ -151,8 +150,8 @@ def scrub(text: str) -> str:
 
     text = " ".join(cleaned_sentences)
     # tidy artifacts: collapse 3+ newlines, fix double spaces, lead capital
-    text = _re.sub(r"\n{3,}", "\n\n", text)
-    text = _re.sub(r" {2,}", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = re.sub(r" {2,}", " ", text)
     text = text.strip()
     if text and text[0].islower():
         text = text[0].upper() + text[1:]
@@ -164,8 +163,7 @@ def scrub_with_report(text: str) -> tuple[str, HumanizeReport]:
     if not text:
         return text, report
 
-    import re as _re
-    sentences = _re.split(r"(?<=[.!?])\s+", text)
+    sentences = re.split(r"(?<=[.!?])\s+", text)
     cleaned_sentences: list[str] = []
     for sentence in sentences:
         stripped = sentence.strip()
@@ -183,8 +181,8 @@ def scrub_with_report(text: str) -> tuple[str, HumanizeReport]:
 
     out = " ".join(cleaned_sentences)
     out = _scrub_ai_vocab(out, report)
-    out = _re.sub(r"\n{3,}", "\n\n", out)
-    out = _re.sub(r" {2,}", " ", out).strip()
+    out = re.sub(r"\n{3,}", "\n\n", out)
+    out = re.sub(r" {2,}", " ", out).strip()
     if out and out[0].islower():
         out = out[0].upper() + out[1:]
     report.scrubbed_len = len(out)

@@ -869,6 +869,13 @@ def _verify_inline_citations(answer: str, docs: list[dict]) -> tuple[str, bool, 
 
     if not citations_verified:
         # Strip any sentence that still contains an unresolved [[CITE:N]] marker.
+        # NOTE: The sentence split below uses a naive regex over terminal
+        # punctuation. It can misfire on abbreviations (e.g. "e.g."), decimal
+        # numbers, or quoted sentences where punctuation sits inside quotes.
+        # For our citation-sanitization use case that is acceptable: worst case
+        # a sentence boundary is mis-placed and a slightly larger or smaller
+        # clause is removed. Replace with a sentence-segmentation library if
+        # stricter parsing becomes necessary.
         import re
         sentences = re.split(r"(?<=[.!?])\s+", stripped)
         kept: list[str] = []
