@@ -35,7 +35,7 @@ from . import _services
 logger = logging.getLogger(__name__)
 
 
-async def _verify_inline_citations(answer: str, docs: list[dict]) -> tuple[str, bool, bool]:
+def _verify_inline_citations(answer: str, docs: list[dict]) -> tuple[str, bool, bool]:
     """Resolve [[CITE:N]] markers, strip orphans, and strip sentences with unresolvable markers.
 
     Returns (cleaned_answer, citations_verified, orphan_citations_stripped).
