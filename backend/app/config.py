@@ -352,6 +352,9 @@ class Settings(BaseSettings):
     ingestion_dedup_threshold: float = 0.85
     raptor_parent_summaries_enabled: bool = True
     use_markitdown_parser: bool = True
+    # BM25 keyword search via native Qdrant sparse vectors
+    bm25_retrieval_enabled: bool = True
+    bm25_result_limit: int = 10
     rag_compression_similarity_threshold: float = 0.50
     rag_context_compression_enabled: bool = False
     rag_okf_injection_enabled: bool = True   # OKF as canonical knowledge layer (enabled by default)

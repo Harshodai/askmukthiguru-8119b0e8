@@ -28,7 +28,28 @@ settings = SettingsProxy()
 from app.metrics import PIPELINE_STAGE_LATENCY
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
-from services.rrf_ranker import reciprocal_rank_fusion
+from collections import defaultdict
+from typing import TypeVar
+
+
+T = TypeVar("T")
+
+
+def _reciprocal_rank_fusion(rankings: list[list[T]], k: int = 60) -> list[T]:
+    """Compute Reciprocal Rank Fusion scores and return sorted IDs.
+
+    Inline replacement for the orphan ``services.rrf_ranker`` module.
+    Uses string keys internally because defaultdict does not support raw ints.
+    """
+    scores: defaultdict[str, float] = defaultdict(float)
+
+    for ranking in rankings:
+        for rank, doc_id in enumerate(ranking, start=1):
+            doc_key = str(doc_id)
+            scores[doc_key] += 1.0 / (k + rank)
+
+    sorted_docs = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    return [doc_id for doc_id, _ in sorted_docs]
 
 from . import _services
 
@@ -559,8 +580,8 @@ def _rrf_docs(ranked_lists: list[list[dict]], k: int = 60) -> list[dict]:
             id_list.append(key)
         id_rankings.append(id_list)
 
-    sorted_ids = reciprocal_rank_fusion(id_rankings, k=k)
-    return [id_to_doc[key] for key in sorted_ids]
+    sorted_ids = _reciprocal_rank_fusion(id_rankings, k=k)
+    return [id_to_doc[int(key)] for key in sorted_ids]
 
 
 def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
