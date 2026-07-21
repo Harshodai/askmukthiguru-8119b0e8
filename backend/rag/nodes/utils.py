@@ -28,28 +28,7 @@ settings = SettingsProxy()
 from app.metrics import PIPELINE_STAGE_LATENCY
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
-from collections import defaultdict
-from typing import TypeVar
-
-
-T = TypeVar("T")
-
-
-def _reciprocal_rank_fusion(rankings: list[list[T]], k: int = 60) -> list[T]:
-    """Compute Reciprocal Rank Fusion scores and return sorted IDs.
-
-    Inline replacement for the orphan ``services.rrf_ranker`` module.
-    Uses string keys internally because defaultdict does not support raw ints.
-    """
-    scores: defaultdict[str, float] = defaultdict(float)
-
-    for ranking in rankings:
-        for rank, doc_id in enumerate(ranking, start=1):
-            doc_key = str(doc_id)
-            scores[doc_key] += 1.0 / (k + rank)
-
-    sorted_docs = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-    return [doc_id for doc_id, _ in sorted_docs]
+from services.rankers import _reciprocal_rank_fusion
 
 from . import _services
 
@@ -581,7 +560,7 @@ def _rrf_docs(ranked_lists: list[list[dict]], k: int = 60) -> list[dict]:
         id_rankings.append(id_list)
 
     sorted_ids = _reciprocal_rank_fusion(id_rankings, k=k)
-    return [id_to_doc[int(key)] for key in sorted_ids]
+    return [id_to_doc[key] for key in sorted_ids]
 
 
 def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
@@ -870,42 +849,3 @@ def _require_state(state: GraphState, required: list[str]) -> Optional[dict]:
         logger.error(f"NodeContractError: missing required keys: {missing}")
         return {"error": f"NodeContractError: missing required keys: {missing}"}
     return None
-
-
-def _verify_inline_citations(answer: str, docs: list[dict]) -> tuple[str, bool, bool]:
-    """Resolve [[CITE:N]] markers, strip orphans, and strip sentences with unresolvable markers.
-
-    Returns (cleaned_answer, citations_verified, orphan_citations_stripped).
-    """
-    if not answer or "[[CITE:" not in answer:
-        return answer, True, False
-
-    from services.citation_service import resolve, strip_orphan_markers
-
-    stripped = strip_orphan_markers(answer, docs)
-    orphan_citations_stripped = stripped != answer
-
-    resolved = resolve(stripped, docs)
-    citations_verified = resolved.grounded
-
-    if not citations_verified:
-        # Strip any sentence that still contains an unresolved [[CITE:N]] marker.
-        # NOTE: The sentence split below uses a naive regex over terminal
-        # punctuation. It can misfire on abbreviations (e.g. "e.g."), decimal
-        # numbers, or quoted sentences where punctuation sits inside quotes.
-        # For our citation-sanitization use case that is acceptable: worst case
-        # a sentence boundary is mis-placed and a slightly larger or smaller
-        # clause is removed. Replace with a sentence-segmentation library if
-        # stricter parsing becomes necessary.
-        import re
-        sentences = re.split(r"(?<=[.!?])\s+", stripped)
-        kept: list[str] = []
-        for sentence in sentences:
-            if re.search(r"\[\[CITE:\d{1,3}\]\]", sentence):
-                logger.warning("Stripping sentence with unverified citation: %s", sentence[:120])
-                orphan_citations_stripped = True
-            else:
-                kept.append(sentence)
-        stripped = " ".join(kept)
-
-    return stripped, citations_verified, orphan_citations_stripped
