@@ -230,6 +230,27 @@ def classify_with_embeddings(text: str, *, threshold: float = 0.45) -> str | Non
     return None
 
 
+def _detect_tier4_deep_cues(text: str) -> bool:
+    """Heuristic cues that should route a query to tier4_deep."""
+    lower_q = text.lower()
+    deep_cues = [
+        r"\bdeep\b",
+        r"\bgo deeper\b",
+        r"\bexplore in depth\b",
+        r"\bthorough\b",
+        r"\bcomprehensive\b",
+        r"\bdoctrinal synthesis\b",
+        r"\bsynthesis of\b",
+        r"\bhow does .* connect to .* and .*(?:connect|relate|lead)",
+        r"\bcompare .* and .* in the (?:teachings|doctrine|tradition)",
+        r"\brelationship between .* and .* and .*",
+        r"\binterconnected\b",
+        r"\bmulti[- ]?hop\b",
+        r"\banalytical\b",
+    ]
+    return any(re.search(p, lower_q) for p in deep_cues)
+
+
 def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, str, str] | None:
     """Return (intent, tier, routing_reason) or None if no match.
 
@@ -279,10 +300,13 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
     if intent == "ADVERSARIAL":
         return "ADVERSARIAL", "tier2_simple", "on_device_adversarial_detected"
 
-    # Map to tier
+    # Map to tier; promote to tier4_deep for deep/multi-hop cues
     tier = "tier3_complex"
     if intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION", "GUIDED_TOUR"):
         tier = "tier2_simple"
+
+    if intent in ("FACTUAL", "QUERY") and _detect_tier4_deep_cues(text):
+        tier = "tier4_deep"
 
     return intent, tier, f"on_device_{intent.lower()}"
 

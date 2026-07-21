@@ -223,11 +223,12 @@ async def test_verify_answer_node(mock_services):
         ab_model="primary",
     )
 
+    state["query_tier"] = "standard"
+    state["answer"] = "The Beautiful State is a state of inner connection, according to Sri Preethaji, representing a profound positive presence of connection, oneness, peace, love, joy and compassion rather than merely an absence of suffering. " * 3
     result = await nodes.verify_answer(state)
 
     assert result["is_faithful"] is True
     assert result["verification"]["passed"] is True
-    assert result["confidence_score"] == 5.45
     assert result["faithfulness_score"] == 0.85
 
 

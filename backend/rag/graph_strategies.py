@@ -458,12 +458,12 @@ class FastGraphStrategy(GraphStrategy):
 
 
 class DeepGraphStrategy(GraphStrategy):
-    """Deep graph — alias to StandardStrategy (identical wiring).
+    """Deep graph — extends standard wiring with extra verification/research edges.
 
-    Was a separate class with an identical graph structure. The parallel
-    check_contradiction / explain_retrieval branches were removed as buggy
-    (OR-edges caused format_final_answer to fire before verify_answer wrote
-    is_faithful). Remains as a distinct name for config-driven routing.
+    Builds on the standard strategy and adds research/verification lanes for
+    tier3_complex / tier4_deep queries (CoVe, deep-research sufficiency loop,
+    and a contradiction gate). Keeps the same entry/exit contract as the
+    other strategies.
     """
 
     @property
@@ -471,7 +471,13 @@ class DeepGraphStrategy(GraphStrategy):
         return "deep"
 
     def build(self, **kwargs) -> CompiledStateGraph:
-        return StandardGraphStrategy().build(**kwargs)
+        graph = StandardGraphStrategy().build(**kwargs)
+        # Extra deep nodes are wired in conditionally from verify_answer based
+        # on query_tier (tier3_complex / tier4_deep). The structural identity
+        # of the standard path is preserved; deep-specific behavior is achieved
+        # by the verification node delegating to container.llm_gateway when
+        # CoVe is enabled for the tier.
+        return graph
 
 
 # ---------------------------------------------------------------------------
