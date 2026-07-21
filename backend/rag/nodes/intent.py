@@ -38,6 +38,7 @@ from rag.query_patterns import (
     DOCTRINE_CAPABILITY_PATTERNS as _CAPABILITY_PATTERNS,
     DOCTRINE_SIMPLE_PATTERNS as _SIMPLE_QUERY_PATTERNS,
     DOCTRINE_TEMPORAL_PATTERNS as _TEMPORAL_PATTERNS,
+    detect_tier4_deep_cues as _detect_tier4_deep_cues,
 )
 from rag.doc_utils import doc_text
 
@@ -80,30 +81,7 @@ def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None
     return mapping.get(route_name)
 
 
-def _detect_tier4_deep_cues(question: str) -> bool:
-    """Heuristic cues that should route a query to tier4_deep.
-
-    Matches multi-hop doctrinal synthesis, cross-teacher comparison, and
-    explicit requests for deep analysis. Used by the intent router before
-    the cheaper fast/standard paths fire.
-    """
-    lower_q = question.lower()
-    deep_cues = [
-        r"\bdeep\b",
-        r"\bgo deeper\b",
-        r"\bexplore in depth\b",
-        r"\bthorough\b",
-        r"\bcomprehensive\b",
-        r"\bdoctrinal synthesis\b",
-        r"\bsynthesis of\b",
-        r"\bhow does .* connect to .* and .*(?:connect|relate|lead)",
-        r"\bcompare .* and .* in the (?:teachings|doctrine|tradition)",
-        r"\brelationship between .* and .* and .*",
-        r"\binterconnected\b",
-        r"\bmulti[- ]?hop\b",
-        r"\banalytical\b",
-    ]
-    return any(re.search(p, lower_q) for p in deep_cues)
+from rag.query_patterns import detect_tier4_deep_cues as _detect_tier4_deep_cues
 
 
 @trace_rag_node("intent_router")
