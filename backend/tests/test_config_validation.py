@@ -40,3 +40,22 @@ def test_sarvam_cloud_accepts_api_key():
 def test_ollama_does_not_require_external_key():
     settings = Settings(llm_provider="ollama")
     assert settings.llm_provider == "ollama"
+
+
+def test_http_pool_limits_normalization():
+    s1 = Settings(http_pool_max_connections=50.5, http_pool_max_keepalive="10.5")
+    assert s1.http_pool_max_connections == 50
+    assert s1.http_pool_max_keepalive == 20
+
+    s2 = Settings(http_pool_max_connections="nan", http_pool_max_keepalive="inf")
+    assert s2.http_pool_max_connections == 50
+    assert s2.http_pool_max_keepalive == 20
+
+    s3 = Settings(http_pool_max_connections=0, http_pool_max_keepalive=-5)
+    assert s3.http_pool_max_connections == 50
+    assert s3.http_pool_max_keepalive == 20
+
+    s4 = Settings(http_pool_max_connections=10, http_pool_max_keepalive=15)
+    assert s4.http_pool_max_connections == 10
+    assert s4.http_pool_max_keepalive == 10
+

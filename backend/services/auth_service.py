@@ -24,6 +24,7 @@ from models.user import User
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
+
 if not settings.jwt_secret:
     raise RuntimeError("CRITICAL: jwt_secret environment variable is missing. Halting application.")
 
@@ -56,8 +57,134 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 bearer_transport = BearerTransport(tokenUrl="api/auth/jwt/login")
 
 
+_fallback_private_pem: str | None = None
+_fallback_public_pem: str | None = None
+
+
+def _ensure_fallback_keys():
+    global _fallback_private_pem, _fallback_public_pem
+    if getattr(settings, "is_production", False):
+        raise RuntimeError("CRITICAL: jwt_private_key and jwt_public_key are required in production environment.")
+
+    if _fallback_private_pem and _fallback_public_pem:
+        return
+
+    import fcntl
+    import json
+    import os
+    import tempfile
+    from pathlib import Path
+
+    key_file = Path("data/dev_jwt_keys.json")
+    lock_file = Path("data/dev_jwt_keys.json.lock")
+    key_file.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+
+    with open(lock_file, "a") as lf:
+        fcntl.flock(lf, fcntl.LOCK_EX)
+        try:
+            if _fallback_private_pem and _fallback_public_pem:
+                return
+
+            if key_file.exists():
+                try:
+                    data = json.loads(key_file.read_text(encoding="utf-8"))
+                    priv = data.get("private_key")
+                    pub = data.get("public_key")
+                    if priv and pub:
+                        _fallback_private_pem = priv
+                        _fallback_public_pem = pub
+                        return
+                except Exception as e:
+                    logger.warning(f"Failed to read persistent dev JWT keys from {key_file}: {e}")
+
+            from cryptography.hazmat.primitives.asymmetric import rsa
+            from cryptography.hazmat.primitives import serialization
+
+            logger.warning(
+                "⚠️ jwt_private_key and jwt_public_key not set in config. "
+                "Generating persistent fallback RSA key pair for local/dev use."
+            )
+            private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+            priv_pem = private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            ).decode("utf-8")
+            pub_pem = private_key.public_key().public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            ).decode("utf-8")
+
+            payload = json.dumps({
+                "private_key": priv_pem,
+                "public_key": pub_pem,
+            })
+
+            tmp_fd, tmp_path = tempfile.mkstemp(dir=key_file.parent, prefix="dev_jwt_keys_", suffix=".tmp")
+            try:
+                os.chmod(tmp_path, 0o600)
+                with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                    f.write(payload)
+                os.replace(tmp_path, key_file)
+            except Exception:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+                raise
+
+            _fallback_private_pem = priv_pem
+            _fallback_public_pem = pub_pem
+        finally:
+            fcntl.flock(lf, fcntl.LOCK_UN)
+
+
 def get_jwt_strategy() -> JWTStrategy:
-    return JWTStrategy(secret=settings.jwt_secret, lifetime_seconds=3600)
+    private_key = settings.jwt_private_key
+    public_key = settings.jwt_public_key
+    if not private_key or not public_key:
+        _ensure_fallback_keys()
+        private_key = _fallback_private_pem
+        public_key = _fallback_public_pem
+
+    return JWTStrategy(
+        secret=private_key,
+        public_key=public_key,
+        algorithm="RS256",
+        lifetime_seconds=3600
+    )
+
+
+def get_public_key_pem() -> str:
+    public_key = settings.jwt_public_key
+    if not public_key:
+        _ensure_fallback_keys()
+        public_key = _fallback_public_pem
+    return public_key
+
+
+def get_jwks_dict() -> dict:
+    import base64
+    from cryptography.hazmat.primitives.serialization import load_pem_public_key
+
+    pem = get_public_key_pem()
+    key = load_pem_public_key(pem.encode("utf-8"))
+    numbers = key.public_numbers()
+
+    def to_b64(val: int) -> str:
+        b = val.to_bytes((val.bit_length() + 7) // 8, "big")
+        return base64.urlsafe_b64encode(b).rstrip(b"=").decode("utf-8")
+
+    return {
+        "keys": [
+            {
+                "kty": "RSA",
+                "use": "sig",
+                "alg": "RS256",
+                "n": to_b64(numbers.n),
+                "e": to_b64(numbers.e),
+            }
+        ]
+    }
+
 
 
 auth_backend = AuthenticationBackend(
@@ -294,8 +421,10 @@ class SupabaseAuthStrategy(AuthStrategy):
             if jwt_token:
                 from supabase import create_client
                 sc = create_client(settings.supabase_url, settings.supabase_key)
-                sc.auth.set_session(jwt_token, "")
-                resp = sc.table("user_roles").select("id").eq("user_id", user_id).eq("role", "admin").execute()
+                await asyncio.to_thread(sc.auth.set_session, jwt_token, "")
+                resp = await asyncio.to_thread(
+                    sc.table("user_roles").select("id").eq("user_id", user_id).eq("role", "admin").execute
+                )
                 is_admin = bool(resp.data)
                 self._admin_cache[user_id] = (is_admin, now)
                 if is_admin:

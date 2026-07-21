@@ -411,23 +411,10 @@ if settings.is_production:
 import re
 
 cors_origins = settings.cors_origins_list
-static_origins = []
-regex_patterns = []
-
-for origin in cors_origins:
-    if "*" in origin:
-        # Convert wildcard to a regex pattern, e.g. "https://*.lovable.app" -> "^https://.*\.lovable\.app$"
-        pattern = re.escape(origin).replace(r"\*", ".*")
-        regex_patterns.append(f"^{pattern}$")
-    else:
-        static_origins.append(origin)
-
-origin_regex = "|".join(regex_patterns) if regex_patterns else None
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=static_origins,
-    allow_origin_regex=origin_regex,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -720,6 +707,14 @@ app.include_router(job_router)
 from app.trace_dashboard import router as trace_router
 
 app.include_router(trace_router)
+
+
+@app.get("/.well-known/jwks.json", tags=["auth"])
+async def get_jwks():
+    from services.auth_service import get_jwks_dict
+
+    return get_jwks_dict()
+
 
 
 # === Mount Ingestion UI ===

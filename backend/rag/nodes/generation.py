@@ -88,6 +88,41 @@ def _compute_context_budget(
     return baseline_tokens, max_context_tokens
 
 
+def extractive_compress_doc(question: str, text: str, max_chars: int = 1500) -> str:
+    """Fast local extractive document compression based on sentence scoring."""
+    if len(text) <= max_chars:
+        return text
+
+    suffix = " [...]"
+    if max_chars <= len(suffix):
+        return suffix[:max_chars]
+
+    content_max_chars = max_chars - len(suffix)
+
+    import re
+    sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+    if len(sentences) <= 3:
+        return text[:content_max_chars] + suffix
+
+    q_words = set(re.findall(r'\w+', question.lower()))
+    scored_sentences = []
+    for idx, sentence in enumerate(sentences):
+        s_words = set(re.findall(r'\w+', sentence.lower()))
+        overlap = len(q_words.intersection(s_words))
+        pos_bonus = 0.5 if idx < 2 else 0.0
+        score = overlap + pos_bonus
+        scored_sentences.append((score, idx, sentence))
+
+    scored_sentences.sort(key=lambda x: x[0], reverse=True)
+    top_sentences = sorted(scored_sentences[:6], key=lambda x: x[1])
+
+    result = " ".join(s[2] for s in top_sentences)
+    if len(result) > content_max_chars:
+        result = result[:content_max_chars] + suffix
+    return result
+
+
+
 def classify_user_familiarity(question: str, chat_history: list[dict]) -> str:
     """Classifies user familiarity level deterministically based on query and history."""
     all_text = (question + " " + " ".join([m.get("content", "") for m in chat_history])).lower()
@@ -519,6 +554,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     chat_history = state.get("chat_history", [])
     lang = state.get("detected_language", "en")
     ollama = _services._ollama
+    assistant_system_prompt = state.get("assistant_system_prompt")
 
     configurable = {}
     if config:
@@ -528,7 +564,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             configurable = config.configurable
     stream_queue = configurable.get("stream_queue")
 
-    if not relevant_docs and not state.get("assistant_system_prompt"):
+    if not relevant_docs and not assistant_system_prompt:
+
         answer = (
             "I couldn't find relevant teachings in my knowledge base for this "
             "question. Could you try rephrasing it, or ask about a specific "
@@ -616,52 +653,79 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     relevant_docs = truncated_docs
     logger.info(f"Context budget: {len(relevant_docs)} docs / {current_context_tokens} tokens (max={max_context_tokens})")
 
+    compressed_docs = []
+    surviving_docs = []
     if len(relevant_docs) > 0:
         total_raw_len = sum(len(doc.get("text", "")) for doc in relevant_docs)
-        # Auto-enable context compression when context exceeds threshold, regardless of flag.
-        # The flag can still explicitly disable it, but by default we compress for large contexts.
         compression_setting = getattr(settings, "rag_use_context_compression", "auto")
         threshold = getattr(settings, "rag_context_compression_threshold", 10000)
         use_compression = compression_setting is True or (compression_setting == "auto" and total_raw_len > threshold)
 
-        if use_compression and total_raw_len > threshold:
-            async def compress_and_format(doc):
-                t_out = get_node_timeout("default_fast", 15.0)
-                compressed_text = await ollama.compress_context(question=question, text=doc_text(doc), timeout=t_out)
-                if compressed_text:
-                    title = doc.get("title", doc.get("source_url", "Unknown"))
-                    return f"[Source: {title}]\n{compressed_text}"
-                return None
-
-            compressed_results = await asyncio.gather(
-                *[compress_and_format(doc) for doc in relevant_docs]
-            )
-            valid_compressed = [res for res in compressed_results if res]
-
-            if valid_compressed:
-                context = "\n\n---\n\n".join(valid_compressed)
-            else:
-                context = "\n\n---\n\n".join(
-                    f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc_text(doc)}"
-                    for doc in relevant_docs
-                )
+        if use_compression:
+            for idx, doc in enumerate(relevant_docs):
+                title = doc.get("title") or doc.get("source_url") or f"Doc {idx + 1}"
+                raw_text = doc_text(doc)
+                compressed = extractive_compress_doc(question, raw_text, max_chars=1500)
+                if compressed and compressed.strip():
+                    compressed_docs.append({"title": title, "text": compressed.strip()})
+                    surviving_docs.append(doc)
         else:
             logger.info(
                 f"Context Compression: bypassing LLM-based compression (enabled={use_compression}, "
                 f"total_len={total_raw_len}, threshold={threshold}), formatting raw context directly"
             )
-            context = "\n\n---\n\n".join(
-                f"[Source: {doc.get('title', doc.get('source_url', 'Unknown'))}]\n{doc_text(doc)}"
-                for doc in relevant_docs
-            )
+            for idx, doc in enumerate(relevant_docs):
+                title = doc.get("title") or doc.get("source_url") or f"Doc {idx + 1}"
+                raw_text = doc_text(doc)
+                if raw_text and raw_text.strip():
+                    compressed_docs.append({"title": title, "text": raw_text.strip()})
+                    surviving_docs.append(doc)
+
+        if compressed_docs:
+            context = "\n\n---\n\n".join(f"[Source: {d['title']}]\n{d['text']}" for d in compressed_docs)
+        else:
+            context = ""
     else:
         context = ""
 
-    citations = _grounded_citation_urls(relevant_docs)
+    if not surviving_docs and not assistant_system_prompt:
+        answer = (
+            "I am unable to find specific teachings on this topic in the wisdom of Sri Preethaji and Sri Krishnaji. "
+            "Would you like to rephrase your question, or ask about a different practice or teaching?"
+        )
+        logger.warning(
+            "generate_answer: zero surviving docs after compression/filtering — returning content-gap "
+            "message without calling the LLM"
+        )
+        if stream_queue:
+            await stream_queue.put(answer)
+        return {
+            "answer": answer,
+            "citations": [],
+            "citation_reasoning": {},
+            "is_faithful": True,
+            "confidence_score": 8.0,
+            "faithfulness_score": 1.0,
+            "verification": {"passed": True, "method": "no_context_short_circuit"},
+            "evaluation_trace": _trace_update(
+                state,
+                generated_answer_chars=len(answer),
+                citation_urls=[],
+                memory_used=bool(state.get("memory_context")),
+                model_used=None,
+                model_provider=None,
+                route_decision="no_context_short_circuit",
+            ),
+        }
+
+    citations = _grounded_citation_urls(surviving_docs)
 
     layers = state.get("context_layers")
     if layers:
+        layers = dict(layers)
+        layers["knowledge"] = context
         # Dynamic context capping to fit within max_budget
+
         def estimate_tokens(text: str) -> int:
             if not text:
                 return 0
@@ -709,8 +773,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             layers['knowledge'] = cap_to_token_budget(current_knowledge, allowed_knowledge_tokens)
 
     is_tier2 = state.get("query_tier") in ("fast", "tier2_simple")
-    assistant_system_prompt = state.get("assistant_system_prompt")
     if layers and is_tier2:
+
         if assistant_system_prompt:
             # Custom assistant persona replaces the default identity while
             # preserving the instruction and safety layers already assembled.
@@ -869,13 +933,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             if history_str:
                 gw_user_prompt = f"{history_str}\n\n{gw_user_prompt}"
 
-            documents = []
-            for idx, doc in enumerate(relevant_docs):
-                title = doc.get("title") or doc.get("source_url") or f"Doc {idx + 1}"
-                documents.append({
-                    "title": title,
-                    "text": doc.get("text", "")
-                })
+            documents = [{"title": d["title"], "text": d["text"]} for d in compressed_docs]
+
 
             max_tokens_val = generation_kwargs.get("max_tokens")
             temperature_val = generation_kwargs.get("temperature")
@@ -892,7 +951,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                     if chunk:
                         await stream_queue.put(chunk)
                         answer += chunk
-                citations = _grounded_citation_urls(relevant_docs)
+                citations = _grounded_citation_urls(surviving_docs)
             else:
                 resp = await gateway.generate(
                     system_prompt=system_prompt_gw,
@@ -905,15 +964,16 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 api_citations = []
                 for c in resp.citations:
                     doc_idx = c.document_index
-                    if doc_idx < len(relevant_docs):
-                        doc = relevant_docs[doc_idx]
+                    if doc_idx < len(surviving_docs):
+                        doc = surviving_docs[doc_idx]
                         url = doc.get("source_url")
                         if url and url not in api_citations:
                             api_citations.append(url)
                 if api_citations:
                     citations = api_citations
                 else:
-                    citations = _grounded_citation_urls(relevant_docs)
+                    citations = _grounded_citation_urls(surviving_docs)
+
 
             route_metadata["model_used"] = gateway.config.model
             route_metadata["model_provider"] = "anthropic"
@@ -1169,12 +1229,13 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     # Step 2 — Append missing doctrine keywords as footnotes (removed per P1-10)
 
     # 1.10 Citation-by-Sentence — attach per-sentence inline citations
-    if getattr(settings, "citation_by_sentence", True) and relevant_docs:
+    if getattr(settings, "citation_by_sentence", True) and surviving_docs:
         try:
             intent = state.get("intent", "QUERY")
-            answer = _cite_sentences(answer, relevant_docs, intent=intent)
+            answer = _cite_sentences(answer, surviving_docs, intent=intent)
         except Exception as _cbs_err:
             logger.warning("Citation-by-sentence failed (non-fatal): %s", _cbs_err)
+
 
     if not answer or not answer.strip():
         logger.warning("Main generation returned empty response. Using internal fallback.")

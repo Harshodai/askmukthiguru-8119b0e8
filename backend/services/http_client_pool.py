@@ -34,10 +34,16 @@ logger = logging.getLogger(__name__)
 _client: Optional[httpx.AsyncClient] = None
 _lock = AsyncLock()
 
+from app.config import settings
+
+_max_conn = settings.http_pool_max_connections
+_max_keep = settings.http_pool_max_keepalive
+
 DEFAULT_LIMITS = httpx.Limits(
-    max_connections=20,
-    max_keepalive_connections=10,
+    max_connections=_max_conn,
+    max_keepalive_connections=_max_keep,
 )
+
 
 
 async def get_client() -> httpx.AsyncClient:
@@ -47,7 +53,7 @@ async def get_client() -> httpx.AsyncClient:
         async with _lock:
             if _client is None:
                 _client = httpx.AsyncClient(limits=DEFAULT_LIMITS, timeout=30.0)
-                logger.info("HTTP client pool initialized (max_connections=20, keepalive=10)")
+                logger.info(f"HTTP client pool initialized (max_connections={_max_conn}, keepalive={_max_keep})")
     return _client
 
 

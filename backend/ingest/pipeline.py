@@ -23,137 +23,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 
-class IngestionCheckpoint:
-    def __init__(self, filepath="data/ingest_checkpoint.json"):
-        self.filepath = Path(filepath)
-        self.filepath.parent.mkdir(exist_ok=True)
-        self.redis_client = None
-        self.supabase_client = None
-        self.tenant_id = "default"
+from ingest.handlers.checkpoint import IngestionCheckpoint
 
-        # Try establishing connection to Redis for centralized checkpointing
-        try:
-            from app.config import settings
-            import redis
-            if getattr(settings, "redis_url", None):
-                # Tenant isolation context support
-                try:
-                    from services.tenant_context import TenantContext
-                    self.tenant_id = TenantContext.get() or "default"
-                except Exception:
-                    self.tenant_id = "default"
-
-                self.redis_client = redis.from_url(settings.redis_url, socket_timeout=2.0)
-                self.redis_client.ping()
-                logger.info(f"IngestionCheckpoint: Centralized Redis backend connected. Tenant: {self.tenant_id}")
-        except Exception as e:
-            logger.warning(f"IngestionCheckpoint: Redis connection failed or unconfigured ({e}). Trying Supabase.")
-            self.redis_client = None
-
-        # Try establishing connection to Supabase as Tier-2 fallback
-        if not self.redis_client:
-            try:
-                from app.config import settings
-                from supabase import create_client
-                if settings.supabase_url and settings.supabase_key:
-                    # Tenant isolation context support
-                    try:
-                        from services.tenant_context import TenantContext
-                        self.tenant_id = TenantContext.get() or "default"
-                    except Exception:
-                        self.tenant_id = "default"
-
-                    self.supabase_client = create_client(settings.supabase_url, settings.supabase_key)
-                    logger.info(f"IngestionCheckpoint: Centralized Supabase backend connected. Tenant: {self.tenant_id}")
-            except Exception as e:
-                logger.warning(f"IngestionCheckpoint: Supabase connection failed ({e}). Falling back to local JSON.")
-                self.supabase_client = None
-
-        # Fallback local storage fields are always set up to prevent AttributeError during runtime backend failures
-        self.data = self._load()
-        self.processed_chunks = set(self.data.keys())
-
-    def _get_redis_key(self, chunk_id: str) -> str:
-        return f"ingestion_checkpoint:{self.tenant_id}:{chunk_id}"
-
-    def _load(self) -> dict:
-        if self.filepath.exists():
-            try:
-                loaded = json.loads(self.filepath.read_text())
-                if isinstance(loaded, list):
-                    # Backward compatibility conversion: list to dict
-                    import time
-                    return {h: {"migrated": True, "timestamp": time.time()} for h in loaded}
-                elif isinstance(loaded, dict):
-                    return loaded
-            except Exception as e:
-                logger.warning(f"Failed to load checkpoint file: {e}")
-        return {}
-
-    def save(self, chunk_id: str, metadata: Optional[dict] = None):
-        import time
-        if getattr(self, "redis_client", None):
-            try:
-                key = self._get_redis_key(chunk_id)
-                data = metadata or {"timestamp": time.time()}
-                self.redis_client.set(key, json.dumps(data))
-                return
-            except Exception as e:
-                logger.error(f"Failed to save checkpoint to Redis: {e}. Trying Supabase.")
-
-        if getattr(self, "supabase_client", None):
-            try:
-                data = metadata or {"timestamp": time.time()}
-                self.supabase_client.table("ingestion_checkpoints").upsert({
-                    "chunk_id": chunk_id,
-                    "tenant_id": self.tenant_id,
-                    "metadata": data,
-                }).execute()
-                return
-            except Exception as e:
-                logger.error(f"Failed to save checkpoint to Supabase: {e}. Falling back to file.")
-
-        self.processed_chunks.add(chunk_id)
-        self.data[chunk_id] = metadata or {"timestamp": time.time()}
-        try:
-            self.filepath.write_text(json.dumps(self.data, indent=2))
-        except Exception as e:
-            logger.error(f"Failed to save checkpoint: {e}")
-
-    def is_processed(self, chunk_id: str) -> bool:
-        if getattr(self, "redis_client", None):
-            try:
-                key = self._get_redis_key(chunk_id)
-                return bool(self.redis_client.exists(key))
-            except Exception as e:
-                logger.error(f"Failed to check checkpoint in Redis: {e}. Trying Supabase.")
-
-        if getattr(self, "supabase_client", None):
-            try:
-                resp = self.supabase_client.table("ingestion_checkpoints")\
-                    .select("chunk_id")\
-                    .eq("chunk_id", chunk_id)\
-                    .eq("tenant_id", self.tenant_id)\
-                    .execute()
-                return len(resp.data) > 0
-            except Exception as e:
-                logger.error(f"Failed to check checkpoint in Supabase: {e}. Falling back to file.")
-
-        return chunk_id in self.processed_chunks
-
-    def prune_stale_entries(self, active_hashes: list[str]):
-        """Remove any entries from checkpoint that are no longer active."""
-        if getattr(self, "redis_client", None) or getattr(self, "supabase_client", None):
-            logger.warning("prune_stale_entries is not supported in centralized database mode.")
-            return
-
-        active_set = set(active_hashes)
-        self.data = {k: v for k, v in self.data.items() if k in active_set}
-        self.processed_chunks = set(self.data.keys())
-        try:
-            self.filepath.write_text(json.dumps(self.data, indent=2))
-        except Exception as e:
-            logger.error(f"Failed to save pruned checkpoint: {e}")
 
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -637,30 +508,8 @@ class IngestionPipeline:
             if ".pdf" in lower_url or url.endswith(".pdf"):
                 self._notify(on_progress, "Downloading and parsing PDF...", 0.1)
                 try:
-                    # SSRF protection and size limit
-                    if not self._is_url_safe(url):
-                        raise ValueError("URL resolves to a private or prohibited IP address")
-                    import requests
-                    import fitz
-                    import io
-
-                    resp = requests.get(url, timeout=30, stream=True, allow_redirects=False)
-                    resp.raise_for_status()
-                    max_bytes = 5 * 1024 * 1024
-                    content = bytearray()
-                    for chunk in resp.iter_content(chunk_size=8192):
-                        content.extend(chunk)
-                        if len(content) > max_bytes:
-                            raise ValueError("Response size exceeds 5 MiB limit")
-
-                    pdf_file = io.BytesIO(content)
-                    with fitz.open(stream=pdf_file, filetype="pdf") as doc:
-                        text = ""
-                        for page in doc:
-                            page_text = page.get_text()
-                            if page_text:
-                                text += page_text + "\n"
-
+                    from ingest.pdf_parser import download_and_parse_pdf
+                    text = await download_and_parse_pdf(url, self._is_url_safe)
                     title = url.split("/")[-1].replace(".pdf", "").replace("-", " ").replace("_", " ").title()
                     if not text.strip():
                         raise ValueError("PDF contains no readable text")
@@ -704,32 +553,9 @@ class IngestionPipeline:
 
                 self._notify(on_progress, "Scraping web page article...", 0.1)
                 try:
-                    import requests
-                    from bs4 import BeautifulSoup
-
-                    # SSRF protection and size limit
-                    if not self._is_url_safe(url):
-                        raise ValueError("URL resolves to a private or prohibited IP address")
-
-                    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-                    response = requests.get(url, headers=headers, timeout=20, stream=True, allow_redirects=False)
-                    response.raise_for_status()
-                    max_bytes = 5 * 1024 * 1024
-                    content_bytes = bytearray()
-                    for chunk in response.iter_content(chunk_size=8192):
-                        content_bytes.extend(chunk)
-                        if len(content_bytes) > max_bytes:
-                            raise ValueError("Response size exceeds 5 MiB limit")
-
-                    soup = BeautifulSoup(bytes(content_bytes), "html.parser")
-                    for element in soup(["script", "style", "nav", "header", "footer", "iframe", "aside"]):
-                        element.decompose()
-                    
-                    text = soup.get_text(separator="\n")
-                    text = "\n".join([line.strip() for line in text.splitlines() if line.strip()])
-                    
-                    title_el = soup.find("title")
-                    title = title_el.get_text().strip() if title_el else url.split("/")[-1]
+                    from ingest.web_scraper import scrape_and_clean_web_article
+                    text = await scrape_and_clean_web_article(url, self._is_url_safe)
+                    title = url.split("/")[-1].strip()
                     if not title:
                         title = "Web Article Summary"
                     
