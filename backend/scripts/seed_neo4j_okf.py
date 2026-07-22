@@ -214,23 +214,24 @@ def seed(neo4j_uri: str, neo4j_user: str, neo4j_password: str) -> int:
         return 0
 
     driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
-    kg = GuruKGService(neo4j_driver=driver)
     count = 0
-    for arc in OKF_ARCS:
-        try:
-            kg.populate_ontology_arc(
-                seeker_dilemma=arc["seeker_dilemma"],
-                limiting_belief=arc["limiting_belief"],
-                teaching=arc["teaching"],
-                target_state=arc["target_state"],
-                practice_step=arc["practice_step"],
-                guru_speaker=arc["guru"],
-            )
-            count += 1
-        except Exception as e:
-            print(f"  ⚠️  Arc failed: {arc['teaching'][:50]} — {e}")
-
-    driver.close()
+    try:
+        kg = GuruKGService(neo4j_driver=driver)
+        for arc in OKF_ARCS:
+            try:
+                kg.populate_ontology_arc(
+                    seeker_dilemma=arc["seeker_dilemma"],
+                    limiting_belief=arc["limiting_belief"],
+                    teaching=arc["teaching"],
+                    target_state=arc["target_state"],
+                    practice_step=arc["practice_step"],
+                    guru_speaker=arc["guru"],
+                )
+                count += 1
+            except Exception as e:
+                print(f"  ⚠️  Arc failed: {arc['teaching'][:50]} — {e}")
+    finally:
+        driver.close()
     return count
 
 

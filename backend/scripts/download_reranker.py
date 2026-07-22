@@ -23,19 +23,20 @@ CPU_RERANKER = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 # GPU/MPS reranker: 568M param bge model — only loaded on GPU servers (Railway GPU, A100)
 GPU_RERANKER = "BAAI/bge-reranker-v2-m3"
 
-print(f"Downloading CPU reranker: {CPU_RERANKER}")
-CrossEncoder(CPU_RERANKER)
-print(f"✓ {CPU_RERANKER} cached")
+def main() -> None:
+    print(f"Downloading CPU reranker: {CPU_RERANKER}")
+    CrossEncoder(CPU_RERANKER)
+    print(f"✓ {CPU_RERANKER} cached")
 
-# Only download GPU model if explicitly requested (saves ~2GB on CPU-only Docker builds)
-if os.environ.get("DOWNLOAD_GPU_RERANKER", "").lower() in ("1", "true", "yes"):
-    print(f"Downloading GPU reranker: {GPU_RERANKER}")
-    CrossEncoder(GPU_RERANKER)
-    print(f"✓ {GPU_RERANKER} cached")
-else:
-    print(f"Skipping GPU reranker {GPU_RERANKER} (set DOWNLOAD_GPU_RERANKER=1 to include)")
+    if os.environ.get("DOWNLOAD_GPU_RERANKER", "").lower() in ("1", "true", "yes"):
+        print(f"Downloading GPU reranker: {GPU_RERANKER}")
+        CrossEncoder(GPU_RERANKER)
+        print(f"✓ {GPU_RERANKER} cached")
+    else:
+        print(f"Skipping GPU reranker {GPU_RERANKER} (set DOWNLOAD_GPU_RERANKER=1 to include)")
 
-print("Reranker pre-cache complete.")
+    print("Reranker pre-cache complete.")
+
 
 if __name__ == "__main__":
-    pass  # script body runs at import — nothing extra needed
+    main()

@@ -35,6 +35,8 @@ from app.container import _create_llm_service
 from rag.nodes.guru_tone_adapter import GuruToneAdapterNode
 from services.guru_brain.guru_brain_service import get_guru_brain_service
 from services.guru_brain.tone_extractor import ToneExtractor
+from services.guru_brain.persona_discriminator import PersonaDiscriminator
+from services.guru_brain.guru_kg_service import GuruKGService
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("eval_guru_tone")
@@ -124,8 +126,8 @@ async def main():
             samples = data.get("sample_exemplars", [])
             logger.info(f"Loaded {len(samples)} ingested exemplars into benchmark evaluation context.")
 
-    guru_kg = getattr(container, "guru_kg_service", None) if 'container' in locals() and container else None
-    persona_disc = getattr(container, "persona_discriminator", None) if 'container' in locals() and container else None
+    guru_kg = GuruKGService()
+    persona_disc = PersonaDiscriminator(llm_service=llm_service) if llm_service else None
     adapter = GuruToneAdapterNode(
         guru_brain_service=guru_brain,
         guru_kg_service=guru_kg,

@@ -58,14 +58,8 @@ MODELS_TO_TEST = [
 import subprocess
 
 def flush_caches():
-    """Flush Docker Redis and Qdrant semantic query cache before each model run."""
-    logger.info("🧹 Flushing Docker Redis & Qdrant caches...")
-    try:
-        docker_cmd = ["docker", "exec", "mukthiguru-redis", "redis-cli", "-a", "mukthiguru_redis_pass", "FLUSHALL"]
-        subprocess.run(docker_cmd, capture_output=True, text=True, check=False)
-    except Exception as e:
-        logger.warning(f"Redis flush warning: {e}")
-
+    """Flush semantic caches before each model run. Uses targeted flush, never FLUSHALL."""
+    logger.info("🧹 Flushing Qdrant semantic query cache...")
     try:
         flush_script = os.path.join(os.path.dirname(__file__), "..", "ops", "flush_cache.py")
         subprocess.run([sys.executable, flush_script], capture_output=True, text=True, check=False)

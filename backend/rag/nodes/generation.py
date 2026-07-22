@@ -16,7 +16,7 @@ from rag.prompts import (
 )
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
-from rag.doc_utils import doc_text
+from rag.doc_utils import doc_text, sort_docs_canonically
 from services.cache_service import InMemoryCacheAdapter
 from services.humanizer import scrub
 from services.language_router import LanguageCode, LanguageRouter
@@ -37,6 +37,7 @@ from .utils import (
     strip_cot,
 )
 logger = logging.getLogger(__name__)
+
 
 
 def _compute_context_budget(
@@ -175,7 +176,8 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
     """
     await emit_status(config, "Composing the response...")
     intent = state.get("intent", "FACTUAL")
-    relevant_docs = state.get("relevant_docs", [])
+    raw_docs = state.get("relevant_docs", [])
+    relevant_docs = sort_docs_canonically(raw_docs)
     chat_history = state.get("chat_history", [])
     meditation_step = state.get("meditation_step", 0)
     memory_context = state.get("memory_context") or ""
@@ -230,6 +232,8 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
         [
             f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc_text(doc)}"
             for doc in relevant_docs
+            if doc.get("content_type") not in ("graph_summary", "lightrag_relationship_summary")
+            and doc.get("source_url") != "knowledge_graph"
         ]
     )
     knowledge = cap_to_token_budget(knowledge, knowledge_budget)
@@ -810,7 +814,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
         knowledge = layers['knowledge']
-        memory = state.get("memory_context", "").strip()
+        memory = (state.get("memory_context") or "").strip()
 
         # Abstention guard: if both retrieved context and memory are empty, don't hallucinate.
         if not knowledge.strip() and not memory:
@@ -845,6 +849,31 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         if history_str:
             user_prompt = f"{history_str}\n\n{user_prompt}"
     elif layers:
+        # Abstention guard: if both retrieved context and memory are empty, don't hallucinate.
+        _knowledge = layers.get('knowledge', '').strip()
+        _memory = (state.get("memory_context") or "").strip()
+        if not _knowledge and not _memory:
+            logger.warning(
+                "generate_answer tier3: empty context + no memory — returning humble abstention"
+            )
+            _abstain = (
+                "I wasn't able to find specific teachings on this topic in the wisdom library. "
+                "Could you rephrase your question or explore a related topic like the Beautiful State, "
+                "Soul Sync, or Deeksha practices?"
+            )
+            if stream_queue:
+                await stream_queue.put(_abstain)
+            return {
+                "answer": _abstain,
+                "citations": [],
+                "citation_reasoning": {},
+                "is_faithful": True,
+                "confidence_score": 8.0,
+                "faithfulness_score": 1.0,
+                "verification": {"passed": True, "method": "empty_context_abstention"},
+                "evaluation_trace": {"abstention_reason": "no retrieved context or memory"},
+            }
+
         system_prompt = (
             f"PERSONA:\n{layers['persona']}\n\n"
             f"INSTRUCTIONS:\n{layers['instructions']}"
@@ -853,7 +882,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             system_prompt += f"\n\n{lang_suffix}"
 
         user_prompt = (
-            f"KNOWLEDGE (retrieved teachings):\n{layers['knowledge']}\n\n"
+            f"KNOWLEDGE (retrieved teachings):\n{_knowledge}\n\n"
             f"USER STATE:\n{layers['user_state']}\n\n"
             f"QUESTION: {question}"
         )
@@ -1417,6 +1446,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     if not citations_verified:
         verification["passed"] = False
     state["verification"] = verification
+    verified = verification.get("passed", False)  # refresh for downstream gate
 
     # Fast-tier: accept unconditionally (skips full verification pipeline)
     if query_tier in ("fast", "tier2_simple") and answer and len(answer.strip()) > 20:

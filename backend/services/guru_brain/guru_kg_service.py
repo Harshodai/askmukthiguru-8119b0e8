@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +34,16 @@ class OKFTransformationArc:
 class GuruKGService:
     """Neo4j Knowledge Graph & OKF 5-Node Ontology Engine."""
 
-    def __init__(self, neo4j_driver: Any = None) -> None:
+    def __init__(self, neo4j_driver: Any = None, neo4j_driver_accessor: Optional[Callable[[], Any]] = None) -> None:
         self.neo4j_driver = neo4j_driver
+        self._neo4j_driver_accessor = neo4j_driver_accessor
         self._in_memory_graph: list[OKFTransformationArc] = []
+
+    @property
+    def _resolved_driver(self):
+        if self._neo4j_driver_accessor:
+            return self._neo4j_driver_accessor()
+        return self.neo4j_driver
 
     def populate_ontology_arc(
         self,
@@ -58,9 +65,9 @@ class GuruKGService:
         )
         self._in_memory_graph.append(arc)
 
-        if self.neo4j_driver:
+        if self._resolved_driver:
             try:
-                with self.neo4j_driver.session() as session:
+                with self._resolved_driver.session() as session:
                     cypher = """
                     MERGE (g:GuruSpeaker {name: $guru})
                     MERGE (d:SeekerDilemma {name: $dilemma})
@@ -88,9 +95,9 @@ class GuruKGService:
 
     def traverse_guru_ontology(self, query: str, limit: int = 3) -> list[OKFTransformationArc]:
         """Perform 5-node multi-hop graph traversal to discover spiritual transformation arcs."""
-        if self.neo4j_driver:
+        if self._resolved_driver:
             try:
-                with self.neo4j_driver.session() as session:
+                with self._resolved_driver.session() as session:
                     cypher = """
                     MATCH (d:SeekerDilemma)-[:DRIVEN_BY]->(b:RootLimitingBelief)
                     MATCH (t:GuruTeaching)-[:DISMANTLES]->(b)

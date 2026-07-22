@@ -53,9 +53,10 @@ venv/
 # Security and dump files
 cookies.txt
 supabase_dump.sql
+*_dump.sql
 neo4j.dump
 *.dump
-*.sql
+
 
 
 # Qdrant data
@@ -183,3 +184,7 @@ backend/data/guru_transcripts/playlist_ingestion_report.json
 backend/data/guru_transcripts/BMJrDu-folk.txt
 backend/data/guru_transcripts/UlOt31lBhLY.txt
 .superpowers/sdd/progress.md
+.superpowers/sdd/task-3-report.md
+.workpowers/sdd/task-7-report.md
+.gitignore
+data/lightrag_checkpoint.json

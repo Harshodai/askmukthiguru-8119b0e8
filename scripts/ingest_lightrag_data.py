@@ -125,7 +125,7 @@ async def main():
     insert_timeout = float(os.getenv("LIGHTRAG_INSERT_TIMEOUT", "60.0"))
 
     print(f"🚀 Initializing Auto-Scaling LightRAG Full-Collection Ingestion...")
-    print(f"   Extraction Model: {settings.openrouter_classify_model} via OpenRouter")
+    print(f"   Extraction Model: OpenRouter inference ({settings.openrouter_classify_model})")
     print(f"   Target Concurrency: {target_concurrency} Workers | Fast Timeout: {insert_timeout}s")
     print(f"   Source Collection: Qdrant `spiritual_wisdom` (All 89,053 points)")
 
