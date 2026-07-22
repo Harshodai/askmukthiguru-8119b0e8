@@ -207,10 +207,12 @@ _startup_complete = False
 _startup_error: str | None = None
 
 
-def _get_raw_qdrant_client(container) -> object | None:
-    """Get the raw Qdrant gRPC/REST client from the service container."""
-    _qdrant_svc = getattr(container, "qdrant_service", None)
-    return getattr(_qdrant_svc, "_client", None) if _qdrant_svc else None
+def _get_qdrant_service_client(container) -> object | None:
+    """Get the raw Qdrant gRPC/REST client from QdrantService."""
+    _qdrant_svc = getattr(container, "qdrant", None)
+    if _qdrant_svc and hasattr(_qdrant_svc, "_client"):
+        return _qdrant_svc._client
+    return None
 
 
 async def _background_startup_body(container, fastapi_app) -> None:
@@ -229,149 +231,166 @@ async def _background_startup_body(container, fastapi_app) -> None:
     except Exception as e:
         logger.warning(f"Ontology seeding skipped (non-critical): {e}")
 
-    # Patch LightRAG Qdrant collections: HNSW m=0 → m=16 (idempotent, best-effort)
-    # Without this, every LightRAG query is O(n) linear scan at 50k+ entities.
-    logger.info("Lifespan: patching LightRAG HNSW indexes...")
+    # Distributed lock for Qdrant maintenance (only one worker performs these ops)
+    _qdrant_lock_acquired = False
     try:
-        from qdrant_client.models import HnswConfigDiff
-
-        _qclient = _get_raw_qdrant_client(container)
-        if _qclient:
-            _lightrag_collections = [
-                "lightrag_vdb_entities_baai_bge_m3_1024d",
-                "lightrag_vdb_relationships_baai_bge_m3_1024d",
-                "lightrag_vdb_chunks_baai_bge_m3_1024d",
-            ]
-            for _col in _lightrag_collections:
-                try:
-                    _info = await asyncio.to_thread(_qclient.get_collection, _col)
-                    _current_m = getattr(getattr(_info.config, "hnsw_config", None), "m", None)
-                    if _current_m is None or _current_m < 16:
-                        await asyncio.to_thread(
-                            _qclient.update_collection,
-                            _col,
-                            hnsw_config=HnswConfigDiff(m=16, ef_construct=100),
-                        )
-                        logger.info("Lifespan: HNSW patched m=16 on %s", _col)
-                    else:
-                        logger.info("Lifespan: HNSW already m=%d on %s — skip", _current_m, _col)
-                except Exception as _ce:
-                    logger.warning("Lifespan: HNSW patch skipped for %s: %s", _col, _ce)
+        import redis as _redis_lock_lib
+        _rl = _redis_lock_lib.Redis.from_url(settings.redis_url, socket_timeout=3, socket_connect_timeout=3)
+        _qdrant_lock_acquired = _rl.set("startup:qdrant_maintenance_lock", "1", nx=True, ex=120) is True
+        if _qdrant_lock_acquired:
+            logger.info("Lifespan: acquired distributed Qdrant maintenance lock")
         else:
-            logger.warning("Lifespan: Qdrant client unavailable — HNSW patch skipped")
-    except Exception as e:
-        logger.warning(f"Lifespan: HNSW patch block error (non-critical): {e}")
+            logger.info("Lifespan: another worker holds the Qdrant maintenance lock — skipping")
+    except Exception as _qlock_err:
+        logger.warning(f"Lifespan: distributed lock unavailable, proceeding without lock: {_qlock_err}")
+        _qdrant_lock_acquired = True
 
-    # Create Qdrant payload indexes on spiritual_wisdom for fast filter retrieval
-    logger.info("Lifespan: ensuring Qdrant payload indexes on spiritual_wisdom...")
-    try:
-        from qdrant_client.models import PayloadSchemaType
+    if _qdrant_lock_acquired:
+        # Patch LightRAG Qdrant collections: HNSW m=0 → m=16 (idempotent, best-effort)
+        # Without this, every LightRAG query is O(n) linear scan at 50k+ entities.
+        logger.info("Lifespan: patching LightRAG HNSW indexes...")
+        try:
+            from qdrant_client.models import HnswConfigDiff
 
-        _qclient2 = _get_raw_qdrant_client(container)
-        if _qclient2:
-            _SW = "spiritual_wisdom"
-            _int_fields = ["raptor_level", "cluster_id"]
-            _kw_fields = ["language", "content_type", "speaker", "topic"]
-            for _f in _int_fields:
-                try:
-                    await asyncio.to_thread(
-                        _qclient2.create_payload_index, _SW, _f, PayloadSchemaType.INTEGER
-                    )
-                except Exception:
-                    pass  # index may already exist — idempotent
-            for _f in _kw_fields:
-                try:
-                    await asyncio.to_thread(
-                        _qclient2.create_payload_index, _SW, _f, PayloadSchemaType.KEYWORD
-                    )
-                except Exception:
-                    pass  # idempotent
-            logger.info("Lifespan: payload indexes ensured on spiritual_wisdom")
-    except Exception as e:
-        logger.warning(f"Lifespan: payload index creation error (non-critical): {e}")
-
-    # Delete stale/ghost Qdrant collections with wrong dimensions (dimension mismatch = silent failures)
-    # NOTE: global_memory and second_brain_vault are intentionally preserved (future features).
-    logger.info("Lifespan: cleaning up stale 384d LightRAG collections...")
-    try:
-        _qclient3 = _get_raw_qdrant_client(container)
-        if _qclient3:
-            _stale_384d = [
-                "lightrag_vdb_entities_intfloat_multilingual_e5_small_384d",
-                "lightrag_vdb_relationships_intfloat_multilingual_e5_small_384d",
-                "lightrag_vdb_chunks_intfloat_multilingual_e5_small_384d",
-                "spiritual_wisdom_recovery_v20260713_004009",
-                "spiritual_wisdom_recovery_v20260713_003753",
-            ]
-            _existing_cols = {
-                c.name for c in (await asyncio.to_thread(_qclient3.get_collections)).collections
-            }
-            for _stale in _stale_384d:
-                if _stale in _existing_cols:
+            _qclient = _get_qdrant_service_client(container)
+            if _qclient:
+                _lightrag_collections = [
+                    "lightrag_vdb_entities_baai_bge_m3_1024d",
+                    "lightrag_vdb_relationships_baai_bge_m3_1024d",
+                    "lightrag_vdb_chunks_baai_bge_m3_1024d",
+                ]
+                for _col in _lightrag_collections:
                     try:
-                        await asyncio.to_thread(_qclient3.delete_collection, _stale)
-                        logger.info("Lifespan: deleted stale collection %s", _stale)
-                    except Exception as _de:
-                        logger.warning("Lifespan: could not delete %s: %s", _stale, _de)
-
-            # Only delete semantic_query_cache if it has 0 points (non-destructive)
-            if "semantic_query_cache" in _existing_cols:
-                try:
-                    _cache_info = await asyncio.to_thread(_qclient3.get_collection, "semantic_query_cache")
-                    _cache_count = getattr(_cache_info, "points_count", None) or 0
-                    if _cache_count == 0:
-                        await asyncio.to_thread(_qclient3.delete_collection, "semantic_query_cache")
-                        logger.info("Lifespan: deleted empty semantic_query_cache collection")
-                    else:
-                        logger.info("Lifespan: semantic_query_cache has %d points — preserved", _cache_count)
-                except Exception as _ce:
-                    logger.warning("Lifespan: could not check/delete semantic_query_cache: %s", _ce)
-    except Exception as e:
-        logger.warning(f"Lifespan: stale collection cleanup error (non-critical): {e}")
-
-    # Ensure semantic_query_cache Qdrant collection exists for semantic caching
-    logger.info("Lifespan: ensuring semantic_query_cache collection...")
-    try:
-        from qdrant_client.models import VectorParams, Distance
-
-        _qclient4 = _get_raw_qdrant_client(container)
-        if _qclient4:
-            _cache_col = "semantic_query_cache"
-            _existing4 = {
-                c.name for c in (await asyncio.to_thread(_qclient4.get_collections)).collections
-            }
-            if _cache_col not in _existing4:
-                await asyncio.to_thread(
-                    _qclient4.create_collection,
-                    _cache_col,
-                    vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
-                )
-                logger.info("Lifespan: created semantic_query_cache collection (1024d cosine)")
+                        _info = await asyncio.to_thread(_qclient.get_collection, _col)
+                        _current_m = getattr(getattr(_info.config, "hnsw_config", None), "m", None)
+                        if _current_m is None or _current_m < 16:
+                            await asyncio.to_thread(
+                                _qclient.update_collection,
+                                _col,
+                                hnsw_config=HnswConfigDiff(m=16, ef_construct=100),
+                            )
+                            logger.info("Lifespan: HNSW patched m=16 on %s", _col)
+                        else:
+                            logger.info("Lifespan: HNSW already m=%d on %s — skip", _current_m, _col)
+                    except Exception as _ce:
+                        logger.warning("Lifespan: HNSW patch skipped for %s: %s", _col, _ce)
             else:
-                logger.info("Lifespan: semantic_query_cache already exists — skip")
-    except Exception as e:
-        logger.warning(f"Lifespan: semantic_query_cache init error (non-critical): {e}")
+                logger.warning("Lifespan: Qdrant client unavailable — HNSW patch skipped")
+        except Exception as e:
+            logger.warning(f"Lifespan: HNSW patch block error (non-critical): {e}")
 
-    # Ensure spiritual_wisdom HNSW is optimal (m>=16, not default 0)
-    logger.info("Lifespan: checking spiritual_wisdom HNSW config...")
-    try:
-        from qdrant_client.models import HnswConfigDiff as _HnswDiff
+        # Create Qdrant payload indexes on spiritual_wisdom for fast filter retrieval
+        logger.info("Lifespan: ensuring Qdrant payload indexes on spiritual_wisdom...")
+        try:
+            from qdrant_client.models import PayloadSchemaType
 
-        _qclient5 = _get_raw_qdrant_client(container)
-        if _qclient5:
-            _sw_info = await asyncio.to_thread(_qclient5.get_collection, "spiritual_wisdom")
-            _sw_m = getattr(getattr(_sw_info.config, "hnsw_config", None), "m", None)
-            if _sw_m is None or _sw_m < 16:
-                await asyncio.to_thread(
-                    _qclient5.update_collection,
-                    "spiritual_wisdom",
-                    hnsw_config=_HnswDiff(m=16, ef_construct=200),
-                )
-                logger.info("Lifespan: spiritual_wisdom HNSW patched m=16")
-            else:
-                logger.info("Lifespan: spiritual_wisdom HNSW m=%d — OK", _sw_m)
-    except Exception as e:
-        logger.warning(f"Lifespan: spiritual_wisdom HNSW check error (non-critical): {e}")
+            _qclient2 = _get_qdrant_service_client(container)
+            if _qclient2:
+                _SW = "spiritual_wisdom"
+                _int_fields = ["raptor_level", "cluster_id"]
+                _kw_fields = ["language", "content_type", "speaker", "topic"]
+                for _f in _int_fields:
+                    try:
+                        await asyncio.to_thread(
+                            _qclient2.create_payload_index, _SW, _f, PayloadSchemaType.INTEGER
+                        )
+                    except Exception:
+                        pass  # index may already exist — idempotent
+                for _f in _kw_fields:
+                    try:
+                        await asyncio.to_thread(
+                            _qclient2.create_payload_index, _SW, _f, PayloadSchemaType.KEYWORD
+                        )
+                    except Exception:
+                        pass  # idempotent
+                logger.info("Lifespan: payload indexes ensured on spiritual_wisdom")
+        except Exception as e:
+            logger.warning(f"Lifespan: payload index creation error (non-critical): {e}")
+
+        # Delete stale/ghost Qdrant collections with wrong dimensions (dimension mismatch = silent failures)
+        # NOTE: global_memory and second_brain_vault are intentionally preserved (future features).
+        logger.info("Lifespan: cleaning up stale 384d LightRAG collections...")
+        try:
+            _qclient3 = _get_qdrant_service_client(container)
+            if _qclient3:
+                _stale_384d = [
+                    "lightrag_vdb_entities_intfloat_multilingual_e5_small_384d",
+                    "lightrag_vdb_relationships_intfloat_multilingual_e5_small_384d",
+                    "lightrag_vdb_chunks_intfloat_multilingual_e5_small_384d",
+                    "spiritual_wisdom_recovery_v20260713_004009",
+                    "spiritual_wisdom_recovery_v20260713_003753",
+                ]
+                _existing_cols = {
+                    c.name for c in (await asyncio.to_thread(_qclient3.get_collections)).collections
+                }
+                for _stale in _stale_384d:
+                    if _stale in _existing_cols:
+                        try:
+                            await asyncio.to_thread(_qclient3.delete_collection, _stale)
+                            logger.info("Lifespan: deleted stale collection %s", _stale)
+                        except Exception as _de:
+                            logger.warning("Lifespan: could not delete %s: %s", _stale, _de)
+
+                # Only delete semantic_query_cache if it has 0 points (non-destructive)
+                if "semantic_query_cache" in _existing_cols:
+                    try:
+                        _cache_info = await asyncio.to_thread(_qclient3.get_collection, "semantic_query_cache")
+                        _cache_count = getattr(_cache_info, "points_count", None) or 0
+                        if _cache_count == 0:
+                            await asyncio.to_thread(_qclient3.delete_collection, "semantic_query_cache")
+                            logger.info("Lifespan: deleted empty semantic_query_cache collection")
+                        else:
+                            logger.info("Lifespan: semantic_query_cache has %d points — preserved", _cache_count)
+                    except Exception as _ce:
+                        logger.warning("Lifespan: could not check/delete semantic_query_cache: %s", _ce)
+        except Exception as e:
+            logger.warning(f"Lifespan: stale collection cleanup error (non-critical): {e}")
+
+        # Ensure semantic_query_cache Qdrant collection exists for semantic caching
+        logger.info("Lifespan: ensuring semantic_query_cache collection...")
+        try:
+            from qdrant_client.models import VectorParams, Distance
+
+            _qclient4 = _get_qdrant_service_client(container)
+            if _qclient4:
+                _cache_col = "semantic_query_cache"
+                _existing4 = {
+                    c.name for c in (await asyncio.to_thread(_qclient4.get_collections)).collections
+                }
+                if _cache_col not in _existing4:
+                    await asyncio.to_thread(
+                        _qclient4.create_collection,
+                        _cache_col,
+                        vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
+                    )
+                    logger.info("Lifespan: created semantic_query_cache collection (1024d cosine)")
+                else:
+                    logger.info("Lifespan: semantic_query_cache already exists — skip")
+        except Exception as e:
+            logger.warning(f"Lifespan: semantic_query_cache init error (non-critical): {e}")
+
+        # Ensure spiritual_wisdom HNSW is optimal (m>=16, not default 0)
+        logger.info("Lifespan: checking spiritual_wisdom HNSW config...")
+        try:
+            from qdrant_client.models import HnswConfigDiff as _HnswDiff
+
+            _qclient5 = _get_qdrant_service_client(container)
+            if _qclient5:
+                _sw_info = await asyncio.to_thread(_qclient5.get_collection, "spiritual_wisdom")
+                _sw_m = getattr(getattr(_sw_info.config, "hnsw_config", None), "m", None)
+                if _sw_m is None or _sw_m < 16:
+                    await asyncio.to_thread(
+                        _qclient5.update_collection,
+                        "spiritual_wisdom",
+                        hnsw_config=_HnswDiff(m=16, ef_construct=200),
+                    )
+                    logger.info("Lifespan: spiritual_wisdom HNSW patched m=16")
+                else:
+                    logger.info("Lifespan: spiritual_wisdom HNSW m=%d — OK", _sw_m)
+        except Exception as e:
+            logger.warning(f"Lifespan: spiritual_wisdom HNSW check error (non-critical): {e}")
+    else:
+        logger.info("Lifespan: Qdrant maintenance skipped (another worker handles it)")
 
     # LightRAG entity merge: deduplicate known spiritual concept name variants (idempotent)
     logger.info("Lifespan: running LightRAG entity dedup merge...")

@@ -132,7 +132,9 @@ def test_ingest_playlist_chord(mock_get_urls, mock_orchestrate, mock_supabase):
         {"url": "https://youtube.com/watch?v=v2", "title": "Video 2"}
     ]
     
-    with patch("tasks.ingest_tasks.update_job_progress") as mock_update, \
+    with patch("celery.app.task.Task.update_state"), \
+         patch("celery.chord", return_value=MagicMock()), \
+         patch("tasks.ingest_tasks.update_job_progress") as mock_update, \
          patch("app.config.settings") as mock_settings, \
          patch("supabase.create_client") as mock_create_client:
         

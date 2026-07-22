@@ -867,22 +867,38 @@ async def _verify_inline_citations(answer: str, retrieved_docs: list) -> tuple[s
 
     marker_pattern = r"\[\[CITE:\d{1,3}\]\]|(?<!\[)\[\d{1,3}\](?!\[)"
     orig_markers = len(re.findall(marker_pattern, answer))
-    stripped = strip_orphan_markers(answer, retrieved_docs)
+
+    # citation_service functions use [^N] markers, not [[CITE:N]].
+    # Normalize bare [N] and [[CITE:N]] → [^N] before delegation, then normalize back.
+    _normalize_in = lambda t: re.sub(
+        r"\[\[CITE:(\d{1,3})\]\]", r"[^\1]",
+        re.sub(r"(?<!\[)\[(\d{1,3})\](?!\[)", r"[^\1]", t)
+    )
+    _normalize_out = lambda t: re.sub(r"\[\^(\d{1,3})\]", r"[[CITE:\1]]", t)
+
+    normalized = _normalize_in(answer)
+    stripped = _normalize_out(strip_orphan_markers(normalized, retrieved_docs))
     stripped_markers = len(re.findall(marker_pattern, stripped))
     orphan_citations_stripped = max(0, orig_markers - stripped_markers)
 
-    resolved = resolve(stripped, retrieved_docs)
+    resolved = resolve(_normalize_in(stripped), retrieved_docs)
     citations_verified = resolved.grounded
 
-    # Ensure each substantive paragraph has a citation using the service heuristic.
-    if citations_verified and not _check_grounding(stripped, retrieved_docs):
+    if citations_verified and not _check_grounding(_normalize_in(stripped), retrieved_docs):
         citations_verified = False
 
-    # Strip any remaining unresolved [[CITE:N]] markers.
-    remaining_markers = re.findall(r"\[\[CITE:\d{1,3}\]\]", stripped)
-    if remaining_markers:
-        orphan_citations_stripped += len(remaining_markers)
-        stripped = re.sub(r"\[\[CITE:\d{1,3}\]\]", "", stripped)
+    remaining_markers = re.findall(r"\[\[CITE:(\d{1,3})\]\]", stripped)
+    truly_orphan = []
+    for n_str in remaining_markers:
+        n = int(n_str)
+        if n < 1 or n > len(retrieved_docs):
+            truly_orphan.append(f"[[CITE:{n}]]")
+        elif not (retrieved_docs[n - 1].get("source_url") or "").strip():
+            truly_orphan.append(f"[[CITE:{n}]]")
+    if truly_orphan:
+        orphan_citations_stripped += len(truly_orphan)
+        for marker in truly_orphan:
+            stripped = stripped.replace(marker, "")
         stripped = re.sub(r"\s{2,}", " ", stripped).strip()
 
     return stripped, citations_verified, orphan_citations_stripped

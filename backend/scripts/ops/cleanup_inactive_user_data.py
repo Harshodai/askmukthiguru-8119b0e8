@@ -48,30 +48,48 @@ def cleanup_redis_keys(dry_run: bool = False) -> int:
 
 
 def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = False) -> int:
-    """Scans and purges Qdrant memory vectors for users inactive for > 365 days."""
     try:
         from app.config import settings
         from qdrant_client import QdrantClient
-        from qdrant_client.models import (DatetimeRange, FieldCondition, Filter, MatchValue)
+        from supabase import create_client
 
         qdrant_api_key = os.environ.get("QDRANT_API_KEY", "")
         client = QdrantClient(url=settings.qdrant_url, api_key=qdrant_api_key or None, timeout=30)
+        supabase = create_client(settings.supabase_url, settings.supabase_key)
         collections = [c.name for c in client.get_collections().collections if "memory" in c.name]
-        
+
         purged = 0
         cutoff = (datetime.utcnow() - timedelta(days=days_inactivity)).isoformat()
 
+        # Resolve inactive user IDs from Supabase (paginated to handle large user tables)
+        try:
+            inactive_user_ids = set()
+            page_size = 1000
+            start = 0
+            while True:
+                user_res = supabase.table("users").select("id").lt("last_active_at", cutoff).order("id").range(start, start + page_size - 1).execute()
+                if not user_res.data:
+                    break
+                for row in user_res.data:
+                    uid = row.get("id")
+                    if uid:
+                        inactive_user_ids.add(uid)
+                if len(user_res.data) < page_size:
+                    break
+                start += page_size
+            print(f"  Found {len(inactive_user_ids)} inactive users (last active before {cutoff[:10]})")
+        except Exception as ue:
+            print(f"  WARN: Could not query inactive users from Supabase ({ue}); falling back to point-level cleanup")
+            inactive_user_ids = None
+
         for col in collections:
             if col in ("spiritual_wisdom", "global_memory", "second_brain_vault"):
-                continue  # Skip core doctrine & second brain vault
-            
+                continue
+
             offset = None
             while True:
                 results, next_offset = client.scroll(
                     collection_name=col,
-                    scroll_filter=Filter(
-                        must=[FieldCondition(key="updated_at", range=DatetimeRange(lt=cutoff))]
-                    ),
                     limit=100,
                     offset=offset,
                     with_payload=True,
@@ -79,9 +97,34 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
                 )
                 if not results:
                     break
-                point_ids = [p.id for p in results]
+
+                if inactive_user_ids is not None:
+                    filtered = [p for p in results if p.payload.get("user_id") in inactive_user_ids]
+                else:
+                    from qdrant_client.models import DatetimeRange, FieldCondition, Filter
+                    cutoff_dt = cutoff
+                    results, next_offset = client.scroll(
+                        collection_name=col,
+                        scroll_filter=Filter(
+                            must=[FieldCondition(key="updated_at", range=DatetimeRange(lt=cutoff_dt))]
+                        ),
+                        limit=100,
+                        offset=offset,
+                        with_payload=True,
+                        with_vectors=False,
+                    )
+                    filtered = results or []
+
+                if not filtered:
+                    if inactive_user_ids is not None:
+                        offset = next_offset
+                        if offset is None:
+                            break
+                    continue
+
+                point_ids = [p.id for p in filtered]
                 purged += len(point_ids)
-                print(f"  Collection '{col}': found {len(point_ids)} memories inactive since {cutoff[:10]}")
+                print(f"  Collection '{col}': found {len(point_ids)} memories from inactive users")
                 if not dry_run:
                     client.delete(collection_name=col, points_selector=point_ids)
                 offset = next_offset
@@ -105,7 +148,7 @@ def cleanup_telemetry_logs(days_retention: int = 90, dry_run: bool = False) -> i
         query = supabase.table("chat_responses").delete(count="exact").lt("created_at", cutoff)
         if dry_run:
             count_result = supabase.table("chat_responses").select("id", count="exact").lt("created_at", cutoff).execute()
-            purged = len(count_result.data) if count_result.data else 0
+            purged = getattr(count_result, 'count', 0) or (len(count_result.data) if count_result.data else 0)
         else:
             result = query.execute()
             purged = result.count if hasattr(result, 'count') else 0

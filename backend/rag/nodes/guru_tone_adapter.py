@@ -10,6 +10,7 @@ Acts as the mandatory FINAL GUARDRAIL in the retrieval pipeline (ChatEngine), in
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import logging
 from typing import Any, Optional
 
@@ -24,6 +25,12 @@ from services.guru_brain.guru_kg_service import GuruKGService
 from services.guru_brain.persona_discriminator import PersonaDiscriminator
 
 logger = logging.getLogger(__name__)
+
+# Dedicated bounded executor for Neo4j KG operations.
+# Limits concurrent Neo4j threads to prevent thread-pool starvation
+# when asyncio.wait_for abandons the future (the underlying thread
+# still runs until the driver processes the CANCEL response).
+_KG_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="neo4j-kg")
 
 
 class GuruToneAdapterNode:
@@ -60,6 +67,34 @@ class GuruToneAdapterNode:
         self.llm_service = llm_service
         self.persona_discriminator = persona_discriminator or PersonaDiscriminator(llm_service=llm_service)
 
+    @staticmethod
+    def _revalidate_factual_claims(draft: str, adapted: str, req_id: str) -> bool:
+        """Verify tone adaptation preserves all factual claims and citation markers.
+
+        Checks:
+        1. Citation markers are intact — every [[CITE:N]] in draft appears in adapted.
+        2. Factual content overlap — at least 50% of substantive terms from draft survive.
+
+        Returns False when constraints are violated; caller should fall back to draft.
+        """
+        import re
+        draft_cites = set(re.findall(r'\[\[CITE:\d+\]\]', draft))
+        adapted_cites = set(re.findall(r'\[\[CITE:\d+\]\]', adapted))
+        if draft_cites and not draft_cites.issubset(adapted_cites):
+            missing = draft_cites - adapted_cites
+            logger.warning(f"[{req_id}] GuruToneAdapter revalidation: citation markers lost: {missing}. Falling back to original draft.")
+            return False
+
+        draft_words = set(re.findall(r'\w{4,}', draft.lower()))
+        adapted_words = set(re.findall(r'\w{4,}', adapted.lower()))
+        if not draft_words:
+            return True
+        overlap = len(draft_words & adapted_words) / len(draft_words)
+        if overlap < 0.5:
+            logger.warning(f"[{req_id}] GuruToneAdapter revalidation: fact overlap {overlap:.2f} < 0.50. Falling back to original draft.")
+            return False
+        return True
+
     async def transform_tone(
         self,
         state: GraphState | dict | None = None,
@@ -88,15 +123,41 @@ class GuruToneAdapterNode:
             return out_state
 
         # Stream 1: Vector Persona Search from Qdrant `guru_tone_podcast` (157 playlist exemplars)
-        exemplars = await self.guru_brain_service.search_tone_exemplars(
-            query=query,
-            guru_name=target_guru,
-            limit=3,
-        )
+        try:
+            exemplars = await asyncio.wait_for(
+                self.guru_brain_service.search_tone_exemplars(
+                    query=query,
+                    guru_name=target_guru,
+                    limit=3,
+                ),
+                timeout=4.0,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"[{req_id}] GuruToneAdapter: tone exemplar search timed out, continuing with empty context.")
+            exemplars = []
+        except Exception as exc:
+            logger.error(f"[{req_id}] GuruToneAdapter: tone exemplar search failed unexpectedly: {exc}")
+            exemplars = []
         vector_persona_context = self.guru_brain_service.format_persona_context(exemplars)
 
         # Stream 2: Knowledge Graph & OKF Ontology Traversal from Neo4j
-        kg_paths = await asyncio.to_thread(self.guru_kg_service.traverse_guru_ontology, query=query, limit=3)
+        # Bounded dedicated executor (max_workers=4) prevents thread-pool exhaustion
+        # when wait_for cancels the future — the abandoned thread still runs until the
+        # Neo4j driver processes the CANCEL, but only within the pool's capacity limit.
+        # Driver-level timeout (4s) + wall-clock wait_for (8s) safety net.
+        try:
+            loop = asyncio.get_running_loop()
+            kg_paths = await asyncio.wait_for(
+                loop.run_in_executor(
+                    _KG_EXECUTOR,
+                    self.guru_kg_service.traverse_guru_ontology,
+                    query, 3, 4.0,
+                ),
+                timeout=8.0,
+            )
+        except (asyncio.TimeoutError, Exception):
+            logger.warning(f"[{req_id}] GuruToneAdapter: KG ontology traversal timed out or failed, continuing with empty context.")
+            kg_paths = []
         kg_context = self.guru_kg_service.format_kg_ontology_context(kg_paths)
 
         # Build Fused System and User Prompts using rag/prompts constants
@@ -119,7 +180,7 @@ class GuruToneAdapterNode:
             # First Pass Transformation with explicit timeout
             transformed = await asyncio.wait_for(
                 self.llm_service.generate(system_prompt, user_prompt, temperature=0.25),
-                timeout=12.0,
+                timeout=6.0,
             )
             if not transformed or len(transformed.strip()) <= 20:
                 out_state["final_answer"] = draft
@@ -142,15 +203,21 @@ class GuruToneAdapterNode:
                 try:
                     corrected = await asyncio.wait_for(
                         self.llm_service.generate(system_prompt, correction_prompt, temperature=0.2),
-                        timeout=10.0,
+                        timeout=4.0,
                     )
                     if corrected and len(corrected.strip()) > 20:
-                        out_state["final_answer"] = corrected.strip()
-                        return out_state
+                        if self._revalidate_factual_claims(draft, corrected.strip(), req_id):
+                            out_state["final_answer"] = corrected.strip()
+                            return out_state
+                        logger.warning(f"[{req_id}] GuruToneAdapter: corrected output failed revalidation, checking first-pass.")
                 except (asyncio.TimeoutError, Exception) as corr_exc:
                     logger.warning(f"[{req_id}] GuruToneAdapter self-correction LLM generate timed out/failed ({corr_exc}).")
 
-            out_state["final_answer"] = transformed_text
+            if self._revalidate_factual_claims(draft, transformed_text, req_id):
+                out_state["final_answer"] = transformed_text
+                return out_state
+            logger.warning(f"[{req_id}] GuruToneAdapter: first-pass output failed revalidation, falling back to original draft.")
+            out_state["final_answer"] = draft
             return out_state
 
         except (asyncio.TimeoutError, Exception) as exc:

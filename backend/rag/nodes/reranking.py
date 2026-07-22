@@ -354,6 +354,22 @@ async def enrich_context(state: GraphState, config: dict = None) -> dict:
     enriched_docs = []
     seen_hashes = set()
 
+    # Start LightRAG graph query concurrently with context enrichment
+    _lightrag_graph_task = None
+    try:
+        _lightrag_svc = _services._lightrag
+        if _lightrag_svc and getattr(_lightrag_svc, "rag", None):
+            _question = state.get("rewritten_query") or state.get("question", "")
+            if _question:
+                _lightrag_graph_task = asyncio.create_task(
+                    asyncio.wait_for(
+                        _lightrag_svc.aquery(_question, mode="global", only_need_context=True),
+                        timeout=3.0,
+                    )
+                )
+    except Exception as _lg_exc:
+        logger.debug(f"Enrich context: LightRAG task creation skipped: {_lg_exc}")
+
     for doc in relevant_docs[:3]:
         source_url = doc.get("source_url")
         chunk_index = doc.get("chunk_index")
@@ -380,29 +396,27 @@ async def enrich_context(state: GraphState, config: dict = None) -> dict:
             seen_hashes.add(h)
             enriched_docs.append(doc)
 
-    # Dual-Query Graph Blending: fetch LightRAG global relationship summary for standard/complex queries
-    try:
-        lightrag_svc = _services._lightrag
-        if lightrag_svc and getattr(lightrag_svc, "rag", None):
-            question = state.get("rewritten_query") or state.get("question", "")
-            if question:
-                # 3-second non-blocking timeout for graph summary retrieval
-                graph_ctx = await asyncio.wait_for(
-                    lightrag_svc.aquery(question, mode="global", only_need_context=True),
-                    timeout=3.0,
-                )
-                if graph_ctx and len(graph_ctx.strip()) > 50 and "offline" not in graph_ctx.lower():
-                    summary_doc = {
-                        "title": "LightRAG Knowledge Graph Synthesis",
-                        "text": graph_ctx.strip(),
-                        "content_type": "lightrag_relationship_summary",
-                        "source_url": "knowledge_graph",
-                        "score": 0.95,
-                    }
-                    enriched_docs.insert(0, summary_doc)
-                    logger.info("Enrich context: blended LightRAG global graph summary into context")
-    except Exception as exc:
-        logger.warning(f"Enrich context: LightRAG summary fetch skipped (non-critical): {exc}")
+    # Await LightRAG graph result if the task completed in time
+    if _lightrag_graph_task is not None and not _lightrag_graph_task.done():
+        _lightrag_graph_task.cancel()
+        _lightrag_graph_task = None
+
+    if _lightrag_graph_task is not None:
+        try:
+            graph_ctx = _lightrag_graph_task.result()
+            if graph_ctx and len(graph_ctx.strip()) > 50 and "offline" not in graph_ctx.lower():
+                capped_ctx = graph_ctx.strip()[:settings.rag_graph_context_cap_chars]
+                summary_doc = {
+                    "title": "LightRAG Knowledge Graph Synthesis",
+                    "text": capped_ctx,
+                    "content_type": "lightrag_relationship_summary",
+                    "source_url": "knowledge_graph",
+                    "score": 0.95,
+                }
+                enriched_docs.insert(0, summary_doc)
+                logger.info("Enrich context: blended LightRAG global graph summary into context")
+        except Exception as exc:
+            logger.warning(f"Enrich context: LightRAG summary fetch skipped (non-critical): {exc}")
 
     logger.info(
         f"Enriched {len(relevant_docs)} -> {len(enriched_docs)} chunks using window={settings.rag_context_window}"

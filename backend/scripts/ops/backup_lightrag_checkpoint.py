@@ -15,7 +15,7 @@ import json
 import os
 import sqlite3
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 DEFAULT_DB_PATH = os.getenv("LIGHTRAG_DB", "./lightrag_data/doc_status.db")
 BACKUP_DIR = "./data/lightrag_backups"
@@ -32,7 +32,7 @@ def main() -> None:
         return
 
     os.makedirs(args.out_dir, exist_ok=True)
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     out_file = os.path.join(args.out_dir, f"lightrag_checkpoint_{ts}.json")
 
     try:

@@ -23,7 +23,8 @@ os.environ["QDRANT_HOST"] = "localhost"
 os.environ["QDRANT_URL"] = "http://localhost:6333"
 os.environ["NEO4J_URI"] = "bolt://localhost:7687"
 os.environ["REDIS_HOST"] = "localhost"
-os.environ["REDIS_URL"] = "redis://:mukthiguru_redis_pass@localhost:6379/0"
+_redis_pass = os.environ.get("REDIS_PASSWORD", "mukthiguru_redis_pass")
+os.environ["REDIS_URL"] = f"redis://:{_redis_pass}@localhost:6379/0"
 
 sys.path.insert(0, str(backend_dir))
 

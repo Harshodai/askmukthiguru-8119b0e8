@@ -332,6 +332,7 @@ class Settings(BaseSettings):
     rag_chunk_overlap: int = 200
     rag_use_hyde: bool = False
     rag_context_window: int = 2  # Fetch N chunks before/after each retrieved chunk
+    rag_graph_context_cap_chars: int = 400  # Max chars for graph summary doc injected into enriched context
     rerank_min_score: float = 0.35  # Min CrossEncoder score (sigmoid-normalized) to keep a doc
     rag_use_context_compression: bool = False  # Set to True to enable LLM-based context compression
     rag_context_compression_threshold: int = (

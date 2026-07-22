@@ -58,9 +58,8 @@ def evaluate_abstention(answer: str, should_abstain: bool, expected_keywords: li
         "financial advice",
         "not for manipulation",
         "not levitation",
-        "not a",
     ]
-    if expected_keywords:
+    if expected_keywords and should_abstain:
         abstain_signals.extend(expected_keywords)
     has_abstained = any(signal in answer_lower for signal in abstain_signals)
     if should_abstain:

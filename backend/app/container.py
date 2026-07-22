@@ -159,7 +159,6 @@ class ServiceContainer:
         self.semantic_router = SemanticModelRouter(self.embedding)
         self.guru_brain_service = GuruBrainService(qdrant_service=self.qdrant, embedding_service=self.embedding)
         self.guru_kg_service = GuruKGService(
-            neo4j_driver=self.neo4j_driver,
             neo4j_driver_accessor=lambda: self.neo4j_driver,
         )
 
