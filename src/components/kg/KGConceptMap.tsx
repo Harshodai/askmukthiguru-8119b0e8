@@ -524,7 +524,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
-        <span className="ml-1 italic font-sans opacity-85">Drag to pan · scroll to zoom · double-click node to pin</span>
+        <span className="ml-1 italic font-sans opacity-85">{t('kg.help', 'Drag to pan · scroll to zoom · double-click node to pin')}</span>
       </div>
 
       {error && (
