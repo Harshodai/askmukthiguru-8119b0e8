@@ -5,7 +5,7 @@ Task 6: seeker memory claim/confidence + scored retrieval.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -177,9 +177,12 @@ async def test_scored_retrieval_dedupes_by_subject():
     container.memory_service.get_core = AsyncMock(return_value=[])
     container.second_brain = None
 
-    memory_context, _ = await prepare_user_memory(
-        container, "user123", [{"role": "user", "content": "Tell me about my practice"}]
-    )
+    from app.config import settings
+
+    with patch.object(settings, "feature_memory_enabled", True):
+        memory_context, _ = await prepare_user_memory(
+            container, "user123", [{"role": "user", "content": "Tell me about my practice"}]
+        )
 
     assert "```memory-context" in memory_context
     assert "Seeker practices Soul Sync every morning" in memory_context

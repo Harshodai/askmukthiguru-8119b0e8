@@ -1648,11 +1648,6 @@ class IngestionPipeline:
                 # can roll back this one video without aborting the whole playlist.
                 backup_collection = self._backup_before_reindex(video["url"])
 
-                from datetime import datetime, timezone
-                for em in (extra_metadatas or []):
-                    em.setdefault("source_version", 1)
-                    em.setdefault("ingested_at", datetime.now(timezone.utc).isoformat())
-                    em.setdefault("authority_tier", "primary")
                 chunks_count = self._embed_and_index(
                     final_chunks,
                     source_url=video["url"],

@@ -154,21 +154,31 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         faithfulness_score = ld_result["score"]
         is_faithful_ld = faithfulness_score >= settings.faithfulness_floor
 
+        # Only fast-exit when the faithfulness score meets the compulsory CoVe
+        # threshold.  Below that threshold the answer is suspect enough to
+        # warrant the full CoVe sub-question check (~60 s LLM call).
+        cove_compulsory = getattr(settings, "cove_compulsory_threshold", 0.6)
+        if faithfulness_score >= cove_compulsory:
+            logger.info(
+                f"Combined verify: parallel_verify fast-exit for tier3_complex — "
+                f"LettuceDetect faithfulness={faithfulness_score:.2f} ({'YES' if is_faithful_ld else 'NO'}), "
+                f"CoVe/consistency skipped for TTFT"
+            )
+            return {
+                "is_faithful": is_faithful_ld,
+                "verification": {
+                    "passed": is_faithful_ld,
+                    "details": "Parallel verify fast-exit (tier3_complex) — LettuceDetect checked, CoVe skipped",
+                },
+                "confidence_score": (faithfulness_score * 10.0) if is_faithful_ld else 3.0,
+                "faithfulness_score": faithfulness_score,
+                "relevancy_score": faithfulness_score,
+            }
         logger.info(
-            f"Combined verify: parallel_verify fast-exit for tier3_complex — "
-            f"LettuceDetect faithfulness={faithfulness_score:.2f} ({'YES' if is_faithful_ld else 'NO'}), "
-            f"CoVe/consistency skipped for TTFT"
+            f"Combined verify: parallel_verify fast-exit GUARDED for tier3_complex — "
+            f"faithfulness={faithfulness_score:.2f} < cove_compulsory={cove_compulsory}, "
+            f"falling through to full CoVe sub-question check"
         )
-        return {
-            "is_faithful": is_faithful_ld,
-            "verification": {
-                "passed": is_faithful_ld,
-                "details": "Parallel verify fast-exit (tier3_complex) — LettuceDetect checked, CoVe skipped",
-            },
-            "confidence_score": (faithfulness_score * 10.0) if is_faithful_ld else 3.0,
-            "faithfulness_score": faithfulness_score,
-            "relevancy_score": faithfulness_score,
-        }
 
     lettuce_detect = _services._lettuce_detect
     ollama = _services._ollama  # noqa: F841 — preserved per "do not delete" mandate; used by disabled CoVe + self-consistency blocks below

@@ -1344,9 +1344,11 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     if is_tier2:
         # Fast/tier2 queries skip the full verification node, so run a lightweight
         # local LettuceDetect faithfulness check here to give format_final_answer an
-        # honest signal instead of a hardcoded pass. Use the module-level doc_text
-        # import (line 19) to avoid shadowing it inside this function's cell scope.
-        relevant_docs = state.get("relevant_docs", [])
+        # honest signal instead of a hardcoded pass. Use ``surviving_docs`` (the
+        # local collection that was truncated/compressed for the LLM prompt) rather
+        # than ``state["relevant_docs"]`` so context is built only from documents
+        # actually provided to the model.
+        relevant_docs = surviving_docs
         question = state.get("rewritten_query") or state["question"]
         hallucination_flag = False
         faithfulness_score = 1.0

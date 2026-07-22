@@ -269,7 +269,6 @@ class QdrantService:
         """Return a Qdrant filter matching an exact title."""
         return QdrantFilterBuilder.build_title_filter(title)
 
-    @classmethod
     async def delete_points(self, collection_name: str, point_ids: list[str]) -> None:
         """Delete specific points from a collection by ID."""
         self._client.delete(
@@ -277,6 +276,7 @@ class QdrantService:
             points_selector=point_ids,
         )
 
+    @classmethod
     def build_metadata_filter(
         cls,
         source_url: Optional[str] = None,

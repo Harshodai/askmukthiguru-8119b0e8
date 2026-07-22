@@ -81,6 +81,8 @@ def contextual_reingest(
         if job_id:
             update_job_progress(job_id, "failed", error_message=str(exc))
         raise
+    finally:
+        _release_reingest_lock()
 
 
 @celery_app.task(
@@ -105,6 +107,25 @@ def contextual_reingest_dry_run(
     except Exception as exc:
         logger.exception("contextual_reingest_dry_run task failed")
         raise
+
+
+def _release_reingest_lock() -> None:
+    """Release the Redis lock so the next contextual re-ingest can start.
+
+    Called from the task's ``finally`` block so the lock is freed on
+    success, failure, or hard crash (as long as the process is running).
+    The API handler also releases the lock on dispatch failure, so the
+    two paths together guarantee the lock never outlives its task.
+    """
+    try:
+        from app.config import settings
+        import redis as _sync_redis
+
+        _r = _sync_redis.from_url(settings.redis_url)
+        _r.delete("contextual_reingest:running")
+        _r.close()
+    except Exception:
+        logger.warning("Failed to release contextual re-ingest lock from task", exc_info=True)
 
 
 if __name__ == "__main__":

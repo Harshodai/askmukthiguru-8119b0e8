@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
 import redis.asyncio as Redis
@@ -25,6 +26,9 @@ settings = get_settings()
 
 class SupabaseTelemetrySink:
     """Telemetry sink for writing RAG metrics and trace spans to Supabase via Redis Streams."""
+
+    _invalidation_sem = asyncio.Semaphore(3)
+    _invalidation_executor = ThreadPoolExecutor(max_workers=3)
 
     def __init__(self):
         self.url = settings.supabase_url
@@ -184,29 +188,35 @@ class SupabaseTelemetrySink:
         """Invalidate the semantic cache entry when a response is flagged.
 
         Triggered by the LLM self-verification layer (hallucination_flag=True) or
-        by a downstream thumbs-down feedback handler. Removes the matching Qdrant
-        vector and Redis payload so the bad answer is never served again.
+        by a downstream thumbs-down feedback handler. Delegates to the adapter's
+        own ``invalidate_by_query`` so all ID generation, Qdrant deletion, and
+        Redis-key deletion stay encapsulated inside ``SemanticCacheAdapter``.
         """
         if not hallucination_flag or not query_text:
             return
         try:
             container = get_container()
-            qdrant_service = getattr(container, "qdrant_service", None)
             adapter = getattr(container, "semantic_cache", None)
-            if qdrant_service is None or adapter is None or not getattr(adapter, "is_available", False):
+            if adapter is None or not getattr(adapter, "is_available", False):
                 return
-            point_id = adapter._make_id(query_text)
-
-            await qdrant_service.delete_points(
-                collection_name=adapter._collection,
-                point_ids=SemanticCacheAdapter._point_ids(point_id),
-            )
-            from services.tenant_context import TenantContext
-
-            tenant_id = TenantContext.get()
-            redis_key = f"mukthiguru:semcache:{tenant_id}:{point_id}"
-            adapter._redis.delete(redis_key)
-            logger.info(f"Invalidated semantic cache for flagged query (point_id={point_id})")
+            async with self._invalidation_sem:
+                loop = asyncio.get_running_loop()
+                future = loop.run_in_executor(
+                    self._invalidation_executor,
+                    adapter.invalidate_by_query, query_text, 5.0,
+                )
+                try:
+                    await asyncio.wait_for(asyncio.shield(future), timeout=10.0)
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "Semantic cache invalidation timed out; awaiting worker cleanup..."
+                    )
+                    try:
+                        await asyncio.wait_for(future, timeout=10.0)
+                    except asyncio.TimeoutError:
+                        logger.error(
+                            "Semantic cache invalidation worker hung after extended timeout"
+                        )
         except Exception as e:
             logger.warning(f"Semantic cache invalidation for flagged query failed: {e}")
 

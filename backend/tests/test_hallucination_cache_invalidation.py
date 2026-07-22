@@ -35,19 +35,21 @@ class _FakeSemanticAdapter:
     def is_available(self) -> bool:
         return self._available
 
-    def _capture_delete(self, collection_name, points_selector) -> None:
-        self.deleted_qdrant_ids.extend(points_selector.points)
-
-    def _capture_redis_delete(self, key) -> None:
-        self.deleted_redis_keys.append(key)
+    def invalidate_by_query(self, query_text: str, timeout: float | None = None) -> bool:
+        """Mirror the real SemanticCacheAdapter contract."""
+        if not self._available:
+            return False
+        point_id = self._make_id(query_text)
+        self.deleted_qdrant_ids.append(point_id)
+        tenant_id = "default"
+        redis_key = f"mukthiguru:semcache:{tenant_id}:{point_id}"
+        self.deleted_redis_keys.append(redis_key)
+        return True
 
 
 @pytest.fixture
 def fake_adapter():
-    adapter = _FakeSemanticAdapter()
-    adapter._qdrant.delete.side_effect = adapter._capture_delete
-    adapter._redis.delete.side_effect = adapter._capture_redis_delete
-    return adapter
+    return _FakeSemanticAdapter()
 
 
 @pytest.fixture

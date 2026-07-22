@@ -367,7 +367,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             "complexity_score": complexity_score,
             "confidence_tier": (
                 "high" if _qt in ("tier2_simple", "fast") and pre_intent != "CASUAL"
-                else "low" if _qt == "tier3_complex"
+                else "low" if _qt in ("tier3_complex", "tier4_deep")
                 else "medium"
             ),
             **_cache_hint(pre_intent),
@@ -462,7 +462,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                     "complexity_score": complexity_score,
                     "confidence_tier": (
                         "high" if query_tier in ("tier2_simple", "fast") and mapped_intent != "CASUAL"
-                        else "low" if query_tier == "tier3_complex"
+                        else "low" if query_tier in ("tier3_complex", "tier4_deep")
                         else "medium"
                     ),
                     "needs_web_search": needs_web,
@@ -534,7 +534,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 "complexity_score": complexity_score,
                 "confidence_tier": (
                     "high" if tier in ("tier2_simple", "fast") and cached_intent != "CASUAL"
-                    else "low" if tier == "tier3_complex"
+                    else "low" if tier in ("tier3_complex", "tier4_deep")
                     else "medium"
                 ),
                 **_cache_hint(cached_intent),
@@ -560,7 +560,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 "complexity_score": complexity_score,
                 "confidence_tier": (
                     "high" if tier in ("tier2_simple", "fast") and intent != "CASUAL"
-                    else "low" if tier == "tier3_complex"
+                    else "low" if tier in ("tier3_complex", "tier4_deep")
                     else "medium"
                 ),
                 **_cache_hint(intent),
