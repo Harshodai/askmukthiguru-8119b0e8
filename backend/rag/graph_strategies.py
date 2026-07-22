@@ -544,6 +544,13 @@ class DeepGraphStrategy(GraphStrategy):
         def _route_after_verify(state: GraphState) -> str:
             return "deep" if state.get("query_tier") == "tier4_deep" else "extract"
 
+        def _route_deep_gate(state: GraphState) -> str:
+            """Route back into the reflection/rewrite loop when the deep gate
+            finds a contradiction; otherwise continue to citation extraction."""
+            if state.get("needs_correction", False):
+                return "reflect"
+            return "extract"
+
         # Replace the existing verify_answer -> extract_citations edge with a
         # conditional edge that runs the deep gate for tier4_deep queries.
         builder.edges.discard(("verify_answer", "extract_citations"))
@@ -555,7 +562,14 @@ class DeepGraphStrategy(GraphStrategy):
                 "extract": "extract_citations",
             },
         )
-        builder.add_edge("deep_contradiction_gate", "extract_citations")
+        builder.add_conditional_edges(
+            "deep_contradiction_gate",
+            _route_deep_gate,
+            {
+                "reflect": "reflect_on_answer",
+                "extract": "extract_citations",
+            },
+        )
         compiled = builder.compile() if hasattr(builder, "compile") else graph
         logger.info("LangGraph DEEP pipeline compiled successfully")
         return compiled

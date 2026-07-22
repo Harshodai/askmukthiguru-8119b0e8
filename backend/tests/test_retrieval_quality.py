@@ -209,6 +209,8 @@ class TestDedupNewestBySource:
         result = _dedup_newest_by_source(docs)
         assert len(result) == 2
         assert any(d["source_version"] == 2 and d["source_id"] == "abc" for d in result)
+        result_ids = {d["source_id"] for d in result}
+        assert result_ids == {"abc", "def"}, f"Expected both source IDs 'abc' and 'def', got {result_ids}"
 
     def test_no_change_when_all_unique(self):
         from rag.nodes.retrieval import _dedup_newest_by_source

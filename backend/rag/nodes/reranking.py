@@ -140,15 +140,18 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
     # Combined list starts with web search results, followed by best database docs
     reranked = web_docs + reranked_db
 
-    # LITM (Lost-in-the-Middle) mitigation: for K>=6, place the two most relevant
-    # documents at the first and last positions so the LLM sees them at the edges
-    # of the context window where attention is strongest.
+    # LITM (Lost-in-the-Middle) mitigation: for K>=6, place the two highest-
+    # scoring documents (by actual ``rerank_score``) at the first and last
+    # positions so the LLM sees them at the edges of the context window where
+    # attention is strongest.
     if len(reranked) >= 6:
-        top_doc = reranked[0]
-        second_doc = reranked[1]
-        middle = reranked[2:]
-        reranked = [top_doc] + middle + [second_doc]
-        logger.info(f"Applied LITM reordering: top docs at positions 0 and {len(reranked) - 1}")
+        sorted_by_score = sorted(
+            reranked, key=lambda d: d.get("rerank_score", 0.0), reverse=True
+        )
+        best = sorted_by_score[0]
+        second_best = sorted_by_score[1]
+        rest = [d for d in reranked if d is not best and d is not second_best]
+        reranked = [best] + rest + [second_best]
 
     logger.info(
         f"Reranked total={len(documents)} (web={len(web_docs)}, db={len(db_docs)}) -> "

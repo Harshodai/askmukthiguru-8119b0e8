@@ -233,6 +233,40 @@ class SemanticCacheAdapter(ICacheRepository):
         except Exception as e:
             logger.error(f"Semantic cache invalidation error: {e}")
 
+    def invalidate_by_query(self, query_text: str, timeout: float | None = None) -> bool:
+        """Invalidate a single cache entry identified by its query text.
+
+        Handles Qdrant point deletion and Redis key deletion using the
+        adapter's own private state and key format.  Returns ``True`` when
+        the entry existed and was removed, ``False`` otherwise.
+
+        When *timeout* is provided a temporary short-timeout Qdrant client
+        is used for the delete so the operation is independently bounded.
+        """
+        if not self._available or self._qdrant is None:
+            return False
+        try:
+            point_id = self._make_id(query_text)
+            qdrant = self._qdrant
+            if timeout is not None:
+                qdrant = QdrantClient(
+                    url=settings.qdrant_url,
+                    timeout=timeout,
+                    check_compatibility=False,
+                )
+            qdrant.delete(
+                collection_name=self._collection,
+                points_selector=self._point_ids(point_id),
+            )
+            tenant_id = TenantContext.get()
+            redis_key = f"mukthiguru:semcache:{tenant_id}:{point_id}"
+            self._redis.delete(redis_key)
+            logger.info("Invalidated semantic cache entry for query (point_id=%s)", point_id)
+            return True
+        except Exception as e:
+            logger.warning("Semantic cache invalidation by query failed: %s", e)
+            return False
+
     @property
     def is_available(self) -> bool:
         return self._available

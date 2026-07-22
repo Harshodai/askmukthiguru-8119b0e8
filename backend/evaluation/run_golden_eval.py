@@ -68,20 +68,29 @@ def main() -> int:
     diversity_violations = 0
 
     for it in items:
+        success = True
         try:
             resp = call_backend(backend_url, token, it["question"])
         except Exception as e:
             print(f"[FAIL] {it['id']}: {e}", file=sys.stderr)
             failed += 1
-            continue
-        ans = resp.get("response") or resp.get("answer") or ""
-        cites = resp.get("citations", [])
-        ctx = [c.get("text") or c.get("snippet") or "" for c in cites] or [""]
+            success = False
+
+        if success:
+            ans = resp.get("response") or resp.get("answer") or ""
+            cites = resp.get("citations", [])
+            ctx = [c.get("text") or c.get("snippet") or "" for c in cites] or [""]
+        else:
+            ans = ""
+            cites = []
+            ctx = [""]
+
         questions.append(it["question"])
         answers.append(ans)
         contexts.append(ctx)
-        refs.append(" ".join(it.get("expected_concepts", [])))
-        if diversity_violation(cites, args.min_distinct_sources):
+        must = it.get("must_mention", [])
+        refs.append("The expected answer must cover: " + ", ".join(must) if must else it["question"])
+        if success and diversity_violation(cites, args.min_distinct_sources):
             diversity_violations += 1
             print(f"[DIVERSITY] {it['id']}: top-3 citations not diverse enough")
 
@@ -117,13 +126,22 @@ def main() -> int:
         context_recall_score = float(result["context_recall"])
     except Exception as e:
         print(f"[WARN] RAGAS unavailable ({e}); falling back to heuristic concept-overlap.")
-        # Heuristic: fraction of expected_concepts present in answer.
+        # Heuristic: fraction of must_mention concepts present in answer,
+        # penalised when reject_if tokens are present.
         hits, total = 0, 0
         for it, ans in zip(items, answers):
-            for c in it.get("expected_concepts", []):
+            must = it.get("must_mention", [])
+            reject = it.get("reject_if", [])
+            if it.get("expected_intent") == "REFUSE":
                 total += 1
-                if c.lower() in ans.lower():
-                    hits += 1
+                if must and not any(r.lower() in ans.lower() for r in reject):
+                    if any(c.lower() in ans.lower() for c in must):
+                        hits += 1
+            else:
+                for c in must:
+                    total += 1
+                    if c.lower() in ans.lower():
+                        hits += 1
         faithfulness_score = hits / total if total else 0.0
         relevancy_score = faithfulness_score
         context_precision_score = faithfulness_score
@@ -165,6 +183,7 @@ def main() -> int:
         and context_precision_pass
         and context_recall_pass
         and diversity_pass
+        and failed == 0
     ):
         return 1
     return 0
