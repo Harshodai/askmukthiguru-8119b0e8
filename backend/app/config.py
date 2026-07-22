@@ -159,6 +159,11 @@ class Settings(BaseSettings):
     # Public-facing frontend URL (for reactivation links in win-back emails).
     # Defaults to the Railway prod deploy; override via FRONTEND_URL env var.
     frontend_url: str = "https://askmukthiguru-8119b0e8-production.up.railway.app"
+
+    # --- Hallucination anomaly thresholds (daily telemetry check) ---
+    anomaly_hallucination_rate_threshold: float = 0.05
+    anomaly_faithfulness_p50_threshold: float = 0.80
+    anomaly_lookback_days: int = 1
     supabase_jwks_url: Optional[str] = None  # Optional JWKS URL for JWT validation (used in hybrid auth setups)
     supabase_jwt_issuer: Optional[str] = None  # Optional JWT Issuer for token validation (used in hybrid auth setups)
     qdrant_local_path: Optional[str] = None  # Set for local mode (no Docker)

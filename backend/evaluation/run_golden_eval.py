@@ -1,7 +1,8 @@
 """Golden-set evaluator. Calls the deployed backend for each question,
-runs RAGAS faithfulness + answer_relevancy, and enforces an answer-source
-diversity guard. Exits non-zero when any threshold fails so the GitHub
-Actions gate blocks the deploy.
+runs RAGAS faithfulness, answer_relevancy, context_precision, and
+context_recall, and enforces an answer-source diversity guard. Exits
+non-zero when any threshold fails so the GitHub Actions gate blocks the
+deploy.
 
 Usage:
   python backend/evaluation/run_golden_eval.py \
@@ -9,6 +10,8 @@ Usage:
     --out eval_report.json \
     --faithfulness-min 0.88 \
     --relevancy-min 0.80 \
+    --context-precision-min 0.72 \
+    --context-recall-min 0.72 \
     --min-distinct-sources 2
 """
 from __future__ import annotations
@@ -47,6 +50,8 @@ def main() -> int:
     p.add_argument("--out", required=True, type=Path)
     p.add_argument("--faithfulness-min", type=float, default=0.88)
     p.add_argument("--relevancy-min", type=float, default=0.80)
+    p.add_argument("--context-precision-min", type=float, default=0.72)
+    p.add_argument("--context-recall-min", type=float, default=0.72)
     p.add_argument("--min-distinct-sources", type=int, default=2)
     args = p.parse_args()
 
@@ -83,10 +88,17 @@ def main() -> int:
     # RAGAS scoring (deferred import so script runs without ragas in dev)
     faithfulness_score = 0.0
     relevancy_score = 0.0
+    context_precision_score = 0.0
+    context_recall_score = 0.0
     try:
         from datasets import Dataset  # type: ignore
         from ragas import evaluate  # type: ignore
-        from ragas.metrics import answer_relevancy, faithfulness  # type: ignore
+        from ragas.metrics import (
+            answer_relevancy,
+            context_precision,
+            context_recall,
+            faithfulness,
+        )  # type: ignore
 
         ds = Dataset.from_dict(
             {
@@ -96,9 +108,13 @@ def main() -> int:
                 "reference": refs,
             }
         )
-        result = evaluate(ds, metrics=[faithfulness, answer_relevancy])
+        result = evaluate(
+            ds, metrics=[faithfulness, answer_relevancy, context_precision, context_recall]
+        )
         faithfulness_score = float(result["faithfulness"])
         relevancy_score = float(result["answer_relevancy"])
+        context_precision_score = float(result["context_precision"])
+        context_recall_score = float(result["context_recall"])
     except Exception as e:
         print(f"[WARN] RAGAS unavailable ({e}); falling back to heuristic concept-overlap.")
         # Heuristic: fraction of expected_concepts present in answer.
@@ -110,9 +126,13 @@ def main() -> int:
                     hits += 1
         faithfulness_score = hits / total if total else 0.0
         relevancy_score = faithfulness_score
+        context_precision_score = faithfulness_score
+        context_recall_score = faithfulness_score
 
     faithfulness_pass = faithfulness_score >= args.faithfulness_min
     relevancy_pass = relevancy_score >= args.relevancy_min
+    context_precision_pass = context_precision_score >= args.context_precision_min
+    context_recall_pass = context_recall_score >= args.context_recall_min
     diversity_pass = diversity_violations == 0
 
     report = {
@@ -120,20 +140,32 @@ def main() -> int:
         "questions_failed": failed,
         "faithfulness": faithfulness_score,
         "answer_relevancy": relevancy_score,
+        "context_precision": context_precision_score,
+        "context_recall": context_recall_score,
         "diversity_violations": diversity_violations,
         "faithfulness_pass": faithfulness_pass,
         "relevancy_pass": relevancy_pass,
+        "context_precision_pass": context_precision_pass,
+        "context_recall_pass": context_recall_pass,
         "diversity_pass": diversity_pass,
         "thresholds": {
             "faithfulness_min": args.faithfulness_min,
             "relevancy_min": args.relevancy_min,
+            "context_precision_min": args.context_precision_min,
+            "context_recall_min": args.context_recall_min,
             "min_distinct_sources": args.min_distinct_sources,
         },
     }
     args.out.write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
 
-    if not (faithfulness_pass and relevancy_pass and diversity_pass):
+    if not (
+        faithfulness_pass
+        and relevancy_pass
+        and context_precision_pass
+        and context_recall_pass
+        and diversity_pass
+    ):
         return 1
     return 0
 
