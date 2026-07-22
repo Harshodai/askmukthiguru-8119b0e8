@@ -312,6 +312,25 @@ def _apply_score_delta_cutoff(docs: list[dict], score_key: str = "score", min_ra
     return filtered
 
 
+def _dedup_newest_by_source(docs: list[dict]) -> list[dict]:
+    """Pre-rerank dedup: same source_id + title → keep highest source_version."""
+    if not docs:
+        return docs
+    best: dict[tuple[str, str], dict] = {}
+    for doc in docs:
+        source_id = doc.get("source_id") or doc.get("video_id") or doc.get("source_url", "")
+        title = doc.get("title", "")
+        key = (source_id, title)
+        current_version = doc.get("source_version", 1)
+        existing = best.get(key)
+        if existing is None or current_version > existing.get("source_version", 1):
+            best[key] = doc
+    if len(best) == len(docs):
+        return docs
+    logger.info(f"Dedup-newest: {len(docs)} -> {len(best)} docs")
+    return list(best.values())
+
+
 def _apply_retrieval_dedup(docs: list[dict]) -> list[dict]:
     """Drop retrieved docs whose content is nearly identical to an already-selected doc."""
     if not docs or not getattr(settings, "retrieval_deduplication_enabled", False):
@@ -1057,6 +1076,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     if getattr(settings, "retrieval_score_delta_enabled", False):
         all_docs = _apply_score_delta_cutoff(all_docs, score_key="score")
 
+    # Pre-rerank dedup: same source_id+title → keep highest source_version
+    all_docs = _dedup_newest_by_source(all_docs)
+
     # Near-duplicate removal at retrieval time
     all_docs = _apply_retrieval_dedup(all_docs)
 
@@ -1226,7 +1248,10 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     if getattr(settings, "rag_context_compression_enabled", True):
         question = state.get("rewritten_query") or state["question"]
-        all_docs = await _compress_rag_context_impl(question, all_docs, embedder)
+        top_k = getattr(settings, "rag_context_compression_top_k", 3)
+        allowlisted = all_docs[:top_k]
+        compressed = await _compress_rag_context_impl(question, allowlisted, embedder)
+        all_docs = compressed + all_docs[top_k:]
 
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
     return {

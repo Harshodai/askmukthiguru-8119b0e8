@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -98,3 +98,62 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
     metadata_list = called_args[2]
     assert any("teacher:iskcon" in m["tags"] for m in metadata_list)
+
+
+def test_ingest_raw_text_metadata_propagation(mock_pipeline, monkeypatch):
+    """Contextual chunking path must persist source_version, ingested_at, authority_tier."""
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "use_adaptive_chunking", False)
+    monkeypatch.setattr(settings, "use_hyper_extract_enrichment", False)
+
+    mock_pipeline._embedder.encode_batch = MagicMock(
+        return_value={"dense": [[0.1] * 384], "sparse": [None]}
+    )
+    mock_pipeline._qdrant.upsert_chunks = MagicMock(return_value=1)
+    mock_pipeline._qdrant.check_source_exists = MagicMock(return_value=False)
+    mock_pipeline._llm.generate = AsyncMock(return_value="Teaching on meditation.")
+
+    import asyncio
+    import hashlib
+
+    # Use unique text + random suffix to avoid checkpoint collision from prior tests
+    unique_text = (
+        "This is a unique spiritual teaching about meditation and mindfulness practice. "
+        f"{__file__}-{hashlib.sha256(__file__.encode()).hexdigest()[:8]}-{id(mock_pipeline)}"
+    )
+
+    # Bypass checkpoint de-duplication for this source
+    monkeypatch.setattr(
+        "ingest.pipeline.IngestionCheckpoint.is_processed", lambda self, chunk_id: False
+    )
+    monkeypatch.setattr(
+        "ingest.pipeline.IngestionCheckpoint.save", lambda self, chunk_id, metadata=None: None
+    )
+    # Disable injection scanning so our small test chunk isn't dropped
+    monkeypatch.setattr(
+        "ingest.pipeline.scan_chunks_for_injection", lambda chunks: (chunks, [])
+    )
+
+    result = asyncio.run(
+        mock_pipeline.ingest_raw_text(
+            text=unique_text,
+            source_url="http://example.com/teaching",
+            title="Meditation Teaching",
+            content_type="document",
+            source_version=2,
+            authority_tier="primary",
+        )
+    )
+
+    assert result["status"] == "success"
+    call_args = mock_pipeline._qdrant.upsert_chunks.call_args
+    assert call_args is not None, "upsert_chunks was never called"
+    positional = call_args[0]
+    metadata_list = positional[2]
+    chunk_texts = positional[0]
+    assert metadata_list[0]["source_version"] == 2
+    assert metadata_list[0]["authority_tier"] == "primary"
+    assert "ingested_at" in metadata_list[0]
+    # Contextual enrichment ran because full_document is supplied
+    assert chunk_texts[0].startswith("[Context:")

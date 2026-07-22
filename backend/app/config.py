@@ -342,6 +342,9 @@ class Settings(BaseSettings):
     rag_mmr_lambda: float = 0.5  # Balance between relevance and diversity (0=diversity, 1=relevance)
     max_tokens_per_request: int = 12000  # Maximum tokens per LLM request (covers persona+knowledge+history+instructions)
 
+    # --- Retrieval context compression allowlist ---
+    rag_context_compression_top_k: int = 3
+
     # --- Retrieval Quality Gates ---
     retrieval_score_delta_enabled: bool = True
     rerank_score_delta_enabled: bool = True
@@ -365,7 +368,7 @@ class Settings(BaseSettings):
     flashrank_model: str = "auto"
     use_cross_encoder_only: bool = False
     use_adaptive_chunking: bool = True
-    adaptive_chunking_min_chars: int = 5000
+    adaptive_chunking_min_chars: int = 800
     use_boundary_chunker: bool = False
     use_proposition_chunking: str = "auto"
     proposition_char_limit: int = 15000
