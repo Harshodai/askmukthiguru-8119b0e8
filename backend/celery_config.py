@@ -37,6 +37,7 @@ celery_app = Celery(
         "tasks.okf_extract_tasks",
         "tasks.okf_compile_tasks",
         "tasks.cancel_flow_tasks",
+        "tasks.contextual_reingest_task",
     ],
 )
 

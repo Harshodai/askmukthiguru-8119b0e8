@@ -1101,3 +1101,48 @@ async def admin_ingest_url(
     task = ingest_url_task.delay(url, mode=mode)
     return {"task_id": task.id, "url": url, "status": "queued"}
 
+
+# ── Contextual Re-ingestion ────────────────────────────────────────
+
+
+class ContextualReingestRequest(BaseModel):
+    source_url: Optional[str] = None
+    limit: Optional[int] = None
+
+
+class ContextualReingestDryRunRequest(BaseModel):
+    source_url: Optional[str] = None
+    limit: int = 1
+
+
+@admin_router.post("/contextual-reingest/dry-run")
+async def admin_contextual_reingest_dry_run(
+    body: ContextualReingestDryRunRequest,
+    user=Depends(get_current_user_from_supabase),
+):
+    """Admin-only preview of contextual re-ingestion."""
+    _require_admin(user)
+    from tasks.contextual_reingest_task import contextual_reingest_dry_run
+
+    task = contextual_reingest_dry_run.delay(
+        source_url=body.source_url,
+        limit=body.limit,
+    )
+    return {"task_id": task.id, "source_url": body.source_url, "status": "queued"}
+
+
+@admin_router.post("/contextual-reingest")
+async def admin_contextual_reingest(
+    body: ContextualReingestRequest,
+    user=Depends(get_current_user_from_supabase),
+):
+    """Admin-only: trigger contextual re-ingestion from spiritual_wisdom."""
+    _require_admin(user)
+    from tasks.contextual_reingest_task import contextual_reingest
+
+    task = contextual_reingest.delay(
+        source_url=body.source_url,
+        limit=body.limit,
+    )
+    return {"task_id": task.id, "source_url": body.source_url, "status": "queued"}
+
