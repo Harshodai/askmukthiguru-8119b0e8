@@ -136,29 +136,52 @@ class _LocalOllamaContextualizer:
 
         async def _call(model: str) -> str:
             client = AsyncClient(host=self._base_url)
-            # The ollama client accepts 'timeout' as an Options value.
-            response = await client.generate(
-                model=model,
-                prompt=user_prompt,
-                system=system_prompt,
-                options={"temperature": 0.3, "num_predict": 256, "timeout": timeout * 1000},
+            response = await asyncio.wait_for(
+                client.generate(
+                    model=model,
+                    prompt=user_prompt,
+                    system=system_prompt,
+                    options={"temperature": 0.3, "num_predict": 256},
+                ),
+                timeout=timeout,
             )
             return response.get("response", "")
 
-        try:
-            return await _call(self._current_model)
-        except OllamaResponseError as exc:
-            if self._using_fallback:
-                raise
-            logger.warning(
-                "Contextualizer primary model %s failed (%s), switching to fallback %s",
-                self._current_model,
-                exc,
-                self._fallback_model,
-            )
-            self._using_fallback = True
-            self._current_model = self._fallback_model
-            return await _call(self._current_model)
+        last_exc: Optional[Exception] = None
+        for attempt in range(max(1, max_retries + 1)):
+            try:
+                return await _call(self._current_model)
+            except OllamaResponseError as exc:
+                last_exc = exc
+                if exc.status_code == 410:
+                    # Model retired — permanently swap to fallback.
+                    if not self._using_fallback:
+                        logger.warning(
+                            "Contextualizer primary model %s retired; switching to fallback %s",
+                            self._current_model,
+                            self._fallback_model,
+                        )
+                        self._using_fallback = True
+                        self._current_model = self._fallback_model
+                        continue
+                logger.warning(
+                    "Contextualizer model %s failed on attempt %d/%d: %s",
+                    self._current_model,
+                    attempt + 1,
+                    max_retries + 1,
+                    exc,
+                )
+            except asyncio.TimeoutError as exc:
+                last_exc = exc
+                logger.warning(
+                    "Contextualizer model %s timed out on attempt %d/%d",
+                    self._current_model,
+                    attempt + 1,
+                    max_retries + 1,
+                )
+        raise RuntimeError(
+            f"Contextual enrichment failed for model {self._current_model}"
+        ) from last_exc
 
 
 class ContextualReingestEngine:
