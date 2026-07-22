@@ -75,6 +75,7 @@ const STEPS = [
 ] as const;
 
 export const DemoModal = ({ isOpen, onComplete, onDismiss }: DemoModalProps) => {
+  const { t } = useTranslation();
   const [stepIndex, setStepIndex] = useState(0);
   const completionRef = useRef(false);
   const step = STEPS[stepIndex];
