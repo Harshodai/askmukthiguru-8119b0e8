@@ -116,7 +116,7 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss }: DemoModalProps) => 
           <button
             type="button"
             onClick={dismiss}
-            aria-label="Close tour"
+            aria-label={t('landing.demo.closeTourAria', 'Close tour')}
             className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-border bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <X className="h-5 w-5" aria-hidden="true" />
