@@ -150,16 +150,21 @@ class ServiceContainer:
                 logger.error(f"Failed to initialize Supabase client early: {e}")
 
     def _build_vector_services(self) -> None:
-        """Layer 2: Embedding and semantic-router services."""
+        """Layer 2: Embedding, semantic-router, and Guru Brain vector/KG services."""
         from services.semantic_model_router import SemanticModelRouter
+        from services.guru_brain.guru_brain_service import GuruBrainService
+        from services.guru_brain.guru_kg_service import GuruKGService
 
         self.embedding = EmbeddingService()
         self.semantic_router = SemanticModelRouter(self.embedding)
+        self.guru_brain_service = GuruBrainService(qdrant_service=self.qdrant, embedding_service=self.embedding)
+        self.guru_kg_service = GuruKGService(neo4j_driver=self.neo4j_driver)
 
         # Initialize GPTCache with the shared embedding service to avoid
         # loading BGE-M3 a second time in a separate SBERT instance.
         from services.cache import init_llm_cache
         init_llm_cache(embedding_func=self.embedding.encode_single)
+
 
     def _build_llm_services(self) -> None:
         """Layer 3: LLM, translation, failover, and circuit-breaker services."""

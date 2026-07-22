@@ -1,5 +1,29 @@
 # Agentic Lessons & Memory
 
+## Jul 22, 2026 — Guru Brain Hallucination Prevention & Lifespan Ops
+
+### 1. HNSW m=16 Patching Belongs in the Application Lifespan
+- **Problem:** LightRAG collections default to HNSW $m=0$ (flat scan) unless explicitly configured. Running patch scripts via temporary files fails in containerized environments (Railway, Docker) due to permission isolation and stateless redeploys.
+- **Fix:** Inject idempotent HNSW m=16 patches directly into the application's `lifespan` background startup body (`_background_startup_body` in `app/main.py`). The check (`if current_m < 16`) takes <50ms and ensures every deploy maintains $O(\log n)$ search performance without manual CLI interventions.
+
+### 2. Feature-Flagged CoVe Must Be Compulsory on Suspect Faithfulness
+- **Problem:** CoVe (Chain of Verification) adds ~15-60s of LLM sub-question checks. Disabling it globally by default speeds up responses but allows low-confidence answers to bypass verification. Hardcoded tier-based bypasses (e.g. `is_tier2` fast path) allowed inaccurate responses to reach users without checking retrieved context.
+- **Fix:** Keep CoVe feature-flagged for normal queries, but enforce a compulsory override when `faithfulness_score < 0.6` regardless of query tier or feature flags. If the initial answer confidence is low, CoVe fires unconditionally to verify claims.
+
+### 3. CPU Reranking Requires Multilingual Small Cross-Encoders
+- **Problem:** Heavy 568M param rerankers like `BAAI/bge-reranker-v2-m3` take ~4s per document on CPU, blowing through pipeline ceilings (88s for 19 docs). Conversely, light English-only rerankers (`ms-marco-MiniLM-L-6-v2`) fail to accurately score non-English queries (Hindi, Telugu, Tamil, Marathi).
+- **Fix:** For CPU-only environments (Railway standard instances), use `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`. At ~22M params, it runs in ~2-4s per batch while correctly ranking multilingual queries. Pre-cache the model during Docker builds via `scripts/download_reranker.py`.
+
+### 4. User Personalization, Second Brain Vault & Memory TTL Strategy
+- **Architecture:** `second_brain_vault` uses a shared Qdrant collection isolated by `user_id` payload filters (`VaultIndex`). Plaintext notes remain encrypted in Postgres (`user_brain_nodes`), vectors in Qdrant. User familiarity is dynamically classified (`Seeker`, `Practitioner`, `Advanced Meditator`) to tailor explanations without preachy tone.
+- **3-Tiered Memory TTL Strategy:**
+  1. *Tier 1 (Ephemeral Session)*: Redis 15-minute sliding TTL (`EPHEMERAL_TTL = 900`).
+  2. *Tier 2 (Transient Query Logs)*: 90-day retention TTL for chat logs and query telemetry.
+  3. *Tier 3 (Core User Memories & Second Brain Vault)*: Retained while active; accounts inactive $>365\text{ days}$ auto-purged via `scripts/ops/cleanup_inactive_user_data.py`.
+- **Privacy Controls:** User can wipe episodic reflections via `DELETE /api/memory/reflections` or forget individual memories via `POST /api/memory/forget` at any time.
+
+
+
 ## Jul 20, 2026 — yt-dlp on Railway: No Browser, No Node.js — Android Client Saves the Day
 
 ### The Bug: yt-dlp downloads fail on Railway because cookie extraction always runs on Linux

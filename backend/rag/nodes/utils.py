@@ -28,7 +28,7 @@ settings = SettingsProxy()
 from app.metrics import PIPELINE_STAGE_LATENCY
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
-from services.rrf_ranker import reciprocal_rank_fusion
+from services.rankers import _reciprocal_rank_fusion
 
 from . import _services
 
@@ -559,7 +559,7 @@ def _rrf_docs(ranked_lists: list[list[dict]], k: int = 60) -> list[dict]:
             id_list.append(key)
         id_rankings.append(id_list)
 
-    sorted_ids = reciprocal_rank_fusion(id_rankings, k=k)
+    sorted_ids = _reciprocal_rank_fusion(id_rankings, k=k)
     return [id_to_doc[key] for key in sorted_ids]
 
 
@@ -849,3 +849,40 @@ def _require_state(state: GraphState, required: list[str]) -> Optional[dict]:
         logger.error(f"NodeContractError: missing required keys: {missing}")
         return {"error": f"NodeContractError: missing required keys: {missing}"}
     return None
+
+
+async def _verify_inline_citations(answer: str, retrieved_docs: list) -> tuple[str, bool, int]:
+    """Resolve inline citation markers, strip orphans, and verify paragraph grounding.
+
+    Supports both [[CITE:N]] and [N] marker patterns.  Delegates marker
+    resolution/grounding to services.citation_service, then strips any
+    remaining unresolvable markers from the text.
+
+    Returns (cleaned_answer, citations_verified, orphan_citations_stripped_count).
+    """
+    if not answer or not retrieved_docs:
+        return answer, False, 0
+
+    from services.citation_service import _check_grounding, resolve, strip_orphan_markers
+
+    marker_pattern = r"\[\[CITE:\d{1,3}\]\]|(?<!\[)\[\d{1,3}\](?!\[)"
+    orig_markers = len(re.findall(marker_pattern, answer))
+    stripped = strip_orphan_markers(answer, retrieved_docs)
+    stripped_markers = len(re.findall(marker_pattern, stripped))
+    orphan_citations_stripped = max(0, orig_markers - stripped_markers)
+
+    resolved = resolve(stripped, retrieved_docs)
+    citations_verified = resolved.grounded
+
+    # Ensure each substantive paragraph has a citation using the service heuristic.
+    if citations_verified and not _check_grounding(stripped, retrieved_docs):
+        citations_verified = False
+
+    # Strip any remaining unresolved [[CITE:N]] markers.
+    remaining_markers = re.findall(r"\[\[CITE:\d{1,3}\]\]", stripped)
+    if remaining_markers:
+        orphan_citations_stripped += len(remaining_markers)
+        stripped = re.sub(r"\[\[CITE:\d{1,3}\]\]", "", stripped)
+        stripped = re.sub(r"\s{2,}", " ", stripped).strip()
+
+    return stripped, citations_verified, orphan_citations_stripped

@@ -28,6 +28,7 @@ from .utils import (
     _grounded_citation_urls,
     _inject_canonical_citations,
     _trace_update,
+    _verify_inline_citations,
     emit_status,
     enforce_source_diversity,
     log_metrics,
@@ -315,17 +316,28 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
     )
     entities_block = cap_to_token_budget(entities_block, 400)
 
-    # relationships: cross-doc sibling links (chunks from the same source)
+    # relationships: cross-doc sibling links & LightRAG graph relationship summaries
     source_to_chunks: dict[str, list[int]] = {}
+    lightrag_summaries: list[str] = []
     for doc in relevant_docs:
+        c_type = doc.get("content_type", "")
+        if c_type in ("graph_summary", "lightrag_relationship_summary") or doc.get("source_url") == "knowledge_graph":
+            clean_text = doc_text(doc).strip()
+            if clean_text:
+                lightrag_summaries.append(clean_text[:400].replace("\n", " "))
+            continue
         key = doc.get("source_url") or doc.get("title") or "unknown"
         idx = int(doc.get("chunk_index") or 0)
         source_to_chunks.setdefault(key, []).append(idx)
     rel_lines: list[str] = []
+    if lightrag_summaries:
+        rel_lines.append("LightRAG Knowledge Graph Synthesis:")
+        for summary in lightrag_summaries[:2]:
+            rel_lines.append(f"  - {summary}")
     for src, idxs in source_to_chunks.items():
         if len(idxs) > 1:
             rel_lines.append(f"- {src}: chunks {sorted(idxs)}")
-    relationships_block = "RELATIONSHIPS (multi-chunk sources):\n" + (
+    relationships_block = "RELATIONSHIPS (multi-chunk sources & LightRAG graph):\n" + (
         "\n".join(rel_lines) if rel_lines else "None"
     )
     relationships_block = cap_to_token_budget(relationships_block, 400)
@@ -798,7 +810,38 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         if lang_suffix:
             system_prompt += f"\n\n{lang_suffix}"
         knowledge = layers['knowledge']
-        user_prompt = f"Context:\n{knowledge}\n\nQuestion: {question}\n\nAnswer based only on the provided context."
+        memory = state.get("memory_context", "").strip()
+
+        # Abstention guard: if both retrieved context and memory are empty, don't hallucinate.
+        if not knowledge.strip() and not memory:
+            logger.warning(
+                "generate_answer tier2: empty context + no memory — returning humble abstention"
+            )
+            _abstain = (
+                "I wasn't able to find specific teachings on this topic in the wisdom library. "
+                "Could you rephrase your question or explore a related topic like the Beautiful State, "
+                "Soul Sync, or Deeksha practices?"
+            )
+            if stream_queue:
+                await stream_queue.put(_abstain)
+            return {
+                "answer": _abstain,
+                "citations": [],
+                "citation_reasoning": {},
+                "is_faithful": True,
+                "confidence_score": 8.0,
+                "faithfulness_score": 1.0,
+            }
+
+        # Build user prompt — include memory context if available
+        context_block = f"Context:\n{knowledge}" if knowledge.strip() else ""
+        memory_block = f"Personal Context (from your previous interactions):\n{memory}" if memory else ""
+        context_section = "\n\n".join(filter(None, [context_block, memory_block]))
+        user_prompt = (
+            f"{context_section}\n\n"
+            f"Question: {question}\n\n"
+            f"Answer based only on the provided context."
+        ) if context_section else f"Question: {question}\n\nAnswer based only on the provided context."
         if history_str:
             user_prompt = f"{history_str}\n\n{user_prompt}"
     elif layers:
@@ -1352,6 +1395,28 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         
     answer = re.sub(r'\[Source:\s*([^\]]+)\]', replace_source_match, answer)
     answer = _clean_inline_citations(answer)
+
+    # Inline citation verification: resolve [[CITE:N]] and [N] markers, strip orphans,
+    # and strip sentences with unresolvable markers.
+    citations_verified = True
+    orphan_citations_stripped = False
+    if answer and ("[[CITE:" in answer or re.search(r"(?<!\[)\[\d{1,3}\](?!\[)", answer)):
+        try:
+            answer, citations_verified, orphan_count = await _verify_inline_citations(
+                answer, relevant_docs
+            )
+            orphan_citations_stripped = orphan_count > 0
+        except Exception as _cite_err:
+            logger.warning("Citation post-verification failed (non-fatal): %s", _cite_err)
+            citations_verified = False
+
+    verification = state.get("verification")
+    if not isinstance(verification, dict):
+        verification = {"passed": verification} if isinstance(verification, bool) else {}
+    verification["citations_verified"] = citations_verified
+    if not citations_verified:
+        verification["passed"] = False
+    state["verification"] = verification
 
     # Fast-tier: accept unconditionally (skips full verification pipeline)
     if query_tier in ("fast", "tier2_simple") and answer and len(answer.strip()) > 20:

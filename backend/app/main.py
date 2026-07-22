@@ -223,7 +223,224 @@ async def _background_startup_body(container, fastapi_app) -> None:
     except Exception as e:
         logger.warning(f"Ontology seeding skipped (non-critical): {e}")
 
+    # Patch LightRAG Qdrant collections: HNSW m=0 → m=16 (idempotent, best-effort)
+    # Without this, every LightRAG query is O(n) linear scan at 50k+ entities.
+    logger.info("Lifespan: patching LightRAG HNSW indexes...")
+    try:
+        from qdrant_client.models import HnswConfigDiff
+
+        _qdrant_client = getattr(container, "qdrant_service", None)
+        _qclient = getattr(_qdrant_client, "_client", None) if _qdrant_client else None
+        if _qclient:
+            _lightrag_collections = [
+                "lightrag_vdb_entities_baai_bge_m3_1024d",
+                "lightrag_vdb_relationships_baai_bge_m3_1024d",
+                "lightrag_vdb_chunks_baai_bge_m3_1024d",
+            ]
+            for _col in _lightrag_collections:
+                try:
+                    _info = await asyncio.to_thread(_qclient.get_collection, _col)
+                    _current_m = getattr(getattr(_info.config, "hnsw_config", None), "m", None)
+                    if _current_m is None or _current_m < 16:
+                        await asyncio.to_thread(
+                            _qclient.update_collection,
+                            _col,
+                            hnsw_config=HnswConfigDiff(m=16, ef_construct=100),
+                        )
+                        logger.info("Lifespan: HNSW patched m=16 on %s", _col)
+                    else:
+                        logger.info("Lifespan: HNSW already m=%d on %s — skip", _current_m, _col)
+                except Exception as _ce:
+                    logger.warning("Lifespan: HNSW patch skipped for %s: %s", _col, _ce)
+        else:
+            logger.warning("Lifespan: Qdrant client unavailable — HNSW patch skipped")
+    except Exception as e:
+        logger.warning(f"Lifespan: HNSW patch block error (non-critical): {e}")
+
+    # Create Qdrant payload indexes on spiritual_wisdom for fast filter retrieval
+    logger.info("Lifespan: ensuring Qdrant payload indexes on spiritual_wisdom...")
+    try:
+        from qdrant_client.models import PayloadSchemaType
+
+        _qdrant_client2 = getattr(container, "qdrant_service", None)
+        _qclient2 = getattr(_qdrant_client2, "_client", None) if _qdrant_client2 else None
+        if _qclient2:
+            _SW = "spiritual_wisdom"
+            _int_fields = ["raptor_level", "cluster_id"]
+            _kw_fields = ["language", "content_type", "speaker", "topic"]
+            for _f in _int_fields:
+                try:
+                    await asyncio.to_thread(
+                        _qclient2.create_payload_index, _SW, _f, PayloadSchemaType.INTEGER
+                    )
+                except Exception:
+                    pass  # index may already exist — idempotent
+            for _f in _kw_fields:
+                try:
+                    await asyncio.to_thread(
+                        _qclient2.create_payload_index, _SW, _f, PayloadSchemaType.KEYWORD
+                    )
+                except Exception:
+                    pass  # idempotent
+            logger.info("Lifespan: payload indexes ensured on spiritual_wisdom")
+    except Exception as e:
+        logger.warning(f"Lifespan: payload index creation error (non-critical): {e}")
+
+    # Delete stale/ghost Qdrant collections with wrong dimensions (dimension mismatch = silent failures)
+    # NOTE: global_memory and second_brain_vault are intentionally preserved (future features).
+    logger.info("Lifespan: cleaning up stale 384d LightRAG collections...")
+    try:
+        _qdrant_client3 = getattr(container, "qdrant_service", None)
+        _qclient3 = getattr(_qdrant_client3, "_client", None) if _qdrant_client3 else None
+        if _qclient3:
+            _stale_384d = [
+                "lightrag_vdb_entities_intfloat_multilingual_e5_small_384d",
+                "lightrag_vdb_relationships_intfloat_multilingual_e5_small_384d",
+                "lightrag_vdb_chunks_intfloat_multilingual_e5_small_384d",
+                "spiritual_wisdom_recovery_v20260713_004009",
+                "spiritual_wisdom_recovery_v20260713_003753",
+                "semantic_query_cache",  # 0-point empty stale — will be re-created below
+            ]
+            _existing_cols = {
+                c.name for c in (await asyncio.to_thread(_qclient3.get_collections)).collections
+            }
+            for _stale in _stale_384d:
+                if _stale in _existing_cols:
+                    try:
+                        await asyncio.to_thread(_qclient3.delete_collection, _stale)
+                        logger.info("Lifespan: deleted stale collection %s", _stale)
+                    except Exception as _de:
+                        logger.warning("Lifespan: could not delete %s: %s", _stale, _de)
+    except Exception as e:
+        logger.warning(f"Lifespan: stale collection cleanup error (non-critical): {e}")
+
+    # Ensure semantic_query_cache Qdrant collection exists for semantic caching
+    logger.info("Lifespan: ensuring semantic_query_cache collection...")
+    try:
+        from qdrant_client.models import VectorParams, Distance
+
+        _qdrant_client4 = getattr(container, "qdrant_service", None)
+        _qclient4 = getattr(_qdrant_client4, "_client", None) if _qdrant_client4 else None
+        if _qclient4:
+            _cache_col = "semantic_query_cache"
+            _existing4 = {
+                c.name for c in (await asyncio.to_thread(_qclient4.get_collections)).collections
+            }
+            if _cache_col not in _existing4:
+                await asyncio.to_thread(
+                    _qclient4.create_collection,
+                    _cache_col,
+                    vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
+                )
+                logger.info("Lifespan: created semantic_query_cache collection (1024d cosine)")
+            else:
+                logger.info("Lifespan: semantic_query_cache already exists — skip")
+    except Exception as e:
+        logger.warning(f"Lifespan: semantic_query_cache init error (non-critical): {e}")
+
+    # Ensure spiritual_wisdom HNSW is optimal (m>=16, not default 0)
+    logger.info("Lifespan: checking spiritual_wisdom HNSW config...")
+    try:
+        from qdrant_client.models import HnswConfigDiff as _HnswDiff
+
+        _qdrant_client5 = getattr(container, "qdrant_service", None)
+        _qclient5 = getattr(_qdrant_client5, "_client", None) if _qdrant_client5 else None
+        if _qclient5:
+            _sw_info = await asyncio.to_thread(_qclient5.get_collection, "spiritual_wisdom")
+            _sw_m = getattr(getattr(_sw_info.config, "hnsw_config", None), "m", None)
+            if _sw_m is None or _sw_m < 16:
+                await asyncio.to_thread(
+                    _qclient5.update_collection,
+                    "spiritual_wisdom",
+                    hnsw_config=_HnswDiff(m=16, ef_construct=200),
+                )
+                logger.info("Lifespan: spiritual_wisdom HNSW patched m=16")
+            else:
+                logger.info("Lifespan: spiritual_wisdom HNSW m=%d — OK", _sw_m)
+    except Exception as e:
+        logger.warning(f"Lifespan: spiritual_wisdom HNSW check error (non-critical): {e}")
+
+    # LightRAG entity merge: deduplicate known spiritual concept name variants (idempotent)
+    logger.info("Lifespan: running LightRAG entity dedup merge...")
+    try:
+        _lightrag_svc = getattr(container, "lightrag", None)
+        _rag_instance = getattr(_lightrag_svc, "_rag", None) if _lightrag_svc else None
+        if _rag_instance and hasattr(_rag_instance, "merge_entities"):
+            _ENTITY_MERGES = [
+                (["karma", "Karma", "KARMA"], "Karma"),
+                (["dharma", "Dharma", "DHARMA"], "Dharma"),
+                (["deeksha", "Deeksha", "DEEKSHA", "deeksha blessing"], "Deeksha"),
+                (["aham", "Aham", "AHAM", "aham consciousness"], "Aham"),
+                (["beautiful state", "Beautiful State", "beautiful-state", "BeautifulState"], "Beautiful State"),
+                (["suffering state", "Suffering State", "suffering-state"], "Suffering State"),
+                (["soul sync", "Soul Sync", "SoulSync", "soul-sync"], "Soul Sync"),
+                (["oneness blessing", "Oneness Blessing", "oneness-blessing"], "Oneness Blessing"),
+                (["breath awareness", "Breath Awareness", "breath-awareness"], "Breath Awareness"),
+                (["beautiful state of being", "beautiful state of consciousness"], "Beautiful State"),
+            ]
+            for _sources, _target in _ENTITY_MERGES:
+                try:
+                    await asyncio.to_thread(_rag_instance.merge_entities, _sources, _target)
+                except Exception as _me:
+                    pass  # entity may not exist yet — fine, idempotent
+            logger.info("Lifespan: LightRAG entity dedup merge complete (%d merge rules applied)", len(_ENTITY_MERGES))
+        else:
+            logger.info("Lifespan: LightRAG instance unavailable — entity merge skipped")
+    except Exception as e:
+        logger.warning(f"Lifespan: LightRAG entity merge error (non-critical): {e}")
+
+    # Embedding model drift detection: write/verify model fingerprint
+    # If embedding model changed, all existing vectors are stale — alert on mismatch.
+    logger.info("Lifespan: checking embedding model fingerprint...")
+    try:
+        import json as _json
+        import hashlib as _hashlib
+
+        _embed_model_name = getattr(settings, "embedding_model", "BAAI/bge-m3")
+        _embed_dim = getattr(settings, "embedding_dimension", 1024)
+        _fingerprint = _hashlib.md5(f"{_embed_model_name}:{_embed_dim}".encode()).hexdigest()
+        _fp_path = "/tmp/embedding_model_fingerprint.json"
+
+        if __import__("os").path.exists(_fp_path):
+            with open(_fp_path) as _f:
+                _stored = _json.load(_f)
+            if _stored.get("fingerprint") != _fingerprint:
+                logger.critical(
+                    "⚠️  EMBEDDING MODEL CHANGED: stored=%s current=%s model=%s dim=%d. "
+                    "Full re-indexing of spiritual_wisdom required to avoid retrieval degradation!",
+                    _stored.get("fingerprint"), _fingerprint, _embed_model_name, _embed_dim,
+                )
+            else:
+                logger.info("Lifespan: embedding model fingerprint OK (%s)", _fingerprint[:8])
+        else:
+            with open(_fp_path, "w") as _f:
+                _json.dump({"model": _embed_model_name, "dim": _embed_dim, "fingerprint": _fingerprint}, _f)
+            logger.info("Lifespan: embedding model fingerprint stored (%s)", _fingerprint[:8])
+    except Exception as e:
+        logger.warning(f"Lifespan: embedding model drift check error (non-critical): {e}")
+
+    # Verify multilingual reranker model is cached (fail fast on cold start to surface missing models)
+    logger.info("Lifespan: verifying reranker model availability...")
+    try:
+        import os as _os
+
+        _reranker_model = getattr(settings, "reranker_model_cpu", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1")
+        _model_cache = _os.environ.get("SENTENCE_TRANSFORMERS_HOME", "/app/model_cache/sentence_transformers")
+        # Convert model ID to cache path format (slashes → dashes)
+        _model_dir = _os.path.join(_model_cache, _reranker_model.replace("/", "_"))
+        _alt_model_dir = _os.path.join(_model_cache, _reranker_model.replace("/", "__"))
+        if _os.path.isdir(_model_dir) or _os.path.isdir(_alt_model_dir):
+            logger.info("Lifespan: reranker model %s found in cache — OK", _reranker_model)
+        else:
+            logger.warning(
+                "Lifespan: reranker model %s NOT in cache at %s — will download on first use (cold start latency expected)",
+                _reranker_model, _model_cache,
+            )
+    except Exception as e:
+        logger.warning(f"Lifespan: reranker cache check error (non-critical): {e}")
+
     # Observability tracing (OpenTelemetry + Jaeger)
+
     logger.info("Lifespan: about to init observability...")
     init_observability(fastapi_app)
     logger.info("Lifespan: observability done")

@@ -123,14 +123,14 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_fast_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
-    openrouter_generation_model: str = "qwen/qwen3-30b-a3b-instruct-2507"
+    openrouter_generation_model: str = "google/gemini-3.6-flash"
     openrouter_generation_model_fallback: str = "google/gemini-2.5-flash"
     openrouter_classify_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     openrouter_rpm_limit: int = 20
 
     # --- Gemini translation (layered ahead of Sarvam via OpenRouter) ---
     gemini_translation_enabled: bool = True
-    gemini_model: str = "google/gemini-2.5-flash"
+    gemini_model: str = "google/gemini-3.6-flash"
     gemini_fallback_to_sarvam: bool = True
 
     # --- Nvidia NIM (hosted API Catalog) ---
@@ -177,13 +177,12 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-m3"
     embedding_dimension: int = 1024
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
-    # CPU-only deployments (the free-tier target) must NOT run bge-reranker-v2-m3:
-    # 568M params on CPU costs ~4s/doc → 88s for 19 docs (verified in docker logs),
-    # which blew the 300s pipeline ceiling and is the "why >30s" cause. On CPU use a
-    # light cross-encoder (~22M) that reranks the same batch in ~2-4s. GPU/MPS still
-    # use `reranker_model` above. Swap to "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
-    # if native-language (Hindi/Tamil/…) rerank quality matters more than raw speed.
-    reranker_model_cpu: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    # CPU-only deployments (Railway) must NOT run bge-reranker-v2-m3:
+    # 568M params on CPU costs ~4s/doc → 88s for 19 docs (verified in docker logs).
+    # Use multilingual mMiniLMv2-L12 (~22M params) — same speed as ms-marco-MiniLM
+    # but covers Hindi, Telugu, Tamil, Kannada, and all 6 app languages.
+    # GPU/MPS path still uses bge-reranker-v2-m3 above.
+    reranker_model_cpu: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
     enable_colbert: bool = False
 
     # --- Whisper / Transcription ---
@@ -636,10 +635,10 @@ class Settings(BaseSettings):
     rag_deep_research_max_depth: int = 2
     important_kwd_boost_enabled: bool = True
     important_kwd_boost_per_term: float = 0.2
-    rag_citation_cosine_enabled: bool = False
+    rag_citation_cosine_enabled: bool = True  # semantic cosine citation > Jaccard (multilingual)
     # Citation similarity thresholds — adaptive by query type
     # Higher = stricter (fewer false positive citations)
-    citation_jaccard_threshold: float = 0.18      # was 0.08
+    citation_jaccard_threshold: float = 0.25      # raised from 0.18 — fewer false-positive citations
     citation_cosine_threshold: float = 0.65       # was 0.50
     # Per-intent overrides (merge with defaults)
     citation_thresholds_by_intent: dict[str, dict[str, float]] = Field(
@@ -660,10 +659,13 @@ class Settings(BaseSettings):
     # immediately; only a hard verification failure silently falls back to FALLBACK_RESPONSE.
     # When False, generation and verification are fully sequential (legacy behaviour).
     rag_parallel_verify: bool = True
-    # When True, skip the CoVe (sub-question verification) LLM calls for tier3_complex queries.
-    # CoVe adds ~60s and up to 4 small LLM calls. LettuceDetect faithfulness scoring remains.
-    # Default True (disabled) to reduce pipeline LLM calls.
-    rag_cove_disabled: bool = True
+    # CoVe (sub-question verification) for tier3_complex queries.
+    # Feature-flagged: False = enabled. When faithfulness_score < faithfulness_floor,
+    # CoVe fires unconditionally even on fast/tier2 queries per user mandate.
+    # CoVe adds ~15-60s on Ollama; on AnthropicGateway it's ~5-8s.
+    rag_cove_disabled: bool = False
+    # CoVe compulsory threshold: if faithfulness_score < this, CoVe fires regardless of tier.
+    cove_compulsory_threshold: float = 0.6  # same as faithfulness_floor
     # Agentic Graph Traversal configuration (for COMPARATIVE intent + tier3_complex)
     agentic_graph_traversal_enabled: bool = True
     agentic_graph_max_steps: int = 3
