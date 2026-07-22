@@ -573,7 +573,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         <button
           onClick={() => setShowSettings(!showSettings)}
           className="absolute top-3 right-3 z-10 p-2 rounded-lg bg-black/60 border border-white/10 hover:bg-black/80 hover:border-white/20 transition-all text-white"
-          title="Graph view settings"
+          title={t('kg.settings.title', 'Graph view settings')}
         >
           <Settings className={`w-4 h-4 ${showSettings ? 'animate-spin' : ''}`} />
         </button>
@@ -581,7 +581,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         {/* Floating Settings Drawer */}
         {showSettings && (
           <div className="absolute top-14 right-3 z-10 w-64 p-4 rounded-xl bg-black/85 border border-white/10 backdrop-blur-md shadow-2xl flex flex-col gap-4 text-white text-xs select-none">
-            <h3 className="font-semibold text-sm border-b border-white/10 pb-2">Graph view settings</h3>
+            <h3 className="font-semibold text-sm border-b border-white/10 pb-2">{t('kg.settings.title', 'Graph view settings')}</h3>
             
             {/* Repulsion Force */}
             <div className="flex flex-col gap-1.5">
