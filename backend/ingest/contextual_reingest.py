@@ -72,6 +72,8 @@ def _ollama_model_available_sync(base_url: str, model: str, timeout: float = 10.
 class _LocalOllamaContextualizer:
     """Thin wrapper that forces local Ollama and primary/fallback model swap.
 
+    Bypasses the normal OllamaService provider guard so re-ingest can use any
+    locally-tagged Ollama model even when OLLAMA_CLOUD_ONLY is true globally.
     The primary model is loaded at construction; if generation fails with an
     Ollama ResponseError, the wrapper swaps to the fallback model and retries
     once. This keeps the re-ingest resilient to transient model retirement.
@@ -118,21 +120,33 @@ class _LocalOllamaContextualizer:
             )
 
     @property
-    def service(self) -> OllamaService:
-        if self._service is None:
-            # Build an OllamaService configured for local-only models.
-            os.environ["OLLAMA_BASE_URL"] = self._base_url
-            os.environ["OLLAMA_MODEL"] = self._current_model
-            os.environ["OLLAMA_CLASSIFY_MODEL"] = self._current_model
-            os.environ["OLLAMA_CLOUD_ONLY"] = "false"
-            self._service = OllamaService()
-        return self._service
+    def service(self) -> "_LocalOllamaContextualizer":
+        """Return self so ContextualChunkingService can call .generate()."""
+        return self
 
-    async def generate(self, system_prompt: str, user_prompt: str) -> str:
-        from ollama import ResponseError as OllamaResponseError
+    async def generate(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        timeout: float = 30.0,
+        max_retries: int = 1,
+    ) -> str:
+        """Generate via raw Ollama AsyncClient, with optional fallback swap."""
+        from ollama import AsyncClient, ResponseError as OllamaResponseError
+
+        async def _call(model: str) -> str:
+            client = AsyncClient(host=self._base_url)
+            # The ollama client accepts 'timeout' as an Options value.
+            response = await client.generate(
+                model=model,
+                prompt=user_prompt,
+                system=system_prompt,
+                options={"temperature": 0.3, "num_predict": 256, "timeout": timeout * 1000},
+            )
+            return response.get("response", "")
 
         try:
-            return await self.service.generate(system_prompt, user_prompt)
+            return await _call(self._current_model)
         except OllamaResponseError as exc:
             if self._using_fallback:
                 raise
@@ -144,8 +158,7 @@ class _LocalOllamaContextualizer:
             )
             self._using_fallback = True
             self._current_model = self._fallback_model
-            self._service = None
-            return await self.service.generate(system_prompt, user_prompt)
+            return await _call(self._current_model)
 
 
 class ContextualReingestEngine:
