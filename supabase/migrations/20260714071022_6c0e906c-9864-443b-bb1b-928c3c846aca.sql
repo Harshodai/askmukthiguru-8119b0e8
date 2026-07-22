@@ -24,7 +24,6 @@ REVOKE EXECUTE ON FUNCTION public.list_admins() FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.ensure_profile_and_role() FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.whoami_diagnostics() FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.match_user_memories(vector, integer, double precision) FROM PUBLIC, anon;
-REVOKE EXECUTE ON FUNCTION public.match_kb_chunks(vector, integer, double precision) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) FROM PUBLIC, anon;
 
 -- 4) Enforce email-domain allow-list server-side inside handle_new_user.
