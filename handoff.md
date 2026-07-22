@@ -1,128 +1,36 @@
-# Session Handoff — 2026-07-20
+# AskMukthiGuru — Handoff
 
-Working tree: 2 files changed, 51 insertions(+), 4 deletions(-), uncommitted.
+## 1. Goal
+Ship a world-class, multilingual, mobile-first spiritual AI product (web + Android + iOS) grounded in Sri Preethaji & Sri Krishnaji doctrine. Zero-hallucination RAG, secure Supabase-backed auth/data, refined "Digital Ashram" UI, and safe production deployment on Railway/Lovable Cloud.
 
-```
-M backend/config/router_routes.yaml
-M backend/services/semantic_router.py
-```
+## 2. Current State
+- **Build**: `bun run build` green, 17 routes prerendered.
+- **Security**: Latest scan findings fixed or ignored with documented rationale in `@security-memory` (RLS on `kb_sources`, `kb_chunks`, `daily_teachings` storage, `ingest_jobs` cleanup, definer-fn EXECUTE revokes, SSRF redirect check, 12-char password policy).
+- **UI**: World-class redesign phase 1–3 shipped — chat tokens, user bubble contrast, glass auth, Obsidian-style force-directed KG, profile hero + stat sparklines, Cormorant sacred typography, safe-area utilities.
+- **Meditation**: Unified Serene Mind player with Preethaji audio + TTS fallback on 404; YouTube link; step/audio sync via `useMeditationAudio`.
+- **i18n**: 6 real locales (en/hi/te/kn/ta/mr) + 8 fallbacks; parity regression test guards regressions. This turn wired `t()` in `ProfilePage` tabs, `PracticesPage` sections, `KGConceptMap` settings, and `DemoModal` tour; added missing keys to `en.json` and extended baselines.
+- **Backend**: Railway prod healthy, embedding contract enforced (bge-m3 pinned, dimension guard), OKF doctrine bundle live.
 
-No stash entries. (`stash@{0}` was dropped this session — stale older versions
-of `AGENTS.md`/`RUTHLESS_PLAN.md`, nothing lost.)
+## 3. Files Actively Edited (this turn)
+- `src/locales/en.json` — added `landing.demo.*`, `profile.tabs.*`, `practices.dailyWisdom.badge`, `practices.sections.*`, `common.gurusName`.
+- `src/test/__snapshots__/i18n_baseline_hi.txt`, `..._te.txt` — extended for new user-facing keys.
+- `src/components/kg/KGConceptMap.tsx` — `t()` on help + settings drawer.
+- `src/pages/ProfilePage.tsx` — `t()` on all 7 tab triggers.
+- `src/pages/PracticesPage.tsx` — `t()` on Wisdom of the Day badge, gurus attribution, section headings.
+- `src/components/landing/DemoModal.tsx` — `useTranslation` + `t()` on close/aria/newHere labels.
+- `handoff_railway.md` — appended LightRAG persistent-volume runbook.
+- `handoff.md` — this file.
 
----
+## 4. Tried & Failed / Known Gaps
+- **8 fallback locales (bn/gu/ml/ur/or/pa/as/sa)**: registered, users see English — deferred (needs Gemini batch translation, ~2 credits/locale).
+- **Admin console i18n**: English-only by design; not attempted.
+- **Google OAuth Playwright E2E**: cannot automate real Google IdP without dedicated test identities; single-redirect guard (sessionStorage cooldown) is in place and manually verified.
+- **Forgot-password E2E via real inbox**: not automated; happy-path Playwright covers route mount + form render. Full inbox click-through would require an edge function generating a recovery link for a test user.
+- **LightRAG persistent volume**: cannot mount Railway volumes from Lovable — documented in `handoff_railway.md` as a user action.
+- **`pytest` `test_ingest_playlist_chord`**: fails locally without Redis; passes in Docker stack.
 
-## 1. What this session resolved (prior §5 items)
-
-### §5.1 — Full build + scoped test pass ✅
-- `npm run build` → clean, 17 routes prerendered, no errors.
-- `npx vitest run` (LanguageSelector + ChatMessage) → 18/18 pass.
-- `pytest -q` → 1020 passed, 8 skipped, 1 failed (pre-existing Redis-only
-  `test_ingest_playlist_chord` — no local Redis, environment-only, unchanged).
-
-### §5.2 — Routing logic (capability_question) verified ✅
-The YAML evolved from `capability_question_stems` (prefix list) to
-`capability_question_patterns` (regex) since the prior handoff was written.
-Verified all 11 test cases pass with the actual regex implementation:
-- Bug-report query `"what kind of teachings you had for me"` → correctly excluded from DISTRESS.
-- All 9 original DISTRESS training utterances + 3 new question-phrased distress examples → correctly NOT excluded.
-- `is_interrogative` startswith fix confirmed (mid-sentence `"how to go on"` no longer false-positives).
-The embedding-model live verification (cosine threshold against the real
-`SentenceTransformer`) is still unconfirmed — needs a live backend smoke test.
-
-### §5.3 — #13 Serene Mind video-vs-audio — CLOSED as misdiagnosis ✅
-Code inspection proves `handle_distress` returns no `citations` key →
-`graph_stage.py` sets `ctx.citations = []` → frontend renders zero YouTube
-embeds for distress responses. Every `openSereneMind()` call site passes
-`'audio'` or no arg (defaults audio). The video the user saw was the inline
-`<LazyYouTube>` citation embed from a prior QUERY turn in the same conversation,
-not the Serene Mind overlay. No code change needed.
-
-### §5.4 — #12 second-brain migrations — APPLIED ✅
-All 4 migrations applied to prod Supabase project `ozmjeuqbholoxypfxixb` via
-the management API, authenticated with the user's personal access token.
-Tables confirmed live on remote:
-- `user_brain_keys` (vault DEKs)
-- `user_brain_nodes` (encrypted brain artifacts)
-- `user_brain_edges` (encrypted relationships)
-- `user_streaks`
-RLS enabled on all. `/second-brain` route in prod should now work.
-
-NOTE: CLI `db push` is broken for this project — 5 older migrations were
-applied manually before CLI linking and aren't tracked in
-`supabase_migrations.schema_migrations`. Management API bypass was the only
-workable path. To fix `db push` permanently: insert those 5 migration names
-as already-applied rows into `supabase_migrations.schema_migrations` on remote.
-
-### §5.6 — Stale stash dropped ✅
-`git stash drop stash@{0}`. Both files were stale older versions. Nothing lost.
-
----
-
-## 2. New changes made this session
-
-### `backend/config/router_routes.yaml` (+13 lines)
-DISTRESS utterances expanded 9 → 19. Added:
-- 3 more declarative anchors.
-- 5 question-phrased distress forms (why/how) that pass the capability_question
-  veto correctly but were absent from the centroid — strengthens centroid so
-  these phrasings score high against DISTRESS without relying only on keyword fallback.
-- 1 more Hinglish form.
-
-### `backend/services/semantic_router.py` (+42/-4 lines)
-Two improvements to `classify()`:
-1. Query encoded once (was re-encoding per route — minor latency fix).
-2. Top-3 score logging + near-tie warning:
-   - Every match/no-match logs top-3 scores at DEBUG.
-   - When winner and runner-up within 0.05: `router:near_tie` WARNING logged —
-     production signal for taxonomy collisions without manual query replay.
-   - Zero noise in prod unless DEBUG logging enabled (WARNING always visible).
-
----
-
-## 3. Test state
-- Backend: `1020 passed, 8 skipped, 1 failed` (same as prior session).
-  Semantic router: `44/44 pass`.
-- Frontend: `18/18 pass`.
-- `npm run build`: clean.
-
----
-
-## 4. Remaining open work — prioritized
-
-1. **Live smoke test of #11 fix** — `"what kind of teachings you had for me"` against
-   a running backend with real embedding model loaded. All verification so far is
-   pure string-logic; cosine-similarity threshold behavior against the live
-   `SentenceTransformer` was never confirmed end-to-end. Biggest remaining unknown.
-   Needs: `docker compose up -d backend`.
-
-2. **Pipeline quality audit** — User asked: "is our entire pipeline top notch?"
-   Not answered with a real audit in either session. Needs eval-set benchmarking:
-   ```bash
-   docker compose up -d qdrant redis neo4j jaeger
-   cd backend && .venv/bin/python benchmarks/ragas_eval.py --output ragas_baseline.json
-   ```
-   Tooling exists. Scope as its own dedicated task.
-
-3. **Reconcile Auth-screen mockup vs. #10 in-place fix** — 5 of 8 design screens
-   remain: Auth, Guided Tour, Practices, Profile, Product Demo. Mockup shows single
-   plain Google button (no One Tap). #10 fix kept One Tap + patched double-fire.
-   Before touching `AuthPage.tsx` again: confirm which direction user wants.
-
-4. **CLI `db push` drift** — 5 older migrations not tracked in CLI migration history.
-   Low urgency (management API bypass works), but fix before any team member uses CLI.
-
-5. **`engagement-card.test.tsx` 5 pre-existing failures** — Spawned as background
-   task in prior session, never confirmed resolved.
-   Check: `npx vitest run src/test/engagement-card.test.tsx`.
-
----
-
-## 5. Environment notes
-- No local Redis (Celery chord test fails).
-- No local Docker stack (Qdrant, Neo4j, Jaeger offline).
-- Supabase personal access token used this session:
-  `sbp_REDACTED`
-  (may be rotated — re-generate at supabase.com/dashboard/account/tokens if API calls fail).
-- DB host: `db.ozmjeuqbholoxypfxixb.supabase.co`.
-- Project ref: `ozmjeuqbholoxypfxixb`.
+## 5. Next Step
+1. Trigger a fresh SEO scan (`seo_chat--trigger_scan`); if `lighthouse:lighthouse_performance` still fails, add explicit `<link rel="preload">` for hero image and hero font in `index.html`.
+2. Sweep remaining low-visibility strings in `MemoryManager` and `PracticeDetailPage` for `t()` coverage (~15 sites left per `I18N_GAPS.md`).
+3. Migrate `public/sitemap.xml` to a build-time generator so route changes stay in sync.
+4. Publish once the next scan is green.
