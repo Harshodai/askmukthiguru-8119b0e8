@@ -11,6 +11,7 @@ Design choices:
 - Embeddings reuse the project's bge-m3 EmbeddingService (1024-dim dense+sparse).
 - Deterministic point IDs make the task idempotent.
 - Progress is resumed via scripts/ingestion/ingestion_state.json.
+- Runtime Ollama health/model check prevents silent stalls.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+import aiohttp
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import PointStruct
 
@@ -47,27 +49,68 @@ _STATE_FILE: Path = Path(__file__).resolve().parents[2] / "scripts" / "ingestion
 _STATE_KEY: str = "contextual_reingest_processed_sources"
 
 
+async def _ollama_model_available(base_url: str, model: str, timeout: float = 10.0) -> bool:
+    """Return True if Ollama is reachable and *model* is in its tag list."""
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+            async with session.get(f"{base_url.rstrip('/')}/api/tags") as resp:
+                if resp.status != 200:
+                    return False
+                data = await resp.json()
+                names = {m.get("name", "") for m in data.get("models", [])}
+                return model in names
+    except Exception as exc:
+        logger.debug("Ollama availability check failed for %s/%s: %s", base_url, model, exc)
+        return False
+
+
 class _LocalOllamaContextualizer:
     """Thin wrapper that forces local Ollama and primary/fallback model swap.
 
     The primary model is loaded at construction; if generation fails with an
     Ollama ResponseError, the wrapper swaps to the fallback model and retries
     once. This keeps the re-ingest resilient to transient model retirement.
+
+    Runtime guard: construction checks that the requested base URL/model are
+    actually reachable. If neither primary nor fallback is available, the
+    engine fails fast with an actionable message instead of retrying silently.
     """
 
     def __init__(
         self,
-        base_url: str = "http://localhost:11434",
-        primary_model: str = "gemini-3-flash-preview:cloud",
-        fallback_model: str = "deepseek-v4-flash:cloud",
+        base_url: Optional[str] = None,
+        primary_model: Optional[str] = None,
+        fallback_model: Optional[str] = None,
         existing_service: Optional[OllamaService] = None,
+        skip_health_check: bool = False,
     ) -> None:
-        self._base_url = base_url
-        self._primary_model = primary_model
-        self._fallback_model = fallback_model
+        self._base_url = base_url or settings.ollama_base_url or "http://localhost:11434"
+        self._primary_model = primary_model or os.environ.get("OLLAMA_REINGEST_MODEL", "gemini-3-flash-preview:cloud")
+        self._fallback_model = fallback_model or os.environ.get("OLLAMA_REINGEST_FALLBACK_MODEL", "deepseek-v4-flash:cloud")
         self._service = existing_service
-        self._current_model = primary_model
+        self._current_model = self._primary_model
         self._using_fallback = False
+
+        if not skip_health_check:
+            primary_ok = asyncio.run(_ollama_model_available(self._base_url, self._primary_model))
+            if primary_ok:
+                return
+            fallback_ok = asyncio.run(_ollama_model_available(self._base_url, self._fallback_model))
+            if fallback_ok:
+                logger.warning(
+                    "Primary re-ingest model %s unavailable at %s; falling back to %s",
+                    self._primary_model,
+                    self._base_url,
+                    self._fallback_model,
+                )
+                self._current_model = self._fallback_model
+                return
+            raise RuntimeError(
+                f"Contextual re-ingest requires Ollama at {self._base_url} with model "
+                f"{self._primary_model} or fallback {self._fallback_model}. "
+                "Set OLLAMA_REINGEST_MODEL / OLLAMA_REINGEST_FALLBACK_MODEL to available tags, "
+                "or ensure Ollama is reachable."
+            )
 
     @property
     def service(self) -> OllamaService:
@@ -136,8 +179,16 @@ class ContextualReingestEngine:
         self,
         source_url: Optional[str] = None,
         limit: int = 1,
+        skip_health_check: bool = False,
     ) -> dict[str, Any]:
-        """Preview what would be re-ingested without writing to Qdrant."""
+        """Preview what would be re-ingested without writing to Qdrant.
+
+        Health check is skipped during dry-run for fast previews; the real
+        re-ingest task runs it before any LLM work.
+        """
+        # Force lazy initialization of the contextualizer (and health check)
+        # so callers get a clear error if Ollama is not ready.
+        self._contextualizer_service(skip_health_check=skip_health_check)
         sources = self._list_source_groups(source_url=source_url, limit=limit)
         previews = []
         total_chunks = 0
@@ -171,6 +222,9 @@ class ContextualReingestEngine:
         skip_processed: bool = True,
     ) -> dict[str, Any]:
         """Re-ingest sources into the contextual collection."""
+        # Fail fast if Ollama is not available — never queue a hours-long job
+        # that will stall on the first LLM call.
+        self._contextualizer_service(skip_health_check=False)
         self._ensure_target_collection()
 
         processed: set[str] = set(self._state.get(_STATE_KEY, [])) if skip_processed else set()
@@ -256,9 +310,9 @@ class ContextualReingestEngine:
             self._embedding = EmbeddingService()
         return self._embedding
 
-    def _contextualizer_service(self) -> _LocalOllamaContextualizer:
+    def _contextualizer_service(self, skip_health_check: bool = False) -> _LocalOllamaContextualizer:
         if self._contextualizer is None:
-            self._contextualizer = _LocalOllamaContextualizer()
+            self._contextualizer = _LocalOllamaContextualizer(skip_health_check=skip_health_check)
         return self._contextualizer
 
     def _list_source_groups(
@@ -429,13 +483,15 @@ async def _smoke_test() -> None:
 
     # Force local Ollama settings for the self-check.
     os.environ.setdefault("LLM_PROVIDER", "ollama")
+    os.environ.setdefault("OLLAMA_REINGEST_MODEL", "deepseek-v4-flash:cloud")
+    os.environ.setdefault("OLLAMA_REINGEST_FALLBACK_MODEL", "gemini-3-flash-preview:cloud")
     os.environ.setdefault("OLLAMA_MODEL", "deepseek-v4-flash:cloud")
     os.environ.setdefault("OLLAMA_CLASSIFY_MODEL", "deepseek-v4-flash:cloud")
     os.environ.setdefault("OLLAMA_CLOUD_ONLY", "false")
     os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 
     engine = ContextualReingestEngine()
-    preview = await engine.dry_run(limit=1)
+    preview = await engine.dry_run(limit=1, skip_health_check=True)
     print(json.dumps(preview, indent=2, ensure_ascii=False))
 
 

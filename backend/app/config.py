@@ -348,7 +348,10 @@ class Settings(BaseSettings):
     max_tokens_per_request: int = 12000  # Maximum tokens per LLM request (covers persona+knowledge+history+instructions)
 
     # --- Retrieval context compression allowlist ---
-    rag_context_compression_top_k: int = 3
+    rag_context_compression_top_k: int = 5
+    # Score-ratio floor for compressed documents relative to the top score.
+    # Keeps high-scoring docs only, preserving diversity for deep/complex tiers.
+    rag_context_compression_score_ratio: float = 0.75
 
     # --- Retrieval Quality Gates ---
     retrieval_score_delta_enabled: bool = True
