@@ -586,7 +586,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             {/* Repulsion Force */}
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>Repel Force</span>
+                <span>{t('kg.settings.repelForce', 'Repel Force')}</span>
                 <span>{repulsion}</span>
               </div>
               <input
