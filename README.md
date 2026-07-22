@@ -1,332 +1,200 @@
-# AskMukthiGuru — AI Spiritual Guide
+# AskMukthiGuru — AI Spiritual Guide & Knowledge Platform
 
 [![Backend Health](https://img.shields.io/endpoint?url=https%3A%2F%2Ffynkjimvuimakgtidvuq.supabase.co%2Ffunctions%2Fv1%2Fhealthz%3Fformat%3Dshield)](http://localhost:8000/api/healthz)
 
-An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri Krishnaji**. Built with a multi-layer RAG pipeline, real-time guardrails, and beautiful conversational UI.
+An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri Krishnaji**. Built with a 12-layer RAG pipeline, dual-level LightRAG knowledge graph, second-brain memory vault, real-time guardrails, and cross-platform native mobile & web UI.
 
-> **New contributor?** Start with **[docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md)** for an end-to-end walk-through, then **[docs/ROADMAP.md](docs/ROADMAP.md)** for the prioritized backlog. For architectural insights, check **[lessons.md](lessons.md)**.
+> **Developer Navigation**:
+> - **Architecture & Developer Guide**: [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) & [docs/COMPLETE_BACKEND_ARCHITECTURE.md](docs/COMPLETE_BACKEND_ARCHITECTURE.md)
+> - **Prioritized Backlog & System Status**: [docs/ROADMAP.md](docs/ROADMAP.md)
+> - **Operational Runbooks**: [docs/runbooks/](docs/runbooks/) (`BENCHMARK_RUNBOOK.md`, `CREDENTIALS_GUIDE.md`, `STREAM_PROTOCOL.md`)
+> - **Lessons Learned & Invariants**: [lessons.md](lessons.md) & [AGENTS.md](AGENTS.md)
 
+---
 
-## Architecture
+## Technical Stack & Architecture
 
-| Component | Technology | Port |
+| Component | Technology | Port / Scope |
 |---|---|---|
-| **Frontend** (Nginx) | Vite React 18 + TailwindCSS + shadcn/ui | `80` |
-| **Backend** (FastAPI) | 12-layer RAG pipeline, Sarvam 30B Cloud API | `8000` |
-| **Qdrant** | Vector database | `6333` |
-| **Redis** | Response caching | `6379` |
-| **Neo4j** | Knowledge graph (LightRAG) | `7474` / `7687` |
+| **Frontend** | Vite React 18 + TailwindCSS + shadcn/ui + HashRouter | `80` (Docker) / `8080` (Local) |
+| **Mobile App** | Capacitor 8 (`com.askmukthiguru.app`) iOS & Android | Native WebView |
+| **Backend** | FastAPI (Async Python 3.12, 12-Layer RAG Pipeline) | `8000` |
+| **Vector DB** | Qdrant (`spiritual_wisdom`: 89,053 points, `second_brain_vault`) | `6333` |
+| **Knowledge Graph** | Neo4j 5.17 (LightRAG 7,601 concept & transformation arc nodes) | `7474` (HTTP) / `7687` (Bolt) |
+| **Caching & Memory** | Redis 7 Alpine (Sliding TTL session cache & response cache) | `6379` |
+| **Auth & Database** | Supabase Postgres (RLS enabled) + Supabase Auth (OAuth/Email) | Cloud / Local |
+| **Observability** | OpenTelemetry + Jaeger Distributed Tracing | `16686` |
 
-## Deploy with Docker (Recommended)
+---
 
-### Prerequisites
-- **Docker Desktop** installed and running on your Mac.
+## Core Platform Capabilities
 
-### One-Command Deploy (Run this in your terminal)
+### 1. LightRAG & Knowledge Base Ingestion
+- **Qdrant Vector Base (`spiritual_wisdom`)**: Ingested 89,053 items covering books, 450+ YouTube discourses, meditations, and lectures.
+- **Neo4j Knowledge Graph**: 7,601 nodes (7,498 base concept nodes + 103 OKF 5-node transformation arc nodes).
+- **High-Throughput Auto-Scaling Ingestion**: `scripts/ingest_lightrag_data.py` directly scrolls Qdrant payloads with `asyncio` worker pools, fast LLM timeouts, and atomic `.tmp` -> `.json` checkpointing (`data/lightrag_checkpoint.json`).
+- **Contextual Re-ingest Engine**: Reconstructs full documents, re-chunks with contextual grounding, and populates `spiritual_wisdom_contextual`.
 
-Since you are on a Mac, you may need to ensure Docker is in your PATH. Open your native macOS Terminal (or your IDE's terminal) and run these exact commands:
+### 2. Second Brain Vault & Personalization Memory
+- **Second Brain Vault (`second_brain_vault`)**: Multi-tenant collection in Qdrant indexed with `user_id` keyword filters. User notes live encrypted in Postgres (`user_brain_nodes`), vectors in Qdrant.
+- **User Familiarity Classification**: `classify_user_familiarity` dynamically adapts response tone across 3 tiers:
+  - **Seeker**: Clear, accessible explanations of Sanskrit and spiritual terms.
+  - **Practitioner**: Balanced guidance focusing on meditation techniques and internal state shift.
+  - **Advanced Meditator**: Deep philosophical terms and neurobiological insights.
+- **3-Tier Memory Retention & Automated Cleanup**:
+  - *Tier 1 (Ephemeral)*: Redis 15-minute sliding TTL (`EPHEMERAL_TTL = 900`).
+  - *Tier 2 (Transient)*: 90-day retention for chat logs and query telemetry.
+  - *Tier 3 (User Core Vault)*: Protected user core memory. Inactive accounts (>365 days) automatically purged via `scripts/ops/cleanup_inactive_user_data.py`.
+- **GDPR Privacy Controls**: Full user control via `DELETE /api/memory/reflections` and `POST /api/memory/forget`.
 
-```bash
-# 1. Navigate to the backend directory
-cd /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend
+### 3. 12-Layer RAG Pipeline
+1. **Zero-Shot Input Rail**: Safety and intent guardrails via Instructor.
+2. **Semantic Pre-Router**: Zero-LLM embedding-based query routing.
+3. **Intent Classification**: Identifies casual, distress, meditation, or philosophical queries.
+4. **Query Decomposition**: Multi-hop query splitting for complex questions.
+5. **Parent-Child & Knowledge Tree Navigation**: Contextual hierarchy retrieval.
+6. **Hybrid Search**: Qdrant dense vector search + LightRAG Neo4j graph traversal.
+7. **Cross-Encoder Reranking**: `bge-reranker-v2-m3` (GPU/MPS) or `mmarco-mMiniLMv2-L12-H384-v1` (CPU).
+8. **CRAG Document Grading**: Filters irrelevant retrieved contexts.
+9. **Guru Tone Adapter**: Adapts responses to Sri Preethaji / Sri Krishnaji voice personas.
+10. **Context-Aware Generation**: Bounded conversation memory injection.
+11. **Chain of Verification (CoVe)**: Verification of factual claims.
+12. **Self-RAG Faithfulness & Output Rail**: Final quality gate and safety filter.
 
-# 2. Add Docker to your PATH (fixes "command not found" errors on Mac)
-export PATH="/Users/harshodaikolluru/.docker/bin:$PATH"
+### 4. Interactive Obsidian-Style Knowledge Graph
+- Accessible on `/knowledge-graph` for all visitors.
+- Features force-directed 2D/3D graph visualization with glow effects, node dragging, zoom, and live search.
+- Includes automatic fallback to cached demo data if graph backend is cold.
 
-# 3. Build and start all services in detached mode
-docker compose up -d --build
-```
+### 5. Native Mobile Experience (Capacitor 8)
+- Single codebase targeting Web, iOS, and Android (`com.askmukthiguru.app`).
+- Uses `HashRouter` inside Capacitor WebView (`https://localhost/`) for seamless client-side routing.
+- Integrated Push Notifications (`@capacitor/push-notifications` -> FCM & APNs).
+- Google & Apple OAuth native deep link handling (`com.askmukthiguru.app://auth-callback`).
 
-This builds and starts **all 6 services**:
-- **Frontend** on port **80** — serves the React app, Chat widget, and Ingest UI via Nginx
-- **Backend** on port **8000** — FastAPI RAG pipeline
-- **Qdrant** on port **6333** — vector database
-- **Redis** on port **6379** — response caching
-- **Neo4j** on port **7474** — knowledge graph
-- **Jaeger** on port **16686** — OpenTelemetry trace UI
+---
 
-### 5. Access the app
+## Quickstart & Local Development
 
- | URL | Description |
- |---|---|
- | http://localhost | Main app (landing, chat, practices, profile) |
- | http://localhost/admin | Admin dashboard (login: `admin` / `admin`) |
- | http://localhost/admin/rag-flow | RAG Flow Graph Page — Visualizes active LangGraph nodes and execution latency |
- | http://localhost/static-chat | Lightweight chat widget — Auth-protected |
- | http://localhost/static-ingest | Content ingestion portal — Admin-only |
- | http://localhost:8000/api/health | Backend health check |
- | http://localhost:7474 | Neo4j Browser (Knowledge Graph UI). **Troubleshooting Note**: If accessing Neo4j UI behind HTTPS/reverse proxies, standard browsers will block unencrypted WebSocket connections to `bolt://localhost:7687` (Mixed Content). You must either access the UI via plain HTTP (`http://`), configure SSL for Bolt (`bolt+s://` / `neo4j+s://`), or run Neo4j Browser locally. Also, `localhost` in the connection box refers to the *browser client's* machine; use the actual database server IP/hostname if connecting remotely. |
- | http://localhost:16686 | Jaeger trace explorer |
+### 1. Makefile Commands (Recommended)
 
-
- ### 6. Database Setup (Supabase)
-
- For persistent user profiles and admin telemetry, you must run the **[master_schema.sql](master_schema.sql)** in your Supabase SQL Editor. This script creates:
- - **User Profiles**: Persistent spiritual preference storage.
- - **Admin Telemetry**: Auditing for queries, responses, and AI triggers (distress/serene mind).
- - **Role Management**: RBAC for admin access.
-
-### Useful commands (Run these in the backend folder)
-
-```bash
-# View live logs for all services
-docker compose logs -f
-
-# Rebuild after making code changes
-docker compose up -d --build
-
-# Stop all services
-docker compose down
-
-# Stop and completely reset the database volumes
-docker compose down -v
-```
-
-## Local Development (Without Docker)
-
-For development with hot-reload:
-
-```bash
-# 1. Start infrastructure only
-cd backend && docker compose up -d qdrant redis neo4j jaeger
-
-# 2. Start backend (in one terminal)
-cd backend && pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# 3. Start frontend (in another terminal)
-npm install && npm run dev
-```
-
-**Frontend Dev Server**: Defaults to [http://localhost:8080](http://localhost:8080). If port 8080 is busy, it may use `8081` or `8082`. Check the terminal output.
-
-### Local Google Sign-In Setup
-To enable Google Sign-In during local development:
-1. Ensure `.env.local` has `VITE_USE_NATIVE_OAUTH=true`.
-2. Configure `supabase/config.toml` with your Google `client_id` and `secret`.
-3. Restart the Supabase stack: `npx supabase stop` followed by `npx supabase start`.
-
-## Environment Variables
-
-Ensure the following variables are configured in `backend/.env` before running the ingestion pipeline or services:
-
-| Variable | Description | Default / Example |
-|---|---|---|
-| `KEYCHAIN_PASS` | Required for macOS keychain unlocking during YouTube ingestion cookie retrieval. | `142000` |
-| `SARVAM_DEBUG` | Set to `true` to enable verbose JSON logging for Sarvam API responses. Helps debug quota/reasoning issues. | `false` |
-| `USE_FLASHRANK` | Enable FlashRank ONNX-based high-performance reranking for fast retrieval. | `true` |
-| `FLASHRANK_MODEL` | FlashRank model to load. Use `auto` for platform-specific tuning. | `auto` |
-| `USE_ADAPTIVE_CHUNKING` | Enable quantitative SC/ICC dynamic chunking strategies (Recursive vs. Semantic). | `true` |
-| `ADAPTIVE_CHUNKING_MIN_CHARS` | Minimum text character length before adaptive chunking evaluation is triggered. | `5000` |
-| `USE_PROPOSITION_CHUNKING` | Enable LLM-based proposition extraction. Bypasses for short files if set to `auto`. | `auto` |
-| `PROPOSITION_CHAR_LIMIT` | Max text character length permitted for proposition extraction to prevent LLM timeouts. | `15000` |
-| `ANTHROPIC_API_KEY` | API key to enable the high-performance direct Anthropic Gateway with prompt caching & Citations API. | `""` |
-| `ANTHROPIC_GATEWAY_MODEL` | Claude model family used by the Anthropic Gateway. | `claude-sonnet-4-6` |
-| `ANTHROPIC_GATEWAY_CACHE_TTL` | Prompt cache TTL for caching long knowledge base context prefixes. | `1h` |
-
-## LLM Configuration
-
-Set `LLM_PROVIDER` in `backend/.env`:
-
-| Provider | Config | Description |
-|---|---|---|
-| `sarvam_cloud` (default) | Set `SARVAM_API_KEY` and optional `SARVAM_RPM_LIMIT` (e.g. `60`) | Sarvam Cloud API — fast, reliable, rate-limiting control |
-| `ollama` | Set `OLLAMA_BASE_URL` | Local Ollama with Qwen/Sarvam models |
-| `openrouter` | Set `OPENROUTER_API_KEY` | OpenRouter Cloud API with Llama free models |
-
-## RAG Pipeline (12 Layers)
-
-1. Zero-Shot Input Rail (Guardrails via Instructor)
-2. Intent Classification
-3. Query Decomposition
-4. Knowledge Tree Navigation (Parent-Child Retrieval)
-5. Hybrid Retrieval (Qdrant + LightRAG)
-6. Cross-encoder Reranking
-7. CRAG Document Grading
-8. Stimulus RAG (Hint Extraction)
-9. Context-aware Generation with bounded conversation memory
-10. Self-RAG Faithfulness Check
-11. Chain of Verification (CoVe)
-12. Zero-Shot Output Rail
-
-Conversation continuity is carried by the active chat `session_id`. The backend
-normalizes local browser conversation ids into stable UUIDs for Supabase memory
-tables, then injects a compact current-thread and prior-session memory block into
-the RAG context.
-
-## Agent Technical Skills
-
-The repository features 15 pre-compiled technical agent skills containing structured summaries, patterns, and cheatsheets, stored locally under `.agents/skills/` and mirrored globally at `~/.config/agents/skills/`:
-1. `ai-agents-langchain-mcp` — AI Agents with LangChain, LangGraph, and MCP
-2. `ai-agents-in-action` — AI Agents in Action
-3. `ai-engineering-chip-huyen` — AI Engineering: Foundation Models (Chip Huyen)
-4. `build-llm-app-scratch` — Build an LLM Application (from Scratch)
-5. `building-apps-ai-agents` — Building Applications with AI Agents
-6. `designing-data-intensive-apps-2e` — Designing Data-Intensive Applications, 2nd Edition
-7. `kleppmann-ddia-big-ideas` — Martin Kleppmann: DDIA The Big Ideas
-8. `rag-made-simple` — RAG Made Simple: Visual Guide to RAG
-9. `system-design-llm-era` — System Design for the LLM Era
-10. `ieee-innovative-trends-2019` — IEEE 2019 Innovative Trends in Engineering
-11. `database-internals` — Database Internals
-12. `designing-distributed-systems` — Designing Distributed Systems
-13. `prompt-engineering-llms` — Prompt Engineering for LLMs
-14. `building-llms-for-production` — Building LLMs for Production
-15. `hands-on-llms` — Hands-On Large Language Models
-
-## Codebase Intelligence & Memory Layer (Local MCP Servers)
-
-To streamline local pair-programming, codebase exploration, and long-term memory across session boundaries, four isolated codebase-intelligence Model Context Protocol (MCP) servers and plugins are fully integrated:
-1. **Graphify**: Offline AST-based codebase graph generator and visualizer.
-2. **Claude-Mem**: Persistent SQLite and ChromaDB semantic memory database.
-3. **CodeGraph**: Fast tree-sitter AST parser, search, and semantic intelligence engine.
-4. **Understand Anything**: Multi-agent AST static analysis plugin that builds an interactive, dark-luxury knowledge graph dashboard of files, functions, classes, and dependencies.
-
-These are registered:
-- **Locally**: In [.mcp.json](.mcp.json) for Codex/Antigravity IDE.
-- **Globally (Claude)**: In `~/.claude.json` for Claude Code CLI.
-- **Globally (Hermes)**: In `~/.hermes/config.yaml` for Hermes Agent CLI.
-
-### Runtime Requirements
-- **Node.js v22 LTS (Strict)**: CodeGraph leverages WASM-compiled tree-sitter grammars. Future environments must run under Node 22 (e.g., linked via Homebrew `/opt/homebrew/opt/node@22/bin`). Node 25.x has a WASM Zone allocation compiler bug and will crash with Out Of Memory errors.
-- **Bun v1.3.14+**: Claude-Mem's background worker uses native SQLite and ChromaDB bindings which execute via Bun.
-
-### Re-Indexing and Setup
-To re-build or update the codebase indexes, run the following commands:
-- **Graphify**: `/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.venv/bin/python -m graphify update . --force`
-- **CodeGraph**: `node mcp-servers/codegraph/dist/bin/codegraph.js init`
-- **Understand Anything**: Run `node scripts/ops/update-understand-graph.cjs` to parse the codebase and compile the graph.
-
-### Viewing the Understand Anything UI Graph
-To explore the knowledge graph in the interactive dashboard:
-1. Go to the cached plugin directory:
-   ```bash
-   cd ~/.claude/plugins/cache/understand-anything/understand-anything/*
-   ```
-2. Start the dev server in the background:
-   ```bash
-   GRAPH_DIR=/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8 pnpm dev:dashboard
-   ```
-3. Open the URL with the access token printed in the console (e.g. `http://127.0.0.1:5173/?token=...`).
-
-### Automatic Updates via Commit Hook
-A git `post-commit` hook is installed at `.git/hooks/post-commit`. It runs in the background on every commit to keep CodeGraph, Graphify, and Understand Anything indexes perfectly synchronized without manual intervention.
-
-## Project Structure
-
-
-
-```
-├── backend/              # FastAPI backend
-│   ├── app/              # Main app, config, dependencies
-│   ├── rag/              # LangGraph pipeline, prompts, nodes
-│   ├── services/         # LLM, embedding, Qdrant, OCR services
-│   ├── guardrails/       # NeMo guardrails
-│   ├── ingest/           # Content ingestion pipeline
-│   ├── Dockerfile        # Backend Docker image
-│   └── docker-compose.yml
-├── src/                  # React frontend (Vite)
-│   ├── components/       # UI components
-│   ├── pages/            # Route pages
-│   └── admin/            # Admin dashboard
-├── chat-ui/              # Static chat widget
-├── ingest-ui/            # Static ingestion UI
-├── frontend.Dockerfile   # Frontend Docker image (multi-stage Vite build + Nginx)
-├── nginx.conf            # Nginx config for frontend proxy
-└── index.html            # Frontend entry point
-```
-
-## Mobile App (Android + iOS)
-
-AskMukthiGuru ships to Google Play and the App Store as a **Capacitor 8** wrapper around the Vite/React production build (`dist/`). The same codebase powers web and native — no separate mobile repo.
-
-- **Package id:** `com.askmukthiguru.app`
-- **Display name:** `AskMukthiGuru`
-- **Build:** `npm run cap:sync` (runs `vite build` then `npx cap sync` — copies web bundle into native projects and refreshes plugin deps).
-- **Open in native IDE:**
-  ```bash
-  npm run cap:open:android   # Android Studio
-  npm run cap:open:ios       # Xcode
-  ```
-- **Re-create native projects** (only when package id or Capacitor plugins change drastically):
-  ```bash
-  rm -rf android ios && npx cap add android && npx cap add ios
-  ```
-- **Icons/splash** regenerate from `public/icon-512.png`:
-  ```bash
-  python3 scripts/ops/generate_mobile_assets.py
-  ```
-- **Router:** HashRouter on native, BrowserRouter on web — selected in `src/App.tsx`.
-- **Backend URL:** `src/lib/backendUrl.ts` forces the Railway production URL on native (`window.location.hostname` is `localhost` inside the WebView).
-
-### Documentation
-- **Store submission:** `docs/MOBILE_RELEASE_RUNBOOK.md` — step-by-step Play + App Store submission guide (signing, screenshots, testing tracks, phased rollout).
-- **Store listing copy:** `docs/STORE_LISTING.md` — titles, subtitles, descriptions, keywords, privacy policy URL.
-- **Signing + push credentials:** `CREDENTIALS_GUIDE.md` → "Mobile App Credentials" section — keystore, `google-services.json`, APNs `.p8`, backend push env vars.
-
-### Known TODOs
-- Apple Sign-In (App Review Guideline 4.8) — ✅ implemented in `AuthPage.tsx` (native iOS only). Requires Apple provider config in Supabase before submission (see `docs/STORE_LISTING.md` §4).
-- Delete-account flow (Guideline 5.1.1) — ✅ implemented (`ProfilePage.tsx` + `supabase/functions/delete-my-account` edge function).
-
-## License
-
-Private — All rights reserved.
-
-## Frontend Architecture (May 2026)
-
-### Key UI Components
-| Component | Description |
+| Command | Description |
 |---|---|
-| `DesktopSidebar.tsx` | Collapsible icon-rail sidebar (56px ↔ 280px), `Cmd+B` shortcut, auto-refreshes on `conversation:updated` event |
-| `BrandedSpinner.tsx` | Branded loading fallback (replaces all `<Suspense>` bare `Loading...`) |
-| `GuidedMeditationFlow.tsx` | Post-session reflection flow: mood → journal → gratitude |
-| `DailyTeaching.tsx` | Realtime teaching banner with `expires_at` filter and broken-image fallback |
+| `make dev` | Start local backend (`start_local.sh`) and frontend dev servers |
+| `make test` | Run backend unit and integration test suite |
+| `make lint` | Run Ruff linter on backend |
+| `make format` | Format code with Ruff |
+| `make docker-up` | Build and start full Docker stack |
+| `make docker-rebuild-web` | Rebuild and restart stateless frontend & backend services |
+| `make docker-down` | Stop all running Docker services |
+| `make flush-cache` | Clear Redis response cache and semantic caches |
 
-### Auth Behaviour
-- Google OAuth users receive their full name and avatar URL from `user_metadata` immediately on first sign-in.
-- `useProfile` always re-reads `localStorage` after server sync to pick up metadata writes.
-- `clearProfile()` in `profileStorage.ts` should be called on sign-out.
+### 2. Running Full Docker Stack
 
-### Stream Persistence
-- Active streaming is checkpointed to `sessionStorage` every 500ms.
-- Checkpoint key: `askmukthiguru_stream_checkpoint`. Cleared in `finally` on completion.
-- Restored on mount if checkpoint is < 60s old.
+Ensure Docker Desktop is running on macOS, then execute:
 
-### Testing
 ```bash
-# Auth + stream checkpoint unit tests
-npx vitest run src/tests/auth.e2e.test.ts
+# Set Docker binary PATH and run docker compose via safe script (bypasses keychain issues)
+cd backend && bash ../scripts/docker-safe.sh docker compose up -d --build
+```
 
-# Native Benchmark Evaluation
-python3 backend/benchmarks/native_eval.py
+Access local endpoints:
+- **Main Web Application**: [http://localhost](http://localhost)
+- **Admin Dashboard**: [http://localhost/admin](http://localhost/admin)
+- **Knowledge Graph UI**: [http://localhost/knowledge-graph](http://localhost/knowledge-graph)
+- **FastAPI Backend Health**: [http://localhost:8000/api/health](http://localhost:8000/api/health)
+- **Neo4j Browser**: [http://localhost:7474](http://localhost:7474)
+- **Jaeger Tracing**: [http://localhost:16686](http://localhost:16686)
 
-# Unified production-readiness benchmark suite (requires running Docker stack)
-python3 backend/benchmarks/run_all.py --endpoint http://localhost:8000
+### 3. Local Development Without Docker Containers
 
-# HTTP-only ruthless benchmark
-python3 backend/benchmarks/ruthless_benchmark.py --endpoint http://localhost:8000
+To run services locally on host machine:
+
+```bash
+# 1. Start core infrastructure containers only (Qdrant, Neo4j, Redis)
+cd backend && bash ../scripts/docker-safe.sh docker compose up -d qdrant neo4j redis
+
+# 2. Run backend FastAPI server (in terminal 1)
+cd backend
+.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 3. Run frontend Vite server (in terminal 2)
+npm install
+npm run dev
+```
+
+*Note: `backend/app/config.py` automatically normalizes container hostnames (`http://qdrant:6333` -> `http://localhost:6333`) when executing directly on host Python outside Docker.*
+
+---
+
+## Data Ingestion & Maintenance Runbook
+
+### Running LightRAG Batch Ingestion
+To resume or execute full LightRAG knowledge graph ingestion directly from Qdrant:
+
+```bash
+CONCURRENCY_WORKERS=8 backend/.venv/bin/python scripts/ingest_lightrag_data.py
+```
+
+- Progress is stored atomically in `data/lightrag_checkpoint.json`.
+- Logs stream to stdout and append to `data/lightrag_ingestion.log`.
+
+### Automated Inactive User Memory Cleanup
+To purge inactive user data (>365 days inactive):
+
+```bash
+backend/.venv/bin/python backend/scripts/ops/cleanup_inactive_user_data.py --days 365
 ```
 
 ---
 
-## 🧭 Developer Q&A and Documentation Directory
+## Directory & Repository Structure
 
-Use the directory below to redirect to specific documentation files and sections based on your questions:
+```
+askmukthiguru/
+├── backend/                       # FastAPI Python application
+│   ├── app/                       # Routes, config, dependencies, middleware
+│   ├── rag/                       # 12-layer RAG nodes, prompts, graph strategies
+│   ├── services/                  # Qdrant, Neo4j, LightRAG, Second Brain services
+│   ├── scripts/ops/               # Automated maintenance & TTL cleanup scripts
+│   └── tests/                     # Pytest suite (edge cases, quality gate, nodes)
+├── src/                           # React 18 Frontend Application
+│   ├── components/                # UI components (Chat, KG visualizer, Admin)
+│   ├── pages/                     # App page views
+│   └── lib/                       # API clients, backend URL resolvers
+├── docs/                          # Comprehensive Documentation
+│   ├── runbooks/                  # Operational runbooks (Benchmark, Credentials, AB Test)
+│   ├── archive/                   # Historical audit reports & completed plans
+│   ├── COMPLETE_BACKEND_ARCHITECTURE.md
+│   ├── DEVELOPER_GUIDE.md
+│   └── ROADMAP.md
+├── scripts/                       # High-level data ingestion & eval scripts
+│   └── ingest_lightrag_data.py   # High-throughput LightRAG Qdrant scroll script
+├── handoff.md                     # Latest session status & operational handoff
+├── lessons.md                     # Lessons learned & architectural invariants
+└── Makefile                       # Developer command orchestrator
+```
 
-*   **Q: How do I set up my local environment and start developing?**
-    *   👉 Read the **[DEVELOPER_GUIDE.md Day-1 Setup](docs/DEVELOPER_GUIDE.md#4-day-1-setup)**.
-*   **Q: Where can I see a detailed map of all the backend 12-layer RAG modules?**
-    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 3: 12-Layer RAG Pipeline](docs/COMPLETE_SYSTEM_REFERENCE.md#3-fastapi-backend--12-layer-rag-pipeline)**.
-*   **Q: How does the ingestion pipeline handle Whisper transcribing and YouTube cookie extraction?**
-    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 4: Ingestion & RAPTOR Pipeline](docs/COMPLETE_SYSTEM_REFERENCE.md#4-ingestion--raptor-indexing-pipeline)**.
-*   **Q: Where can I inspect the PostgreSQL migration table definitions and RLS policies?**
-    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 5: Database Schema & SQL Table Definitions](docs/COMPLETE_SYSTEM_REFERENCE.md#5-database-schema--sql-table-definitions)**.
-*   **Q: What is the configuration schema for the main backend singletons?**
-    *   👉 Read the **[app/config.py](backend/app/config.py)** configuration file or its summary in the **[COMPLETE_SYSTEM_REFERENCE.md config reference](docs/COMPLETE_SYSTEM_REFERENCE.md#33-backend-services--caching)**.
-*   **Q: How are database backups and vector collection restores automated?**
-    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 6.2: Backups & DB Management](docs/COMPLETE_SYSTEM_REFERENCE.md#62-backups--db-management-snapshot_managerpy)**.
-*   **Q: Where are the system latency and accuracy benchmark scores tracked?**
-    *   👉 Read **[COMPLETE_SYSTEM_REFERENCE.md Section 6.3: Ruthless Benchmark Suite](docs/COMPLETE_SYSTEM_REFERENCE.md#63-ruthless-benchmark-suite)**.
-*   **Q: How do I deploy the entire stack to staging or production using Docker?**
-    *   👉 Read **[DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
-*   **Q: What is the current developmental roadmap and outstanding backlog?**
-    *   👉 Read **[ROADMAP.md](docs/ROADMAP.md)**.
+---
+
+## Environment Variables Configuration
+
+Populate key environment variables in `backend/.env`:
+
+| Variable | Description | Example / Default |
+|---|---|---|
+| `LLM_PROVIDER` | Active LLM provider (`sarvam_cloud`, `openrouter`, `nim`, `ollama`) | `nim` / `sarvam_cloud` |
+| `OPENROUTER_API_KEY` | Key for OpenRouter inference & LightRAG graph extraction | `sk-or-v1-...` |
+| `SARVAM_API_KEY` | Key for Sarvam 30B Indian multilingual LLM & STT | `sarvam-...` |
+| `NIM_API_KEY` | Key for Nvidia NIM API catalog (low latency) | `nvapi-...` |
+| `SUPABASE_URL` | Supabase project URL | `https://your-project.supabase.co` |
+| `SUPABASE_KEY` | Supabase service-role key | `eyJ...` |
+| `QDRANT_URL` | Vector database endpoint | `http://localhost:6333` |
+| `NEO4J_URI` | Neo4j Bolt protocol URI | `bolt://localhost:7687` |
+| `REDIS_URL` | Redis cache URI | `redis://localhost:6379/0` |
+
+---
+
+## License & Author
+
+Developed by Google DeepMind team pair-programmed with AskMukthiGuru engineering. All rights reserved.
