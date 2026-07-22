@@ -1131,18 +1131,81 @@ async def admin_contextual_reingest_dry_run(
     return {"task_id": task.id, "source_url": body.source_url, "status": "queued"}
 
 
+_REINGEST_LOCK_KEY: str = "contextual_reingest:running"
+_REINGEST_LOCK_TTL_SECONDS: int = 3600
+
+
+async def _acquire_reingest_lock(container: ServiceContainer) -> tuple[bool, Optional[str]]:
+    """Try to acquire a Redis singleton lock for contextual re-ingest.
+
+    Returns (acquired, existing_owner). owner is a short task-id/date string
+    so the admin knows who is holding the lock.
+    """
+    redis_client = getattr(container, "redis_client", None)
+    if redis_client is None:
+        # No Redis → cannot deduplicate; allow through with a warning.
+        logger.warning("No Redis client available; skipping contextual re-ingest lock")
+        return True, None
+    try:
+        import datetime as _dt
+
+        owner = f"{celery_app.current_task.request.id or 'api'}@{_dt.datetime.now(_dt.timezone.utc).isoformat()}"
+        # redis-py set nx ex is atomic
+        acquired = redis_client.set(
+            _REINGEST_LOCK_KEY,
+            owner,
+            nx=True,
+            ex=_REINGEST_LOCK_TTL_SECONDS,
+        )
+        if acquired:
+            return True, None
+        existing = redis_client.get(_REINGEST_LOCK_KEY)
+        return False, existing.decode() if isinstance(existing, bytes) else existing
+    except Exception as exc:
+        logger.warning("Failed to acquire contextual re-ingest lock: %s", exc)
+        # Fail-open: if Redis is misbehaving, still allow the job but log it.
+        return True, None
+
+
+async def _release_reingest_lock(container: ServiceContainer) -> None:
+    redis_client = getattr(container, "redis_client", None)
+    if redis_client is None:
+        return
+    try:
+        redis_client.delete(_REINGEST_LOCK_KEY)
+    except Exception as exc:
+        logger.warning("Failed to release contextual re-ingest lock: %s", exc)
+
+
 @admin_router.post("/contextual-reingest")
 async def admin_contextual_reingest(
     body: ContextualReingestRequest,
     user=Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
 ):
-    """Admin-only: trigger contextual re-ingestion from spiritual_wisdom."""
+    """Admin-only: trigger contextual re-ingestion from spiritual_wisdom.
+
+    Singleton Redis lock prevents overlapping full-corpus rebuilds.
+    """
     _require_admin(user)
+    from celery_config import celery_app
     from tasks.contextual_reingest_task import contextual_reingest
 
-    task = contextual_reingest.delay(
-        source_url=body.source_url,
-        limit=body.limit,
-    )
-    return {"task_id": task.id, "source_url": body.source_url, "status": "queued"}
+    acquired, owner = await _acquire_reingest_lock(container)
+    if not acquired:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Another contextual re-ingest is already running (lock held by {owner}). "
+            "Wait for it to finish or expire.",
+        )
+
+    try:
+        task = contextual_reingest.delay(
+            source_url=body.source_url,
+            limit=body.limit,
+        )
+        return {"task_id": task.id, "source_url": body.source_url, "status": "queued"}
+    except Exception:
+        await _release_reingest_lock(container)
+        raise
 

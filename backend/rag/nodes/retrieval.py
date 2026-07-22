@@ -1246,12 +1246,27 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 except Exception as exc:
                     logger.warning("Low-confidence web search failed: %s", exc)
 
-    if getattr(settings, "rag_context_compression_enabled", True):
+    if getattr(settings, "rag_context_compression_enabled", False):
         question = state.get("rewritten_query") or state["question"]
-        top_k = getattr(settings, "rag_context_compression_top_k", 3)
-        allowlisted = all_docs[:top_k]
-        compressed = await _compress_rag_context_impl(question, allowlisted, embedder)
-        all_docs = compressed + all_docs[top_k:]
+        # Tier-aware compression budget: deep/complex queries keep more diversity
+        # because they rely on LITM/BM25/deep-research breadth. Fast/simple tiers
+        # benefit from a tighter focus. Preserve at least the top 3 and up to a
+        # score-threshold fraction of the retrieved set.
+        if query_tier in ("deep", "tier3_complex"):
+            max_compress_k = max(5, len(all_docs) // 2)
+        elif query_tier in ("fast", "tier2_simple"):
+            max_compress_k = 3
+        else:
+            max_compress_k = getattr(settings, "rag_context_compression_top_k", 5)
+
+        if all_docs:
+            top_score = max(doc.get("score", 0.0) for doc in all_docs) or 1.0
+            score_floor = top_score * getattr(settings, "rag_context_compression_score_ratio", 0.75)
+            eligible = [doc for doc in all_docs if doc.get("score", 0.0) >= score_floor]
+            allowlisted = eligible[:max_compress_k]
+            compressed = await _compress_rag_context_impl(question, allowlisted, embedder)
+            compressed_ids = {id(d) for d in compressed}
+            all_docs = compressed + [d for d in all_docs if id(d) not in compressed_ids]
 
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
     return {
