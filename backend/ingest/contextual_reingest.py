@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import aiohttp
+import urllib.request
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import PointStruct
 
@@ -49,18 +50,22 @@ _STATE_FILE: Path = Path(__file__).resolve().parents[2] / "scripts" / "ingestion
 _STATE_KEY: str = "contextual_reingest_processed_sources"
 
 
-async def _ollama_model_available(base_url: str, model: str, timeout: float = 10.0) -> bool:
-    """Return True if Ollama is reachable and *model* is in its tag list."""
+def _ollama_model_available_sync(base_url: str, model: str, timeout: float = 10.0) -> bool:
+    """Synchronous check that Ollama is reachable and *model* is in its tag list."""
+    import json as _json
+    import socket as _socket
+
+    url = f"{base_url.rstrip('/')}/api/tags"
     try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
-            async with session.get(f"{base_url.rstrip('/')}/api/tags") as resp:
-                if resp.status != 200:
-                    return False
-                data = await resp.json()
-                names = {m.get("name", "") for m in data.get("models", [])}
-                return model in names
-    except Exception as exc:
-        logger.debug("Ollama availability check failed for %s/%s: %s", base_url, model, exc)
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            if resp.status != 200:
+                return False
+            data = _json.loads(resp.read().decode("utf-8"))
+            names = {m.get("name", "") for m in data.get("models", [])}
+            return model in names
+    except (_socket.timeout, urllib.error.URLError, ConnectionError, Exception) as exc:
+        logger.debug("Ollama availability check failed for %s/%s: %s", url, model, exc)
         return False
 
 
@@ -92,10 +97,10 @@ class _LocalOllamaContextualizer:
         self._using_fallback = False
 
         if not skip_health_check:
-            primary_ok = asyncio.run(_ollama_model_available(self._base_url, self._primary_model))
+            primary_ok = _ollama_model_available_sync(self._base_url, self._primary_model)
             if primary_ok:
                 return
-            fallback_ok = asyncio.run(_ollama_model_available(self._base_url, self._fallback_model))
+            fallback_ok = _ollama_model_available_sync(self._base_url, self._fallback_model)
             if fallback_ok:
                 logger.warning(
                     "Primary re-ingest model %s unavailable at %s; falling back to %s",
