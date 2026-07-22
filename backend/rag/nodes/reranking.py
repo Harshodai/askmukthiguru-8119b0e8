@@ -140,6 +140,16 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
     # Combined list starts with web search results, followed by best database docs
     reranked = web_docs + reranked_db
 
+    # LITM (Lost-in-the-Middle) mitigation: for K>=6, place the two most relevant
+    # documents at the first and last positions so the LLM sees them at the edges
+    # of the context window where attention is strongest.
+    if len(reranked) >= 6:
+        top_doc = reranked[0]
+        second_doc = reranked[1]
+        middle = reranked[2:]
+        reranked = [top_doc] + middle + [second_doc]
+        logger.info(f"Applied LITM reordering: top docs at positions 0 and {len(reranked) - 1}")
+
     logger.info(
         f"Reranked total={len(documents)} (web={len(web_docs)}, db={len(db_docs)}) -> "
         f"final={len(reranked)} documents"
@@ -163,7 +173,7 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
 
     if state.get("query_tier") in ("fast", "tier2_simple"):
         reranked_docs = state["reranked_docs"]
-        relevant = reranked_docs[:3]
+        relevant = sorted(reranked_docs, key=lambda d: d.get("rerank_score", 0.0), reverse=True)[:3]
         state["grading_reasons"] = ["Simple query bypass" for _ in relevant]
         logger.info(f"CRAG batch: simple query tier, bypassing grading, accepted {len(relevant)} docs")
         return {
@@ -326,6 +336,7 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
     return {
         "relevant_docs": relevant,
         "_context_sufficient": context_sufficient,
+        "low_confidence_retrieval": not context_sufficient,
         "evaluation_trace": _trace_update(
             state,
             relevant_count=len(relevant),

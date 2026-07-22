@@ -312,6 +312,38 @@ def _apply_score_delta_cutoff(docs: list[dict], score_key: str = "score", min_ra
     return filtered
 
 
+def _dedup_newest_by_source(docs: list[dict]) -> list[dict]:
+    """Pre-rerank dedup: same source_id + title → keep highest source_version.
+
+    BM25 sparse hits intentionally lack source_id/title, so they must not be
+    collapsed with dense results that also lack those fields.  Only dedup when
+    at least one identifying field is present.  Documents without any
+    identifier are preserved unchanged.
+    """
+    if not docs:
+        return docs
+    best: dict[tuple[str, str], dict] = {}
+    non_identifiable: list[dict] = []
+    for doc in docs:
+        source_id = doc.get("source_id") or doc.get("video_id") or doc.get("source_url", "")
+        title = doc.get("title", "")
+        key = (source_id, title)
+        if not source_id and not title:
+            non_identifiable.append(doc)
+            continue
+        current_version = doc.get("source_version", 1)
+        existing = best.get(key)
+        if existing is None or current_version > existing.get("source_version", 1):
+            best[key] = doc
+    if not best:
+        return docs
+    result = list(best.values()) + non_identifiable
+    if len(result) == len(docs):
+        return docs
+    logger.info(f"Dedup-newest: {len(docs)} -> {len(result)} docs ({len(non_identifiable)} non-identifiable preserved)")
+    return result
+
+
 def _apply_retrieval_dedup(docs: list[dict]) -> list[dict]:
     """Drop retrieved docs whose content is nearly identical to an already-selected doc."""
     if not docs or not getattr(settings, "retrieval_deduplication_enabled", False):
@@ -325,6 +357,35 @@ def _apply_retrieval_dedup(docs: list[dict]) -> list[dict]:
     except Exception as e:
         logger.warning(f"Retrieval deduplication failed (non-fatal): {e}")
         return docs
+
+
+def _bm25_sparse_search(
+    query: str,
+    embedder: EmbeddingService,
+    qdrant: QdrantService,
+    limit: int = 10,
+) -> list[dict]:
+    """Native BM25 sparse-vector search via Qdrant's sparse named vector.
+
+    Encodes the query with bge-m3 lexical weights and queries the ``sparse``
+    vector in Qdrant, returning Qdrant's own relevance scores instead of a
+    local word-overlap approximation.
+    """
+    query_embedding = embedder.encode_single_full(query)
+    sparse_vector = query_embedding.get("sparse")
+    if not sparse_vector:
+        return []
+
+    hits = qdrant.search(
+        query_vector=query_embedding["dense"],
+        limit=limit,
+        sparse_vector=sparse_vector,
+        raptor_level=0,
+    )
+
+    for hit in hits:
+        hit["source"] = "bm25_sparse"
+    return hits
 
 
 def _split_into_sentences(text: str) -> list[str]:
@@ -862,6 +923,22 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             logger.warning(
                 f"Batched encode failed (non-fatal, falling back to per-query): {enc_err}"
             )
+
+    # --- BM25 sparse-vector search (concurrent with vector retrieval) ---
+    bm25_task = None
+    if getattr(settings, "bm25_retrieval_enabled", True):
+        try:
+            bm25_query = sub_queries[0] if sub_queries else state.get("question", "")
+            bm25_task = asyncio.to_thread(
+                _bm25_sparse_search,
+                bm25_query,
+                embedder,
+                qdrant,
+                getattr(settings, "bm25_result_limit", 10),
+            )
+        except Exception as bm25_err:
+            logger.warning(f"BM25 sparse search setup failed (non-fatal): {bm25_err}")
+
     primary_results = await asyncio.gather(
         *[
             asyncio.wait_for(
@@ -885,25 +962,14 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         return_exceptions=True,
     )
 
-    # --- BM25 text search fan-out (parallel with vector retrieval) ---
+    # --- Await BM25 sparse-vector search result ---
     bm25_results: list[dict] = []
-    if getattr(settings, "bm25_retrieval_enabled", True):
+    if bm25_task is not None:
         try:
-            bm25_query = sub_queries[0] if sub_queries else state.get("question", "")
-            bm25_raw = qdrant.scroll_content(
-                query=bm25_query,
-                limit=getattr(settings, "bm25_result_limit", 10),
-            )
-            for r in bm25_raw:
-                bm25_results.append({
-                    "text": r.get("content", ""),
-                    "score": r.get("score", 0.5),
-                    "metadata": r.get("metadata", {}),
-                    "source": "bm25_text",
-                })
-            logger.info(f"BM25 text search returned {len(bm25_results)} results")
+            bm25_results = await bm25_task
+            logger.info(f"BM25 sparse search returned {len(bm25_results)} results")
         except Exception as bm25_err:
-            logger.warning(f"BM25 text search failed (non-fatal): {bm25_err}")
+            logger.warning(f"BM25 sparse search failed (non-fatal): {bm25_err}")
 
     # Now consume the (likely already-completed) expansion task.
     # Cap total retrievals at 6 to bound LLM/Qdrant load.
@@ -1033,6 +1099,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     if getattr(settings, "retrieval_score_delta_enabled", False):
         all_docs = _apply_score_delta_cutoff(all_docs, score_key="score")
 
+    # Pre-rerank dedup: same source_id+title → keep highest source_version
+    all_docs = _dedup_newest_by_source(all_docs)
+
     # Near-duplicate removal at retrieval time
     all_docs = _apply_retrieval_dedup(all_docs)
 
@@ -1150,6 +1219,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # RAGFlow Gap 1: adaptive deep-research sufficiency loop.
     # Auto-fires for tier3_complex + standard; opt-in via rag_deep_research_enabled.
     # ponytail: inline call — shortest diff, no new graph node. Non-fatal on failure.
+    deep_research_done = False
     if (
         getattr(settings, "rag_deep_research_enabled", False)
         and state.get("query_tier") == "tier3_complex"
@@ -1160,12 +1230,66 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             all_docs = await conduct_deep_research(
                 base_question, all_docs, state, depth=getattr(settings, "rag_deep_research_max_depth", 2)
             )
+            deep_research_done = True
         except Exception as e:
             logger.warning("Deep research failed (non-fatal): %s", e)
 
-    if getattr(settings, "rag_context_compression_enabled", True):
+    # Task 2: low-confidence escalation for standard/tier3/tier4.
+    # If CRAG marked retrieval as low confidence, run deep research and fall back
+    # to web search if the context is still thin. Non-fatal on every failure.
+    if (
+        state.get("low_confidence_retrieval")
+        and state.get("query_tier") in ("standard", "tier3_complex", "tier4_deep")
+        and not deep_research_done
+    ):
+        try:
+            from rag.nodes.deep_research import conduct_deep_research
+
+            all_docs = await conduct_deep_research(
+                base_question, all_docs, state,
+                depth=getattr(settings, "rag_deep_research_max_depth", 2)
+            )
+            deep_research_done = True
+        except Exception as e:
+            logger.warning("Low-confidence deep research failed (non-fatal): %s", e)
+
+        if len(all_docs) < 3:
+            web_search_service = getattr(_services, "_web_search", None)
+            if web_search_service is not None:
+                try:
+                    question = state.get("rewritten_query") or state["question"]
+                    user_id = state.get("user_id")
+                    web_results = await web_search_service.search(question, user_id=user_id)
+                    if web_results:
+                        all_docs = web_results + all_docs
+                        try:
+                            WEB_SEARCH_HIT_TOTAL.labels(trigger="low_confidence").inc()
+                        except Exception:
+                            pass
+                except Exception as exc:
+                    logger.warning("Low-confidence web search failed: %s", exc)
+
+    if getattr(settings, "rag_context_compression_enabled", False):
         question = state.get("rewritten_query") or state["question"]
-        all_docs = await _compress_rag_context_impl(question, all_docs, embedder)
+        # Tier-aware compression budget: deep/complex queries keep more diversity
+        # because they rely on LITM/BM25/deep-research breadth. Fast/simple tiers
+        # benefit from a tighter focus. Preserve at least the top 3 and up to a
+        # score-threshold fraction of the retrieved set.
+        if query_tier in ("tier4_deep", "tier3_complex"):
+            max_compress_k = max(5, len(all_docs) // 2)
+        elif query_tier in ("fast", "tier2_simple"):
+            max_compress_k = 3
+        else:
+            max_compress_k = getattr(settings, "rag_context_compression_top_k", 5)
+
+        if all_docs:
+            top_score = max(doc.get("score", 0.0) for doc in all_docs) or 1.0
+            score_floor = top_score * getattr(settings, "rag_context_compression_score_ratio", 0.75)
+            eligible = [doc for doc in all_docs if doc.get("score", 0.0) >= score_floor]
+            allowlisted = eligible[:max_compress_k]
+            allowlisted_ids = {id(d) for d in allowlisted}
+            compressed = await _compress_rag_context_impl(question, allowlisted, embedder)
+            all_docs = compressed + [d for d in all_docs if id(d) not in allowlisted_ids]
 
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
     return {

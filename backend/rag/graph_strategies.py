@@ -457,13 +457,74 @@ class FastGraphStrategy(GraphStrategy):
         return compiled
 
 
-class DeepGraphStrategy(GraphStrategy):
-    """Deep graph — alias to StandardStrategy (identical wiring).
+async def deep_contradiction_gate(state: GraphState) -> dict:
+    """Extra verification pass for tier4_deep queries before final formatting.
 
-    Was a separate class with an identical graph structure. The parallel
-    check_contradiction / explain_retrieval branches were removed as buggy
-    (OR-edges caused format_final_answer to fire before verify_answer wrote
-    is_faithful). Remains as a distinct name for config-driven routing.
+    Runs a second verification pass via the LLM gateway when available, and
+    otherwise falls back to a lightweight LettuceDetect re-check. Emits the
+    same `needs_correction` / `reflection_feedback` keys that the existing
+    reflection loop already consumes, so no new routing vocabulary is needed.
+    """
+    query_tier = state.get("query_tier", "standard")
+    if query_tier != "tier4_deep":
+        return {"needs_correction": False}
+
+    answer = state.get("answer", "")
+    relevant_docs = state.get("relevant_docs", [])
+    context = "\n\n".join(
+        d.get("text") or d.get("content", "")
+        for d in relevant_docs if isinstance(d, dict)
+    )
+
+    if not answer or not context or len(context.strip()) < 200:
+        logger.warning("deep_contradiction_gate: insufficient answer/context for deep verification")
+        return {"needs_correction": True, "reflection_feedback": "Deep verification skipped: insufficient context"}
+
+    from rag.nodes import _services
+
+    gateway = _services._llm_gateway
+    if gateway is not None:
+        try:
+            cove_result = await gateway.verify_answer(answer=answer, context=context)
+            is_faithful = bool(cove_result.get("is_faithful", cove_result.get("passed", False)))
+            if not is_faithful:
+                return {
+                    "needs_correction": True,
+                    "reflection_feedback": f"Deep contradiction gate failed: {cove_result.get('details', 'unfaithful')}",
+                }
+            return {"needs_correction": False}
+        except Exception as exc:
+            logger.warning(f"deep_contradiction_gate: gateway verify failed ({exc}), falling back to LettuceDetect")
+
+    lettuce_detect = _services._lettuce_detect
+    if lettuce_detect is None:
+        logger.warning("deep_contradiction_gate: no verification service available, marking as needing correction")
+        return {"needs_correction": True, "reflection_feedback": "Deep verification unavailable"}
+
+    try:
+        result = await asyncio.to_thread(lettuce_detect.score_faithfulness, state.get("question", ""), context, answer)
+        is_faithful = result.get("is_faithful", False)
+        score = result.get("score", 0.0)
+        if score < settings.faithfulness_floor:
+            is_faithful = False
+        if not is_faithful:
+            return {
+                "needs_correction": True,
+                "reflection_feedback": f"Deep contradiction gate (LettuceDetect) failed: score={score:.2f}",
+            }
+        return {"needs_correction": False}
+    except Exception as exc:
+        logger.error(f"deep_contradiction_gate: LettuceDetect fallback failed: {exc}")
+        return {"needs_correction": True, "reflection_feedback": f"Deep verification error: {exc}"}
+
+
+class DeepGraphStrategy(GraphStrategy):
+    """Deep graph — extends standard wiring with extra verification/research edges.
+
+    Builds on the standard strategy and adds a contradiction/ontology gate for
+    tier4_deep queries (an extra verification pass after the standard verify node
+    and before citations/formatting). Keeps the same entry/exit contract as the
+    other strategies.
     """
 
     @property
@@ -471,7 +532,33 @@ class DeepGraphStrategy(GraphStrategy):
         return "deep"
 
     def build(self, **kwargs) -> CompiledStateGraph:
-        return StandardGraphStrategy().build(**kwargs)
+        # Ponytail: extend standard wiring with one extra node + conditional edge.
+        standard = StandardGraphStrategy()
+        graph = standard.build(**kwargs)
+        if hasattr(graph, "builder"):
+            builder = graph.builder
+        else:
+            builder = graph
+        builder.add_node("deep_contradiction_gate", deep_contradiction_gate)
+
+        def _route_after_verify(state: GraphState) -> str:
+            return "deep" if state.get("query_tier") == "tier4_deep" else "extract"
+
+        # Replace the existing verify_answer -> extract_citations edge with a
+        # conditional edge that runs the deep gate for tier4_deep queries.
+        builder.edges.discard(("verify_answer", "extract_citations"))
+        builder.add_conditional_edges(
+            "verify_answer",
+            _route_after_verify,
+            {
+                "deep": "deep_contradiction_gate",
+                "extract": "extract_citations",
+            },
+        )
+        builder.add_edge("deep_contradiction_gate", "extract_citations")
+        compiled = builder.compile() if hasattr(builder, "compile") else graph
+        logger.info("LangGraph DEEP pipeline compiled successfully")
+        return compiled
 
 
 # ---------------------------------------------------------------------------

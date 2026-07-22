@@ -62,6 +62,10 @@ CREATE INDEX IF NOT EXISTS kb_chunks_embedding_hnsw
   ON public.kb_chunks
   USING hnsw (embedding vector_cosine_ops);
 
+-- match_kb_chunks is deprecated; replaced by Qdrant retrieval.
+DROP FUNCTION IF EXISTS public.match_kb_chunks(vector, int, float) CASCADE;
+DROP FUNCTION IF EXISTS public.match_kb_chunks(public.vector, integer, double precision) CASCADE;
+
 -- updated_at trigger for kb_sources (reuses existing helper if present)
 CREATE OR REPLACE FUNCTION public.kb_sources_touch_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $$
@@ -73,36 +77,5 @@ CREATE TRIGGER kb_sources_set_updated_at
   BEFORE UPDATE ON public.kb_sources
   FOR EACH ROW EXECUTE FUNCTION public.kb_sources_touch_updated_at();
 
--- ── match_kb_chunks RPC (cosine similarity top-k) ────────────────
-CREATE OR REPLACE FUNCTION public.match_kb_chunks(
-  query_embedding vector(768),
-  match_count int DEFAULT 6,
-  min_similarity float DEFAULT 0.0
-)
-RETURNS TABLE (
-  id uuid,
-  source_id uuid,
-  source_title text,
-  source_url text,
-  ord int,
-  text text,
-  similarity float
-)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT
-    c.id,
-    c.source_id,
-    s.title AS source_title,
-    s.url AS source_url,
-    c.ord,
-    c.text,
-    1 - (c.embedding <=> query_embedding) AS similarity
-  FROM public.kb_chunks c
-  JOIN public.kb_sources s ON s.id = c.source_id
-  WHERE c.embedding IS NOT NULL
-    AND (1 - (c.embedding <=> query_embedding)) >= min_similarity
-  ORDER BY c.embedding <=> query_embedding
-  LIMIT match_count
-$$;
-
-GRANT EXECUTE ON FUNCTION public.match_kb_chunks(vector, int, float) TO anon, authenticated, service_role;
+-- ── match_kb_chunks RPC removed ─────────────────────────────────
+-- Superseded by Qdrant retrieval with 1024-d embeddings.

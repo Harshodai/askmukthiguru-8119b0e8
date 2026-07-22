@@ -6,22 +6,21 @@ import asyncio
 import logging
 import re
 
+from app.tracing import trace_rag_node
 from rag.compressor import cap_to_token_budget
+from rag.doc_utils import doc_text, sort_docs_canonically
 from rag.prompts import (
+    CANONICAL_URLS_LOGISTICS,
     FALLBACK_RESPONSE,
     GURU_SYSTEM_PROMPT,
     MULTI_TURN_PROMPT,
     STIMULUS_RAG_PROMPT,
-    CANONICAL_URLS_LOGISTICS,
 )
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
-from rag.doc_utils import doc_text, sort_docs_canonically
-from services.cache_service import InMemoryCacheAdapter
 from services.humanizer import scrub
 from services.language_router import LanguageCode, LanguageRouter
 
-from app.tracing import trace_rag_node
 from . import _services
 from .utils import (
     _generation_route,
@@ -36,6 +35,7 @@ from .utils import (
     settings,
     strip_cot,
 )
+
 logger = logging.getLogger(__name__)
 
 
@@ -101,7 +101,6 @@ def extractive_compress_doc(question: str, text: str, max_chars: int = 1500) -> 
 
     content_max_chars = max_chars - len(suffix)
 
-    import re
     sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
     if len(sentences) <= 3:
         return text[:content_max_chars] + suffix
@@ -289,7 +288,7 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
     )
     # headroom Cost Steering
     history_messages_count = len(chat_history)
-    from app.constants import MAX_COST_STEERED_HISTORY_TURNS, COST_STEERED_BREVITY_LIMIT
+    from app.constants import COST_STEERED_BREVITY_LIMIT, MAX_COST_STEERED_HISTORY_TURNS
     cost_steered_brevity = history_messages_count > (MAX_COST_STEERED_HISTORY_TURNS * 2)
 
     if cost_steered_brevity:
@@ -507,6 +506,7 @@ def _cite_sentences(
             # ponytail: encode_single per sentence+doc is fine for short answers;
             # batch-encode if latency matters for long multi-citation responses.
             try:
+                from app.dependencies import get_container
                 embedder = _services._embedder or get_container().embedding_service
                 sent_vec = embedder.encode_single(stripped)
                 for title, _doc_ngrams in doc_data:
@@ -969,7 +969,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     # ---- DSPy branch ----
     if getattr(settings, "use_dspy", False):
         try:
-            from rag.dspy_engine import make_module, dspy_generate
+            from rag.dspy_engine import dspy_generate, make_module
             dspy_mod = make_module()
             if dspy_mod:
                 logger.info("DSPy generation path: attempting DSPy module")
@@ -1118,7 +1118,6 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                         **generation_kwargs,
                     )) or ""
         else:
-            from app.config import settings as app_settings
 
             async def _generate_with(provider, add_timeout: bool = False):
                 if stream_queue:
@@ -1158,7 +1157,6 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     answer = strip_cot(answer)
 
     # ---- headroom CCR (Reversible Context Compression) Interception ----
-    import re
     retrieve_match = re.search(r"\[RETRIEVE:\s*([^\]]+)\]", answer)
     if retrieve_match and state.get("query_tier") not in ("tier3_complex", "deep"):
         target = retrieve_match.group(1).strip()
@@ -1340,13 +1338,48 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             route_decision=route_metadata.get("route_decision"),
         ),
     }
-    # Fast-tier queries skip verification nodes, so mark answer as faithful
-    # to prevent format_final_answer from rejecting it for default flags.
+    # Fast/tier2 queries skip the full verification node, so run a lightweight
+    # local LettuceDetect faithfulness check here to give format_final_answer an
+    # honest signal instead of a hardcoded pass.
     if is_tier2:
-        output["is_faithful"] = True
-        output["confidence_score"] = 8.0
-        output["faithfulness_score"] = 1.0
-        output["verification"] = {"passed": True, "method": "fast_tier_bypass"}
+        # Fast/tier2 queries skip the full verification node, so run a lightweight
+        # local LettuceDetect faithfulness check here to give format_final_answer an
+        # honest signal instead of a hardcoded pass. Use the module-level doc_text
+        # import (line 19) to avoid shadowing it inside this function's cell scope.
+        relevant_docs = state.get("relevant_docs", [])
+        question = state.get("rewritten_query") or state["question"]
+        hallucination_flag = False
+        faithfulness_score = 1.0
+        confidence_score = 8.0
+        verification = {"passed": True, "method": "fast_tier_bypass"}
+
+        if answer and relevant_docs:
+            try:
+                lettuce_detect = _services._lettuce_detect
+                context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
+                ld_result = await asyncio.to_thread(
+                    lettuce_detect.score_faithfulness, question, context, answer
+                )
+                faithfulness_score = ld_result.get("score", 1.0)
+                hallucination_flag = not ld_result.get("is_faithful", True)
+                confidence_score = faithfulness_score * 10.0
+                verification = {
+                    "passed": not hallucination_flag,
+                    "method": "lettuce_detect_fast_tier",
+                    "score": faithfulness_score,
+                }
+            except Exception as _ld_err:
+                logger.warning("Fast-tier faithfulness check failed (non-fatal): %s", _ld_err)
+                hallucination_flag = False
+                faithfulness_score = 1.0
+                confidence_score = 8.0
+                verification = {"passed": True, "method": "fast_tier_bypass"}
+
+        output["is_faithful"] = not hallucination_flag
+        output["confidence_score"] = confidence_score
+        output["faithfulness_score"] = faithfulness_score
+        output["hallucination_flag"] = hallucination_flag
+        output["verification"] = verification
     return output
 
 
@@ -1354,7 +1387,6 @@ def _clean_inline_citations(text: str) -> str:
     """Strip bracketed source citations, markdown links, and raw URLs from response text."""
     if not text:
         return text
-    import re
     # Remove bracketed source citations like [Source: ... | URL: ...] or [Source: ...]
     text = re.sub(r'\[Source:\s*[^\]]+\]', '', text)
     # Remove RAPTOR ingestion headers: [RAPTOR Level: N | Topic: ...]
@@ -1405,7 +1437,6 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     answer = strip_cot(answer)
 
     # Convert [Source: Title] in the answer text to [N] based on relevant_docs mapping
-    import re
     relevant_docs = state.get("relevant_docs", [])
     def replace_source_match(match):
         title_part = match.group(1).strip()
@@ -1477,6 +1508,17 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             "verification": {"passed": True, "method": "fast_tier_bypass"},
             "faithfulness_score": 1.0,
             "confidence_score": 8.0,
+            "citations_verified": citations_verified,
+            "orphan_citations_stripped": orphan_citations_stripped,
+            "evaluation_trace": _trace_update(
+                state,
+                final_answer_chars=len(answer),
+                final_citations=citations,
+                verification_passed=True,
+                confidence_score=8.0,
+                citations_verified=citations_verified,
+                orphan_citations_stripped=orphan_citations_stripped,
+            ),
         }
 
     citations = _inject_canonical_citations(answer, citations)
@@ -1597,12 +1639,16 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         "verification": state.get("verification") or {},
         "faithfulness_score": faithfulness_score,
         "confidence_score": confidence,
+        "citations_verified": citations_verified,
+        "orphan_citations_stripped": orphan_citations_stripped,
         "evaluation_trace": _trace_update(
             state,
             final_answer_chars=len(answer),
             final_citations=citations,
             verification_passed=verified,
             confidence_score=confidence,
+            citations_verified=citations_verified,
+            orphan_citations_stripped=orphan_citations_stripped,
         ),
     }
     if state.get("intent") == "DISTRESS":
@@ -1647,7 +1693,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
                     ontology_validation.get("unsupported", 0),
                     ontology_validation.get("confidence", 1.0),
                 )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "ontology soft-gate (deep) timed out (>%.1fs); response NOT blocked",
                 soft_gate_timeout,

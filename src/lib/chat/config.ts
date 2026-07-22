@@ -4,15 +4,10 @@ import { BACKEND_URL } from '../backendUrl';
 // Backend URL resolution (see `src/lib/backendUrl.ts`):
 //   1. VITE_BACKEND_URL env var (self-hosted / staging overrides)
 //   2. Production Railway backend (hardcoded fallback for Lovable prod deploys)
-//   3. Lovable Cloud edge function `guru-chat` (LLM-only cloud fallback)
-//   4. Relative `/api/chat` (dev reverse-proxy only)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const EDGE_CHAT_URL = SUPABASE_URL
-  ? `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/guru-chat`
-  : '';
+//   3. Relative `/api/chat` (dev reverse-proxy only)
 export const DEFAULT_ENDPOINT = BACKEND_URL
   ? `${BACKEND_URL}/api/chat`
-  : EDGE_CHAT_URL || '/api/chat';
+  : '/api/chat';
 
 export const getInitialLanguage = (): string => {
   if (typeof window === 'undefined') return 'en';

@@ -297,6 +297,8 @@ class ChatEngine:
         result.hallucination_flag = pipeline_result.hallucination_flag
         result.follow_up_suggestions = list(pipeline_result.follow_up_suggestions or [])
         result.node_timings = dict(pipeline_result.node_timings or {})
+        result.citations_verified = pipeline_result.citations_verified
+        result.orphan_citations_stripped = pipeline_result.orphan_citations_stripped
 
         asyncio.create_task(self._log_telemetry(result, user_id, session_id, message))
 
@@ -431,6 +433,8 @@ class ChatEngine:
                 response_text=result.final_answer,
                 citations=result.citations,
                 faithfulness=result.faithfulness_score,
+                citations_verified=result.citations_verified,
+                orphan_citations_stripped=result.orphan_citations_stripped,
             )
         except Exception as e:
             logger.warning(f"Telemetry logging failed (non-critical): {e}")

@@ -106,3 +106,45 @@ def test_format_reference_minimal():
     src = Source(id="d1", title="Untitled")
     label = format_reference(src)
     assert label == "\u201cUntitled\u201d"
+
+
+def test_verify_inline_citations_strips_orphans_and_unverified_sentences():
+    """_verify_inline_citations strips out-of-range markers and drops sentences that remain ungrounded."""
+    from rag.nodes.utils import _verify_inline_citations
+
+    # Orphan marker [[CITE:9]] is stripped, leaving only [[CITE:1]]. The remaining
+    # text is grounded because the single short paragraph has a valid marker.
+    answer = "Breath awareness is the first step. [[CITE:1]] It calms the mind. [[CITE:9]]"
+    docs = [{"title": "Breath Awareness", "source": "Ekam", "url": "https://ekam.org/breath"}]
+    cleaned, verified, stripped = _verify_inline_citations(answer, docs)
+
+    assert "[[CITE:9]]" not in cleaned
+    assert "[[CITE:1]]" in cleaned
+    assert "It calms the mind." not in cleaned
+    assert verified is True
+    assert stripped > 0
+
+
+def test_verify_inline_citations_keeps_valid_citations():
+    """Valid in-range markers should pass verification with no stripping."""
+    from rag.nodes.utils import _verify_inline_citations
+
+    # Single short paragraph with an in-range marker: citation_service resolves
+    # [[CITE:1]] and the grounding check accepts the single short paragraph.
+    answer = "Breath awareness is the first step. [[CITE:1]]"
+    docs = [{"title": "Breath Awareness", "source": "Ekam", "url": "https://ekam.org/breath"}]
+    cleaned, verified, stripped = _verify_inline_citations(answer, docs)
+
+    assert "[[CITE:1]]" in cleaned
+    assert verified is True
+    assert stripped == 0
+
+
+def test_verify_inline_citations_no_markers():
+    """Answers without markers are trivially verified and not stripped."""
+    from rag.nodes.utils import _verify_inline_citations
+
+    cleaned, verified, stripped = _verify_inline_citations("Just a plain answer.", [])
+    assert cleaned == "Just a plain answer."
+    assert verified is True
+    assert stripped == 0

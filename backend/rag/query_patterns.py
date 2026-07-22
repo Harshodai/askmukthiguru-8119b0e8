@@ -16,6 +16,8 @@ Naming convention:
 
 from __future__ import annotations
 
+import re
+
 # === rag/nodes/intent.py ==================================================
 
 # Capability / meta questions ("what can you do", "who are you", ...).
@@ -120,3 +122,30 @@ HEURISTIC_BROAD_SIMPLE_PATTERNS: list[str] = [
     r"^(tell me|explain|describe|define)\s+(about|the|what|how)",
     r"^(what is|what are|who is|who are|where is|where are)\s+",
 ]
+
+# Deep-cue markers that promote a query to tier4_deep.
+TIER4_DEEP_CUES: list[str] = [
+    r"\bgo deeper\b",
+    r"\bexplore in depth\b",
+    r"\bthorough\b",
+    r"\bcomprehensive\b",
+    r"\bdoctrinal synthesis\b",
+    r"\bsynthesis of\b",
+    r"\bhow does .* connect to .* and .*(?:connect|relate|lead)",
+    r"\bcompare .* and .* in the (?:teachings|doctrine|tradition)",
+    r"\brelationship between .* and .* and .*",
+    r"\binterconnected\b",
+    r"\bmulti[- ]?hop\b",
+    r"\banalytical\b",
+]
+
+
+def detect_tier4_deep_cues(question: str) -> bool:
+    """Heuristic cues that should route a query to tier4_deep.
+
+    Matches multi-hop doctrinal synthesis, cross-teacher comparison, and
+    explicit requests for deep analysis. Used by the intent router before
+    the cheaper fast/standard paths fire.
+    """
+    lower_q = question.lower()
+    return any(re.search(p, lower_q) for p in TIER4_DEEP_CUES)

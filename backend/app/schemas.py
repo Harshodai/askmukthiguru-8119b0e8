@@ -145,6 +145,12 @@ class ChatResponse(BaseModel):
     evaluation_trace: Optional[dict] = Field(
         None, description="Trajectory metadata for benchmark and production AI evaluation"
     )
+    citations_verified: Optional[bool] = Field(
+        None, description="Whether inline citations were verified against retrieved sources"
+    )
+    orphan_citations_stripped: Optional[bool] = Field(
+        None, description="Whether any orphan citation markers were stripped from the answer"
+    )
     model_used: Optional[str] = Field(None, description="Underlying LLM model used")
     model_provider: Optional[str] = Field(None, description="Underlying LLM provider")
     route_decision: Optional[str] = Field(None, description="Model/routing decision")

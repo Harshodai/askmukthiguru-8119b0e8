@@ -14,7 +14,7 @@ Includes configs for:
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -159,6 +159,12 @@ class Settings(BaseSettings):
     # Public-facing frontend URL (for reactivation links in win-back emails).
     # Defaults to the Railway prod deploy; override via FRONTEND_URL env var.
     frontend_url: str = "https://askmukthiguru-8119b0e8-production.up.railway.app"
+
+    # --- Hallucination anomaly thresholds (daily telemetry check) ---
+    anomaly_hallucination_rate_threshold: float = 0.05
+    anomaly_faithfulness_p50_threshold: float = 0.80
+    anomaly_lookback_days: int = 1
+    anomaly_output_path: str = "hallucination_anomaly.json"
     supabase_jwks_url: Optional[str] = None  # Optional JWKS URL for JWT validation (used in hybrid auth setups)
     supabase_jwt_issuer: Optional[str] = None  # Optional JWT Issuer for token validation (used in hybrid auth setups)
     qdrant_local_path: Optional[str] = None  # Set for local mode (no Docker)
@@ -342,6 +348,12 @@ class Settings(BaseSettings):
     rag_mmr_lambda: float = 0.5  # Balance between relevance and diversity (0=diversity, 1=relevance)
     max_tokens_per_request: int = 12000  # Maximum tokens per LLM request (covers persona+knowledge+history+instructions)
 
+    # --- Retrieval context compression allowlist ---
+    rag_context_compression_top_k: int = 5
+    # Score-ratio floor for compressed documents relative to the top score.
+    # Keeps high-scoring docs only, preserving diversity for deep/complex tiers.
+    rag_context_compression_score_ratio: float = 0.75
+
     # --- Retrieval Quality Gates ---
     retrieval_score_delta_enabled: bool = True
     rerank_score_delta_enabled: bool = True
@@ -352,6 +364,9 @@ class Settings(BaseSettings):
     ingestion_dedup_threshold: float = 0.85
     raptor_parent_summaries_enabled: bool = True
     use_markitdown_parser: bool = True
+    # BM25 keyword search via native Qdrant sparse vectors
+    bm25_retrieval_enabled: bool = True
+    bm25_result_limit: int = 10
     rag_compression_similarity_threshold: float = 0.50
     rag_context_compression_enabled: bool = False
     rag_okf_injection_enabled: bool = True   # OKF as canonical knowledge layer (enabled by default)
@@ -362,7 +377,7 @@ class Settings(BaseSettings):
     flashrank_model: str = "auto"
     use_cross_encoder_only: bool = False
     use_adaptive_chunking: bool = True
-    adaptive_chunking_min_chars: int = 5000
+    adaptive_chunking_min_chars: int = 800
     use_boundary_chunker: bool = False
     use_proposition_chunking: str = "auto"
     proposition_char_limit: int = 15000
@@ -636,11 +651,11 @@ class Settings(BaseSettings):
     rag_deep_research_max_depth: int = 2
     important_kwd_boost_enabled: bool = True
     important_kwd_boost_per_term: float = 0.2
-    rag_citation_cosine_enabled: bool = True  # semantic cosine citation > Jaccard (multilingual)
+    rag_citation_cosine_enabled: bool = False  # default Jaccard (faster, no embedder dependency)
     # Citation similarity thresholds — adaptive by query type
     # Higher = stricter (fewer false positive citations)
-    citation_jaccard_threshold: float = 0.25      # raised from 0.18 — fewer false-positive citations
-    citation_cosine_threshold: float = 0.65       # was 0.50
+    citation_jaccard_threshold: float = 0.18      # default Jaccard threshold
+    citation_cosine_threshold: float = 0.65       # used only when rag_citation_cosine_enabled=True
     # Per-intent overrides (merge with defaults)
     citation_thresholds_by_intent: dict[str, dict[str, float]] = Field(
         default_factory=lambda: {
@@ -660,11 +675,14 @@ class Settings(BaseSettings):
     # immediately; only a hard verification failure silently falls back to FALLBACK_RESPONSE.
     # When False, generation and verification are fully sequential (legacy behaviour).
     rag_parallel_verify: bool = True
-    # CoVe (sub-question verification) for tier3_complex queries.
-    # Feature-flagged: False = enabled. When faithfulness_score < faithfulness_floor,
-    # CoVe fires unconditionally even on fast/tier2 queries per user mandate.
-    # CoVe adds ~15-60s on Ollama; on AnthropicGateway it's ~5-8s.
+    # When True, skip the CoVe (sub-question verification) LLM calls for tier3_complex queries.
+    # CoVe adds ~60s and up to 4 small LLM calls. LettuceDetect faithfulness scoring remains.
+    # Default False (enabled) because the Guru Brain overhaul mandates CoVe for tier3/tier4
+    # and for any answer whose faithfulness falls below faithfulness_floor.
     rag_cove_disabled: bool = False
+    # Tiers for which CoVe is explicitly disabled. Verification nodes check this list to
+    # keep fast/standard paths cheap while enabling Chain-of-Verification for tier3/tier4.
+    rag_cove_disabled_for_tiers: list[str] = ["fast", "tier2_simple", "standard"]
     # CoVe compulsory threshold: if faithfulness_score < this, CoVe fires regardless of tier.
     cove_compulsory_threshold: float = 0.6  # same as faithfulness_floor
     # Agentic Graph Traversal configuration (for COMPARATIVE intent + tier3_complex)

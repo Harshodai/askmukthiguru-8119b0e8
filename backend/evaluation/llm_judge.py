@@ -287,6 +287,8 @@ class LLMJudge:
         "tone",
         "citation_correctness",
         "refusal_correctness",
+        "context_precision",
+        "context_recall",
     )
 
     def __init__(
@@ -327,11 +329,13 @@ class LLMJudge:
             rubrics_dir=rubrics_dir,
             use_emergent_key=True,
             default_weights={
-                "groundedness": 0.30,
-                "doctrinal_consistency": 0.25,
-                "citation_correctness": 0.20,
-                "tone": 0.15,
+                "groundedness": 0.25,
+                "doctrinal_consistency": 0.20,
+                "citation_correctness": 0.15,
+                "tone": 0.10,
                 "refusal_correctness": 0.10,
+                "context_precision": 0.10,
+                "context_recall": 0.10,
             },
         )
         api_key = getattr(settings, "emergent_llm_key", "") or None

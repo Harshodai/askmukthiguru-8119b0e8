@@ -113,6 +113,17 @@ class SemanticCacheAdapter(ICacheRepository):
         namespace = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
         return str(uuid.uuid5(namespace, normalized))
 
+    @staticmethod
+    def _point_ids(point_id: str):
+        """Build a Qdrant points selector for a single point id.
+
+        Kept as a small static helper so external invalidation paths do not
+        need to import qdrant models directly.
+        """
+        from qdrant_client.http.models import PointIdsList
+
+        return PointIdsList(points=[point_id])
+
     def get(self, query: str, threshold: Optional[float] = None) -> Optional[dict]:
         """Look up a cached response semantically."""
         # Split language prefix if present, and embed using encode_single_full

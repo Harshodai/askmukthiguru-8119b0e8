@@ -60,3 +60,7 @@ After changing OKF entries, recompile **and restart** the backend: `_OKF_CACHE` 
 - New Python modules end with a runnable `if __name__ == "__main__":` self-check block.
 - Degrade gracefully when an optional dependency is missing on the host (skip, don't crash).
 - Timeouts always carry safety margins (see `rag/timeout_utils.py`); benchmark-tuned values come from `.env.optimized`.
+
+## Ops scripts
+
+- `scripts/ops/hallucination_anomaly.py` — daily CI/cron check for hallucination rate spike and faithfulness p50 drop. Reads from Supabase `chat_responses` table; exits non-zero on anomaly. Thresholds are env-driven via `ANOMALY_HALLUCINATION_RATE_THRESHOLD`, `ANOMALY_FAITHFULNESS_P50_THRESHOLD`, `ANOMALY_LOOKBACK_DAYS` (defaults in `app.config`).

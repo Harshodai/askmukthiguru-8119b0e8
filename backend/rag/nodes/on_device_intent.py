@@ -230,6 +230,9 @@ def classify_with_embeddings(text: str, *, threshold: float = 0.45) -> str | Non
     return None
 
 
+from rag.query_patterns import detect_tier4_deep_cues as _detect_tier4_deep_cues
+
+
 def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, str, str] | None:
     """Return (intent, tier, routing_reason) or None if no match.
 
@@ -279,10 +282,13 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
     if intent == "ADVERSARIAL":
         return "ADVERSARIAL", "tier2_simple", "on_device_adversarial_detected"
 
-    # Map to tier
+    # Map to tier; promote to tier4_deep for deep/multi-hop cues
     tier = "tier3_complex"
     if intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION", "GUIDED_TOUR"):
         tier = "tier2_simple"
+
+    if intent in ("FACTUAL", "QUERY") and _detect_tier4_deep_cues(text):
+        tier = "tier4_deep"
 
     return intent, tier, f"on_device_{intent.lower()}"
 

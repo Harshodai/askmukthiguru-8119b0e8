@@ -35,6 +35,8 @@ from . import _services
 logger = logging.getLogger(__name__)
 
 
+
+
 # ---------------------------------------------------------------------------
 # Phase-2 / Truth-3: SSE status emission helper
 # ---------------------------------------------------------------------------
@@ -851,7 +853,7 @@ def _require_state(state: GraphState, required: list[str]) -> Optional[dict]:
     return None
 
 
-async def _verify_inline_citations(answer: str, retrieved_docs: list) -> tuple[str, bool, int]:
+def _verify_inline_citations(answer: str, retrieved_docs: list) -> tuple[str, bool, int]:
     """Resolve inline citation markers, strip orphans, and verify paragraph grounding.
 
     Supports both [[CITE:N]] and [N] marker patterns.  Delegates marker
@@ -860,8 +862,8 @@ async def _verify_inline_citations(answer: str, retrieved_docs: list) -> tuple[s
 
     Returns (cleaned_answer, citations_verified, orphan_citations_stripped_count).
     """
-    if not answer or not retrieved_docs:
-        return answer, False, 0
+    if not answer or "[[CITE:" not in answer:
+        return answer, True, 0
 
     from services.citation_service import _check_grounding, resolve, strip_orphan_markers
 
@@ -877,28 +879,48 @@ async def _verify_inline_citations(answer: str, retrieved_docs: list) -> tuple[s
     _normalize_out = lambda t: re.sub(r"\[\^(\d{1,3})\]", r"[[CITE:\1]]", t)
 
     normalized = _normalize_in(answer)
-    stripped = _normalize_out(strip_orphan_markers(normalized, retrieved_docs))
+
+    # Phase 1: identify orphan citation indices before stripping
+    doc_count = len(retrieved_docs)
+    all_cite_nums = set(
+        int(m.group(1))
+        for m in re.finditer(r"\[\^(\d{1,3})\]", normalized)
+    )
+    orphan_nums = set()
+    for n in all_cite_nums:
+        if n < 1 or n > doc_count:
+            orphan_nums.add(n)
+        elif not (retrieved_docs[n - 1].get("source_url") or retrieved_docs[n - 1].get("url") or "").strip():
+            orphan_nums.add(n)
+
+    # Phase 2: split into alternating text/marker segments and rebuild,
+    # dropping orphan marker segments together with the text they claim
+    # (text preceding the orphan marker).
+    segments = re.split(r"(\[\^\d{1,3}\])", normalized)
+    rebuilt_normalized_parts = []
+    for j, seg in enumerate(segments):
+        if j % 2 == 0:
+            rebuilt_normalized_parts.append(seg)
+        else:
+            n = int(re.search(r"\d{1,3}", seg).group())
+            if n in orphan_nums:
+                if rebuilt_normalized_parts:
+                    rebuilt_normalized_parts.pop()
+            else:
+                rebuilt_normalized_parts.append(seg)
+
+    cleaned_normalized = "".join(rebuilt_normalized_parts)
+
+    # Phase 3: strip any remaining orphan markers from the cleaned text
+    stripped = _normalize_out(strip_orphan_markers(cleaned_normalized, retrieved_docs))
     stripped_markers = len(re.findall(marker_pattern, stripped))
     orphan_citations_stripped = max(0, orig_markers - stripped_markers)
 
+    # Phase 4: verify grounding on the remaining text
     resolved = resolve(_normalize_in(stripped), retrieved_docs)
     citations_verified = resolved.grounded
 
     if citations_verified and not _check_grounding(_normalize_in(stripped), retrieved_docs):
         citations_verified = False
-
-    remaining_markers = re.findall(r"\[\[CITE:(\d{1,3})\]\]", stripped)
-    truly_orphan = []
-    for n_str in remaining_markers:
-        n = int(n_str)
-        if n < 1 or n > len(retrieved_docs):
-            truly_orphan.append(f"[[CITE:{n}]]")
-        elif not (retrieved_docs[n - 1].get("source_url") or "").strip():
-            truly_orphan.append(f"[[CITE:{n}]]")
-    if truly_orphan:
-        orphan_citations_stripped += len(truly_orphan)
-        for marker in truly_orphan:
-            stripped = stripped.replace(marker, "")
-        stripped = re.sub(r"\s{2,}", " ", stripped).strip()
 
     return stripped, citations_verified, orphan_citations_stripped

@@ -686,6 +686,8 @@ class IngestionPipeline:
             content_type="social_video",
             source_type="social_video",
             tags=tags,
+            source_version=1,
+            authority_tier="primary",
         )
 
         # RAPTOR + LightRAG (fire-and-forget; rollback on failure)
@@ -739,6 +741,8 @@ class IngestionPipeline:
         max_accuracy: bool = False,
         on_progress: Optional[Callable] = None,
         tags: Optional[list[str]] = None,
+        source_version: int = 1,
+        authority_tier: str = "primary",
     ) -> dict:
         """
         Ingest raw text directly, bypassing any fetching/loaders.
@@ -804,6 +808,11 @@ class IngestionPipeline:
         backup_collection = self._backup_before_reindex(source_url)
 
         # Step 5: Embed and index
+        from datetime import datetime, timezone
+        for em in (extra_metadatas or []):
+            em.setdefault("source_version", source_version)
+            em.setdefault("ingested_at", datetime.now(timezone.utc).isoformat())
+            em.setdefault("authority_tier", authority_tier)
         chunks_count = self._embed_and_index(
             final_chunks,
             source_url=source_url,
@@ -814,6 +823,8 @@ class IngestionPipeline:
             source_type=content_type,
             extra_metadatas=extra_metadatas,
             tags=tags,
+            source_version=source_version,
+            authority_tier=authority_tier,
         )
 
         try:
@@ -898,6 +909,8 @@ class IngestionPipeline:
         max_accuracy: bool = False,
         on_progress: Optional[Callable] = None,
         tags: Optional[list[str]] = None,
+        source_version: int = 1,
+        authority_tier: str = "primary",
     ) -> dict:
         """Ingest a single YouTube video."""
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
@@ -1038,6 +1051,11 @@ class IngestionPipeline:
                 chunk_speakers = [None] * len(final_chunks)
 
         # Step 5: Embed and index
+        from datetime import datetime, timezone
+        for em in (extra_metadatas or []):
+            em.setdefault("source_version", source_version)
+            em.setdefault("ingested_at", datetime.now(timezone.utc).isoformat())
+            em.setdefault("authority_tier", authority_tier)
         chunks_count = self._embed_and_index(
             final_chunks,
             source_url=url,
@@ -1055,6 +1073,8 @@ class IngestionPipeline:
             duration=result.get("duration"),
             thumbnail_url=result.get("thumbnail_url"),
             chunk_speakers=chunk_speakers,
+            source_version=source_version,
+            authority_tier=authority_tier,
         )
 
         try:
@@ -1146,6 +1166,8 @@ class IngestionPipeline:
         url: str,
         on_progress: Optional[Callable] = None,
         tags: Optional[list[str]] = None,
+        source_version: int = 1,
+        authority_tier: str = "primary",
     ) -> dict:
         """
         Production Ingestion (Phase 3): Enhanced video processing.
@@ -1309,6 +1331,12 @@ class IngestionPipeline:
                 clean_text, title=video_title, speaker=speaker, topic="Spiritual"
             )
 
+        from datetime import datetime, timezone
+        for em in all_extra_metadatas:
+            em.setdefault("source_version", source_version)
+            em.setdefault("ingested_at", datetime.now(timezone.utc).isoformat())
+            em.setdefault("authority_tier", authority_tier)
+
         # Embed and index all leaf chunks at once to prevent catastrophic deletion/overwrite
         self._notify(on_progress, "Indexing all extracted topic chunks...", 0.85)
         total_chunks = 0
@@ -1329,6 +1357,8 @@ class IngestionPipeline:
                 published_at=result.get("published_at"),
                 duration=result.get("duration"),
                 thumbnail_url=result.get("thumbnail_url"),
+                source_version=source_version,
+                authority_tier=authority_tier,
             )
 
         try:
@@ -1618,6 +1648,11 @@ class IngestionPipeline:
                 # can roll back this one video without aborting the whole playlist.
                 backup_collection = self._backup_before_reindex(video["url"])
 
+                from datetime import datetime, timezone
+                for em in (extra_metadatas or []):
+                    em.setdefault("source_version", 1)
+                    em.setdefault("ingested_at", datetime.now(timezone.utc).isoformat())
+                    em.setdefault("authority_tier", "primary")
                 chunks_count = self._embed_and_index(
                     final_chunks,
                     source_url=video["url"],
@@ -1761,6 +1796,8 @@ class IngestionPipeline:
             content_type="image",
             source_type="image",
             tags=tags,
+            source_version=1,
+            authority_tier="primary",
         )
 
         # KG Phase 6: materialize extracted entities/relationships into Neo4j.
@@ -2027,6 +2064,8 @@ class IngestionPipeline:
         duration: Optional[int] = None,
         thumbnail_url: Optional[str] = None,
         chunk_speakers: Optional[list[Optional[str]]] = None,
+        source_version: int = 1,
+        authority_tier: str = "primary",
     ) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
@@ -2131,6 +2170,8 @@ class IngestionPipeline:
         embeddings = self._embedder.encode_batch(clean_chunks)
 
         # Build metadata for each chunk
+        from datetime import datetime, timezone
+        now_iso = datetime.now(timezone.utc).isoformat()
         metadatas = []
         for i in range(len(clean_chunks)):
             base_meta = {
@@ -2144,6 +2185,10 @@ class IngestionPipeline:
                 "tags": tags or [],
                 "chunk_index": i,
                 "raptor_level": 0,  # Leaf node
+                # Re-ingestion metadata
+                "source_version": source_version,
+                "ingested_at": now_iso,
+                "authority_tier": authority_tier,
                 # YouTube-specific fields (populated when available)
                 "video_id": video_id,
                 "channel_name": channel_name,
@@ -2293,6 +2338,8 @@ class IngestionPipeline:
         topic: str = "Spiritual",
         tags: Optional[list[str]] = None,
         source_type: Optional[str] = None,
+        source_version: int = 1,
+        authority_tier: str = "primary",
     ) -> int:
         """
         Split text → embed → upsert to Qdrant.
@@ -2309,6 +2356,8 @@ class IngestionPipeline:
             topic=topic,
             tags=tags,
             source_type=source_type or content_type,
+            source_version=source_version,
+            authority_tier=authority_tier,
         )
 
     def _split_text(
@@ -2393,9 +2442,6 @@ class IngestionPipeline:
         ingestion time manageable.  Contextual enrichment runs first because it
         produces the text that the embedding model will encode.
         """
-        if not settings.is_sarvam_cloud:
-            return chunks  # Skip for local models to save time
-
         # Step 1: Contextual enrichment (situate each chunk in the document)
         if full_document:
             try:
