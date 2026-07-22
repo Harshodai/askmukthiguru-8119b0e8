@@ -443,3 +443,4 @@ common.gurusName
 landing.demo.newHere
 landing.demo.tourAria
 landing.demo.closeTourAria
+profile.tabs.conversations
