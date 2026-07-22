@@ -183,7 +183,7 @@ const PracticesPage = () => {
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground mt-4">
-                    — Sri Preethaji &amp; Sri Krishnaji
+                    {t('common.gurusName', '— Sri Preethaji & Sri Krishnaji')}
                   </p>
                 </div>
               </div>
