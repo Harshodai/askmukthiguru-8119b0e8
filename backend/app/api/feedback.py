@@ -38,19 +38,31 @@ async def submit_feedback(
 
     if feedback_in.rating <= 0:
         from app.core.refiner import mine_failed_session
-        
+
         # Try to pull retrieved chunks out of metadata_json if present
         retrieved_context = ""
         if feedback_in.metadata_json and "chunks" in feedback_in.metadata_json:
             retrieved_context = str(feedback_in.metadata_json["chunks"])
-            
+
         background_tasks.add_task(
             mine_failed_session,
             query=feedback_in.query,
             retrieved_context=retrieved_context,
             answer=feedback_in.answer,
-            comment=feedback_in.feedback_text
+            comment=feedback_in.feedback_text,
         )
+
+        # Thumbs-down also invalidates the cached semantic entry for this query
+        # so the bad answer is not served again to other users.
+        from app.dependencies import get_container
+        _container = get_container()
+        _sink = getattr(_container, "telemetry_sink", None)
+        if _sink is not None:
+            background_tasks.add_task(
+                _sink._invalidate_semantic_cache_if_flagged,
+                hallucination_flag=True,
+                query_text=feedback_in.query,
+            )
 
     return await service.create_feedback(feedback_in, user_id=user_id)
 

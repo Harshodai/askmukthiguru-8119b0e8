@@ -16,6 +16,8 @@ import redis.asyncio as Redis
 from supabase import Client, create_client
 
 from app.config import get_settings
+from app.dependencies import get_container
+from services.cache.semantic_adapter import SemanticCacheAdapter
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -112,6 +114,8 @@ class SupabaseTelemetrySink:
         cost_estimate: Optional[float] = None,
         evaluation_trace: Optional[dict[str, Any]] = None,
         assistant_slug: Optional[str] = None,
+        citations_verified: Optional[bool] = None,
+        orphan_citations_stripped: Optional[bool] = None,
     ) -> None:
         """
         Serialize trace data and append to Redis Stream.
@@ -153,7 +157,12 @@ class SupabaseTelemetrySink:
             "cost_estimate": cost_estimate,
             "evaluation_trace": evaluation_trace,
             "assistant_slug": assistant_slug,
+            "citations_verified": citations_verified,
+            "orphan_citations_stripped": orphan_citations_stripped,
         }
+
+        if hallucination_flag:
+            await self._invalidate_semantic_cache_if_flagged(hallucination_flag, query_text)
 
         if self.redis:
             try:
@@ -168,6 +177,38 @@ class SupabaseTelemetrySink:
 
         # Fallback to direct insertion
         await self.log_query_trace_direct(payload_dict)
+
+    async def _invalidate_semantic_cache_if_flagged(
+        self, hallucination_flag: bool, query_text: Optional[str]
+    ) -> None:
+        """Invalidate the semantic cache entry when a response is flagged.
+
+        Triggered by the LLM self-verification layer (hallucination_flag=True) or
+        by a downstream thumbs-down feedback handler. Removes the matching Qdrant
+        vector and Redis payload so the bad answer is never served again.
+        """
+        if not hallucination_flag or not query_text:
+            return
+        try:
+            container = get_container()
+            qdrant_service = getattr(container, "qdrant_service", None)
+            adapter = getattr(container, "semantic_cache", None)
+            if qdrant_service is None or adapter is None or not getattr(adapter, "is_available", False):
+                return
+            point_id = adapter._make_id(query_text)
+
+            await qdrant_service.delete_points(
+                collection_name=adapter._collection,
+                point_ids=SemanticCacheAdapter._point_ids(point_id),
+            )
+            from services.tenant_context import TenantContext
+
+            tenant_id = TenantContext.get()
+            redis_key = f"mukthiguru:semcache:{tenant_id}:{point_id}"
+            adapter._redis.delete(redis_key)
+            logger.info(f"Invalidated semantic cache for flagged query (point_id={point_id})")
+        except Exception as e:
+            logger.warning(f"Semantic cache invalidation for flagged query failed: {e}")
 
     async def log_query_trace_direct(self, payload_dict: dict) -> None:
         """
@@ -208,6 +249,8 @@ class SupabaseTelemetrySink:
         completion_tokens = p.get("completion_tokens")
         cost_estimate = p.get("cost_estimate")
         evaluation_trace = p.get("evaluation_trace")
+        citations_verified = p.get("citations_verified")
+        orphan_citations_stripped = p.get("orphan_citations_stripped")
         retrieval_metadata = p.get("retrieval_metadata")
         spans = p.get("spans")
         trigger_events = p.get("trigger_events")
@@ -253,6 +296,8 @@ class SupabaseTelemetrySink:
                 "confidence": confidence_score,
                 "judge_reasoning": judge_reasoning,
                 "evaluation_trace": evaluation_trace or {},
+                "citations_verified": citations_verified,
+                "orphan_citations_stripped": orphan_citations_stripped,
                 "created_at": created_at,
             }
 

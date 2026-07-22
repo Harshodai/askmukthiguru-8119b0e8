@@ -38,6 +38,7 @@ from rag.query_patterns import (
     DOCTRINE_CAPABILITY_PATTERNS as _CAPABILITY_PATTERNS,
     DOCTRINE_SIMPLE_PATTERNS as _SIMPLE_QUERY_PATTERNS,
     DOCTRINE_TEMPORAL_PATTERNS as _TEMPORAL_PATTERNS,
+    detect_tier4_deep_cues as _detect_tier4_deep_cues,
 )
 from rag.doc_utils import doc_text
 
@@ -75,8 +76,12 @@ def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None
         "CAPABILITY":        ("FACTUAL",          "tier2_simple", False),
         "FACTUAL":           ("FACTUAL",          "tier2_simple", False),
         "COMPARATIVE":       ("COMPARATIVE",      "tier3_complex", False),
+        "DEEP":              ("FACTUAL",          "tier4_deep",   False),
     }
     return mapping.get(route_name)
+
+
+from rag.query_patterns import detect_tier4_deep_cues as _detect_tier4_deep_cues
 
 
 @trace_rag_node("intent_router")
@@ -622,6 +627,10 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     elif intent == "COMPARATIVE":
         query_tier = "tier3_complex"
 
+    # Promote comparative/multi-hop or explicit "deep" phrasing to tier4_deep.
+    if intent in ("COMPARATIVE", "FACTUAL") and _detect_tier4_deep_cues(question):
+        query_tier = "tier4_deep"
+
     # Store in cache
     # Store in cache with TTL timestamp
     _intent_classification_cache[cache_key] = (intent, complexity, _time.time())
@@ -637,7 +646,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
         "complexity_score": complexity_score,
         "confidence_tier": (
             "high" if query_tier in ("tier2_simple", "fast") and intent != "CASUAL"
-            else "low" if query_tier == "tier3_complex"
+            else "low" if query_tier in ("tier3_complex", "tier4_deep")
             else "medium"
         ),
         **_cache_hint(intent),

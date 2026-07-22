@@ -86,6 +86,7 @@ class NodesModule(ModuleType):
             "_reranker",
             "_context_compressor",
             "_sarvam_cloud",
+            "_llm_gateway",
         }:
             return getattr(_services, name)
         if name in {
@@ -110,6 +111,7 @@ class NodesModule(ModuleType):
             "_reranker",
             "_context_compressor",
             "_sarvam_cloud",
+            "_llm_gateway",
         }:
             setattr(_services, name, value)
         else:

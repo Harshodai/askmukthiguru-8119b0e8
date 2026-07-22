@@ -83,6 +83,8 @@ class PipelineResult:
     context_recall: float = 1.0
     confidence_score: float | None = None
     judge_reasoning: str = ""
+    citations_verified: bool | None = None
+    orphan_citations_stripped: bool | None = None
     evaluation_trace: dict | None = None
     retrieval_metadata: dict | None = None
     trigger_events: list[dict] = field(default_factory=list)
@@ -115,6 +117,8 @@ class PipelineResult:
             context_recall=self.context_recall,
             confidence_score=self.confidence_score,
             judge_reasoning=self.judge_reasoning,
+            citations_verified=self.citations_verified,
+            orphan_citations_stripped=self.orphan_citations_stripped,
             evaluation_trace=self.evaluation_trace,
             retrieval_metadata=self.retrieval_metadata,
             trigger_events=self.trigger_events,
@@ -145,4 +149,6 @@ class PipelineResult:
             "hallucination_flag": self.hallucination_flag,
             "node_timings": self.node_timings,
             "follow_up_suggestions": self.follow_up_suggestions,
+            "citations_verified": self.citations_verified,
+            "orphan_citations_stripped": self.orphan_citations_stripped,
         }

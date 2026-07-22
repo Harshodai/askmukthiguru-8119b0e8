@@ -212,3 +212,31 @@ class TestHeuristicFollowup:
         chat = [{"role": "user", "content": "hi"}]
         assert not self._detect("", chat)
         assert not self._detect("   ", chat)
+
+
+@pytest.mark.asyncio
+async def test_tier4_deep_cue_promotes_query_tier(monkeypatch):
+    """Deep-cue questions must be promoted to tier4_deep before cheap paths fire."""
+    from rag.nodes import intent as intent_module
+
+    import app.config as config_module
+    import rag.nodes as nodes_module
+
+    fake_settings = SimpleNamespace(use_semantic_router=False)
+    monkeypatch.setattr(nodes_module, "settings", fake_settings)
+    monkeypatch.setattr(config_module, "settings", fake_settings)
+    monkeypatch.setattr(intent_module, "settings", fake_settings)
+    monkeypatch.setattr(intent_module._services, "_serene_mind", _FakeSereneMind())
+
+    import rag.intent_prerouter as prerouter
+    monkeypatch.setattr(prerouter, "preroute_intent", lambda q: None)
+
+    state = _make_state(
+        "Give a comprehensive doctrinal synthesis connecting the Beautiful State, karma, and moksha"
+    )
+
+    result = await intent_module.intent_router(state, config=None)
+
+    assert result["query_tier"] == "tier4_deep"
+    assert result["intent"] == "FACTUAL"
+    assert result["evaluation_trace"].get("routing_reason") == "tier4_deep_cue"

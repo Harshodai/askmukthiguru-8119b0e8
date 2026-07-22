@@ -270,6 +270,13 @@ class QdrantService:
         return QdrantFilterBuilder.build_title_filter(title)
 
     @classmethod
+    async def delete_points(self, collection_name: str, point_ids: list[str]) -> None:
+        """Delete specific points from a collection by ID."""
+        self._client.delete(
+            collection_name=collection_name,
+            points_selector=point_ids,
+        )
+
     def build_metadata_filter(
         cls,
         source_url: Optional[str] = None,
