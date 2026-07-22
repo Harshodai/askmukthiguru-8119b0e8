@@ -524,7 +524,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
-        <span className="ml-1 italic font-sans opacity-85">Drag to pan · scroll to zoom · double-click node to pin</span>
+        <span className="ml-1 italic font-sans opacity-85">{t('kg.help', 'Drag to pan · scroll to zoom · double-click node to pin')}</span>
       </div>
 
       {error && (
@@ -573,7 +573,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         <button
           onClick={() => setShowSettings(!showSettings)}
           className="absolute top-3 right-3 z-10 p-2 rounded-lg bg-black/60 border border-white/10 hover:bg-black/80 hover:border-white/20 transition-all text-white"
-          title="Graph view settings"
+          title={t('kg.settings.title', 'Graph view settings')}
         >
           <Settings className={`w-4 h-4 ${showSettings ? 'animate-spin' : ''}`} />
         </button>
@@ -581,12 +581,12 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         {/* Floating Settings Drawer */}
         {showSettings && (
           <div className="absolute top-14 right-3 z-10 w-64 p-4 rounded-xl bg-black/85 border border-white/10 backdrop-blur-md shadow-2xl flex flex-col gap-4 text-white text-xs select-none">
-            <h3 className="font-semibold text-sm border-b border-white/10 pb-2">Graph view settings</h3>
+            <h3 className="font-semibold text-sm border-b border-white/10 pb-2">{t('kg.settings.title', 'Graph view settings')}</h3>
             
             {/* Repulsion Force */}
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>Repel Force</span>
+                <span>{t('kg.settings.repelForce', 'Repel Force')}</span>
                 <span>{repulsion}</span>
               </div>
               <input
@@ -603,7 +603,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             {/* Link Distance */}
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>Link Distance</span>
+                <span>{t('kg.settings.linkDistance', 'Link Distance')}</span>
                 <span>{linkDist}px</span>
               </div>
               <input
@@ -620,7 +620,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             {/* Center Gravity */}
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>Center Gravity</span>
+                <span>{t('kg.settings.centerGravity', 'Center Gravity')}</span>
                 <span>{gravity.toFixed(3)}</span>
               </div>
               <input
@@ -637,7 +637,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             {/* Label Density */}
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>Label Threshold</span>
+                <span>{t('kg.settings.labelThreshold', 'Label Threshold')}</span>
                 <span>{labelScale.toFixed(1)}x</span>
               </div>
               <input
@@ -660,7 +660,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                   onChange={(e) => setSizeByDegree(e.target.checked)}
                   className="rounded border-white/20 bg-white/5 text-ojas focus:ring-ojas w-3.5 h-3.5"
                 />
-                <span>Scale node size by connections</span>
+                <span>{t('kg.settings.scaleByConnections', 'Scale node size by connections')}</span>
               </label>
 
               {/* Color by Teacher */}
@@ -671,7 +671,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                   onChange={(e) => setColorByTeacher(e.target.checked)}
                   className="rounded border-white/20 bg-white/5 text-ojas focus:ring-ojas w-3.5 h-3.5"
                 />
-                <span>Color code by teacher</span>
+                <span>{t('kg.settings.colorByTeacher', 'Color code by teacher')}</span>
               </label>
             </div>
             

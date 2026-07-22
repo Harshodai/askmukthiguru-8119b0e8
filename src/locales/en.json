@@ -108,7 +108,8 @@
     "hideDetails": "Hide details",
     "details": "Details",
     "redeem": "Redeem",
-    "keep": "Keep"
+    "keep": "Keep",
+    "gurusName": "— Sri Preethaji & Sri Krishnaji"
   },
   "crisisDialog": {
     "heading": "Crisis Support Resources",
@@ -207,6 +208,11 @@
       "benefit4": "Shift to a beautiful state",
       "cta": "Try Serene Mind",
       "breathingCue": "Breathe in for 4 counts... Hold... Breathe out for 6 counts"
+    },
+    "demo": {
+      "newHere": "New here?",
+      "tourAria": "See how AskMukthiGuru works in a three-step tour",
+      "closeTourAria": "Close tour"
     }
   },
   "mood": {
@@ -812,7 +818,17 @@
     "noConceptsFor": "No concepts found for {{query}}.",
     "searchToVisualise": "Search a concept to visualise the wisdom map.",
     "conceptRelationshipCount": "{{nodeCount}} concepts · {{edgeCount}} relationships",
-    "subtitle": "Explore how the sacred concepts of the Ekam teachings connect."
+    "subtitle": "Explore how the sacred concepts of the Ekam teachings connect.",
+    "help": "Drag to pan · scroll to zoom · double-click node to pin",
+    "settings": {
+      "title": "Graph view settings",
+      "repelForce": "Repel Force",
+      "linkDistance": "Link Distance",
+      "centerGravity": "Center Gravity",
+      "labelThreshold": "Label Threshold",
+      "scaleByConnections": "Scale node size by connections",
+      "colorByTeacher": "Color code by teacher"
+    }
   },
   "layout": {
     "navigate": "Navigate",
@@ -1002,6 +1018,21 @@
         "Invites restful sleep — a quiet mind welcomes deep rest.",
         "Builds self-compassion — review mistakes without judgement."
       ]
+    },
+    "detail": {
+      "share": "Share guide",
+      "openInYouTube": "Open in YouTube",
+      "whyPractice": "Why this practice",
+      "howToDoIt": "How to do it",
+      "keyBenefits": "Key Benefits"
+    },
+    "dailyWisdom": {
+      "title": "Today's Wisdom",
+      "badge": "Wisdom of the Day"
+    },
+    "sections": {
+      "favorites": "Your favorites",
+      "all": "All practices"
     }
   },
   "seo": {
@@ -1120,6 +1151,86 @@
       "notConfigured": "Reflections require the backend to be configured.",
       "signInRequired": "Sign in to access your reflections.",
       "requestFailed": "Reflections request failed ({{status}})."
+    }
+  },
+  "profile": {
+    "tabs": {
+      "conversations": "Conversations",
+      "profile": "Profile",
+      "insights": "Insights",
+      "notes": "Notes",
+      "memory": "Memory",
+      "settings": "Settings",
+      "support": "Support"
+    },
+    "personalDetails": {
+      "title": "Personal Details",
+      "subtitle": "Tell the Guru about yourself.",
+      "displayName": "Display Name",
+      "bio": "Your Path & Intention",
+      "language": "Preferred Language",
+      "tone": "Guru's Tone",
+      "unsavedChanges": "Unsaved changes..."
+    },
+    "activitySummary": {
+      "title": "Activity Summary",
+      "subtitle": "Your interactions with the Guru.",
+      "conversationsStarted": "Conversations started",
+      "meditations": "Meditation practices"
+    },
+    "insights": {
+      "title": "Recent Insights",
+      "subtitle": "Patterns woven from your practice, mood, and conversations.",
+      "empty": "No insights yet. Continue your practices to reveal your spiritual patterns."
+    },
+    "conversations": {
+      "title": "Conversations",
+      "subtitle": "Manage and prune your chat history.",
+      "keepFor": "Keep conversations for",
+      "empty": "No conversations.",
+      "deleteAll": "Delete all conversations",
+      "confirmDeleteTitle": "Delete all conversations?",
+      "confirmDeleteMessage": "Type DELETE to confirm. This action cannot be undone."
+    },
+    "appearance": {
+      "title": "Appearance",
+      "subtitle": "Customize the interface theme."
+    },
+    "audio": {
+      "title": "Voice & Audio",
+      "subtitle": "Configure Text-to-Speech playback.",
+      "enableVoice": "Enable Guru Voice",
+      "enableVoiceSubtitle": "Read teachings aloud automatically",
+      "speechRate": "Speech Rate",
+      "voiceName": "Guru Voice (Mayura)",
+      "voiceSubtitle": "Choose the voice personality for Indic language audio."
+    },
+    "reminders": {
+      "title": "Reminders",
+      "subtitle": "Stay consistent with your spiritual goals.",
+      "dailySubtitle": "Daily notification to find your center",
+      "scheduledFor": "Scheduled for"
+    },
+    "danger": {
+      "subtitle": "Export your data, or permanently delete your account.",
+      "clearLocalData": "Clear local data?"
+    },
+    "support": {
+      "title": "Contact Support",
+      "success": "Message sent!",
+      "name": "Name (optional)",
+      "email": "Your Email",
+      "category": "Category",
+      "subject": "Subject",
+      "message": "Message",
+      "attachments": "Attachments"
+    },
+    "memory": {
+      "mapTitle": "Consciousness Map",
+      "stateInsights": "State Insights",
+      "help": "Drag to pan · Scroll to zoom",
+      "heading": "Your Consciousness Map",
+      "description": "Every dialogue, reflection, and question you share becomes a node in your evolving consciousness map."
     }
   }
 }

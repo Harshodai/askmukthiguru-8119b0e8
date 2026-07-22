@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -74,6 +75,7 @@ const STEPS = [
 ] as const;
 
 export const DemoModal = ({ isOpen, onComplete, onDismiss }: DemoModalProps) => {
+  const { t } = useTranslation();
   const [stepIndex, setStepIndex] = useState(0);
   const completionRef = useRef(false);
   const step = STEPS[stepIndex];
@@ -114,7 +116,7 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss }: DemoModalProps) => 
           <button
             type="button"
             onClick={dismiss}
-            aria-label="Close tour"
+            aria-label={t('landing.demo.closeTourAria', 'Close tour')}
             className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-border bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <X className="h-5 w-5" aria-hidden="true" />
@@ -212,17 +214,18 @@ interface WelcomePromptProps {
 }
 
 export const WelcomePrompt = ({ isVisible, onStartTour, onDismiss }: WelcomePromptProps) => {
+  const { t } = useTranslation();
   if (!isVisible) return null;
 
   return (
     <aside
-      aria-label="Welcome to AskMukthiGuru"
+      aria-label={t('landing.demo.tourAria', 'See how AskMukthiGuru works in a three-step tour')}
       className="fixed inset-x-4 bottom-4 z-40 mx-auto max-w-md rounded-2xl border border-ojas/25 bg-background/95 p-4 shadow-xl backdrop-blur md:inset-x-auto md:right-4 md:mx-0"
     >
       <div className="flex gap-3">
         <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-ojas" aria-hidden="true" />
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-foreground">New here?</p>
+          <p className="font-semibold text-foreground">{t('landing.demo.newHere', 'New here?')}</p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             See three honest ways to begin: a conversation, a short calm, or a wisdom practice.
           </p>
