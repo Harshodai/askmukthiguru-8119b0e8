@@ -22,6 +22,26 @@ class EpisodicMemoryDetail(BaseModel):
     related_concepts: list[str] = Field(
         description="List of related Ekam concept IDs (e.g., 'Meditation', 'Karma', 'Soul Sync', 'Consciousness', 'Ekam', 'Dharma', 'Oneness', 'Surrender', 'Awareness', 'Connection')."
     )
+    claim: str = Field(
+        default="",
+        description="The factual claim distilled from this memory, stated as a simple declarative sentence about the seeker (e.g. 'Seeker experiences anxiety about work presentations')."
+    )
+    confidence: float = Field(
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        description="Confidence in this memory: 0.0-1.0. Base on the model's certainty, explicit vs inferred, and whether the seeker stated it directly."
+    )
+
+
+class ClaimedMemory(BaseModel):
+    claim: str = Field(
+        description="A concise declarative claim about the seeker, distilled from one or more conversation turns."
+    )
+    confidence: float = Field(
+        default=0.75, ge=0.0, le=1.0,
+        description="Confidence in the claim (0.0-1.0): direct self-report = higher, inferred/ambiguous = lower."
+    )
 
 
 class MemoryExtraction(BaseModel):
@@ -30,6 +50,10 @@ class MemoryExtraction(BaseModel):
     )
     episodic_memories: list[EpisodicMemoryDetail] = Field(
         description="A list of 0 or more specific episodic insights, reflections, or goals shared by the user in this transcript, with state classifications. Return empty list if none."
+    )
+    claimed_memories: list[ClaimedMemory] = Field(
+        default_factory=list,
+        description="A list of 0 or more high-confidence factual claims about the seeker drawn from the transcript. Each claim should be a standalone fact with a confidence score (0.0-1.0)."
     )
     session_summary: str = Field(
         description="A concise 1-2 sentence summary of this conversation session's core topics and user state."
@@ -683,9 +707,14 @@ class MemoryService:
                 f"     - content: The full context/claim of the memory.\n"
                 f"     - state_category: Categorize as 'Beautiful State', 'Suffering State', 'Shrinking Self', 'Destructive Self', 'Inert Self', or 'Neutral'.\n"
                 f"     - related_concepts: List of concept names this relates to (e.g., 'Meditation', 'Karma', 'Soul Sync', 'Consciousness', 'Ekam', 'Dharma', 'Oneness', 'Surrender', 'Awareness', 'Connection').\n"
-                f"3. session_summary: 1-2 sentence summary of the session topics and user state.\n\n"
+                f"     - claim (optional): A concise declarative factual claim about the seeker distilled from this memory.\n"
+                f"     - confidence (optional): 0.0-1.0 confidence score for the claim.\n"
+                f"3. claimed_memories: List of 0+ standalone factual claims about the seeker. Each must have:\n"
+                f"     - claim: A concise declarative sentence about the seeker (e.g. 'Seeker has a daily meditation practice').\n"
+                f"     - confidence: 0.0-1.0 (direct self-report higher, inferred lower).\n"
+                f"4. session_summary: 1-2 sentence summary of the session topics and user state.\n\n"
                 f"Return ONLY this JSON (fill in the values):\n"
-                f'{{"core_memories": [], "episodic_memories": [{{"insight": "...", "content": "...", "state_category": "...", "related_concepts": []}}], "session_summary": "..."}}\n\n'
+                f'{{"core_memories": [], "episodic_memories": [{{"insight": "...", "content": "...", "state_category": "...", "related_concepts": []}}], "claimed_memories": [{{"claim": "...", "confidence": 0.85}}], "session_summary": "..."}}\n\n'
                 f"{dedup_section}\n\n"
                 f"Transcript:\n{transcript}"
             )
@@ -724,6 +753,7 @@ class MemoryService:
             # Safe extraction with per-field fallbacks
             core_mems = data.get("core_memories", [])
             episodic_mems = data.get("episodic_memories", [])
+            claimed_mems = data.get("claimed_memories", [])
             session_sum = data.get("session_summary", "Conversation session completed.")
 
             # Validate types — models occasionally return strings instead of lists
@@ -758,9 +788,29 @@ class MemoryService:
                                 insight=m.get("insight", "")[:40] or m.get("content", "")[:30],
                                 content=m.get("content", ""),
                                 state_category=m.get("state_category", "Neutral"),
-                                related_concepts=m.get("related_concepts", [])
+                                related_concepts=m.get("related_concepts", []),
+                                claim=m.get("claim", ""),
+                                confidence=float(max(0.0, min(1.0, m.get("confidence", 0.75)))),
                             )
                         )
+
+            validated_claimed = []
+            if isinstance(claimed_mems, str):
+                if claimed_mems.strip():
+                    validated_claimed.append(ClaimedMemory(claim=claimed_mems, confidence=0.75))
+            elif isinstance(claimed_mems, list):
+                for m in claimed_mems:
+                    if isinstance(m, str) and m.strip():
+                        validated_claimed.append(ClaimedMemory(claim=m, confidence=0.75))
+                    elif isinstance(m, dict):
+                        claim_text = m.get("claim", "").strip()
+                        if claim_text:
+                            validated_claimed.append(
+                                ClaimedMemory(
+                                    claim=claim_text,
+                                    confidence=float(max(0.0, min(1.0, m.get("confidence", 0.75)))),
+                                )
+                            )
 
             if not isinstance(session_sum, str):
                 session_sum = "Conversation session completed."
@@ -768,11 +818,13 @@ class MemoryService:
             extracted = MemoryExtraction(
                 core_memories=[m for m in core_mems if isinstance(m, str) and m.strip()],
                 episodic_memories=validated_episodic,
+                claimed_memories=validated_claimed,
                 session_summary=session_sum.strip() or "Conversation session completed.",
             )
             logger.info(
                 f"Memory extraction OK: {len(extracted.core_memories)} core, "
-                f"{len(extracted.episodic_memories)} episodic, summary={bool(extracted.session_summary)}"
+                f"{len(extracted.episodic_memories)} episodic, "
+                f"{len(extracted.claimed_memories)} claimed, summary={bool(extracted.session_summary)}"
             )
         except Exception as e:
             logger.warning(f"Memory extraction failed: {e}. Falling back to default empty memory.")
@@ -780,6 +832,7 @@ class MemoryService:
             extracted = MemoryExtraction(
                 core_memories=[],
                 episodic_memories=[],
+                claimed_memories=[],
                 session_summary="Conversation session completed.",
             )
 
@@ -788,9 +841,35 @@ class MemoryService:
             if content.strip():
                 await self.add_explicit(user_id, content.strip(), is_core=True)
 
-        # Write episodic memories to DB
+        # Write claimed memories to DB as high-fidelity episodic rows.
+        # Each claim becomes a memory row with claim/confidence columns populated.
+        claim_memories = list(extracted.claimed_memories)
         for mem in extracted.episodic_memories:
-            if mem.content.strip():
+            if mem.claim or mem.confidence != 0.75:
+                claim_memories.append(
+                    ClaimedMemory(claim=mem.claim or mem.content.strip(), confidence=mem.confidence)
+                )
+
+        for claimed in claim_memories:
+            claim_text = claimed.claim.strip()
+            if not claim_text:
+                continue
+            await self.add_explicit(
+                user_id,
+                claim_text,
+                is_core=False,
+                source="extracted",
+                run_compaction=False,
+                metadata={
+                    "claim": claim_text,
+                    "confidence": float(max(0.0, min(1.0, claimed.confidence))),
+                    "summary": extracted.session_summary.strip(),
+                },
+            )
+
+        # Write legacy episodic memories to DB (for memories without explicit claim/confidence).
+        for mem in extracted.episodic_memories:
+            if mem.content.strip() and not (mem.claim or mem.confidence != 0.75):
                 await self.add_explicit(
                     user_id,
                     mem.content.strip(),
