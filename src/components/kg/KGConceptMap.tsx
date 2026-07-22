@@ -660,7 +660,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                   onChange={(e) => setSizeByDegree(e.target.checked)}
                   className="rounded border-white/20 bg-white/5 text-ojas focus:ring-ojas w-3.5 h-3.5"
                 />
-                <span>Scale node size by connections</span>
+                <span>{t('kg.settings.scaleByConnections', 'Scale node size by connections')}</span>
               </label>
 
               {/* Color by Teacher */}
