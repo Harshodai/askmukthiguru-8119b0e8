@@ -217,7 +217,7 @@ const PracticesPage = () => {
           <section>
             {favoritePractices.length > 0 && (
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                All practices
+                {t('practices.sections.all', 'All practices')}
               </h2>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
