@@ -71,8 +71,6 @@ GRANT EXECUTE ON FUNCTION public.ensure_profile_and_role() TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) TO authenticated;
 
-REVOKE EXECUTE ON FUNCTION public.match_kb_chunks(public.vector, integer, double precision) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.match_kb_chunks(public.vector, integer, double precision) TO authenticated;
 
 REVOKE EXECUTE ON FUNCTION public.match_user_memories(public.vector, integer, double precision) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.match_user_memories(public.vector, integer, double precision) TO authenticated;

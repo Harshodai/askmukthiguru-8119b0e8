@@ -30,11 +30,6 @@ describe('chat/health', () => {
     expect(result).toEqual({ connected: true, mode: 'Offline Mode' });
   });
 
-  it('edge function endpoint is treated as connected', async () => {
-    setAIProvider({ provider: 'custom', endpoint: 'https://x.supabase.co/functions/v1/guru-chat' });
-    const result = await checkConnection();
-    expect(result).toEqual({ connected: true, mode: 'Connected to Guru' });
-  });
 
   it('caches backend health status for 30 seconds', async () => {
     const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;

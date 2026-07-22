@@ -49,14 +49,6 @@ describe('aiService regression — health and fallback paths', () => {
       expect(result).toEqual({ connected: true, mode: 'Offline Mode' });
     });
 
-    it('edge function endpoint is treated as connected without /api/health probe', async () => {
-      setAIProvider({
-        provider: 'custom',
-        endpoint: 'https://x.supabase.co/functions/v1/guru-chat',
-      });
-      const result = await checkConnection();
-      expect(result).toEqual({ connected: true, mode: 'Connected to Guru' });
-    });
 
     it('reports connected when /api/health returns OK', async () => {
       setAIProvider({ provider: 'custom', endpoint: 'http://localhost:8000/api/chat' });

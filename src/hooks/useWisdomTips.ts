@@ -67,7 +67,7 @@ const saveCachedTips = (tips: WisdomTip[]): void => {
 
 const backendBaseUrl = (): string => {
   const endpoint = getAIConfig().endpoint || '';
-  return endpoint.replace(/\/api\/chat\/?$/, '').replace(/\/functions\/v1\/guru-chat\/?$/, '');
+  return endpoint.replace(/\/api\/chat\/?$/, '');
 };
 
 export const fetchWisdomTips = async (): Promise<WisdomTip[]> => {
