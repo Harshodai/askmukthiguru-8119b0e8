@@ -196,7 +196,7 @@ const PracticesPage = () => {
             <div className="flex items-center gap-2 mb-3">
               <Star className="w-4 h-4 fill-ojas text-ojas" />
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Your favorites
+                {t('practices.sections.favorites', 'Your favorites')}
               </h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
