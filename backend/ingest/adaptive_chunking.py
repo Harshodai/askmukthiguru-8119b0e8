@@ -106,7 +106,7 @@ class AdaptiveChunker:
             return []
 
         doc_len = len(text)
-        min_chars = getattr(settings, "adaptive_chunking_min_chars", 5000)
+        min_chars = getattr(settings, "adaptive_chunking_min_chars", 800)
         if doc_len < min_chars or not getattr(settings, "use_adaptive_chunking", True):
             logger.info(
                 "Adaptive chunking disabled for short document (len=%s). "

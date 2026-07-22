@@ -197,6 +197,29 @@ class TestRetrievalDedup:
         }
 
 
+class TestDedupNewestBySource:
+    def test_keeps_highest_source_version(self):
+        from rag.nodes.retrieval import _dedup_newest_by_source
+
+        docs = [
+            {"source_id": "abc", "title": "T", "text": "old", "source_version": 1},
+            {"source_id": "abc", "title": "T", "text": "new", "source_version": 2},
+            {"source_id": "def", "title": "T", "text": "other", "source_version": 1},
+        ]
+        result = _dedup_newest_by_source(docs)
+        assert len(result) == 2
+        assert any(d["source_version"] == 2 and d["source_id"] == "abc" for d in result)
+
+    def test_no_change_when_all_unique(self):
+        from rag.nodes.retrieval import _dedup_newest_by_source
+
+        docs = [
+            {"source_id": "a", "title": "T1", "text": "one", "source_version": 1},
+            {"source_id": "b", "title": "T2", "text": "two", "source_version": 1},
+        ]
+        assert _dedup_newest_by_source(docs) == docs
+
+
 class TestCleanerImprovements:
     def test_removes_repeated_timestamps(self):
         from ingest.cleaner import clean_transcript
