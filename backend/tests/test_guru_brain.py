@@ -24,7 +24,7 @@ def test_tone_extractor_phrasing_dna():
 
 @pytest.mark.asyncio
 async def test_guru_brain_service_indexing_and_search():
-    service = GuruBrainService(qdrant_client=None, embedding_service=None)
+    service = GuruBrainService(qdrant_service=None, embedding_service=None)
 
     exemplar = PersonaToneExemplar(
         id="test_1",

@@ -9,7 +9,7 @@ Flushes both Redis & Qdrant semantic cache before every model run.
 import asyncio
 import logging
 import os
-import subprocess
+
 import sys
 
 os.environ.setdefault("NEO4J_URI", "bolt://localhost:7687")
@@ -45,20 +45,14 @@ MODELS = [
 
 
 def flush_caches():
-    """Flush Redis + Qdrant semantic cache before each run."""
-    logger.info("🧹 Flushing Redis & Qdrant caches...")
-    try:
-        subprocess.run(
-            ["docker", "exec", "mukthiguru-redis", "redis-cli", "-a", "mukthiguru_redis_pass", "FLUSHALL"],
-            capture_output=True, check=False,
-        )
-    except Exception as e:
-        logger.warning(f"Redis flush: {e}")
+    """Flush Qdrant semantic cache before each run."""
+    logger.info("🧹 Flushing Qdrant semantic cache...")
     try:
         script = os.path.join(os.path.dirname(__file__), "..", "ops", "flush_cache.py")
+        import subprocess
         subprocess.run([sys.executable, script], capture_output=True, check=False)
     except Exception as e:
-        logger.warning(f"Qdrant flush: {e}")
+        logger.warning(f"Cache flush: {e}")
 
 
 async def run():

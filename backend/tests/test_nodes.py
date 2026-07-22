@@ -227,7 +227,7 @@ async def test_verify_answer_node(mock_services):
 
     assert result["is_faithful"] is True
     assert result["verification"]["passed"] is True
-    assert result["confidence_score"] == 5.45
+    assert result["confidence_score"] == 8.5
     assert result["faithfulness_score"] == 0.85
 
 

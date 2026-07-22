@@ -162,10 +162,7 @@ class ChatEngine:
         """Lazy-init GuruToneAdapterNode — created once, reused across requests."""
         if self._adapter is None:
             from rag.nodes.guru_tone_adapter import GuruToneAdapterNode
-            llm_svc = (
-                getattr(self._container, "llm_service", None)
-                or getattr(self._container, "ollama", None)
-            )
+            llm_svc = getattr(self._container, "llm_gateway", None)
             self._adapter = GuruToneAdapterNode(
                 llm_service=llm_svc,
                 guru_brain_service=getattr(self._container, "guru_brain_service", None),
@@ -366,7 +363,16 @@ class ChatEngine:
                 except (asyncio.CancelledError, Exception):
                     pass
 
-        pipeline_result = pipeline_task.result() if pipeline_task.done() else None
+        try:
+            pipeline_result = pipeline_task.result() if pipeline_task.done() else None
+        except (asyncio.CancelledError, Exception) as pipe_exc:
+            logger.error(f"Pipeline execution failed: {pipe_exc}", exc_info=True)
+            yield ChatChunk(
+                text="I'm experiencing a temporary issue. Please try again.",
+                is_final=True,
+                citations=[],
+            )
+            return
         citations = list(pipeline_result.citations) if pipeline_result else []
 
         # Post-stream: apply GuruToneAdapter to the fully assembled answer
@@ -379,6 +385,7 @@ class ChatEngine:
                     "question": message,
                     "final_answer": raw_answer,
                     "guru_name": assistant_slug,
+                    "request_id": pipeline_result.trace_id if pipeline_result else "",
                 }
                 res_state = await asyncio.wait_for(
                     adapter.transform_tone(state_input),
@@ -386,12 +393,21 @@ class ChatEngine:
                 )
                 transformed = res_state.get("final_answer") if isinstance(res_state, dict) else res_state
                 if transformed and len(transformed.strip()) > 20:
-                    yield ChatChunk(text=transformed, is_final=True, citations=citations)
-                    return
+                    if hasattr(self._container, "guardrails") and self._container.guardrails:
+                        output_check = await self._container.guardrails.check_output(transformed)
+                        if not output_check.get("blocked", False):
+                            yield ChatChunk(text=transformed, is_final=True, citations=citations)
+                            return
+                        else:
+                            logger.info("Transformed response blocked by output moderation; yielding raw answer.")
+                    else:
+                        yield ChatChunk(text=transformed, is_final=True, citations=citations)
+                        return
             except (asyncio.TimeoutError, Exception) as exc:
                 logger.warning(f"GuruToneAdapter streaming post-pass failed: {exc}, yielding raw answer.")
-            # Fallback: yield raw answer as final
             yield ChatChunk(text=raw_answer, is_final=True, citations=citations)
+        else:
+            yield ChatChunk(text="", is_final=True, citations=citations)
 
     async def _log_telemetry(
         self,

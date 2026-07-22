@@ -126,6 +126,7 @@ def _build_mock_container():
         "total_chunks": 100,
     }
     mock_container.job_queue = None
+    mock_container.supabase_client = None
 
     return mock_container
 

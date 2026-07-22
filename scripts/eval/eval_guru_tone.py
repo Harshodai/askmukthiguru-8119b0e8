@@ -118,14 +118,6 @@ async def main():
     except Exception as exc:
         logger.warning(f"Could not initialize LLM service ({exc}); benchmark will run offline fallback.")
 
-    # Load ingested exemplars into memory fallback
-    report_path = os.path.join(os.path.dirname(__file__), "..", "..", "backend", "data", "guru_transcripts", "ingestion_report.json")
-    if os.path.exists(report_path):
-        with open(report_path) as f:
-            data = json.load(f)
-            samples = data.get("sample_exemplars", [])
-            logger.info(f"Loaded {len(samples)} ingested exemplars into benchmark evaluation context.")
-
     guru_kg = GuruKGService()
     persona_disc = PersonaDiscriminator(llm_service=llm_service) if llm_service else None
     adapter = GuruToneAdapterNode(

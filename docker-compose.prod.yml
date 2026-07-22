@@ -71,6 +71,7 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - JWT_SECRET=${JWT_SECRET}
       - LMCACHE_CONFIG_FILE=/app/backend/config/lmcache_config.yaml
+      - LMCACHE_REMOTE_URL=${REDIS_URL}
       # Memory limit for Python process (set in main.py via resource.setrlimit)
       - PYTHON_MEMORY_LIMIT_MB=${PYTHON_MEMORY_LIMIT_MB:-2048}
       # Workers: 2 for production. Each loads the embedding model (~1.4GB each).

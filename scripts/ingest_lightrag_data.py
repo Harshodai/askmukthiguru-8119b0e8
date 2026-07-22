@@ -38,6 +38,10 @@ if os.getenv("QDRANT_URL", "").startswith("http://qdrant"):
     os.environ["QDRANT_URL"] = "http://localhost:6333"
 if os.getenv("NEO4J_URI", "").startswith("bolt://neo4j"):
     os.environ["NEO4J_URI"] = "bolt://localhost:7687"
+if "redis:6379" in os.getenv("REDIS_URL", ""):
+    os.environ["REDIS_URL"] = os.getenv("REDIS_URL", "").replace("redis:6379", "localhost:6379")
+if "host.docker.internal" in os.getenv("SUPABASE_URL", ""):
+    os.environ["SUPABASE_URL"] = os.getenv("SUPABASE_URL", "").replace("host.docker.internal", "127.0.0.1")
 
 CHECKPOINT_FILE = PROJECT_ROOT / "data" / "lightrag_checkpoint.json"
 CHECKPOINT_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -74,6 +78,8 @@ async def process_single_point(lightrag_svc, point, sem, counter_lock, counters,
     source = payload.get("source_url") or payload.get("title") or f"point-{point.id}"
 
     if not text or len(text.strip()) < 50:
+        async with counter_lock:
+            counters["processed"] += 1
         return False
 
     async with sem:
@@ -111,7 +117,8 @@ async def process_single_point(lightrag_svc, point, sem, counter_lock, counters,
 
             preview = text.strip()[:40].replace("\n", " ")
             status_str = "✅ Success" if ok else "⚠️ Failed"
-            print(f"[{curr_processed}/89053 ({pct:.2f}%)] Point {point.id[:8]}... (\"{preview}...\") {status_str} ({elapsed:.1f}s) | Rate: {rate:.1f} pts/min", flush=True)
+            _point_id_str = str(point.id)
+            print(f"[{curr_processed}/89053 ({pct:.2f}%)] Point {_point_id_str[:8]}... (\"{preview}...\") {status_str} ({elapsed:.1f}s) | Rate: {rate:.1f} pts/min", flush=True)
 
         return ok
 
@@ -131,7 +138,8 @@ async def main():
 
     saved_offset, saved_count = load_checkpoint()
     if saved_offset:
-        print(f"🔄 Resuming from Checkpoint Offset: '{saved_offset[:8]}...' (Processed so far: {saved_count} points)")
+        _offset_str = str(saved_offset)
+        print(f"🔄 Resuming from Checkpoint Offset: '{_offset_str[:8]}...' (Processed so far: {saved_count} points)")
     else:
         print("🆕 Starting fresh ingestion run from beginning of collection.")
 
@@ -141,6 +149,7 @@ async def main():
 
     batch_size = 50
     sem = asyncio.Semaphore(target_concurrency)
+    semaphore_lock = asyncio.Lock()
     counter_lock = asyncio.Lock()
     rate_stats = {"rate_limit_hits": 0}
 
@@ -151,18 +160,25 @@ async def main():
     print(f"⚙️ Running auto-scaling worker pool ({target_concurrency} workers max)...")
 
     while True:
-        try:
-            scroll_res, next_offset = qdrant_svc._client.scroll(
-                collection_name="spiritual_wisdom",
-                limit=batch_size,
-                offset=next_offset,
-                with_payload=True,
-                with_vectors=False,
-            )
-        except Exception as e:
-            print(f"❌ Failed to scroll points from Qdrant: {e}")
-            await asyncio.sleep(2.0)
-            continue
+        _scroll_retries = 0
+        _max_scroll_retries = 5
+        while _scroll_retries < _max_scroll_retries:
+            try:
+                scroll_res, next_offset = qdrant_svc._client.scroll(
+                    collection_name="spiritual_wisdom",
+                    limit=batch_size,
+                    offset=next_offset,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+                break
+            except Exception as e:
+                _scroll_retries += 1
+                _backoff = 2.0 ** _scroll_retries
+                print(f"❌ Failed to scroll points from Qdrant (attempt {_scroll_retries}/{_max_scroll_retries}): {e}")
+                if _scroll_retries >= _max_scroll_retries:
+                    raise RuntimeError(f"Qdrant scroll failed after {_max_scroll_retries} attempts")
+                await asyncio.sleep(_backoff)
 
         if not scroll_res:
             print("🏁 Reached end of Qdrant collection. All points processed!")
@@ -173,7 +189,25 @@ async def main():
             process_single_point(lightrag_svc, point, sem, counter_lock, counters, start_time, rate_stats)
             for point in scroll_res
         ]
-        await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for i, r in enumerate(results):
+            if isinstance(r, Exception):
+                print(f"⚠️ Task {i} unhandled exception: {r}")
+
+        # Auto-scale concurrency between 4 and 12 based on rate limits
+        async with semaphore_lock:
+            _elapsed_batch = time.time() - start_time
+            if _elapsed_batch > 30:
+                _new_target = target_concurrency
+                if rate_stats["rate_limit_hits"] > 5:
+                    _new_target = max(4, target_concurrency - 1)
+                elif rate_stats["rate_limit_hits"] == 0:
+                    _new_target = min(12, target_concurrency + 1)
+                if _new_target != target_concurrency:
+                    target_concurrency = _new_target
+                    sem = asyncio.Semaphore(target_concurrency)
+                    print(f"⚡ Auto-scaling: adjusted concurrency to {target_concurrency}")
+                    rate_stats["rate_limit_hits"] = 0
 
         # Atomically save checkpoint state after each batch
         async with counter_lock:

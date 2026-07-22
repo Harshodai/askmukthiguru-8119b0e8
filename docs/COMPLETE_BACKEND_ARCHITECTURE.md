@@ -1,7 +1,7 @@
 # Complete End-to-End Backend Pipeline & Architecture Guide
 > **AskMukthiGuru AI Spiritual Guidance Platform**
 
-This document provides an exhaustive, step-by-step architectural breakdown of the AskMukthiGuru backend pipeline from initial HTTP request entry down to multi-tier database retrieval, LangGraph execution, dual-pass tone adaptation, and SSE response streaming.
+This document provides an exhaustive, step-by-step architectural breakdown of the AskMukthiGuru backend pipeline from initial HTTP request entry down to multi-tier database retrieval, LangGraph execution, 3-Pass tone adaptation, and SSE response streaming.
 
 ---
 
@@ -42,19 +42,21 @@ AskMukthiGuru is an AI spiritual guidance platform grounded in Sri Preethaji & S
                            +-----------------+-----------------+
                                              |
                                              v
-                           +-----------------+-----------------+
-                           |   Pass 1: Grounded Generation     |
-                           +-----------------+-----------------+
-                                             |
-                                             v
-                           +-----------------+-----------------+
-                           | Citation & Grounding Verification |
-                           +-----------------+-----------------+
-                                             |
-                                             v
-                           +-----------------+-----------------+
-                           | Pass 2: Guru Voice Tone Adapter   |
-                           | (PersoDPO + Reflexion Correction) |
+                            +-----------------+-----------------+
+                            | Pass 1: Grounded Generation       |
+                            | (`generate_answer`)               |
+                            +-----------------+-----------------+
+                                              |
+                                              v
+                            +-----------------+-----------------+
+                            | Pass 2: Citation & Grounding      |
+                            | Verification (`verify_answer`)    |
+                            +-----------------+-----------------+
+                                              |
+                                              v
+                            +-----------------+-----------------+
+                            | Pass 3: Guru Voice Tone Adapter   |
+                            | (`guru_tone_adapter`)             |
                            +-----------------+-----------------+
                                              |
                                              v
@@ -82,7 +84,7 @@ AskMukthiGuru is an AI spiritual guidance platform grounded in Sri Preethaji & S
 1. **Cache Inspection (Tier 0):**
    * **Hot Memory Cache:** Exact prompt hash check (`hot_cache`).
    * **Redis Cache:** Multi-tier L1 response cache (`exact_cache`).
-    * **Qdrant Semantic Cache:** Cosine distance check on `semantic_query_cache` (similarity threshold = 0.90 for zero false positives).
+    * **Qdrant Semantic Cache:** Cosine distance check on `semantic_query_cache` (similarity threshold configured via `SEMANTIC_CACHE_SIMILARITY` setting).
 2. **Benchmark Guard:** Three conditions must ALL be met for `X-Test-Key` authentication: a non-production environment (`IS_PRODUCTION=false` or unset), `ENABLE_TEST_AUTH=true`, and a non-empty `BENCHMARK_SECRET` matching the header value. Without these, the backdoor is never enabled in production. The `is_benchmark=True` flag follows independent bypass logic documented in the applicable route handler.
 
 ---
@@ -95,7 +97,7 @@ The query router dynamically selects one of three LangGraph execution strategies
 * **Triggers:** Casual greetings (*"Hello"*, *"Namaste"*), acute crisis/distress (*"I want to end my life"*), or breathwork requests.
 * **Flow:**
   $$\text{Intent Router} \rightarrow \text{Direct Handler (Casual / Distress / Meditation)} \rightarrow \text{Format Final Answer}$$
-* **Safety:** Bypasses deep search to immediately surface emergency helpline protocols or soothing breath guidance.
+* **Safety:** Distress queries run through the complete RAG pipeline, including retrieval, verification, and all quality gates, to surface compassionate teachings alongside emergency guidance. Casual greetings and breathwork requests are handled by direct handlers.
 
 ### Tier 2: `StandardGraphStrategy` (Default - Latency ~2.5s)
 * **Triggers:** Standard spiritual Q&A (*"How do I deal with anger in my marriage?"*).
@@ -105,9 +107,9 @@ The query router dynamically selects one of three LangGraph execution strategies
   3. **`rerank_documents`:** Uses FlashRank / cross-encoder to select the top 5 most relevant context snippets.
   4. **`grade_documents`:** Filters out irrelevant or off-topic retrieved chunks.
   5. **`context_engineer`:** Formats retrieved snippets into strict structured prompt bounds.
-  6. **`generate_answer` (Pass 1):** Produces a strictly grounded answer with explicit citations `[[CITE:N]]`.
-  7. **`verify_answer`:** Verifies that every claim has an exact matching citation; sets `verification["passed"] = False` on failure.
-  8. **`guru_tone_adapter` (Pass 2):** Transforms the draft into Sri Preethaji & Sri Krishnaji's authentic voice using PersoDPO and Reflexion correction.
+   6. **`generate_answer` (Pass 1):** Produces a strictly grounded answer with explicit citations `[[CITE:N]]`.
+   7. **`verify_answer` (Pass 2):** Verifies that every claim has an exact matching citation; sets `verification["passed"] = False` on failure.
+   8. **`guru_tone_adapter` (Pass 3):** Transforms the draft into Sri Preethaji & Sri Krishnaji's authentic voice using Reflexion correction.
 
 ### Tier 3: `DeepGraphStrategy` (Latency ~6.0s)
 * **Triggers:** Complex, multi-part, or philosophical queries (*"Compare the teachings on karma, free will, and the divine plan"*).
@@ -142,7 +144,7 @@ AskMukthiGuru combines three distinct data stores to achieve high factual accura
 ```
 
 ### 1. Qdrant `spiritual_wisdom` (Vector Database)
-* Houses **89,053 dense vector chunks** (1024-dimensional BGE-M3 embeddings).
+* Houses **89,053 dense vector chunks** (384-dimensional all-MiniLM-L6-v2 embeddings, configured via `services/embedding_service.py`).
 * Contains the entire corpus: books (*The Four Sacred Secrets*), 450+ YouTube video discourses, satsangs, lectures, and guided meditations.
 
 ### 2. Neo4j Knowledge Graph (Graph Database)
@@ -152,27 +154,37 @@ AskMukthiGuru combines three distinct data stores to achieve high factual accura
 
 ### 3. LightRAG HKU Dual-Level Retrieval (Hybrid Orchestrator)
 * Scrolls directly from Qdrant `spiritual_wisdom` payload chunks via `scripts/ingest_lightrag_data.py`.
-* Uses local inference (self-hosted LLM) with **8 parallel async workers** and **60.0s fast timeout**.
-* Automatically extracts low-level entities and high-level relationship keys, providing dual-level retrieval without full-graph reconstruction costs.
+* Uses local inference for dual-level entity/relationship extraction (configured via `settings.llm_provider`).
+* Automatic extraction of low-level entities and high-level relationship keys, providing dual-level retrieval without full-graph reconstruction costs.
 
 ---
 
-## 5. Dual-Pass Generation & Tone Adapter Architecture
+## 5. 3-Pass Generation & Tone Adapter Architecture
 
-Answers are generated using a 2-Pass architecture:
+Answers are generated using a 3-Pass architecture:
 
-### Pass 1: Factually Grounded Draft Generation
+### Pass 1: Factually Grounded Draft Generation (`generate_answer`)
 * **Goal:** 100% factual accuracy, strictly bounded by retrieved doctrine snippets.
 * **Citations:** Emits explicit citation markers `[[CITE:1]]`, `[[CITE:2]]`.
-* **Verification:** `verification.py` checks that every claim matches a cited source. If ungrounded text is detected:
+* **Node:** `backend/rag/nodes/generation.py` invoked as `generate_answer` in the LangGraph pipeline.
+
+### Pass 2: Citation & Grounding Verification (`verify_answer`)
+* **Goal:** Verify that every generated claim has a matching citation after generation — NOT a separate LLM call.
+* **Mechanism:** `verification.py` checks that every claim matches a cited source. If ungrounded text is detected:
   * `verification["passed"] = False` is set.
   * `utils.strip_orphan_markers` strips invalid citation tags.
+* **Node:** `backend/rag/nodes/verification.py` invoked as `verify_answer` in the LangGraph pipeline.
 
-### Pass 2: Guru Voice Tone Adapter (`backend/rag/nodes/guru_tone_adapter.py`)
-* **Goal:** Transform the factual draft into Sri Preethaji & Sri Krishnaji's warm, compassionate, and authoritative tone.
+### Pass 3: Guru Voice Tone Adapter (`backend/rag/nodes/guru_tone_adapter.py`)
+* **Goal:** Transform the factual draft into Sri Preethaji & Sri Krishnaji's warm, compassionate, and authoritative tone while preserving all factual claims and citation markers.
 * **Exemplar Retrieval:** Retrieves top 3 tone exemplars from Qdrant `guru_tone_podcast`.
-* **Neo4j Ontology Lookup:** Offloaded asynchronously via `await asyncio.to_thread(guru_kg_service.traverse_guru_ontology, ...)`.
-* **Reflexion Self-Correction:** If tone transformation deviates or loses factual citations, `GURU_TONE_REFLEXION_CORRECTION_PROMPT` re-aligns the output.
+* **Neo4j Ontology Lookup:** Offloaded asynchronously via dedicated bounded executor (`_KG_EXECUTOR`, max_workers=4) with driver-enforced 4s timeout and 8s wall-clock safety net.
+* **Reflexion Self-Correction:** If tone transformation deviates, `GURU_TONE_REFLEXION_CORRECTION_PROMPT` re-aligns with authentic voice.
+* **Post-Adaptation Factual Revalidation:** After tone transformation (and optional self-correction), the adapter verifies that:
+  1. All factual claims from the original draft are preserved in the adapted output.
+  2. All citation markers (`[[CITE:N]]`) remain intact and unmodified.
+  3. No hallucinated claims, imagined quotes, or factually novel statements were introduced.
+  If revalidation fails, the adapter falls back to the original factual draft, ensuring style-only transformation. This guardrail prevents tone adaptation from introducing inaccuracies even in the correction loop.
 
 ---
 

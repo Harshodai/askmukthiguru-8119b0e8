@@ -4,7 +4,7 @@ Verifies that simple queries bypass heavy nodes and that token streaming works.
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -162,13 +162,19 @@ async def test_enrich_context_bypass(mock_services):
 @pytest.mark.asyncio
 async def test_quality_checks_bypass(mock_services):
     _, mock_ld = mock_services
+    mock_ld.score_faithfulness.return_value = {
+        "is_faithful": True,
+        "score": 1.0,
+        "details": "Mocked",
+        "unsupported_sentences": [],
+    }
     state = GraphState(
         question="What is meditation?",
         chat_history=[],
         request_id="test-10",
         query_tier="tier2_simple",
         answer="Meditation is calm.",
-        relevant_docs=[{"text": "some teaching"}],
+        relevant_docs=[{"text": "some teaching " * 30}],
     )
 
     # reflect_on_answer bypass
@@ -180,7 +186,7 @@ async def test_quality_checks_bypass(mock_services):
     res_verify = await nodes.verify_answer(state)
     assert res_verify["is_faithful"] is True
     assert res_verify["verification"]["passed"] is True
-    assert res_verify["confidence_score"] == 8.0
+    assert res_verify["confidence_score"] == 10.0
     assert res_verify["faithfulness_score"] == 1.0
 
 
@@ -237,14 +243,13 @@ async def test_generate_answer_streaming(mock_services):
 @pytest.mark.asyncio
 async def test_context_compression_threshold(mock_services):
     mock_ollama, _ = mock_services
-    mock_ollama.compress_context = AsyncMock(return_value="compressed text")
     mock_ollama.generate = AsyncMock(return_value="dummy response")
     mock_ollama.generate_stream = None  # Force synchronous fallback for simplicity
 
     from app.config import settings
 
     # Ensure it's enabled for the test
-    settings.rag_use_context_compression = True
+    settings.rag_use_context_compression = "auto"
     settings.rag_context_compression_threshold = 100
 
     try:
@@ -259,8 +264,9 @@ async def test_context_compression_threshold(mock_services):
             ab_model="primary",
         )
 
-        await nodes.generate_answer(state_short)
-        mock_ollama.compress_context.assert_not_called()
+        with patch("rag.nodes.generation.extractive_compress_doc") as mock_compress:
+            await nodes.generate_answer(state_short)
+            mock_compress.assert_not_called()
 
         # 2. Total character length above threshold (should compress)
         state_long = GraphState(
@@ -278,12 +284,12 @@ async def test_context_compression_threshold(mock_services):
             ab_model="primary",
         )
 
-        mock_ollama.compress_context.reset_mock()
-        await nodes.generate_answer(state_long)
-        assert mock_ollama.compress_context.call_count == 1
-        _, kwargs = mock_ollama.compress_context.call_args
-        assert kwargs.get("question") == "What is meditation?"
-        assert kwargs.get("text") == state_long["relevant_docs"][0]["text"]
+        with patch("rag.nodes.generation.extractive_compress_doc", return_value="compressed text") as mock_compress:
+            await nodes.generate_answer(state_long)
+            assert mock_compress.call_count == 1
+            args, _ = mock_compress.call_args
+            assert args[0] == "What is meditation?"
+            assert args[1] == state_long["relevant_docs"][0]["text"]
     finally:
         # Reset settings defaults
         settings.rag_use_context_compression = False

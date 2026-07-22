@@ -72,9 +72,6 @@ def record_prompt_cache_event(
             if _cache_stats["total_requests"] > 0
             else 0.0
         )
-
-    avg_ttft = _cache_stats["total_ttft_ms"] / _cache_stats["ttft_count"] if _cache_stats["ttft_count"] > 0 else None
-
     logger.info(
         "[PromptCacheTelemetry] provider=%s hit=%s hit_rate=%.2f%% cached_tokens=%d total_tokens=%d ttft=%s",
         provider,

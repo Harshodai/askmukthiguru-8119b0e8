@@ -119,7 +119,7 @@ class PersonaDiscriminator:
             # Hard timeout — must not consume the full outer 15s budget
             raw_res = await asyncio.wait_for(
                 self.llm_service.generate(_PERSONA_JUDGE_SYSTEM_PROMPT, judge_user_prompt, temperature=0.1),
-                timeout=8.0,
+                timeout=5.0,
             )
             json_match = re.search(r"\{.*\}", raw_res, re.DOTALL)
             if json_match:

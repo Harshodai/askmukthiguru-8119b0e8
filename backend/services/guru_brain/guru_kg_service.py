@@ -93,7 +93,7 @@ class GuruKGService:
             except Exception as exc:
                 logger.warning(f"GuruKGService: Neo4j Cypher write failed ({exc}), stored in graph memory fallback.")
 
-    def traverse_guru_ontology(self, query: str, limit: int = 3) -> list[OKFTransformationArc]:
+    def traverse_guru_ontology(self, query: str, limit: int = 3, timeout: float | None = None) -> list[OKFTransformationArc]:
         """Perform 5-node multi-hop graph traversal to discover spiritual transformation arcs."""
         if self._resolved_driver:
             try:
@@ -108,7 +108,10 @@ class GuruKGService:
                     RETURN d.name AS dilemma, b.name AS belief, t.name AS teaching, s.name AS state, p.name AS practice, g.name AS guru
                     LIMIT $limit
                     """
-                    result = session.run(cypher, q=query, limit=limit)
+                    run_kwargs = {"q": query, "limit": limit}
+                    if timeout is not None:
+                        run_kwargs["timeout"] = timeout
+                    result = session.run(cypher, **run_kwargs)
                     arcs = []
                     for record in result:
                         arcs.append(

@@ -8,6 +8,7 @@ Incorporates advances from PersoDPO (2026) and IRPO (2025):
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import uuid
@@ -52,7 +53,7 @@ class GuruBrainService:
             return getattr(self.qdrant_service, "_client", self.qdrant_service)
         return None
 
-    def ensure_collection_exists(self, vector_size: int = 1024) -> bool:
+    async def ensure_collection_exists(self, vector_size: int = 1024) -> bool:
         """Create the `guru_tone_podcast` Qdrant collection if missing, preserving existing collections on dimension mismatch."""
         client = self._get_client()
         if not client:
@@ -60,11 +61,11 @@ class GuruBrainService:
             return False
 
         try:
-            collections = client.get_collections()
+            collections = await asyncio.to_thread(client.get_collections)
             collection_names = [c.name for c in collections.collections]
 
             if COLLECTION_NAME in collection_names:
-                info = client.get_collection(COLLECTION_NAME)
+                info = await asyncio.to_thread(client.get_collection, COLLECTION_NAME)
                 current_size = info.config.params.vectors.size if hasattr(info.config.params.vectors, "size") else 1024
                 if current_size != vector_size:
                     logger.error(
@@ -74,7 +75,8 @@ class GuruBrainService:
 
             if COLLECTION_NAME not in collection_names:
                 logger.info(f"GuruBrainService: Creating Qdrant collection '{COLLECTION_NAME}' (size={vector_size}).")
-                client.create_collection(
+                await asyncio.to_thread(
+                    client.create_collection,
                     collection_name=COLLECTION_NAME,
                     vectors_config=qmodels.VectorParams(
                         size=vector_size,
@@ -131,8 +133,9 @@ class GuruBrainService:
         if points and client:
             try:
                 dim = len(points[0].vector)
-                self.ensure_collection_exists(vector_size=dim)
-                client.upsert(
+                await self.ensure_collection_exists(vector_size=dim)
+                await asyncio.to_thread(
+                    client.upsert,
                     collection_name=COLLECTION_NAME,
                     points=points,
                 )
@@ -177,7 +180,8 @@ class GuruBrainService:
 
                     search_results = []
                     if hasattr(client, "query_points"):
-                        qp_res = client.query_points(
+                        qp_res = await asyncio.to_thread(
+                            client.query_points,
                             collection_name=COLLECTION_NAME,
                             query=vector,
                             query_filter=query_filter,
@@ -185,7 +189,8 @@ class GuruBrainService:
                         )
                         search_results = qp_res.points
                     elif hasattr(client, "search"):
-                        search_results = client.search(
+                        search_results = await asyncio.to_thread(
+                            client.search,
                             collection_name=COLLECTION_NAME,
                             query_vector=vector,
                             query_filter=query_filter,
