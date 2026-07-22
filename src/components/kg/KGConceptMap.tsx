@@ -620,7 +620,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             {/* Center Gravity */}
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>Center Gravity</span>
+                <span>{t('kg.settings.centerGravity', 'Center Gravity')}</span>
                 <span>{gravity.toFixed(3)}</span>
               </div>
               <input
