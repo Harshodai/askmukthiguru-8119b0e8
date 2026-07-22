@@ -1,5 +1,33 @@
 # Agentic Lessons & Memory
 
+## Jul 22, 2026 — Hallucination Flag Invalidates Semantic Cache + Daily Anomaly Sweep
+
+### What we built
+- Added `context_precision` and `context_recall` dimensions to the golden-dataset eval judge + CI gate.
+- Expanded the golden dataset with 40 adversarial items (doctrinal impostors, numeric traps, injection, unanswerable).
+- Wired hallucination / thumbs-down feedback to invalidate the cached semantic-cache entry so a bad answer is not served again.
+- Added `scripts/ops/hallucination_anomaly.py` for a daily check of `hallucination_flag` rate and `faithfulness` p50.
+
+### Implementation notes
+- Cache invalidation lives in `SupabaseTelemetrySink._invalidate_semantic_cache_if_flagged` so both the LLM self-verification path (already sets `hallucination_flag`) and the feedback path (thumbs-down) can reuse it.
+- The invalidator reaches the cache through `app.dependencies.get_container()` — consistent with the codebase rule that services are resolved via the composition root.
+- `SemanticCacheAdapter._point_ids(point_id)` was added as a thin static helper so callers do not need to import Qdrant `PointIdsList` directly.
+- Anomaly thresholds come from `app.config.settings` and default to safe values: hallucination rate > 5% or faithfulness p50 < 0.80 triggers an alert.
+
+### Why this matters
+Cached bad answers amplify hallucinations. Removing the cache entry on flag + monitoring daily trends closes the loop between eval metrics, runtime signals, and observability.
+
+### Tests
+- `tests/test_hallucination_cache_invalidation.py` — 5 tests covering flag true/false, adapter unavailable, thumbs-down path, `_point_ids` helper.
+- `tests/test_hallucination_anomaly.py` — 8 tests covering metrics computation, thresholds, and CLI exit codes.
+
+### Lessons
+- When adding a new invalidation path, keep the actual delete logic in one place (the telemetry sink) and have the route schedule it as a background task. This avoids duplicating Qdrant/Redis access code and keeps route handlers thin.
+- Test background-task behavior by awaiting the scheduled coroutine directly in tests; calling FastAPI route functions outside the framework skips dependency injection and gives misleading failures.
+- New operational scripts should default to a no-op self-check so they are safe to run in CI and local environments without real Supabase credentials.
+
+
+
 ## Jul 20, 2026 — yt-dlp on Railway: No Browser, No Node.js — Android Client Saves the Day
 
 ### The Bug: yt-dlp downloads fail on Railway because cookie extraction always runs on Linux

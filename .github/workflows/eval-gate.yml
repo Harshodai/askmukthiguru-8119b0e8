@@ -1,8 +1,8 @@
-name: Eval Gate (RAGAS Faithfulness)
+name: Eval Gate (RAGAS Faithfulness + Context Metrics)
 
-# Blocks merge / deploy when faithfulness on the golden disciple set
-# regresses below the threshold. Runs on PRs touching backend RAG code
-# and as a nightly canary on main.
+# Blocks merge / deploy when faithfulness, context precision, or context recall
+# on the golden disciple set regress below the threshold. Runs on PRs touching
+# backend RAG code and as a nightly canary on main.
 
 on:
   pull_request:
@@ -19,6 +19,8 @@ on:
 env:
   FAITHFULNESS_THRESHOLD: '0.88'
   ANSWER_RELEVANCY_THRESHOLD: '0.80'
+  CONTEXT_PRECISION_THRESHOLD: '0.72'
+  CONTEXT_RECALL_THRESHOLD: '0.72'
   DIVERSITY_MIN_DISTINCT_SOURCES: '2'
 
 jobs:
@@ -48,6 +50,8 @@ jobs:
             --out eval_report.json \
             --faithfulness-min "$FAITHFULNESS_THRESHOLD" \
             --relevancy-min "$ANSWER_RELEVANCY_THRESHOLD" \
+            --context-precision-min "$CONTEXT_PRECISION_THRESHOLD" \
+            --context-recall-min "$CONTEXT_RECALL_THRESHOLD" \
             --min-distinct-sources "$DIVERSITY_MIN_DISTINCT_SOURCES"
 
       - name: Upload report
@@ -72,6 +76,8 @@ jobs:
               `|---|---|---|---|`,
               `| faithfulness | ${r.faithfulness?.toFixed(3)} | ${process.env.FAITHFULNESS_THRESHOLD} | ${r.faithfulness_pass ? '✅' : '❌'} |`,
               `| answer_relevancy | ${r.answer_relevancy?.toFixed(3)} | ${process.env.ANSWER_RELEVANCY_THRESHOLD} | ${r.relevancy_pass ? '✅' : '❌'} |`,
+              `| context_precision | ${r.context_precision?.toFixed(3)} | ${process.env.CONTEXT_PRECISION_THRESHOLD} | ${r.context_precision_pass ? '✅' : '❌'} |`,
+              `| context_recall | ${r.context_recall?.toFixed(3)} | ${process.env.CONTEXT_RECALL_THRESHOLD} | ${r.context_recall_pass ? '✅' : '❌'} |`,
               `| source_diversity | ${r.diversity_violations} violations | 0 | ${r.diversity_violations === 0 ? '✅' : '❌'} |`,
               '',
               `Run: ${r.questions_total} questions, ${r.questions_failed} failed to answer.`,

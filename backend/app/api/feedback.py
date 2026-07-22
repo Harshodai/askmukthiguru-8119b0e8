@@ -7,12 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from app.config import settings
 from app.core.feedback_store import FeedbackStore
 from app.core.limiter import limiter
+from app.telemetry_sink import SupabaseTelemetrySink
 from schemas.feedback import FeedbackCreate, FeedbackResponse
 from services.auth_service import get_current_user_from_supabase
 from services.feedback_service import FeedbackService
 
 router = APIRouter(prefix="/feedback", tags=["Feedback"])
 jsonl_store = FeedbackStore()
+_telemetry_sink = SupabaseTelemetrySink()
 
 
 @router.post("/", response_model=FeedbackResponse)
@@ -38,18 +40,26 @@ async def submit_feedback(
 
     if feedback_in.rating <= 0:
         from app.core.refiner import mine_failed_session
-        
+
         # Try to pull retrieved chunks out of metadata_json if present
         retrieved_context = ""
         if feedback_in.metadata_json and "chunks" in feedback_in.metadata_json:
             retrieved_context = str(feedback_in.metadata_json["chunks"])
-            
+
         background_tasks.add_task(
             mine_failed_session,
             query=feedback_in.query,
             retrieved_context=retrieved_context,
             answer=feedback_in.answer,
-            comment=feedback_in.feedback_text
+            comment=feedback_in.feedback_text,
+        )
+
+        # Thumbs-down also invalidates the cached semantic entry for this query
+        # so the bad answer is not served again to other users.
+        background_tasks.add_task(
+            _telemetry_sink._invalidate_semantic_cache_if_flagged,
+            hallucination_flag=True,
+            query_text=feedback_in.query,
         )
 
     return await service.create_feedback(feedback_in, user_id=user_id)
