@@ -28,7 +28,7 @@
 ### LightRAG & Knowledge Base Status (Jul 22, 2026) ✅
 - **Qdrant `spiritual_wisdom`**: 89,053 points (full corpus: books, 450+ YouTube discourses, meditations, lectures)
 - **Neo4j Knowledge Graph**: 7,601 nodes (7,498 `base` concept nodes + 103 `OKF` 5-node transformation arc nodes)
-- **LightRAG Direct Ingestion**: Continuous Qdrant scroll ingestion (`scripts/ingest_lightrag_data.py`) reading directly from `spiritual_wisdom` payload via OpenRouter `google/gemma-3-12b-it` to build dual-level graph vectors.
+- **LightRAG Direct Ingestion**: Continuous Qdrant scroll ingestion (`scripts/ingest_lightrag_data.py`) reading directly from `spiritual_wisdom` payload with OpenRouter inference (`gemma-3-12b-it`) to build dual-level graph vectors.
 
 ### User Personalization & Second Brain Vault Status (Jul 22, 2026) ✅
 - **Second Brain Vault (`second_brain_vault`)**: Shared multi-tenant collection in Qdrant indexed with `user_id` keyword filter. Payload NEVER holds plaintext; user notes live encrypted in Postgres (`user_brain_nodes`), vectors in Qdrant (`services/second_brain/vault_index.py`).

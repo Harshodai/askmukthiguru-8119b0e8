@@ -59,11 +59,11 @@ def main() -> None:
     from qdrant_client import QdrantClient
     from qdrant_client.models import PointIdsList
 
-    qdrant_url = os.environ.get("QDRANT_URL", "http://localhost:6333")
+    from app.config import settings
     qdrant_api_key = os.environ.get("QDRANT_API_KEY", "")
-    client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key or None, timeout=30)
+    client = QdrantClient(url=settings.qdrant_url, api_key=qdrant_api_key or None, timeout=30)
 
-    print(f"Connected to Qdrant at {qdrant_url}")
+    print(f"Connected to Qdrant at {settings.qdrant_url}")
     print(f"Mode: {'DRY RUN' if args.dry_run else 'LIVE WRITE'}")
 
     offset = None

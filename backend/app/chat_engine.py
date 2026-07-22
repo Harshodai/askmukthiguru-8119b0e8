@@ -366,6 +366,9 @@ class ChatEngine:
                 except (asyncio.CancelledError, Exception):
                     pass
 
+        pipeline_result = pipeline_task.result() if pipeline_task.done() else None
+        citations = list(pipeline_result.citations) if pipeline_result else []
+
         # Post-stream: apply GuruToneAdapter to the fully assembled answer
         raw_answer = "".join(assembled_text).strip()
         if raw_answer:
@@ -383,12 +386,12 @@ class ChatEngine:
                 )
                 transformed = res_state.get("final_answer") if isinstance(res_state, dict) else res_state
                 if transformed and len(transformed.strip()) > 20:
-                    yield ChatChunk(text=transformed, is_final=True, citations=[])
+                    yield ChatChunk(text=transformed, is_final=True, citations=citations)
                     return
             except (asyncio.TimeoutError, Exception) as exc:
                 logger.warning(f"GuruToneAdapter streaming post-pass failed: {exc}, yielding raw answer.")
             # Fallback: yield raw answer as final
-            yield ChatChunk(text=raw_answer, is_final=True, citations=[])
+            yield ChatChunk(text=raw_answer, is_final=True, citations=citations)
 
     async def _log_telemetry(
         self,

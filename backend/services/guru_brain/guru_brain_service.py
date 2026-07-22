@@ -160,7 +160,7 @@ class GuruBrainService:
                 else:
                     vector = None
 
-                if vector:
+                if vector is not None and len(vector) > 0:
                     if isinstance(vector, list) and len(vector) > 0 and isinstance(vector[0], list):
                         vector = vector[0]
 

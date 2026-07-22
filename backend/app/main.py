@@ -207,6 +207,12 @@ _startup_complete = False
 _startup_error: str | None = None
 
 
+def _get_raw_qdrant_client(container) -> object | None:
+    """Get the raw Qdrant gRPC/REST client from the service container."""
+    _qdrant_svc = getattr(container, "qdrant_service", None)
+    return getattr(_qdrant_svc, "_client", None) if _qdrant_svc else None
+
+
 async def _background_startup_body(container, fastapi_app) -> None:
     """Run deferred initialization (ontology seeding, queues, telemetry).
 
@@ -229,8 +235,7 @@ async def _background_startup_body(container, fastapi_app) -> None:
     try:
         from qdrant_client.models import HnswConfigDiff
 
-        _qdrant_client = getattr(container, "qdrant_service", None)
-        _qclient = getattr(_qdrant_client, "_client", None) if _qdrant_client else None
+        _qclient = _get_raw_qdrant_client(container)
         if _qclient:
             _lightrag_collections = [
                 "lightrag_vdb_entities_baai_bge_m3_1024d",
@@ -262,8 +267,7 @@ async def _background_startup_body(container, fastapi_app) -> None:
     try:
         from qdrant_client.models import PayloadSchemaType
 
-        _qdrant_client2 = getattr(container, "qdrant_service", None)
-        _qclient2 = getattr(_qdrant_client2, "_client", None) if _qdrant_client2 else None
+        _qclient2 = _get_raw_qdrant_client(container)
         if _qclient2:
             _SW = "spiritual_wisdom"
             _int_fields = ["raptor_level", "cluster_id"]
@@ -290,8 +294,7 @@ async def _background_startup_body(container, fastapi_app) -> None:
     # NOTE: global_memory and second_brain_vault are intentionally preserved (future features).
     logger.info("Lifespan: cleaning up stale 384d LightRAG collections...")
     try:
-        _qdrant_client3 = getattr(container, "qdrant_service", None)
-        _qclient3 = getattr(_qdrant_client3, "_client", None) if _qdrant_client3 else None
+        _qclient3 = _get_raw_qdrant_client(container)
         if _qclient3:
             _stale_384d = [
                 "lightrag_vdb_entities_intfloat_multilingual_e5_small_384d",
@@ -299,7 +302,6 @@ async def _background_startup_body(container, fastapi_app) -> None:
                 "lightrag_vdb_chunks_intfloat_multilingual_e5_small_384d",
                 "spiritual_wisdom_recovery_v20260713_004009",
                 "spiritual_wisdom_recovery_v20260713_003753",
-                "semantic_query_cache",  # 0-point empty stale — will be re-created below
             ]
             _existing_cols = {
                 c.name for c in (await asyncio.to_thread(_qclient3.get_collections)).collections
@@ -311,6 +313,19 @@ async def _background_startup_body(container, fastapi_app) -> None:
                         logger.info("Lifespan: deleted stale collection %s", _stale)
                     except Exception as _de:
                         logger.warning("Lifespan: could not delete %s: %s", _stale, _de)
+
+            # Only delete semantic_query_cache if it has 0 points (non-destructive)
+            if "semantic_query_cache" in _existing_cols:
+                try:
+                    _cache_info = await asyncio.to_thread(_qclient3.get_collection, "semantic_query_cache")
+                    _cache_count = getattr(_cache_info, "points_count", None) or 0
+                    if _cache_count == 0:
+                        await asyncio.to_thread(_qclient3.delete_collection, "semantic_query_cache")
+                        logger.info("Lifespan: deleted empty semantic_query_cache collection")
+                    else:
+                        logger.info("Lifespan: semantic_query_cache has %d points — preserved", _cache_count)
+                except Exception as _ce:
+                    logger.warning("Lifespan: could not check/delete semantic_query_cache: %s", _ce)
     except Exception as e:
         logger.warning(f"Lifespan: stale collection cleanup error (non-critical): {e}")
 
@@ -319,8 +334,7 @@ async def _background_startup_body(container, fastapi_app) -> None:
     try:
         from qdrant_client.models import VectorParams, Distance
 
-        _qdrant_client4 = getattr(container, "qdrant_service", None)
-        _qclient4 = getattr(_qdrant_client4, "_client", None) if _qdrant_client4 else None
+        _qclient4 = _get_raw_qdrant_client(container)
         if _qclient4:
             _cache_col = "semantic_query_cache"
             _existing4 = {
@@ -343,8 +357,7 @@ async def _background_startup_body(container, fastapi_app) -> None:
     try:
         from qdrant_client.models import HnswConfigDiff as _HnswDiff
 
-        _qdrant_client5 = getattr(container, "qdrant_service", None)
-        _qclient5 = getattr(_qdrant_client5, "_client", None) if _qdrant_client5 else None
+        _qclient5 = _get_raw_qdrant_client(container)
         if _qclient5:
             _sw_info = await asyncio.to_thread(_qclient5.get_collection, "spiritual_wisdom")
             _sw_m = getattr(getattr(_sw_info.config, "hnsw_config", None), "m", None)
@@ -399,22 +412,49 @@ async def _background_startup_body(container, fastapi_app) -> None:
         _embed_model_name = getattr(settings, "embedding_model", "BAAI/bge-m3")
         _embed_dim = getattr(settings, "embedding_dimension", 1024)
         _fingerprint = _hashlib.md5(f"{_embed_model_name}:{_embed_dim}".encode()).hexdigest()
-        _fp_path = "/tmp/embedding_model_fingerprint.json"
+        _fp_redis_key = "embedding_model_fingerprint"
 
-        if __import__("os").path.exists(_fp_path):
-            with open(_fp_path) as _f:
-                _stored = _json.load(_f)
-            if _stored.get("fingerprint") != _fingerprint:
+        # Use Redis for durable cross-deploy persistence; fall back to /tmp on failure
+        _stored_fp = None
+        try:
+            import redis as _redis_lib
+            _r = _redis_lib.Redis.from_url(settings.redis_url, socket_timeout=3, socket_connect_timeout=3)
+            _stored_raw = _r.get(_fp_redis_key)
+            if _stored_raw:
+                _stored = _json.loads(_stored_raw)
+                _stored_fp = _stored.get("fingerprint")
+        except Exception:
+            _fp_path = "/tmp/embedding_model_fingerprint.json"
+            if __import__("os").path.exists(_fp_path):
+                try:
+                    with open(_fp_path) as _f:
+                        _stored = _json.load(_f)
+                        _stored_fp = _stored.get("fingerprint")
+                except Exception:
+                    pass
+
+        if _stored_fp is not None:
+            if _stored_fp != _fingerprint:
                 logger.critical(
                     "⚠️  EMBEDDING MODEL CHANGED: stored=%s current=%s model=%s dim=%d. "
                     "Full re-indexing of spiritual_wisdom required to avoid retrieval degradation!",
-                    _stored.get("fingerprint"), _fingerprint, _embed_model_name, _embed_dim,
+                    _stored_fp, _fingerprint, _embed_model_name, _embed_dim,
                 )
             else:
                 logger.info("Lifespan: embedding model fingerprint OK (%s)", _fingerprint[:8])
         else:
-            with open(_fp_path, "w") as _f:
-                _json.dump({"model": _embed_model_name, "dim": _embed_dim, "fingerprint": _fingerprint}, _f)
+            # Store fingerprint in Redis (primary) and /tmp (fallback)
+            try:
+                import redis as _redis_lib2
+                _r2 = _redis_lib2.Redis.from_url(settings.redis_url, socket_timeout=3, socket_connect_timeout=3)
+                _r2.set(_fp_redis_key, _json.dumps({"model": _embed_model_name, "dim": _embed_dim, "fingerprint": _fingerprint}))
+            except Exception:
+                _fp_path = "/tmp/embedding_model_fingerprint.json"
+                try:
+                    with open(_fp_path, "w") as _f:
+                        _json.dump({"model": _embed_model_name, "dim": _embed_dim, "fingerprint": _fingerprint}, _f)
+                except Exception:
+                    pass
             logger.info("Lifespan: embedding model fingerprint stored (%s)", _fingerprint[:8])
     except Exception as e:
         logger.warning(f"Lifespan: embedding model drift check error (non-critical): {e}")

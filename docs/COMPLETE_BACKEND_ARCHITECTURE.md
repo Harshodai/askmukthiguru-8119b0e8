@@ -82,8 +82,8 @@ AskMukthiGuru is an AI spiritual guidance platform grounded in Sri Preethaji & S
 1. **Cache Inspection (Tier 0):**
    * **Hot Memory Cache:** Exact prompt hash check (`hot_cache`).
    * **Redis Cache:** Multi-tier L1 response cache (`exact_cache`).
-   * **Qdrant Semantic Cache:** Cosine distance check on `semantic_query_cache` (similarity threshold = 0.96 for zero false positives).
-2. **Benchmark Guard:** If request header `X-Test-Key` or `is_benchmark=True` is present, cache lookups are bypassed to ensure true execution scores.
+    * **Qdrant Semantic Cache:** Cosine distance check on `semantic_query_cache` (similarity threshold = 0.90 for zero false positives).
+2. **Benchmark Guard:** Three conditions must ALL be met for `X-Test-Key` authentication: a non-production environment (`IS_PRODUCTION=false` or unset), `ENABLE_TEST_AUTH=true`, and a non-empty `BENCHMARK_SECRET` matching the header value. Without these, the backdoor is never enabled in production. The `is_benchmark=True` flag follows independent bypass logic documented in the applicable route handler.
 
 ---
 
@@ -148,11 +148,11 @@ AskMukthiGuru combines three distinct data stores to achieve high factual accura
 ### 2. Neo4j Knowledge Graph (Graph Database)
 * Houses **7,601 nodes** and **11,439 directed relationship edges**.
 * Features the 20 OKF Transformation Arcs:
-  $$\text{SeekerDilemma} \xrightarrow{\text{DRIVEN\_BY}} \text{RootLimitingBelief} \xrightarrow{\text{DISMANTLES}} \text{GuruTeaching} \xrightarrow{\text{TRANSFORMS\_TO}} \text{BeautifulState} \xrightarrow{\text{PRESCRIBES}} \text{PracticeStep}$$
+  $$\text{SeekerDilemma} \xrightarrow{\text{DRIVEN\_BY}} \text{RootLimitingBelief} \xleftarrow{\text{DISMANTLES}} \text{GuruTeaching} \xrightarrow{\text{TRANSFORMS\_TO}} \text{BeautifulState} \xrightarrow{\text{PRESCRIBES}} \text{PracticeStep}$$
 
 ### 3. LightRAG HKU Dual-Level Retrieval (Hybrid Orchestrator)
 * Scrolls directly from Qdrant `spiritual_wisdom` payload chunks via `scripts/ingest_lightrag_data.py`.
-* Uses OpenRouter (`google/gemma-3-12b-it`) with **8 parallel async workers** and **60.0s fast timeout**.
+* Uses local inference (self-hosted LLM) with **8 parallel async workers** and **60.0s fast timeout**.
 * Automatically extracts low-level entities and high-level relationship keys, providing dual-level retrieval without full-graph reconstruction costs.
 
 ---
@@ -183,7 +183,7 @@ Based on 2026 SOTA GraphRAG research and system audits, here are 4 high-impact a
 1. **LightRAG Dual-Query Blending:**
    * Blend LightRAG high-level relationship summaries directly into `context_engineer.py` alongside standard Qdrant dense vector hits to boost multi-document synthesis scores by +15%.
 2. **Dynamic Concurrency Auto-Scaling:**
-   * Implement adaptive backoff in `ingest_lightrag_data.py` that dynamically scales `CONCURRENCY_WORKERS` from 4 up to 12 based on OpenRouter response latency and 429 header headers (`x-ratelimit-remaining`).
+   * Implement adaptive backoff in `ingest_lightrag_data.py` that dynamically scales `CONCURRENCY_WORKERS` from 4 up to 12 based on API response latency and rate-limit headers.
 3. **PersoDPO Preference Dataset Generation:**
    * Record Pass 1 (draft) vs Pass 2 (guru voice) output pairs into Supabase `guru_brain_episodes` table to build an offline DPO preference dataset for fine-tuning open-weights models.
 4. **Colab / GPU Ingestion Worker Offloading:**

@@ -42,11 +42,11 @@ def main() -> None:
         print("ERROR: scikit-learn not installed. Run: pip install scikit-learn")
         sys.exit(1)
 
-    qdrant_url = os.environ.get("QDRANT_URL", "http://localhost:6333")
+    from app.config import settings
     qdrant_api_key = os.environ.get("QDRANT_API_KEY", "")
-    client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key or None, timeout=60)
+    client = QdrantClient(url=settings.qdrant_url, api_key=qdrant_api_key or None, timeout=60)
 
-    print(f"Connected to Qdrant at {qdrant_url}")
+    print(f"Connected to Qdrant at {settings.qdrant_url}")
     print(f"Mode: {'DRY RUN' if args.dry_run else 'LIVE WRITE'}, k={args.k}")
 
     # Phase 1: scroll all points + vectors
@@ -70,7 +70,11 @@ def main() -> None:
             vec = getattr(point, "vector", None)
             if vec is not None:
                 all_ids.append(point.id)
-                all_vectors.append(vec if isinstance(vec, list) else list(vec))
+                if isinstance(vec, dict):
+                    embedding = next(iter(vec.values()))
+                    all_vectors.append(embedding if isinstance(embedding, list) else list(embedding))
+                else:
+                    all_vectors.append(vec if isinstance(vec, list) else list(vec))
         print(f"  Scrolled {len(all_ids)} points...", end="\r")
         if args.limit and len(all_ids) >= args.limit:
             break

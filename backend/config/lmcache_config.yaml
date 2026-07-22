@@ -1,0 +1,16 @@
+# LMCache Production Engine Configuration
+# Integrates with local NIM / vLLM workers for zero-loss KV cache reuse and CacheBlend
+
+chunk_size: 256
+local_device: "cuda"
+max_local_cpu_size: 16  # 16 GB CPU RAM buffer for cached KV chunks
+max_local_gpu_size: 4   # 4 GB local GPU VRAM buffer for active KV chunks
+
+# Remote KV storage backend (Shared Redis instance across scale-out workers)
+# Redis credentials injected at runtime via LMCACHE_REMOTE_URL env var — never hardcoded
+remote_url: "${LMCACHE_REMOTE_URL}"
+remote_serde: "naive"
+
+# Asynchronous pipelining and CacheBlend non-prefix KV reuse
+pipelining: true
+enable_blending: true

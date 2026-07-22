@@ -36,18 +36,17 @@ def main() -> None:
     out_file = os.path.join(args.out_dir, f"lightrag_checkpoint_{ts}.json")
 
     try:
-        conn = sqlite3.connect(args.db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='document_status';")
-        if not cursor.fetchone():
-            print("WARN: Table 'document_status' not found in database.")
-            return
+        with sqlite3.connect(args.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='document_status';")
+            if not cursor.fetchone():
+                print("WARN: Table 'document_status' not found in database.")
+                return
 
-        cursor.execute("SELECT * FROM document_status")
-        rows = cursor.fetchall()
-        cols = [d[0] for d in cursor.description]
-        data = [dict(zip(cols, row)) for row in rows]
-        conn.close()
+            cursor.execute("SELECT * FROM document_status")
+            rows = cursor.fetchall()
+            cols = [d[0] for d in cursor.description]
+            data = [dict(zip(cols, row)) for row in rows]
 
         with open(out_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)

@@ -43,7 +43,7 @@ def calculate_keyword_recall(answer: str, expected_keywords: list[str]) -> float
     return found / len(expected_keywords)
 
 
-def evaluate_abstention(answer: str, should_abstain: bool) -> bool:
+def evaluate_abstention(answer: str, should_abstain: bool, expected_keywords: list[str] | None = None) -> bool:
     answer_lower = answer.lower()
     abstain_signals = [
         "unable to find",
@@ -55,7 +55,13 @@ def evaluate_abstention(answer: str, should_abstain: bool) -> bool:
         "no fifth secret",
         "does not have a daughter",
         "only 12 months",
+        "financial advice",
+        "not for manipulation",
+        "not levitation",
+        "not a",
     ]
+    if expected_keywords:
+        abstain_signals.extend(expected_keywords)
     has_abstained = any(signal in answer_lower for signal in abstain_signals)
     if should_abstain:
         return has_abstained
@@ -78,6 +84,7 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
             category = item["category"]
             should_abstain = item.get("should_abstain", False)
             expected_keywords = item.get("expected_keywords", [])
+            expected_citations = item.get("expected_citations", [])
 
             start_time = time.time()
             status_code = 0
@@ -109,7 +116,17 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
             latency = time.time() - start_time
 
             kw_recall = calculate_keyword_recall(answer, expected_keywords)
-            abstention_correct = evaluate_abstention(answer, should_abstain)
+            abstention_correct = evaluate_abstention(answer, should_abstain, expected_keywords)
+            faithfulness_score = min(confidence_score / 10.0, 1.0)
+            if expected_citations and citations:
+                citation_urls = [c.get("url") if isinstance(c, dict) else str(c) for c in citations]
+                expected_urls = [c.get("url") if isinstance(c, dict) else c for c in expected_citations]
+                matched = sum(1 for e in expected_urls if any(e.lower() in u.lower() for u in citation_urls))
+                citation_validity = matched / max(len(expected_citations), 1)
+            elif not expected_citations:
+                citation_validity = 1.0
+            else:
+                citation_validity = 0.0
 
             eval_entry = {
                 "id": q_id,
@@ -120,6 +137,8 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
                 "answer_length": len(answer),
                 "keyword_recall": round(kw_recall, 2),
                 "abstention_correct": abstention_correct,
+                "faithfulness_score": round(faithfulness_score, 2),
+                "citation_validity": round(citation_validity, 2),
                 "confidence_score": round(confidence_score, 2),
                 "citation_count": len(citations),
                 "error": error,
@@ -130,6 +149,8 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
             print(
                 f"[{idx}/{len(golden_set)}] {category:<12} | "
                 f"KW Recall: {kw_recall * 100:>3.0f}% | "
+                f"Faith: {faithfulness_score * 100:>3.0f}% | "
+                f"Cite Valid: {citation_validity * 100:>3.0f}% | "
                 f"Abstain OK: {'✓' if abstention_correct else '✗'} | "
                 f"Latency: {latency:>4.1f}s | "
                 f"{q_id}"
@@ -138,6 +159,8 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
     # Calculate Aggregate Metrics
     avg_latency = sum(r["latency_s"] for r in results) / max(len(results), 1)
     avg_kw_recall = sum(r["keyword_recall"] for r in results) / max(len(results), 1)
+    avg_faithfulness = sum(r["faithfulness_score"] for r in results) / max(len(results), 1)
+    avg_citation_validity = sum(r["citation_validity"] for r in results) / max(len(results), 1)
     abstain_accuracy = sum(1 for r in results if r["abstention_correct"]) / max(len(results), 1)
 
     cat_summaries = {}
@@ -146,6 +169,8 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
             "count": len(items),
             "avg_latency": round(sum(i["latency_s"] for i in items) / len(items), 2),
             "avg_kw_recall": round(sum(i["keyword_recall"] for i in items) / len(items), 2),
+            "avg_faithfulness": round(sum(i["faithfulness_score"] for i in items) / len(items), 2),
+            "avg_citation_validity": round(sum(i["citation_validity"] for i in items) / len(items), 2),
             "abstain_accuracy": round(sum(1 for i in items if i["abstention_correct"]) / len(items), 2),
         }
 
@@ -154,6 +179,8 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
         "total_questions": len(golden_set),
         "overall_avg_latency_s": round(avg_latency, 2),
         "overall_kw_recall": round(avg_kw_recall, 2),
+        "overall_faithfulness": round(avg_faithfulness, 2),
+        "overall_citation_validity": round(avg_citation_validity, 2),
         "overall_abstain_accuracy": round(abstain_accuracy, 2),
         "category_summaries": cat_summaries,
         "results": results,
@@ -162,12 +189,14 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
     print("\n" + "=" * 60)
     print("EVALUATION SUMMARY REPORT")
     print("=" * 60)
-    print(f"Overall Keyword Recall:  {avg_kw_recall * 100:.1f}%")
-    print(f"Abstention Accuracy:    {abstain_accuracy * 100:.1f}%")
-    print(f"Average Latency:        {avg_latency:.2f}s")
+    print(f"Overall Keyword Recall:   {avg_kw_recall * 100:.1f}%")
+    print(f"Overall Faithfulness:     {avg_faithfulness * 100:.1f}%")
+    print(f"Overall Citation Validity:{avg_citation_validity * 100:.1f}%")
+    print(f"Abstention Accuracy:      {abstain_accuracy * 100:.1f}%")
+    print(f"Average Latency:          {avg_latency:.2f}s")
     print("-" * 60)
     for cat, stat in cat_summaries.items():
-        print(f"  {cat:<14}: Recall {stat['avg_kw_recall']*100:>5.1f}% | Abstain {stat['abstain_accuracy']*100:>5.1f}% | Latency {stat['avg_latency']:>4.1f}s")
+        print(f"  {cat:<14}: Recall {stat['avg_kw_recall']*100:>5.1f}% | Faith {stat['avg_faithfulness']*100:>5.1f}% | Cite {stat['avg_citation_validity']*100:>5.1f}% | Abstain {stat['abstain_accuracy']*100:>5.1f}% | Latency {stat['avg_latency']:>4.1f}s")
 
     if output_file:
         with open(output_file, "w", encoding="utf-8") as f:

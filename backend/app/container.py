@@ -158,7 +158,10 @@ class ServiceContainer:
         self.embedding = EmbeddingService()
         self.semantic_router = SemanticModelRouter(self.embedding)
         self.guru_brain_service = GuruBrainService(qdrant_service=self.qdrant, embedding_service=self.embedding)
-        self.guru_kg_service = GuruKGService(neo4j_driver=self.neo4j_driver)
+        self.guru_kg_service = GuruKGService(
+            neo4j_driver=self.neo4j_driver,
+            neo4j_driver_accessor=lambda: self.neo4j_driver,
+        )
 
         # Initialize GPTCache with the shared embedding service to avoid
         # loading BGE-M3 a second time in a separate SBERT instance.
