@@ -637,7 +637,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
             {/* Label Density */}
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>Label Threshold</span>
+                <span>{t('kg.settings.labelThreshold', 'Label Threshold')}</span>
                 <span>{labelScale.toFixed(1)}x</span>
               </div>
               <input
