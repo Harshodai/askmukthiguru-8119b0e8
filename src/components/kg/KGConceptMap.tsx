@@ -671,7 +671,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
                   onChange={(e) => setColorByTeacher(e.target.checked)}
                   className="rounded border-white/20 bg-white/5 text-ojas focus:ring-ojas w-3.5 h-3.5"
                 />
-                <span>Color code by teacher</span>
+                <span>{t('kg.settings.colorByTeacher', 'Color code by teacher')}</span>
               </label>
             </div>
             
