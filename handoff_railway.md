@@ -137,3 +137,15 @@ Expected log after fix:
 ✅ Embedding model BAAI/bge-m3 loaded successfully
 ✅ Semantic router initialized
 ```
+---
+
+## LightRAG Persistent Volume (Post-Deploy)
+
+Set on Railway service so the graph survives container restarts:
+
+```bash
+railway variables --service askmukthiguru-8119b0e8 --set LIGHTRAG_WORKING_DIR=/data/lightrag
+# Mount a Railway volume at /data (dashboard → Service → Volumes → Add /data)
+```
+
+Backend already reads `LIGHTRAG_WORKING_DIR` at startup; no code change needed. Without the volume, LightRAG re-indexes on every deploy.
