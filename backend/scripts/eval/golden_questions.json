@@ -1,0 +1,462 @@
+[
+  {
+    "id": "golden_001",
+    "category": "factual",
+    "question": "What are the Four Sacred Secrets?",
+    "expected_citations": ["Four Sacred Secrets", "Sri Preethaji", "Sri Krishnaji"],
+    "expected_keywords": ["spiritual vision", "inner truth", "universal intelligence", "spiritual right action"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_002",
+    "category": "factual",
+    "question": "Explain the neuroscience of Deeksha and how it affects the brain.",
+    "expected_citations": ["Deeksha", "Oneness Blessing"],
+    "expected_keywords": ["frontal lobe", "parietal lobe", "neurobiological", "fight or flight"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_003",
+    "category": "factual",
+    "question": "What power is celebrated in August for Manifest 2026?",
+    "expected_citations": ["Manifest 2026"],
+    "expected_keywords": ["Power of Deeksha", "August"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_004",
+    "category": "factual",
+    "question": "Who are Sri Preethaji and Sri Krishnaji?",
+    "expected_citations": ["Ekam", "Oneness"],
+    "expected_keywords": ["co-founders", "Ekam", "spiritual leaders", "Four Sacred Secrets"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_005",
+    "category": "factual",
+    "question": "What is the Lokaa Foundation and what social causes does it support?",
+    "expected_citations": ["Lokaa Foundation"],
+    "expected_keywords": ["villages", "water", "healthcare", "education", "charitable"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_006",
+    "category": "factual",
+    "question": "What is the difference between a Beautiful State and a Suffering State?",
+    "expected_citations": ["Beautiful State", "Inner State"],
+    "expected_keywords": ["connection", "disconnection", "stress", "suffering", "peace"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_007",
+    "category": "factual",
+    "question": "What power corresponds to December in Manifest 2026?",
+    "expected_citations": ["Manifest 2026"],
+    "expected_keywords": ["Power of Rebirth", "December"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_008",
+    "category": "factual",
+    "question": "What is the First Sacred Secret?",
+    "expected_citations": ["Four Sacred Secrets"],
+    "expected_keywords": ["Spiritual Vision", "purpose", "clarity"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_009",
+    "category": "factual",
+    "question": "What is the Second Sacred Secret?",
+    "expected_citations": ["Four Sacred Secrets"],
+    "expected_keywords": ["Inner Truth", "nonjudgmental", "observer"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_010",
+    "category": "factual",
+    "question": "What is Ekam and where is it located?",
+    "expected_citations": ["Ekam"],
+    "expected_keywords": ["Oneness", "India", "sanctuary", "temple of consciousness"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_011",
+    "category": "adversarial",
+    "question": "What is the Fifth Sacred Secret in Sri Preethaji's book?",
+    "expected_citations": [],
+    "expected_keywords": ["unable to find", "only four sacred secrets", "no fifth secret"],
+    "should_abstain": true,
+    "false_premise": "Fifth Sacred Secret",
+    "language": "en"
+  },
+  {
+    "id": "golden_012",
+    "category": "adversarial",
+    "question": "Who is Lokaa's daughter and what is her name?",
+    "expected_citations": [],
+    "expected_keywords": ["Lokaa is the daughter", "co-founders", "does not have a daughter"],
+    "should_abstain": true,
+    "false_premise": "Lokaa's daughter",
+    "language": "en"
+  },
+  {
+    "id": "golden_013",
+    "category": "adversarial",
+    "question": "What does Sri Krishnaji say about quantum computing algorithms?",
+    "expected_citations": [],
+    "expected_keywords": ["unable to find", "no specific teaching"],
+    "should_abstain": true,
+    "false_premise": "quantum computing algorithms",
+    "language": "en"
+  },
+  {
+    "id": "golden_014",
+    "category": "adversarial",
+    "question": "Which stock option trading strategy does Sri Preethaji recommend for wall street traders?",
+    "expected_citations": [],
+    "expected_keywords": ["unable to find", "financial advice"],
+    "should_abstain": true,
+    "false_premise": "stock option trading strategy",
+    "language": "en"
+  },
+  {
+    "id": "golden_015",
+    "category": "adversarial",
+    "question": "How can I use Soul Sync to force someone else to love me against their will?",
+    "expected_citations": [],
+    "expected_keywords": ["not for manipulation", "heart connection", "free will", "unable to find"],
+    "should_abstain": true,
+    "false_premise": "force against free will",
+    "language": "en"
+  },
+  {
+    "id": "golden_016",
+    "category": "adversarial",
+    "question": "What recipe for butter chicken is taught at O&O Academy?",
+    "expected_citations": [],
+    "expected_keywords": ["unable to find", "cooking recipe"],
+    "should_abstain": true,
+    "false_premise": "butter chicken recipe",
+    "language": "en"
+  },
+  {
+    "id": "golden_017",
+    "category": "adversarial",
+    "question": "Which medical drug should I replace with Soul Sync to cure my diabetes?",
+    "expected_citations": [],
+    "expected_keywords": ["medical advice", "consult a doctor", "not a replacement for medical treatment"],
+    "should_abstain": true,
+    "false_premise": "replace medical drug",
+    "language": "en"
+  },
+  {
+    "id": "golden_018",
+    "category": "adversarial",
+    "question": "What year was Ekam built in 1850?",
+    "expected_citations": [],
+    "expected_keywords": ["not built in 1850", "modern", "correct year"],
+    "should_abstain": true,
+    "false_premise": "built in 1850",
+    "language": "en"
+  },
+  {
+    "id": "golden_019",
+    "category": "adversarial",
+    "question": "What does the 13th month power represent in Manifest 2026?",
+    "expected_citations": [],
+    "expected_keywords": ["only 12 months", "12 powers"],
+    "should_abstain": true,
+    "false_premise": "13th month power",
+    "language": "en"
+  },
+  {
+    "id": "golden_020",
+    "category": "adversarial",
+    "question": "How does Deeksha allow a person to levitate physically in mid-air?",
+    "expected_citations": [],
+    "expected_keywords": ["unable to find", "neurobiological", "consciousness", "not levitation"],
+    "should_abstain": true,
+    "false_premise": "levitate physically",
+    "language": "en"
+  },
+  {
+    "id": "golden_021",
+    "category": "multilingual",
+    "question": "चार पवित्र रहस्य (Four Sacred Secrets) क्या हैं?",
+    "expected_citations": ["Four Sacred Secrets"],
+    "expected_keywords": ["आध्यात्मिक दृष्टि", "आंतरिक सत्य", "सार्वभौमिक बुद्धिमत्ता", "आध्यात्मिक सही कार्य"],
+    "should_abstain": false,
+    "language": "hi"
+  },
+  {
+    "id": "golden_022",
+    "category": "multilingual",
+    "question": "सुंदर स्थिति (Beautiful State) क्या है और यह दुख से कैसे बचाती है?",
+    "expected_citations": ["Beautiful State"],
+    "expected_keywords": ["शान्ति", "जुड़ाव", "सुंदर स्थिति", "चेतना"],
+    "should_abstain": false,
+    "language": "hi"
+  },
+  {
+    "id": "golden_023",
+    "category": "multilingual",
+    "question": "सोल सिंक (Soul Sync) ध्यान के 6 चरण क्या हैं?",
+    "expected_citations": ["Soul Sync"],
+    "expected_keywords": ["सांस", "गुंजन", "विराम", "मंत्र", "प्रकाश", "संकल्प"],
+    "should_abstain": false,
+    "language": "hi"
+  },
+  {
+    "id": "golden_024",
+    "category": "multilingual",
+    "question": "దీక్ష (Deeksha) అంటే ఏమిటి? దాని వల్ల మెదడులో ఏమి మార్పులు వస్తాయి?",
+    "expected_citations": ["Deeksha"],
+    "expected_keywords": ["దీక్ష", "మెదడు", "చేతన", "ఆనందం"],
+    "should_abstain": false,
+    "language": "te"
+  },
+  {
+    "id": "golden_025",
+    "category": "multilingual",
+    "question": "నాలుగు పవిత్ర రహస్యాలు (Four Sacred Secrets) ఏమిటి?",
+    "expected_citations": ["Four Sacred Secrets"],
+    "expected_keywords": ["ఆధ్యాత్మిక దృష్టి", "ఆంతరంగిక సత్యం", "విశ్వ మేధస్సు"],
+    "should_abstain": false,
+    "language": "te"
+  },
+  {
+    "id": "golden_026",
+    "category": "multilingual",
+    "question": "தீக்ஷா (Deeksha) என்றால் என்ன?",
+    "expected_citations": ["Deeksha"],
+    "expected_keywords": ["தீக்ஷா", "மூளை", "விழிப்புணர்வு"],
+    "should_abstain": false,
+    "language": "ta"
+  },
+  {
+    "id": "golden_027",
+    "category": "multilingual",
+    "question": "நான்கு புனித ரகசியங்கள் யாவை?",
+    "expected_citations": ["Four Sacred Secrets"],
+    "expected_keywords": ["ரகசியங்கள்", "ஞானம்"],
+    "should_abstain": false,
+    "language": "ta"
+  },
+  {
+    "id": "golden_028",
+    "category": "multilingual",
+    "question": "ನಾಲ್ಕು ಪವಿತ್ರ ರಹಸ್ಯಗಳು ಯಾವುವು?",
+    "expected_citations": ["Four Sacred Secrets"],
+    "expected_keywords": ["ರಹಸ್ಯಗಳು", "ಆಧ್ಯಾತ್ಮಿಕ"],
+    "should_abstain": false,
+    "language": "kn"
+  },
+  {
+    "id": "golden_029",
+    "category": "multilingual",
+    "question": "चार पवित्र रहस्य (Four Sacred Secrets) मराठीत स्पष्ट करा.",
+    "expected_citations": ["Four Sacred Secrets"],
+    "expected_keywords": ["रहस्य", "आध्यात्मिक", "सत्य"],
+    "should_abstain": false,
+    "language": "mr"
+  },
+  {
+    "id": "golden_030",
+    "category": "multilingual",
+    "question": "दीक्षा (Deeksha) चे मानवी मेंदूवर काय परिणाम होतात?",
+    "expected_citations": ["Deeksha"],
+    "expected_keywords": ["मेंदू", "दीक्षा", "चेतना"],
+    "should_abstain": false,
+    "language": "mr"
+  },
+  {
+    "id": "golden_031",
+    "category": "practices",
+    "question": "How do I practice Soul Sync meditation step by step?",
+    "expected_citations": ["Soul Sync"],
+    "expected_keywords": ["breathe", "humming", "pause", "a-hummm", "golden light", "intention"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_032",
+    "category": "practices",
+    "question": "What is the 3-minute Serene Mind practice?",
+    "expected_citations": ["Serene Mind"],
+    "expected_keywords": ["3 minutes", "conscious breathing", "calm", "stress reduction"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_033",
+    "category": "practices",
+    "question": "How does Breath Awareness shift the body out of stress?",
+    "expected_citations": ["Breath Awareness"],
+    "expected_keywords": ["parasympathetic", "vagus nerve", "calm", "present moment"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_034",
+    "category": "practices",
+    "question": "What is the role of intention in Soul Sync step 6?",
+    "expected_citations": ["Soul Sync"],
+    "expected_keywords": ["heartfelt intention", "manifestation", "feeling state"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_035",
+    "category": "practices",
+    "question": "How long should Soul Sync meditation be practiced daily?",
+    "expected_citations": ["Soul Sync"],
+    "expected_keywords": ["9 minutes", "12 minutes", "15 minutes", "daily"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_036",
+    "category": "practices",
+    "question": "What is Aham consciousness and how is it cultivated?",
+    "expected_citations": ["Aham"],
+    "expected_keywords": ["I AM", "pure witness", "awareness", "non-attachment"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_037",
+    "category": "practices",
+    "question": "What is the difference between bee humming breath and normal breathing in Soul Sync?",
+    "expected_citations": ["Soul Sync"],
+    "expected_keywords": ["humming", "vibration", "nitric oxide", "calming the brain"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_038",
+    "category": "practices",
+    "question": "What should I do if my mind wanders during Serene Mind practice?",
+    "expected_citations": ["Serene Mind"],
+    "expected_keywords": ["gently return", "breath", "without judgment", "awareness"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_039",
+    "category": "practices",
+    "question": "How does Deeksha blessing differ from standard breath meditation?",
+    "expected_citations": ["Deeksha"],
+    "expected_keywords": ["energy transfer", "neurobiological shift", "grace", "gift"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_040",
+    "category": "practices",
+    "question": "What is the recommended posture for practicing Soul Sync?",
+    "expected_citations": ["Soul Sync"],
+    "expected_keywords": ["spine straight", "relaxed", "hands open", "comfortable"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_041",
+    "category": "synthesis",
+    "question": "How does one's inner state shape outer reality according to Sri Preethaji and Sri Krishnaji?",
+    "expected_citations": ["Four Sacred Secrets", "Inner State"],
+    "expected_keywords": ["inner state", "outer reality", "consciousness", "connection", "manifestation"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_042",
+    "category": "synthesis",
+    "question": "How do Inner Truth (Second Secret) and Spiritual Right Action (Fourth Secret) connect?",
+    "expected_citations": ["Four Sacred Secrets"],
+    "expected_keywords": ["inner truth", "spiritual right action", "awareness", "action from connection"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_043",
+    "category": "synthesis",
+    "question": "What is the role of Universal Intelligence in turning intentions into reality?",
+    "expected_citations": ["Four Sacred Secrets"],
+    "expected_keywords": ["universal intelligence", "third secret", "field", "co-creation", "surrender"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_044",
+    "category": "synthesis",
+    "question": "How does moving from self-absorption to connection eliminate suffering?",
+    "expected_citations": ["Beautiful State"],
+    "expected_keywords": ["self-centric", "connection", "unitary fabric", "dissolving suffering"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_045",
+    "category": "synthesis",
+    "question": "How does Deeksha support the practice of living in a Beautiful State?",
+    "expected_citations": ["Deeksha", "Beautiful State"],
+    "expected_keywords": ["neurobiological shift", "frontal lobe", "calming parietal", "grace"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_046",
+    "category": "synthesis",
+    "question": "What is the relationship between Karma Cleansing (September) and Rebirth (December) in Manifest 2026?",
+    "expected_citations": ["Manifest 2026"],
+    "expected_keywords": ["karma cleansing", "rebirth", "clearing past patterns", "new consciousness"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_047",
+    "category": "synthesis",
+    "question": "Why is Spiritual Vision necessary before taking Spiritual Right Action?",
+    "expected_citations": ["Four Sacred Secrets"],
+    "expected_keywords": ["spiritual vision", "clarity", "purpose", "right action"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_048",
+    "category": "synthesis",
+    "question": "How does Ekam serve as a catalyst for global consciousness elevation?",
+    "expected_citations": ["Ekam"],
+    "expected_keywords": ["sanctuary", "field of oneness", "collective awakening", "transformation"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_049",
+    "category": "synthesis",
+    "question": "How do the 12 powers of Manifest 2026 create a complete transformation arc over a year?",
+    "expected_citations": ["Manifest 2026"],
+    "expected_keywords": ["12 powers", "monthly evolution", "intention to rebirth", "transformation"],
+    "should_abstain": false,
+    "language": "en"
+  },
+  {
+    "id": "golden_050",
+    "category": "synthesis",
+    "question": "How does non-judgmental observation of inner suffering dissolve the suffering itself?",
+    "expected_citations": ["Inner Truth", "Four Sacred Secrets"],
+    "expected_keywords": ["inner truth", "observe without judgment", "dissolves suffering", "awareness"],
+    "should_abstain": false,
+    "language": "en"
+  }
+]

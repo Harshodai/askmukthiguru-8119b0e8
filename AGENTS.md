@@ -25,6 +25,21 @@
 - Falls back to demo data if backend cold (never shows blank)
 - Profile `MemoryManager` graph synced with same visual style
 
+### LightRAG & Knowledge Base Status (Jul 22, 2026) ✅
+- **Qdrant `spiritual_wisdom`**: 89,053 points (full corpus: books, 450+ YouTube discourses, meditations, lectures)
+- **Neo4j Knowledge Graph**: 7,601 nodes (7,498 `base` concept nodes + 103 `OKF` 5-node transformation arc nodes)
+- **LightRAG Direct Ingestion**: Continuous Qdrant scroll ingestion (`scripts/ingest_lightrag_data.py`) reading directly from `spiritual_wisdom` payload via OpenRouter `google/gemma-3-12b-it` to build dual-level graph vectors.
+
+### User Personalization & Second Brain Vault Status (Jul 22, 2026) ✅
+- **Second Brain Vault (`second_brain_vault`)**: Shared multi-tenant collection in Qdrant indexed with `user_id` keyword filter. Payload NEVER holds plaintext; user notes live encrypted in Postgres (`user_brain_nodes`), vectors in Qdrant (`services/second_brain/vault_index.py`).
+- **User Familiarity Classification**: `classify_user_familiarity` dynamically adapts prompt tone across `Seeker` (simple explanations of Sanskrit terms), `Practitioner` (balanced meditation guidance), and `Advanced Meditator` (deep philosophical & neurobiological terms).
+- **3-Tiered Memory Retention & Automated TTL Cleanup**:
+  1. *Tier 1 (Ephemeral Session)*: Redis 15-minute sliding TTL (`EPHEMERAL_TTL = 900`).
+  2. *Tier 2 (Transient Chat Logs)*: 90-day retention TTL for chat logs and transient query telemetry.
+  3. *Tier 3 (User Core Memories & Vault)*: Protected while user is active. Accounts inactive $>365\text{ days}$ auto-purged via `scripts/ops/cleanup_inactive_user_data.py`.
+- **User Privacy Controls (GDPR / Right to Forget)**: `DELETE /api/memory/reflections` and `POST /api/memory/forget` endpoints allow users to wipe memories or forget individual entries at any time.
+
+
 ### Design Sync — Sacred Minimal
 - Chat components: unified `rounded-2xl`, `shadow-sm`, consistent spacing/colors
 - Auth pages: gradient backgrounds, `shadow-xl`, `rounded-xl` buttons

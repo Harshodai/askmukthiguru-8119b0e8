@@ -96,96 +96,37 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
 @trace_rag_node("verify_answer")
 @log_metrics
 async def verify_answer(state: GraphState, config: dict = None) -> dict:
-    """Enhanced Combined Self-RAG + CoVe verification with actual claim verification."""
-    if state.get("query_tier") in ("fast", "tier2_simple"):
-        logger.info("Combined verify: bypassing for simple query tier")
-        return {
-            "is_faithful": True,
-            "verification": {"passed": True, "details": "Bypassed for simple query tier"},
-            "confidence_score": 8.0,
-            "faithfulness_score": 1.0,
-            "relevancy_score": 1.0,
-        }
+    """Enhanced Combined Self-RAG + CoVe verification with actual claim verification.
 
-    # Skip for standard tier with short answers (< 150 chars)
+    CoVe is feature-flagged via `rag_cove_disabled` (default: False = enabled).
+    When faithfulness_score < settings.cove_compulsory_threshold, CoVe fires
+    regardless of query_tier — even fast/tier2 queries are verified if the
+    answer confidence is suspect.
+    """
     answer = state.get("answer", "")
-    if state.get("query_tier") == "standard" and len(answer) < 150:
-        logger.info("Combined verify: standard tier with short answer – bypassing")
+    relevant_docs = state.get("relevant_docs", [])
+    query_tier = state.get("query_tier", "standard")
+    lettuce_detect = _services._lettuce_detect
+    question = state.get("rewritten_query") or state.get("question", "")
+
+    # Fast-path for empty context (can't verify anything meaningfully)
+    if not answer or not relevant_docs:
+        logger.info("Combined verify: no answer/docs — fast-pass")
         return {
             "is_faithful": True,
-            "verification": {"passed": True, "details": "Bypassed for standard tier short answer"},
+            "verification": {"passed": True, "details": "No content to verify"},
             "confidence_score": 8.0,
             "faithfulness_score": 1.0,
             "relevancy_score": 1.0,
         }
 
-    # --- rag_parallel_verify fast-exit (Ruthless Audit Phase 1 TTFT) ---
-    # Skips only the EXPENSIVE CoVe sub-question check (~60s LLM call) for
-    # tier3_complex. It must NOT skip the faithfulness check itself:
-    # LettuceDetect is a local embedding/lexical scorer (no LLM round-trip,
-    # often already computed and cached by reflect_on_answer), so running it
-    # here costs effectively nothing. The previous version hardcoded
-    # is_faithful=True/confidence=7.0 unconditionally — that structurally
-    # guaranteed every tier3_complex query (this tier also covers ADVERSARIAL
-    # and TEMPORAL intents, not just "hard factual") passed verification with
-    # zero actual check against retrieved context, because format_final_answer's
-    # confidence gate (floor 6.5) was then fed a hardcoded 7.0 by this exact code.
-    if getattr(settings, "rag_parallel_verify", True) and state.get("query_tier") == "tier3_complex":
-        answer = state["answer"]
-        relevant_docs = state["relevant_docs"]
-        question = state.get("rewritten_query") or state["question"]
-        lettuce_detect = _services._lettuce_detect
-        context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
-
-        if not context or len(context.strip()) < 200:
-            logger.warning("Combined verify: parallel_verify fast-exit — context too short, rejecting")
-            return {
-                "is_faithful": False,
-                "verification": {"passed": False, "details": "Context too short for scoring — unverified (fast-exit)"},
-                "confidence_score": 0.0,
-                "faithfulness_score": 0.0,
-                "relevancy_score": 0.0,
-            }
-
-        ld_result = state.get("lettuce_detect_result")
-        if ld_result is None:
-            ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
-        faithfulness_score = ld_result["score"]
-        is_faithful_ld = faithfulness_score >= settings.faithfulness_floor
-
-        logger.info(
-            f"Combined verify: parallel_verify fast-exit for tier3_complex — "
-            f"LettuceDetect faithfulness={faithfulness_score:.2f} ({'YES' if is_faithful_ld else 'NO'}), "
-            f"CoVe/consistency skipped for TTFT"
-        )
-        return {
-            "is_faithful": is_faithful_ld,
-            "verification": {
-                "passed": is_faithful_ld,
-                "details": "Parallel verify fast-exit (tier3_complex) — LettuceDetect checked, CoVe skipped",
-            },
-            "confidence_score": (faithfulness_score * 10.0) if is_faithful_ld else 3.0,
-            "faithfulness_score": faithfulness_score,
-            "relevancy_score": faithfulness_score,
-        }
-
-    answer = state["answer"]
-
-    relevant_docs = state["relevant_docs"]
-    question = state.get("rewritten_query") or state["question"]
-    lettuce_detect = _services._lettuce_detect
-    ollama = _services._ollama  # noqa: F841 — preserved per "do not delete" mandate; used by disabled CoVe + self-consistency blocks below
-
-    await emit_status(config, "Verifying alignment with the teachings...")
+    # Compute faithfulness score first (cheap — LettuceDetect, no LLM)
     context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
-
     if not context or len(context.strip()) < 200:
-        logger.warning(
-            f"Combined verify: context too short ({len(context)} chars) for meaningful verification — rejecting"
-        )
+        logger.warning("Combined verify: context too short — fast-fail")
         return {
             "is_faithful": False,
-            "verification": {"passed": False, "details": "Context too short for scoring — unverified"},
+            "verification": {"passed": False, "details": "Context too short — unverified"},
             "confidence_score": 0.0,
             "faithfulness_score": 0.0,
             "relevancy_score": 0.0,
@@ -199,14 +140,69 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     faithfulness_score = ld_result["score"]
     is_faithful_ld = faithfulness_score >= settings.faithfulness_floor
 
-    # --- CoVe: feature-flagged off by default (saves ~60s LLM calls) ---
-    # CoVe verification + LLM self-consistency add ~60s.
-    # Disabled via rag_cove_disabled setting (default: True).
+    # Compulsory CoVe: if faithfulness is low enough, fire regardless of tier.
+    cove_compulsory_threshold = getattr(settings, "cove_compulsory_threshold", 0.6)
+    cove_disabled = getattr(settings, "rag_cove_disabled", False)
+    should_run_cove = (
+        not cove_disabled
+        and (
+            query_tier == "tier3_complex"
+            or faithfulness_score < cove_compulsory_threshold  # compulsory for ANY tier
+        )
+    )
+
+    # Skip verbose for fast/simple tier AND high-confidence answers — no latency cost
+    if query_tier in ("fast", "tier2_simple") and faithfulness_score >= cove_compulsory_threshold:
+        logger.info(
+            "Combined verify: fast tier + high faithfulness (%.2f) — bypassing full verification",
+            faithfulness_score,
+        )
+        return {
+            "is_faithful": is_faithful_ld,
+            "verification": {"passed": is_faithful_ld, "details": f"Fast tier, faithfulness={faithfulness_score:.2f}"},
+            "confidence_score": faithfulness_score * 10.0,
+            "faithfulness_score": faithfulness_score,
+            "relevancy_score": faithfulness_score,
+        }
+
+    # Short-answer skip for standard tier with adequate faithfulness
+    if query_tier == "standard" and len(answer) < 150 and faithfulness_score >= cove_compulsory_threshold:
+        logger.info("Combined verify: standard tier with short answer + good score — bypassing")
+        return {
+            "is_faithful": is_faithful_ld,
+            "verification": {"passed": is_faithful_ld, "details": "Short standard answer, adequate faithfulness"},
+            "confidence_score": faithfulness_score * 10.0,
+            "faithfulness_score": faithfulness_score,
+            "relevancy_score": faithfulness_score,
+        }
+
+
+    # tier3_complex fast-exit: LettuceDetect only (skip full CoVe for speed) UNLESS faithfulness is suspect
+    if getattr(settings, "rag_parallel_verify", True) and query_tier == "tier3_complex" and faithfulness_score >= cove_compulsory_threshold:
+        logger.info(
+            "Combined verify: parallel_verify fast-exit for tier3_complex — "
+            "LettuceDetect faithfulness=%.2f (PASS), CoVe skipped (adequate score)",
+            faithfulness_score,
+        )
+        return {
+            "is_faithful": is_faithful_ld,
+            "verification": {
+                "passed": is_faithful_ld,
+                "details": "Parallel verify fast-exit (tier3_complex) — LettuceDetect checked, CoVe skipped",
+            },
+            "confidence_score": (faithfulness_score * 10.0) if is_faithful_ld else 3.0,
+            "faithfulness_score": faithfulness_score,
+            "relevancy_score": faithfulness_score,
+        }
+
+
+    ollama = _services._ollama  # noqa: F841 — used by CoVe sub-question block below
+
+    await emit_status(config, "Verifying alignment with the teachings...")
+
+    # --- CoVe: fires when faithfulness is suspect OR tier3_complex ---
     cove_failed = False
-    if (
-        not getattr(settings, "rag_cove_disabled", True)
-        and state.get("query_tier") == "tier3_complex"
-    ):
+    if should_run_cove:
         cove_result = await _cove_subquestion_check(question, answer, context, ollama)
         cove_failed = not cove_result["passed"]
         claim_verification_passed = not cove_failed

@@ -67,6 +67,8 @@ graph LR
 | 35 | **Embedding dimension invariants (2026-07-16 incident fix)**: `_ensure_encoder()` rejects mismatched dim; `_verify_collection_dimension()` asserts at startup; `generate_answer()` short-circuits on empty context; Docker pre-cache with pinned model revision; fail-closed validation for malformed vector config | `main` | Jul 16, 2026 |
 | 36 | **Security audit: remove NIM cross-provider failover**: External API calls as silent fallback removed from container DI; `_call_api()` fallback_model branch eliminated; `failover_provider.py` catches fallback exceptions | `main` | Jul 17, 2026 |
 | 37 | **Streaming short-circuit fix**: `generate_answer()` emits fallback answer through stream_queue protocol before early return; regression test coverage | `main` | Jul 17, 2026 |
+| 38 | **3-Pass RAG & Guru Tone Refactoring**: Citation verification metadata propagation (`passed=False`), orphan marker regex counting, Reflexion prompt constants, `asyncio.to_thread` Neo4j traversal | `main` | Jul 21, 2026 |
+| 39 | **LightRAG Qdrant-Direct Ingestion**: `scripts/ingest_lightrag_data.py` scrolling 89,053 `spiritual_wisdom` points directly into Qdrant & Neo4j via OpenRouter `gemma-3-12b-it` | `main` | Jul 22, 2026 |
 
 ---
 
