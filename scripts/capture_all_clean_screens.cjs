@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const path = require('path');
 
 async function captureAllCleanScreens() {
-  console.log('🚀 Starting Clean Dark Mode Screen Capture...');
+  console.log('🚀 Starting Clean Dark Mode Screen Capture with demo=true URL parameters...');
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
@@ -32,22 +32,12 @@ async function captureAllCleanScreens() {
     { name: 'screen_05_serene_mind.png', url: 'http://localhost:8080/practices/serene-mind' },
     { name: 'screen_07_kg.png', url: 'http://localhost:8080/knowledge-graph' },
     { name: 'screen_06_notebook.png', url: 'http://localhost:8080/notebooks' },
-    { name: 'screen_10_privacy.png', url: 'http://localhost:8080/profile?tab=privacy', waitForSelector: '[value="privacy"]' }
+    { name: 'screen_10_privacy.png', url: 'http://localhost:8080/profile?tab=privacy&demo=true' }
   ];
 
   for (const s of screens) {
     console.log(`📸 Capturing ${s.name} from ${s.url}...`);
     await page.goto(s.url, { waitUntil: 'networkidle' });
-    
-    if (s.waitForSelector) {
-      try {
-        await page.waitForSelector(s.waitForSelector, { timeout: 5000 });
-        await page.click(s.waitForSelector);
-      } catch (e) {
-        console.log(`Note on ${s.name}: ${e.message}`);
-      }
-    }
-
     await page.evaluate(() => {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
@@ -57,15 +47,14 @@ async function captureAllCleanScreens() {
       const overlay = document.querySelector('.driver-overlay');
       if (overlay) overlay.remove();
     });
-
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(2500);
     const savePath = path.join(__dirname, '../video-composition/assets/screens', s.name);
     await page.screenshot({ path: savePath });
     console.log(`✓ Saved ${s.name}`);
   }
 
   await browser.close();
-  console.log('🎉 All clean dark screens captured successfully!');
+  console.log('🎉 All clean dark screens captured successfully with demo=true!');
 }
 
 captureAllCleanScreens().catch(err => {

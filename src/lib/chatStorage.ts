@@ -270,7 +270,7 @@ async function syncConversationToDb(conversation: Conversation): Promise<void> {
       .map((m) => ({
         id: m.id,
         conversation_id: conversation.id,
-        role: m.role === 'guru' ? 'assistant' : 'user',
+        role: m.role,
         content: m.content,
         citations: m.citations ?? null,
         confidence_score: m.confidenceScore ?? null,

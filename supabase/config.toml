@@ -60,3 +60,24 @@ verify_jwt = true
 
 [functions.admin-telemetry]
 verify_jwt = true
+
+[functions.memory-embed]
+verify_jwt = false
+
+[functions.memory-extract]
+verify_jwt = false
+
+[functions.memory-extract-drain]
+verify_jwt = false
+
+[functions.sarvam-stt]
+verify_jwt = false
+
+[functions.sarvam-tts]
+verify_jwt = false
+
+[functions.export-my-data]
+verify_jwt = false
+
+[functions.delete-my-account]
+verify_jwt = false
