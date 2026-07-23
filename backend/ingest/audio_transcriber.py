@@ -47,7 +47,18 @@ def _check_ip(ip: ipaddress.IPAddress) -> bool:
     ))
 
 def is_safe_public_url(url: str) -> bool:
-    """Validate that a URL is a public http(s) endpoint and does not resolve to private IPs."""
+    """Validate that a URL is a public http(s) endpoint and does not resolve to private IPs.
+
+    TOCTOU note: this resolves the hostname once, here. download_audio_stream()
+    then hands the raw URL (not a pinned IP) to a `yt-dlp` subprocess, which
+    re-resolves DNS independently at connect time — a DNS-rebinding attacker
+    who controls the target hostname could pass this check with a public IP
+    and connect with a private one. Not exploitable today: the only caller
+    (youtube_service.py) builds the URL from a hardcoded "www.youtube.com"
+    host, never from an attacker-influenced value. Do not call this helper
+    with an attacker-controlled hostname without closing that gap first
+    (e.g. pinning the resolved IP for the actual connection).
+    """
     try:
         if "://" not in url:
             parsed = urlparse(f"https://{url}")

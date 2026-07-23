@@ -548,3 +548,19 @@ def resolve_anon_identity(user: dict, session_id: str | None) -> dict:
     if not sid:
         return user
     return {**user, "id": f"anon:{sid}"}
+
+
+def require_scoped_identity(user: dict) -> None:
+    """Reject a request whose identity is the unscoped literal "anonymous".
+
+    Call after resolve_anon_identity() on any endpoint that looks up a
+    resource by an id previously written to job_meta["user_id"] (job
+    poll/cancel/stream). Without this, an anonymous caller with no
+    session_id collapses onto the same shared "anonymous" id as every other
+    session_id-less anonymous caller, and can access/cancel each other's jobs.
+    """
+    if user and user.get("is_anonymous") and user.get("id") == "anonymous":
+        raise HTTPException(
+            status_code=400,
+            detail="A session id is required for anonymous access to this resource.",
+        )

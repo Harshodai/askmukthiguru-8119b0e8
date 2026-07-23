@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.dependencies import ServiceContainer, get_container
-from services.auth_service import get_optional_user, resolve_anon_identity
+from services.auth_service import get_optional_user, require_scoped_identity, resolve_anon_identity
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,7 @@ async def get_job(
         raise HTTPException(status_code=503, detail="Job tracking is not available.")
     session_id: Optional[str] = request.headers.get("X-Session-Id")
     user = resolve_anon_identity(user, session_id)
+    require_scoped_identity(user)
     job = await container.job_queue.get_job(job_id)
     owner = str(job.get("user_id") or "") if job else ""
     uid = str(user.get("id") or "")
@@ -52,6 +53,7 @@ async def cancel_job(
         raise HTTPException(status_code=503, detail="Job tracking is not available.")
     session_id: Optional[str] = request.headers.get("X-Session-Id")
     user = resolve_anon_identity(user, session_id)
+    require_scoped_identity(user)
     job = await container.job_queue.get_job(job_id)
     owner = str(job.get("user_id") or "") if job else ""
     uid = str(user.get("id") or "")
