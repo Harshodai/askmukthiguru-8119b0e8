@@ -57,7 +57,8 @@ async def test_web_page_scraping_routing():
     mock_response.aiter_bytes = mock_aiter_bytes
     mock_client.stream.return_value.__aenter__.return_value = mock_response
 
-    with patch("services.http_client_pool.get_client", new=AsyncMock(return_value=mock_client)), \
+    with patch("ingest.web_scraper.fetch_web_article_jina", new=AsyncMock(return_value=None)), \
+         patch("ingest.web_scraper.get_client", new=AsyncMock(return_value=mock_client)), \
          patch.object(pipeline._auditor, "run", new=AsyncMock(return_value=MagicMock(passed=True, score=85, reasons=[]))) as mock_auditor:
 
         res = await pipeline.ingest_url("https://example.com/zen-blog", max_accuracy=True)

@@ -92,6 +92,10 @@ class PipelineResult:
     spans: list[dict] = field(default_factory=list)
     node_timings: dict = field(default_factory=dict)
     follow_up_suggestions: list[str] = field(default_factory=list)
+    audio_url: str | None = None
+    kg_concept_nodes: list[str] = field(default_factory=list)
+    daily_practice_card: dict | None = None
+
 
     def with_latency(self, latency_ms: int) -> "PipelineResult":
         """Return a new PipelineResult with updated latency."""
@@ -126,6 +130,9 @@ class PipelineResult:
             spans=self.spans,
             node_timings=self.node_timings,
             follow_up_suggestions=self.follow_up_suggestions,
+            audio_url=self.audio_url,
+            kg_concept_nodes=self.kg_concept_nodes,
+            daily_practice_card=self.daily_practice_card,
         )
 
     def to_chat_response(self) -> dict[str, Any]:

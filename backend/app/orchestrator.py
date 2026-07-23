@@ -122,7 +122,11 @@ class ChatRequestOrchestrator:
             faithfulness_score=result.faithfulness_score,
             hallucination_flag=result.hallucination_flag,
             node_timings=result.node_timings,
+            audio_url=result.audio_url,
+            kg_concept_nodes=result.kg_concept_nodes,
+            daily_practice_card=result.daily_practice_card,
         )
+
 
     async def _log_telemetry(
         self,

@@ -435,7 +435,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.15) }}
-          className={`group message-bubble flex items-start gap-3 ${isGuru ? 'justify-start' : 'justify-end'}`}
+          className={`group message-bubble flex items-start gap-2 ${isGuru ? 'justify-start' : 'justify-end'}`}
           data-message-id={message.id}
         >
           {isGuru && (
@@ -523,7 +523,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           components={{
                             // Paragraphs — tight spacing, no bottom margin on last
                             p: ({ children }) => (
-                              <p className="leading-[1.75] text-foreground/88 mb-2 last:mb-0">{children}</p>
+                              <p className="leading-[1.7] text-foreground/88 mb-1.5 last:mb-0">{children}</p>
                             ),
                             // Headings — semantic visual hierarchy
                             h1: ({ children }) => (

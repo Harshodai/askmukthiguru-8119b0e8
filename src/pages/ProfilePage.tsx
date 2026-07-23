@@ -29,6 +29,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { normalizeSarvamVoice, SARVAM_VOICES } from '@/lib/sarvamVoices';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { fireTestReminder, requestNotificationPermission } from '@/hooks/useMeditationReminder';
 import { AppShell } from '@/components/layout/AppShell';
@@ -107,14 +108,14 @@ const themes: { value: 'light' | 'dark' | 'system'; label: string; icon: typeof 
   { value: 'system', label: 'System', icon: Monitor },
 ];
 
-const mayuraVoices: { value: string; label: string; hint: string }[] = [
-  { value: 'deepika', label: 'Deepika', hint: 'Female · Warm, natural' },
-  { value: 'ananya', label: 'Ananya', hint: 'Female · Calm, soothing' },
-  { value: 'kavya', label: 'Kavya', hint: 'Female · Bright, clear' },
-  { value: 'sangeetha', label: 'Sangeetha', hint: 'Female · Melodic' },
-  { value: 'shubh', label: 'Shubh', hint: 'Male · Clear, composed' },
-  { value: 'arvind', label: 'Arvind', hint: 'Male · Deep, authoritative' },
-];
+// bulbul:v3 voices — derived from shared SARVAM_VOICES singleton
+const voiceOptions = SARVAM_VOICES.map((v) => ({
+  value: v.id,
+  label: v.label,
+  hint: `${v.gender === 'female' ? 'Female' : 'Male'} · ${v.hint}`,
+}));
+
+const normalizeVoice = (voice?: string): string => normalizeSarvamVoice(voice);
 
 const formatTime = (mins: number): string => {
   const h = Math.floor(mins / 60).toString().padStart(2, '0');
@@ -244,7 +245,7 @@ const ProfilePage = () => {
       theme: form.theme,
       ttsEnabled: form.ttsEnabled,
       ttsRate: form.ttsRate,
-      preferredVoice: form.preferredVoice,
+      preferredVoice: normalizeVoice(form.preferredVoice),
       meditationReminders: form.meditationReminders,
       reminderTimeMinutes: form.reminderTimeMinutes,
     });
@@ -815,12 +816,12 @@ const ProfilePage = () => {
                       <div className="space-y-2 pt-2">
                         <Label>Guru Voice (Mayura)</Label>
                         <p className="text-xs text-muted-foreground">Choose the voice personality for Indic language audio.</p>
-                        <Select value={form.preferredVoice || 'deepika'} onValueChange={(v) => patch('preferredVoice', v)}>
+                        <Select value={normalizeVoice(form.preferredVoice)} onValueChange={(v) => patch('preferredVoice', v)}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {mayuraVoices.map(v => (
+                            {voiceOptions.map(v => (
                               <SelectItem key={v.value} value={v.value}>
                                 <span className="font-medium">{v.label}</span>
                                 <span className="ml-2 text-xs text-muted-foreground">{v.hint}</span>

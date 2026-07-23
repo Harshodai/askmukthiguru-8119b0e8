@@ -95,6 +95,34 @@ class GuruToneAdapterNode:
             return False
         return True
 
+    @staticmethod
+    def _attach_multimodal_metadata(out_state: dict, kg_paths: list, exemplars: list) -> dict:
+        """Attach KG concept nodes, daily practice card, and audio URL to out_state.
+
+        Must run before every post-retrieval return (success or fallback) —
+        these fields power the multi-modal response package and were
+        previously only set on the exception-fallback path.
+        """
+        concept_nodes = set()
+        for arc in kg_paths:
+            if getattr(arc, "target_state", None):
+                concept_nodes.add(arc.target_state)
+            if getattr(arc, "teaching", None):
+                concept_nodes.add(arc.teaching)
+        out_state["kg_concept_nodes"] = list(concept_nodes)
+
+        if exemplars and isinstance(exemplars[0], dict) and exemplars[0].get("audio_url"):
+            out_state["audio_url"] = exemplars[0]["audio_url"]
+
+        if kg_paths and getattr(kg_paths[0], "practice_step", None):
+            top_arc = kg_paths[0]
+            out_state["daily_practice_card"] = {
+                "target_state": getattr(top_arc, "target_state", "Beautiful State"),
+                "practice_step": getattr(top_arc, "practice_step", ""),
+                "guru_speaker": getattr(top_arc, "guru_speaker", "Sri Preethaji & Sri Krishnaji"),
+            }
+        return out_state
+
     async def transform_tone(
         self,
         state: GraphState | dict | None = None,
@@ -174,7 +202,7 @@ class GuruToneAdapterNode:
         if not self.llm_service:
             logger.info(f"[{req_id}] GuruToneAdapterNode: LLM service unavailable, returning factual draft.")
             out_state["final_answer"] = draft
-            return out_state
+            return self._attach_multimodal_metadata(out_state, kg_paths, exemplars)
 
         try:
             # First Pass Transformation with explicit timeout
@@ -184,7 +212,7 @@ class GuruToneAdapterNode:
             )
             if not transformed or len(transformed.strip()) <= 20:
                 out_state["final_answer"] = draft
-                return out_state
+                return self._attach_multimodal_metadata(out_state, kg_paths, exemplars)
 
             transformed_text = transformed.strip()
 
@@ -208,21 +236,22 @@ class GuruToneAdapterNode:
                     if corrected and len(corrected.strip()) > 20:
                         if self._revalidate_factual_claims(draft, corrected.strip(), req_id):
                             out_state["final_answer"] = corrected.strip()
-                            return out_state
+                            return self._attach_multimodal_metadata(out_state, kg_paths, exemplars)
                         logger.warning(f"[{req_id}] GuruToneAdapter: corrected output failed revalidation, checking first-pass.")
                 except (asyncio.TimeoutError, Exception) as corr_exc:
                     logger.warning(f"[{req_id}] GuruToneAdapter self-correction LLM generate timed out/failed ({corr_exc}).")
 
             if self._revalidate_factual_claims(draft, transformed_text, req_id):
                 out_state["final_answer"] = transformed_text
-                return out_state
+                return self._attach_multimodal_metadata(out_state, kg_paths, exemplars)
             logger.warning(f"[{req_id}] GuruToneAdapter: first-pass output failed revalidation, falling back to original draft.")
             out_state["final_answer"] = draft
-            return out_state
+            return self._attach_multimodal_metadata(out_state, kg_paths, exemplars)
 
         except (asyncio.TimeoutError, Exception) as exc:
             logger.warning(f"[{req_id}] GuruToneAdapterNode: Voice transformation failed ({exc}), keeping factual draft.")
 
         out_state["final_answer"] = draft
-        return out_state
+        return self._attach_multimodal_metadata(out_state, kg_paths, exemplars)
+
 

@@ -10,7 +10,7 @@ import { MeditationProgressIndicator } from './MeditationProgressIndicator';
 import { PostCompletionStreak } from './PostCompletionStreak';
 import { useMeditationAudio } from './useMeditationAudio';
 import { useMeditationTTS } from './useMeditationTTS';
-import { Volume2, VolumeX } from 'lucide-react';
+import { Volume2, VolumeX, ExternalLink } from 'lucide-react';
 import {
   generateSessionId,
   completeMeditationSession,
@@ -504,15 +504,31 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
               </button>
             </div>
 
-            {/* Watch on YouTube — Sri Preethaji's original Serene Mind guidance */}
-            <a
-              href="https://youtu.be/igSp4H0OWLE"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-muted-foreground hover:text-ojas underline underline-offset-4 transition-colors"
-            >
-              Watch Sri Preethaji guide this practice on YouTube
-            </a>
+            {/* Watch & Listen on YouTube — Sri Preethaji's original Serene Mind guidance */}
+            <div className="w-full max-w-md mt-4 rounded-xl overflow-hidden border border-ojas/30 shadow-lg bg-black/40">
+              <div className="relative aspect-video w-full">
+                <iframe
+                  src="https://www.youtube-nocookie.com/embed/igSp4H0OWLE?enablejsapi=1&rel=0"
+                  title="Sri Preethaji Serene Mind Guided Practice"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="absolute inset-0 w-full h-full rounded-t-xl"
+                />
+              </div>
+              <div className="p-2.5 bg-card/90 flex items-center justify-between text-xs text-muted-foreground">
+                <span className="font-medium text-foreground flex items-center gap-1.5">
+                  <Play className="w-3.5 h-3.5 text-ojas" /> Sri Preethaji's Guided Practice
+                </span>
+                <a
+                  href="https://youtu.be/igSp4H0OWLE"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-ojas underline underline-offset-2 flex items-center gap-1"
+                >
+                  Open YouTube <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
           </div>
         )}
 

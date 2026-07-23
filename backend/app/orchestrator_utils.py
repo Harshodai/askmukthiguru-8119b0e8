@@ -520,3 +520,38 @@ async def prepare_user_memory(
                 distress_history.append(recent_emotion)
 
     return memory_context, distress_history
+
+
+REFERENTIAL_WORDS = {'it', 'that', 'this', 'they', 'earlier', 'before', 'mentioned', 'those'}
+REFERENTIAL_PHRASES = ['what about', 'the one']
+
+def _has_referential_trigger(query_lower: str) -> bool:
+    words = set(query_lower.split())
+    if words & REFERENTIAL_WORDS:
+        return True
+    for phrase in REFERENTIAL_PHRASES:
+        if phrase in query_lower:
+            return True
+    return False
+
+def maybe_rewrite_query_with_history(query: str, history: list[dict]) -> str:
+    """If query is short/referential, expand it using previous conversation turns so RAG vector search has context."""
+    if not query or not history:
+        return query
+    query_lower = query.lower().strip()
+    if len(query_lower.split()) <= 10 and _has_referential_trigger(query_lower):
+        prev_user = ""
+        prev_guru = ""
+        for m in reversed(history[-4:]):
+            role = m.get("role")
+            content = m.get("content", "")[:150]
+            if role == "user" and not prev_user:
+                prev_user = content
+            elif role in ("assistant", "guru") and not prev_guru:
+                prev_guru = content
+        if prev_user or prev_guru:
+            context_snippet = f"Previous context: {prev_user or prev_guru}"
+            logger.info("Query expanded for referential search")
+            return f"{query} ({context_snippet})"
+    return query
+

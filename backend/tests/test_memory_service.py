@@ -358,22 +358,26 @@ async def test_memory_service_compaction(monkeypatch):
     await service.compact_memories("user123")
     
     # Verify interactions
-    table_mock.select.assert_called_with("id, content, source")
+    table_mock.select.assert_called_with("id, content, source, claim, confidence, summary")
+
     table_mock.delete.assert_called()
     table_mock.insert.assert_called_with([
         {
             "user_id": "user123",
             "content": "Compacted Memory A",
             "embedding": [0.1] * 1024,
-            "source": "extracted"
+            "source": "extracted",
+            "confidence": 0.75,
         },
         {
             "user_id": "user123",
             "content": "Compacted Memory B",
             "embedding": [0.1] * 1024,
-            "source": "extracted"
+            "source": "extracted",
+            "confidence": 0.75,
         }
     ])
+
 
 
 @pytest.mark.asyncio

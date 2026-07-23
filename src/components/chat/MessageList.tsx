@@ -62,9 +62,7 @@ const VirtualMessageWrapper = ({
       ref={containerRef}
       data-message-id={id}
       style={{
-        minHeight: `${height}px`,
-        contentVisibility: 'auto',
-        containIntrinsicSize: `auto ${height}px`,
+        minHeight: !isVisible && height > 0 ? `${height}px` : 'auto',
       }}
     >
       {alwaysVisible || isVisible ? children : <div style={{ height: `${height}px` }} />}
@@ -155,7 +153,7 @@ export const MessageList = React.memo(({
   });
 
   return (
-    <div className="space-y-4 sm:space-y-5 scrollbar-thin scrollbar-thumb-muted-foreground/20">
+    <div className="space-y-3 sm:space-y-4 scrollbar-thin scrollbar-thumb-muted-foreground/20">
       {groups.map((group) => (
         <React.Fragment key={group.label}>
           {/* Date separator — Claude.ai style */}

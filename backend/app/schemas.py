@@ -161,3 +161,16 @@ class ChatResponse(BaseModel):
         default_factory=list,
         description="Claude-style suggested follow-up questions for the user",
     )
+    audio_url: Optional[str] = Field(
+        default=None,
+        description="Matched guided meditation or wisdom practice audio track",
+    )
+    kg_concept_nodes: list[str] = Field(
+        default_factory=list,
+        description="Interactive Knowledge Graph concept tags associated with the answer",
+    )
+    daily_practice_card: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Actionable daily inner growth practice card recommendation",
+    )
+

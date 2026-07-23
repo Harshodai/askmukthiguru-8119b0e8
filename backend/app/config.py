@@ -142,7 +142,13 @@ class Settings(BaseSettings):
 
     # --- Qdrant ---
     qdrant_url: str = "http://localhost:6333"
-    qdrant_collection: str = "spiritual_wisdom"
+    qdrant_collection: str = "spiritual_wisdom_contextual"
+
+
+    # --- Chunking Strategies ---
+    use_boundary_chunker: bool = True  # Respect sentence and verse boundaries
+    use_contextual_chunking: bool = True  # Prepend Anthropic-style contextual headers
+
 
     # --- Multi-teacher personality (Phase E5) ---
     # When set, generation prepends a teacher-specific voice instruction.
@@ -378,7 +384,6 @@ class Settings(BaseSettings):
     use_cross_encoder_only: bool = False
     use_adaptive_chunking: bool = True
     adaptive_chunking_min_chars: int = 800
-    use_boundary_chunker: bool = False
     use_proposition_chunking: str = "auto"
     proposition_char_limit: int = 15000
 

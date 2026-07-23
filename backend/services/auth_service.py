@@ -510,3 +510,41 @@ async def get_current_user_from_supabase(
         logger.warning("No auth token in dev mode — using anonymous user")
         return {"id": "anonymous", "email": None, "is_anonymous": True}
     raise HTTPException(status_code=401, detail="Authentication required or session expired")
+
+
+async def get_optional_user(
+    request: Request, token: HTTPAuthorizationCredentials | None = Depends(security)
+) -> dict:
+    """
+    Auth bridge that allows anonymous access even in production.
+    Used by chat endpoints that support incognito mode.
+    Falls back to anonymous user when no valid auth token is provided.
+    """
+    try:
+        return await auth_bridge.get_user(request, token)
+    except HTTPException as e:
+        # get_user() raises 401 both for "no token" (the case this dependency
+        # exists to allow) and for a token that failed validation (e.g.
+        # expired). Log the latter — silently downgrading to anonymous with
+        # no trace makes a real auth failure indistinguishable from incognito.
+        if token:
+            logger.warning(f"get_optional_user: auth failed for provided token ({e.detail}); falling back to anonymous")
+        return {"id": "anonymous", "email": None, "is_anonymous": True}
+
+
+def resolve_anon_identity(user: dict, session_id: str | None) -> dict:
+    """Derive a per-session identity for anonymous (incognito) users.
+
+    Without this, every incognito user shares user_id="anonymous", which breaks
+    job ownership isolation and telemetry granularity. The frontend already
+    generates a crypto.randomUUID() per conversation (chatStorage.ts) and sends
+    it as session_id in the request body (POST) or X-Session-Id header (GET),
+    so we use it to namespace the anonymous identity. Authenticated users are
+    returned unchanged.
+    """
+    if not user or not user.get("is_anonymous"):
+        return user
+    sid = (session_id or "").strip()
+    if not sid:
+        return user
+    return {**user, "id": f"anon:{sid}"}

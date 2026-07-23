@@ -84,7 +84,7 @@ export const createDefaultProfile = (): UserProfile => {
     theme: 'system',
     ttsEnabled: false,
     ttsRate: 0.9,
-    preferredVoice: 'deepika',
+    preferredVoice: 'priya',
     meditationReminders: false,
     reminderTimeMinutes: 7 * 60, // 7:00 AM
     prePracticeLog: { ...EMPTY_PRE_PRACTICE_LOG, counts: { ...EMPTY_PRE_PRACTICE_LOG.counts }, history: [] },

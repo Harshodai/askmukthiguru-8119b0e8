@@ -8,10 +8,13 @@ from ingest.pipeline import IngestionCheckpoint
 from ingest.sources.supadata import fetch_transcript_supadata
 
 
-def test_checkpoint_idempotency(tmp_path):
+def test_checkpoint_idempotency(tmp_path, monkeypatch):
     cp = IngestionCheckpoint(filepath=str(tmp_path / "checkpoint.json"))
+    cp.redis_client = None
+    cp.supabase_client = None
 
     content_hash = hashlib.sha256(b"test content").hexdigest()
+
     assert not cp.is_processed(content_hash)
 
     cp.save(content_hash)

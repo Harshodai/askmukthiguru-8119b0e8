@@ -42,7 +42,7 @@ class _Query:
         rows.append(row); return self
     def delete(self): self._delete = True; return self
     def or_(self, *_a): return self
-    async def execute(self):
+    def execute(self):
         if getattr(self, "_delete", False):
             rows = self.store.get(self.table, [])
             keep = rows[:]

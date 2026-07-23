@@ -45,6 +45,7 @@ class YouTubeIngestionService:
 
         Tier 1: fetch_transcript_hybrid — watch page → yt-dlp → API → Whisper council
         Tier 2: Supadata managed API
+        Tier 3: Audio download → ffmpeg → STT → polish
 
         Returns result dict from whichever tier succeeds, or
         all_strategies_exhausted dict when all fail.
@@ -56,6 +57,10 @@ class YouTubeIngestionService:
         tier2 = self._try_tier2(video_id, language)
         if tier2 is not None:
             return tier2
+
+        tier3 = self._try_audio_transcribe_fallback(video_id)
+        if tier3 is not None:
+            return tier3
 
         return self.all_strategies_exhausted(video_id)
 
@@ -82,6 +87,35 @@ class YouTubeIngestionService:
         except Exception as e:
             logger.warning("[%s] Tier 2 (Supadata) failed: %s", video_id, e)
         return None
+
+    def _try_audio_transcribe_fallback(self, video_id: str) -> Optional[dict]:
+        """Tier 3: Download audio, downsample with ffmpeg, transcribe & polish via LLM."""
+        try:
+            from ingest.audio_transcriber import (
+                compress_audio_to_mono,
+                download_audio_stream,
+                is_safe_public_url,
+                transcribe_and_preprocess_audio,
+            )
+            url = f"https://www.youtube.com/watch?v={video_id}"
+            if not is_safe_public_url(url):
+                return None
+            import tempfile
+            from pathlib import Path
+            with tempfile.TemporaryDirectory(prefix="mukthi-yt-audio-") as tmp_str:
+                work_dir = Path(tmp_str)
+                downloaded = download_audio_stream(url, work_dir)
+                compressed = compress_audio_to_mono(downloaded, work_dir)
+                transcribed = transcribe_and_preprocess_audio(
+                    str(compressed), output_dir=work_dir, should_polish=True
+                )
+                if transcribed and not transcribed.startswith("[Transcript for"):
+                    return {"text": transcribed, "method": "audio_transcribe_fallback", "video_id": video_id}
+            return None
+        except Exception as e:
+            logger.warning("[%s] Audio transcribe fallback error: %s", video_id, e)
+        return None
+
 
 
 if __name__ == "__main__":

@@ -93,23 +93,28 @@ def merge_duplicate_group(session, cleaned_root, group, execute=False):
     merged_count = 0
     with session.begin_transaction() as tx:
         for dup in duplicates:
-            # Transfer outgoing relationships
+            # Transfer outgoing relationships, preserving the original relationship
+            # type and properties via apoc.merge.relationship (Cypher can't
+            # parameterize a relationship type directly). The prior version used
+            # `MERGE (master:base)-[new_r:DIRECTED]->(target)` with `master` unbound
+            # to $master_id — Neo4j would match *any* :base node already carrying a
+            # :DIRECTED edge to `target`, or silently CREATE a brand-new blank node,
+            # and it collapsed every relationship type (TEACHES, EXPOUNDS, ...) into
+            # a generic "DIRECTED" label.
             tx.run("""
+            MATCH (master:base) WHERE elementId(master) = $master_id
             MATCH (dup:base)-[r]->(target)
             WHERE elementId(dup) = $dup_id AND elementId(target) <> $master_id
-            MERGE (master:base)-[new_r:DIRECTED]->(target)
-            ON CREATE SET new_r = properties(r)
-            WITH r
+            CALL apoc.merge.relationship(master, type(r), properties(r), properties(r), target, {}) YIELD rel
             DELETE r
             """, dup_id=dup["id"], master_id=master["id"])
-            
-            # Transfer incoming relationships
+
+            # Transfer incoming relationships (same fix, reversed direction)
             tx.run("""
+            MATCH (master:base) WHERE elementId(master) = $master_id
             MATCH (source)-[r]->(dup:base)
             WHERE elementId(dup) = $dup_id AND elementId(source) <> $master_id
-            MERGE (source)-[new_r:DIRECTED]->(master:base)
-            ON CREATE SET new_r = properties(r)
-            WITH r
+            CALL apoc.merge.relationship(source, type(r), properties(r), properties(r), master, {}) YIELD rel
             DELETE r
             """, dup_id=dup["id"], master_id=master["id"])
             

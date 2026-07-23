@@ -81,6 +81,10 @@ class ChatResult:
         self.meditation_step: int = 0
         self.follow_up_suggestions: list[str] = []
         self.node_timings: dict = {}
+        self.audio_url: Optional[str] = None
+        self.kg_concept_nodes: list[str] = []
+        self.daily_practice_card: Optional[dict[str, Any]] = None
+
 
 
 class ChatChunk:
@@ -299,6 +303,10 @@ class ChatEngine:
         result.node_timings = dict(pipeline_result.node_timings or {})
         result.citations_verified = pipeline_result.citations_verified
         result.orphan_citations_stripped = pipeline_result.orphan_citations_stripped
+        result.audio_url = getattr(pipeline_result, "audio_url", None)
+        result.kg_concept_nodes = list(getattr(pipeline_result, "kg_concept_nodes", []) or [])
+        result.daily_practice_card = getattr(pipeline_result, "daily_practice_card", None)
+
 
         asyncio.create_task(self._log_telemetry(result, user_id, session_id, message))
 

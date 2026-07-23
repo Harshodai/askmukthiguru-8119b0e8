@@ -112,6 +112,7 @@ export async function* sendMessageStreaming(
       headers: {
         Accept: 'text/event-stream',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(sessionId ? { 'X-Session-Id': sessionId } : {}),
       },
       signal,
     });

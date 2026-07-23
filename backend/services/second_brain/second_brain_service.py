@@ -45,6 +45,7 @@ Integration points (this codebase)
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -160,7 +161,7 @@ class SecondBrainService:
             "version": 1,
         }
         try:
-            await self._db.table("user_brain_keys").upsert(row).execute()
+            await asyncio.to_thread(self._db.table("user_brain_keys").upsert(row).execute)
         except Exception:
             existing = await self._get_key_row(user_id)
             if existing:
@@ -187,7 +188,7 @@ class SecondBrainService:
             "kdf": kdf,
             "version": 2,
         }
-        await self._db.table("user_brain_keys").upsert(row).execute()
+        await asyncio.to_thread(self._db.table("user_brain_keys").upsert(row).execute)
         self._audit(user_id, "vault_upgraded_session_unlock", {})
         return {"user_id": user_id, "wrap_mode": _MODE_B}
 
@@ -255,7 +256,7 @@ class SecondBrainService:
             "access_count": 0,
             "decay": 1.0,
         }
-        await self._db.table("user_brain_nodes").insert(row).execute()
+        await asyncio.to_thread(self._db.table("user_brain_nodes").insert(row).execute)
         if embed and self._embed and self._qdrant:
             await self._index_embedding(user_id, item_id, kind, text)
         return item_id
@@ -281,7 +282,7 @@ class SecondBrainService:
             "rel_cipher": blob,
             "weight": float(weight),
         }
-        await self._db.table("user_brain_edges").insert(row).execute()
+        await asyncio.to_thread(self._db.table("user_brain_edges").insert(row).execute)
         return edge_id
 
     # ------------------------------------------------------------------
@@ -381,7 +382,7 @@ class SecondBrainService:
         if kind:
             q = q.eq("kind", kind)
         q = q.order("created_at", desc=True).range(offset, offset + limit - 1)
-        rows = (await q.execute()).data or []
+        rows = (await asyncio.to_thread(q.execute)).data or []
         out = []
         for r in rows:
             try:
@@ -400,9 +401,13 @@ class SecondBrainService:
 
     async def forget_item(self, user_id: str, item_id: str) -> bool:
         """Delete one item + its vector. User-scoped; idempotent."""
-        await self._db.table("user_brain_nodes").delete().eq("user_id", user_id).eq("id", item_id).execute()
-        await self._db.table("user_brain_edges").delete().eq("user_id", user_id) \
-            .or_(f"src.eq.{item_id},dst.eq.{item_id}").execute()
+        await asyncio.to_thread(
+            self._db.table("user_brain_nodes").delete().eq("user_id", user_id).eq("id", item_id).execute
+        )
+        await asyncio.to_thread(
+            self._db.table("user_brain_edges").delete().eq("user_id", user_id)
+            .or_(f"src.eq.{item_id},dst.eq.{item_id}").execute
+        )
         await self._delete_embedding(user_id, item_id)
         self._audit(user_id, "item_forgotten", {"item_id": item_id})
         return True
@@ -412,9 +417,9 @@ class SecondBrainService:
         vectors from the shared vault collection, and destroy the wrapped
         DEK. Even with backups of the ciphertext, nothing can ever be
         decrypted again."""
-        await self._db.table("user_brain_nodes").delete().eq("user_id", user_id).execute()
-        await self._db.table("user_brain_edges").delete().eq("user_id", user_id).execute()
-        await self._db.table("user_brain_keys").delete().eq("user_id", user_id).execute()
+        await asyncio.to_thread(self._db.table("user_brain_nodes").delete().eq("user_id", user_id).execute)
+        await asyncio.to_thread(self._db.table("user_brain_edges").delete().eq("user_id", user_id).execute)
+        await asyncio.to_thread(self._db.table("user_brain_keys").delete().eq("user_id", user_id).execute)
         if self._qdrant:
             try:
                 await self._drop_collection(user_id)
@@ -436,8 +441,10 @@ class SecondBrainService:
                 break
             all_items.extend(page)
             offset += len(page)
-        edges_raw = (await self._db.table("user_brain_edges").select("*")
-                     .eq("user_id", user_id).execute()).data or []
+        edges_raw = (await asyncio.to_thread(
+            self._db.table("user_brain_edges").select("*")
+            .eq("user_id", user_id).execute
+        )).data or []
         edges = []
         for e in edges_raw:
             try:
@@ -460,7 +467,9 @@ class SecondBrainService:
     # ------------------------------------------------------------------
 
     async def _get_key_row(self, user_id: str) -> Optional[dict]:
-        res = await self._db.table("user_brain_keys").select("*").eq("user_id", user_id).execute()
+        res = await asyncio.to_thread(
+            self._db.table("user_brain_keys").select("*").eq("user_id", user_id).execute
+        )
         return (res.data or [None])[0]
 
     async def _load_dek_mode_a(self, user_id: str) -> bytes:
@@ -482,13 +491,13 @@ class SecondBrainService:
         if ids:
             q = q.in_("id", ids)
         q = q.order("created_at", desc=True).limit(limit)
-        return (await q.execute()).data or []
+        return (await asyncio.to_thread(q.execute)).data or []
 
     async def _touch(self, ids: list[str]) -> None:
         # bump access_count + slight decay refresh; fire-and-forget
         for i in ids:
             try:
-                await self._db.rpc("brain_touch", {"p_id": i}).execute()
+                await asyncio.to_thread(self._db.rpc("brain_touch", {"p_id": i}).execute)
             except Exception:
                 pass
 
