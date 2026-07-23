@@ -147,21 +147,34 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 │   │   └── nemo_handler.py
 │   ├── ingest/
 │   │   ├── __init__.py
-│   │   ├── audio_transcriber.py  # Tier-3 YouTube fallback: yt-dlp download → ffmpeg downsample/chunk → Whisper STT
+│   │   ├── adaptive_chunking.py    # Lightweight adaptive chunking
+│   │   ├── audio_transcriber.py    # Tier-3 YouTube fallback: yt-dlp download → ffmpeg downsample/chunk → Whisper STT
 │   │   ├── auditor.py
+│   │   ├── boundary_chunker.py     # Sentence/verse-boundary-aware chunker (see use_boundary_chunker in Configuration)
+│   │   ├── chunkers/
+│   │   │   └── youtube_chunker.py
 │   │   ├── cleaner.py
+│   │   ├── contextual_reingest.py  # Backfills spiritual_wisdom → spiritual_wisdom_contextual (idempotent, resumable via scripts/ingestion/ingestion_state.json) — run this before/alongside the qdrant_collection default change, see Configuration
 │   │   ├── corrector.py
+│   │   ├── deduplication.py        # Near-duplicate detection
 │   │   ├── handlers/
-│   │   │   └── checkpoint.py  # IngestionCheckpoint — Redis/Supabase-backed, JSON-file fallback
+│   │   │   └── checkpoint.py       # IngestionCheckpoint — Redis/Supabase-backed, JSON-file fallback
+│   │   ├── hyper_extract_adapter.py
 │   │   ├── image_loader.py
-│   │   ├── pipeline.py    # IngestionPipeline orchestrator
-│   │   ├── raptor.py      # RAPTOR hierarchical indexing
+│   │   ├── ontology_writer.py      # KG Phase 6 — auto-extraction from ingestion
+│   │   ├── pdf_parser.py
+│   │   ├── pipeline.py             # IngestionPipeline orchestrator
+│   │   ├── quality_gate.py         # Apache Iceberg-style staged validation
+│   │   ├── raptor.py               # RAPTOR hierarchical indexing
+│   │   ├── social_media_loader.py
 │   │   ├── sources/
+│   │   │   ├── base.py
+│   │   │   ├── supadata.py
 │   │   │   └── youtube_service.py  # 3-tier transcript strategy incl. audio_transcriber.py fallback
-│   │   ├── web_scraper.py  # Jina Reader (r.jina.ai) primary, BeautifulSoup fallback, RSS/Atom via feedparser
-│   │   └── youtube_loader.py  # Transcript extraction
-│   │   # (this tree covers files touched by recent sessions; ingest/ has more modules on
-│   │   # disk than are listed here — see `find backend/ingest -name "*.py"` for the full set)
+│   │   ├── triple_extractor.py     # LLM-based IE (Task E4.1)
+│   │   ├── video_pipeline.py       # Direct video → audio → Whisper → chunk → embed → Qdrant
+│   │   ├── web_scraper.py          # Jina Reader (r.jina.ai) primary, BeautifulSoup fallback, RSS/Atom via feedparser
+│   │   └── youtube_loader.py       # Transcript extraction
 │   ├── infrastructure/
 │   │   ├── k8s.yaml
 │   │   └── scheduler.py
@@ -640,7 +653,7 @@ Located in `backend/guardrails/`. The guardrails system is chain-based and suppo
 4. Audit quality (LLM via `auditor.py`) — rejects low-quality/irrelevant content
 5. Clean text (`cleaner.py`)
 6. Chunk — `use_boundary_chunker` / `use_contextual_chunking` (`app/config.py`) default `True`: sentence-boundary-aware chunking with Anthropic-style contextual headers (`chunk_with_contextual_headers`), not the legacy `RecursiveCharacterTextSplitter(500 chars, 50 overlap)`
-7. Embed → upsert to Qdrant collection `settings.qdrant_collection` (default `spiritual_wisdom_contextual` — **confirm this collection is populated via re-ingestion before deploying a config change that flips the default**, or retrieval silently returns empty against an unpopulated collection while `/api/health` stays green)
+7. Embed → upsert to Qdrant collection `settings.qdrant_collection` (default `spiritual_wisdom_contextual`). `ingest/contextual_reingest.py` backfills this collection from the old `spiritual_wisdom` one — idempotent (deterministic point IDs) and resumable via `scripts/ingestion/ingestion_state.json`. **Run it before/alongside deploying the `qdrant_collection` default change** — otherwise retrieval silently returns empty against an unpopulated collection while `/api/health` stays green.
 8. Build Parent-Child index (`raptor.py`): chunks with metadata → upsert to Qdrant
 
 Playlist ingestion uses concurrent workers (`TRANSCRIPT_CONCURRENT_WORKERS=4`) and checkpoints progress via `ingest/handlers/checkpoint.py:IngestionCheckpoint` (Redis primary, Supabase fallback, local JSON as last resort) — reuse this for any new bulk-ingestion script rather than hand-rolling a local-file checkpoint, which won't survive an ephemeral-filesystem restart (e.g. Railway).

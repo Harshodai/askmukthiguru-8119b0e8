@@ -168,6 +168,26 @@ def test_no_admin_route_is_anonymous():
     )
 
 
+def test_require_scoped_identity_rejects_unscoped_anonymous():
+    """An anonymous caller with no session_id must be rejected (400), not silently
+    treated as a valid identity — otherwise every session_id-less anonymous
+    caller collapses onto the same "anonymous" id and can access each other's
+    jobs (job ownership is a plain string-equality check on user_id)."""
+    from fastapi import HTTPException
+
+    from services.auth_service import require_scoped_identity
+
+    with pytest.raises(HTTPException) as exc_info:
+        require_scoped_identity({"id": "anonymous", "email": None, "is_anonymous": True})
+    assert exc_info.value.status_code == 400
+
+    # Scoped anonymous (resolve_anon_identity applied a session_id) is fine.
+    require_scoped_identity({"id": "anon:some-session-uuid", "email": None, "is_anonymous": True})
+
+    # Authenticated users are never touched by this check.
+    require_scoped_identity({"id": "real-user-id", "email": "a@b.com"})
+
+
 def test_job_routes_owns_job_logic():
     from app.api.job_routes import _owns_job
     

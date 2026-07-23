@@ -18,7 +18,12 @@ from app.dependencies import ServiceContainer, get_container
 from app.schemas import ChatRequest, ChatResponse, MessagePayload
 from app.sanitization import sanitize_user_input
 from rag.memory import build_memory_context
-from services.auth_service import get_current_user_from_supabase, get_optional_user, resolve_anon_identity
+from services.auth_service import (
+    get_current_user_from_supabase,
+    get_optional_user,
+    require_scoped_identity,
+    resolve_anon_identity,
+)
 from services.cost_tracker import TokenAccumulator, get_cost_tracker, token_accumulator_var
 from app.core.user_usage_monitor import get_user_monitor
 from services.tenant_context import TenantContext, set_tenant_from_request
@@ -388,6 +393,7 @@ async def chat_stream_poll(
     # X-Session-Id header so ownership checks isolate incognito sessions.
     session_id = request.headers.get("X-Session-Id")
     user = resolve_anon_identity(user, session_id)
+    require_scoped_identity(user)
 
     # Ownership check — return 404 on mismatch to avoid confirming existence.
     job_meta = await container.job_queue.get_job(job_id)
