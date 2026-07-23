@@ -1244,6 +1244,22 @@ export type Database = {
           id: string
         }[]
       }
+      match_kb_chunks: {
+        Args: {
+          match_count?: number
+          min_similarity?: number
+          query_embedding: string
+        }
+        Returns: {
+          id: string
+          ord: number
+          similarity: number
+          source_id: string
+          source_title: string
+          source_url: string
+          text: string
+        }[]
+      }
       match_user_memories: {
         Args: { p_k: number; p_min_sim: number; p_query_embedding: string }
         Returns: {
