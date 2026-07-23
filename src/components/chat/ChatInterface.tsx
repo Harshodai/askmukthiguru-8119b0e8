@@ -670,20 +670,8 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
             setCurrentConversation(updatedConversation);
             setRefreshTrigger(prev => prev + 1);
           }
-          // Write-back: track last conversation for multi-device resume.
-          // Fire-and-forget; never blocks UI; ignores errors (e.g. anon user).
-          try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            await supabase.from('profiles').update({
-              last_conversation_id: updatedConversation.id,
-              last_message_id: messages[messages.length - 1]?.id ?? null,
-              last_active_at: new Date().toISOString(),
-            }).eq('id', session.user.id);
-            localStorage.setItem('askmukthiguru_last_seen', Date.now().toString());
-          } catch {
-            // best-effort
-          }
+          // DB trigger `touch_user_last_message` handles profile columns on chat message insert.
+          localStorage.setItem('askmukthiguru_last_seen', Date.now().toString());
         } finally {
           if (mySaveId === latestSaveIdRef.current) {
             isSavingRef.current = false;
