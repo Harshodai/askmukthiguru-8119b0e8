@@ -147,13 +147,21 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 │   │   └── nemo_handler.py
 │   ├── ingest/
 │   │   ├── __init__.py
+│   │   ├── audio_transcriber.py  # Tier-3 YouTube fallback: yt-dlp download → ffmpeg downsample/chunk → Whisper STT
 │   │   ├── auditor.py
 │   │   ├── cleaner.py
 │   │   ├── corrector.py
+│   │   ├── handlers/
+│   │   │   └── checkpoint.py  # IngestionCheckpoint — Redis/Supabase-backed, JSON-file fallback
 │   │   ├── image_loader.py
 │   │   ├── pipeline.py    # IngestionPipeline orchestrator
 │   │   ├── raptor.py      # RAPTOR hierarchical indexing
+│   │   ├── sources/
+│   │   │   └── youtube_service.py  # 3-tier transcript strategy incl. audio_transcriber.py fallback
+│   │   ├── web_scraper.py  # Jina Reader (r.jina.ai) primary, BeautifulSoup fallback, RSS/Atom via feedparser
 │   │   └── youtube_loader.py  # Transcript extraction
+│   │   # (this tree covers files touched by recent sessions; ingest/ has more modules on
+│   │   # disk than are listed here — see `find backend/ingest -name "*.py"` for the full set)
 │   ├── infrastructure/
 │   │   ├── k8s.yaml
 │   │   └── scheduler.py
@@ -275,6 +283,7 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 │   │   ├── streaming_generator.py
 │   │   ├── streaming_hardening.py
 │   │   ├── tenant_context.py
+│   │   ├── transcript_polisher.py  # LLM zero-edit punctuation/paragraph polish for raw STT output
 │   │   ├── user_profile_service.py
 │   │   ├── vector_optimizer.py
 │   │   └── whisper_local_service.py
@@ -622,20 +631,32 @@ Located in `backend/guardrails/`. The guardrails system is chain-based and suppo
 
 `POST /api/ingest` triggers `ingest/pipeline.py:IngestionPipeline.ingest_url()`:
 
-1. Detect URL type (YouTube video / playlist / image)
-2. Fetch transcript (3-tier: manual captions → Whisper → auto-captions) or OCR via `image_loader.py`
+1. Detect URL type (YouTube video / playlist / image / web article)
+2. Fetch content:
+   - YouTube: 3-tier transcript (manual captions → Whisper → auto-captions), then a Tier-4 fallback (`ingest/audio_transcriber.py` via `sources/youtube_service.py`) — download audio with `yt-dlp`, downsample/chunk with `ffmpeg`, transcribe locally (`services/whisper_local_service.py`), polish (`services/transcript_polisher.py`) — for videos where all three caption tiers fail
+   - Web article: `ingest/web_scraper.py` — Jina Reader (`r.jina.ai`) primary, BeautifulSoup fallback (`follow_redirects=False` on the direct-fetch path — never relax this, it's the SSRF guard for `is_url_safe_func`), plus `parse_rss_feed()` for RSS/Atom sources
+   - Image: OCR via `image_loader.py`
 3. Correct transcript (LLM via `corrector.py`)
 4. Audit quality (LLM via `auditor.py`) — rejects low-quality/irrelevant content
 5. Clean text (`cleaner.py`)
-6. Chunk with `RecursiveCharacterTextSplitter(500 chars, 50 overlap)`
-7. Embed with `all-MiniLM-L6-v2` → upsert to Qdrant (level 0: leaf chunks)
+6. Chunk — `use_boundary_chunker` / `use_contextual_chunking` (`app/config.py`) default `True`: sentence-boundary-aware chunking with Anthropic-style contextual headers (`chunk_with_contextual_headers`), not the legacy `RecursiveCharacterTextSplitter(500 chars, 50 overlap)`
+7. Embed → upsert to Qdrant collection `settings.qdrant_collection` (default `spiritual_wisdom_contextual` — **confirm this collection is populated via re-ingestion before deploying a config change that flips the default**, or retrieval silently returns empty against an unpopulated collection while `/api/health` stays green)
 8. Build Parent-Child index (`raptor.py`): chunks with metadata → upsert to Qdrant
 
-Playlist ingestion uses concurrent workers (`TRANSCRIPT_CONCURRENT_WORKERS=4`).
+Playlist ingestion uses concurrent workers (`TRANSCRIPT_CONCURRENT_WORKERS=4`) and checkpoints progress via `ingest/handlers/checkpoint.py:IngestionCheckpoint` (Redis primary, Supabase fallback, local JSON as last resort) — reuse this for any new bulk-ingestion script rather than hand-rolling a local-file checkpoint, which won't survive an ephemeral-filesystem restart (e.g. Railway).
 
 ## Dependency Injection Pattern
 
 `backend/app/dependencies.py` is the **composition root**. `ServiceContainer` creates all singleton service instances in dependency order and holds them for the lifetime of the application. Import via `get_container()`. Never instantiate services directly in route handlers.
+
+## Architecture: Auth (Incognito / Anonymous Chat)
+
+`services/auth_service.py` has two chat-facing dependencies with different guarantees:
+
+- **`get_current_user_from_supabase`** — strict. Raises 401 in production when no auth succeeds; falls back to anonymous only outside production. Used by admin routes (`/admin/*`, `/api/admin/*`) — **never relax this to `get_optional_user` on an admin route**, `backend/tests/test_authz_regression.py::test_no_admin_route_is_anonymous` enforces it.
+- **`get_optional_user`** — permissive, used by `/api/chat*` and `/api/jobs/*`. Allows anonymous access even in production (incognito mode), and — deliberately — treats an expired/invalid token the same as "no token" (logs a warning naming the failure, then degrades to anonymous, so `/api/chat` doesn't hard-fail mid-session on token expiry). See `backend/tests/test_edge_cases.py::test_jwt_expiration`.
+
+**`resolve_anon_identity(user, session_id)`** turns a shared `user_id="anonymous"` into a per-session `anon:<session_id>` identity, using the `session_id` the frontend already generates per conversation (`crypto.randomUUID()` in `chatStorage.ts`, sent as `session_id` in the POST body or `X-Session-Id` header on GET). Job ownership and chat-history checks compare against this id, so anonymous callers stay isolated from each other. **Any route that swaps `get_current_user_from_supabase` for `get_optional_user` must also call `resolve_anon_identity`** — without it every anonymous caller collapses onto the literal string `"anonymous"` and can read/cancel any other anonymous caller's job (`test_authz_regression.py`'s `_requires_identity` + `resolve_anon_identity`-in-source check exists specifically to catch this).
 
 ## Frontend ↔ Backend Integration
 
@@ -694,6 +715,7 @@ The backend `ChatRequest` expects `{ messages, user_message, meditation_step }`.
 | Service | File | Description |
 |---------|------|-------------|
 | **Whisper Local** | `whisper_local_service.py` | Local Whisper transcription |
+| **Transcript Polisher** | `transcript_polisher.py` | LLM zero-edit punctuation/paragraph polish (recursive midpoint split on truncation) |
 | **OCR** | `ocr_service.py` | Image-to-text via EasyOCR |
 | **Phonetic** | `phonetic.py` | Phonetic text processing |
 
