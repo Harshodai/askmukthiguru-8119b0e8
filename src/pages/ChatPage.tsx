@@ -62,6 +62,10 @@ const ChatPage = () => {
   // Auto-show tour for new / returning users who haven't completed it
   useEffect(() => {
     if (loading) return;
+    if (import.meta.env.DEV && (window.location.search.includes('demo=true') || localStorage.getItem('demo_mode') === 'true')) {
+      setTourOpen(false);
+      return;
+    }
     const onboarded = localStorage.getItem(ONBOARDED_KEY) === '1';
     const tourDone = localStorage.getItem(TOUR_COMPLETED_KEY) === '1';
     const shownCount = parseInt(localStorage.getItem(TOUR_SHOWN_COUNT_KEY) || '0', 10);

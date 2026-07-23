@@ -1,0 +1,101 @@
+[
+  {
+    "name": "screen_01_hero",
+    "path": "/",
+    "description": "Landing Hero - Discover Your Beautiful State (Dark)",
+    "finalUrl": "http://localhost:8080/?demo=true",
+    "bodyLength": 4471,
+    "isValid": true,
+    "file": "screen_01_hero.png"
+  },
+  {
+    "name": "screen_02_how_it_works",
+    "path": "/",
+    "description": "How It Works - 4-Step Transformation Flow (Dark)",
+    "finalUrl": "http://localhost:8080/?demo=true",
+    "bodyLength": 4471,
+    "isValid": true,
+    "file": "screen_02_how_it_works.png"
+  },
+  {
+    "name": "screen_03_wisdom",
+    "path": "/",
+    "description": "Wisdom & Insights Cards Section (Dark)",
+    "finalUrl": "http://localhost:8080/?demo=true",
+    "bodyLength": 4471,
+    "isValid": true,
+    "file": "screen_03_wisdom.png"
+  },
+  {
+    "name": "screen_04_chat",
+    "path": "/chat",
+    "description": "Grounded RAG Chat Interface & Voice STT (Dark)",
+    "finalUrl": "http://localhost:8080/chat?demo=true",
+    "bodyLength": 1243,
+    "isValid": true,
+    "file": "screen_04_chat.png"
+  },
+  {
+    "name": "screen_05_kg",
+    "path": "/knowledge-graph",
+    "description": "7,601-Node Interactive Wisdom Map Knowledge Graph (Dark)",
+    "finalUrl": "http://localhost:8080/knowledge-graph?demo=true",
+    "bodyLength": 482,
+    "isValid": true,
+    "file": "screen_05_kg.png"
+  },
+  {
+    "name": "screen_06_guides",
+    "path": "/guides/spirit-guides",
+    "description": "Spirit Guides Personas Sri Preethaji & Sri Krishnaji (Dark)",
+    "finalUrl": "http://localhost:8080/guides/spirit-guides?demo=true",
+    "bodyLength": 1517,
+    "isValid": true,
+    "file": "screen_06_guides.png"
+  },
+  {
+    "name": "screen_07_notebook",
+    "path": "/notebooks",
+    "description": "Encrypted Study Notebook & Reflections (Dark)",
+    "finalUrl": "http://localhost:8080/notebooks?demo=true",
+    "bodyLength": 362,
+    "isValid": true,
+    "file": "screen_07_notebook.png"
+  },
+  {
+    "name": "screen_08_profile_main",
+    "path": "/profile?tab=profile",
+    "description": "Profile & 14 Supported Languages Selector (Dark)",
+    "finalUrl": "http://localhost:8080/auth",
+    "bodyLength": 304,
+    "isValid": false,
+    "file": "screen_08_profile_main.png"
+  },
+  {
+    "name": "screen_09_profile_memory",
+    "path": "/profile?tab=memory",
+    "description": "Memory Manager & Second Brain Privacy Vault (Dark)",
+    "finalUrl": "http://localhost:8080/auth",
+    "bodyLength": 304,
+    "isValid": false,
+    "file": "screen_09_profile_memory.png"
+  },
+  {
+    "name": "screen_10_profile_stats",
+    "path": "/profile?tab=stats",
+    "description": "Meditation Stats & Activity Analytics (Dark)",
+    "finalUrl": "http://localhost:8080/auth",
+    "bodyLength": 304,
+    "isValid": false,
+    "file": "screen_10_profile_stats.png"
+  },
+  {
+    "name": "screen_11_profile_privacy",
+    "path": "/profile?tab=privacy",
+    "description": "Privacy Controls, 2FA & GDPR Right to Forget (Dark)",
+    "finalUrl": "http://localhost:8080/auth",
+    "bodyLength": 304,
+    "isValid": false,
+    "file": "screen_11_profile_privacy.png"
+  }
+]

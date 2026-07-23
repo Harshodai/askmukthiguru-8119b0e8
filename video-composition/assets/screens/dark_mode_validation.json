@@ -1,0 +1,82 @@
+[
+  {
+    "name": "screen_01_hero",
+    "path": "/?demo=true",
+    "description": "Landing Hero in Dark Sanctuary Mode",
+    "bodyLength": 4470,
+    "isValid": true,
+    "file": "screen_01_hero.png"
+  },
+  {
+    "name": "screen_02_how_it_works",
+    "path": "/?demo=true",
+    "description": "How It Works 4-Step Flow in Dark Mode",
+    "bodyLength": 4470,
+    "isValid": true,
+    "file": "screen_02_how_it_works.png"
+  },
+  {
+    "name": "screen_03_auth",
+    "path": "/auth?demo=true",
+    "description": "Sign-In Page with Google Login in Dark Mode",
+    "bodyLength": 304,
+    "isValid": true,
+    "file": "screen_03_auth.png"
+  },
+  {
+    "name": "screen_04_chat",
+    "path": "/chat?demo=true",
+    "description": "Grounded RAG Chat Interface in Dark Mode",
+    "bodyLength": 1241,
+    "isValid": true,
+    "file": "screen_04_chat.png"
+  },
+  {
+    "name": "screen_05_serene_mind",
+    "path": "/chat?modal=serene-mind&demo=true",
+    "description": "Serene Mind Guided Meditation Modal in Dark Mode",
+    "bodyLength": 1218,
+    "isValid": true,
+    "file": "screen_05_serene_mind.png"
+  },
+  {
+    "name": "screen_06_notebook",
+    "path": "/notebooks?demo=true",
+    "description": "Encrypted Study Notebook in Dark Mode",
+    "bodyLength": 362,
+    "isValid": true,
+    "file": "screen_06_notebook.png"
+  },
+  {
+    "name": "screen_07_kg",
+    "path": "/knowledge-graph?demo=true",
+    "description": "7,601-Node Interactive Wisdom Map in Dark Mode",
+    "bodyLength": 482,
+    "isValid": true,
+    "file": "screen_07_kg.png"
+  },
+  {
+    "name": "screen_08_profile",
+    "path": "/profile?tab=profile&demo=true",
+    "description": "Profile & 14 Languages Selector in Dark Mode",
+    "bodyLength": 581,
+    "isValid": true,
+    "file": "screen_08_profile.png"
+  },
+  {
+    "name": "screen_09_memory_vault",
+    "path": "/profile?tab=memory&demo=true",
+    "description": "Second Brain Vault & Memory Manager in Dark Mode",
+    "bodyLength": 450,
+    "isValid": true,
+    "file": "screen_09_memory_vault.png"
+  },
+  {
+    "name": "screen_10_privacy",
+    "path": "/profile?tab=privacy&demo=true",
+    "description": "Privacy & GDPR Right to Forget in Dark Mode",
+    "bodyLength": 375,
+    "isValid": true,
+    "file": "screen_10_privacy.png"
+  }
+]
