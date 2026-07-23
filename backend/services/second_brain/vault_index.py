@@ -70,7 +70,8 @@ class VaultIndex:
         try:
             self._client.create_collection(
                 collection_name=self._collection,
-                vectors_config=VectorParams(size=self._dimension, distance=Distance.COSINE),
+                vectors_config=VectorParams(size=self._dimension, distance=Distance.COSINE, on_disk=True),
+                on_disk_payload=True,
             )
             self._client.create_payload_index(self._collection, "user_id", "keyword")
         except Exception as exc:

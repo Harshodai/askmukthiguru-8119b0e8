@@ -117,6 +117,7 @@ class QdrantClientManager:
                             "dense": VectorParams(
                                 size=self._dimension,
                                 distance=Distance.COSINE,
+                                on_disk=True,
                             ),
                         },
                         sparse_vectors_config={

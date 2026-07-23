@@ -81,7 +81,9 @@ class GuruBrainService:
                     vectors_config=qmodels.VectorParams(
                         size=vector_size,
                         distance=qmodels.Distance.COSINE,
+                        on_disk=True,
                     ),
+                    on_disk_payload=True,
                 )
             return True
         except Exception as exc:
