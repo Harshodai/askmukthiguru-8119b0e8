@@ -53,18 +53,24 @@ from dotenv import load_dotenv
 # Load backend/.env for Sarvam API key and other config
 load_dotenv(os.path.join(BACKEND_DIR, ".env"))
 
-# Override infrastructure URLs for host-side execution (not Docker-internal)
-os.environ["LLM_PROVIDER"] = "sarvam_cloud"
-os.environ["QDRANT_URL"] = "http://localhost:6333"
-os.environ["NEO4J_URI"] = "bolt://localhost:7687"
-os.environ["NEO4J_USERNAME"] = "neo4j"
-if "NEO4J_PASSWORD" not in os.environ:
-    raise RuntimeError("NEO4J_PASSWORD env var is required")
-os.environ["REDIS_URL"] = (
-    f"redis://:{os.environ['REDIS_PASSWORD']}@localhost:6379/0"
-)
-os.environ["SUPABASE_URL"] = "http://localhost:54321"
-os.environ["WHISPER_ONLY"] = "true"
+# Set infrastructure URL defaults for host-side execution
+os.environ.setdefault("LLM_PROVIDER", "sarvam_cloud")
+os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
+os.environ.setdefault("NEO4J_URI", "bolt://localhost:7687")
+os.environ.setdefault("NEO4J_USERNAME", "neo4j")
+_neo4j_pass = os.environ.get("NEO4J_PASSWORD")
+if not _neo4j_pass:
+    raise RuntimeError("NEO4J_PASSWORD environment variable is required")
+os.environ["NEO4J_PASSWORD"] = _neo4j_pass
+
+redis_pass = os.environ.get("REDIS_PASSWORD", "")
+if redis_pass:
+    os.environ.setdefault("REDIS_URL", f"redis://:{redis_pass}@localhost:6379/0")
+else:
+    os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("SUPABASE_URL", "http://localhost:54321")
+os.environ.setdefault("WHISPER_ONLY", "true")
+
 
 # Ensure system tools and venv tools are in path
 VENV_BIN = os.path.abspath(os.path.join(BASE_DIR, ".venv_host/bin"))
@@ -628,6 +634,7 @@ async def process_video_worker(
     save_state_fn,
     args,
     worker_num: int = 0,
+    okf_tasks: list | None = None,
 ):
     """Processes a single video under concurrency bounds.
 
@@ -737,9 +744,10 @@ async def process_video_worker(
 
             try:
                 # ── STEP 1: Qdrant (CRITICAL) ──
-                logger.info(f"[Qdrant] {vid} (Attempt {attempt}/{max_attempts})...")
-                logger.info(f"[Tags] {tags}")
-                res = await pipeline.ingest_url(url, max_accuracy=True, tags=tags)
+                tags_list = [t.strip() for t in getattr(args, "tags", "general").split(",") if t.strip()]
+                logger.info(f"[Tags] {tags_list}")
+                res = await pipeline.ingest_url(url, max_accuracy=True, tags=tags_list)
+
 
                 if res.get("status") == "error":
                     raise ValueError(res.get("message", "Ingestion pipeline returned error status"))
@@ -802,10 +810,26 @@ async def process_video_worker(
                 else:
                     lightrag_status = "service_inactive"
 
+                # ── STEP 3: OKF (Ontological Knowledge Framework) 5-Node Transformation Arc ──
+                okf_status = "skipped"
+                if not getattr(args, "skip_okf", False):
+                    try:
+                        from ingest.pipeline import _okf_extract_for_video
+                        okf_task = asyncio.create_task(_okf_extract_for_video(vid))
+                        if okf_tasks is not None:
+                            okf_tasks.append(okf_task)
+                        okf_status = "queued"
+                        logger.info(f"[OKF] ✅ Queued 5-node transformation arc extraction for {vid}")
+                    except Exception as okf_err:
+                        okf_status = "failed"
+                        logger.warning(f"[OKF] ⚠️ Failed to queue for {vid}: {okf_err}")
+
                 # Final metrics update
                 total_latency = time.time() - start_video_time
                 state["metrics"][vid]["latency"] = total_latency
                 state["metrics"][vid]["lightrag_status"] = lightrag_status
+                state["metrics"][vid]["okf_status"] = okf_status
+
 
                 # Remove from DLQ if it was in there
                 if "dead_letter_queue" in state:
@@ -895,10 +919,16 @@ def parse_args():
         help="Skip LightRAG graph extraction (saves API calls)",
     )
     parser.add_argument(
+        "--skip-okf",
+        action="store_true",
+        help="Skip OKF 5-node transformation arc extraction",
+    )
+    parser.add_argument(
         "--skip-book",
         action="store_true",
         help="Skip book ingestion, go straight to YouTube",
     )
+
     parser.add_argument(
         "--video-limit",
         type=int,
@@ -976,9 +1006,16 @@ async def main():
 
     container = get_container()
 
-    # Initialize LightRAG for Knowledge Graph extraction
-    if container.lightrag:
-        await container.lightrag.initialize()
+    # Initialize LightRAG for Knowledge Graph extraction (best effort)
+    if container.lightrag and not getattr(args, "skip_lightrag", False):
+        try:
+            await container.lightrag.initialize()
+            logger.info("✅ LightRAG service initialized cleanly.")
+        except Exception as lg_init_err:
+            logger.warning(
+                f"⚠️ LightRAG initialization skipped/failed: {lg_init_err}. Proceeding with Qdrant vector ingestion."
+            )
+
 
     pipeline = container.ingestion
 
@@ -1003,6 +1040,8 @@ async def main():
     ]:
         if k not in state:
             state[k] = default
+
+    okf_tasks: list[asyncio.Task] = []
 
     def save_state():
         _atomic_save_state(state, STATE_FILE)
@@ -1375,6 +1414,7 @@ async def main():
                     save_state_fn=save_state,
                     args=args,
                     worker_num=i + 1,
+                    okf_tasks=okf_tasks,
                 )
                 for i, vid in enumerate(retry_queued_ids)
             ]
@@ -1397,11 +1437,18 @@ async def main():
                     save_state_fn=save_state,
                     args=args,
                     worker_num=i + 1,
+                    okf_tasks=okf_tasks,
                 )
                 for i, vid in enumerate(new_queued_ids)
             ]
             await asyncio.gather(*new_tasks)
             logger.info("✅ Phase 2 complete. All new videos processed.")
+
+    # ── Await OKF extraction tasks ────────────────────────────
+    if okf_tasks:
+        okf_results = await asyncio.gather(*okf_tasks, return_exceptions=True)
+        okf_ok = sum(1 for r in okf_results if not isinstance(r, Exception))
+        logger.info(f"✅ OKF extractions: {okf_ok}/{len(okf_tasks)} completed")
 
     # ── Structured Summary ───────────────────────────────────
     all_metrics = state.get("metrics", {})

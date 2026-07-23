@@ -13,6 +13,20 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
 
+# Fixed enum for LightRAG entity-type extraction. Without this, LightRAG falls
+# back to its own generic DEFAULT_ENTITY_TYPES (Person/Creature/NaturalObject/...)
+# which don't fit a spiritual-teaching corpus, and the LLM occasionally invents
+# ad-hoc types outside even that list (e.g. "homophones", "punctuation").
+SPIRITUAL_ENTITY_TYPES = [
+    "Teacher",
+    "Concept",
+    "Practice",
+    "Event",
+    "Organization",
+    "Location",
+    "Other",
+]
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,8 +58,11 @@ class LightRAGService:
 
         logger.info("Initializing LightRAG Service (Neo4j Graph + Qdrant Vector)...")
 
-        # Working directory for LightRAG internal states (e.g., pipeline completion files)
-        working_dir = "data/lightrag"
+        # Working directory for LightRAG internal states (e.g., pipeline completion files).
+        # LightRAG's doc-id dedup cache lives here — it must be distinct per Neo4j/Qdrant
+        # target, otherwise a doc already processed against one target is silently marked
+        # "done" and skipped when later processed against a different target.
+        working_dir = os.getenv("LIGHTRAG_WORKING_DIR", "data/lightrag")
         os.makedirs(working_dir, exist_ok=True)
 
         # Inject Neo4j Configuration
@@ -295,12 +312,14 @@ class LightRAGService:
         def _check_neo4j():
             from neo4j import GraphDatabase
 
+            auth = (settings.neo4j_user, settings.neo4j_password) if settings.neo4j_password else None
             driver = GraphDatabase.driver(
                 settings.neo4j_uri,
-                auth=(settings.neo4j_user, settings.neo4j_password),
+                auth=auth,
             )
             driver.verify_connectivity()
             driver.close()
+
 
         try:
             await asyncio.to_thread(_check_neo4j)
@@ -321,6 +340,10 @@ class LightRAGService:
                 embedding_func_max_async=8,
                 llm_model_max_async=4,
                 max_parallel_insert=4,
+                addon_params={
+                    "language": "English",
+                    "entity_types": SPIRITUAL_ENTITY_TYPES,
+                },
             )
 
         try:
@@ -329,15 +352,6 @@ class LightRAGService:
             # Inject Custom Spiritual Guidance into LightRAG Prompts
             try:
                 import lightrag.prompt
-                lightrag.prompt.PROMPTS["default_entity_types_guidance"] = (
-                    "- Teacher: Spiritual leaders, guides, or organizations teaching wisdom (e.g. Sadhguru, Sri Preethaji, Sri Krishnaji, Sri Amma Bhagavan, ISKCON)\n"
-                    "- Concept: Core spiritual ideas, beliefs, or states of mind (e.g. Karma, Dharma, Consciousness, Beautiful State, Suffering, Oneness)\n"
-                    "- Practice: Specific techniques, rituals, exercises, or yoga postures (e.g. Serene Mind, Soul Sync, Meditation, Yoga, Breathwork)\n"
-                    "- Event: Spiritual gatherings, retreats, discourses, or festivals\n"
-                    "- Organization: Spiritual institutions, foundations, or ashrams\n"
-                    "- Location: Sacred sites, temples, centers, or geographical areas\n"
-                    "- Other: Entities that do not fit the above categories"
-                )
                 spiritual_guidance = (
                     "\n\n"
                     "---Spiritual Domain Guidance---\n"
@@ -355,8 +369,14 @@ class LightRAGService:
             except Exception as pe:
                 logger.warning(f"Failed to inject custom spiritual prompts to LightRAG: {pe}")
 
-            # Async initialize storages (checks DB connections)
-            await self.rag.initialize_storages()
+            # Async initialize storages (checks DB connections). Retried: over a public
+            # TCP-proxy hop (e.g. this service driven against Railway from outside its
+            # private network) the first connect can transiently time out.
+            @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+            async def _init_storages():
+                await self.rag.initialize_storages()
+
+            await _init_storages()
 
             self._initialized = True
             logger.info("✅ LightRAG Service successfully initialized.")

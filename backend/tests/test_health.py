@@ -52,7 +52,21 @@ def test_health_check(monkeypatch):
 
 
 def test_metrics_admin_only():
-    """Verify that the /metrics endpoint requires admin authentication (gated)."""
-    response = client.get("/metrics")
-    assert response.status_code == 403
+    """Verify that the /metrics endpoint requires admin authentication (gated).
+
+    Explicitly overrides get_current_user_from_supabase to a known non-admin
+    identity rather than relying on ambient settings.is_production: that flag
+    (and its "no token -> raise 401" vs "no token -> anonymous, then 403 from
+    _require_admin" branching) depends on whichever other test module ran
+    first in this process, which made this assertion flip between 401 and 403
+    depending purely on test collection order.
+    """
+    from app.main import get_current_user_from_supabase
+
+    app.dependency_overrides[get_current_user_from_supabase] = lambda: {"id": "u1", "is_superuser": False}
+    try:
+        response = client.get("/metrics")
+        assert response.status_code == 403
+    finally:
+        app.dependency_overrides.pop(get_current_user_from_supabase, None)
 

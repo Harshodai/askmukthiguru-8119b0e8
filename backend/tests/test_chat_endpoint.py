@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.dependencies import get_container
 from app.main import app, get_current_user_from_supabase
+from services.auth_service import get_optional_user
 
 client = TestClient(app)
 
@@ -169,6 +170,7 @@ def mock_get_container():
 
 
 app.dependency_overrides[get_current_user_from_supabase] = mock_get_current_user
+app.dependency_overrides[get_optional_user] = mock_get_current_user
 app.dependency_overrides[get_container] = mock_get_container
 
 

@@ -10,6 +10,12 @@ def mock_pipeline(monkeypatch):
     from app.config import settings
 
     monkeypatch.setattr(settings, "use_adaptive_chunking", False)
+    # use_boundary_chunker now defaults True, which makes _split_text always
+    # route through chunk_with_contextual_headers() regardless of the
+    # use_boundary parameter — bypassing the chunk-size-based splitter these
+    # tests exercise via _splitter._chunk_size. Disable it so these tests keep
+    # covering the legacy splitter + header-prepend path they were written for.
+    monkeypatch.setattr(settings, "use_boundary_chunker", False)
     qdrant = MagicMock()
     embedder = MagicMock()
     ollama = MagicMock()

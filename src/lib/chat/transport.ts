@@ -8,6 +8,10 @@ import { placeholderReply } from './placeholder';
 import { checkBackendHealth, getHealthStatus } from './health';
 import type { AIErrorCode, AIResponse, MessagePayload } from './types';
 
+// ponytail: word-list heuristic, not an LLM call — cheap enough to run on every send.
+const REFERENTIAL_WORDS = ['earlier', 'before', 'previously', 'you said', 'you mentioned',
+  'that practice', 'what about', 'the one', 'first', 'second', 'third'];
+
 const buildRequestBody = (
   systemPrompt: string | undefined,
   messages: MessagePayload[],
@@ -40,7 +44,7 @@ const buildRequestBody = (
     messages: [
       { role: 'system', content: formattedSystemPrompt },
       ...(summary ? [{ role: 'system' as const, content: `SUMMARY OF PREVIOUS CONVERSATION: ${summary}` }] : []),
-      ...messages.slice(-20),
+      ...messages.slice(-(REFERENTIAL_WORDS.some((w) => userMessage.toLowerCase().includes(w)) ? 40 : 20)),
     ],
     user_message: userMessage,
     meditation_step: meditationStep,
@@ -122,7 +126,10 @@ export const sendMessage = async (
           await new Promise(r => setTimeout(r, 2000));
           try {
             const pollResp = await fetch(pollUrl, {
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
+              headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                ...(sessionId ? { 'X-Session-Id': sessionId } : {}),
+              },
             });
             if (pollResp.ok) {
               const job = await pollResp.json();

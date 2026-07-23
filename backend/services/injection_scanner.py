@@ -12,6 +12,9 @@ class InjectionScanner:
         (r"\bSYSTEM\s*:", "system_override"),
         (r"<\|im_start\|>", "token_injection"),
         (r"\boverride\s+(mode|system|safety|guardrails)\b", "override_attempt"),
+        (r"\b(?:DAN|STAN|DUDE|KEVIN|AIM)\s+(mode|prompt|jailbreak|character|persona|system|override)\b", "jailbreak_attempt"),
+        (r"\bJAILBREAK\b", "jailbreak_attempt"),
+        (r"\bdeveloper\s+(mode|override|unlock|backdoor)\b", "developer_mode_attempt"),
         (r"\\u200b|\\u200c|\\u200d|\\ufeff|\\u00a0", "unicode_hidden"),
         (r"\[REDACTED_", "pii_redacted"),
         # — LLM prompt self-leakage (LLM echoes its own system prompt on empty input) —

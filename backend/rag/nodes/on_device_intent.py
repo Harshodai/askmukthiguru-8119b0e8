@@ -287,10 +287,13 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
     if intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION", "GUIDED_TOUR"):
         tier = "tier2_simple"
 
+    routing_reason = f"on_device_{intent.lower()}"
     if intent in ("FACTUAL", "QUERY") and _detect_tier4_deep_cues(text):
         tier = "tier4_deep"
+        routing_reason = "tier4_deep_cue"
 
-    return intent, tier, f"on_device_{intent.lower()}"
+    return intent, tier, routing_reason
+
 
 
 if __name__ == "__main__":

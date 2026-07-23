@@ -11,6 +11,8 @@ const corsHeaders = {
 
 const SARVAM_TTS_URL = "https://api.sarvam.ai/text-to-speech";
 
+const VALID_SPEAKERS = new Set(["priya", "ishita", "mani", "shubh"]);
+
 // Sarvam expects BCP-47 with `-IN` suffix for Indic languages.
 const toSarvamLang = (code: string): string => {
   if (!code) return "en-IN";
@@ -50,7 +52,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => null);
     const text = typeof body?.text === "string" ? body.text.slice(0, 4000) : "";
     const lang = toSarvamLang(String(body?.target_language_code ?? "en"));
-    const speaker = typeof body?.speaker === "string" ? body.speaker : "anushka";
+    const rawSpeaker = typeof body?.speaker === "string" ? body.speaker.trim().toLowerCase() : "";
+    const speaker = rawSpeaker && VALID_SPEAKERS.has(rawSpeaker) ? rawSpeaker : "priya";
     if (!text.trim()) {
       return new Response(JSON.stringify({ error: "text required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -75,7 +78,7 @@ Deno.serve(async (req) => {
         target_language_code: lang,
         speaker,
         model: "bulbul:v3",
-        speech_sample_rate: 22050,
+        speech_sample_rate: 48000,
         enable_preprocessing: true,
       }),
     });

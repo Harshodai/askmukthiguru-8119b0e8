@@ -25,6 +25,7 @@ from fastapi.testclient import TestClient
 
 from app.dependencies import get_container
 from app.main import app, get_current_user_from_supabase
+from services.auth_service import get_optional_user
 
 client = TestClient(app)
 
@@ -254,9 +255,16 @@ async def test_redis_connection_error():
 
 @pytest.mark.asyncio
 async def test_jwt_expiration():
-    """An expired JWT token should return a 401."""
-    # Temporarily remove the mock override so real auth runs
-    saved_override = app.dependency_overrides.pop(get_current_user_from_supabase, None)
+    """An expired JWT on /api/chat gracefully degrades to anonymous chat (200).
+
+    /api/chat depends on get_optional_user, which intentionally treats an
+    expired/invalid token the same as "no token" (services/auth_service.py) so
+    a token expiring mid-conversation doesn't hard-block the chat endpoint —
+    exactly the "graceful degradation" this test module is named for.
+    """
+    # Temporarily remove the mock overrides so real auth runs
+    saved_supabase_override = app.dependency_overrides.pop(get_current_user_from_supabase, None)
+    saved_optional_override = app.dependency_overrides.pop(get_optional_user, None)
     try:
         expired_token = jwt.encode(
             {"sub": "test-user", "exp": 0},
@@ -266,10 +274,14 @@ async def test_jwt_expiration():
         headers = {"Authorization": f"Bearer {expired_token}"}
         payload = {"user_message": "Hello", "session_id": "jwt-test", "messages": []}
         response = client.post("/api/chat", json=payload, headers=headers)
-        assert response.status_code == 401, f"Expected 401 for expired JWT, got {response.status_code}"
+        # 200 (synchronous) or 202 (queued, when job_queue is enabled) both mean
+        # "accepted as anonymous" — only a 401 would mean the hard-reject path.
+        assert response.status_code in (200, 202), f"Expected graceful anonymous fallback, got {response.status_code}"
     finally:
-        if saved_override is not None:
-            app.dependency_overrides[get_current_user_from_supabase] = saved_override
+        if saved_supabase_override is not None:
+            app.dependency_overrides[get_current_user_from_supabase] = saved_supabase_override
+        if saved_optional_override is not None:
+            app.dependency_overrides[get_optional_user] = saved_optional_override
 
 
 @pytest.mark.asyncio

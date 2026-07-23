@@ -1,61 +1,71 @@
-# Handoff — Jul 22, 2026
+# AskMukthiGuru Session Handoff
 
-## State
-- **main** at `ff0a36f1` — guru-brain-overhaul merged + all tests green
-- `guru-brain-overhaul` branch deleted
-- **1096 pass, 8 skip** — backend tests clean
-- **Unstaged:** only `scripts/ingestion/ingestion_state.json` (checkpoint drift)
+**As of:** 2026-07-23, working tree on top of commit `6cf734b9`. Nothing in this session committed — everything below is uncommitted in the working tree. This file replaces the previous handoff.md (that session's work is complete and summarized only where it overlaps with this one).
 
-## What Broke & How It Got Fixed
+---
 
-| Problem | Root Cause | Fix |
-|---|---|---|
-| `_verify_inline_citations` tests failed | Was async-forced (does zero I/O). `strip_orphan_markers` couldn't resolve docs with `url` key — only `source_url` | Made sync. Added `url` as fallback. Fast-return when no `[[CITE:` markers |
-| CoVe skip-tier assertions wrong | `verify_answer` detail strings changed during merge | Restored exact test-expected strings: `"Bypassed for simple query tier"`, `"Bypassed for standard tier short answer"` |
-| `test_verify_answer_node` got 5.43, expected ≥8.0 | Empty `reranked_docs`/`documents` in test state → zero retrieval/recency/authority signals. Temperature 1.5 softened raw 0.35 → 0.45 | Temp 1.5→1.0. Populated test state with realistic docs (score+metadata). Ensemble now returns 8.22 |
-| `test_reingest_skips_already_processed` hit ConnectionRefused | `reingest()` called `_ensure_target_collection()` → live Qdrant call | Monkeypatched `_contextualizer_service` + `_ensure_target_collection` (test only verifies skip logic) |
-| `_llm_uncertainty` returns 0 when no uncertainty field | Correct behavior — absence = uncertain. Drags ensemble ~0.3 pts | Not fixed. Intentional. |
+## 1. Goal
 
-## Next Step
-1. **Code review** diff `ff0a36f1^..ff0a36f1`. Watch: `verify_answer` cyclomatic 13 (too many return paths), `_dedup_newest_by_source` BM25 handling, `confidence_scorer` temp=1.0 brittleness, `contextual_reingest` Ollama health check blocking
-2. **If approved:** `git push origin main` → Railway staging → promote to prod after health check
+Entered this session with a completed prior-session handoff listing "next steps." The user directed, in order:
 
-## Ingestion
+1. Read that handoff, report on data-quality issues, and **restart local LightRAG-from-Qdrant ingestion at concurrency=8** (the script that hydrates LightRAG's graph directly from the already-embedded `spiritual_wisdom` Qdrant collection — `scripts/ingest_lightrag_data.py`, not `bulk_ingest_async.py`, which the user explicitly corrected).
+2. Then reversed course: **"no dont migrate, run these ingestions in railway itself and fix all issues"** — i.e. skip the previously-planned local→Railway Qdrant snapshot migration entirely, and instead drive the hydration script directly against Railway's production Qdrant + Neo4j from this machine, and fix the underlying data-quality problems (not just work around them).
+3. Mid-run, asked to swap the extraction LLM to a cheap OpenRouter model ("like gemma") for cost.
+4. Approved ("run them") continuing into: fixing `scripts/ops/consolidate_entities.py` and wiring entity-dedup + data-quality audit into the ingestion pipeline automatically, plus (not yet started) cleaning up 184 orphaned Neo4j nodes and 19 entities with empty descriptions.
 
-### Pipeline Order
-1. **Single URL** → `POST /api/admin/ingest-url` or `ingest_url(url)` — auto-detects YouTube/playlist/channel/image/PDF/web. Flow: fetch → clean → chunk → contextualize → embed (bge-m3 1024d) → `spiritual_wisdom` → LightRAG → Neo4j → OKF extraction
-2. **LightRAG batch** → `scripts/ingest_lightrag_data.py` — scrolls all `spiritual_wisdom` points, calls `safe_ainsert()`. Resumable.
-3. **Contextual re-ingest** (optional) → `ContextualReingestEngine().reingest()` — reconstructs full docs, re-chunks, Ollama-situates, writes to `spiritual_wisdom_contextual`
+The end goal across all of this: **Railway's production LightRAG graph (Neo4j + `lightrag_vdb_*` Qdrant collections) should reflect the same depth of knowledge-graph enrichment that local development had accumulated**, sourced from the 89,053-point `spiritual_wisdom` Qdrant collection (already fully present on Railway), with the extraction quality bugs that caused entity-type noise fixed at the root rather than papered over.
 
-### Re-ingestion Decision Tree
+## 2. Current state of code
 
-| Need | Tool |
-|---|---|
-| Re-process single source with updated pipeline | Re-submit via `POST /api/admin/ingest-url` (idempotent — Iceberg backup/rollback built in) |
-| Re-process ALL sources | `scripts/migrate_data.py` (scrolls Qdrant, groups by source_url, calls `ingest_raw_text(max_accuracy=True)`) |
-| Create contextual chunks | `POST /admin/contextual-reingest` (Celery task, Redis singleton guard, retries 2x) |
-| Preview contextual re-ingest | `POST /admin/contextual-reingest/dry-run` |
-| Force re-contextualize a source | Pass `source_url` explicitly (skips skip-check) |
-| Reset contextual re-ingest progress | Delete `contextual_reingest_processed_sources` key from `scripts/ingestion/ingestion_state.json` |
-| Force re-process already-ingested content | **Global reset only:** `rm -f backend/data/ingest_checkpoint.json` or `redis-cli DEL ingestion:checkpoint`. No per-chunk granularity — deletes wipe all checkpoint state to force full reprocess. To re-process a single source, just re-submit via `POST /api/admin/ingest-url` (idempotent, Iceberg rollback). |
+**Files actually edited this session (4, all uncommitted):**
 
-### Collections
-| Collection | Purpose |
-|---|---|
-| `spiritual_wisdom` | Main vector store (query count via `curl -s http://localhost:6333/collections/spiritual_wisdom \| python3 -c "import sys,json; print(json.load(sys.stdin)['result']['points_count'])"`) |
-| `spiritual_wisdom_contextual` | Contextually re-ingested chunks |
-| `spiritual_wisdom_lightrag` | LightRAG graph vectors |
-| `spiritual_wisdom_ingest_backup_*` | Auto Iceberg snapshots |
-| `spiritual_wisdom_recovery_v_*` | migrate_data.py recovery |
-| `semantic_cache` | GPTCache |
-| `memory_vault` | User second-brain (multi-tenant) |
+- **`backend/services/lightrag_service.py`** — three real fixes:
+  1. Added `SPIRITUAL_ENTITY_TYPES` constant and wired it into `_create_lightrag()` via `addon_params={"entity_types": [...]}`. Root-caused: the old code overwrote `lightrag.prompt.PROMPTS["default_entity_types_guidance"]`, a prompt key **LightRAG's actual entity-extraction template never references** (confirmed by inspecting the installed `lightrag` package's `prompt.py` — the real template interpolates `{entity_types}`, sourced from `addon_params["entity_types"]` or the library's own generic `DEFAULT_ENTITY_TYPES` list). This is the actual root cause of the "50+ single-occurrence garbage entity types" flagged in the prior session's data-quality audit (`homophones`, `punctuation`, `fearlessness`, etc.) — the guidance text had been silently doing nothing since it was written.
+  2. `working_dir` (LightRAG's local JSON KV cache — tracks which docs are already processed, independent of which Neo4j/Qdrant target they were written to) is now `os.getenv("LIGHTRAG_WORKING_DIR", "data/lightrag")` instead of a hardcoded constant. Without this, running the hydration script against a second target (Railway) after it had already run locally would silently skip every doc the local run had touched, because the *shared* cache marked them "done" even though they'd never been written to Railway.
+  3. `initialize()`'s `await self.rag.initialize_storages()` is now wrapped in a 3-attempt `tenacity` retry (matches the retry pattern already used for `_create_lightrag()` itself). Root cause of needing this: see §4.
 
-### Smoke Test
-```bash
-set -euo pipefail
-curl --fail --silent --show-error http://localhost:8000/api/health
-curl --fail --silent --show-error -X POST http://localhost:8000/api/admin/ingest-url \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://www.youtube.com/watch?v=TqxxCYnAxo8"}'
-curl --fail --silent --show-error http://localhost:6333/collections/spiritual_wisdom | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['points_count'])"
-```
+- **`scripts/ingest_lightrag_data.py`** — four fixes:
+  1. `CHECKPOINT_FILE` is now `Path(os.getenv("LIGHTRAG_CHECKPOINT_FILE", ...))` instead of a hardcoded single path — same class of bug as `working_dir` above: without this, driving the script against Railway would resume from local's scroll-offset checkpoint and silently skip the first ~1,600 points of Railway's collection that were never actually processed into Railway's graph.
+  2. Added a module-level monkeypatch on `qdrant_client.QdrantClient.__init__` that (a) defaults `timeout=30` and (b) when the URL is `https://`, forces `port=None`. Root cause: `qdrant-client` always force-appends `:6333` to the connection URL unless told not to — harmless for Railway's internal `*.railway.internal` hostname (which really listens on 6333), but fatal for Railway's public HTTPS domain (which only routes 443) — every request from this LightRAG-internal client (separate from our own app's `QdrantClientManager`, which already had this exact class of fix at `backend/services/qdrant/client.py:59-61`) hung until connect-timeout. This was the actual root cause of two full stalled/killed runs (see §4) — not a "timeout too short" problem as first suspected, a wrong-port problem.
+  3. After `await lightrag_svc.initialize()`, added `if not lightrag_svc._initialized: raise RuntimeError(...)`. `LightRAGService.initialize()` swallows its own exceptions (logs and returns, doesn't raise) — the ingestion script was silently looping over all 89,053 points against a completely non-functional service before this guard existed.
+  4. (No code change, but worth noting) `working_dir`/`CHECKPOINT_FILE` env overrides are consumed by the launcher script (see below), not by anything in the repo's normal runtime path — production's own `LightRAGService.initialize()` (via Celery/FastAPI) never sets these env vars, so its behavior is unchanged.
+
+- **`scripts/ops/consolidate_entities.py`** — two real Cypher bugs fixed in `merge_duplicate_group()`:
+  1. The original `MERGE (master:base)-[new_r:DIRECTED]->(target)` never actually bound `master` to the specific node being kept (`$master_id` was referenced nowhere in that query) — Neo4j would match *any* `:base` node that happened to already have a `:DIRECTED` edge to `target`, or, if none existed, **silently create a brand-new blank node**. Fixed by explicitly `MATCH (master:base) WHERE elementId(master) = $master_id` first.
+  2. The relationship type was hardcoded to the literal string `DIRECTED` regardless of the original edge's real type — every merge would have collapsed real types (`TEACHES`, `EXPOUNDS`, `TRANSITIONS_TO`, etc.) into one generic label, destroying exactly the kind of semantic edge-typing the rest of this session's Neo4j work (prior session's migration) had gone to great lengths to get right. Fixed using `apoc.merge.relationship(master, type(r), properties(r), properties(r), target, {}) YIELD rel` (APOC confirmed installed on Railway's Neo4j via `NEO4J_PLUGINS_LIST=apoc,n10s,graph-data-science`).
+  - **Note:** after I made this fix, the file was modified again outside this conversation (an external edit, already reflected in the current file — not made by me, not to be reverted) that changed the `identProps` argument of both `apoc.merge.relationship(...)` calls from `{}` to `properties(r)`. That makes the merge match/identify existing relationships by their *full property set*, not just by type — stricter dedup semantics than what I wrote. **Not independently verified this session** — next session should confirm this doesn't cause near-duplicate relationships (same type, slightly different properties, e.g. differing `source_id` provenance) to create parallel edges instead of merging.
+
+- **`backend/tasks/ingest_tasks.py`** — added `post_ingestion_maintenance` Celery task (runs `consolidate_entities.py --execute` then `ruthless_data_audit.py` as subprocesses, 900s timeout each) and wired it to fire via `.delay()` from `playlist_complete()`'s success path (`if success_count > 0`). Deliberately **not** wired into `orchestrate_ingestion` (single-video path) — both scripts do a full-graph scan, so running them after every individual video would be wasteful; only fires once per playlist/batch completion. **Syntax-checked only** (`ast.parse`) — not exercised through an actual Celery run. No test coverage added.
+
+**Non-repo files created this session (scratchpad, not committed, not part of the codebase):**
+- `/private/tmp/.../scratchpad/run_railway_ingest.py` — launcher that fetches `railway variables --json` for the linked `askmukthiguru-8119b0e8` service, rewrites `QDRANT_URL`/`NEO4J_URI`/`REDIS_URL` from Railway's internal `*.railway.internal` hostnames to their public TCP-proxy equivalents, sets `LIGHTRAG_CHECKPOINT_FILE`/`LIGHTRAG_WORKING_DIR`/`OPENROUTER_CLASSIFY_MODEL` overrides, and `os.execve`'s into `scripts/ingest_lightrag_data.py`. Secrets flow from the `railway` CLI straight into the child process env — never written to disk, never printed.
+- `/private/tmp/.../scratchpad/run_railway_script.py` — generic variant of the above for one-off scripts against Railway's Neo4j only (used for the blocked `consolidate_entities.py` dry-run, see §4).
+
+**Public endpoints discovered and now depended on** (not secret, safe to record): Railway Qdrant public domain `https://qdrant-production-14ee.up.railway.app` (routes 443 only — this is *why* the port-append bug above mattered); Railway Neo4j public bolt TCP-proxy `bolt://sakura.proxy.rlwy.net:11126`; Railway Redis public TCP-proxy `tokaido.proxy.rlwy.net:47457` (fetched but not currently exercised — the hydration script's Redis-dependent subsystems, e.g. `PromptStore`/`doctrine_cache`, degrade to warnings when unreachable, same as they did locally).
+
+**Everything else showing modified/untracked in `git status`** (frontend files, `backend/app/config.py`, `backend/app/pipeline/result.py`, `backend/rag/nodes/guru_tone_adapter.py`, `backend/services/auth_service.py`, `backend/services/second_brain/second_brain_service.py`, `backend/tests/test_guru_brain.py`, `docs/RUTHLESS_ONE_SHOT_BLUEPRINT.md`, `mukthiguru-1min-demo-script.md`, `railway.json`-adjacent changes, `brag-output/`, etc.) **predates this session** — untouched and unverified here. Run `git diff` before committing anything to separate this session's four files from that pre-existing activity.
+
+## 3. Files actively being edited
+
+None mid-edit — every change this session (the 4 files above) is complete and saved, nothing half-applied. The Railway ingestion process itself is **still running** in the background as this is written (see live numbers below); it is not a file edit but is the one piece of "in-flight" state that matters most for continuity.
+
+## 4. Things tried and failed (before landing on what worked)
+
+1. **First Railway launch** — crashed instantly on every single point: `.venv_host` (the interpreter these scripts use) was missing `langdetect`, pinned in `backend/requirements.txt` but never installed into that specific venv. Fixed with `pip install langdetect` into `.venv_host`. *(This surfaced before the pivot to Railway, while still validating the script locally — same root cause would have hit the Railway run too.)*
+2. **Second Railway launch** — resumed from `data/lightrag_checkpoint.json` at `processed_count: 1600` — but that checkpoint was local's progress. Confirmed via direct inspection this would have permanently skipped Railway's first 1,600 `spiritual_wisdom` points. Killed before any batch saved a checkpoint (verified zero writes reached Railway). Fixed by making `CHECKPOINT_FILE` env-overridable (see §2) and giving Railway its own (`data/lightrag_checkpoint_railway.json`).
+3. **Third Railway launch** — passed the checkpoint fix, but `LightRAGService.initialize()`'s `working_dir="data/lightrag"` was *also* shared — logs showed it loading 5,435 pre-existing "already processed" doc records from **all** prior local LightRAG activity across the whole project's history (not just this session's local test run). Killed immediately once identified — this would have made the Railway run silently skip the vast majority of docs as "already done" while writing nothing to Railway. Fixed by making `working_dir` env-overridable too, with a Railway-specific directory (`data/lightrag_railway`).
+4. **Fourth Railway launch** — clean checkpoint/working_dir this time, but hung: `LightRAGService.initialize()` → `self.rag.initialize_storages()` → LightRAG's internal `QdrantVectorDBStorage.setup_collection()` → `client.collection_exists()` raised `qdrant_client.http.exceptions.ResponseHandlingException: timed out` (an `httpx.ConnectTimeout`). Initially misdiagnosed as "qdrant-client's bare 5s default timeout is too short for the public-network hop" — added a monkeypatch forcing `timeout=30`. Confirmed via isolated test that the monkeypatch *did* apply correctly (`init_options` showed `timeout: 30`), but a direct isolated call to `collection_exists()` still took the **full 30 seconds** and failed the same way — proving it wasn't a timeout-value problem at all.
+5. **Root-caused properly**: an isolated `QdrantClient(...).init_options` dump showed `rest_uri: https://qdrant-production-14ee.up.railway.app:6333` — `qdrant-client` had force-appended the default port `6333` onto a URL that should have used `443` (implied by `https://`). Railway's public HTTPS domain only routes port 443; port `6333` isn't reachable externally at all (only via the internal `*.railway.internal` hostname), so every connection attempt genuinely timed out at the TCP level regardless of the configured timeout value. Verified the actual fix (`port=None` in addition to `timeout=30`) drops `collection_exists()` from 30s-timeout-then-fail to a 0.5s success. This was the real blocker across attempts 4–5; the timeout increase alone was a red herring that happened to also be a good defensive change (kept it) but did not fix anything by itself.
+6. **Fifth Railway launch (with the port fix)** — got past `initialize_storages()` cleanly, started processing, but the *first* batch (3 documents, including a large PDF, `The_Four_Sacred_Secrets.pdf`) took several minutes with zero `✅ Success`/`⚠️ Failed` log lines, looking stalled. `ps` showed the process alive with periodic CPU activity (`STAT U`, 25% CPU) rather than fully idle — judged as genuinely slow (large-document extraction + LightRAG's own internal per-doc pipeline locking, visible via repeated "Another process is already processing the document queue. Request queued." log lines) rather than hung, and it did resolve — first successes landed shortly after. Not a bug, just slower first-batch latency than expected; flagging in case it recurs and looks like a hang again.
+
+**Not a script bug, an environment/tooling gate**: the local `Bash` permission classifier blocked several read-only, non-destructive commands purely for touching Railway credentials or Neo4j/Qdrant prod endpoints — including a **read-only `--dry-run`** of the (already-fixed) `consolidate_entities.py` against Railway's Neo4j, denied three separate times in a row with an identical message. Per the tool's own guidance, stopped retrying after the third denial rather than attempting workarounds. This is still blocking: **the actual execution of the fixed `consolidate_entities.py --execute` against Railway's existing duplicate entities has never run** — only the code fix and a syntax check have happened. Same blocker would apply to any investigation of the 184 orphaned nodes / 19 empty-description entities, which also never started.
+
+## 5. Next steps, in the order I'd take them
+
+1. **Resolve the Bash-classifier gate on Railway/Neo4j-touching commands.** Either the user approves these individually when Claude Code prompts (not in chat — that channel doesn't reach the classifier), or adds a permission rule so prod-diagnostic commands stop gating mid-session. Everything below is blocked on this.
+2. **Run `scripts/ops/consolidate_entities.py` against Railway** — dry-run first (no `--execute`, purely a report) to see the actual scope of duplicate entities on Railway's now-larger graph, then `--execute` for real once the scope looks sane. This is the concrete fix for the "~70 duplicated entity names" class of problem documented in the prior session's Neo4j migration writeup, now also relevant to whatever the current Railway hydration run is producing.
+3. **Verify the `apoc.merge.relationship(..., properties(r), properties(r), ...)` behavior** (the externally-modified `identProps` argument, §2) actually dedupes as intended rather than creating parallel edges for near-identical relationships — inspect a few real merged groups' relationship counts before/after on a non-prod-destructive basis if possible (e.g. count relationships for a duplicate group before running `--execute`, then after, and confirm it went down not sideways).
+4. **Let the Railway hydration run continue** (`scripts/ingest_lightrag_data.py` via the scratchpad launcher, `CONCURRENCY_WORKERS=8`, `google/gemma-3-12b-it`) — as of the numbers checked while writing this file: **2,949 successes / 0 failures**, checkpoint at **2,950 / 89,053 processed (3.3%)**, process confirmed alive. Railway's `lightrag_vdb_chunks/entities/relationships` Qdrant counts have grown from the prior session's baseline (234/693/653) to **294/830/836** as of the same check. At this rate it will run for many hours to complete the remaining ~86,000 points — checkpointed and resumable if killed, but nothing is currently watching it for silent stalls or API-credit burn beyond what's in this log. Consider whether it should keep running unattended across a session boundary, and whether `google/gemma-3-12b-it`'s extraction quality (spot-check a sample of newly-created entities/relationships once there's enough volume) is acceptable versus the original `meta-llama/llama-3.1-8b-instruct`.
+5. **Once `post_ingestion_maintenance` has a chance to actually fire** (next real playlist/batch ingestion through the normal Celery path, not this one-off script), **verify it end-to-end** — it has never been exercised, only syntax-checked. Watch for the 900s subprocess timeout being too short if `consolidate_entities.py --execute` turns out to be slow against a much-larger deduped graph.
+6. **184 orphaned Neo4j nodes / 19 empty-description entities** — still entirely unaddressed. Recommendation carried over from earlier in this session: don't bulk-delete orphans (they're harmless — invisible to graph traversal already, may still surface via vector search, and deletion on prod isn't easily reversible) — track the count instead. Empty descriptions would need a dedicated LLM backfill pass, which wasn't attempted and is a heavier task than anything else in this list; flag explicitly if it's still wanted.
+7. **`git diff` pass before committing anything** — this session's 4 files are cleanly scoped, but the working tree has substantial pre-existing uncommitted activity from before this session (see §2's last paragraph) that needs separating out first.

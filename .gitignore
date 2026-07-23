@@ -178,13 +178,13 @@ supabase_dump.sql
 backend/incidents/
 backend/crash_full.txt
 backend/crash_*.txt
-backend/data/guru_transcripts/ingestion_report.json
-backend/data/guru_transcripts/playlist_ingestion_report.json
-.gitignore
-backend/data/guru_transcripts/BMJrDu-folk.txt
-backend/data/guru_transcripts/UlOt31lBhLY.txt
-.superpowers/sdd/progress.md
-.superpowers/sdd/task-3-report.md
-.workpowers/sdd/task-7-report.md
-.gitignore
+backend/data/
+
+# Raw video transcripts and ingestion data
+transcripts/
 data/lightrag_checkpoint.json
+
+# Tool and superpowers temporary progress state
+.superpowers/
+.workpowers/
+

@@ -328,6 +328,35 @@ def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optiona
     }
 
 
+@celery_app.task(base=AsyncTask, bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+def post_ingestion_maintenance(self, trigger: str = "playlist_complete") -> dict[str, Any]:
+    """Dedup Neo4j entities and audit cross-store data quality after an ingestion batch.
+
+    Runs scripts/ops/consolidate_entities.py (--execute) and ruthless_data_audit.py as
+    subprocesses against the live env — same scripts previously run manually after each
+    ingestion push. Fired once per playlist/batch completion, not per video: both scripts
+    scan the whole graph, so running them after every single video would be wasteful.
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[2]
+    runs = {
+        "consolidate_entities": [sys.executable, "scripts/ops/consolidate_entities.py", "--execute"],
+        "ruthless_data_audit": [sys.executable, "scripts/ops/ruthless_data_audit.py"],
+    }
+    results: dict[str, Any] = {}
+    for name, cmd in runs.items():
+        proc = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True, timeout=900)
+        results[name] = {"returncode": proc.returncode, "tail": proc.stdout[-3000:] or proc.stderr[-3000:]}
+        if proc.returncode != 0:
+            logger.warning(f"post_ingestion_maintenance: {name} exited {proc.returncode}: {proc.stderr[-1000:]}")
+
+    logger.info(f"post_ingestion_maintenance ({trigger}) complete: {results}")
+    return results
+
+
 @celery_app.task(
     base=AsyncTask, bind=True,
     autoretry_for=(Exception,),
@@ -357,6 +386,9 @@ def playlist_complete(self, results, playlist_url: str, parent_job_id: str = Non
 
     msg = f"Playlist ingestion completed: {success_count}/{total_count} succeeded, {rejected_count} rejected by quality gate, {fail_count} failed."
     logger.info(msg)
+
+    if success_count > 0:
+        post_ingestion_maintenance.delay(trigger="playlist_complete")
 
     if parent_job_id:
         status_str = "completed" if fail_count == 0 else "failed"

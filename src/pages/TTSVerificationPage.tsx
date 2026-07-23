@@ -6,6 +6,7 @@ import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
+import { normalizeSarvamVoice, SARVAM_VOICES, DEFAULT_SARVAM_VOICE } from '@/lib/sarvamVoices';
 
 const VERIFICATION_QUOTES = [
   "Life is a play of consciousness. When you are in a beautiful state, the world around you is beautiful.",
@@ -13,15 +14,16 @@ const VERIFICATION_QUOTES = [
   "The greatest miracle is not walking on water or in the air, but standing in a beautiful state here and now."
 ];
 
-const SPEAKERS = [
-  { id: 'deepika', name: 'Deepika', description: 'Expressive and clear female voice', gender: 'Female' },
-  { id: 'anushka', name: 'Anushka', description: 'Warm and soothing female voice (Sarvam)', gender: 'Female' },
-  { id: 'aditya', name: 'Aditya', description: 'Resonant and peaceful male voice (Sarvam)', gender: 'Male' }
-];
+const SPEAKERS = SARVAM_VOICES.map((v) => ({
+  id: v.id,
+  name: v.label,
+  description: `${v.hint} (Sarvam bulbul:v3)`,
+  gender: v.gender === 'female' ? 'Female' : 'Male',
+}));
 
 export default function TTSVerificationPage() {
   const { profile, loading: profileLoading, update: updateProfile } = useProfile();
-  const [selectedVoice, setSelectedVoice] = useState(profile.preferredVoice || 'deepika');
+  const [selectedVoice, setSelectedVoice] = useState(normalizeSarvamVoice(profile.preferredVoice));
   const [testText, setTestText] = useState(VERIFICATION_QUOTES[0]);
   const [logs, setLogs] = useState<{ time: string; type: 'system' | 'action' | 'telemetry' | 'success' | 'error'; message: string }[]>([]);
   const [telemetryState, setTelemetryState] = useState<'idle' | 'firing' | 'success' | 'failed'>('idle');
@@ -62,7 +64,7 @@ export default function TTSVerificationPage() {
   // Sync profile preferred voice initially
   useEffect(() => {
     if (!profileLoading && profile.preferredVoice) {
-      setSelectedVoice(profile.preferredVoice);
+      setSelectedVoice(normalizeSarvamVoice(profile.preferredVoice));
       setTestChecklist(prev => ({ ...prev, profileSynced: true }));
       addLog('system', `Loaded profile preference: voice = "${profile.preferredVoice}"`);
     }
@@ -151,31 +153,31 @@ export default function TTSVerificationPage() {
     addLog('system', '🧪 Starting Automated TTS Voice & Telemetry Verification Sequence...');
     
     try {
-      // Step 1: Switch to Anushka
-      addLog('action', 'Step 1/4: Testing voice switch to "Anushka" (Sarvam)...');
-      setSelectedVoice('anushka');
-      await updateProfile({ preferredVoice: 'anushka' });
-      addLog('success', 'Profile updated to "Anushka".');
-      
+      // Step 1: Switch to Ishita
+      addLog('action', 'Step 1/4: Testing voice switch to "Ishita" (Sarvam)...');
+      setSelectedVoice('ishita');
+      await updateProfile({ preferredVoice: 'ishita' });
+      addLog('success', 'Profile updated to "Ishita".');
+
       // Step 2: Speak test phrase
       const quote1 = VERIFICATION_QUOTES[0];
-      addLog('action', `Step 2/4: Playing audio via "Anushka" speaker...`);
+      addLog('action', `Step 2/4: Playing audio via "Ishita" speaker...`);
       speak(quote1);
-      await fireTelemetryEvent('anushka', quote1);
+      await fireTelemetryEvent('ishita', quote1);
       await new Promise(r => setTimeout(r, 1500));
       stopSpeaking();
 
-      // Step 3: Switch to Aditya
-      addLog('action', 'Step 3/4: Testing voice switch to "Aditya" (Sarvam male voice)...');
-      setSelectedVoice('aditya');
-      await updateProfile({ preferredVoice: 'aditya' });
-      addLog('success', 'Profile updated to "Aditya".');
+      // Step 3: Switch to Mani
+      addLog('action', 'Step 3/4: Testing voice switch to "Mani" (Sarvam male voice)...');
+      setSelectedVoice('mani');
+      await updateProfile({ preferredVoice: 'mani' });
+      addLog('success', 'Profile updated to "Mani".');
 
       // Step 4: Speak test phrase
       const quote2 = VERIFICATION_QUOTES[1];
-      addLog('action', `Step 4/4: Playing audio via "Aditya" speaker...`);
+      addLog('action', `Step 4/4: Playing audio via "Mani" speaker...`);
       speak(quote2);
-      await fireTelemetryEvent('aditya', quote2);
+      await fireTelemetryEvent('mani', quote2);
       await new Promise(r => setTimeout(r, 1500));
       stopSpeaking();
 

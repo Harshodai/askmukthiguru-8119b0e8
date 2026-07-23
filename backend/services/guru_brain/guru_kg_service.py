@@ -71,15 +71,25 @@ class GuruKGService:
                     cypher = """
                     MERGE (g:GuruSpeaker {name: $guru})
                     MERGE (d:SeekerDilemma {name: $dilemma})
+                    ON CREATE SET d.created_at = timestamp()
                     MERGE (b:RootLimitingBelief {name: $belief})
+                    ON CREATE SET b.created_at = timestamp()
                     MERGE (t:GuruTeaching {name: $teaching})
+                    ON CREATE SET t.created_at = timestamp()
                     MERGE (s:BeautifulState {name: $state})
+                    ON CREATE SET s.created_at = timestamp()
                     MERGE (p:PracticeStep {name: $practice})
-                    MERGE (d)-[:DRIVEN_BY]->(b)
-                    MERGE (t)-[:DISMANTLES]->(b)
-                    MERGE (t)-[:TRANSFORMS_TO]->(s)
-                    MERGE (t)-[:PRESCRIBES]->(p)
-                    MERGE (g)-[:TEACHES]->(t)
+                    ON CREATE SET p.created_at = timestamp()
+                    MERGE (d)-[r1:DRIVEN_BY]->(b)
+                    ON CREATE SET r1.valid_at = timestamp()
+                    MERGE (t)-[r2:DISMANTLES]->(b)
+                    ON CREATE SET r2.valid_at = timestamp()
+                    MERGE (t)-[r3:TRANSFORMS_TO]->(s)
+                    ON CREATE SET r3.valid_at = timestamp()
+                    MERGE (t)-[r4:PRESCRIBES]->(p)
+                    ON CREATE SET r4.valid_at = timestamp()
+                    MERGE (g)-[r5:TEACHES]->(t)
+                    ON CREATE SET r5.valid_at = timestamp()
                     """
                     session.run(
                         cypher,
@@ -92,6 +102,36 @@ class GuruKGService:
                     )
             except Exception as exc:
                 logger.warning(f"GuruKGService: Neo4j Cypher write failed ({exc}), stored in graph memory fallback.")
+
+    def record_user_state_transition(
+        self,
+        user_id: str,
+        from_state: str,
+        to_state: str,
+        trigger_context: str = "",
+    ) -> None:
+        """Record temporal user state transition arc in Neo4j graph."""
+        if not self._resolved_driver or not user_id:
+            return
+        try:
+            with self._resolved_driver.session() as session:
+                cypher = """
+                MERGE (u:User {id: $user_id})
+                MERGE (s1:State {name: $from_state})
+                MERGE (s2:State {name: $to_state})
+                CREATE (u)-[:TRANSITIONED {
+                    from_state: $from_state,
+                    to_state: $to_state,
+                    context: $context,
+                    timestamp: timestamp()
+                }]->(s2)
+                MERGE (s1)-[:TRANSITIONS_TO]->(s2)
+                """
+                session.run(cypher, user_id=user_id, from_state=from_state, to_state=to_state, context=trigger_context)
+                logger.info(f"GuruKGService: Recorded state transition for user {user_id}: {from_state} -> {to_state}")
+        except Exception as exc:
+            logger.warning(f"GuruKGService: Failed to record state transition ({exc})")
+
 
     def traverse_guru_ontology(self, query: str, limit: int = 3, timeout: float | None = None) -> list[OKFTransformationArc]:
         """Perform 5-node multi-hop graph traversal to discover spiritual transformation arcs."""

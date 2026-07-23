@@ -18,7 +18,7 @@ from app.dependencies import ServiceContainer, get_container
 from app.schemas import ChatRequest, ChatResponse, MessagePayload
 from app.sanitization import sanitize_user_input
 from rag.memory import build_memory_context
-from services.auth_service import get_current_user_from_supabase
+from services.auth_service import get_current_user_from_supabase, get_optional_user, resolve_anon_identity
 from services.cost_tracker import TokenAccumulator, get_cost_tracker, token_accumulator_var
 from app.core.user_usage_monitor import get_user_monitor
 from services.tenant_context import TenantContext, set_tenant_from_request
@@ -37,14 +37,19 @@ async def populate_server_side_history(chat_body: ChatRequest, user: dict, conta
     user_id = user.get("id", "anonymous") if user else "anonymous"
 
     # If session_id is missing or user is anonymous, we force history to be empty.
-    if user_id == "anonymous" or not chat_body.session_id:
+    # Check is_anonymous rather than the resolved id: resolve_anon_identity()
+    # rewrites anonymous ids to "anon:<session_id>", so a literal "anonymous"
+    # comparison never matches and anonymous requests would otherwise fall
+    # through to a live Supabase lookup instead of staying local-only.
+    if not user or user.get("is_anonymous") or user_id == "anonymous" or not chat_body.session_id:
         chat_body.messages = []
         return
 
     sc = container.supabase_client
     if not sc:
-        logger.warning("Supabase client is not available in container. Clearing messages as fallback.")
-        chat_body.messages = []
+        logger.warning("Supabase client is not available in container. Preserving client messages as fallback.")
+        if not chat_body.messages:
+            chat_body.messages = []
         return
 
     try:
@@ -79,7 +84,7 @@ async def populate_server_side_history(chat_body: ChatRequest, user: dict, conta
             db_messages.append(MessagePayload(role=role, content=content))
 
         chat_body.messages = db_messages
-        logger.info(f"Loaded {len(db_messages)} messages from database for session {chat_body.session_id}")
+        logger.info(f"Loaded {len(chat_body.messages)} messages for session {chat_body.session_id}")
 
     except HTTPException:
         raise
@@ -142,7 +147,7 @@ class TitleRequest(BaseModel):
 async def generate_title_endpoint(
     request: Request,
     body: TitleRequest,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(get_optional_user),
     container: ServiceContainer = Depends(get_container),
 ):
     """
@@ -181,7 +186,7 @@ async def chat_endpoint(
     request: Request,
     chat_body: ChatRequest,
     background_tasks: BackgroundTasks,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(get_optional_user),
     container: ServiceContainer = Depends(get_container),
     _tenant=Depends(set_tenant_from_request),
 ):
@@ -197,6 +202,8 @@ async def chat_endpoint(
     test_key = request.headers.get("X-Test-Key")
     jwt_sec = getattr(settings, "jwt_secret", None)
     is_benchmark = bool(test_key and jwt_sec and test_key == jwt_sec)
+
+    user = resolve_anon_identity(user, chat_body.session_id)
 
     await populate_server_side_history(chat_body, user, container, is_benchmark)
 
@@ -251,7 +258,7 @@ async def chat_v2_endpoint(
     request: Request,
     chat_body: ChatRequest,
     background_tasks: BackgroundTasks,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(get_optional_user),
     container: ServiceContainer = Depends(get_container),
     _tenant=Depends(set_tenant_from_request),
 ):
@@ -266,6 +273,7 @@ async def chat_v2_endpoint(
     test_key = request.headers.get("X-Test-Key")
     jwt_sec = getattr(settings, "jwt_secret", None)
     is_benchmark = bool(test_key and jwt_sec and test_key == jwt_sec)
+    user = resolve_anon_identity(user, chat_body.session_id)
     await populate_server_side_history(chat_body, user, container, is_benchmark)
 
     from app.chat_engine import ChatEngine
@@ -294,7 +302,11 @@ async def chat_v2_endpoint(
         faithfulness_score=result.faithfulness_score,
         hallucination_flag=result.hallucination_flag,
         node_timings=result.node_timings or None,
+        audio_url=result.audio_url,
+        kg_concept_nodes=result.kg_concept_nodes,
+        daily_practice_card=result.daily_practice_card,
     )
+
 
 
 @router.post("/chat/stream")
@@ -303,7 +315,7 @@ async def chat_stream_endpoint(
     request: Request,
     chat_body: ChatRequest,
     background_tasks: BackgroundTasks,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(get_optional_user),
     container: ServiceContainer = Depends(get_container),
     _tenant=Depends(set_tenant_from_request),
 ):
@@ -319,6 +331,8 @@ async def chat_stream_endpoint(
     test_key = request.headers.get("X-Test-Key")
     jwt_sec = getattr(settings, "jwt_secret", None)
     is_benchmark = bool(test_key and jwt_sec and test_key == jwt_sec)
+
+    user = resolve_anon_identity(user, chat_body.session_id)
 
     await populate_server_side_history(chat_body, user, container, is_benchmark)
 
@@ -358,8 +372,9 @@ async def chat_stream_endpoint(
 @router.get("/chat/stream/{job_id}")
 async def chat_stream_poll(
     job_id: str,
+    request: Request,
     container: ServiceContainer = Depends(get_container),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(get_optional_user),
 ):
     """
     SSE endpoint for queued streaming jobs. Only the job owner may stream.
@@ -368,6 +383,11 @@ async def chat_stream_poll(
     """
     if not container.job_queue:
         raise HTTPException(status_code=503, detail="Job tracking is not available.")
+
+    # For anonymous (incognito) users, derive per-session identity from the
+    # X-Session-Id header so ownership checks isolate incognito sessions.
+    session_id = request.headers.get("X-Session-Id")
+    user = resolve_anon_identity(user, session_id)
 
     # Ownership check — return 404 on mismatch to avoid confirming existence.
     job_meta = await container.job_queue.get_job(job_id)

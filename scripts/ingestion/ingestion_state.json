@@ -7028,5 +7028,10 @@
       "last_attempt_ts": "2026-05-26T00:44:48Z",
       "will_retry": false
     }
+  ],
+  "contextual_reingest_processed_sources": [
+    "https://www.youtube.com/watch?v=4QL5Djtikmw",
+    "https://www.youtube.com/watch?v=5hNCT4duOgc",
+    "The_Four_Sacred_Secrets.pdf"
   ]
 }

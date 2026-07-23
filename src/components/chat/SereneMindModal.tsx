@@ -359,6 +359,7 @@ export const SereneMindModal = ({ isOpen, onClose, initialTab = 'audio', onCompl
                     isGated={isGated}
                     externalIsPlaying={isPlaying}
                     onExternalReset={resetMeditation}
+                    onComplete={handleComplete}
                   />
                 </>
               )}
@@ -726,6 +727,7 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete, isPrimary = false, 
     setCurrentTime(0);
     sendPlayerCommand('pauseVideo');
     sendPlayerCommand('seekTo', [0, true]);
+    onExternalReset?.();
   };
 
   // Slave audio to breath controls when externalIsPlaying is provided
@@ -748,8 +750,7 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete, isPrimary = false, 
           if (prev >= totalDuration) {
             setLocalIsPlaying(false);
             if (interval) clearInterval(interval);
-            if (isPrimary) onComplete?.();
-            if (mode === 'audio' && onExternalReset) onExternalReset();
+            onComplete?.();
             return totalDuration;
           }
           return prev + 1;
@@ -761,12 +762,36 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete, isPrimary = false, 
     };
   }, [isPlaying, onComplete, mode, onExternalReset]);
 
-  // Clean up on unmount
+  // Listen for YouTube iframe state changes (playing, paused, ended)
   useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (!iframeRef.current || event.source !== iframeRef.current.contentWindow) return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === 'onStateChange') {
+          const state = data.info;
+          // YT.PlayerState: -1=unstarted, 0=ended, 1=playing, 2=paused
+          if (state === 1) {
+            setLocalIsPlaying(true);
+          } else if (state === 2) {
+            setLocalIsPlaying(false);
+          } else if (state === 0) {
+            setLocalIsPlaying(false);
+            onComplete?.();
+          }
+        } else if (data.event === 'infoDelivery' && typeof data.info?.currentTime === 'number') {
+          setCurrentTime(Math.floor(data.info.currentTime));
+        }
+      } catch {
+        // not a YouTube event
+      }
+    };
+    window.addEventListener('message', handleMessage);
     return () => {
+      window.removeEventListener('message', handleMessage);
       sendPlayerCommand('pauseVideo');
     };
-  }, []);
+  }, [onComplete]);
 
   const formatMMSS = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -831,7 +856,8 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete, isPrimary = false, 
               title="Serene Mind audio player helper"
               allow="autoplay; encrypted-media"
               referrerPolicy="strict-origin-when-cross-origin"
-              className="absolute opacity-0 w-1 h-1 pointer-events-none"
+              className="absolute pointer-events-none"
+              style={{ left: '-9999px', top: '-9999px', width: '320px', height: '240px' }}
             />
 
             {/* Pulsing Mandala/Flame Graphic */}

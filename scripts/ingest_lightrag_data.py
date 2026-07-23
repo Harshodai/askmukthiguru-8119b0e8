@@ -18,6 +18,31 @@ import sys
 import time
 from pathlib import Path
 
+# LightRAG constructs its own internal QdrantClient (lightrag/kg/qdrant_impl.py)
+# with just url= and api_key=. qdrant-client's default port=6333 then gets
+# force-appended to the URL even when the URL already implies https (443) —
+# fine for Railway's *.railway.internal hostname (which really does listen on
+# 6333), but wrong for Railway's public HTTPS domain used when this script is
+# driven against Railway from outside its private network: that domain only
+# routes 443, so appending :6333 makes every request hang until connect-timeout.
+# port=None stops qdrant-client from appending a port, so it uses the URL's own
+# scheme-implied port. Also widen the timeout past the 5s default as a margin
+# for the extra public-network hop, mirroring the same fix already applied to
+# our own client at backend/services/qdrant/client.py:59-61.
+import qdrant_client  # noqa: E402
+
+_orig_qdrant_client_init = qdrant_client.QdrantClient.__init__
+
+
+def _qdrant_client_init_with_timeout(self, *args, **kwargs):
+    kwargs.setdefault("timeout", 30)
+    if kwargs.get("url", "").startswith("https://"):
+        kwargs.setdefault("port", None)
+    _orig_qdrant_client_init(self, *args, **kwargs)
+
+
+qdrant_client.QdrantClient.__init__ = _qdrant_client_init_with_timeout
+
 # Add backend directory to sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 BACKEND_DIR = PROJECT_ROOT / "backend"
@@ -43,7 +68,9 @@ if "redis:6379" in os.getenv("REDIS_URL", ""):
 if "host.docker.internal" in os.getenv("SUPABASE_URL", ""):
     os.environ["SUPABASE_URL"] = os.getenv("SUPABASE_URL", "").replace("host.docker.internal", "127.0.0.1")
 
-CHECKPOINT_FILE = PROJECT_ROOT / "data" / "lightrag_checkpoint.json"
+CHECKPOINT_FILE = Path(
+    os.getenv("LIGHTRAG_CHECKPOINT_FILE", str(PROJECT_ROOT / "data" / "lightrag_checkpoint.json"))
+)
 CHECKPOINT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
@@ -146,6 +173,11 @@ async def main():
     qdrant_svc = QdrantService()
     lightrag_svc = LightRAGService()
     await lightrag_svc.initialize()
+    if not lightrag_svc._initialized:
+        raise RuntimeError(
+            "LightRAGService failed to initialize (Neo4j/Qdrant unreachable) — "
+            "aborting rather than looping over 89,053 points against a broken service."
+        )
 
     batch_size = 50
     sem = asyncio.Semaphore(target_concurrency)

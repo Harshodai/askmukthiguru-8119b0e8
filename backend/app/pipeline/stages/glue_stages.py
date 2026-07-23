@@ -158,6 +158,9 @@ class ResultAssemblyStage(Stage):
             safety_events=safety_events,
             spans=spans,
             node_timings=graph_result.get("node_timings", {}),
-            follow_up_suggestions=graph_result.get("follow_up_suggestions", []),
+            follow_up_suggestions=list(graph_result.get("follow_up_suggestions", []) or []),
+            audio_url=graph_result.get("audio_url"),
+            kg_concept_nodes=list(graph_result.get("kg_concept_nodes", []) or []),
+            daily_practice_card=graph_result.get("daily_practice_card"),
         )
         return ctx.result

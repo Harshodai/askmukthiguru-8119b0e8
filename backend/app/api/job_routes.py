@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.dependencies import ServiceContainer, get_container
-from services.auth_service import get_current_user_from_supabase
+from services.auth_service import get_optional_user, resolve_anon_identity
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +22,15 @@ def _owns_job(job: dict, user: dict) -> bool:
 @router.get("/{job_id}")
 async def get_job(
     job_id: str,
+    request: Request,
     container: ServiceContainer = Depends(get_container),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(get_optional_user),
 ):
     """Poll job status and result. Only the job owner may read."""
     if not container.job_queue:
         raise HTTPException(status_code=503, detail="Job tracking is not available.")
+    session_id: Optional[str] = request.headers.get("X-Session-Id")
+    user = resolve_anon_identity(user, session_id)
     job = await container.job_queue.get_job(job_id)
     owner = str(job.get("user_id") or "") if job else ""
     uid = str(user.get("id") or "")
@@ -39,12 +43,15 @@ async def get_job(
 @router.delete("/{job_id}")
 async def cancel_job(
     job_id: str,
+    request: Request,
     container: ServiceContainer = Depends(get_container),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(get_optional_user),
 ):
     """Cancel a queued job. Only the job owner may cancel."""
     if not container.job_queue:
         raise HTTPException(status_code=503, detail="Job tracking is not available.")
+    session_id: Optional[str] = request.headers.get("X-Session-Id")
+    user = resolve_anon_identity(user, session_id)
     job = await container.job_queue.get_job(job_id)
     owner = str(job.get("user_id") or "") if job else ""
     uid = str(user.get("id") or "")
