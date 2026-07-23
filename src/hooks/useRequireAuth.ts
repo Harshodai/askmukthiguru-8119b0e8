@@ -13,6 +13,12 @@ export function useRequireAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (import.meta.env.DEV && (window.location.search.includes('demo=true') || localStorage.getItem('demo_mode') === 'true')) {
+      setUser({ id: '00000000-0000-0000-0000-000000000001', email: 'harshodai@askmukthiguru.com', user_metadata: { full_name: 'Harshodai' } } as any);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     let initialCheckDone = false;
 

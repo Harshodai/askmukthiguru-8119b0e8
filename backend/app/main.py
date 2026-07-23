@@ -684,13 +684,18 @@ if settings.is_production:
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed)
 
 # CORS — allow frontend origins (supporting Lovable wildcard preview subdomains)
-import re
-
 cors_origins = settings.cors_origins_list
+cors_origins_exact = [o for o in cors_origins if "*" not in o]
+cors_origins_regex = "|".join(
+    o.replace(".", r"\.").replace("*", r"[^/]+")
+    for o in cors_origins
+    if "*" in o
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=cors_origins_exact,
+    allow_origin_regex=cors_origins_regex or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
