@@ -90,7 +90,7 @@ export const SampleWisdomSection = () => {
             </span>
           </motion.div>
           <h2 className="font-sacred text-4xl md:text-5xl font-light text-foreground mb-4">
-            {t('wisdom.heading', 'Sample Wisdom')}
+            {t('wisdom.heading', 'Wisdom & Insights')}
           </h2>
           <p className="text-muted-foreground text-sm max-w-md mx-auto">
             {t('wisdom.subheading', 'Explore core concepts from the teachings of Sri Preethaji and Sri Krishnaji.')}
