@@ -108,7 +108,7 @@ const ResetPasswordPage = () => {
             <Label htmlFor="pw2" className="text-xs text-muted-foreground">Confirm password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input id="pw2" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="pl-9 h-10" required minLength={6} />
+              <Input id="pw2" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="pl-9 h-10" required minLength={12} />
             </div>
           </div>
           <Button type="submit" className="w-full h-10 bg-ojas hover:bg-ojas-light text-primary-foreground" disabled={loading || !ready}>
