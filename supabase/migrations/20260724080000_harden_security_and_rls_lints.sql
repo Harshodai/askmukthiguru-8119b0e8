@@ -9,6 +9,7 @@ DROP POLICY IF EXISTS "Authenticated users can subscribe" ON realtime.messages;
 -- ── 2. Staging Quality Queue Hardening ──
 -- Restrict SELECT on staging_quality_queue to admins only.
 DROP POLICY IF EXISTS "Allow read access to anyone" ON public.staging_quality_queue;
+DROP POLICY IF EXISTS "Allow read access to admins only" ON public.staging_quality_queue;
 CREATE POLICY "Allow read access to admins only" ON public.staging_quality_queue
   FOR SELECT TO authenticated
   USING (public.has_role(auth.uid(), 'admin'::public.app_role));
