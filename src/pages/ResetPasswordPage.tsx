@@ -101,7 +101,7 @@ const ResetPasswordPage = () => {
             <Label htmlFor="pw" className="text-xs text-muted-foreground">New password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-9 h-10" required minLength={6} />
+              <Input id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-9 h-10" required minLength={12} />
             </div>
           </div>
           <div className="space-y-2">
