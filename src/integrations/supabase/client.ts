@@ -43,3 +43,22 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+/**
+ * Whitelist of allowed email domains for signup/signin.
+ * Kept alongside the client so all auth-guard code has one import site.
+ */
+const ALLOWED_EMAIL_DOMAINS = new Set([
+  'gmail.com',
+  'googlemail.com',
+  'hotmail.com',
+  'outlook.com',
+  'live.com',
+  'msn.com',
+]);
+
+export function isEmailAllowed(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const domain = email.split('@')[1]?.toLowerCase();
+  return !!domain && ALLOWED_EMAIL_DOMAINS.has(domain);
+}
