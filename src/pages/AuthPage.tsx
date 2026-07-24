@@ -1050,7 +1050,7 @@ const AuthPage = () => {
                 placeholder={t('auth.passwordPlaceholder')}
                 className="pl-9 pr-9 h-10"
                 required
-                minLength={6}
+                minLength={12}
               />
               <button
                 type="button"
