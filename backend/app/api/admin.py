@@ -11,6 +11,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
 from app.telemetry_db import (
