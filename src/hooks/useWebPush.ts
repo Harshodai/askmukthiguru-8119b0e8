@@ -96,8 +96,6 @@ export const useWebPush = () => {
           endpoint: sub.endpoint,
           p256dh: (json.keys && json.keys.p256dh) || arrayBufferToBase64(sub.getKey('p256dh')),
           auth: (json.keys && json.keys.auth) || arrayBufferToBase64(sub.getKey('auth')),
-          user_agent: navigator.userAgent,
-          last_seen_at: new Date().toISOString(),
         },
         { onConflict: 'user_id,endpoint' },
       );
