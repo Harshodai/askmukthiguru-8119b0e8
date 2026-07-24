@@ -71,7 +71,7 @@ export const SampleWisdomSection = () => {
   };
 
   return (
-    <section className="py-20 md:py-28 relative overflow-hidden bg-background">
+    <section id="wisdom" className="py-20 md:py-28 relative overflow-hidden bg-background">
       {/* Background radial gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-background via-saffron-gold/5 to-background pointer-events-none" />
 

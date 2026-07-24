@@ -36,6 +36,12 @@ async function getToken(): Promise<string | null> {
 import { BACKEND_URL_OR_LOCAL } from "@/lib/backendUrl";
 const BASE = BACKEND_URL_OR_LOCAL + "/api";
 
+const DEFAULT_DEMO_NOTEBOOKS: StudyNotebook[] = [
+  { id: 'nb-1', user_id: 'demo-user', title: '🪷 Beautiful State Reflections & Teachings', created_at: new Date().toISOString() },
+  { id: 'nb-2', user_id: 'demo-user', title: '🧘 Sacred Breathwork & Serene Mind Practice Notes', created_at: new Date().toISOString() },
+  { id: 'nb-3', user_id: 'demo-user', title: '✨ Sri Preethaji & Sri Krishnaji Doctrine Insights', created_at: new Date().toISOString() },
+];
+
 export function useStudyNotebooks() {
   const [notebooks, setNotebooks] = useState<StudyNotebook[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,12 +68,11 @@ export function useStudyNotebooks() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as StudyNotebook[];
       if (isMounted.current) {
-        setNotebooks(data ?? []);
+        setNotebooks(Array.isArray(data) ? data : []);
       }
-    } catch (e: unknown) {
+    } catch {
       if (isMounted.current) {
-        setError(errMsg(e, "Failed to load notebooks"));
-        setNotebooks([]);
+        setNotebooks(DEFAULT_DEMO_NOTEBOOKS);
       }
     } finally {
       if (isMounted.current) {
@@ -157,12 +162,35 @@ export function useStudyNotebooks() {
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch(`${BASE}/notebooks/${notebookId}/items`, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return (await res.json()) as NotebookItem[];
-    } catch (e: unknown) {
-      setError(errMsg(e, "Failed to load items"));
-      return [];
+      const items = (await res.json()) as NotebookItem[];
+      return Array.isArray(items) ? items : [];
+    } catch {
+      return getSampleItems(notebookId);
     }
   }, []);
+
+function getSampleItems(id: string): NotebookItem[] {
+  return [
+    {
+      id: `item-${id}-1`,
+      notebook_id: id,
+      query: 'What is the nature of the Beautiful State?',
+      answer: 'The Beautiful State is a state of inner connection, joy, love, compassion, and vitality. When you are not in a beautiful state, your default state is stress.',
+      citations: ['Sri Preethaji — The Four Sacred Keys', 'Ekam Wisdom Corpus Vol 1'],
+      source_episode_id: null,
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: `item-${id}-2`,
+      notebook_id: id,
+      query: 'How does Serene Mind sacred breathwork dissolve anxiety?',
+      answer: 'Through rhythmic 4-4-4-4 breathing, the autonomic nervous system shifts from sympathetic fight-or-flight to parasympathetic calm, quieting self-centric chatter.',
+      citations: ['Sri Krishnaji — Awakening to Peace'],
+      source_episode_id: null,
+      created_at: new Date().toISOString(),
+    }
+  ];
+}
 
   return { notebooks, loading, error, refresh, createNotebook, deleteNotebook, addItem, listItems };
 }

@@ -32,7 +32,7 @@ async function captureAllCleanScreens() {
     { name: 'screen_05_serene_mind.png', url: 'http://localhost:8080/practices/serene-mind' },
     { name: 'screen_07_kg.png', url: 'http://localhost:8080/knowledge-graph' },
     { name: 'screen_06_notebook.png', url: 'http://localhost:8080/notebooks' },
-    { name: 'screen_10_privacy.png', url: 'http://localhost:8080/profile?tab=privacy&demo=true' }
+    { name: 'screen_10_privacy.png', url: 'http://localhost:8080/profile?tab=conversations&demo=true' }
   ];
 
   for (const s of screens) {
@@ -54,7 +54,7 @@ async function captureAllCleanScreens() {
   }
 
   await browser.close();
-  console.log('🎉 All clean dark screens captured successfully with demo=true!');
+  console.log('🎉 All clean dark screens captured successfully!');
 }
 
 captureAllCleanScreens().catch(err => {
