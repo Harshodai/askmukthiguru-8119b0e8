@@ -2,16 +2,63 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://ozmjeuqbholoxypfxixb.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96bWpldXFiaG9sb3h5cGZ4aXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2ODI0MjIsImV4cCI6MjA5NjI1ODQyMn0.mxFwRve_pW30k07Zydd8SNVDhSjcl-i0otYig9Zdayk";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+
+function isNewSupabaseApiKey(value: string): boolean {
+  return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
+}
+
+function createSupabaseFetch(supabaseKey: string): typeof fetch {
+  return (input, init) => {
+    const headers = new Headers(
+      typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
+    );
+
+    if (init?.headers) {
+      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+    }
+
+    // New Supabase API keys are opaque strings, not bearer JWTs.
+    if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) {
+      headers.delete('Authorization');
+    }
+
+    headers.set('apikey', supabaseKey);
+    return fetch(input, { ...init, headers });
+  };
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  global: {
+    fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
+  },
   auth: {
     storage: typeof window !== 'undefined' ? localStorage : undefined,
     persistSession: true,
     autoRefreshToken: true,
   }
 });
+
+/**
+ * Whitelist of allowed email domains for signup/signin.
+ * Kept alongside the client so all auth-guard code has one import site.
+ */
+const ALLOWED_EMAIL_DOMAINS = new Set([
+  'gmail.com',
+  'googlemail.com',
+  'hotmail.com',
+  'outlook.com',
+  'live.com',
+  'msn.com',
+]);
+
+export function isEmailAllowed(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const domain = email.split('@')[1]?.toLowerCase();
+  return !!domain && ALLOWED_EMAIL_DOMAINS.has(domain);
+}
