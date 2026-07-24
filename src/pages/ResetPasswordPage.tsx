@@ -42,7 +42,7 @@ const ResetPasswordPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (password.length < 6) return setError('Password must be at least 6 characters.');
+    if (password.length < 12) return setError('Password must be at least 12 characters.');
     if (password !== confirm) return setError('Passwords do not match.');
 
     setLoading(true);
