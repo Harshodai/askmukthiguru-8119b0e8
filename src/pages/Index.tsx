@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { Navbar } from '@/components/landing/Navbar';
 import { HeroSection } from '@/components/landing/HeroSection';
 import { MeetTheGurusSection } from '@/components/landing/MeetTheGurusSection';
@@ -7,6 +8,7 @@ import { SampleWisdomSection } from '@/components/landing/SampleWisdomSection';
 import { AboutMeditationSection } from '@/components/landing/AboutMeditationSection';
 import { SafetyPillarsSection } from '@/components/landing/SafetyPillarsSection';
 import { Footer } from '@/components/landing/Footer';
+import { GoogleOneTap } from '@/components/common/GoogleOneTap';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useTranslation } from 'react-i18next';
 
@@ -67,8 +69,11 @@ const Index = () => {
     ],
   });
 
+  const isNative = Capacitor.isNativePlatform();
+
   return (
     <div className="min-h-dvh bg-background">
+      {!isNative && <GoogleOneTap />}
       <Navbar />
       <HeroSection />
       <MeetTheGurusSection />

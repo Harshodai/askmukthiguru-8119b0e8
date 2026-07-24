@@ -97,6 +97,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
   const svgRef = useRef<SVGSVGElement>(null);
   const [containerWidth, setContainerWidth] = useState(800);
   const demoTimerRef = useRef<number | null>(null);
+  const activeReqRef = useRef(0);
 
   const viewBoxHeight = Math.max(400, Math.round(containerWidth * 0.55));
   const simRef = useRef<{
@@ -148,6 +149,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
     setError(null);
     setData(null);
 
+    const requestId = ++activeReqRef.current;
     try {
       const { endpoint } = getAIConfig();
       const baseUrl = (endpoint ?? '').replace(/\/api\/chat\/?$/, '');
@@ -163,6 +165,7 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as Subgraph;
       
+      if (requestId !== activeReqRef.current) return;
       if (!json.nodes || json.nodes.length === 0) {
         setData(DEMO_DATA);
         setIsDemo(true);
@@ -175,16 +178,16 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       setPan({ x: 0, y: 0 });
       setZoom(1);
     } catch {
-      setError(t('kg.apiUnreachable', 'Backend unreachable'));
-      demoTimerRef.current = window.setTimeout(() => {
-        setData(DEMO_DATA);
-        setIsDemo(true);
-        setError(null);
-        setPan({ x: 0, y: 0 });
-        setZoom(1);
-      }, 4000);
+      if (requestId !== activeReqRef.current) return;
+      setData(DEMO_DATA);
+      setIsDemo(true);
+      setError(null);
+      setPan({ x: 0, y: 0 });
+      setZoom(1);
     } finally {
-      setLoading(false);
+      if (requestId === activeReqRef.current) {
+        setLoading(false);
+      }
     }
   }, [t]);
 

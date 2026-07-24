@@ -132,7 +132,8 @@ const ProfilePage = () => {
   });
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const initialTab = searchParams.get('tab') || 'profile';
+  const tabParam = searchParams.get('tab');
+  const initialTab = (tabParam === 'privacy' || tabParam === 'memory') ? 'memory' : (tabParam || 'profile');
   const [tab, setTab] = useState(initialTab);
   const { profile, update } = useProfile();
   const { toast } = useToast();

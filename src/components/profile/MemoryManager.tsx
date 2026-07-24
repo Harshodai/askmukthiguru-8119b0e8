@@ -55,6 +55,12 @@ const NODE_CONFIG: Record<string, { color: string; stroke: string; r: number; ri
 
 const DEFAULT_NODE = { color: 'hsl(220 40% 50%)', stroke: 'hsl(220 40% 30%)', r: 15, ring: 2 };
 
+const DEFAULT_DEMO_MEMORIES: GuruMemory[] = [
+  { id: 'mem-1', content: 'Deeply resonates with Sri Preethaji guidance on dissolving self-centric anxiety.', source: 'explicit', created_at: new Date().toISOString() },
+  { id: 'mem-2', content: 'Practices Serene Mind 4-4-4-4 breathwork during morning meditation.', source: 'explicit', created_at: new Date().toISOString() },
+  { id: 'mem-3', content: 'Second Brain Vault encrypted key active — Qdrant multi-tenant privacy verified.', source: 'explicit', created_at: new Date().toISOString() },
+];
+
 const getCfgForNode = (node: KGNode) => {
   if (node.type === 'Memory' && node.state_category) {
     const cat = node.state_category;
@@ -123,6 +129,7 @@ export const MemoryManager = () => {
   const [conversations, setConversations] = useState<ConversationContinuity[]>([]);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState<string | null>(null);
+  const [isDemo, setIsDemo] = useState(false);
   const [newText, setNewText] = useState('');
   const [adding, setAdding] = useState(false);
   const [forgettingId, setForgettingId] = useState<string | null>(null);
@@ -345,31 +352,30 @@ export const MemoryManager = () => {
   const refresh = async () => {
     setLoading(true);
     setUnavailable(null);
-    try {
-      const [list, coreData, summariesData, conversationsData] = await Promise.all([
-        memoryApi.list(1, 100),
-        memoryApi.getCore(),
-        memoryApi.getSummaries(10),
-        memoryApi.getConversations(5),
-      ]);
-      setMemories(list.memories);
-      setCore(coreData);
-      setCoreText(coreData?.content ?? '');
-      setSummaries(summariesData);
-      setConversations(conversationsData);
-    } catch (err) {
-      if (err instanceof MemoryApiError) {
-        if (err.code === 'unauthorized') {
-          setUnavailable(t('memory.signInToView'));
-        } else {
-          setUnavailable(err.message);
-        }
-      } else {
-        setUnavailable(t('memory.couldNotLoad'));
-      }
-    } finally {
-      setLoading(false);
+    const [listResult, coreResult, summariesResult, conversationsResult] = await Promise.allSettled([
+      memoryApi.list(1, 100),
+      memoryApi.getCore(),
+      memoryApi.getSummaries(10),
+      memoryApi.getConversations(5),
+    ]);
+    if (listResult.status === 'fulfilled') {
+      setMemories(listResult.value.memories);
+      setIsDemo(false);
+    } else {
+      setMemories(DEFAULT_DEMO_MEMORIES);
+      setIsDemo(true);
     }
+    if (coreResult.status === 'fulfilled') {
+      setCore(coreResult.value);
+      setCoreText(coreResult.value?.content ?? '');
+    }
+    if (summariesResult.status === 'fulfilled') {
+      setSummaries(summariesResult.value);
+    }
+    if (conversationsResult.status === 'fulfilled') {
+      setConversations(conversationsResult.value);
+    }
+    setLoading(false);
   };
 
   const loadKg = async (view: 'personal' = 'personal') => {
@@ -453,6 +459,7 @@ export const MemoryManager = () => {
   };
 
   const handleForget = async (id: string) => {
+    if (isDemo) return;
     setForgettingId(id);
     try {
       await memoryApi.forget(id);
@@ -980,7 +987,7 @@ export const MemoryManager = () => {
                     </div>
 
                     {/* Actions Panel */}
-                    {selectedNode.type === 'Memory' && (
+                    {selectedNode.type === 'Memory' && !isDemo && (
                       <div className="border-t border-border pt-3 mt-3">
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -1178,7 +1185,7 @@ export const MemoryManager = () => {
     );
   }
 
-  if (unavailable) {
+  if (unavailable && !isDemo) {
     return (
       <Card>
         <CardHeader>
@@ -1325,6 +1332,11 @@ export const MemoryManager = () => {
               <Badge variant="secondary" className="ml-2 font-display">
                 {memories.length}
               </Badge>
+              {isDemo && (
+                <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[10px] tracking-wide">
+                  DEMO
+                </Badge>
+              )}
             </CardTitle>
             <div className="flex gap-1">
               {!isFullscreen && (
@@ -1353,6 +1365,11 @@ export const MemoryManager = () => {
             {isFullscreen
               ? t('memory.fullscreenDesc')
               : t('memory.graphDesc')}
+            {isDemo && (
+              <span className="block mt-1 text-amber-400/80">
+                {t('memory.demoMode', 'Service unavailable — showing sample memories')}
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className={isFullscreen ? 'px-0 space-y-6' : 'space-y-6'}>
@@ -1469,6 +1486,7 @@ export const MemoryManager = () => {
                             )}
                           </div>
                         </div>
+                        {!isDemo && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -1503,6 +1521,7 @@ export const MemoryManager = () => {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
+                        )}
                       </motion.li>
                     ))}
                   </AnimatePresence>
