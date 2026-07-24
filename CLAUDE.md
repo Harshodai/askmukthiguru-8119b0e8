@@ -214,7 +214,7 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 │   │   ├── node_command.py
 │   │   ├── node_llm_config.py
 │   │   ├── node_registry.py
-│   │   ├── prompts.py
+│   │   ├── prompts/          # system.py (persona/voice), rag.py, guardrails.py, deep_research_prompts.py
 │   │   ├── resolve_followup.py
 │   │   ├── self_correction.py
 │   │   ├── states.py

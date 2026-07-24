@@ -46,15 +46,15 @@ export const GoogleOneTap = () => {
 
     const initGSI = () => {
       if (typeof window.google === 'undefined' || initialized.current) return;
-      initialized.current = true;
       const rawNonce = generateNonce();
 
       sha256Hex(rawNonce).then(hashedNonce => {
+        if (initialized.current) return;
+        initialized.current = true;
         nonce.current = hashedNonce;
 
         window.google.accounts.id.initialize({
           client_id: clientId,
-          nonce: hashedNonce,
           callback: async (response) => {
             try {
               const { error } = await supabase.auth.signInWithIdToken({
@@ -70,6 +70,9 @@ export const GoogleOneTap = () => {
           auto_select: true,
           cancel_on_tap_outside: true,
           data_fedcm: true,
+          params: {
+            nonce: hashedNonce,
+          },
         });
 
         window.google.accounts.id.prompt();
