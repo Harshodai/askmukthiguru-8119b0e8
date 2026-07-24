@@ -82,7 +82,7 @@ export default function TTSVerificationPage() {
   // Voice switching handler
   const handleVoiceSwitch = async (voiceId: string) => {
     if (autoTesting) return;
-    setSelectedVoice(voiceId);
+    setSelectedVoice(normalizeSarvamVoice(voiceId));
     addLog('action', `User switching voice parameter to: "${voiceId}"`);
     
     try {
