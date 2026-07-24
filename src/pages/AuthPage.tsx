@@ -792,14 +792,10 @@ const AuthPage = () => {
           googleInitializedRef.current = true;
         }
 
-        // Prompt One Tap only on the Sign In tab
-        if (!isSignUp && !loading) {
-          window.google.accounts.id.prompt((notification: { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean; getNotDisplayedReason: () => string; getSkippedReason: () => string }) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-              console.log('[Google One Tap]', notification.getNotDisplayedReason() || notification.getSkippedReason());
-            }
-          });
-        }
+        // NOTE: One Tap auto-prompt intentionally disabled.
+        // Users reported feeling "signed in twice" because the auto-popup and
+        // the rendered button both funnel through the same callback. Keeping
+        // only the rendered button gives a single, deliberate click surface.
 
         // Render the Google Sign In button if the ref container is present
         if (googleButtonRef.current) {
