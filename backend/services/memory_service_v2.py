@@ -420,7 +420,8 @@ class MemoryServiceV2(MemoryService):
         try:
             from qdrant_client import QdrantClient
             qdrant_url = os.environ.get("QDRANT_URL_V2") or os.environ.get("QDRANT_URL", "http://qdrant:6333")
-            return QdrantClient(url=qdrant_url)
+            qdrant_api_key = settings.qdrant_api_key or None
+            return QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         except Exception:
             return None
 

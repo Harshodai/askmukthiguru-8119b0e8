@@ -2,6 +2,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { buildCanonical } from '@/lib/domain';
 
 const faqs = [
   {
@@ -27,11 +28,12 @@ const faqs = [
 ];
 
 const SpiritualGuideForAnxietyPage = () => {
+  const canonicalUrl = buildCanonical('/guides/spiritual-guide-for-anxiety');
   usePageMeta({
     title: 'AI Spiritual Guide for Anxiety: Calm the Mind',
     description:
       'Feeling anxious? Explore an AI spiritual guide for anxiety with breath practices, Beautiful State tools, and grounded daily steps.',
-    canonical: 'https://askmukthiguru.lovable.app/guides/spiritual-guide-for-anxiety',
+    canonical: canonicalUrl,
     ogType: 'article',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -42,7 +44,7 @@ const SpiritualGuideForAnxietyPage = () => {
           description:
             "A grounded guide to using an AI spiritual companion and Preethaji-Krishnaji-rooted practices to move through anxiety.",
           author: { '@type': 'Organization', name: 'AskMukthiGuru' },
-          mainEntityOfPage: 'https://askmukthiguru.lovable.app/guides/spiritual-guide-for-anxiety',
+          mainEntityOfPage: canonicalUrl,
           keywords: 'AI spiritual guide for anxiety, spiritual help for anxiety, meditation for anxiety spiritual',
         },
         {

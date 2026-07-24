@@ -14,6 +14,7 @@ import { WisdomReflectionPractice } from '@/components/meditation/WisdomReflecti
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
+import { buildCanonical, PRODUCTION_OG_IMAGE } from '@/lib/domain';
 
 const PracticeDetailPage = () => {
   const { slug = '' } = useParams<{ slug: string }>();
@@ -39,9 +40,9 @@ const PracticeDetailPage = () => {
   usePageMeta({
     title: practice ? `${practice.title} | AskMukthiGuru` : 'Practice not found | AskMukthiGuru',
     description: practice ? `${practice.purpose.slice(0, 155)}` : 'The requested practice could not be found.',
-    canonical: practice ? `https://askmukthiguru.lovable.app/practices/${practice.slug}` : 'https://askmukthiguru.lovable.app/practices',
+    canonical: practice ? buildCanonical(`/practices/${practice.slug}`) : buildCanonical('/practices'),
     ogType: practice ? 'article' : 'website',
-    ogImage: 'https://askmukthiguru.lovable.app/og-image.png',
+    ogImage: PRODUCTION_OG_IMAGE,
     jsonLd: practice
       ? {
           '@context': 'https://schema.org',

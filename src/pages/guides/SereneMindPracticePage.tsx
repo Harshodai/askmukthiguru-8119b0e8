@@ -2,6 +2,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { buildCanonical } from '@/lib/domain';
 
 const faqs = [
   {
@@ -27,11 +28,12 @@ const faqs = [
 ];
 
 const SereneMindPracticePage = () => {
+  const canonicalUrl = buildCanonical('/guides/serene-mind-practice');
   usePageMeta({
     title: 'Serene Mind Meditation: A 3-Minute Stress Practice',
     description:
       'A simple serene mind meditation to calm stress in 3 minutes. Learn the breath technique and when to use it, step by step.',
-    canonical: 'https://askmukthiguru.lovable.app/guides/serene-mind-practice',
+    canonical: canonicalUrl,
     ogType: 'article',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -42,7 +44,7 @@ const SereneMindPracticePage = () => {
           description:
             'A step-by-step Serene Mind breathing practice from Sri Preethaji & Sri Krishnaji to calm stress and reset the nervous system in three minutes.',
           author: { '@type': 'Organization', name: 'AskMukthiGuru' },
-          mainEntityOfPage: 'https://askmukthiguru.lovable.app/guides/serene-mind-practice',
+          mainEntityOfPage: canonicalUrl,
           keywords: 'serene mind meditation, 3 minute meditation stress, breath practice, Preethaji Krishnaji',
         },
         {

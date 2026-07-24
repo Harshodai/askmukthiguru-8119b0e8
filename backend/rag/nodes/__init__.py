@@ -49,6 +49,8 @@ from .utils import (
 )
 from .citation_extractor import extract_citations
 from .verification import (
+    check_constitutional_compliance,
+    check_persona_adherence,
     reflect_on_answer,
     verify_answer,
 )

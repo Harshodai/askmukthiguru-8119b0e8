@@ -143,6 +143,7 @@ class Settings(BaseSettings):
     # --- Qdrant ---
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "spiritual_wisdom_contextual"
+    qdrant_api_key: str = ""  # empty = no auth (current default); set to require API-key auth
 
 
     # --- Chunking Strategies ---

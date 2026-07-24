@@ -10,12 +10,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Sparkles, Lock, AlertCircle } from 'lucide-react';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useTranslation } from 'react-i18next';
+import { buildCanonical } from '@/lib/domain';
 
 const ResetPasswordPage = () => {
   usePageMeta({
     title: 'Reset your password — AskMukthiGuru',
     description: 'Set a new password for your AskMukthiGuru account.',
-    canonical: 'https://askmukthiguru.lovable.app/reset-password',
+    canonical: buildCanonical('/reset-password'),
   });
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');

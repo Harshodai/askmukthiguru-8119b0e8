@@ -70,6 +70,7 @@ class QdrantClientManager:
             logger.info(f"Qdrant: remote mode at {settings.qdrant_url}")
             self._client = QdrantClient(
                 url=settings.qdrant_url,
+                api_key=getattr(settings, "qdrant_api_key", "") or None,
                 prefer_grpc=False,
                 check_compatibility=False,
                 timeout=_timeout,

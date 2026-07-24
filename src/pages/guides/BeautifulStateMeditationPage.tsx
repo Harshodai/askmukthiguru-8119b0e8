@@ -2,6 +2,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { buildCanonical } from '@/lib/domain';
 
 const faqs = [
   {
@@ -27,11 +28,12 @@ const faqs = [
 ];
 
 const BeautifulStateMeditationPage = () => {
+  const canonicalUrl = buildCanonical('/guides/beautiful-state-meditation');
   usePageMeta({
     title: 'How to Enter Beautiful State: A Meditation Guide',
     description:
       "Learn how to enter the Beautiful State through simple meditation. Practical steps rooted in Preethaji & Krishnaji's teachings.",
-    canonical: 'https://askmukthiguru.lovable.app/guides/beautiful-state-meditation',
+    canonical: canonicalUrl,
     ogType: 'article',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -42,7 +44,7 @@ const BeautifulStateMeditationPage = () => {
           description:
             "A step-by-step guide to entering the Beautiful State through breath, attention, and connection — grounded in Sri Preethaji & Sri Krishnaji's teachings.",
           author: { '@type': 'Organization', name: 'AskMukthiGuru' },
-          mainEntityOfPage: 'https://askmukthiguru.lovable.app/guides/beautiful-state-meditation',
+          mainEntityOfPage: canonicalUrl,
           keywords: 'beautiful state meditation, how to enter beautiful state, Preethaji Krishnaji, spiritual meditation',
         },
         {

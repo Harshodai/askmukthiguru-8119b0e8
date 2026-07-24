@@ -2,6 +2,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { buildCanonical } from '@/lib/domain';
 
 const faqs = [
   {
@@ -27,11 +28,12 @@ const faqs = [
 ];
 
 const SufferingToBeautifulStatePage = () => {
+  const canonicalUrl = buildCanonical('/guides/suffering-to-beautiful-state');
   usePageMeta({
     title: 'Suffering State vs. Beautiful State: How to Shift',
     description:
       "Learn how to move from suffering state to beautiful state with practical steps rooted in Preethaji & Krishnaji's teachings.",
-    canonical: 'https://askmukthiguru.lovable.app/guides/suffering-to-beautiful-state',
+    canonical: canonicalUrl,
     ogType: 'article',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -42,7 +44,7 @@ const SufferingToBeautifulStatePage = () => {
           description:
             "A step-by-step path from the suffering state to the Beautiful State, grounded in Sri Preethaji & Sri Krishnaji's teachings.",
           author: { '@type': 'Organization', name: 'AskMukthiGuru' },
-          mainEntityOfPage: 'https://askmukthiguru.lovable.app/guides/suffering-to-beautiful-state',
+          mainEntityOfPage: canonicalUrl,
           keywords: 'suffering state, beautiful state, suffering state vs beautiful state, Preethaji Krishnaji',
         },
         {

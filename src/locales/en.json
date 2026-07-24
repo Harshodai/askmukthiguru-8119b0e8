@@ -1231,6 +1231,11 @@
       "help": "Drag to pan · Scroll to zoom",
       "heading": "Your Consciousness Map",
       "description": "Every dialogue, reflection, and question you share becomes a node in your evolving consciousness map."
+    },
+    "cookieBanner": {
+      "description": "We use cookies to improve your experience and analyze site traffic. By clicking \"Accept\", you consent to our use of cookies.",
+      "accept": "Accept",
+      "decline": "Decline"
     }
   }
 }

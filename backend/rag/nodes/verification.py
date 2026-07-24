@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 
 from app.metrics import (
     CONFIDENCE_SCORES,
@@ -21,6 +22,78 @@ from .utils import emit_status, log_metrics, settings
 
 logger = logging.getLogger(__name__)
 
+# Persona voice breaks that faithfulness scoring (LettuceDetect) can't catch —
+# an answer can be 100% grounded in retrieved docs and still slip into
+# generic-AI phrasing or impersonate the founders in first person, both of
+# which violate backend/rag/prompts/system.py's third-person-only rule.
+_AI_DISCLAIMER_RE = re.compile(
+    r"\bas an ai\b"
+    r"|\bi(?:'m| am) (?:just )?an? (?:ai|language model|artificial intelligence)\b"
+    r"|\bi don'?t have (?:personal experiences|feelings|a body)\b"
+    r"|\bi cannot (?:feel|experience)\b",
+    re.IGNORECASE,
+)
+_FOUNDER_IMPERSONATION_RE = re.compile(
+    r"\bas (?:sri )?(?:preethaji|krishnaji)\s*,?\s*i\b"
+    r"|\bi,?\s*(?:sri )?(?:preethaji|krishnaji)\b"
+    r"|\bi\s+am\s+(?:sri\s+)?(?:preethaji|krishnaji)\b",
+    re.IGNORECASE,
+)
+
+# Constitutional RAG v1 — pattern-based checks for the explicit "what you must
+# never do" rules in backend/rag/prompts/system.py that faithfulness scoring
+# doesn't cover. Deliberately pattern-based (not a second LLM call): this repo
+# already disables several LLM-based verification passes specifically to save
+# latency (see reflect_on_answer's disabled self-consistency block), so a new
+# check here should follow that same cost/latency discipline, not add a
+# ~10-60s LLM round-trip for something regex can catch reliably.
+_FLATTERY_OPENER_RE = re.compile(
+    r"^\s*(?:great|what a (?:great|beautiful|wonderful|lovely)|beautiful|lovely|excellent|"
+    r"such a (?:great|beautiful|wonderful)) question\b",
+    re.IGNORECASE,
+)
+_COT_LEAKAGE_RE = re.compile(
+    r"^\s*(?:step \d+[:.]|let me (?:analyze|think|break this down)|we are given\b)",
+    re.IGNORECASE | re.MULTILINE,
+)
+_FOUND_IN_TEACHINGS_RE = re.compile(
+    r"\bbased on what i found (?:in|within) the teachings\b",
+    re.IGNORECASE,
+)
+_GUARANTEED_OUTCOME_RE = re.compile(
+    r"\b(?:i guarantee|this will (?:cure|heal|fix)|guaranteed to (?:manifest|heal|cure))\b",
+    re.IGNORECASE,
+)
+
+
+def check_constitutional_compliance(answer: str) -> str | None:
+    """Pattern check for the explicit prose rules in prompts/system.py's
+    "What you must never do" section. Returns feedback text or None if clean."""
+    if not answer:
+        return None
+    if _FLATTERY_OPENER_RE.search(answer):
+        return "Answer opens with a forbidden flattery phrase (e.g. 'Great question')"
+    if _COT_LEAKAGE_RE.search(answer):
+        return "Answer leaks chain-of-thought scaffolding (e.g. 'Step 1:', 'Let me analyze')"
+    if _FOUND_IN_TEACHINGS_RE.search(answer):
+        return "Answer uses the forbidden 'Based on what I found in the teachings' disclaimer"
+    if _GUARANTEED_OUTCOME_RE.search(answer):
+        return "Answer promises a guaranteed outcome the teachings do not promise"
+    return None
+
+
+def check_persona_adherence(answer: str) -> str | None:
+    """Cheap pattern check for voice breaks; returns feedback text or None if clean."""
+    if not answer:
+        return None
+    if _AI_DISCLAIMER_RE.search(answer):
+        return "Answer breaks character with an AI-disclaimer phrase"
+    if _FOUNDER_IMPERSONATION_RE.search(answer):
+        return "Answer impersonates a founder in first person instead of third person"
+    constitutional_violation = check_constitutional_compliance(answer)
+    if constitutional_violation:
+        return constitutional_violation
+    return None
 
 
 @trace_rag_node("reflect_on_answer")
@@ -36,6 +109,12 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     if state.get("query_tier") == "standard" and len(answer) < 150:
         logger.info("Self-Reflection: standard tier with short answer – bypassing")
         return {"needs_correction": False, "reflection_feedback": None}
+
+    # Persona check MUST run before any bypass — violations always trigger correction
+    persona_violation = check_persona_adherence(answer)
+    if persona_violation:
+        logger.warning(f"Self-Reflection: Persona violation detected — {persona_violation}")
+        return {"needs_correction": True, "reflection_feedback": persona_violation}
 
     answer = state.get("answer")
     relevant_docs = state.get("relevant_docs", [])
@@ -68,7 +147,6 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     #     ...
     # --- END DISABLED ---
 
-    is_valid = is_faithful_strict
     consistency_check_passed = True  # Disabled for performance
     consistency_feedback = ""
 
@@ -77,10 +155,13 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
         feedback_parts.append(f"Faithfulness below threshold (score: {ld_result['score']:.2f}, need >= {settings.faithfulness_floor})")
     if not consistency_check_passed:
         feedback_parts.append(consistency_feedback)
+    if persona_violation:
+        feedback_parts.append(persona_violation)
 
     feedback = "; ".join(feedback_parts) if feedback_parts else "Answer appears valid and consistent"
 
-    if is_valid or "doesn't know" in answer.lower():
+    is_valid = is_faithful_strict and not persona_violation
+    if is_valid or ("doesn't know" in answer.lower() and not persona_violation):
         logger.info(f"Self-Reflection: Answer is VALID. {feedback}")
         return {"needs_correction": False, "reflection_feedback": feedback, "lettuce_detect_result": ld_result}
 

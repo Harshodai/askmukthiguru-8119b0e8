@@ -2,6 +2,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { buildCanonical } from '@/lib/domain';
 
 const sections = [
   {
@@ -68,11 +69,12 @@ const faqs = [
 ];
 
 const AiSpiritualCompanionPage = () => {
+  const canonicalUrl = buildCanonical('/guides/ai-spiritual-companion');
   usePageMeta({
     title: "The Seeker's Guide to AI-Guided Meditation | AskMukthiGuru",
     description:
       'A step-by-step guide to AI-guided meditation, breathwork, and reflection — pairing yogic wisdom with modern AI to reach the Beautiful State.',
-    canonical: 'https://askmukthiguru.lovable.app/guides/ai-spiritual-companion',
+    canonical: canonicalUrl,
     ogType: 'article',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -83,7 +85,7 @@ const AiSpiritualCompanionPage = () => {
           description:
             'How to use an AI spiritual guide for daily meditation, breathwork, and reflection grounded in the teachings of Sri Preethaji & Sri Krishnaji.',
           author: { '@type': 'Organization', name: 'AskMukthiGuru' },
-          mainEntityOfPage: 'https://askmukthiguru.lovable.app/guides/ai-spiritual-companion',
+          mainEntityOfPage: canonicalUrl,
           keywords: 'AI spiritual guide, AI-guided meditation, Beautiful State, spiritual growth, yogic wisdom',
         },
         {

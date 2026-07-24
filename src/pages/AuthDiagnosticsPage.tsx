@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, XCircle, AlertCircle, Loader2, RefreshCw, Copy } from 'lucide-react';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { toast } from 'sonner';
+import { buildCanonical } from '@/lib/domain';
 
 type Status = 'pending' | 'ok' | 'fail' | 'warn';
 
@@ -30,7 +31,7 @@ const AuthDiagnosticsPage = () => {
   usePageMeta({
     title: 'Auth Diagnostics — AskMukthiGuru',
     description: 'Self-test for session, profile, roles, admin status, and backend reachability.',
-    canonical: 'https://askmukthiguru.lovable.app/auth/diagnostics',
+    canonical: buildCanonical('/auth/diagnostics'),
   });
 
   const [checks, setChecks] = useState<Check[]>([]);

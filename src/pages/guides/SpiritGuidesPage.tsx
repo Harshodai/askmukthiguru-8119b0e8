@@ -3,6 +3,7 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
+import { buildCanonical } from '@/lib/domain';
 
 const sections = [
   {
@@ -28,18 +29,19 @@ const sections = [
 ];
 
 const SpiritGuidesPage = () => {
+  const canonicalUrl = buildCanonical('/guides/spirit-guides');
   usePageMeta({
     title: 'Types of spirit guides and how to connect — AskMukthiGuru',
     description:
       'Types of spirit guides — ancestors, animal guides, inner guides, and living teachers — and how to connect through stillness and the Beautiful State.',
-    canonical: 'https://askmukthiguru.lovable.app/guides/spirit-guides',
+    canonical: canonicalUrl,
     ogType: 'article',
     jsonLd: {
       '@context': 'https://schema.org',
       '@type': 'Article',
       headline: 'Types of spirit guides and how to connect',
       author: { '@type': 'Organization', name: 'AskMukthiGuru' },
-      mainEntityOfPage: 'https://askmukthiguru.lovable.app/guides/spirit-guides',
+      mainEntityOfPage: canonicalUrl,
     },
   });
 

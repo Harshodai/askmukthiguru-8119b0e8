@@ -11,20 +11,21 @@ import { Footer } from '@/components/landing/Footer';
 import { GoogleOneTap } from '@/components/common/GoogleOneTap';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useTranslation } from 'react-i18next';
+import { PRODUCTION_DOMAIN, PRODUCTION_OG_IMAGE, PRODUCTION_ICON, buildCanonical } from '@/lib/domain';
 
 const Index = () => {
   usePageMeta({
     title: 'AskMukthiGuru — AI Spiritual Guide',
     description: 'Discover inner peace through AI-guided conversations grounded in the teachings of Sri Preethaji and Sri Krishnaji. Free, private, and always available.',
-    canonical: 'https://askmukthiguru.lovable.app/',
-    ogImage: 'https://askmukthiguru.lovable.app/og-image.png',
+    canonical: buildCanonical('/'),
+    ogImage: PRODUCTION_OG_IMAGE,
     jsonLd: [
       {
         '@context': 'https://schema.org',
         '@type': 'Organization',
         name: 'AskMukthiGuru',
-        url: 'https://askmukthiguru.lovable.app',
-        logo: 'https://askmukthiguru.lovable.app/og-image.png',
+        url: PRODUCTION_DOMAIN,
+        logo: PRODUCTION_ICON,
         description: 'AI Spiritual Guide rooted in the teachings of Sri Preethaji & Sri Krishnaji from Ekam World School.',
         sameAs: ['https://www.ekam.org'],
       },

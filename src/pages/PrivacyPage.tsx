@@ -2,13 +2,14 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { buildCanonical, getPrivacyEmail } from '@/lib/domain';
 
 const PrivacyPage = () => {
   const { t, i18n } = useTranslation();
   usePageMeta({
     title: t('privacy.pageTitle'),
     description: t('privacy.pageDescription'),
-    canonical: 'https://askmukthiguru.lovable.app/privacy',
+    canonical: buildCanonical('/privacy'),
   });
   // Fixed revision date (checked in at build/release time)
   const PRIVACY_REVISION_DATE = '2026-07-11';
@@ -37,7 +38,7 @@ const PrivacyPage = () => {
         <h2>{t('privacy.yourRights')}</h2>
         <p>
           {t('privacy.exportDeletion')}
-          <a href="mailto:privacy@askmukthiguru.com"> privacy@askmukthiguru.com</a>.
+          <a href={`mailto:${getPrivacyEmail()}`}> {getPrivacyEmail()}</a>.
         </p>
         <h2>{t('privacy.aiDisclosure')}</h2>
         <p>{t('privacy.aiDisclosureText')}</p>

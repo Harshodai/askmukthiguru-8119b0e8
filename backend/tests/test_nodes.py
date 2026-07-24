@@ -22,6 +22,40 @@ Beloved, the Four Sacred Secrets are spiritual vision, inner truth, universal in
     assert "Four Sacred Secrets" in cleaned
 
 
+def test_check_persona_adherence_flags_ai_disclaimer():
+    assert nodes.check_persona_adherence("As an AI, I don't have personal experiences.") is not None
+
+
+def test_check_persona_adherence_flags_founder_impersonation():
+    assert nodes.check_persona_adherence("As Krishnaji, I feel deep compassion for you.") is not None
+
+
+def test_check_persona_adherence_allows_clean_answer():
+    clean = "Sri Krishnaji teaches that suffering arises from unmet desires. Sri Preethaji shares that stillness begins with awareness."
+    assert nodes.check_persona_adherence(clean) is None
+
+
+def test_check_constitutional_compliance_flags_flattery_opener():
+    assert nodes.check_constitutional_compliance("Great question! Sri Krishnaji teaches...") is not None
+
+
+def test_check_constitutional_compliance_flags_cot_leakage():
+    assert nodes.check_constitutional_compliance("Step 1: identify the user's intent.") is not None
+
+
+def test_check_constitutional_compliance_flags_found_in_teachings_disclaimer():
+    assert nodes.check_constitutional_compliance("Based on what I found in the teachings, suffering is optional.") is not None
+
+
+def test_check_constitutional_compliance_flags_guaranteed_outcome():
+    assert nodes.check_constitutional_compliance("This will cure your anxiety completely.") is not None
+
+
+def test_check_constitutional_compliance_allows_clean_answer():
+    clean = "Sri Krishnaji teaches that suffering arises from unmet desires."
+    assert nodes.check_constitutional_compliance(clean) is None
+
+
 def test_generation_kwargs_bound_by_intent():
     # 1.7 caps: distress=2048, fast/tier2_simple=150, deep/tier3_complex=800, adversarial=600
     assert nodes._generation_kwargs({"intent": "DISTRESS"})["num_predict"] == 2048

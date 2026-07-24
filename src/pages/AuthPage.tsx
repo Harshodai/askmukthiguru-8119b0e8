@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { buildCanonical, PRODUCTION_DOMAIN } from '@/lib/domain';
 import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, User as UserIcon, Loader2, Check } from 'lucide-react';
 import { setLanguage } from '@/lib/chat/config';
 import { LanguageOnboardingStep } from '@/components/onboarding/LanguageOnboardingStep';
@@ -114,7 +115,7 @@ const AuthPage = () => {
   usePageMeta({
     title: t('auth.pageTitle'),
     description: t('auth.pageDescription'),
-    canonical: 'https://askmukthiguru.lovable.app/auth',
+    canonical: buildCanonical('/auth'),
   });
   const [isSignUp, setIsSignUp] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -777,7 +778,7 @@ const AuthPage = () => {
 
           const allowedOrigins = [
             window.location.origin,
-            'https://askmukthiguru.lovable.app',
+            PRODUCTION_DOMAIN,
           ].filter(Boolean);
 
           window.google.accounts.id.initialize({

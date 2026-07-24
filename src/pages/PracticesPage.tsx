@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
+import { buildCanonical, PRODUCTION_OG_IMAGE } from '@/lib/domain';
 
 const accentMap: Record<Practice['accent'], { icon: typeof Flame; ring: string; bg: string; text: string }> = {
   ojas: { icon: Sparkles, ring: 'ring-ojas/30', bg: 'bg-ojas/10', text: 'text-ojas' },
@@ -112,8 +113,8 @@ const PracticesPage = () => {
   usePageMeta({
     title: t('seo.practicesTitle') || 'Daily Practices — Guided Meditations | AskMukthiGuru',
     description: t('seo.practicesDescription') || 'Soul Sync, Serene Mind, Beautiful State, and Daily Reflection — short guided practices rooted in the teachings of Sri Preethaji & Sri Krishnaji.',
-    canonical: 'https://askmukthiguru.lovable.app/practices',
-    ogImage: 'https://askmukthiguru.lovable.app/og-image.png',
+    canonical: buildCanonical('/practices'),
+    ogImage: PRODUCTION_OG_IMAGE,
     jsonLd: {
       '@context': 'https://schema.org',
       '@type': 'ItemList',
@@ -121,7 +122,7 @@ const PracticesPage = () => {
       itemListElement: practices.map((p, i) => ({
         '@type': 'ListItem',
         position: i + 1,
-        url: `https://askmukthiguru.lovable.app/practices/${p.slug}`,
+        url: buildCanonical(`/practices/${p.slug}`),
         name: p.title,
       })),
     },

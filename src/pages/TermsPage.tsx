@@ -2,13 +2,14 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { buildCanonical } from '@/lib/domain';
 
 const TermsPage = () => {
   const { t, i18n } = useTranslation();
   usePageMeta({
     title: t('terms.pageTitle'),
     description: t('terms.pageDescription'),
-    canonical: 'https://askmukthiguru.lovable.app/terms',
+    canonical: buildCanonical('/terms'),
   });
   // Fixed revision date (checked in at build/release time)
   const TERMS_REVISION_DATE = '2026-07-11';

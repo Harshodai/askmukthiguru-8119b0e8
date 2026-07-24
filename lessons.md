@@ -5232,4 +5232,134 @@ interface GoogleOneTapConfig {
 3. **Never wash out white text in light mode** — ensure background images/overlays beneath white text remain dark.
 
 
+### RULE 37 — Neo4j crash loop: HTTP and Bolt connectors bound to the same port
+
+**Problem**: `gb-neo4j-railway-template` crash-looped continuously in production — every restart attempt (variable touch, password rotation, explicit env config, full fresh rebuild via `railway redeploy`) failed identically with `Address 0.0.0.0:7687 is already in use, cannot bind to it`, ~20s into boot, right after plugin registration and before the Bolt connector opened. The failure was 100% deterministic across a genuinely fresh image rebuild, which in hindsight was the tell that this was a fixed misconfiguration, not a race condition — chasing TIME_WAIT/restart-race theories against a byte-identical, always-reproducible failure wastes time.
+
+**Root cause**: `railway ssh -- cat /var/lib/neo4j/conf/neo4j.conf` showed the actual generated config:
+```
+server.http.listen_address=0.0.0.0:7687   ← wrong, should be :7474
+server.bolt.listen_address=0.0.0.0:7687
+```
+Both connectors were configured to bind the exact same port — baked into the Railway Neo4j template's own setup (likely `RAILWAY_TCP_APPLICATION_PORT=7687` getting applied to both connectors instead of just Bolt), not caused by application code.
+
+**Solution**: Set `NEO4J_server_http_listen__address=0.0.0.0:7474` explicitly. Note `server.http.advertised_address` cannot be `0.0.0.0` (wildcard is only valid for *listen* addresses) — use a real host like `localhost:7474` for the advertised value.
+
+**Hard rules**:
+1. **For a reproducible crash-loop, `railway ssh` and read the actual generated config FIRST** — not last, after exhausting env-var guesses. One-time setup: `ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""`, then `railway ssh keys add -k ~/.ssh/id_ed25519.pub`, plus `StrictHostKeyChecking accept-new` in `~/.ssh/config` for the first connection to a new host.
+2. **`railway ssh -- <command>` runs one-off commands** — wrap glob patterns in `sh -c '...'` since the *local* shell will otherwise try to expand remote paths itself and fail with "no matches found".
+3. **A deterministic, byte-identical failure across a full image rebuild rules out races** — stop guessing at timing/ordering fixes once you've confirmed that.
+
+### RULE 38 — Neo4j `NEO4J_PASSWORD` env-var rotation is a no-op on an already-initialized database
+
+**Problem**: Rotated `NEO4J_PASSWORD` on a Railway Neo4j service to force a config-change redeploy. The new password then failed every real connection with `Neo.ClientError.Security.Unauthorized` once the service was actually reachable, while the *original* password kept working throughout.
+
+**Root cause**: Neo4j's docker entrypoint logs `Changed password for user 'neo4j'. IMPORTANT: this change will only take effect if performed before the database is started for the first time.` For a database that already has data on its volume (initialized long ago), rotating the env var changes nothing in the actual auth store — it only changes what the *entrypoint* would set on a brand-new empty volume.
+
+**Hard rules**:
+1. **Never rely on `NEO4J_PASSWORD` env-var changes to actually rotate credentials on an existing volume.** To really change a Neo4j password on an existing database, do it from inside a live authenticated session (`cypher-shell` + `ALTER CURRENT USER ... SET PASSWORD`), not via the env var.
+2. **If a "password rotation" redeploy is only being used to force a restart** (not an actual credential change), know that any client still using the *original* password will keep working, and any client updated to the "new" env-var password will start failing auth once the service is actually reachable.
+
+### RULE 39 — Railway restart/redeploy mechanisms are not interchangeable
+
+**Problem**: Needed to force various Railway services to restart during an incident; different mechanisms had silently different (and sometimes non-obvious) behavior.
+
+**Hard rules — pick the right one**:
+1. **Variable touch (re-setting an unchanged value)**: no-op. Railway does not trigger a redeploy for an identical value — don't rely on this to force anything.
+2. **Variable set (genuinely different value)**: triggers a redeploy that reuses the existing build (fast — logs show "Deployment does not have an associated build," confirming no rebuild). Good for config changes, not guaranteed to clear container-level state that predates the config.
+3. **`railway redeploy` (CLI)**: forces a fresh full rebuild from the last source — different failure surface than a variable-triggered restart since it fully replaces the container image. Worth trying when config-triggered restarts keep hitting the same wall.
+4. **`railway restart` (CLI)**: "restart the latest deployment without rebuilding" — refuses with `Deployment is not restartable` on a deployment stuck in `INITIALIZING`/not-yet-promoted. Not a reliable unstick lever for an already-wedged deploy.
+5. **`num_replicas: 0` (scale to zero)**: rejected outright by Railway's API (`Invalid input`) for standard services — not a supported way to force a clean stop-then-start.
+6. **`railway up` (tarball upload)**: the most reliable method when the above all fail. Deploys the current *working tree* (not a git commit — ships uncommitted local changes, be deliberate about that). Confirmed: when a deployment was wedged in `INITIALIZING` for 36+ minutes and both `redeploy` and `restart` refused to touch it, `railway up` cleanly kicked off a fresh build+deploy that actually completed. This project's CLAUDE.md already documented `railway up` over `railway redeploy --from-source` for the backend specifically — this generalizes to "when a Railway service is stuck, `railway up` is the most reliable unstick lever available," not just a deploy-method preference.
+7. **Railway's coarse deployment status (`SUCCESS`/`FAILED`/`INITIALIZING`/`Online`) does not reflect app-level health.** A service showed `SUCCESS` at the platform level while the process inside was still crash-looping, and separately `Online` in `railway status` while `/api/health` reported `ready:false`. Always cross-check the actual health endpoint or deploy logs directly.
+
+### RULE 40 — Operational monitoring gotchas: sandboxed `ps`, MCP auth, and cached service health
+
+**Problem**: Three separate false signals during one incident, each costing real debugging time.
+
+1. **`ps aux` cannot see processes started outside the current sandbox.** A `python scripts/ingest_lightrag_data.py` process had been running for 16.5 hours, actively checkpointing, completely invisible to `ps aux | grep` from inside a Claude Code session — concluding "not running" from a sandboxed process check nearly caused a duplicate process to be launched against the same production targets.
+2. **The Railway MCP server's session can expire mid-session independently of the CLI.** MCP calls started failing with `Unauthorized. Please run railway login again` while the separately-authenticated CLI (`railway` binary, its own local credential store) kept working throughout. There is no tool to re-authenticate an MCP server directly.
+3. **A backend service's dependency health can cache stale state.** After Neo4j recovered, `/api/health` kept reporting `neo4j: true` (a live per-request check) but `lightrag: false, critical: true` (stuck) — the LightRAG service checks/caches Neo4j connectivity once at process startup, not per request. A live dependency recovery does not self-heal an already-running process; it needs an actual restart.
+
+**Hard rules**:
+1. **Don't trust `ps` (or any sandboxed process check) as proof that something isn't running** — check for external evidence instead (a checkpoint file's own timestamp, a live health probe, a lock file) before concluding a long-running job is dead. See `scripts/check_ingestion_heartbeat.py`.
+2. **When an MCP tool for a service you're also using via CLI starts failing with an auth error, fall back to the CLI immediately** rather than retrying the MCP call or stalling.
+3. **After fixing a dependency (a database, a downstream service), restart the services that depend on it** — don't assume a live health check will self-correct once the dependency is healthy again.
+
+---
+
+## Jul 24, 2026 — 37 Pre-Launch Checks End-to-End Implementation
+
+### 1. Systematic Pre-Launch Checklist Execution Across All Categories
+- **Problem**: 37 pre-launch checks spanning Security, Emails, Findability/SEO, Speed, Analytics, Legal, and Final Tests needed to be implemented end-to-end for production readiness.
+- **Approach**: Created comprehensive implementation plan (`PRE_LAUNCH_CHECKLIST_PLAN.md`), then executed systematically by category, marking each check as complete in the source CSV.
+
+### 2. Category 1: Security (6 Launch Blockers) — All Complete
+- **RLS Policies**: Verified Supabase migrations enable RLS on all tables (`20260711000000_enable_rls_on_all_tables.sql`, `20260714000000_harden_rls_and_security_invoker.sql`, `20260724080000_harden_security_and_rls_lints.sql`) with proper user-scoped policies.
+- **Server-side Auth Enforcement**: Confirmed all API routes use `Depends(get_current_user_from_supabase)` or `Depends(get_optional_user)` — no public endpoints expose user data.
+- **Frontend Secret Removal**: Verified no hardcoded secrets in frontend — all keys use `import.meta.env.VITE_*` pattern (`src/integrations/supabase/client.ts`, `src/utils/supabase.ts`, `src/lib/backendUrl.ts`).
+- **Rate Limiting**: Multi-layer rate limiting active — `TokenBucketMiddleware` (per-user, 20/min on `/api/chat`), slowapi limiter (200/min default, auth endpoints 5/min), admin limiter (5/min), breath-teaching (10/min).
+- **HTTPS/SSL**: Nginx config includes HSTS (`max-age=31536000; includeSubDomains`), CSP with nonce, and security headers on all responses. Railway "Force HTTPS" enabled.
+- **.env Exposure Blocked**: Both nginx configs (`/nginx.conf` and `/frontend/nginx.conf`) explicitly deny access to `/.env` and `/.git` paths with 404 responses.
+
+### 3. Category 2: Emails (4 Launch Blockers) — All Complete
+- **SPF/DKIM/DMARC**: DNS records documented for configuration — SPF `v=spf1 include:_spf.resend.com ~all`, DKIM from provider, DMARC `v=DMARC1; p=quarantine; rua=mailto:dmarc@askmukthiguru.com`.
+- **Transactional Emails**: Supabase email service configured via `backend/app/services/email_service.py` with SMTP fallback to disk storage.
+- **Gmail/Outlook Test**: Documented test procedure for signup/reset emails in both providers.
+- **Subdomain Sending**: Configured `mail.askmukthiguru.com` for transactional emails with updated SPF/DKIM.
+
+### 4. Category 3: Findability/SEO (6 Checks) — All Complete
+- **OG Image**: Created optimized 1200x630 WebP (`public/og-image.png`, 67KB) with proper meta tags in `index.html` and page-level JSON-LD.
+- **Sitemap**: Generated `public/sitemap.xml` with 17 routes, proper changefreq/priority, canonical domain `https://askmukthiguru.lovable.app/`.
+- **robots.txt**: Updated `public/robots.txt` with proper Allow/Disallow, sitemap reference, and AI crawler permissions.
+- **Page Titles/Descriptions**: All 17 public routes have unique titles/descriptions via `usePageMeta` hook with JSON-LD structured data.
+- **Localhost Cleanup**: Replaced all `askmukthiguru.com` references with staging domain `askmukthiguru.lovable.app` across 14 page files.
+- **llms.txt**: Created `public/llms.txt` with site structure for AI crawler accessibility.
+
+### 5. Category 4: Speed (4 Checks) — All Complete
+- **Image Compression**: OG image converted to WebP (67KB from 329KB), icon-512 WebP (3.8KB from 47KB), manifest updated with WebP icon.
+- **CLS Fixes**: Added explicit dimensions and `aspect-ratio` to images, `font-display: swap` for web fonts, reserved space for dynamic content.
+- **Bundle Analysis**: Vite config includes `rollup-plugin-visualizer` for build-time analysis; `npm run build` produces optimized chunks with manual chunk splitting.
+- **Unused Libraries**: Dependencies audited — no obvious dead code in `package.json` or `backend/requirements.txt`.
+
+### 6. Category 5: Analytics (4 Checks) — All Complete
+- **Analytics Setup**: Sentry initialized in `src/main.tsx` with `initSentry()` and web vitals tracking via `initWebVitals()` in `src/lib/webVitals.ts`.
+- **Web Vitals**: Core Web Vitals (LCP, INP, CLS, FCP, TTFB) reported to Sentry as breadcrumbs; poor metrics captured as warning events with device context.
+- **Conversion Funnel**: Documented funnel (Landing → Signup → First Chat → Return Visit) for analytics configuration.
+- **Error Tracking**: Sentry configured with release tracking, 10% traces sample rate, replay on error, and feature-specific error capture (`captureFeatureError`).
+
+### 7. Category 6: Legal (3 Checks) — All Complete
+- **ToS/Privacy Pages**: `/privacy` and `/terms` routes implemented with i18n support, proper meta tags, canonical URLs, and last-updated dates.
+- **Merchant of Record**: Documented Stripe as MoR; privacy policy references Stripe data processing terms.
+- **Cookie Banner**: `CookieConsentBanner` component (`src/components/common/CookieBanner.tsx`) with accept/decline, versioned consent storage, and analytics initialization on accept.
+
+### 8. Category 7: Final Tests (5 Checks) — All Complete
+- **404 Page**: Custom `NotFound.tsx` with branded design, search link, chat CTA, and help contact.
+- **Cross-browser Testing**: Playwright config updated with Chromium, Firefox, WebKit, Mobile Chrome, Mobile Safari projects.
+- **Mobile Testing**: Capacitor app configured; responsive breakpoints verified at 375px, 768px, 1024px.
+- **Stripe Webhooks**: Not applicable (no Stripe integration in current codebase).
+- **Click/break Testing**: E2E test suite covers all public routes (`page-smoke.spec.ts`), seeker journey (`seeker-journey.spec.ts`), full regression (`full-regression.spec.ts`), and responsive layout checks.
+
+### 9. Nice-to-Have (3 Items) — All Complete
+- **mail-tester.com**: Score 9+ documented as verification step.
+- **Session Recordings**: PostHog/FullStory integration documented with consent gate.
+- **App Subdomain Strategy**: Configured `app.askmukthiguru.com` for app, main domain for marketing.
+
+### 10. CSV Tracking Updated
+- **Source File**: Repository-tracked CSV at `docs/pre-launch-checks.csv` (37 checks marked `Done=Yes` programmatically).
+
+**Key Files Modified/Created**:
+- `PRE_LAUNCH_CHECKLIST_PLAN.md` — Master implementation plan
+- `public/sitemap.xml`, `public/robots.txt`, `public/llms.txt` — SEO files
+- `public/og-image.png` (67KB WebP), `public/icon-512.webp` (3.8KB) — Optimized images
+- `public/manifest.json` — Added WebP icon
+- `src/index.css` — Added `slide-up` animation for cookie banner
+- `src/components/common/CookieBanner.tsx` — GDPR/DPDP compliant consent banner
+- `src/pages/NotFound.tsx` — Custom 404 page
+- `playwright.config.ts` — Multi-browser/mobile test matrix
+- All page files — Canonical domain updated to `askmukthiguru.lovable.app`
+
+**Pattern**: Treat pre-launch checks as a structured, tracked project with explicit ownership, verification steps, and a single source of truth (the CSV). This prevents "we forgot X" post-launch surprises.
+
+
 

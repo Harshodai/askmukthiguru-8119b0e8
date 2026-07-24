@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
+import { PRODUCTION_DOMAIN, PRODUCTION_OG_IMAGE, buildCanonical } from '@/lib/domain';
 
 const LAST_SEEN_KEY = 'askmukthiguru_last_seen';
 const TOUR_COMPLETED_KEY = 'askmukthiguru_tour_completed';
@@ -44,14 +45,14 @@ const ChatPage = () => {
   usePageMeta({
     title: t('chat.pageTitle'),
     description: t('chat.pageDescription'),
-    canonical: 'https://askmukthiguru.lovable.app/chat',
+    canonical: buildCanonical('/chat'),
     ogType: 'website',
-    ogImage: 'https://askmukthiguru.lovable.app/og-image.png',
+    ogImage: PRODUCTION_OG_IMAGE,
     jsonLd: {
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
       name: 'AskMukthiGuru Chat',
-      url: 'https://askmukthiguru.lovable.app/chat',
+      url: buildCanonical('/chat'),
       applicationCategory: 'LifestyleApplication',
       operatingSystem: 'Web',
       description: 'AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji',

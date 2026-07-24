@@ -31,6 +31,7 @@ import {
 import { cn } from '@/lib/utils';
 import { normalizeSarvamVoice, SARVAM_VOICES } from '@/lib/sarvamVoices';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { buildCanonical } from '@/lib/domain';
 import { fireTestReminder, requestNotificationPermission } from '@/hooks/useMeditationReminder';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -128,7 +129,7 @@ const ProfilePage = () => {
   usePageMeta({
     title: 'Your Profile — AskMukthiGuru',
     description: 'Manage your seeker profile, preferred guru tone, language, theme, and meditation reminder settings.',
-    canonical: 'https://askmukthiguru.lovable.app/profile',
+    canonical: buildCanonical('/profile'),
   });
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();

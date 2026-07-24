@@ -13,6 +13,7 @@ import {
 } from '@/lib/authTelemetry';
 import { Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw, Trash2 } from 'lucide-react';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { buildCanonical } from '@/lib/domain';
 
 const fmtMs = (ms: number | null): string => {
   if (ms == null) return '—';
@@ -34,7 +35,7 @@ const AuthLatencyDashboard = () => {
   usePageMeta({
     title: 'Auth Latency Dashboard — AskMukthiGuru',
     description: 'Per-step authentication latency and slow-run diagnostics for AskMukthiGuru sign-in.',
-    canonical: 'https://askmukthiguru.lovable.app/auth/latency',
+    canonical: buildCanonical('/auth/latency'),
   });
   const [runs, setRuns] = useState<AuthRun[]>([]);
   const [active, setActive] = useState<AuthRun | null>(null);

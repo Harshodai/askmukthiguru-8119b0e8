@@ -2,6 +2,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { buildCanonical } from '@/lib/domain';
 
 const faqs = [
   {
@@ -27,11 +28,12 @@ const faqs = [
 ];
 
 const SelfCentricThinkingPage = () => {
+  const canonicalUrl = buildCanonical('/guides/self-centric-thinking');
   usePageMeta({
     title: 'Self-Centric Thinking: How to Stop Overthinking',
     description:
       'Understand self-centric thinking and learn a spiritual, practical approach to stop overthinking and find real clarity.',
-    canonical: 'https://askmukthiguru.lovable.app/guides/self-centric-thinking',
+    canonical: canonicalUrl,
     ogType: 'article',
     jsonLd: {
       '@context': 'https://schema.org',
@@ -42,7 +44,7 @@ const SelfCentricThinkingPage = () => {
           description:
             "A grounded guide to self-centric thinking — what it is, why it drives overthinking, and how to shift toward connection-centric awareness. Rooted in Sri Preethaji & Sri Krishnaji's teachings.",
           author: { '@type': 'Organization', name: 'AskMukthiGuru' },
-          mainEntityOfPage: 'https://askmukthiguru.lovable.app/guides/self-centric-thinking',
+          mainEntityOfPage: canonicalUrl,
           keywords: 'self centric thinking, stop overthinking spiritually, Preethaji Krishnaji, suffering state',
         },
         {
