@@ -10,7 +10,7 @@ const NotFound = () => {
   usePageMeta({
     title: t('notFound.pageTitle', 'Page Not Found — AskMukthiGuru'),
     description: t('notFound.pageDescription', 'The page you\'re looking for doesn\'t exist.'),
-    robots: 'noindex, nofollow',
+    noindex: true,
   });
 
   return (
