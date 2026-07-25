@@ -257,7 +257,17 @@ class CacheUpdateStage(Stage):
                         embedding = await ctx.coordinator._embed_query(query_text)
                         if embedding is not None:
                             vcache = ctx.coordinator._ensure_vector_cache()
-                            vcache.put(
+                            # ponytail: must run off the event loop, same as
+                            # exact_cache/semantic_cache above — vcache.put() can
+                            # trigger a full O(max_size) native index rebuild on
+                            # eviction (turboquant_cache.py's _evict_if_full), and
+                            # a blocking call here freezes the single worker
+                            # process for every other in-flight request. Confirmed
+                            # live 2026-07-25: this exact call stalled the process
+                            # long enough to fail Railway's health check and
+                            # trigger a container restart under benchmark load.
+                            await asyncio.to_thread(
+                                vcache.put,
                                 embedding=embedding,
                                 metadata={
                                     "response": final_answer,

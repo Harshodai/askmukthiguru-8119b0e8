@@ -38,8 +38,17 @@ def load_reports():
                 comprehensive_data = json.load(f)
         except Exception as e:
             print(f"⚠️ Error loading comprehensive report: {e}")
-            
-    return ruthless_data, native_data, comprehensive_data
+
+    sdlc_data = {}
+    sdlc_path = REPORT_DIR / "benchmark_report.json"
+    if sdlc_path.exists():
+        try:
+            with open(sdlc_path) as f:
+                sdlc_data = json.load(f)
+        except Exception as e:
+            print(f"⚠️ Error loading SDLC benchmark report: {e}")
+
+    return ruthless_data, native_data, comprehensive_data, sdlc_data
 
 
 def collect_docker_logs() -> dict[str, str]:
@@ -61,7 +70,53 @@ def collect_docker_logs() -> dict[str, str]:
             logs[svc] = f"(collection failed: {e})"
     return logs
 
-def build_html(ruthless, native, comprehensive, docker_logs):
+def build_sdlc_tab_html(sdlc: dict) -> str:
+    """Render the SDLC benchmark (sdlc_rag_benchmark.py) report as a dashboard tab.
+    Empty/graceful when no report exists yet — matches this file's existing
+    pattern for optional report sources."""
+    if not sdlc:
+        return '<p style="color: var(--text-secondary)">No SDLC benchmark report found. Run: python3 benchmarks/sdlc_rag_benchmark.py --base-url &lt;url&gt;</p>'
+
+    total = sdlc.get("total", 0)
+    passed = sdlc.get("passed", 0)
+    failed = sdlc.get("failed", 0)
+    pass_rate = (passed / total * 100) if total else 0.0
+    categories = sdlc.get("categories", [])
+
+    rows = "".join(
+        f"""<tr>
+            <td>{c.get('name', '')}</td>
+            <td>{c.get('total', 0)}</td>
+            <td style="color: var(--success)">{c.get('passed', 0)}</td>
+            <td style="color: var(--danger, #e74c3c)">{c.get('failed', 0)}</td>
+            <td>{c.get('avg_latency_ms', 0):.0f} ms</td>
+        </tr>"""
+        for c in categories
+    )
+
+    return f"""
+    <div class="metrics-cards-row">
+        <div class="metric-card">
+            <span class="label">Pass Rate</span>
+            <span class="value" style="color: var(--success)">{pass_rate:.1f}%</span>
+        </div>
+        <div class="metric-card">
+            <span class="label">Total Queries</span>
+            <span class="value">{total}</span>
+        </div>
+        <div class="metric-card">
+            <span class="label">Passed / Failed</span>
+            <span class="value">{passed} / {failed}</span>
+        </div>
+    </div>
+    <table class="data-table">
+        <thead><tr><th>Category</th><th>Total</th><th>Passed</th><th>Failed</th><th>Avg Latency</th></tr></thead>
+        <tbody>{rows}</tbody>
+    </table>
+    """
+
+
+def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
     # Overall Score calculations
     score = ruthless.get("production_readiness_score", 0.0)
     verdict = ruthless.get("verdict", "FAIL")
@@ -1292,6 +1347,7 @@ def build_html(ruthless, native, comprehensive, docker_logs):
 
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab(event, 'orchestrator-tab')">Orchestration & API Suite</button>
+        <button class="tab-btn" onclick="switchTab(event, 'sdlc-tab')">SDLC Question Bank</button>
         <button class="tab-btn" onclick="switchTab(event, 'comprehensive-tab')">5-Tier Comprehensive</button>
         <button class="tab-btn" onclick="switchTab(event, 'native-ragas-tab')">Native RAGAS Evals</button>
         <button class="tab-btn" onclick="switchTab(event, 'system-infra-tab')">System & Infra Health</button>
@@ -1384,6 +1440,11 @@ def build_html(ruthless, native, comprehensive, docker_logs):
     </div>
 
     <!-- Comprehensive Tab -->
+    <div id="sdlc-tab" class="tab-content">
+        <h2 class="section-title">🎯 SDLC Question Bank (question_bank.py)</h2>
+        {build_sdlc_tab_html(sdlc or {})}
+    </div>
+
     <div id="comprehensive-tab" class="tab-content">
         <h2 class="section-title">📋 5-Tier Comprehensive Benchmark</h2>
         <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Tier 1: Simple Factual · Tier 2: Complex/Reasoning · Tier 3: Distress · Tier 4: Guardrail · Tier 5: Edge</p>
@@ -1494,16 +1555,16 @@ def build_html(ruthless, native, comprehensive, docker_logs):
 
 def main():
     print("🚀 Generating dashboard.html...")
-    ruthless, native, comprehensive = load_reports()
-    
-    if not ruthless and not native and not comprehensive:
+    ruthless, native, comprehensive, sdlc = load_reports()
+
+    if not ruthless and not native and not comprehensive and not sdlc:
         print("⚠️ No data reports found. Cannot generate dashboard.")
         sys.exit(1)
-    
+
     print("  📡 Collecting docker logs...")
     docker_logs = collect_docker_logs()
-        
-    html = build_html(ruthless, native, comprehensive, docker_logs)
+
+    html = build_html(ruthless, native, comprehensive, docker_logs, sdlc=sdlc)
     
     os.makedirs(REPORT_DIR, exist_ok=True)
     with open(DASHBOARD_PATH, "w") as f:

@@ -1,3 +1,17 @@
+## Jul 24, 2026 — LightRAG Production Audit & System Invariants
+
+### 1. Neo4j Internal Network Routing & Public Bolt Security
+- **Incident/Observation:** Neo4j TCP proxy port 7687 on Railway is closed to public Internet connections for security. Connecting via public hostname failed with Bolt handshake timeout.
+- **Fix/Invariant:** Backend and LightRAG services must connect using Railway's internal private DNS (`bolt://gb-neo4j-railway-template.railway.internal:7687`). Public access remains restricted to HTTPS Neo4j Browser UI.
+
+### 2. Qdrant Client API Key Compatibility
+- **Incident/Observation:** Direct instantiations of `QdrantClient` in `second_brain/vault_index.py`, `semantic_adapter.py`, `pipeline.py`, `reprocess_contextual.py`, and `phase05_audit.py` lacked explicit `api_key` configuration, causing authorization failures when Qdrant API key enforcement was active.
+- **Fix/Invariant:** All `QdrantClient` calls must explicitly pass `api_key=os.environ.get("QDRANT_API_KEY")` (or `settings.qdrant_api_key`) and inherit common timeout/port configurations.
+
+### 3. Container Pathing & Environment Hostname Rewriting
+- **Incident/Observation:** In `ingest_lightrag_data.py`, `os.getenv("QDRANT_URL", "").startswith("http://qdrant")` matched Railway's internal DNS `http://qdrant.railway.internal:6333` and rewrote it to `http://localhost:6333`, breaking container-to-container network calls with `ConnectionRefusedError`.
+- **Fix/Invariant:** Hostname translation logic for local Docker Compose development must target specific local patterns (`http://qdrant:` or `http://qdrant`) to prevent overwriting production internal DNS (`*.railway.internal`).
+
 ## Jul 23, 2026 — Guru-Brain-Overhaul Merge: Semaphore Safety, Test Realism, Handoff Hygiene
 
 ### 1. Async Signature ≠ I/O — Test Synchronous Functions Synchronously
@@ -5360,6 +5374,90 @@ Both connectors were configured to bind the exact same port — baked into the R
 - All page files — Canonical domain updated to `askmukthiguru.lovable.app`
 
 **Pattern**: Treat pre-launch checks as a structured, tracked project with explicit ownership, verification steps, and a single source of truth (the CSV). This prevents "we forgot X" post-launch surprises.
+
+
+---
+
+## Jul 24–25, 2026 — End-to-End Infrastructure Recovery & Hardening Audit
+
+### 1. Neo4j Root Cause: HTTP vs. Bolt Port Collision Discovered via Direct Container SSH
+- **Problem**: Neo4j service was failing on every single boot with `Address already in use` error on port 7687, preventing database initialization despite repeated configuration changes and plugin adjustments.
+- **Diagnostic Break**: Instead of continuing blind config bisection or inferring from external logs, accessed the container shell via `railway ssh`. Direct inspection of `/var/lib/neo4j/conf/neo4j.conf` revealed the exact conflict:
+  ```conf
+  server.http.listen_address=0.0.0.0:7687
+  server.bolt.listen_address=0.0.0.0:7687
+  ```
+- **Root Cause**: The Railway Neo4j template's setup script mapped `RAILWAY_TCP_APPLICATION_PORT=7687` onto BOTH the HTTP connector and the Bolt connector. Whichever connector attempted to bind first succeeded; the second connector crashed the process with port collision.
+- **Resolution**: Overrode `server.http.listen_address` back to standard `:7474` while keeping `server.bolt.listen_address` on `:7687`. Also ensured `server.http.advertised_address` was NOT set to wildcard `0.0.0.0` (wildcard is invalid for advertised addresses).
+
+### 2. Evidence-Based Database Memory Sizing (Neo4j Right-Sizing)
+- **Problem**: Neo4j container was configured with `4G` max heap + `2G` pagecache (`-XX:+AlwaysPreTouch`), consuming 2.5–3.5GB host RSS constantly.
+- **Evidence**: Ran `neo4j-admin server memory-recommendation` and inspected disk footprint inside container (`df -h /data`). Actual Neo4j data footprint was ~20MB (Lucene indexes 211KB + native data indexes 20MB).
+- **Resolution**: Right-sized parameters (Neo4j 5.x uses `server.memory.*`, not the older `dbms.memory.*` naming — verify against the live service, not older docs/examples):
+  - `NEO4J_server_memory_heap_initial__size=1G`
+  - `NEO4J_server_memory_heap_max__size=1G`
+  - `NEO4J_server_memory_pagecache_size=512M`
+  - `NEO4J_dbms_memory_transaction_total_max=512M`
+- **Result**: Decreased RSS memory reservation while leaving 25x headroom over actual database volume.
+
+### 3. Neo4j Admin Password Rotation Gotcha
+- **Problem**: Rotating `NEO4J_AUTH=neo4j/<new_password>` in Railway environment variables failed authentication after restart.
+- **Mechanism**: Per Neo4j documentation, `NEO4J_AUTH` env var ONLY applies when the database volume is initialized for the FIRST time. If the database volume already exists (`/data/dbms/auth`), setting `NEO4J_AUTH` is ignored by Neo4j on boot.
+- **Rule**: Never assume changing `NEO4J_AUTH` in container env vars updates existing credentials on persistent volumes. Backend applications must continue using the original initialized credentials unless password is changed via Cypher `ALTER USER neo4j SET PASSWORD`.
+
+### 4. Railway CLI Fallback & Service Deployment Hierarchy
+- **Problem**: Railway MCP server session expired mid-investigation. `railway restart` failed on stuck "Initializing" deployments.
+- **Resolution**: Leveraged local `railway` CLI (authenticated with separate persistent user credentials). Used `railway up` to upload working tree tarball directly to force-trigger clean container build and deployment.
+- **Rule**:
+  1. MCP tool failure → immediately fall back to local `railway` CLI.
+  2. `railway restart` hanging → use `railway up` to push working tree and force fresh container deployment.
+
+### 5. Ingestion Process Safety & Public Port Teardown
+- **Background Ingestion**: Verified background batch ingestion script `scripts/ingest_lightrag_data.py` operates statefully against Qdrant and Neo4j (`scripts/ingestion_state.json` + Qdrant point count).
+- **Security Hardening**: After stopping ingestion, removed/closed external TCP public port mapping for Neo4j Bolt to restrict database access strictly to internal private network (`gb-neo4j-railway-template.railway.internal`).
+
+### 6. Constitutional RAG & Context Budget Safety
+- **Constitutional Guardrails v1**: Implemented lightweight pattern checks in `backend/rag/nodes/verification.py` (`check_constitutional_compliance`, wired through the existing `check_persona_adherence` → `reflect_on_answer` correction loop — no new pipeline stage needed) to enforce core system prompt principles:
+  - Flattery/sycophancy opener detection (`"Great question"`, `"What a beautiful question"`)
+  - Chain-of-thought leakage prevention (`"Step 1:"`, `"Let me analyze"`, `"We are given"`)
+  - Forbidden "Based on what I found in the teachings" disclaimer phrase (breaks the guru voice per `prompts/system.py`)
+  - Guaranteed spiritual outcome claims (`"I guarantee"`, `"this will cure"`)
+  - Deliberately pattern-based, not a second LLM call — matches this repo's existing discipline of disabling LLM-based verification passes purely to save latency (see `reflect_on_answer`'s already-disabled self-consistency block).
+- **Context Budget Manager Audit**: Audited `ContextBudgetManager` (`backend/services/context_compressor.py`, confirmed dead code — implemented but `.compress()` never called anywhere in the backend) vs `cap_to_token_budget` (actually used, in the `context_engineer` node, `backend/rag/nodes/generation.py`). Decision: preserve the existing tuned layer token budgets (persona 512, knowledge 1536–6144, user state 1024) rather than swapping in the unused, untuned manager on the live answer path without empirical benchmarking — flagged as a recommendation for a dedicated follow-up, not executed blind.
+
+---
+
+### RULE 41 — `UserProfileService`'s in-memory caches were the actual memory leak (found via code audit, not guessing)
+
+**Problem**: A production incident (documented earlier in this file's "production capacity problem" investigation via `railway metrics --memory --raw`) showed real memory climbing steadily 2.8GB→6.5GB over ~55 minutes under sustained request volume — not correlated with concurrency — crossing the app's self-imposed `RLIMIT_DATA` ceiling and crashing. That entry correctly ruled out "2 concurrent requests exhaust memory" but stopped at diagnosis. Root cause, found by auditing every unbounded `dict`/`list` instance attribute across `services/` and `app/` (`grep -rn "self\..*= *{}\|self\..*= *\[\]"`) and cross-referencing against what's a process-wide singleton:
+
+- `services/user_profile_service.py`: `UserProfileService._local_cache` (keyed by `user_id`) and `_conversation_cache` (keyed by `session_id`) were plain `dict`s, **never evicted**, on the ONE singleton instance `container.user_profile` (wired once in `app/container.py`, lives for the process lifetime).
+- `app/pipeline/stages/memory_stage.py`'s `MemoryStage.run()` — a pipeline stage that **never short-circuits** — calls `save_conversation_memory()` on literally every chat turn, writing a new `_conversation_cache[session_id]` entry unconditionally.
+- Anonymous users mint a fresh `session_id` via `crypto.randomUUID()` per conversation (`src/lib/chatStorage.ts`, resolved server-side via `resolve_anon_identity` per the caching-invariants section of the root `CLAUDE.md`) — so real traffic (and any benchmark run) adds one permanent entry per distinct conversation, forever, for the life of the deployment.
+- Compounding effect on latency (explains the *sharp average-latency climb* observed right before the 503 storm, not just the eventual OOM): `get_recent_memories()`'s in-memory fallback path does `for memory in self._conversation_cache.values() if memory.user_id == user_id` — an **O(n) linear scan**, called on every single chat query via `app/orchestrator_utils.py`. As the dict grows unboundedly, this scan (called per-request, on the hot path) gets slower for every subsequent request in the same process lifetime.
+
+**Fix**: Swapped both to `cachetools.TTLCache(maxsize=10000, ttl=86400)` — the exact bounded-cache pattern this codebase already uses elsewhere (`services/retrieval_cache.py`, `services/lightrag_service.py`, `services/cache/memory_adapter.py`) and already a declared dependency (`requirements.txt: cachetools>=5.3.0,<6.0`). No new abstraction, no new dependency — same interface (`dict`-like `MutableMapping`), so every call site (`get_or_create_profile`, `update_profile`, `save_conversation_memory`, `get_recent_memories`) needed zero changes beyond the `__init__`. Regression test: `backend/tests/test_user_profile_cache_bound.py` (fills each cache past `maxsize`, asserts eviction actually bounds `len()`).
+
+**Rule**: When a service is wired as a **process-wide singleton** (`ServiceContainer`, `app/container.py`) and any of its methods run on **every request** in a chain that **never short-circuits**, any `dict`/`list` instance attribute it writes to is a leak candidate by construction — audit every such attribute for a bound (TTL, maxsize, or explicit eviction) before ruling out "no obvious memory bug." A steady, request-volume-correlated (not concurrency-correlated) memory climb plus a parallel latency climb on the exact same request path is the fingerprint of an unbounded per-key cache with an O(n) read path, not a single large-payload spike.
+
+---
+
+### RULE 42 — A single un-offloaded blocking call in `CacheUpdateStage` froze the whole worker and crashed prod under a canary benchmark (real incident, root-caused via faulthandler dump)
+
+**Problem**: Deployed the RULE 41 memory-leak fix, verified it healthy, then ran a small low-concurrency (1) canary benchmark (26 questions from the newly expanded question bank) as a sanity check before any larger run. Within the first ~15 requests, the backend started returning fast (300-450ms) `503 Service Unavailable` for nearly everything — the exact same fast-503 fingerprint as the original incident this session, but now happening at concurrency=1, immediately, on a backend that had just been confirmed healthy. This ruled out "it's the same leak" (RULE 41 was already fixed and verified) — a genuinely new bug.
+
+**Root cause, found via `railway metrics --memory --raw` (memory dipped to 0 — a real crash/restart, not a slow leak) plus a Python `faulthandler` thread-dump captured in the deploy logs at the exact moment of the stall** (Railway/the app must have SIGABRT'd a hung worker, which is what wrote it): the current thread was frozen inside `services/turboquant_cache.py:93` — `self._index.add(vec)`, a native `turbovec` (4-bit quantization index) call — called from `app/pipeline/stages/cache_stage.py:260` inside `CacheUpdateStage.run()`.
+
+Reading `cache_stage.py`'s `CacheUpdateStage.run()` showed the actual defect directly: it writes to three caches in sequence — `exact_cache.put(...)` and `semantic_cache.put(...)` are both correctly wrapped in `await asyncio.to_thread(...)`, but the third one, `vcache.put(...)` (the P90 `TurboQuantCache`, wired up in a prior session per the comment above it: "Previously this stage never wrote to TurboQuantCache, so the P90 cache stayed empty"), was called **directly, synchronously, on the event loop** — the one sibling call that didn't get the `asyncio.to_thread` treatment when this feature was wired up.
+
+This is compounded by a real design cost inside `TurboQuantCache` itself: `settings.faiss_cache_size` defaults to `500`, and `_evict_if_full()` (triggered on every `put()` once the cache is at capacity) calls `_remove_fid()` → `_reset_index()` + `_rebuild_from_metadata()`, which **rebuilds the entire native index from scratch** — up to 500 individual native `.add()` calls — on every single eviction. Once the cache reaches steady state (which a canary hitting 26 distinct novel queries reaches almost immediately), nearly every request pays this O(max_size) rebuild cost, synchronously, on the app's single worker event loop — freezing every other in-flight request (including Railway's own health probe) until Railway's watchdog decided the container was dead and restarted it. The fast 503s were real client requests landing in the dead/booting gap of that restart, not app-level rejections.
+
+**Fix**: wrapped the one un-offloaded call — `await asyncio.to_thread(vcache.put, embedding=..., metadata=...)` — matching the exact pattern its two sibling cache writes three lines above it already used. Zero new abstraction; this is literally applying an existing, established pattern to the one place it was missed. The O(max_size) rebuild-on-every-eviction cost inside `TurboQuantCache._remove_fid` is now off the event loop (a slow background thread is fine; a frozen request-serving thread is not) but is still there as a real inefficiency — flagged as a known ceiling for a future pass, not fixed here (raising `faiss_cache_size` doesn't help — it just makes each rebuild bigger; a real fix would avoid full rebuilds on eviction, e.g. tombstoning or periodic batch rebuilds instead of per-put).
+
+**Rule**: When wiring a previously-dead code path into a live request-serving stage (as the comment in `cache_stage.py` shows this one was), and the surrounding code already has an established "how we call blocking things" pattern (here: `asyncio.to_thread` for every cache write), **audit every new call against that pattern individually** — it is very easy to correctly copy the shape of sibling calls but miss wrapping the actual blocking primitive on the one that's different (a native-library call vs. a plain Python cache client). A single un-offloaded blocking call in a single-worker async service is not a "slow request" — it is a "every concurrent request, including the platform's own health check, freezes" incident. When a benchmark run (even at concurrency=1) reproduces the *exact* fast-503 fingerprint of a prior incident that was supposedly already fixed, don't assume it's the same bug recurring — check `railway metrics --memory --raw` for whether this crash's shape (instant dip to near-zero = real restart) matches the old one (55-minute gradual climb) before reusing the old diagnosis. They were different bugs with the same symptom.
+
+---
+
 
 
 

@@ -8,6 +8,8 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Optional
 
+from cachetools import TTLCache
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -103,8 +105,17 @@ class UserProfileService:
 
     def __init__(self, supabase_client=None):
         self._supabase = supabase_client
-        self._local_cache: dict[str, UserProfile] = {}
-        self._conversation_cache: dict[str, ConversationMemory] = {}
+        # ponytail: bounded — this is a single process-wide singleton
+        # (app/container.py) written on every chat turn (memory_stage.py),
+        # keyed by user_id / stable session_id. A plain dict here leaked
+        # unbounded (one entry per distinct anonymous session, never
+        # evicted) and caused a real prod OOM — see lessons.md RULE 41.
+        # TTLCache both caps memory and keeps get_recent_memories'
+        # in-memory fallback scan (below) from degrading over process
+        # uptime. Raise maxsize if legitimate concurrent-session count
+        # exceeds it.
+        self._local_cache: TTLCache = TTLCache(maxsize=10000, ttl=86400)
+        self._conversation_cache: TTLCache = TTLCache(maxsize=10000, ttl=86400)
 
     async def get_or_create_profile(self, user_id: str) -> UserProfile:
         """Get existing profile or create default."""
