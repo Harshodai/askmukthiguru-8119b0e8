@@ -24,34 +24,25 @@ test.describe('google auth flow', () => {
   test('only one Google entry point renders — no One Tap double-prompt', async ({ page }) => {
     await page.goto('/auth', { waitUntil: 'networkidle' });
 
-    // The rendered GSI button (iframe) is the ONE deliberate surface.
     const gsiButtonIframe = page.locator('iframe[src*="accounts.google.com/gsi/button"]');
-    // The One Tap prompt is a separate iframe — if it appears we regressed.
     const oneTapIframe = page.locator('iframe[src*="accounts.google.com/gsi/iframe/select"]');
 
-    // Give the SDK a beat to inject anything it wants.
     await page.waitForTimeout(2000);
 
     const buttonCount = await gsiButtonIframe.count();
     const oneTapCount = await oneTapIframe.count();
 
-    // At least one deliberate button surface (or a fallback button if no client id).
     const fallbackBtn = page.locator('button:has-text("Google")');
     const hasEntryPoint = buttonCount > 0 || (await fallbackBtn.count()) > 0;
     expect(hasEntryPoint, 'No Google auth entry point rendered').toBe(true);
 
-    // Zero One Tap prompts. This is the anti-regression guard.
     expect(
       oneTapCount,
       'Google One Tap auto-prompt is showing — re-enables the double-prompt UX bug. See AuthPage.tsx.',
     ).toBe(0);
   });
 
-  test('signed-in user visiting /auth is redirected away, not shown the form again', async ({
-    page,
-    context,
-  }) => {
-    // Seed a fake session so the auth listener treats us as logged-in.
+  test('signed-in-looking user visiting /auth does not crash', async ({ page, context }) => {
     await context.addInitScript((k) => {
       localStorage.setItem(
         k,
@@ -65,8 +56,6 @@ test.describe('google auth flow', () => {
     }, FAKE_STORAGE_KEY);
 
     await page.goto('/auth', { waitUntil: 'domcontentloaded' });
-    // Real client rejects the fake token → stays on /auth. Real session would
-    // redirect to /chat. Either outcome is fine; a hard crash is not.
     await expect(page.locator('body')).toBeVisible();
   });
 
@@ -74,15 +63,11 @@ test.describe('google auth flow', () => {
     page,
     context,
   }) => {
-    // Simulate: user tried to open /profile, was bounced to /auth, then
-    // signed in. The stored redirect path must send them back to /profile.
     await context.addInitScript(() => {
       sessionStorage.setItem('auth_redirect_path', '/profile');
     });
     await page.goto('/auth', { waitUntil: 'networkidle' });
 
-    // The value we planted must survive the page load — this is the contract
-    // that `useRequireAuth` and the OAuth callback both rely on.
     const stored = await page.evaluate(() => sessionStorage.getItem('auth_redirect_path'));
     expect(stored).toBe('/profile');
   });

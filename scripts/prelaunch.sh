@@ -12,17 +12,16 @@
 #        - prelaunch-sweep          (scroll + click every safe control)
 #        - full-regression          (critical journeys)
 #
-# Any red step short-circuits the run with a non-zero exit — the CI gate
-# and the manual "am I ready to publish?" check both use exit code.
+# Any red step short-circuits with a non-zero exit — CI gate and manual
+# "am I ready to publish?" check both use exit code.
 #
 # Usage:
-#   scripts/prelaunch.sh                          # local vite server
-#   BASE_URL=https://askmukthiguru.lovable.app scripts/prelaunch.sh   # against prod
-#   SKIP_BUILD=1 scripts/prelaunch.sh             # skip vite build (fast iterate)
-#   SUITES="google-auth-flow prelaunch-sweep" scripts/prelaunch.sh    # subset
+#   scripts/prelaunch.sh
+#   BASE_URL=https://askmukthiguru.lovable.app scripts/prelaunch.sh
+#   SKIP_BUILD=1 scripts/prelaunch.sh
+#   SUITES="google-auth-flow prelaunch-sweep" scripts/prelaunch.sh
 #
-# Optional: create a disposable test user in Supabase before the run so
-# authenticated flows can be exercised. Requires SUPABASE_SERVICE_ROLE_KEY.
+# Optional: seed a disposable test user via Supabase admin API before the run.
 #   TEST_USER_EMAIL=preflight+$(date +%s)@example.com \
 #   TEST_USER_PASSWORD='Preflight123!@#XY' \
 #   SUPABASE_URL=https://<project>.supabase.co \
@@ -57,7 +56,6 @@ run_step() {
   fi
 }
 
-# 1) Optional: seed a disposable test user via Supabase admin API.
 maybe_seed_user() {
   if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" || -z "${SUPABASE_URL:-}" || -z "${TEST_USER_EMAIL:-}" ]]; then
     yellow "↷ Skipping test-user seed (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY/TEST_USER_EMAIL not all set)."
@@ -82,7 +80,6 @@ maybe_seed_user() {
   fi
 }
 
-# 2) Build (skippable for fast iteration).
 run_build() {
   if [[ "${SKIP_BUILD:-0}" == "1" ]]; then
     yellow "↷ SKIP_BUILD=1 — skipping vite build"
@@ -91,10 +88,8 @@ run_build() {
   npm run build
 }
 
-# 3) Vitest.
 run_unit() { npm test -- --run; }
 
-# 4) Playwright — one project per suite so failures are attributable.
 run_playwright_suite() {
   local suite="$1"
   npx playwright test --project=chromium "tests/e2e/${suite}.spec.ts"

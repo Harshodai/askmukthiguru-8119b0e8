@@ -38,7 +38,6 @@ const IGNORABLE = (e: string): boolean =>
   e.includes('.mp3') ||
   e.includes('useMeditationAudio');
 
-// Words that mean "this click has side effects — do not push it".
 const DESTRUCTIVE = /sign\s*out|log\s*out|delete|remove|clear|reset|cancel|leave|discard/i;
 
 async function scrollThroughPage(page: Page): Promise<void> {
@@ -59,9 +58,8 @@ async function clickSafeButtons(page: Page): Promise<void> {
     const aria = (await btn.getAttribute('aria-label')) ?? '';
     if (DESTRUCTIVE.test(label) || DESTRUCTIVE.test(aria)) continue;
     if (!label && !aria) continue;
-    await btn.click({ timeout: 1500, trial: false }).catch(() => undefined);
+    await btn.click({ timeout: 1500 }).catch(() => undefined);
     await page.waitForTimeout(120);
-    // If a dialog opened, close it via Escape so we can keep going.
     await page.keyboard.press('Escape').catch(() => undefined);
   }
 }

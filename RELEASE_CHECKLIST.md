@@ -11,7 +11,7 @@ scripts/prelaunch.sh
 BASE_URL=https://askmukthiguru.lovable.app scripts/prelaunch.sh
 ```
 
-`scripts/prelaunch.sh` runs, in order and short-circuits on the first red:
+`scripts/prelaunch.sh` runs, in order, and short-circuits on the first red:
 
 | # | Step                | What it guards                                            |
 |---|---------------------|-----------------------------------------------------------|
@@ -36,8 +36,8 @@ scripts/prelaunch.sh
 ```
 
 The script POSTs to the Supabase admin API with `email_confirm=true` and
-exports `PLAYWRIGHT_TEST_USER_EMAIL` / `_PASSWORD` for future authenticated
-specs. Delete the user afterwards from Supabase Studio or the admin API.
+exports `PLAYWRIGHT_TEST_USER_EMAIL` / `_PASSWORD` for authenticated specs.
+Delete the user afterwards from Supabase Studio or the admin API.
 
 ## 2. Manual verification — journeys automation cannot cover
 
@@ -58,15 +58,15 @@ Initial each row. Do **not** initial without actually running the flow.
 
 - [ ] Anonymous chat round-trip: message sent, streaming response arrives, no
       "connection issue" fallback
-- [ ] Signed-in chat: conversation is persisted, appears in sidebar on refresh
+- [ ] Signed-in chat: conversation persists, appears in sidebar on refresh
 - [ ] Slash-command menu opens with `/` and inserts a command
-- [ ] TTS reads a response aloud (headphones); STT records a message
+- [ ] TTS reads a response aloud; STT records a message
 - [ ] Language selector switches UI; response arrives in the selected language
 
 ### Meditation
 
-- [ ] Serene Mind: Preethaji audio plays; if network throttled, Web Speech
-      TTS fallback kicks in without breaking the step timer
+- [ ] Serene Mind: Preethaji audio plays; on network throttle, Web Speech TTS
+      fallback kicks in without breaking the step timer
 - [ ] Video link opens the correct YouTube practice
 - [ ] Meditation session persists to profile (Insights tab shows +1)
 
@@ -104,13 +104,7 @@ Initial each row. Do **not** initial without actually running the flow.
 
 ## 4. Publish
 
-Only after 1–3 are green:
-
-```
-<presentation-actions>
-<presentation-open-publish>Publish your app</presentation-open-publish>
-</presentation-actions>
-```
+Only after 1–3 are green.
 
 ## 5. Post-publish smoke (within 10 min)
 
