@@ -45,7 +45,8 @@ export const GoogleOneTap = () => {
     }
 
     const initGSI = () => {
-      if (typeof window.google === 'undefined' || initialized.current) return;
+      const g = window.google;
+      if (!g || initialized.current) return;
       const rawNonce = generateNonce();
 
       sha256Hex(rawNonce).then(hashedNonce => {
@@ -53,7 +54,7 @@ export const GoogleOneTap = () => {
         initialized.current = true;
         nonce.current = hashedNonce;
 
-        window.google.accounts.id.initialize({
+        g.accounts.id.initialize({
           client_id: clientId,
           callback: async (response) => {
             try {
@@ -70,12 +71,10 @@ export const GoogleOneTap = () => {
           auto_select: true,
           cancel_on_tap_outside: true,
           data_fedcm: true,
-          params: {
-            nonce: hashedNonce,
-          },
+          nonce: hashedNonce,
         });
 
-        window.google.accounts.id.prompt();
+        g.accounts.id.prompt();
       });
     };
 
