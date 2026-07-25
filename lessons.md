@@ -5458,6 +5458,58 @@ This is compounded by a real design cost inside `TurboQuantCache` itself: `setti
 
 ---
 
+### RULE 43 — Railway healthchecks probe `$PORT`, not the domain's target port: Neo4j booted perfectly and was killed anyway for ~5 hours
+
+**Problem**: `railway status` showed `gb-neo4j-railway-template: ● Completed · Deploy failed` for 4h36m. The backend's `/api/health` reported `neo4j: {ok: false, latency_ms: 60024}` (a full 60s timeout, not an auth error), and chat requests degraded badly — the retrieval node's Neo4j/LightRAG traversal sits inside the retrieval `asyncio.gather`, so every RELATIONAL/FACTUAL/QUERY waits on a dead database. A full-suite benchmark run against this state produced fast HTTP 500s followed by **every subsequent request timing out at exactly 180s for over two hours** — which looks like catastrophic answer-quality failure and is nothing of the sort.
+
+**The misleading part**: the Neo4j deploy logs show a *completely clean, successful boot* right up to the moment Railway kills it:
+```
+2026-07-25 13:20:39.041+0000 INFO  Bolt enabled on 0.0.0.0:7687.
+2026-07-25 13:20:40.334+0000 INFO  HTTP enabled on 0.0.0.0:7474.
+2026-07-25 13:20:40.337+0000 INFO  Started.
+```
+…preceded in the Railway build log by `Attempt #1 failed with service unavailable`, repeating until the 300s window expired. Nothing in Neo4j's own logs indicates a problem, because there wasn't one — Neo4j was healthy the entire time.
+
+**Root cause**: [Railway's healthcheck docs](https://docs.railway.com/deployments/healthchecks) state that Railway injects a `PORT` env var and **that variable's value is what the healthcheck probes**, and that *"not listening on the PORT variable or omitting it when using target ports can result in your health check returning a service unavailable error."* The Neo4j service had **no `PORT` variable at all**, so Railway probed its default (8080). Neo4j listens on **7474 (HTTP)** and **7687 (Bolt)** and nothing else — so `GET http://container:8080/` hit a closed port, returned service-unavailable for the full 300s `healthcheckTimeout`, and Railway marked the deploy FAILED and stopped a perfectly healthy container.
+
+Note the near-miss: the service *domain's* `targetPort` was also wrong (8080), and fixing that alone (`railway domain update <domain> --port 7474`) did **not** fix the healthcheck — the next deploy failed identically. The domain target port governs public HTTP routing; `$PORT` governs the healthcheck. They are separate settings and both were wrong. Fixing only the visible one wastes a full 5-minute deploy cycle and produces a false "still broken, must be something else" conclusion.
+
+**Fix** (all three, in order of what actually mattered):
+1. `railway variable set PORT=7474 --service gb-neo4j-railway-template` — **this is the healthcheck fix.**
+2. `railway domain update gb-neo4j-railway-template-production-2559.up.railway.app --port 7474` — makes the public Neo4j Browser URL work.
+3. Aligned the service's `NEO4J_PASSWORD` with the value the backend actually authenticates with. They had drifted apart (the service var held a never-applied rotation attempt). Harmless *today* precisely because of RULE 38 (the var is a no-op on an already-initialized volume) — but a live landmine: if that volume were ever recreated, Neo4j would initialize with a password the backend does not know, and the failure would look like an unrelated auth bug months later.
+
+**Rules**:
+1. **A Railway "Deploy failed" with a clean application boot log is a healthcheck failure, not an application failure.** Read the Railway build/deploy log for `Attempt #N failed with service unavailable` before touching application config. Do not go looking for bugs in an app that is telling you it started fine.
+2. **`$PORT` and the domain `targetPort` are different settings with different jobs.** Any service that listens on a fixed, non-`$PORT` port (databases, off-the-shelf images — anything you didn't write the listener for) needs `PORT` set explicitly to the port it actually serves HTTP on, or its healthcheck can never pass.
+3. **A dead graph DB masquerades as an application-quality problem.** Before interpreting any benchmark result, verify every dependency is actually up — `railway status` for *all* services, not just the backend. The 373-question run that produced 500s-then-180s-timeouts measured infrastructure, not answers, and its numbers are worthless.
+
+---
+
+### RULE 44 — `railway up` silently SKIPs identical uploads, so env-var changes never reach the running container
+
+**Problem**: Raised `PYTHON_MEMORY_LIMIT_MB` from 5632 → 12288 (see RULE 41/42 context — the app self-imposes an `RLIMIT_DATA` ceiling far below Railway's real 24GB container limit). Confirmed the variable was set. Ran `railway up` several times afterwards to ship code on top of it. Then a benchmark run produced a `MemoryError` storm so dense Railway rate-limited the log stream (`Railway rate limit of 500 logs/sec reached for replica... Messages dropped: 45668`) — the app was still dying at the *old* 5632MB ceiling hours after the variable was raised.
+
+**Root cause**, found via `railway deployment list --service <name>`:
+```
+72e6a8bb | SKIPPED   ← railway up
+3c4c09f9 | SKIPPED   ← railway up (after a real git commit + push!)
+3d1a445c | SKIPPED   ← railway up
+75343381 | SKIPPED   ← railway up
+4736aeef | REMOVED   ← the variable-change redeploy, superseded before it finished
+7f03879c | SUCCESS   ← STILL RUNNING, started 07:55 UTC, before the var change
+```
+Railway **deduplicates uploads that produce an identical image digest** and marks them `SKIPPED` — no new deployment, no new container. `railway up` prints "Indexing... Uploading..." and a build-log URL either way, so from the CLI a SKIPPED deploy is visually indistinguishable from a real one. Meanwhile **environment variables are only read at container start**, so the container from 07:55 kept enforcing the pre-change limit indefinitely. The variable-triggered redeploy that *would* have applied it (`4736aeef`) was superseded by a subsequent `railway up` before it finished its healthcheck.
+
+**Fix**: `railway redeploy --service <name> -y` — forces a genuinely new deployment (`012e1a80 | BUILDING`, then SUCCESS) that starts a fresh container with current variables. Note `railway restart` was tried first and **hung with no output at all**, producing nothing after 120s; it is not a reliable lever here (consistent with RULE 39's finding that `restart` is the weakest of the Railway restart mechanisms).
+
+**Rules**:
+1. **After changing an environment variable, verify a NEW deployment actually became active** — `railway deployment list --service <name>` and confirm the top entry is `SUCCESS`, not `SKIPPED`/`REMOVED`. Cross-check `activeDeployments[].createdAt` against the time you changed the variable: if the running container predates the change, the change is not in effect.
+2. **`railway up` after a no-op-to-Docker change is a no-op deployment.** Committing to git does not help — Railway hashes the built image, not the git SHA. Use `redeploy` when the *goal* is "restart with current config" rather than "ship new code."
+3. **Don't fire overlapping deploys.** Several rapid `railway up` calls on top of a pending variable-triggered redeploy is what removed `4736aeef` mid-flight and left a stale container serving traffic. Trigger one, let it finish, verify, then act again — this session lost hours to a stuck ~18-minute "Initializing" state caused by exactly that overlap.
+
+---
+
 
 
 
