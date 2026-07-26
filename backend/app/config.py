@@ -189,6 +189,15 @@ class Settings(BaseSettings):
     #            "sentence-transformers/all-MiniLM-L6-v2" (English-only, 384-dim, fast)
     embedding_model: str = "BAAI/bge-m3"
     embedding_dimension: int = 1024
+    # "flagembedding" (default, fp32, current production behavior) or
+    # "onnx_int8" (~75% smaller resident memory, ~0.989 cosine similarity to
+    # fp32 per public benchmarks — see lessons.md "Cost & Pipeline
+    # Optimization, part 2"). OFF by default: switching this requires
+    # re-embedding the existing Qdrant collection first (it was indexed with
+    # fp32 vectors), or query-time and index-time embeddings diverge. Do not
+    # flip in production without a full re-index — see
+    # scripts/validate_onnx_embedding.py.
+    embedding_backend: str = "flagembedding"
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
     # CPU-only deployments (Railway) must NOT run bge-reranker-v2-m3:
     # 568M params on CPU costs ~4s/doc → 88s for 19 docs (verified in docker logs).
