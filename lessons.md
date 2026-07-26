@@ -5595,6 +5595,44 @@ Grounded in real Railway pricing research and this session's own findings — no
 
 ---
 
+## Cost & Pipeline Optimization, part 2 — real billing breakdown, ground truth (2026-07-26)
+
+The prior section's cost model was built from public pricing estimates. The user then supplied the actual Railway bill for this cycle (Jul 12 – Aug 12), which changes the priority ranking completely:
+
+```
+Compute Usage Limit: $29.75 / $30.00  (nearing hard limit — this is why services keep shutting down)
+Memory:  124,332.81 minutely-GB  x $0.000231/GB/min = $28.7807   <- 96.7% of the compute bill
+CPU:       1,226.87 minutely-vCPU x $0.000463/vCPU/min = $0.5680  <- 1.9%, functionally noise
+Egress:        1.21 GB           x $0.05/GB           = $0.0604
+Volume:   98,217.27 minutely-GB  x $0.000003/GB/min    = $0.3410
+Agent:                                                    $7.2000  (separate limit category, not app compute)
+```
+
+**Memory is 96.7% of the compute bill. CPU is 1.9% — noise.** This *directly overturns* part 1's recommendation #1 ("consider lowering the declared 4 vCPU limit") — CPU was never the lever, don't spend effort there. It also explains why the service kept getting Hard-Limit-shut-down (RULE 49): at $29.75 of a $30.00 cap, this account is permanently one memory-heavy day away from tripping it again, regardless of any single incident.
+
+**Ruled out this pass**: `celery-worker`'s 24h memory metrics are `avg 104.8MB, max 177MB, 0.4% utilization` — genuinely idle-cheap, not a redundant copy of the ML stack. It is *not* a meaningful contributor to the memory bill. (It may still be worth confirming actual Celery task throughput per the still-open item above, but not for memory-cost reasons — CPU-idle-worker cost is negligible per the CPU line above.)
+
+**The math**: back-of-envelope, the backend's own measured steady-state (RULE-41-fix-verified: avg 5.27GB over 24h) times ~14 elapsed days of this billing cycle (Jul 12 → Jul 26, ≈20,160 minutes) ≈ 106,000 GB-minutes — close enough to the observed 124,332.81 total to conclude **the backend process's own standing memory footprint is the dominant, near-entire driver of the memory bill**, not a leak (already fixed and verified flat this session), not `celery-worker`, not the databases (Neo4j/Qdrant/Redis are separate services with their own small memory-minute lines, not visible as broken out here but bounded by their own modest provisioned sizes).
+
+**The concrete, quality-neutral fix — not yet implemented, scoped for a dedicated pass**:
+
+The backend loads three CPU ML models permanently resident for the process lifetime: `BAAI/bge-m3` (embedding, runs on *every* query regardless of tier), a `sentence-transformers CrossEncoder` reranker (`BAAI/bge-reranker-v2-m3` per config), and LettuceDetect's XLM-RoBERTa-based faithfulness model. All three currently load as full fp32 PyTorch weights (`use_fp16=(device == "cuda")` in `embedding_service.py` — correctly *not* fp16 on this CPU-only deployment, since most CPUs lack real fp16 compute and naive fp16-on-CPU is often a false economy: same or worse peak memory during computation, and slower).
+
+**BGE-M3 specifically has a well-documented, verified, drop-in quantized path that is not a quality tradeoff**: the official model converted to ONNX and INT8-quantized (`onnxruntime.quantization.quantize_dynamic`, per-channel) goes from **2.3GB (fp32) to ~570MB (INT8) — a 75% reduction** — with **0.989 cosine similarity to the fp32 model's embeddings and <1% accuracy loss** (nearest-neighbor result flips only on technical near-ties). Pre-quantized versions already exist on Hugging Face: [`gpahal/bge-m3-onnx-int8`](https://huggingface.co/gpahal/bge-m3-onnx-int8), [`raludi/bge-m3-onnx-int8`](https://huggingface.co/raludi/bge-m3-onnx-int8), [`MahradHosseini/bge-m3-onnx-int8`](https://huggingface.co/MahradHosseini/bge-m3-onnx-int8). Since the embedding call runs on every single request regardless of query tier, this is the highest-leverage single change available: ~1.7GB off the standing footprint, all day, every day, for the rest of the billing cycle and beyond.
+
+**Why this wasn't implemented tonight, not deferred out of laziness**: this repo's `use_fp16=(device == "cuda")` code and the "BGE-M3 fingerprint" health-startup check (`Lifespan: embedding model fingerprint OK`, root `CLAUDE.md`'s embedding-dimension-contract section — `EmbeddingService._ensure_encoder()` hard-fails rather than silently downgrade on a dimension mismatch, precisely because a 2026-07-16 production incident was caused by exactly this kind of embedding-backend swap going wrong silently) show this codebase has already been burned once by an unvalidated embedding-model change reaching production. Swapping `FlagEmbedding`'s native PyTorch inference path for `onnxruntime` is a different code path with a different API shape (not a config flag flip), and needs the same discipline that incident taught: validate cosine similarity against the current fp32 model on a real sample of this doctrine corpus's actual queries *before* it ever reaches production, not after. That validation needs a clean context window and deliberate time, not the tail end of an already very long session.
+
+**Exact next steps, ready to execute**:
+1. `pip install onnxruntime` (CPU build) in `backend/requirements.txt`.
+2. Load `gpahal/bge-m3-onnx-int8` (or convert `BAAI/bge-m3` locally via HuggingFace `optimum` + `onnxruntime.quantization.quantize_dynamic` for full control over the quantization config) alongside the existing `FlagEmbedding` path behind a feature flag (e.g. `EMBEDDING_BACKEND=onnx_int8` vs the current default).
+3. Write a validation script: embed a representative sample of real queries from `backend/benchmarks/question_bank.py` (373 questions, already exist) with both the current fp32 encoder and the new ONNX INT8 one, compute cosine similarity per query, and diff which documents each retrieves for the same query (not just embedding similarity — the thing that actually matters is whether retrieval *results* change). Confirmed-safe threshold: match the 0.989-similarity / <1%-flip numbers from the public benchmark above on this corpus specifically before considering it validated.
+4. Only after that validation passes, cut over the default and remove the fp32 path (or keep it behind the flag as a rollback lever for one deploy cycle).
+5. Same technique (ONNX + INT8 via `optimum`) likely applies to the reranker CrossEncoder and LettuceDetect's XLM-RoBERTa model too, but neither has the same publicly-verified accuracy-delta numbers found this session — each needs its own before/after validation pass rather than assuming the BGE-M3 numbers transfer, given the user's explicit "no quality/accuracy/latency compromise" constraint.
+
+**Expected outcome once BGE-M3 alone is done**: roughly 1.7GB off a ~5.3GB average process footprint, which — if the memory-minutes math above is right — should cut a meaningful fraction of the $28.78 memory line proportionally (not exactly linear, since Neo4j/Qdrant/Redis/celery-worker's own small memory-minute contributions don't shrink, but the backend's own share is the overwhelming majority of it).
+
+---
+
 
 
 
