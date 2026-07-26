@@ -23,7 +23,6 @@ import {
   SidebarProvider,
   SidebarTrigger,
   SidebarHeader,
-  SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { NavLink } from '@/components/NavLink';
@@ -34,8 +33,6 @@ import { FloatingParticles } from '@/components/landing/FloatingParticles';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/hooks/useProfile';
 import { useFavorites } from '@/hooks/useFavorites';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials } from '@/lib/profileStorage';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { checkConnection } from '@/lib/aiService';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
@@ -81,7 +78,6 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
   const location = useLocation();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
-  const { profile } = useProfile();
   const { favorites } = useFavorites();
   const { open: openSereneMind } = useSereneMind();
   const favCount = favorites.length;
@@ -155,31 +151,9 @@ const AppSidebar = ({ onOpenSearch }: { onOpenSearch: () => void }) => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
-        <NavLink
-          to="/profile"
-          className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/60 transition-colors"
-        >
-          <Avatar className="w-8 h-8 ring-1 ring-border">
-            {profile.avatarDataUrl ? (
-              <AvatarImage src={profile.avatarDataUrl} alt={profile.displayName} />
-            ) : null}
-            <AvatarFallback className="bg-ojas/20 text-ojas text-xs font-semibold">
-              {getInitials(profile.displayName)}
-            </AvatarFallback>
-          </Avatar>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {profile.displayName}
-              </p>
-              <p className="text-[11px] text-muted-foreground truncate">
-                {t('layout.viewProfile')}
-              </p>
-            </div>
-          )}
-        </NavLink>
-      </SidebarFooter>
+      {/* No profile block in the footer: the nav already has a Profile item and
+          the header has the UserMenu avatar. Three routes to the same page on
+          one screen is the "multiple profile buttons" complaint. */}
     </Sidebar>
   );
 };

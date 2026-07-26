@@ -94,7 +94,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
 export const ChatInterface = () => {
   const { toast } = useToast();
   const { greetingContext } = useVisitContext();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isIncognito, setIsIncognito] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -474,6 +474,10 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
     });
   })();
     return () => { cancelled = true; };
+    // Run-once-per-mount (gated on profileLoading): `profile.prePracticeLog` and
+    // `selected?.slug` only seed the welcome copy. Re-running on those would
+    // reload the conversation and clobber live messages mid-session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileLoading]);
 
   // Auto-speak ONLY for newly generated guru messages — never on initial mount
@@ -687,7 +691,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
           .then(performSave);
       }
     }
-  }, [messages]);
+  }, [messages, isIncognito]);
 
   // Track unread messages when we are not near the bottom
   useEffect(() => {
@@ -696,15 +700,18 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
     }
   }, [messages]);
 
-  const handleSubmit = async (
-    e?: React.FormEvent | React.KeyboardEvent<HTMLTextAreaElement> | React.MouseEvent,
+  type SubmitOptions = {
+    appendUser?: boolean;
+    baseMessages?: Message[];
+    historyMessages?: Message[];
+    bypassCache?: boolean;
+  };
+  type SubmitEvent = React.FormEvent | React.KeyboardEvent<HTMLTextAreaElement> | React.MouseEvent;
+
+  const submitImpl = async (
+    e?: SubmitEvent,
     overrideText?: string,
-    options: {
-      appendUser?: boolean;
-      baseMessages?: Message[];
-      historyMessages?: Message[];
-      bypassCache?: boolean;
-    } = {},
+    options: SubmitOptions = {},
   ) => {
     if (e && 'preventDefault' in e) {
       e.preventDefault();
@@ -1335,6 +1342,19 @@ setIsAwaitingSereneMind(true);
   }
 };
 
+// Stable identity for a ~600-line handler whose closure spans most of this
+// component's state. A literal dep array here would be wrong the first time
+// anyone edits the body; the latest-ref indirection keeps the callback
+// referentially stable (so useChatShortcuts / runSlashCommand / memoised
+// children don't re-subscribe every render) while always calling fresh state.
+const submitImplRef = useRef(submitImpl);
+submitImplRef.current = submitImpl;
+const handleSubmit = useCallback(
+  (e?: SubmitEvent, overrideText?: string, options: SubmitOptions = {}) =>
+    submitImplRef.current(e, overrideText, options),
+  [],
+);
+
 const handleSuggestionClick = (text: string) => {
   // On mobile, show a preview bottom-sheet so the user can see/edit the full
   // prompt before sending. On desktop, populate the composer directly.
@@ -1431,7 +1451,7 @@ const handleSubmitEdit = useCallback((messageId: string, newContent: string) => 
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [isStreaming, isTyping, messages]);
 
-const handleNewConversation = async () => {
+const handleNewConversation = useCallback(async () => {
   stopSpeaking();
   if (isIncognito) {
     setIsIncognito(false);
@@ -1462,7 +1482,7 @@ const handleNewConversation = async () => {
   await setCurrentConversationId(newConversation.id);
   setMessages([welcomeMessage]);
   setRefreshTrigger(prev => prev + 1);
-};
+}, [stopSpeaking, isIncognito, profile.prePracticeLog, selected?.slug]);
 
 const handleNewIncognitoConversation = async () => {
   stopSpeaking();
@@ -1492,7 +1512,7 @@ const handleCloseIncognito = async () => {
   await handleNewConversation();
 };
 
-const handleSelectConversation = async (conversation: Conversation) => {
+const handleSelectConversation = useCallback(async (conversation: Conversation) => {
   stopSpeaking();
   setCurrentConversation(conversation);
   await setCurrentConversationId(conversation.id);
@@ -1504,7 +1524,33 @@ const handleSelectConversation = async (conversation: Conversation) => {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   });
-};
+}, [stopSpeaking]);
+
+// Deep link: /chat?conversation=<id>. ChatPage's multi-device "Continue here"
+// prompt navigates to this URL while /chat is already mounted, so React Router
+// only swaps the query string — nothing remounts. Without this effect the
+// param was read by nobody and the button silently did nothing.
+// The param is consumed (stripped) once applied, so a later manual switch
+// isn't yanked back to it.
+const requestedConversationId = searchParams.get('conversation');
+useEffect(() => {
+  if (!requestedConversationId) return;
+  let cancelled = false;
+  (async () => {
+    const conv = await loadConversation(requestedConversationId);
+    if (cancelled || !conv) return;
+    await handleSelectConversation(conv);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('conversation');
+        return next;
+      },
+      { replace: true },
+    );
+  })();
+  return () => { cancelled = true; };
+}, [requestedConversationId, handleSelectConversation, setSearchParams]);
 
 const handleDeleteConversation = async (id: string) => {
   await deleteConversation(id);
@@ -1627,7 +1673,7 @@ useSwipeGesture({
 const isLandingMode = messages.length <= 1 && messages[0]?.role === 'guru';
 
 return (
-  <div className="h-dvh flex bg-background relative overflow-hidden">
+  <div className="flex-1 min-h-0 flex bg-background relative overflow-hidden">
     {/* Background */}
     <div className="fixed inset-0 bg-spiritual-gradient pointer-events-none" />
     <FloatingParticles />

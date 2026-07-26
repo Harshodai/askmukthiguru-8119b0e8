@@ -46,7 +46,12 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: (id) => {
             if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              // Match on the package directory boundary, not a bare substring:
+              // `id.includes('react')` also caught every @radix-ui/react-*,
+              // react-i18next, react-markdown, react-hook-form… and dragged
+              // them all into the eagerly-preloaded react-vendor chunk
+              // (782 kB / 251 kB gzip on the critical path).
+              if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) {
                 return 'react-vendor';
               }
               if (id.includes('framer-motion') || id.includes('lucide-react')) {
@@ -66,13 +71,19 @@ export default defineConfig(({ mode }) => {
               if (id.includes('@supabase/supabase-js')) {
                 return 'supabase-vendor';
               }
-              if (id.includes('react-markdown') || id.includes('remark-gfm')) {
-                return 'markdown-vendor';
-              }
+              // react-markdown / remark-gfm are imported by ChatMessage only.
+              // Force-naming them made rolldown modulepreload the chunk from
+              // index.html (124 kB eager for a route most visitors never open);
+              // unnamed, they ride along in the lazy ChatPage chunk.
               if (id.includes('date-fns') || id.includes('lodash-es') || id.includes('clsx') || id.includes('tailwind-merge')) {
                 return 'utils-vendor';
               }
-              return 'vendor';
+              // No catch-all 'vendor' chunk: forcing every remaining dependency
+              // into one chunk meant a single eager import (Radix, i18next…)
+              // dragged ~700 kB onto the critical path. Same rationale as the
+              // chart-vendor note above — let rolldown's async-chunk splitting
+              // keep route-only dependencies off the initial load.
+              return undefined;
             }
           },
           chunkFileNames: 'assets/js/[name]-[hash].js',

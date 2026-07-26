@@ -863,7 +863,8 @@
     "deleteTitle": "Delete conversation?",
     "deleteWarning": "This action cannot be undone and your teaching history will be lost.",
     "newIncognitoChat": "New incognito chat",
-    "incognitoTooltip": "Start a private conversation that won't be saved"
+    "incognitoTooltip": "Start a private conversation that won't be saved",
+    "explore": "Explore"
   },
   "notes": {
     "yourNotes": "Your Notes",

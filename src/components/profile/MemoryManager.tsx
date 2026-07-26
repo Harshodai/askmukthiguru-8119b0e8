@@ -155,7 +155,11 @@ export const MemoryManager = () => {
   const [containerHeight, setContainerHeight] = useState(500);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 760, height: 500 });
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  // State-backed ref: the graph container is conditionally rendered (viewMode ===
+  // 'graph'), and React does not re-run effects when a plain ref's .current
+  // mutates — so a useRef here left the ResizeObserver unattached on the first
+  // list→graph switch and the canvas stuck at its default width.
+  const [graphContainer, setGraphContainer] = useState<HTMLDivElement | null>(null);
 
   // Search & Filtering
   const [searchQuery, setSearchQuery] = useState('');
@@ -202,8 +206,7 @@ export const MemoryManager = () => {
 
   // ResizeObserver for dynamic canvas sizing
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    if (!graphContainer) return;
 
     const observer = new ResizeObserver((entries) => {
       if (!entries || entries.length === 0) return;
@@ -214,9 +217,9 @@ export const MemoryManager = () => {
       });
     });
 
-    observer.observe(container);
+    observer.observe(graphContainer);
     return () => observer.disconnect();
-  }, [containerRef.current, activeHeight]);
+  }, [graphContainer, activeHeight]);
 
   // Initialize and update simulation nodes
   useEffect(() => {
@@ -596,7 +599,7 @@ export const MemoryManager = () => {
 
         {/* Graph SVG canvas with absolute panels overlay */}
         <div
-          ref={containerRef}
+          ref={setGraphContainer}
           className="rounded-xl border border-border bg-zinc-950 overflow-hidden relative"
           style={{ height: activeHeight }}
         >

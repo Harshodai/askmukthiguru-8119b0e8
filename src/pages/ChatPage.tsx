@@ -157,8 +157,13 @@ const ChatPage = () => {
   return (
     <PrePracticeGate>
       <h1 className="sr-only">{t('chat.srOnlyTitle')}</h1>
-      <BackendHealthBanner />
-      <ChatInterface />
+      {/* The banner is a sibling of a full-height ChatInterface, so it has to
+          share the viewport with it — otherwise it pushes the chat (and the
+          sidebar footer / user menu) below the fold whenever it appears. */}
+      <div className="h-dvh flex flex-col">
+        <BackendHealthBanner />
+        <ChatInterface />
+      </div>
       <GuidedTour isOpen={tourOpen} onComplete={handleTourComplete} onDismiss={handleTourDismiss} />
       <Dialog open={showContinuePrompt} onOpenChange={setShowContinuePrompt}>
         <DialogContent className="sm:max-w-md">

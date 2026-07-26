@@ -7,6 +7,7 @@ import { useStudyNotebooks } from '@/hooks/useStudyNotebooks';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
 import { useProfile } from '@/hooks/useProfile';
 import { translateText } from '@/lib/aiService';
@@ -380,7 +381,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       } else {
         toast({ title: t('chat.signInSaveNotes'), variant: 'destructive' });
       }
-    }, [createNote, createNotebook, addItem, notebooks, message.content, message.id, queryText, toast]);
+    }, [createNote, createNotebook, addItem, notebooks, message.content, message.id, queryText, toast, t]);
 
     const handleCopy = useCallback(async () => {
       try {
@@ -426,7 +427,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       } finally {
         setSavingMemory(false);
       }
-    }, [saved, savingMemory, queryText, message.content, toast]);
+    }, [saved, savingMemory, queryText, message.content, toast, t]);
 
     return (
       <>
@@ -443,11 +444,15 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
               <Sparkles className="w-3.5 h-3.5 text-ojas" />
             </div>
           )}
-          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'flex-1 min-w-0 max-w-[85%] sm:max-w-[75%]' : 'max-w-[85%] sm:max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
+          {/* The guru answer is long-form prose — it gets the full reading column
+              (the parent is already capped at max-w-3xl), the way Claude/ChatGPT
+              lay out assistant turns. Capping it at 75% made every answer a
+              narrow ragged strip. The user's own turn stays a right-aligned bubble. */}
+          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'flex-1 min-w-0 w-full' : 'max-w-[85%] sm:max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
             {/* Message body */}
             <div
 className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 ${isGuru
-                    ? 'rounded-2xl rounded-tl-sm p-3 sm:p-4 shadow-sm text-[15.5px] leading-[1.75] text-foreground/90 font-normal'
+                    ? 'rounded-2xl rounded-tl-sm px-0 py-1 sm:py-1.5 text-[15px] leading-[1.75] text-foreground font-normal'
                     : isEditing
                       ? 'bg-card border border-hairline rounded-2xl p-3 sm:p-4 shadow-sm'
                       : 'bg-chat-user rounded-2xl p-3 sm:p-4 text-[15px] leading-[1.55] font-normal shadow-sm'
@@ -514,81 +519,93 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       </div>
                     </div>
                   ) : (
-                    <div className="text-[15px] leading-[1.75] text-foreground/90 space-y-3 selection:bg-ojas/20">
+                    <div className="text-[15px] leading-[1.75] text-foreground selection:bg-ojas/20">
                       {/* While streaming with no content, render nothing — the single
                         ThinkingPills indicator in ChatInterface is the source of truth.
                         This prevents two simultaneous "thinking" indicators. */}
                       {isStreaming && !message.content ? null : (
                         <ReactMarkdown
+                          // GFM: tables, strikethrough, task lists, autolinks. Without it the
+                          // model's markdown tables rendered as raw pipe soup.
+                          remarkPlugins={[remarkGfm]}
                           components={{
-                            // Paragraphs — tight spacing, no bottom margin on last
+                            // Reading rhythm: a full blank line between paragraphs, the way
+                            // ChatGPT/Claude set long-form answers. `mb-1.5` ran them together.
                             p: ({ children }) => (
-                              <p className="leading-[1.7] text-foreground/88 mb-1.5 last:mb-0">{children}</p>
+                              <p className="mb-4 last:mb-0">{children}</p>
                             ),
-                            // Headings — semantic visual hierarchy
+                            // Headings — sized in `em` so they scale with the message body
+                            // instead of colliding with it at a fixed 14–16px.
                             h1: ({ children }) => (
-                              <h1 className="text-base font-bold text-foreground mt-4 mb-1.5 first:mt-0 flex items-center gap-2">
-                                <span className="w-1 h-4 rounded-full bg-ojas inline-block shrink-0" />
-                                {children}
-                              </h1>
+                              <h1 className="text-[1.35em] font-semibold text-foreground leading-snug mt-7 mb-3 first:mt-0">{children}</h1>
                             ),
                             h2: ({ children }) => (
-                              <h2 className="text-[15px] font-semibold text-foreground/90 mt-3.5 mb-1 first:mt-0">{children}</h2>
+                              <h2 className="text-[1.15em] font-semibold text-foreground leading-snug mt-6 mb-2.5 first:mt-0">{children}</h2>
                             ),
                             h3: ({ children }) => (
-                              <h3 className="text-[14px] font-medium text-ojas mt-3 mb-0.5 first:mt-0">{children}</h3>
+                              <h3 className="text-[1.02em] font-semibold text-foreground leading-snug mt-5 mb-2 first:mt-0">{children}</h3>
                             ),
-                            // Lists — pill-style markers for unordered, clean counters for ordered
+                            h4: ({ children }) => (
+                              <h4 className="text-[0.95em] font-semibold text-muted-foreground uppercase tracking-wide mt-5 mb-1.5 first:mt-0">{children}</h4>
+                            ),
+                            // Native list markers, not a hand-rolled flex marker in `li`:
+                            // react-markdown v9 stopped passing `ordered` to `li`, so the old
+                            // code rendered every numbered list as bullets. The browser knows
+                            // whether it's in a ul or an ol — let it. Nesting works for free.
                             ul: ({ children }) => (
-                              <ul className="space-y-1.5 my-2 pl-0">{children}</ul>
+                              <ul className="my-4 space-y-2 pl-5 list-disc marker:text-ojas/70">{children}</ul>
                             ),
                             ol: ({ children }) => (
-                              <ol className="space-y-1.5 my-2 pl-0 list-none counter-reset-[item]">{children}</ol>
+                              <ol className="my-4 space-y-2 pl-5 list-decimal marker:text-ojas marker:font-semibold marker:tabular-nums">{children}</ol>
                             ),
-                            li: ({ children, ...props }) => {
-                              const isOrdered = (props as { ordered?: boolean }).ordered;
-                              return (
-                                <li className="flex items-start gap-2.5 text-foreground/85">
-                                  {isOrdered ? (
-                                    <span className="shrink-0 mt-[3px] w-5 h-5 rounded-full bg-ojas/10 text-ojas text-[10px] font-bold flex items-center justify-center border border-ojas/20">
-                                      {(props as { index?: number }).index !== undefined ? (props as { index: number }).index + 1 : '•'}
-                                    </span>
-                                  ) : (
-                                    <span className="shrink-0 mt-[7px] w-1.5 h-1.5 rounded-full bg-ojas/70" />
-                                  )}
-                                  <span className="flex-1 min-w-0">{children}</span>
-                                </li>
-                              );
-                            },
-                            // Blockquote — spiritual callout style
+                            li: ({ children }) => (
+                              <li className="leading-[1.7] pl-1">{children}</li>
+                            ),
                             blockquote: ({ children }) => (
-                              <blockquote className="border-l-[3px] border-ojas/50 pl-4 py-1 my-2 bg-ojas/5 rounded-r-lg italic text-foreground/75 text-[14px]">
+                              <blockquote className="border-l-[3px] border-ojas/50 pl-4 pr-3 py-2 my-4 bg-ojas/5 rounded-r-lg italic text-foreground/80">
                                 {children}
                               </blockquote>
                             ),
-                            // Inline code
+                            // `pre` owns the scroll container + chrome; `code` inside it stays
+                            // unstyled. Previously there was no `pre` override, so a fenced
+                            // block got bubble-breaking horizontal overflow instead of its
+                            // own scrollbar.
+                            pre: ({ children }) => (
+                              <pre className="my-4 overflow-x-auto rounded-xl bg-muted/60 border border-border/40 p-4 text-[13px] leading-[1.6] font-mono">
+                                {children}
+                              </pre>
+                            ),
                             code: ({ children, className }) => {
                               const isBlock = !!className;
                               if (isBlock) {
-                                return (
-                                  <code className={`block bg-muted/60 rounded-lg px-3 py-2 text-[13px] font-mono overflow-x-auto border border-border/40 my-2 ${className ?? ''}`}>
-                                    {children}
-                                  </code>
-                                );
+                                return <code className={`font-mono ${className ?? ''}`}>{children}</code>;
                               }
                               return (
-                                <code className="bg-ojas/8 text-ojas px-1.5 py-0.5 rounded text-[13px] font-mono border border-ojas/15">
+                                <code className="bg-ojas/10 text-ojas px-1.5 py-0.5 rounded text-[0.875em] font-mono border border-ojas/15">
                                   {children}
                                 </code>
                               );
                             },
-                            // Strong — ojas accent
+                            // GFM tables — the wrapper scrolls so a wide table can't stretch
+                            // the message column.
+                            table: ({ children }) => (
+                              <div className="my-4 overflow-x-auto rounded-xl border border-border/40">
+                                <table className="w-full text-[0.93em] border-collapse">{children}</table>
+                              </div>
+                            ),
+                            thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
+                            th: ({ children }) => (
+                              <th className="text-left font-semibold px-3 py-2 border-b border-border/40 whitespace-nowrap">{children}</th>
+                            ),
+                            td: ({ children }) => (
+                              <td className="px-3 py-2 border-b border-border/25 align-top last:border-b-0">{children}</td>
+                            ),
                             strong: ({ children }) => (
                               <strong className="font-semibold text-foreground">{children}</strong>
                             ),
-                            // Horizontal rule — subtle divider
+                            em: ({ children }) => <em className="italic text-foreground/90">{children}</em>,
                             hr: () => (
-                              <hr className="border-0 border-t border-border/40 my-3" />
+                              <hr className="border-0 border-t border-border/40 my-6" />
                             ),
                             // Links + citation buttons
                             a: ({ href, children, ...rest }) => {

@@ -82,8 +82,9 @@ describe('DesktopSidebar', () => {
       { wrapper }
     );
     const items = await waitFor(() => screen.getAllByTestId('conversation-item'));
-    // Active class is 'bg-ojas/12 text-ojas'
-    expect(items[0].className).toContain('bg-ojas/12');
+    // Active row: tinted background + heavier weight (ChatGPT/Claude convention)
+    expect(items[0].className).toContain('bg-ojas/[0.14]');
+    expect(items[0].className).toContain('font-medium');
   });
 
   // ── Delete confirmation dialog tests ──────────────────────────────

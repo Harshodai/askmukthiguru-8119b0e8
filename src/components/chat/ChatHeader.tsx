@@ -93,7 +93,7 @@ export const ChatHeader = ({
             </div>
           ) : (
             <span
-              className={`flex items-center gap-1.5 font-serif font-semibold text-foreground text-sm ml-1 select-none ${sidebarCollapsed ? '' : 'md:hidden'}`}
+              className={`flex items-center gap-1.5 font-serif font-semibold text-foreground text-sm ml-1 select-none ${sidebarCollapsed ? '' : 'sm:hidden'}`}
               data-testid="chat-header-wordmark"
             >
               <span className="text-sm leading-none" aria-hidden="true">🙏</span>
@@ -135,7 +135,11 @@ export const ChatHeader = ({
               <Download className="w-4 h-4" />
             </Button>
           )}
-          <div className={sidebarCollapsed ? '' : 'md:hidden'}>
+          {/* Single profile entry point: the expanded desktop sidebar (visible
+              from `sm` up) renders its own UserMenu in its footer, so the header
+              one must disappear at exactly that breakpoint — `md:hidden` left
+              two avatars on screen between sm and md. */}
+          <div className={sidebarCollapsed ? '' : 'sm:hidden'}>
             <UserMenu />
           </div>
         </div>
