@@ -45,11 +45,15 @@ def test_second_brain_recall_merges_into_memory_context():
     )
 
     memory_context, _ = asyncio.run(
-        prepare_user_memory(container, "u1", [{"role": "user", "content": "how do I stay calm?"}])
+        prepare_user_memory(
+            container,
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+            [{"role": "user", "content": "how do I stay calm?"}],
+        )
     )
 
     assert "job interview" in memory_context
-    container.second_brain.unlock.assert_awaited_once_with("u1")
+    container.second_brain.unlock.assert_awaited_once_with("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
 
 
 def test_second_brain_mode_b_vault_skipped_silently():

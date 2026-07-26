@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import uuid
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
@@ -90,7 +91,16 @@ class MemoryService:
 
     @staticmethod
     def _is_anonymous(user_id: Optional[str]) -> bool:
-        return not user_id or user_id == "anonymous"
+        # Anonymous/incognito sessions resolve to "anon:<session_id>" (see
+        # resolve_anon_identity, root CLAUDE.md caching invariants) which is
+        # not a valid Postgres uuid — only a parseable UUID is persistable.
+        if not user_id:
+            return True
+        try:
+            uuid.UUID(str(user_id))
+            return False
+        except (ValueError, TypeError):
+            return True
 
     async def get_core(self, user_id: str) -> list[dict[str, Any]]:
         """Retrieve core memories for a user."""

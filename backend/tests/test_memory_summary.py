@@ -36,7 +36,7 @@ def test_add_explicit_persists_summary_column():
     svc = _build_service_with_supabase(supa)
     _run(
         svc.add_explicit(
-            "user-1",
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
             "I felt calm during meditation today.",
             is_core=False,
             metadata={"insight": "Calm meditation", "summary": "User finding calm in practice."},
@@ -78,7 +78,7 @@ def test_pgrst204_retry_drops_summary_too():
     svc = _build_service_with_supabase(supa)
     _run(
         svc.add_explicit(
-            "user-1",
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
             "content x",
             is_core=False,
             metadata={"insight": "I", "summary": "S", "confidence": 0.5, "decay_score": 1.0},
@@ -101,9 +101,9 @@ def test_forget_all_reflections_deletes_all_user_rows():
     supa.table = MagicMock(return_value=delete_q)
 
     svc = _build_service_with_supabase(supa)
-    n = _run(svc.forget_all_reflections("user-1"))
+    n = _run(svc.forget_all_reflections("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"))
     assert n == 2, n
-    delete_q.eq.assert_any_call("user_id", "user-1")
+    delete_q.eq.assert_any_call("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
 
 
 def test_forget_all_reflections_anonymous_returns_zero():

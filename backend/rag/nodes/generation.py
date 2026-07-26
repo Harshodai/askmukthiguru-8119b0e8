@@ -1295,9 +1295,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     # no change.
     if getattr(settings, "strip_canned_footer", True) and answer:
         try:
-            from services.humanizer import apply_humanizer_to_response
-            _intent = state.get("intent", "general") or "general"
-            answer = apply_humanizer_to_response(answer, intent=_intent)
+            answer = scrub(answer)
         except Exception as _humanizer_err:
             logger.warning("Humanizer skipped (non-fatal): %s", _humanizer_err)
 

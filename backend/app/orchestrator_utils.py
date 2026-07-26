@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from app.config import settings
 from app.language_utils import detect_and_prepare_language_info
 from rag.memory import build_memory_context, normalize_session_id
+from services.user_profile_service import _is_persistable_user_id
 
 if TYPE_CHECKING:
     from app.dependencies import ServiceContainer
@@ -420,7 +421,7 @@ async def prepare_user_memory(
     last_query = chat_history[-1]["content"] if chat_history else ""
     recall_query = user_msg_en or last_query
 
-    if getattr(container, "second_brain", None) is not None:
+    if getattr(container, "second_brain", None) is not None and _is_persistable_user_id(user_id):
         try:
             from services.second_brain.crypto import VaultLockedError
 

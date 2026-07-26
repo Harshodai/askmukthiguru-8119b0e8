@@ -101,11 +101,11 @@ async def test_claim_confidence_extraction_writes_columns():
         {"role": "user", "content": "I feel stressed at work but I meditate daily."},
         {"role": "assistant", "content": "That is a beautiful practice."},
     ]
-    await service.extract_and_write("user123", "session123", messages)
+    await service.extract_and_write("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "session123", messages)
 
     # Claim from claimed_memories written with confidence
     add_explicit_mock.assert_any_call(
-        "user123",
+        "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
         "Seeker practices meditation daily",
         is_core=False,
         source="extracted",
@@ -118,7 +118,7 @@ async def test_claim_confidence_extraction_writes_columns():
     )
     # Claim from episodic memory written with confidence
     add_explicit_mock.assert_any_call(
-        "user123",
+        "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
         "Seeker feels stressed at work",
         is_core=False,
         source="extracted",
@@ -181,7 +181,7 @@ async def test_scored_retrieval_dedupes_by_subject():
 
     with patch.object(settings, "feature_memory_enabled", True):
         memory_context, _ = await prepare_user_memory(
-            container, "user123", [{"role": "user", "content": "Tell me about my practice"}]
+            container, "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", [{"role": "user", "content": "Tell me about my practice"}]
         )
 
     assert "```memory-context" in memory_context

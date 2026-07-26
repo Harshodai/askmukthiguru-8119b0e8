@@ -119,7 +119,7 @@ class UserProfileService:
 
     async def get_or_create_profile(self, user_id: str) -> UserProfile:
         """Get existing profile or create default."""
-        if self._supabase:
+        if self._supabase and _is_persistable_user_id(user_id):
             try:
                 result = await asyncio.to_thread(
                     self._supabase.table("user_profiles")
@@ -166,7 +166,7 @@ class UserProfileService:
         ):
             self._local_cache[profile.user_id] = profile
             return
-        if self._supabase:
+        if self._supabase and _is_persistable_user_id(profile.user_id):
             try:
                 data = asdict(profile)
                 # Convert enums to strings for DB

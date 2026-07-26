@@ -20,16 +20,16 @@ async def test_memory_service_get_core():
     eq_mock.order.return_value = order_mock
 
     # Mock return value
-    mock_data = [{"id": "1", "content": "I am a seeker", "user_id": "user123"}]
+    mock_data = [{"id": "1", "content": "I am a seeker", "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"}]
     execute_mock.data = mock_data
     order_mock.execute.return_value = execute_mock
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.get_core("user123")
+    res = await service.get_core("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
 
     supabase_mock.table.assert_called_with("guru_core_memory")
     table_mock.select.assert_called_with("*")
-    select_mock.eq.assert_called_with("user_id", "user123")
+    select_mock.eq.assert_called_with("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
     assert res == mock_data
 
 @pytest.mark.asyncio
@@ -47,13 +47,13 @@ async def test_memory_service_search_semantic():
     embedding_mock.encode_single_full.return_value = {"dense": [0.1] * 1024}
 
     service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
-    res = await service.search_semantic("user123", "Soul Sync", limit=5, min_similarity=0.6)
+    res = await service.search_semantic("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Soul Sync", limit=5, min_similarity=0.6)
 
     embedding_mock.encode_single_full.assert_called_with("Soul Sync")
     supabase_mock.rpc.assert_called_with(
         "match_user_memories_by_user",
         {
-            "p_user_id": "user123",
+            "p_user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
             "p_query_embedding": [0.1] * 1024,
             # search_semantic over-fetches limit*2 to re-rank with decay
             # (see the "p_k": limit * 2 comment in memory_service.py).
@@ -75,11 +75,11 @@ async def test_memory_service_search_fail_fast_after_repeated_failures():
 
     service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
     for _ in range(3):
-        assert await service.search_semantic("user123", "Soul Sync") == []
+        assert await service.search_semantic("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Soul Sync") == []
 
     assert service._search_disabled is True
     calls_before = supabase_mock.rpc.call_count
-    assert await service.search_semantic("user123", "Soul Sync") == []
+    assert await service.search_semantic("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Soul Sync") == []
     assert supabase_mock.rpc.call_count == calls_before  # no further RPC attempts
 
 @pytest.mark.asyncio
@@ -99,16 +99,16 @@ async def test_memory_service_recent_summaries():
     order_mock.limit.return_value = limit_mock
 
     # Mock return value
-    mock_data = [{"id": "1", "summary": "Great session", "user_id": "user123"}]
+    mock_data = [{"id": "1", "summary": "Great session", "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"}]
     execute_mock.data = mock_data
     limit_mock.execute.return_value = execute_mock
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.recent_summaries("user123", limit=3)
+    res = await service.recent_summaries("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", limit=3)
 
     supabase_mock.table.assert_called_with("guru_session_summaries")
     table_mock.select.assert_called_with("*")
-    select_mock.eq.assert_called_with("user_id", "user123")
+    select_mock.eq.assert_called_with("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
     eq_mock.order.assert_called_with("created_at", desc=True)
     order_mock.limit.assert_called_with(3)
     assert res == mock_data
@@ -122,15 +122,15 @@ async def test_memory_service_add_explicit_core():
 
     supabase_mock.table.return_value = table_mock
     table_mock.insert.return_value = insert_mock
-    mock_data = [{"id": "1", "content": "Seeking peace", "user_id": "user123"}]
+    mock_data = [{"id": "1", "content": "Seeking peace", "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"}]
     execute_mock.data = mock_data
     insert_mock.execute.return_value = execute_mock
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.add_explicit("user123", "Seeking peace", is_core=True)
+    res = await service.add_explicit("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Seeking peace", is_core=True)
 
     supabase_mock.table.assert_called_with("guru_core_memory")
-    table_mock.insert.assert_called_with({"user_id": "user123", "content": "Seeking peace"})
+    table_mock.insert.assert_called_with({"user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "content": "Seeking peace"})
     assert res == mock_data[0]
 
 @pytest.mark.asyncio
@@ -142,7 +142,7 @@ async def test_memory_service_add_explicit_episodic():
 
     supabase_mock.table.return_value = table_mock
     table_mock.insert.return_value = insert_mock
-    mock_data = [{"id": "1", "content": "Felt connected", "user_id": "user123"}]
+    mock_data = [{"id": "1", "content": "Felt connected", "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6"}]
     execute_mock.data = mock_data
     insert_mock.execute.return_value = execute_mock
 
@@ -150,11 +150,11 @@ async def test_memory_service_add_explicit_episodic():
     embedding_mock.encode_single_full.return_value = {"dense": [0.2] * 1024}
 
     service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
-    res = await service.add_explicit("user123", "Felt connected", is_core=False)
+    res = await service.add_explicit("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Felt connected", is_core=False)
 
     supabase_mock.table.assert_called_with("guru_memories")
     table_mock.insert.assert_called_with({
-        "user_id": "user123",
+        "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
         "content": "Felt connected",
         "embedding": [0.2] * 1024,
         "source": "explicit"
@@ -178,7 +178,7 @@ async def test_memory_service_forget():
     eq_mock2.execute.return_value = execute_mock
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.forget("user123", "memory123")
+    res = await service.forget("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "memory123")
 
     assert res is True
     supabase_mock.table.assert_any_call("guru_core_memory")
@@ -227,12 +227,12 @@ async def test_memory_service_extract_and_write(monkeypatch):
         {"role": "assistant", "content": "Hello beloved seeker."}
     ]
 
-    await service.extract_and_write("user123", "session123", messages)
+    await service.extract_and_write("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "session123", messages)
 
     # Verify calls
-    add_explicit_mock.assert_any_call("user123", "User name is Harshodai", is_core=True)
+    add_explicit_mock.assert_any_call("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "User name is Harshodai", is_core=True)
     add_explicit_mock.assert_any_call(
-        "user123",
+        "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
         "User is feeling anxious",
         is_core=False,
         source="extracted",
@@ -247,7 +247,7 @@ async def test_memory_service_extract_and_write(monkeypatch):
     supabase_mock.table.assert_called_with("guru_session_summaries")
     table_mock.upsert.assert_called_with(
         {
-            "user_id": "user123",
+            "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
             "session_id": "session123",
             "summary": "User discussed anxiety and is a seeker."
         },
@@ -285,13 +285,13 @@ async def test_memory_service_list_memories():
     range_mock.execute.return_value = execute_mock2
 
     service = MemoryService(supabase_client=supabase_mock)
-    res = await service.list_memories("user123", page=2, page_size=10)
+    res = await service.list_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", page=2, page_size=10)
 
     assert res["total"] == 42
     assert res["memories"] == mock_memories
     
-    select_mock1.eq.assert_called_with("user_id", "user123")
-    select_mock2.eq.assert_called_with("user_id", "user123")
+    select_mock1.eq.assert_called_with("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
+    select_mock2.eq.assert_called_with("user_id", "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
     order_mock.range.assert_called_with(10, 19)
 
 
@@ -355,7 +355,7 @@ async def test_memory_service_compaction(monkeypatch):
     monkeypatch.setattr(openai, "AsyncOpenAI", MockAsyncOpenAI)
     
     service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
-    await service.compact_memories("user123")
+    await service.compact_memories("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6")
     
     # Verify interactions
     table_mock.select.assert_called_with("id, content, source, claim, confidence, summary")
@@ -363,14 +363,14 @@ async def test_memory_service_compaction(monkeypatch):
     table_mock.delete.assert_called()
     table_mock.insert.assert_called_with([
         {
-            "user_id": "user123",
+            "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
             "content": "Compacted Memory A",
             "embedding": [0.1] * 1024,
             "source": "extracted",
             "confidence": 0.75,
         },
         {
-            "user_id": "user123",
+            "user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
             "content": "Compacted Memory B",
             "embedding": [0.1] * 1024,
             "source": "extracted",
@@ -404,12 +404,12 @@ async def test_memory_service_add_explicit_episodic_merge():
     embedding_mock.encode_single_full.return_value = {"dense": [0.2] * 1024}
 
     service = MemoryService(supabase_client=supabase_mock, embedding_service=embedding_mock)
-    res = await service.add_explicit("user123", "Felt very connected", is_core=False)
+    res = await service.add_explicit("a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", "Felt very connected", is_core=False)
 
     supabase_mock.rpc.assert_called_with(
         "match_user_memories_by_user",
         {
-            "p_user_id": "user123",
+            "p_user_id": "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
             "p_query_embedding": [0.2] * 1024,
             "p_k": 1,
             "p_min_sim": 0.88,

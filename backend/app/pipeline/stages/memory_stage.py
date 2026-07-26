@@ -16,6 +16,7 @@ from app.config import settings
 
 from app.pipeline.stages.base import Stage
 from app.pipeline.result import PipelineResult  # noqa: F401
+from services.user_profile_service import _is_persistable_user_id
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
@@ -42,7 +43,7 @@ class MemoryStage(Stage):
         distress_level = ctx.assessment.level.value if ctx.assessment else 0
 
         second_brain = getattr(container, "second_brain", None)
-        if second_brain is not None and user_id and user_id != "anonymous":
+        if second_brain is not None and _is_persistable_user_id(user_id):
 
             async def _second_brain_extract():
                 from services.second_brain.crypto import VaultLockedError
