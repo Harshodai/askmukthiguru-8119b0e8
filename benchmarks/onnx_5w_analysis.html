@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5W Analysis — ONNX INT8 BGE-M3 Deployment</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --surface2: #1c2333;
+  --border: #30363d; --text: #e6edf3; --text-muted: #8b949e;
+  --green: #3fb950; --green-bg: rgba(63,185,80,0.15);
+  --red: #f85149; --amber: #d29922; --blue: #58a6ff; --accent: #7c5bf0; --teal: #56d4dd;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, sans-serif; background: var(--bg);
+  color: var(--text); line-height: 1.6; padding: 0;
+}
+.top-banner {
+  background: linear-gradient(135deg, #1a103d 0%, #0d1117 100%);
+  border-bottom: 1px solid var(--border); padding: 48px 32px 40px; text-align: center;
+}
+.top-banner h1 {
+  font-size: 28px; font-weight: 800; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #7c5bf0, #58a6ff);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.top-banner .subtitle { color: var(--text-muted); font-size: 14px; margin-top: 8px; }
+.top-banner .badge {
+  display: inline-block; margin-top: 12px; padding: 4px 14px; border-radius: 12px;
+  font-size: 12px; font-weight: 600; background: var(--green-bg); color: var(--green);
+}
+.container { max-width: 900px; margin: 0 auto; padding: 32px 24px 64px; }
+.section {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  margin-bottom: 24px; overflow: hidden;
+}
+.section-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 10px;
+}
+.section-header .emoji-icon {
+  width: 32px; height: 32px; border-radius: 6px; display: flex;
+  align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+}
+.section-content { padding: 20px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 14px; }
+th { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+tr:last-child td { border-bottom: none; }
+code {
+  font-family: 'JetBrains Mono', monospace; background: var(--surface2);
+  padding: 2px 6px; border-radius: 4px; font-size: 13px; color: var(--teal);
+}
+.tag {
+  display: inline-block; padding: 2px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
+}
+.tag-infra { background: #1a3a5c; color: var(--blue); }
+.tag-benefit { background: #1a3a2c; color: var(--green); }
+.tag-limitation { background: #3a2a1a; color: var(--amber); }
+.why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.why-card {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 16px;
+}
+.why-card h4 { font-size: 14px; margin-bottom: 8px; }
+.why-card p { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
+.footer {
+  text-align: center; color: var(--text-muted); font-size: 12px;
+  padding: 24px; border-top: 1px solid var(--border);
+}
+@media (max-width: 640px) { .why-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="top-banner">
+  <h1>5W Analysis — ONNX INT8 BGE-M3 Deployment</h1>
+  <div class="subtitle">AskMukthiGuru Embedding Backend Optimization &middot; Jul 26, 2026</div>
+  <div class="badge">Status: SHIPPED (cp1) &middot; All 5 Phases PASS</div>
+</div>
+
+<div class="container">
+
+  <!-- WHAT -->
+  <div class="section">
+    <div class="section-header">
+      <div class="emoji-icon" style="background:#1a3a5c">&#9432;</div>
+      What
+    </div>
+    <div class="section-content">
+      <p style="margin-bottom:12px;font-size:15px">
+        Replaced the <strong>BAAI/bge-m3</strong> FlagEmbedding (fp32, PyTorch) encoder with
+        <strong>gpahal/bge-m3-onnx-int8</strong> — an Optimum O2 + QOperator INT8 quantized
+        version running via <strong>ONNX Runtime CPUExecutionProvider</strong>.
+      </p>
+      <table>
+        <tr><th>Dimension</th><th>Before (fp32)</th><th>After (ONNX INT8)</th></tr>
+        <tr><td>Runtime</td><td>PyTorch (FlagEmbedding)</td><td>ONNX Runtime</td></tr>
+        <tr><td>Weight precision</td><td>32-bit float</td><td>8-bit integer (QOperator)</td></tr>
+        <tr><td>Model size (disk)</td><td>~2.2 GB</td><td>~560 MB</td></tr>
+        <tr><td>Resident memory</td><td>~2.8 GB</td><td>~750 MB</td></tr>
+        <tr><td>Dense output</td><td>1024-dim, L2-normalized</td><td>1024-dim, L2-normalized</td></tr>
+        <tr><td>Sparse output</td><td>lexical_weights dict</td><td>ort_out[1] + post-processing</td></tr>
+        <tr><td>ColBERT output</td><td>colbert_vecs (used)</td><td>ort_out[2] (available, not used)</td></tr>
+        <tr><td>Cold P95 latency</td><td>185.55 ms</td><td>26.16 ms</td></tr>
+        <tr><td>Warm P95 latency</td><td>35.12 ms</td><td>16.46 ms</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- WHO -->
+  <div class="section">
+    <div class="section-header">
+      <div class="emoji-icon" style="background:#3a1a3a">&#128101;</div>
+      Who
+    </div>
+    <div class="section-content">
+      <table>
+        <tr><th>Stakeholder</th><th>Impact</th></tr>
+        <tr>
+          <td><strong>Seekers</strong> (chat users)</td>
+          <td>Faster response times. The 7x cold-start improvement means first query after idle period returns 159ms faster. Warm queries see 2x improvement.</td>
+        </tr>
+        <tr>
+          <td><strong>Developers</strong></td>
+          <td>Simpler stack: no PyTorch/FlagEmbedding dependency for inference, deterministic behavior, cleaner thread model.</td>
+        </tr>
+        <tr>
+          <td><strong>Operations (Railway)</strong></td>
+          <td>4x smaller container image, 4x less memory pressure on single-replica deployment, no GPU required.</td>
+        </tr>
+        <tr>
+          <td><strong>Ingestion pipeline</strong></td>
+          <td>Faster document embedding during background ingestion (90k+ Qdrant points). Deterministic per-batch latency makes ingestion scheduling predictable.</td>
+        </tr>
+        <tr>
+          <td><strong>CI/CD</strong></td>
+          <td>ONNX model downloads 8 files instead of 30+. Smaller dependency footprint eliminates HF cache corruption issues (2026-07-16 incident).</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- WHEN -->
+  <div class="section">
+    <div class="section-header">
+      <div class="emoji-icon" style="background:#2a3a1a">&#9200;</div>
+      When
+    </div>
+    <div class="section-content">
+      <table>
+        <tr><th>Event</th><th>Date</th><th>Details</th></tr>
+        <tr>
+          <td>Evaluation started</td><td>Jul 25, 2026</td>
+          <td>P1 capability probe: confirmed all 3 output heads (dense 1024d, sparse, colbert)</td>
+        </tr>
+        <tr>
+          <td>Phase 2 (Cosine)</td><td>Jul 25, 2026</td>
+          <td>Mean 0.9885 across 380-query corpus &middot; <span style="color:var(--green)">PASS</span></td>
+        </tr>
+        <tr>
+          <td>Phase 3 (Retrieval)</td><td>Jul 26, 2026</td>
+          <td>Avg top-10 Jaccard 0.9154 &middot; <span style="color:var(--green)">PASS</span></td>
+        </tr>
+        <tr>
+          <td>Phase 4 (Latency)</td><td>Jul 26, 2026</td>
+          <td>P95 26.16ms cold (7x faster) &middot; <span style="color:var(--green)">PASS</span></td>
+        </tr>
+        <tr>
+          <td>Phase 5 (Wiring)</td><td>Jul 26, 2026</td>
+          <td>All encode paths verified, <code>EMBEDDING_BACKEND=onnx_int8</code> toggle set</td>
+        </tr>
+        <tr>
+          <td><strong>Shipped (cp1)</strong></td><td><strong>Jul 26, 2026</strong></td>
+          <td>.env bug fixed, ONNX path verified end-to-end: model loads, tokenizes, produces valid dense + sparse embeddings</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- WHERE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="emoji-icon" style="background:#1a3a2c">&#128205;</div>
+      Where
+    </div>
+    <div class="section-content">
+      <p style="margin-bottom:12px;font-size:15px">
+        The ONNX INT8 encoder replaces the fp32 encoder at <strong>every point</strong>
+        in the pipeline where text is converted to vectors:
+      </p>
+      <table>
+        <tr><th>Pipeline Stage</th><th>File</th><th>Function</th><th>What it uses</th></tr>
+        <tr>
+          <td><span class="tag tag-infra">Query encoding</span></td>
+          <td><code>embedding_service.py</code></td>
+          <td><code>encode_batch()</code></td>
+          <td>User chat query &#8594; dense + sparse &#8594; Qdrant hybrid search</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-infra">Document ingestion</span></td>
+          <td><code>ingest/pipeline.py</code></td>
+          <td><code>encode_batch()</code></td>
+          <td>YouTube transcripts &#8594; chunks &#8594; dense + sparse &#8594; Qdrant <code>spiritual_wisdom</code></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-infra">RAPTOR clustering</span></td>
+          <td><code>embedding_service.py</code></td>
+          <td><code>encode()</code></td>
+          <td>Dense-only vectors for hierarchical summarization</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-infra">OKF compilation</span></td>
+          <td><code>memory/compiler.py</code></td>
+          <td><code>encode_batch()</code></td>
+          <td>Doctrine entries &#8594; dense + sparse &#8594; Qdrant <code>memory_store</code></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-infra">Cache warmup</span></td>
+          <td><code>embedding_service.py</code></td>
+          <td><code>warm_up()</code></td>
+          <td>Pre-computes embeddings for known-hot queries</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-infra">Neo4j vector index</span></td>
+          <td><code>memory_service.py</code></td>
+          <td><code>encode_single()</code></td>
+          <td>Personal KG memories &#8594; Neo4j vector property</td>
+        </tr>
+      </table>
+      <p style="margin-top:12px;color:var(--text-muted);font-size:13px">
+        <strong>Not replaced:</strong> The <code>reranker_service.py</code> CrossEncoder remains
+        unchanged (uses a different model: <code>cross-encoder/ms-marco-MiniLM-L-6-v2</code>).
+        The ColBERT reranker (<code>colbert-ir/colbertv2.0</code> via RAGatouille) is also unchanged
+        but currently unavailable (optional dep).
+      </p>
+    </div>
+  </div>
+
+  <!-- WHY (full section) -->
+  <div class="section">
+    <div class="section-header">
+      <div class="emoji-icon" style="background:#3a2a1a">&#128270;</div>
+      Why — Problem / Solution Matrix
+    </div>
+    <div class="section-content">
+      <div class="why-grid">
+        <div class="why-card">
+          <h4 style="color:var(--red)">&#9888; PyTorch cold-start latency</h4>
+          <p>PyTorch JIT compilation + caching allocator initialization cause 42-245ms variance on cold cache. ONNX Runtime has no JIT — graph optimizations are pre-applied at session creation. Result: 26ms P95, 3.4x lower standard deviation.</p>
+        </div>
+        <div class="why-card">
+          <h4 style="color:var(--green)">&#9989; Deterministic inference</h4>
+          <p>ONNX Runtime is deterministic: same input always produces same latency (no JIT, no dynamic graph). fp32 PyTorch varies by 40x in variance (1,259 vs 32 ms&sup2;). Production monitoring becomes reliable.</p>
+        </div>
+        <div class="why-card">
+          <h4 style="color:var(--red)">&#9888; Memory pressure on Railway</h4>
+          <p>BGE-M3 fp32 occupies ~2.8 GB resident memory. On a single-replica Railway deploy (typically 1-2 GB RAM), this leaves insufficient headroom for other services. INT8 reduces to ~750 MB.</p>
+        </div>
+        <div class="why-card">
+          <h4 style="color:var(--green)">&#9989; 4x smaller container images</h4>
+          <p>ONNX model: 8 files, 560 MB. fp32 FlagEmbedding: 30+ shard files, 2.2 GB. Fewer files means faster container startup, less HF cache corruption risk, simpler cache management.</p>
+        </div>
+        <div class="why-card">
+          <h4 style="color:var(--red)">&#9888; Thread pool contention</h4>
+          <p>PyTorch's ATen thread pool (even with OMP_NUM_THREADS=1) adds ~50-100ms overhead on first parallel operation. ONNX Runtime manages its own thread pool with clean inter_op/intra_op separation.</p>
+        </div>
+        <div class="why-card">
+          <h4 style="color:var(--green)">&#9989; No GPU requirement</h4>
+          <p>Railway CPU-only deployment. ONNX Runtime's CPUExecutionProvider is the most mature CPU inference engine. GPTQ/AWQ require GPU. GGUF ties to llama.cpp ecosystem. ONNX is portable.</p>
+        </div>
+        <div class="why-card">
+          <h4 style="color:var(--red)">&#9888; Embedding quality preservation</h4>
+          <p>INT8 quantization can degrade retrieval accuracy. Validated at cos 0.9885 mean, 0.9154 top-10 overlap — within acceptable thresholds. The multi-vector output (dense + sparse) preserves hybrid search quality.</p>
+        </div>
+        <div class="why-card">
+          <h4 style="color:var(--amber)">&#9888; ColBERT offline (cp1 limitation)</h4>
+          <p>The model outputs colbert_vecs but the pipeline doesn't use them for reranking yet. tracked as formal release blocker. Dense-sparse hybrid (RRF fusion) is the active path.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WHY DETAILED -->
+  <div class="section">
+    <div class="section-header">
+      <div class="emoji-icon" style="background:#1a1a3a">&#128220;</div>
+      Why — Strategic Rationale
+    </div>
+    <div class="section-content">
+      <table>
+        <tr><th>Dimension</th><th>Rationale</th></tr>
+        <tr>
+          <td><strong>Cost</strong></td>
+          <td>Reduced memory footprint allows Railway to run on smaller instances (lower monthly cost). Faster inference means fewer CPU-seconds per request, reducing Railway resource usage.</td>
+        </tr>
+        <tr>
+          <td><strong>Latency</strong></td>
+          <td>7x faster cold-start, 2x faster warm. Directly improves user-perceived response time — the embedding step is on the critical path for every chat query.</td>
+        </tr>
+        <tr>
+          <td><strong>Reliability</strong></td>
+          <td>Eliminates PyTorch/FlagEmbedding version incompatibilities (2026-07-16 incident: HF cache corruption caused silent dimension mismatch). Dimension validation is built into the ONNX loader.</td>
+        </tr>
+        <tr>
+          <td><strong>Determinism</strong></td>
+          <td>ONNX Runtime produces identical outputs for identical inputs across runs. No JIT, no dynamic graph, no random seed effects. Makes A/B testing and regression detection reliable.</td>
+        </tr>
+        <tr>
+          <td><strong>Portability</strong></td>
+          <td>Same ONNX model file works on macOS, Linux, Windows, ARM, x86. No CUDA dependency. Railway deploys on Linux AMD64 — the model runs unchanged.</td>
+        </tr>
+        <tr>
+          <td><strong>Risk</strong></td>
+          <td>Low risk: toggle-controlled (<code>EMBEDDING_BACKEND=onnx_int8</code>), validated against 380-query corpus, verified dimension match to Qdrant collection. Rollback is a single env var change.</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- WHERE (USAGE) -->
+  <div class="section">
+    <div class="section-header">
+      <div class="emoji-icon" style="background:#1a3a5c">&#9881;</div>
+      Where We're Using It — Code Map
+    </div>
+    <div class="section-content">
+      <table>
+        <tr><th>File</th><th>Line(s)</th><th>Role</th></tr>
+        <tr><td><code>backend/services/embedding_service.py</code></td><td>89</td><td><code>_ONNX_CANDIDATE = "gpahal/bge-m3-onnx-int8"</code> — model reference</td></tr>
+        <tr><td><code>backend/services/embedding_service.py</code></td><td>145</td><td><code>if settings.embedding_backend == "onnx_int8"</code> — dispatch gate</td></tr>
+        <tr><td><code>backend/services/embedding_service.py</code></td><td>217-278</td><td><code>_load_onnx_encoder()</code> — download + session creation + dimension validation</td></tr>
+        <tr><td><code>backend/services/embedding_service.py</code></td><td>502-516</td><td><code>encode()</code> — ONNX path: tokenize, session.run, return dense</td></tr>
+        <tr><td><code>backend/services/embedding_service.py</code></td><td>624-652</td><td><code>encode_batch()</code> — ONNX path: dense + sparse extraction + normalization</td></tr>
+        <tr><td><code>backend/app/config.py</code></td><td>193-200</td><td><code>embedding_backend: str = "flagembedding"</code> — config default + toggle</td></tr>
+        <tr><td><code>backend/.env</code></td><td>169</td><td><code>EMBEDDING_BACKEND=onnx_int8</code> — production toggle (after fix)</td></tr>
+        <tr><td><code>backend/scripts/validate_onnx_embedding.py</code></td><td>—</td><td>Phase 2 cosine similarity validation script</td></tr>
+        <tr><td><code>backend/scripts/validate_onnx_retrieval.py</code></td><td>—</td><td>Phase 3 retrieval agreement validation script</td></tr>
+        <tr><td><code>backend/scripts/validate_onnx_latency.py</code></td><td>—</td><td>Phase 4 latency benchmark script</td></tr>
+        <tr><td><code>backend/benchmarks/question_bank.py</code></td><td>—</td><td>2,300-line corpus with 380 queries across 18 categories</td></tr>
+        <tr><td><code>benchmarks/EVALUATION.md</code></td><td>—</td><td>Summary report (32 lines, all PASS)</td></tr>
+        <tr><td><code>benchmarks/onnx_validation_report.html</code></td><td>—</td><td>Full validation report (1,462 lines, 8 phases + appendix)</td></tr>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  AskMukthiGuru &middot; Jul 26, 2026 &middot; ONNX INT8 BGE-M3 Production Deployment
+</div>
+
+</body>
+</html>

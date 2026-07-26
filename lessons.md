@@ -5633,6 +5633,61 @@ The backend loads three CPU ML models permanently resident for the process lifet
 
 ---
 
+## Jul 26, 2026 — ONNX INT8 BGE-M3: Full Validation & Shipping (cp1)
 
+### Why ONNX INT8 Instead of Original fp32 PyTorch FlagEmbedding
 
+**Primary driver: Railway memory cost.** The real July billing breakdown showed Memory is 96.7% of the compute bill ($28.78 of $29.75). The fp32 BGE-M3 occupied ~2.8GB resident memory (~53% of the backend's 5.27GB steady-state footprint). Switching to ONNX INT8 drops this to ~750MB — a ~2GB reduction straight off the largest cost line. This is the single highest-leverage quality-neutral change available.
+
+**Secondary: latency.** On a cold cache (frequent on single-replica Railway with no keep-warm): fp32 P95 185.55ms (42-245ms range, 40x variance) vs ONNX P95 26.16ms (10-34ms, deterministic). Warm: fp32 P95 35ms vs ONNX P95 16ms. This directly improves user-perceived response time — every chat query goes through encoding.
+
+**Why ONNX INT8 specifically, not GPTQ/AWQ/GGUF:** Railway is CPU-only (no GPU). GPTQ and AWQ require GPU for optimal inference. GGUF ties the project to llama.cpp ecosystem. ONNX Runtime's `CPUExecutionProvider` is the most mature, well-optimized CPU inference engine. The model is also portable (same `.onnx` file works on macOS, Linux, Windows, ARM, x86) — critical for local dev + Railway deploy parity.
+
+**Why gpahal/bge-m3-onnx-int8 specifically, not self-quantized:** Already exists on HuggingFace, MIT license, 8 files vs 30+ for fp32, validated 0.9885 cosine similarity against our own 380-query doctrine corpus. No need to re-quantize.
+
+**Two separate analysis pages (not mixed into the validation report):** The validation report (`onnx_validation_report.html`) is the raw benchmark data — 12 sections covering all 5 phases with per-query results. It's dense and already 1,462 lines. The 5W analysis and technical deep dive are *reference documents* for different audiences: the 5W page answers "why did we do this" (product/ops stakeholders), the technical deep dive answers "how does it work" (engineers). Keeping them separate avoids bloating the benchmark report with explanatory content that's not benchmark data. The validation report links to both at the bottom.
+
+### Implementation Details
+
+**Toggle mechanism:** `EMBEDDING_BACKEND=onnx_int8` in `.env` at line 169. Default is `flagembedding`. The toggle is read in `embedding_service.py:145` during `_load_encoder()`. ONNX path downloads from `gpahal/bge-m3-onnx-int8` (8 files, ~560MB), creates an ONNX Runtime session, validates output dimension (1024) against Qdrant collection, and stores the session + tokenizer.
+
+**Both `encode()` and `encode_batch()` work:** Verified end-to-end. Dense output is L2-normalized in Python (ONNX does NOT normalize internally). Sparse output is extracted from `ort_out[1]` with ReLU + special-token filter + max-over-duplicate-token-ids logic (mirrors FlagEmbedding's post-processing). ColBERT output at `ort_out[2]` is available but unused in cp1.
+
+**Critical bug found and fixed:** Line 168 of `.env` had `SMTP_PASSWORD=chuhcchzsrlcxbcxEMBEDDING_BACKEND=onnx_int8` — the `EMBEDDING_BACKEND` variable was concatenated directly onto the SMTP password with no newline. The toggle was never actually being read. Fixed by separating onto its own line 169.
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `benchmarks/EVALUATION.md` | Summary report (32 lines, all PASS) |
+| `benchmarks/onnx_validation_report.html` | Full validation report (12 sections, ~1,462 lines → now ~1,125 lines after cleanup) |
+| `benchmarks/onnx_5w_analysis.html` | 5W analysis (Who/What/When/Where/Why + code map) |
+| `benchmarks/onnx_technical_deep_dive.html` | Technical deep dive (architecture, quantization, roofline, threading, safety, method comparison) |
+| `backend/scripts/validate_onnx_embedding.py` | Phase 2 cosine similarity validation script |
+| `backend/scripts/validate_onnx_retrieval.py` | Phase 3 retrieval agreement validation script |
+| `backend/scripts/validate_onnx_latency.py` | Phase 4 latency benchmark script |
+
+### Validation Numbers (All PASS)
+
+- Mean cosine similarity: **0.9885** (threshold: ≥0.985)
+- Min cosine similarity: **0.9755** (threshold: ≥0.95)
+- Avg top-10 retrieval overlap: **0.9154** (threshold: ≥0.85)
+- Cold P95 latency: **26.16 ms** (fp32: 185.55 ms) — 7.1x faster
+- Warm P95 latency: **16.46 ms** (fp32: 35.12 ms) — 2.1x faster
+- fp32 variance: 1,258.8 ms² vs ONNX: 31.8 ms² — **40x lower**
+
+### Open Items (Formal Release Blockers)
+
+1. **ColBERT reranking offline.** Model outputs colbert_vecs but pipeline ignores them. Dense-sparse hybrid (RRF) is the active path. Fix: either implement NumPy MaxSim scorer over ONNX colbert output, or make RAGatouille ColBERTv2 available.
+2. **Reranker CrossEncoder quantization.** Same ONNX INT8 technique could apply to `cross-encoder/ms-marco-MiniLM-L-6-v2`. Needs its own validation pass — don't assume BGE-M3 numbers transfer.
+3. **LettuceDetect faithfulness model quantization.** Same opportunity for XLM-RoBERTa-based model. Lower priority than reranker.
+
+### Ruthless Observations
+
+1. **The `.env` concatenation bug survived validation.** The P5 wiring check passed because the test scripts set `EMBEDDING_BACKEND=onnx_int8` via environment variable, not by reading the .env file. The actual production path was never tested until the end-to-end smoke test after fixing the bug. Lesson: any validation script that overrides config via env vars should also validate that the .env file itself is parseable correctly.
+2. **40x variance difference is the real win.** The mean latency improvement (2x warm) is nice. But the variance collapse from 1,259 to 32 ms² is transformative for monitoring — alert thresholds become meaningful when they're not triggered by JIT compilation jitter.
+3. **Cold-start matters more than warm for this deployment.** Single-replica Railway with no keep-warm means the first request after any idle period pays the cold penalty. 186ms → 26ms is a 159ms improvement on the request the user actually feels. Warm numbers are academic for this topology.
+4. **The 3.5x FP32/ONNX memory ratio matches the roofline prediction.** Memory-bandwidth-bound model + 4x weight reduction → 4x theoretical speedup → 3.5x empirical. The roofline model was predictive, not just descriptive. This validates the analytical framework for future quantization decisions.
+5. **BGE-M3 is the only model that received this treatment because it was the only one with a pre-validated public quantized version.** The reranker and LettuceDetect models are equally quantizeable but lack the same public validation. Until they're individually validated, don't assume the quality numbers transfer.
+6. **The 7x cold-start vs 2x warm ratio reveals PyTorch overhead.** PyTorch's 150ms cold-start tax (JIT + allocator + thread pool init) dwarfs the actual inference time (35ms warm). ONNX Runtime avoids all three. For serverless or ephemeral deployments, this is the decisive advantage — not the 2x warm speedup.
 

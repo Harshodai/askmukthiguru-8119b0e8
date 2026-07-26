@@ -27,6 +27,7 @@ import json
 import logging
 import os
 import time
+from pathlib import Path
 from typing import Optional
 
 # Silence Hugging Face tokenizer advisory warnings in logs
@@ -85,6 +86,8 @@ class EmbeddingService:
     true hybrid search across 100+ languages.
     """
 
+    _ONNX_CANDIDATE = "gpahal/bge-m3-onnx-int8"
+
     def __init__(self) -> None:
         """Initialize with None models — will be loaded on first use or warm_up()."""
         import threading
@@ -92,6 +95,8 @@ class EmbeddingService:
         self._encoder = None
         self._reranker = None
         self._colbert = None
+        self._onnx_session = None
+        self._onnx_tokenizer = None
         self._lock = threading.Lock()
         self._inference_lock = threading.RLock()
         # REQUIRED for multilingual-e5-large-instruct
@@ -136,6 +141,11 @@ class EmbeddingService:
         """Helper to load a specific encoder model into memory."""
         # Bound HF download concurrency before any model load.
         _apply_hf_env_bounds()
+
+        if settings.embedding_backend == "onnx_int8":
+            self._load_onnx_encoder(model_name)
+            return
+
         is_bge_m3 = (model_name == "BAAI/bge-m3")
         if is_bge_m3:
             # Apply monkeypatch to fix transformers/FlagEmbedding dtype incompatibility
@@ -203,6 +213,69 @@ class EmbeddingService:
                 device=device,
                 model_kwargs={"low_cpu_mem_usage": True},
             )
+
+    def _load_onnx_encoder(self, model_name: str) -> None:
+        """Load the ONNX INT8 quantized BGE-M3 encoder.
+
+        Downloads from HuggingFace Hub into the runtime cache and loads via
+        onnxruntime (CPU-only). Validates output dimension against the configured
+        Qdrant collection dimension — raises loud on mismatch, never silent.
+        """
+        import os
+        import tempfile
+
+        from huggingface_hub import snapshot_download
+
+        import onnxruntime as ort
+        from transformers import AutoTokenizer
+
+        onnx_model_id = self._ONNX_CANDIDATE
+        scratch = Path(tempfile.mkdtemp(prefix="onnx_encoder_"))
+        try:
+            local_path = snapshot_download(
+                repo_id=onnx_model_id,
+                local_dir=str(scratch),
+                local_dir_use_symlinks=False,
+                resume_download=True,
+                ignore_patterns=["*.md", "*.py", "requirements.txt"],
+            )
+            model_file = os.path.join(local_path, "model_quantized.onnx")
+            if not os.path.exists(model_file):
+                raise FileNotFoundError(
+                    f"ONNX model file not found at {model_file} for '{onnx_model_id}'"
+                )
+
+            session = ort.InferenceSession(
+                model_file, providers=["CPUExecutionProvider"],
+            )
+
+            # Validate output dimension (fail-loud discipline, ref 2026-07-16 incident)
+            outputs = session.get_outputs()
+            dense_output = next((o for o in outputs if "dense" in o.name.lower()), outputs[0])
+            output_dim = dense_output.shape[1]
+            required_dim = settings.embedding_dimension
+            if output_dim != required_dim:
+                raise ValueError(
+                    f"ONNX model '{onnx_model_id}' outputs {output_dim}-dim dense vectors, "
+                    f"but Qdrant collection requires {required_dim}-dim. "
+                    f"This would cause silent retrieval degradation — refusing to load."
+                )
+
+            self._onnx_session = session
+            self._onnx_tokenizer = AutoTokenizer.from_pretrained(
+                "BAAI/bge-m3",
+                model_max_length=8192,
+            )
+            logger.info(
+                f"Loaded ONNX INT8 encoder: {onnx_model_id} "
+                f"(dims={output_dim}, outputs={len(outputs)}: "
+                f"{[o.name for o in outputs]})"
+            )
+        except Exception:
+            # Clean up scratch on failure
+            import shutil
+            shutil.rmtree(scratch, ignore_errors=True)
+            raise
 
     def _ensure_encoder(self) -> None:
         """Lazy-load the encoder model with multi-tier fallback support."""
@@ -426,31 +499,42 @@ class EmbeddingService:
         start_time = time.monotonic()
         with self._inference_lock:
             self._ensure_encoder()
-            is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
+            use_onnx = self._onnx_session is not None
 
             max_retries = 3
             last_err = None
             for attempt in range(1, max_retries + 1):
                 try:
-                    import torch
-                    with torch.inference_mode():
-                        if is_bge_m3:
-                            output = self._encoder.encode(
-                                texts,
-                                return_dense=True,
-                                return_sparse=False,
-                                return_colbert_vecs=False,
-                            )
-                            result = output["dense_vecs"].tolist()
-                        else:
-                            output = self._encoder.encode(
-                                texts,
-                                normalize_embeddings=True,
-                            )
-                            if isinstance(output, list):
-                                result = output
+                    if use_onnx:
+                        inputs = self._onnx_tokenizer(
+                            texts, padding=True, truncation=True, return_tensors="np",
+                        )
+                        ort_out = self._onnx_session.run(None, {
+                            "input_ids": inputs["input_ids"].astype("int64"),
+                            "attention_mask": inputs["attention_mask"].astype("int64"),
+                        })
+                        result = ort_out[0].tolist()
+                    else:
+                        import torch
+                        with torch.inference_mode():
+                            is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
+                            if is_bge_m3:
+                                output = self._encoder.encode(
+                                    texts,
+                                    return_dense=True,
+                                    return_sparse=False,
+                                    return_colbert_vecs=False,
+                                )
+                                result = output["dense_vecs"].tolist()
                             else:
-                                result = output.tolist()
+                                output = self._encoder.encode(
+                                    texts,
+                                    normalize_embeddings=True,
+                                )
+                                if isinstance(output, list):
+                                    result = output
+                                else:
+                                    result = output.tolist()
                     EMBEDDING_LATENCY.labels(operation="encode").observe(
                         time.monotonic() - start_time
                     )
@@ -531,45 +615,76 @@ class EmbeddingService:
         start_time = time.monotonic()
         with self._inference_lock:
             self._ensure_encoder()
-            is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
+            use_onnx = self._onnx_session is not None
 
             max_retries = 3
             last_err = None
             for attempt in range(1, max_retries + 1):
                 try:
-                    import torch
-                    with torch.inference_mode():
-                        if is_bge_m3:
-                            output = self._encoder.encode(
-                                uncached_prefixed_texts,
-                                return_dense=True,
-                                return_sparse=True,
-                                return_colbert_vecs=False,
-                            )
-                            dense_vecs = output["dense_vecs"].tolist()
-                            sparse_weights = output["lexical_weights"]
-                        else:
-                            # E5 models: explicitly disable sparse/ColBERT to avoid
-                            # random-weight projection head initialization warning
-                            try:
+                    if use_onnx:
+                        from collections import defaultdict
+                        inputs = self._onnx_tokenizer(
+                            uncached_prefixed_texts, padding=True, truncation=True,
+                            return_tensors="np",
+                        )
+                        ort_out = self._onnx_session.run(None, {
+                            "input_ids": inputs["input_ids"].astype("int64"),
+                            "attention_mask": inputs["attention_mask"].astype("int64"),
+                        })
+                        dense_vecs = ort_out[0].tolist()
+                        sparse_raw = ort_out[1]
+                        input_ids = inputs["input_ids"].tolist()
+                        sparse_weights = []
+                        unused_tokens = {
+                            self._onnx_tokenizer.cls_token_id,
+                            self._onnx_tokenizer.eos_token_id,
+                            self._onnx_tokenizer.pad_token_id,
+                            self._onnx_tokenizer.unk_token_id,
+                        }
+                        for row_idx, token_ids in enumerate(input_ids):
+                            weights = sparse_raw[row_idx, :, 0]
+                            result = defaultdict(int)
+                            for w, tid in zip(weights, token_ids):
+                                if tid not in unused_tokens and w > 0:
+                                    key = str(tid)
+                                    if w > result[key]:
+                                        result[key] = w
+                            sparse_weights.append(dict(result))
+                    else:
+                        import torch
+                        with torch.inference_mode():
+                            is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
+                            if is_bge_m3:
                                 output = self._encoder.encode(
                                     uncached_prefixed_texts,
                                     return_dense=True,
-                                    return_sparse=False,
+                                    return_sparse=True,
                                     return_colbert_vecs=False,
                                 )
                                 dense_vecs = output["dense_vecs"].tolist()
-                            except Exception:
-                                # Fallback for models that don't support BGE-M3-specific flags
-                                output = self._encoder.encode(
-                                    uncached_prefixed_texts,
-                                    normalize_embeddings=True,
-                                )
-                                if isinstance(output, list):
-                                    dense_vecs = output
-                                else:
-                                    dense_vecs = output.tolist()
-                            sparse_weights = [{} for _ in uncached_prefixed_texts]
+                                sparse_weights = output["lexical_weights"]
+                            else:
+                                # E5 models: explicitly disable sparse/ColBERT to avoid
+                                # random-weight projection head initialization warning
+                                try:
+                                    output = self._encoder.encode(
+                                        uncached_prefixed_texts,
+                                        return_dense=True,
+                                        return_sparse=False,
+                                        return_colbert_vecs=False,
+                                    )
+                                    dense_vecs = output["dense_vecs"].tolist()
+                                except Exception:
+                                    # Fallback for models that don't support BGE-M3-specific flags
+                                    output = self._encoder.encode(
+                                        uncached_prefixed_texts,
+                                        normalize_embeddings=True,
+                                    )
+                                    if isinstance(output, list):
+                                        dense_vecs = output
+                                    else:
+                                        dense_vecs = output.tolist()
+                                sparse_weights = [{} for _ in uncached_prefixed_texts]
 
                     # Build results in original order
                     dense_results = [None] * len(texts)

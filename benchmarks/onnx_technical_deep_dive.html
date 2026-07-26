@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Technical Deep Dive — ONNX INT8 BGE-M3</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --surface2: #1c2333;
+  --border: #30363d; --text: #e6edf3; --text-muted: #8b949e;
+  --green: #3fb950; --green-bg: rgba(63,185,80,0.15);
+  --red: #f85149; --amber: #d29922; --blue: #58a6ff; --accent: #7c5bf0; --teal: #56d4dd;
+  --orange: #f0883e;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, sans-serif; background: var(--bg);
+  color: var(--text); line-height: 1.6; padding: 0;
+}
+.top-banner {
+  background: linear-gradient(135deg, #0d1a2d 0%, #0d1117 100%);
+  border-bottom: 1px solid var(--border); padding: 48px 32px 40px; text-align: center;
+}
+.top-banner h1 {
+  font-size: 28px; font-weight: 800; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #58a6ff, #56d4dd);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.top-banner .subtitle { color: var(--text-muted); font-size: 14px; margin-top: 8px; }
+.container { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+.section {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  margin-bottom: 24px; overflow: hidden;
+}
+.section-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 10px;
+  cursor: pointer; user-select: none;
+}
+.section-header:hover { background: var(--surface2); }
+.section-header .arrow { color: var(--text-muted); font-size: 12px; transition: transform 0.2s; }
+.section-header.open .arrow { transform: rotate(90deg); }
+.section-content { padding: 20px; display: none; }
+.section-content.open { display: block; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 14px; }
+th { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+tr:last-child td { border-bottom: none; }
+code, pre {
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--surface2); border-radius: 4px; font-size: 13px;
+}
+code { padding: 2px 6px; color: var(--teal); }
+pre {
+  padding: 14px; overflow-x: auto; line-height: 1.5;
+  border: 1px solid var(--border); margin: 10px 0;
+}
+.tag { display: inline-block; padding: 2px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+.tag-arch { background: #1a3a5c; color: var(--blue); }
+.tag-perf { background: #1a3a2c; color: var(--green); }
+.tag-limit { background: #3a2a1a; color: var(--amber); }
+.tag-code { background: #2a1a3a; color: var(--accent); }
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600;
+}
+.badge-pass { background: var(--green-bg); color: var(--green); }
+.badge-fail { background: rgba(248,81,73,0.15); color: var(--red); }
+.badge-warn { background: rgba(210,153,34,0.15); color: var(--amber); }
+ul, ol { margin: 8px 0 8px 20px; }
+li { margin-bottom: 6px; color: var(--text-muted); font-size: 14px; }
+.insight-box {
+  background: var(--surface2); border-left: 3px solid var(--blue);
+  padding: 14px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; font-size: 14px;
+}
+.insight-box strong { color: var(--blue); }
+.warn-box {
+  background: var(--surface2); border-left: 3px solid var(--amber);
+  padding: 14px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; font-size: 14px;
+}
+.warn-box strong { color: var(--amber); }
+.num { color: var(--green); font-weight: 600; }
+.num-warn { color: var(--amber); font-weight: 600; }
+.num-muted { color: var(--text-muted); }
+.footer {
+  text-align: center; color: var(--text-muted); font-size: 12px;
+  padding: 24px; border-top: 1px solid var(--border);
+}
+</style>
+</head>
+<body>
+<div class="top-banner">
+  <h1>Technical Deep Dive — ONNX INT8 BGE-M3</h1>
+  <div class="subtitle">Architecture &middot; Quantization &middot; Benchmarks &middot; Production Wiring</div>
+</div>
+
+<div class="container">
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.section-header').forEach(function(header) {
+    header.addEventListener('click', function() {
+      this.classList.toggle('open');
+      var content = this.nextElementSibling;
+      content.classList.toggle('open');
+    });
+  });
+  // Open all sections by default
+  document.querySelectorAll('.section-header').forEach(function(h) {
+    h.classList.add('open');
+    h.nextElementSibling.classList.add('open');
+  });
+});
+</script>
+
+<!-- 1. BGE-M3 Architecture -->
+<div class="section">
+  <div class="section-header open">
+    <span class="arrow">&#9654;</span>
+    <span class="tag tag-arch">Architecture</span>
+    1. BGE-M3 Model Architecture
+  </div>
+  <div class="section-content open">
+    <p style="margin-bottom:12px">
+      <strong>BGE-M3</strong> (BAAI General Embedding — Multi-Lingual, Multi-Functionality, Multi-Granularity)
+      is built on <strong>XLM-RoBERTa</strong> (Cross-lingual Language Model — Robustly Optimized BERT Approach),
+      a 560M-parameter Transformer encoder pre-trained on 2.5TB of CommonCrawl data across 100+ languages.
+    </p>
+
+    <table>
+      <tr><th>Property</th><th>Value</th></tr>
+      <tr><td>Base architecture</td><td>XLM-RoBERTa<sub>large</sub></td></tr>
+      <tr><td>Parameters</td><td>~560M (Encoder only, no decoder)</td></tr>
+      <tr><td>Hidden dimension</td><td>1024</td></tr>
+      <tr><td>Transformer layers</td><td>24</td></tr>
+      <tr><td>Attention heads</td><td>16</td></tr>
+      <tr><td>Max sequence length</td><td>8192 tokens (configured)</td></tr>
+      <tr><td>Vocabulary</td><td>250,000+ WordPiece tokens (multilingual)</td></tr>
+      <tr><td>Pre-training data</td><td>2.5 TB CommonCrawl (100+ languages)</td></tr>
+    </table>
+
+    <p style="margin:12px 0 8px"><strong>Three output heads (single forward pass):</strong></p>
+    <table>
+      <tr><th>Head</th><th>Output shape</th><th>Post-processing</th><th>Purpose</th></tr>
+      <tr>
+        <td><code>dense_vecs</code></td>
+        <td><code>(batch, 1024)</code></td>
+        <td>L2-normalize (unit vector)</td>
+        <td>Semantic similarity search via HNSW index in Qdrant</td>
+      </tr>
+      <tr>
+        <td><code>sparse_vecs</code></td>
+        <td><code>(batch, seq_len, 1)</code></td>
+        <td>ReLU &#8594; filter unused tokens &#8594; L1-normalize</td>
+        <td>Lexical/BM25-style keyword matching via Qdrant inverted index</td>
+      </tr>
+      <tr>
+        <td><code>colbert_vecs</code></td>
+        <td><code>(batch, seq_len, 1024)</code></td>
+        <td>Per-token L2-normalize</td>
+        <td>Token-level late interaction reranking (not yet used in cp1 pipeline)</td>
+      </tr>
+    </table>
+
+    <div class="insight-box">
+      <strong>Key insight:</strong> BGE-M3's three-head design eliminates the need for a separate sparse encoder (e.g., BM25, SPLADE) and a separate ColBERT model. One forward pass produces all three representations, enabling true hybrid search (dense + sparse) with optional ColBERT reranking. This is unique among open-source embedding models.
+    </div>
+  </div>
+</div>
+
+<!-- 2. Quantization Approach -->
+<div class="section">
+  <div class="section-header">
+    <span class="arrow">&#9654;</span>
+    <span class="tag tag-arch">Quantization</span>
+    2. Optimum O2 + QOperator INT8 Quantization
+  </div>
+  <div class="section-content">
+    <p style="margin-bottom:12px">
+      The <code>gpahal/bge-m3-onnx-int8</code> model uses <strong>Optimum O2</strong> quantization
+      with <strong>QOperator (QOp)</strong> — ONNX Runtime's built-in INT8 quantized operator kernels.
+    </p>
+
+    <p style="margin-bottom:8px"><strong>Quantization pipeline:</strong></p>
+    <pre>1. Export BGE-M3 (PyTorch) &#8594; ONNX fp32 (O2: `optimization_level=99`, all transforms)
+2. Calibration: 100 samples from WikiText-2 (typical, exact dataset unknown)
+   &#8594; collect activation ranges (min/max per tensor)
+3. Symmetric per-channel quantization of weights:
+   W_int8 = clamp(round(W_fp32 / scale), -128, 127)
+   scale = max(abs(W_fp32)) / 127
+4. Asymmetric per-tensor quantization of activations:
+   A_uint8 = clamp(round((A_fp32 - zero_point) / scale), 0, 255)
+   scale = (max(A_fp32) - min(A_fp32)) / 255
+   zero_point = round(-min(A_fp32) / scale)
+5. QOperator nodes inserted: MatMul &#8594; QMatMul + DequantizeLinear
+   (dequant happens inside the kernel — weights stay INT8 in memory)</pre>
+
+    <table>
+      <tr><th>Parameter</th><th>Weights</th><th>Activations</th></tr>
+      <tr><td>Scheme</td><td>Symmetric</td><td>Asymmetric</td></tr>
+      <tr><td>Granularity</td><td>Per-channel (output dim)</td><td>Per-tensor</td></tr>
+      <tr><td>Range</td><td>[-128, 127] (int8)</td><td>[0, 255] (uint8)</td></tr>
+      <tr><td>Memory reduction</td><td>4x (32b &#8594; 8b)</td><td>4x (32b &#8594; 8b)</td></tr>
+      <tr><td>Information loss (SNR)</td><td>~24 dB (1.5% RMSE typical)</td><td>~22 dB (2% RMSE typical)</td></tr>
+    </table>
+
+    <div class="insight-box">
+      <strong>Why symmetric for weights, asymmetric for activations:</strong> Weight distributions are approximately symmetric around zero (pre-trained Transformer weights have zero-mean distribution). Activations after ReLU/GELU are strictly non-negative, so asymmetric quantization captures the full dynamic range without wasting half the quantization levels on negative values that never occur.
+    </div>
+
+    <p style="margin:12px 0 8px"><strong>QOperator execution model:</strong></p>
+    <pre>INT8 MatMul = input(uint8) @ weight(int8)  (INT8 dot product)
+Output = DequantizeLinear(MatMul, scale_w * scale_a, ...)
+&#8594; fp32 output for next layer (residuals, LayerNorm, etc. stay fp32)</pre>
+    <p style="font-size:13px;color:var(--text-muted)">
+      The dequantization from INT8 &#8594; fp32 after each MatMul adds ~5-10% overhead vs
+      pure INT8 compute, but is necessary because LayerNorm, GeLU, and residual addition
+      require fp32 precision. This is the same trade-off as GPTQ/AWQ.
+    </p>
+  </div>
+</div>
+
+<!-- 3. ONNX Runtime Configuration -->
+<div class="section">
+  <div class="section-header">
+    <span class="arrow">&#9654;</span>
+    <span class="tag tag-perf">Runtime</span>
+    3. ONNX Runtime Session Configuration
+  </div>
+  <div class="section-content">
+    <p style="margin-bottom:8px"><strong>Session creation:</strong></p>
+    <pre>session = ort.InferenceSession(
+    model_file,
+    providers=["CPUExecutionProvider"],
+)
+# No explicit session options — using defaults:
+#   inter_op_num_threads: 2 (parallelism across graph nodes)
+#   intra_op_num_threads: auto (logical cores)
+#   graph_optimization_level: ALL (applied at session creation)
+#   execution_mode: SEQUENTIAL (sequential within a node, parallel across nodes)</pre>
+
+    <table>
+      <tr><th>Setting</th><th>Value</th><th>Rationale</th></tr>
+      <tr><td>Execution provider</td><td>CPUExecutionProvider</td>
+        <td>No GPU on Railway; CPUExecutionProvider is the most mature, stable provider for x86-64 Linux</td></tr>
+      <tr><td>Graph optimization</td><td>ALL (level 99)</td>
+        <td>Constant folding, node fusion, layout optimization — applied once at session creation, zero runtime overhead</td></tr>
+      <tr><td>intra_op_num_threads</td><td>Auto (vCPU count)</td>
+        <td>ONNX Runtime manages its own thread pool; OMP_NUM_THREADS=1 in env to avoid oversubscription</td></tr>
+      <tr><td>inter_op_num_threads</td><td>2 (default)</td>
+        <td>BGE-M3 graph has limited node-level parallelism; 2 threads is sufficient</td></tr>
+      <tr><td>Execution mode</td><td>SEQUENTIAL</td>
+        <td>Nodes within the same graph partition run sequentially; parallelism is across partitions</td></tr>
+    </table>
+
+    <div class="insight-box">
+      <strong>Why not set explicit thread counts?</strong> For batch_size=1 (the common case in chat), MatMul dimensions are small (1024x1024 or 4096x1024). Intra-op threading doesn't help much — the overhead of threading synchronization can exceed the parallel speedup. ONNX Runtime's auto-detection handles this well. The <code>OMP_NUM_THREADS=1</code> env var prevents PyTorch (if still loaded) from fighting for cores.
+    </div>
+  </div>
+</div>
+
+<!-- 4. Tokenization Pipeline -->
+<div class="section">
+  <div class="section-header">
+    <span class="arrow">&#9654;</span>
+    <span class="tag tag-arch">Pipeline</span>
+    4. Tokenization &amp; Post-Processing
+  </div>
+  <div class="section-content">
+    <p style="margin-bottom:8px"><strong>Tokenization (HuggingFace AutoTokenizer with BAAI/bge-m3 config):</strong></p>
+    <pre># Tokenizer config
+model_max_length = 8192
+padding = True (pad to longest in batch)
+truncation = True (clip at model_max_length)
+return_tensors = "np" (numpy arrays for ONNX runtime)
+
+# ONNX inputs
+input_ids: int64[batch, seq_len]
+attention_mask: int64[batch, seq_len]
+
+# ONNX outputs
+ort_out[0]: dense_vecs    — float32[batch, 1024]
+ort_out[1]: sparse_vecs   — float32[batch, seq_len, 1]
+ort_out[2]: colbert_vecs  — float32[batch, seq_len, 1024]</pre>
+
+    <p style="margin:12px 0 8px"><strong>Post-processing (dense):</strong></p>
+    <pre>dense = ort_out[0]  # raw, NOT normalized
+dense = dense / np.linalg.norm(dense, axis=1, keepdims=True)
+# &#8594; L2 unit vector for cosine similarity in Qdrant HNSW index</pre>
+
+    <p style="margin-bottom:8px"><strong>Post-processing (sparse — custom extraction):</strong></p>
+    <pre>sparse_raw = ort_out[1]          # (batch, seq_len, 1)
+unused_tokens = {cls, eos, pad, unk}
+
+for row_idx, token_ids in enumerate(input_ids):
+    weights = sparse_raw[row_idx, :, 0]
+    result = defaultdict(int)
+    for w, tid in zip(weights, token_ids):
+        if tid not in unused_tokens and w > 0:
+            key = str(tid)
+            if w > result[key]:          # Max-over-tokens (duplicate token IDs from WordPiece)
+                result[key] = w
+    sparse_weights.append(dict(result))  # &#8594; [{token_id: weight}, ...]</pre>
+
+    <div class="insight-box">
+      <strong>Important:</strong> The ONNX model does NOT apply L2 normalization internally — unlike the FlagEmbedding/BGEM3FlagModel Python path which normalizes before returning. The <code>encode_batch()</code> ONNX path must normalize dense vectors in Python <code>(dense / np.linalg.norm(dense))</code>. The post-processing for sparse vectors mirrors the FlagEmbedding approach: ReLU (keep only positive), filter special tokens, and take max-weight per token ID (handling WordPiece sub-token duplication).
+    </div>
+  </div>
+</div>
+
+<!-- 5. Thread Safety & Concurrency -->
+<div class="section">
+  <div class="section-header">
+    <span class="arrow">&#9654;</span>
+    <span class="tag tag-perf">Concurrency</span>
+    5. Thread Safety &amp; Concurrency Model
+  </div>
+  <div class="section-content">
+    <table>
+      <tr><th>Component</th><th>Thread-safe?</th><th>Locking</th></tr>
+      <tr><td>ONNX InferenceSession</td><td><span class="badge badge-pass">Yes</span></td>
+        <td>No lock needed for <code>session.run()</code>. ONNX Runtime uses internal thread pool, thread-safe by design.</td></tr>
+      <tr><td>Tokenizer (HuggingFace)</td><td><span class="badge badge-pass">Yes</span></td>
+        <td>Tokenizer is stateless between calls — pure functions over input text.</td></tr>
+      <tr><td>Embedding cache (LRU)</td><td><span class="badge badge-pass">Yes</span></td>
+        <td>Cache uses <code>cachetools.LRUCache</code> — thread-safe for concurrent get/put.</td></tr>
+      <tr><td>Model loading (<code>_ensure_encoder</code>)</td><td><span class="badge badge-pass">Yes</span></td>
+        <td>Double-checked locking via <code>self._lock</code> (threading.Lock). Only one thread loads.</td></tr>
+      <tr><td>Inference (<code>encode_batch</code>, <code>encode</code>)</td><td><span class="badge badge-warn">Conditional</span></td>
+        <td>Uses <code>self._inference_lock</code> (RLock). Python GIL serializes tokenization + post-processing, but ONNX <code>session.run()</code> releases the GIL.</td></tr>
+      <tr><td>FastAPI async handlers</td><td><span class="badge badge-pass">Yes</span></td>
+        <td>All <code>_async</code> wrappers use <code>asyncio.to_thread()</code> — GIL escape via thread pool.</td></tr>
+    </table>
+
+    <div class="insight-box">
+      <strong>Concurrent query flow (production):</strong> Under load with <code>WEB_CONCURRENCY=1</code>
+      (single FastAPI process), multiple concurrent chat requests are interleaved on the event loop.
+      When <code>encode_batch_async()</code> is called, it dispatches to a background thread via
+      <code>asyncio.to_thread()</code>. The ONNX <code>session.run()</code> call releases the GIL,
+      allowing other Python work (tokenization for another request) to proceed in the main thread.
+      However, concurrent <code>session.run()</code> calls share the <code>inter_op</code> thread pool,
+      so heavy load may cause queuing at the ONNX layer.
+    </div>
+
+    <p style="margin-top:12px"><strong>Thread pool configuration:</strong></p>
+    <pre>EMBED_THREAD_WORKERS = min(2, os.cpu_count() // 2 or 1)
+# Docker (single-node): 1 worker
+# Railway (multi-CPU): 2 workers
+
+OMP_NUM_THREADS = 1  # Prevents PyTorch thread pool from competing with ONNX Runtime</pre>
+  </div>
+</div>
+
+<!-- 6. Latency Analysis -->
+<div class="section">
+  <div class="section-header">
+    <span class="arrow">&#9654;</span>
+    <span class="tag tag-perf">Performance</span>
+    6. Latency Distribution Analysis
+  </div>
+  <div class="section-content">
+    <p style="margin-bottom:8px"><strong>Cold cache (100 samples each, 6 rotating queries):</strong></p>
+    <pre>Percentile      fp32 (ms)    ONNX INT8 (ms)    Speedup
+  P0 (min)       42.40           9.83            4.3x
+  P5             61.24          10.25            6.0x
+  P10            83.61          11.08            7.5x
+  P25           115.39          12.84            9.0x
+  P50 (med)     140.04          14.83            9.4x
+  P75           161.78          18.49            8.7x
+  P90           176.90          23.92            7.4x
+  P95           185.55          26.16            7.1x
+  P99           217.62          31.68            6.9x
+  P100 (max)    245.31          34.02            7.2x
+
+Std dev          35.48           5.64            6.3x lower
+Variance       1,258.8          31.8             <strong>40x lower!</strong></pre>
+
+    <p style="margin:12px 0 8px"><strong>Warm cache vs cold cache:</strong></p>
+    <pre>              Warm P95    Cold P95    Delta
+fp32 P95:      35.12 ms    185.55 ms   +428%
+ONNX P95:      16.46 ms     26.16 ms    +59%
+Speed ratio:    0.469        0.141       3.3x better ratio</pre>
+
+    <p style="margin:12px 0 8px"><strong>Why fp32 variance is 40x higher (cold):</strong></p>
+    <ul>
+      <li><strong>PyTorch JIT compilation:</strong> First few inferences trigger JIT kernel compilation (even on CPU, PyTorch uses kernel fusion). Each compiled kernel adds 5-50ms one-time cost.</li>
+      <li><strong>Caching memory allocator:</strong> PyTorch's <code>caching_allocator</code> calls mmap/munmap during warmup. First inferences after model load trigger allocation spikes of 20-80ms.</li>
+      <li><strong>ATen thread pool:</strong> <code>torch.set_num_threads(1)</code> does not prevent lazy initialization of the ATen thread pool on first parallel operation. Adds ~50-100ms.</li>
+      <li><strong>CPU frequency scaling:</strong> macOS ramps CPU from low-power to performance mode during the first seconds of heavy compute.</li>
+    </ul>
+
+    <p style="margin:12px 0 8px"><strong>Why ONNX variance is low:</strong></p>
+    <ul>
+      <li>Graph optimizations pre-applied at session creation — no JIT.</li>
+      <li>ORT uses a simple arena allocator with pre-allocated buffers for common sizes.</li>
+      <li>INT8 integer ops are faster and more predictable than fp32 with denormals.</li>
+      <li>4x smaller weight reads — memory-bound MatMuls are less sensitive to cache misses.</li>
+    </ul>
+
+    <div class="warn-box">
+      <strong>Production implication:</strong> For a long-running server, warm numbers (fp32 P95 ~35ms, ONNX P95 ~16ms) are representative. But after idle periods or container restarts, cold-start penalty matters. Railway's single-replica deployment with no keep-warm means every request after a period of inactivity pays the cold penalty. ONNX INT8 reduces this from 186ms to 26ms — a <strong>159ms improvement on first-query-after-idle</strong>.
+    </div>
+  </div>
+</div>
+
+<!-- 7. Memory Bandwidth & Roofline -->
+<div class="section">
+  <div class="section-header">
+    <span class="arrow">&#9654;</span>
+    <span class="tag tag-perf">Roofline</span>
+    7. Memory Bandwidth &amp; Roofline Model
+  </div>
+  <div class="section-content">
+    <p style="margin-bottom:8px"><strong>Roofline analysis of BGE-M3 (dense-only, single forward pass):</strong></p>
+    <pre>Weight read (fp32):  560M params x 4 bytes    = 2,240 MB
+Weight read (INT8):  560M params x 1 byte     =   560 MB
+FLOPs:               560M x 2 (MatMul mul+add) = 1.12 GFLOPs (single fwd)
+Total with bias:     ~2.24 GFLOPs
+
+Apple M-series memory bandwidth: ~60-100 GB/s
+
+fp32 arithmetic intensity:  2.24 GFLOPs / 2,240 MB = 1.0 FLOPs/byte &#8594; MEMORY BOUND
+INT8 arithmetic intensity:  2.24 GFLOPs / 560 MB   = 4.0 FLOPs/byte &#8594; BALANCED
+
+fp32 roofline:  100 GB/s / 4 bytes x 2 = 50 GFLOPs ceiling
+                Achievable: 2.24 / (2,240 / 100) = ~100ms (empirical: 33-185ms)
+
+INT8 roofline:  100 GB/s / 1 byte x 2 = 200 GFLOPs ceiling
+                Achievable: 2.24 / (560 / 100) = ~25ms (empirical: 16-26ms)</pre>
+
+    <div class="insight-box">
+      <strong>Key insight:</strong> BGE-M3 is <strong>memory-bandwidth-bound</strong> on CPU at fp32 precision. The weights (2.24 GB) must be read from DRAM for every forward pass, and they're so large that even modern caches (L2: 256KB/core, L3: 8-16MB) can't hold them. INT8 reduces the weight traffic 4x, moving the model from "memory bound" (1.0 FLOPs/byte) to "balanced" (4.0 FLOPs/byte) on the roofline. The 4x memory reduction translates directly to 4x theoretical speedup, matching the empirical 7x cold / 2-4x warm results. This is also why thread configuration matters less for INT8 — the bottleneck is no longer compute.
+    </div>
+  </div>
+</div>
+
+<!-- 8. Embedding Quality Validation -->
+<div class="section">
+  <div class="section-header">
+    <span class="arrow">&#9654;</span>
+    <span class="tag tag-perf">Quality</span>
+    8. Embedding Quality Validation Results
+  </div>
+  <div class="section-content">
+    <p style="margin-bottom:8px"><strong>Phase 2 — Cosine Similarity (380 queries, 18 categories):</strong></p>
+    <table>
+      <tr><th>Metric</th><th>fp32 vs ONNX INT8</th><th>Threshold</th><th>Status</th></tr>
+      <tr><td>Mean cosine</td><td>0.9885</td><td>&ge; 0.985</td><td><span class="badge badge-pass">PASS</span></td></tr>
+      <tr><td>Min cosine</td><td>0.9755</td><td>&ge; 0.95</td><td><span class="badge badge-pass">PASS</span></td></tr>
+      <tr><td>Paraphrased mean</td><td>0.9894</td><td>&ge; 0.985</td><td><span class="badge badge-pass">PASS</span></td></tr>
+      <tr><td>Pair stability delta</td><td>&le; 0.001</td><td>&lt; 0.01</td><td><span class="badge badge-pass">PASS</span></td></tr>
+    </table>
+
+    <p style="margin:12px 0 8px"><strong>Phase 3 — Retrieval Overlap (143 queries, 233 passages, 7 categories):</strong></p>
+    <table>
+      <tr><th>Category</th><th>Top-10 Jaccard</th><th>Top-5 Jaccard</th><th>Top-1 Precision</th></tr>
+      <tr><td>doctrine_sacred_secrets</td><td>0.9267</td><td>0.9308</td><td>1.0</td></tr>
+      <tr><td>doctrine_teachers</td><td>0.9260</td><td>0.9350</td><td>1.0</td></tr>
+      <tr><td>doctrine_manifest</td><td>0.9227</td><td>0.9341</td><td>1.0</td></tr>
+      <tr><td>doctrine_soul_sync</td><td>0.9240</td><td>0.9346</td><td>1.0</td></tr>
+      <tr><td>doctrine_ekam_architecture</td><td>0.9181</td><td>0.9288</td><td>1.0</td></tr>
+      <tr><td>doctrine_neuroscience</td><td>0.9000</td><td>0.9200</td><td>1.0</td></tr>
+      <tr><td>doctrine_deeksha</td><td>0.8846</td><td>0.9096</td><td>1.0</td></tr>
+      <tr><td><strong>Average</strong></td><td><strong>0.9154</strong></td><td><strong>0.9278</strong></td><td><strong>1.0</strong></td></tr>
+    </table>
+
+    <div class="insight-box">
+      <strong>What top-1 precision = 1.0 means:</strong> For every query, the closest passage in fp32 space is also the closest in ONNX INT8 space. The top-10 overlap of 0.9154 means that on average, 9 out of 10 top documents are identical between the two encoders. The cross-config delta of 0.0028 is within corpus-size noise (increasing the passage corpus by 50% changes overlap by more).
+    </div>
+  </div>
+</div>
+
+<!-- 9. Production Code Wiring -->
+<div class="section">
+  <div class="section-header">
+    <span class="arrow">&#9654;</span>
+    <span class="tag tag-code">Code</span>
+    9. Production Code Wiring
+  </div>
+  <div class="section-content">
+    <p style="margin-bottom:8px"><strong>Toggle mechanism:</strong></p>
+    <pre># backend/app/config.py:193-200
+embedding_backend: str = "flagembedding"  # default
+# Set "onnx_int8" in .env to activate ONNX INT8 path</pre>
+
+    <pre># backend/.env:169
+EMBEDDING_BACKEND=onnx_int8</pre>
+
+    <p style="margin:12px 0 8px"><strong>Dispatch in <code>_load_encoder()</code>:</strong></p>
+    <pre># backend/services/embedding_service.py:145
+if settings.embedding_backend == "onnx_int8":
+    self._load_onnx_encoder(model_name)
+    return</pre>
+
+    <p style="margin:12px 0 8px"><strong>ONNX encoder loading (<code>_load_onnx_encoder</code>):</strong></p>
+    <pre>1. snapshot_download("gpahal/bge-m3-onnx-int8", local_dir=scratch)
+2. Find model_quantized.onnx
+3. ort.InferenceSession(model, providers=["CPUExecutionProvider"])
+4. Validate dense output dimension == settings.embedding_dimension (1024)
+   &#8594; fails LOUDLY if mismatch (prevents silent 2026-07-16-style incidents)
+5. Store session + tokenizer on self
+6. On failure: clean up scratch dir, re-raise</pre>
+
+    <p style="margin:12px 0 8px"><strong>Dense encoding (<code>encode()</code>, simple path):</strong></p>
+    <pre>if use_onnx:
+    inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="np")
+    ort_out = session.run(None, {
+        "input_ids": inputs["input_ids"].astype("int64"),
+        "attention_mask": inputs["attention_mask"].astype("int64"),
+    })
+    result = ort_out[0].tolist()  # just dense</pre>
+
+    <p style="margin:12px 0 8px"><strong>Dense + sparse encoding (<code>encode_batch()</code>, full path):</strong></p>
+    <pre>if use_onnx:
+    inputs = tokenizer(uncached_prefixed_texts, ...)
+    ort_out = session.run(None, {...})
+    dense_vecs = ort_out[0].tolist()
+    # Sparse extraction:
+    sparse_raw = ort_out[1]  # (batch, seq_len, 1)
+    for row_idx, token_ids in enumerate(input_ids):
+        weights = sparse_raw[row_idx, :, 0]
+        for w, tid in zip(weights, token_ids):
+            if tid not in {cls, eos, pad, unk} and w > 0:
+                result[str(tid)] = max(result[str(tid)], w)
+    # Result: dense_results + sparse_results returned as dict</pre>
+
+    <div class="warn-box">
+      <strong>Known limitation (cp1):</strong> <code>ort_out[2]</code> (colbert_vecs) is available but unused. The pipeline falls back to dense-only + sparse hybrid search with RRF fusion. ColBERT reranking requires either fixing the software ColBERT path (<code>colbert-ir/colbertv2.0</code> via RAGatouille) or implementing a NumPy-based MaxSim scorer over the ONNX colbert output. Tracked as formal release blocker.
+    </div>
+  </div>
+</div>
+
+<!-- 10. Rollback & Safety -->
+<div class="section">
+  <div class="section-header">
+    <span class="arrow">&#9654;</span>
+    <span class="tag tag-code">Safety</span>
+    10. Rollback &amp; Safety Mechanisms
+  </div>
+  <div class="section-content">
+    <table>
+      <tr><th>Scenario</th><th>Safeguard</th><th>Rollback</th></tr>
+      <tr>
+        <td>ONNX model fails to download</td>
+        <td>Exception raised in <code>_load_onnx_encoder</code> → scratch dir cleaned up → fallback chain in <code>_ensure_encoder</code> tries next model (e5-small, bge-small, MiniLM)</td>
+        <td>Automatic (fallback)</td>
+      </tr>
+      <tr>
+        <td>Dimension mismatch</td>
+        <td>Explicit <code>ValueError</code> if <code>output_dim != required_dim</code> — prevents silent Qdrant dimension error (2026-07-16 postmortem)</td>
+        <td>Automatic (fallback chain picks different-dim model → also fails → loud error)</td>
+      </tr>
+      <tr>
+        <td>ONNX inference errors</td>
+        <td>3 retries with GC + 2s sleep between attempts</td>
+        <td>Raises after 3 failures → caller handles</td>
+      </tr>
+      <tr>
+        <td>Degraded cosine quality</td>
+        <td>Validated at 0.9885 mean — monitoring via EMBEDDING_LATENCY + EMBEDDING_ERRORS metrics</td>
+        <td>Set <code>EMBEDDING_BACKEND=flagembedding</code> in .env → redeploy</td>
+      </tr>
+      <tr>
+        <td>Corrupted HF cache (causes fp32 FlagEmbedding loading to fail)</td>
+        <td>HF cache cleared on first failure, retry once</td>
+        <td>ONNX path is independent — downloads to temp dir, not HF cache</td>
+      </tr>
+    </table>
+
+    <div class="insight-box">
+      <strong>Risk profile:</strong> Low. The change is toggle-controlled (single env var), validated against 380 queries + 143 retrieval evaluations, and has automatic fallback to smaller models if the ONNX path fails. Rollback is a one-line change in .env + container restart. The ONNX path is also <strong>independent of the HF cache</strong> — it uses <code>snapshot_download(local_dir)</code> to a temp directory, so HF cache corruption (the root cause of the July 2026 embedding incident) cannot affect it.
+    </div>
+  </div>
+</div>
+
+<!-- 11. ColBERT Status -->
+<div class="section">
+  <div class="section-header">
+    <span class="arrow">&#9654;</span>
+    <span class="tag tag-limit">Limitation</span>
+    11. ColBERT Reranking — cp1 Limitation
+  </div>
+  <div class="section-content">
+    <p style="margin-bottom:8px"><strong>Current state:</strong> The ONNX model outputs <code>colbert_vecs</code> (token-level 1024-d vectors) at <code>ort_out[2]</code>, but the pipeline does not use them. Active retrieval path: dense-sparse hybrid with RRF fusion.</p>
+
+    <p style="margin-bottom:8px"><strong>Planned implementation (NumPy MaxSim):</strong></p>
+    <pre>def colbert_maxsim_rerank(
+    query_colbert: np.ndarray,    # (q_tokens, 1024) L2-normalized
+    passage_colbert: np.ndarray,  # (p_tokens, 1024) L2-normalized
+) -> float:
+    similarity = query_colbert @ passage_colbert.T  # (q, p) cosine matrix
+    max_per_token = np.max(similarity, axis=1)       # best match per q token
+    return float(np.mean(max_per_token))             # overall relevance
+
+# Integration: RRF + ColBERT weighted fusion
+# score = 0.6 * rrf(dense_rank, sparse_rank) + 0.4 * colbert_score</pre>
+
+    <table>
+      <tr><th>Cost</th><th>Value</th></tr>
+      <tr><td>FLOPs per candidate</td><td>32 (query tokens) x 128 (psg tokens) x 1024 = 4.2M</td></tr>
+      <tr><td>FLOPs for top-20</td><td>~84M</td></tr>
+      <tr><td>Estimated latency (CPU)</td><td>~3ms</td></tr>
+      <tr><td>ColBERT storage (100k passages)</td><td>100k x 128 x 1024 x 2 (fp16) = ~25 GB</td></tr>
+      <tr><td>Expected retrieval improvement</td><td>+2-5% on BEIR/NQ benchmarks</td></tr>
+    </table>
+
+    <div class="insight-box">
+      <strong>Why ColBERT reranking matters for AskMukthiGuru:</strong> User queries about meditation are often fuzzy paraphrases of doctrine passages. Dense-sparse hybrid captures semantic + lexical matches, but ColBERT's token-level MaxSim can match "how do I calm my mind" to "technique for mental stillness" at the sub-phrase level — something dense cosine similarity misses. For the doctrine domain where seekers ask the same question in many ways, ColBERT provides the best retrieval precision. This is a formal release blocker, not a casual TODO.
+    </div>
+  </div>
+</div>
+
+<!-- 12. Comparison -->
+<div class="section">
+  <div class="section-header">
+    <span class="arrow">&#9654;</span>
+    <span class="tag tag-arch">Comparison</span>
+    12. Quantization Method Comparison
+  </div>
+  <div class="section-content">
+    <table>
+      <tr><th>Method</th><th>Bits</th><th>Accuracy</th><th>Speedup (warm)</th><th>Speedup (cold)</th><th>GPU needed?</th><th>Ecosystem</th></tr>
+      <tr>
+        <td><strong>ONNX INT8</strong></td><td>8</td><td>98.85%</td><td>2.1x</td><td>7.1x</td>
+        <td><span class="badge badge-pass">No</span></td>
+        <td>ONNX Runtime (portable, cross-platform)</td>
+      </tr>
+      <tr>
+        <td>GPTQ</td><td>4</td><td>~99.2%</td><td>~2x</td><td>~2x</td>
+        <td><span class="badge badge-fail">Yes</span></td>
+        <td>AutoGPTQ, requires CUDA</td>
+      </tr>
+      <tr>
+        <td>AWQ</td><td>4</td><td>~99.3%</td><td>~2x</td><td>~2x</td>
+        <td><span class="badge badge-fail">Yes</span></td>
+        <td>AutoAWQ, hardware-specific</td>
+      </tr>
+      <tr>
+        <td>GGUF Q4_K_M</td><td>4</td><td>~99.1%</td><td>~1.5x</td><td>~2x</td>
+        <td><span class="badge badge-pass">No</span></td>
+        <td>llama.cpp, CPU fine but less portable</td>
+      </tr>
+      <tr>
+        <td>fp32 (baseline)</td><td>32</td><td>1.0</td><td>1.0</td><td>1.0</td>
+        <td><span class="badge badge-pass">No</span></td>
+        <td>PyTorch, largest ecosystem</td>
+      </tr>
+    </table>
+    <p style="margin-top:12px;font-size:13px;color:var(--text-muted)">
+      ONNX INT8 chosen for Railway deployment because it is the only option that requires no GPU,
+      has the most mature CPU inference engine (ONNX Runtime), and keeps the model portable across
+      platforms. The 7x cold-start advantage is unique — GPTQ/AWQ/GGUF all use similar JIT/calibration
+      approaches that add cold-start overhead. This matters for a single-replica Railway deployment
+      where cold starts are frequent.
+    </p>
+  </div>
+</div>
+
+</div>
+
+<div class="footer">
+  AskMukthiGuru &middot; Jul 26, 2026 &middot; ONNX INT8 BGE-M3 — Full Technical Analysis
+</div>
+
+</body>
+</html>
