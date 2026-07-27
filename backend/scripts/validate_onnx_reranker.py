@@ -5,8 +5,9 @@ Phases
 ------
 P0  validate_env_parse()      — `backend/.env` parses cleanly (cp1 concatenation guard).
 P1  capability probe          — OnnxReranker loads, paired scores are monotonic.
-P2  score correlation         — cosine(onnx, pytorch) > 0.97 across 100 spiritual pairs.
-                              (OPTIONAL — graceful skip if sentence_transformers missing.)
+P2  score correlation         — spearman(onnx, pytorch) > 0.90 across 100 spiritual pairs.
+                               (OPTIONAL — graceful skip if sentence_transformers missing.)
+                               PyTorch baseline forced to CPU to match ONNX runtime.
 P3  latency benchmark         — warm P95 < 600ms, cold P95 < 1500ms (2-thread Railway CPU).
 
 Exit code
@@ -182,8 +183,24 @@ def capability_probe() -> tuple[bool, list[float]]:
 # P2 — score correlation vs PyTorch CrossEncoder (OPTIONAL)
 # ---------------------------------------------------------------------------
 
+def _spearman_fallback(a: list[float], b: list[float]) -> float:
+    """Pure-Python Spearman rank correlation (no scipy dependency)."""
+    import numpy as np
+    rank_a = np.argsort(np.argsort(a)).astype(float)
+    rank_b = np.argsort(np.argsort(b)).astype(float)
+    n = len(a)
+    d = rank_a - rank_b
+    return float(1.0 - (6.0 * np.sum(d * d)) / (n * (n * n - 1)))
+
+
 def score_correlation(num_pairs: int = 100) -> tuple[bool, Optional[float], str]:
-    """Cosine similarity between ONNX and PyTorch score vectors; pass if > 0.97."""
+    """Spearman rank correlation between ONNX and PyTorch score vectors.
+
+    Pass if Spearman > 0.90 (ranking quality gate). Cosine is reported
+    as an informational secondary metric, not gating — for a reranker
+    what matters is whether the right doc ranks first, not raw score
+    magnitude agreement.
+    """
     try:
         from sentence_transformers import CrossEncoder
     except ModuleNotFoundError:
@@ -193,8 +210,9 @@ def score_correlation(num_pairs: int = 100) -> tuple[bool, Optional[float], str]
 
     from services.onnx_reranker import OnnxReranker
 
+    print("P2: forcing CPU for PyTorch baseline to match ONNX runtime")
     try:
-        pytorch_ce = CrossEncoder("cross-encoder/mmarco-mMiniLMv2-L12-H384-v1")
+        pytorch_ce = CrossEncoder("cross-encoder/mmarco-mMiniLMv2-L12-H384-v1", device="cpu")
     except (OSError, RuntimeError, Exception) as exc:
         return True, None, f"PyTorch CrossEncoder load failed ({exc!r}) — P2 skipped"
 
@@ -213,25 +231,41 @@ def score_correlation(num_pairs: int = 100) -> tuple[bool, Optional[float], str]
 
     import numpy as np
 
-    onnx_vec = np.asarray(onnx_scores, dtype=np.float64)
-    pt_vec = np.asarray(pytorch_scores, dtype=np.float64)
-    denom = float(np.linalg.norm(onnx_vec) * np.linalg.norm(pt_vec))
-    if denom == 0.0:
-        return False, 0.0, "zero-norm vector — cannot compute cosine"
-    cosine_sim = float(np.dot(onnx_vec, pt_vec) / denom)
+    onnx_arr = np.asarray(onnx_scores, dtype=np.float64)
+    pytorch_arr = np.asarray(pytorch_scores, dtype=np.float64)
 
-    threshold = 0.97
-    passed = cosine_sim > threshold
+    try:
+        from scipy.stats import spearmanr
+        spearman_corr, _p = spearmanr(onnx_scores, pytorch_scores)
+        spearman_corr = float(spearman_corr)
+        spearman_path = "scipy"
+    except ModuleNotFoundError:
+        spearman_corr = _spearman_fallback(onnx_scores, pytorch_scores)
+        spearman_path = "fallback"
+        logger.warning("P2: scipy not installed — using pure-Python Spearman fallback")
+    except Exception as exc:
+        spearman_corr = _spearman_fallback(onnx_scores, pytorch_scores)
+        spearman_path = f"fallback(scipy failed: {exc!r})"
+        logger.warning("P2: scipy.stats.spearmanr failed — using fallback: %s", exc)
+
+    denom = float(np.linalg.norm(onnx_arr) * np.linalg.norm(pytorch_arr))
+    if denom == 0.0:
+        cosine_sim = 0.0
+    else:
+        cosine_sim = float(np.dot(onnx_arr, pytorch_arr) / denom)
+
+    threshold = 0.90
+    passed = spearman_corr > threshold
     status = "PASS" if passed else "FAIL"
     msg = (
-        f"P2: {status} — cosine_sim={cosine_sim:.5f} (threshold > {threshold}) "
-        f"across {len(pairs)} pairs"
+        f"P2: {status} — spearman={spearman_corr:.5f} (gate > {threshold}) "
+        f"cosine={cosine_sim:.5f} (info) across {len(pairs)} pairs [{spearman_path}]"
     )
     if not passed:
         logger.error(msg)
-        return False, cosine_sim, msg
+        return False, spearman_corr, msg
     logger.info(msg)
-    return True, cosine_sim, msg
+    return True, spearman_corr, msg
 
 
 # ---------------------------------------------------------------------------
@@ -352,13 +386,13 @@ def main() -> int:
 
     # P2 (optional)
     try:
-        ok, cosine, msg = score_correlation(num_pairs=100)
-        if cosine is None:
+        ok, spearman, msg = score_correlation(num_pairs=100)
+        if spearman is None:
             results["p2"]["status"] = "SKIP"
             results["p2"]["detail"] = msg
         else:
             results["p2"]["status"] = "PASS" if ok else "FAIL"
-            results["p2"]["detail"] = f"cos={cosine:.4f}"
+            results["p2"]["detail"] = msg
             if not ok:
                 overall_pass = False
     except Exception as exc:
