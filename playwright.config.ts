@@ -33,8 +33,16 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Escape hatch for sandboxes/CI images that already ship a Chromium
+        // build instead of Playwright's pinned download.
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE }
+          : {},
+      },
     },
+
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
