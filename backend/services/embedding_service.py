@@ -220,6 +220,10 @@ class EmbeddingService:
         Downloads from HuggingFace Hub into the runtime cache and loads via
         onnxruntime (CPU-only). Validates output dimension against the configured
         Qdrant collection dimension — raises loud on mismatch, never silent.
+
+        Sets self._encoder = session as a marker so _ensure_encoder's short-circuit
+        fires on subsequent calls (the encode paths check self._onnx_session, not
+        self._encoder, so this is safe).
         """
         import os
         import tempfile
@@ -266,6 +270,7 @@ class EmbeddingService:
                 "BAAI/bge-m3",
                 model_max_length=8192,
             )
+            self._encoder = session
             logger.info(
                 f"Loaded ONNX INT8 encoder: {onnx_model_id} "
                 f"(dims={output_dim}, outputs={len(outputs)}: "
