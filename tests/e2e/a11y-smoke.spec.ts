@@ -9,7 +9,7 @@
  * Run:  npx playwright test --project=chromium tests/e2e/a11y-smoke.spec.ts
  */
 import AxeBuilder from '@axe-core/playwright';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 
 const CRITICAL_ROUTES = [
   '/',
@@ -20,6 +20,9 @@ const CRITICAL_ROUTES = [
   '/practices/serene-mind',
   '/knowledge-graph',
 ];
+
+/** Routes that require an authenticated session (otherwise redirect to /auth). */
+const PROTECTED_ROUTES = new Set(['/chat', '/profile', '/practices', '/practices/serene-mind', '/knowledge-graph']);
 
 /** Rules we knowingly do not gate on (third-party iframes, animated canvas). */
 const DISABLED_RULES = ['frame-title', 'color-contrast-enhanced'];
@@ -51,10 +54,34 @@ function format(violations: Violation[]): string {
     .join('\n');
 }
 
+/**
+ * Seed a fake Supabase session so protected routes render instead of
+ * redirecting to /auth. Mirrors the pattern in session-auth.spec.ts and
+ * google-auth-flow.spec.ts. The key name must match the Supabase client's
+ * storage key (sb-<project-ref>-auth-token).
+ */
+async function seedAuth(context: BrowserContext) {
+  const fakeKey = 'sb-fynkjimvuimakgtidvuq-auth-token';
+  await context.addInitScript((k) => {
+    localStorage.setItem(
+      k,
+      JSON.stringify({ access_token: 'fake', refresh_token: 'fake', user: { id: 'a11y-test' } }),
+    );
+  }, fakeKey);
+}
+
 for (const route of CRITICAL_ROUTES) {
-  test(`a11y: ${route} has no serious/critical violations`, async ({ page }, testInfo) => {
+  test(`a11y: ${route} has no serious/critical violations`, async ({ page, context }, testInfo) => {
+    if (PROTECTED_ROUTES.has(route)) {
+      await seedAuth(context);
+    }
     await page.goto(route, { waitUntil: 'networkidle' });
     await expect(page.locator('body')).toBeVisible();
+
+    // Verify the page reached the intended route (not bounced to /auth for
+    // protected routes). For protected routes, assert the URL is still the
+    // intended route; for public routes, assert the URL matches the target.
+    await expect(page).toHaveURL(new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') || '^/$'), { timeout: 10_000 });
 
     const results = await analyze(page);
     const violations = results.violations as unknown as Violation[];
@@ -84,13 +111,19 @@ test('a11y: meditation flow (Serene Mind player) is accessible once opened', asy
 }, testInfo) => {
   await page.goto('/practices/serene-mind', { waitUntil: 'networkidle' });
 
+  // The start control (header "Serene Mind" button) must be present and
+  // successfully clicked — do not swallow visibility or click failures.
   const start = page
-    .getByRole('button', { name: /begin|start|play|serene/i })
+    .getByRole('button', { name: /serene|begin|start|play/i })
     .first();
-  if (await start.isVisible().catch(() => false)) {
-    await start.click({ timeout: 3000 }).catch(() => undefined);
-    await page.waitForTimeout(800);
-  }
+  await expect(start).toBeVisible({ timeout: 10_000 });
+  await start.click({ timeout: 5_000 });
+
+  // Player-ready assertion: the GuidedMeditationFlow full-screen overlay
+  // has opened. The overlay renders a close button (X icon) at top-right
+  // that only exists when the flow is open. Wait for it before auditing.
+  const playerReady = page.locator('[role="dialog"], .fixed.inset-0.z-50 button:has(svg)').first();
+  await expect(playerReady).toBeVisible({ timeout: 10_000 });
 
   const results = await analyze(page);
   const violations = results.violations as unknown as Violation[];

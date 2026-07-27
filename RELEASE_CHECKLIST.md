@@ -26,10 +26,15 @@ BASE_URL=https://askmukthiguru.lovable.app scripts/prelaunch.sh
 
 Exit code 0 = safe to publish. Non-zero = do not publish.
 
-On failure, every spec leaves a screenshot, a video and a full Playwright
-trace under `test-results/` (plus the HTML report in `playwright-report/`).
-In CI these are uploaded as artifacts by `.github/workflows/prelaunch-gate.yml`;
-locally, replay a trace with `npx playwright show-trace test-results/<dir>/trace.zip`.
+On failure, Playwright retains a screenshot, a video, and a full trace
+under `test-results/` for **failed Playwright tests only** (plus the HTML
+report in `playwright-report/`). Build failures (`npm run build`), unit
+test failures (`vitest --run`), and suites skipped via short-circuit
+(`scripts/prelaunch.sh` exits on the first red step) do not produce
+Playwright media — only the spec that actually failed a Playwright run
+leaves artifacts. In CI these are uploaded by
+`.github/workflows/prelaunch-gate.yml`; locally, replay a trace with
+`npx playwright show-trace test-results/<dir>/trace.zip`.
 
 ### CI
 

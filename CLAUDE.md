@@ -11,7 +11,7 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 **Constraints from SPEC_DEV.md (non-negotiable):**
 - $0 budget — only free-tier infrastructure (Colab, Qdrant local, Ollama)
 - All processing is local; zero external API calls at inference
-- Every dependency must be open source (Apache 2.0, MIT, or Meta Community)
+- Every dependency must be open source (Apache 2.0, MIT, or Meta Community). Approved exceptions for MPL-2.0 dev-only test deps are recorded in `LICENSE-EXCEPTIONS.md`.
 - Target: <1% hallucination rate, <3s response time
 - Data source: only Sri Preethaji & Sri Krishnaji's YouTube videos + approved images
 
