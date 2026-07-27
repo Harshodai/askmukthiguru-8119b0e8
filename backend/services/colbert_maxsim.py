@@ -102,11 +102,31 @@ if __name__ == "__main__":
     print(f"irrelevant score: {irrel_score:.4f}")
     assert rel_score > irrel_score, f"FAIL: relevant ({rel_score}) should beat irrelevant ({irrel_score})"
 
+    # Test mask: put high-sim tokens in the MASKED region, so masking must drop the score.
+    # Construct a doc where tokens 0-7 are near-copies of query, then mask those exact tokens.
+    relevant_for_mask = rng.standard_normal((50, dim)).astype(np.float32)
+    relevant_for_mask[:8] = q + 0.01 * rng.standard_normal((8, dim))  # high-sim at start
+    relevant_for_mask = relevant_for_mask / np.linalg.norm(relevant_for_mask, axis=1, keepdims=True)
+
+    # Mask the high-sim tokens (0-7), forcing the max to fall back to the random tokens (low sim)
     mask = np.ones(50, dtype=bool)
-    mask[25:] = False
-    masked_score = maxsim_score(q, relevant, doc_mask=mask)
-    print(f"masked score (half tokens): {masked_score:.4f}")
-    assert masked_score <= rel_score, "masking valid tokens should not increase score"
+    mask[:8] = False  # mask the high-sim region
+    masked_score = maxsim_score(q, relevant_for_mask, doc_mask=mask)
+
+    # Unmasked score should be high (high-sim tokens present)
+    unmasked_score = maxsim_score(q, relevant_for_mask)
+    print(f"unmasked (high-sim at start): {unmasked_score:.4f}")
+    print(f"masked (high-sim tokens masked out): {masked_score:.4f}")
+    assert unmasked_score > 0.5, f"unmasked should be high (high-sim tokens present), got {unmasked_score}"
+    assert masked_score < unmasked_score, f"masking high-sim tokens MUST drop the score, got {masked_score} vs {unmasked_score}"
+    assert masked_score < 0.2, f"masked score should be low (only random tokens remain), got {masked_score}"
+
+    # Empty arrays edge cases
+    empty_q = np.zeros((0, dim), dtype=np.float32)
+    empty_d = np.zeros((0, dim), dtype=np.float32)
+    assert maxsim_score(empty_q, relevant) == 0.0, "empty query should return 0.0"
+    assert maxsim_score(q, empty_d) == 0.0, "empty doc should return 0.0"
+    print("empty arrays: PASS (returns 0.0, not nan)")
 
     scores = batch_maxsim(q, [relevant, irrelevant])
     print(f"batch scores: {scores}")
@@ -120,4 +140,4 @@ if __name__ == "__main__":
     print(f"short doc score: {short_score:.4f}")
     assert short_score == 0.0, "docs with < _MIN_DOC_TOKENS valid tokens should return 0.0"
 
-    print("PASS — MaxSim scorer ranks relevant > irrelevant, mask works, batch matches single, degenerate guarded")
+    print("PASS — MaxSim scorer ranks relevant > irrelevant, mask works, batch matches single, degenerate guarded, empty arrays guarded")
