@@ -758,6 +758,128 @@ class EmbeddingService:
         """Async GIL-escape wrapper for encode_batch(). Frees event loop during encoding."""
         return await asyncio.to_thread(self.encode_batch, texts)
 
+    def encode_with_colbert(self, texts: list[str]) -> dict:
+        """Return dense, sparse, AND colbert token embeddings in one batched ONNX call.
+
+        ColBERT vectors are L2-normalized per token (BGE-M3 default). CLS token
+        is excluded per FlagEmbedding convention (colbert_vecs[:tokens_num - 1]).
+        Right-padding assumed (XLM-R default for sequence classification: valid
+        tokens at start, padding at end).
+
+        LRU cache deferred — batched caller in _colbert_maxsim_rerank makes
+        per-text caching marginal. Add if profiling shows reuse.
+
+        Returns:
+            dict with keys 'dense' (list[list[float]]), 'sparse' (list[dict]),
+            'colbert' (list[np.ndarray], each shape [n_valid_tokens, 1024]).
+        """
+        import numpy as np
+
+        if not texts:
+            return {"dense": [], "sparse": [], "colbert": []}
+
+        start_time = time.monotonic()
+        with self._inference_lock:
+            self._ensure_encoder()
+            use_onnx = self._onnx_session is not None
+
+            max_retries = 3
+            last_err = None
+            for attempt in range(1, max_retries + 1):
+                try:
+                    if use_onnx:
+                        from collections import defaultdict
+
+                        inputs = self._onnx_tokenizer(
+                            texts, padding=True, truncation=True, return_tensors="np"
+                        )
+                        ort_out = self._onnx_session.run(
+                            None,
+                            {
+                                "input_ids": inputs["input_ids"].astype("int64"),
+                                "attention_mask": inputs["attention_mask"].astype("int64"),
+                            },
+                        )
+                        dense_vecs = ort_out[0].tolist()
+                        sparse_raw = ort_out[1]
+                        input_ids = inputs["input_ids"].tolist()
+                        sparse_weights = []
+                        unused_tokens = {
+                            self._onnx_tokenizer.cls_token_id,
+                            self._onnx_tokenizer.eos_token_id,
+                            self._onnx_tokenizer.pad_token_id,
+                            self._onnx_tokenizer.unk_token_id,
+                        }
+                        for row_idx, token_ids in enumerate(input_ids):
+                            weights = sparse_raw[row_idx, :, 0]
+                            result = defaultdict(int)
+                            for w, tid in zip(weights, token_ids):
+                                if tid not in unused_tokens and w > 0:
+                                    key = str(tid)
+                                    if w > result[key]:
+                                        result[key] = w
+                            sparse_weights.append(dict(result))
+
+                        colbert_raw = ort_out[2]
+                        attention_mask = inputs["attention_mask"]
+                        colbert_vecs = []
+                        for i in range(len(texts)):
+                            tokens_num_i = int(attention_mask[i].sum())
+                            n_valid = tokens_num_i - 1
+                            if n_valid <= 0:
+                                colbert_vecs.append(
+                                    np.zeros((0, 1024), dtype=np.float32)
+                                )
+                                continue
+                            colbert_i = colbert_raw[i][:n_valid].astype(np.float32)
+                            colbert_vecs.append(colbert_i)
+                    else:
+                        import torch
+
+                        with torch.inference_mode():
+                            output = self._encoder.encode(
+                                texts,
+                                return_dense=True,
+                                return_sparse=True,
+                                return_colbert_vecs=True,
+                            )
+                            dense_vecs = output["dense_vecs"].tolist()
+                            sparse_weights = output["lexical_weights"]
+                            colbert_vecs = [
+                                np.array(v, dtype=np.float32)
+                                for v in output["colbert_vecs"]
+                            ]
+
+                    EMBEDDING_LATENCY.labels(operation="encode_with_colbert").observe(
+                        time.monotonic() - start_time
+                    )
+                    return {
+                        "dense": dense_vecs,
+                        "sparse": sparse_weights,
+                        "colbert": colbert_vecs,
+                    }
+                except Exception as e:
+                    last_err = e
+                    EMBEDDING_ERRORS.labels(operation="encode_with_colbert").inc()
+                    logger.warning(
+                        f"encode_with_colbert failed on attempt {attempt}/{max_retries}: {e}. "
+                        f"Performing garbage collection and retrying in 2 seconds..."
+                    )
+                    import gc
+
+                    gc.collect()
+                    time.sleep(2)
+
+            logger.error(
+                f"All {max_retries} attempts to encode_with_colbert failed. "
+                f"Raising last error: {last_err}"
+            )
+            raise last_err
+
+    async def encode_with_colbert_async(self, texts: list[str]) -> dict:
+        """Async GIL-escape wrapper for encode_with_colbert()."""
+        return await asyncio.to_thread(self.encode_with_colbert, texts)
+
     def encode_single_full(self, text: str) -> dict:
         """
         Encode a single query text into both dense and sparse vectors.
