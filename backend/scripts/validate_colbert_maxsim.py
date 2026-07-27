@@ -11,7 +11,11 @@ P1  capability probe          — `encode_with_colbert` returns dense/sparse/col
 P2  latency spike (20 docs)   — warm P95 < 2000ms (2-thread Railway CPU, batched rerank).
 P3  multilingual sanity       — 4 language pairs (en/hi/te/mr): relevant > irrelevant.
 P4  ColBERT vs CrossEncoder   — Spearman > 0.85 on English subset (OPTIONAL —
-                                 graceful skip if sentence_transformers missing).
+                                  graceful skip if sentence_transformers missing).
+                                  Uses a discriminating corpus (10 queries × 5
+                                  docs of varying relevance, 50 rank pairs) so the
+                                  two rerankers produce real rank variance to
+                                  correlate. Fails loudly on zero variance.
 
 Exit code
 ---------
@@ -324,11 +328,122 @@ def _spearman_fallback(a: list[float], b: list[float]) -> float:
     return float(1.0 - (6.0 * np.sum(d * d)) / (n * (n * n - 1)))
 
 
+ENGLISH_P4_PAIRS = [
+    {
+        "query": "what is karma",
+        "docs": [
+            "Karma is the law of cause and effect governing all actions and their consequences across lifetimes.",
+            "The concept of karma appears in both Hindu and Buddhist philosophy with subtle differences.",
+            "Meditation helps calm the mind and observe thoughts without attachment.",
+            "The weather forecast predicts rain tomorrow afternoon.",
+            "Preethaji teaches that karma can be transformed through awareness.",
+        ],
+    },
+    {
+        "query": "how to meditate",
+        "docs": [
+            "Begin meditation by sitting comfortably, closing your eyes, and focusing on your breath.",
+            "Regular meditation practice reduces stress and improves emotional regulation.",
+            "Karma yoga is the path of selfless action without attachment to results.",
+            "The stock market closed higher today on strong earnings reports.",
+            "Krishnaji guides seekers to meditate on the self rather than the mind.",
+        ],
+    },
+    {
+        "query": "who is preethaji",
+        "docs": [
+            "Sri Preethaji is a contemporary spiritual teacher and co-founder of the Ekam meditation center.",
+            "Preethaji's teachings emphasize a beautiful state and the dissolution of suffering.",
+            "Krishnaji co-founded Ekam alongside Preethaji to share the wisdom of oneness.",
+            "Photosynthesis converts solar energy into chemical energy stored in glucose.",
+            "A spiritual teacher often acts as a mirror reflecting the seeker's own nature.",
+        ],
+    },
+    {
+        "query": "what is moksha",
+        "docs": [
+            "Moksha is liberation from the cycle of birth and death, the supreme goal of spiritual life.",
+            "Moksha is achieved through self-realization and the dissolution of egoic identity.",
+            "Dharma is the cosmic order and righteous duty that sustains the universe.",
+            "The Pacific Ocean is the largest and deepest of the world's five oceans.",
+            "Ekam teaches that moksha is not a future event but a present awakening.",
+        ],
+    },
+    {
+        "query": "what is ekam",
+        "docs": [
+            "Ekam is a oneness temple and meditation center in India founded by Preethaji and Krishnaji.",
+            "Ekam hosts large meditation gatherings and spiritual retreats for seekers worldwide.",
+            "A mandir is a Hindu temple dedicated to one or more deities and devotional practice.",
+            "Cricket is a bat-and-ball game played between two teams of eleven players.",
+            "Preethaji describes Ekam as a field for awakening to a beautiful state.",
+        ],
+    },
+    {
+        "query": "what is dharma",
+        "docs": [
+            "Dharma is the cosmic order and righteous duty that sustains the universe in Hindu thought.",
+            "Dharma varies according to one's stage of life, social role, and personal nature.",
+            "Karma is the law of cause and effect that binds actions to their consequences.",
+            "Quantum mechanics describes the behaviour of matter at the subatomic scale.",
+            "Krishnaji teaches that dharma is living in alignment with truth each moment.",
+        ],
+    },
+    {
+        "query": "who is krishnaji",
+        "docs": [
+            "Sri Krishnaji is a contemporary spiritual teacher who co-founded Ekam with Sri Preethaji.",
+            "Krishnaji's discourses focus on the awakening of consciousness and the end of suffering.",
+            "Preethaji and Krishnaji together lead a global movement for oneness and transformation.",
+            "The Great Wall of China stretches over thirteen thousand miles across northern China.",
+            "A guru in the Indian tradition guides disciples from ignorance to self-knowledge.",
+        ],
+    },
+    {
+        "query": "what is atman",
+        "docs": [
+            "Atman is the eternal, unchanging self or soul, identical with Brahman in Advaita Vedanta.",
+            "Atman is distinct from the body, mind, and ego, which are temporary and changing.",
+            "Brahman is the ultimate, formless reality underlying all existence in Hindu philosophy.",
+            "Python is a high-level programming language with dynamic typing and garbage collection.",
+            "Self-inquiry into 'who am I' is the direct path to realizing atman, Krishnaji teaches.",
+        ],
+    },
+    {
+        "query": "what is bhakti yoga",
+        "docs": [
+            "Bhakti yoga is the path of devotional love and surrender to a personal deity or divine form.",
+            "Bhakti practitioners cultivate an intimate, emotional relationship with the divine.",
+            "Jnana yoga is the path of knowledge and self-inquiry leading to realization of Brahman.",
+            "The Taj Mahal was commissioned by Shah Jahan as a mausoleum for his wife.",
+            "Preethaji teaches that devotion flowers naturally when the self is seen clearly.",
+        ],
+    },
+    {
+        "query": "what is jnana yoga",
+        "docs": [
+            "Jnana yoga is the path of knowledge and self-inquiry leading to realization of Brahman.",
+            "Jnana yoga uses discrimination between the real and the unreal to dissolve ignorance.",
+            "Karma yoga is the path of selfless action performed without attachment to results.",
+            "A balanced diet includes proteins, carbohydrates, fats, vitamins, and minerals.",
+            "Krishnaji points to jnana as seeing through the illusion of a separate self.",
+        ],
+    },
+]
+
+
 def _colbert_vs_crossencoder_spearman() -> tuple[bool, Optional[float], str]:
     """Compare ColBERT MaxSim rank vs CrossEncoder rank on English subset.
 
     Optional phase: graceful skip if sentence_transformers unavailable.
     Pass: Spearman > 0.85 (sanity — not parity, different model families).
+
+    Corpus design: 10 queries × 5 docs each with varying relevance
+    (highly relevant, relevant, loosely related, irrelevant, teacher-context
+    relevant). ColBERT (token-level) and CrossEncoder (sequence-level) rank
+    docs slightly differently, producing real rank variance for Spearman.
+    50 rank pairs total. If still zero variance, fail loudly — the corpus
+    is not discriminating enough.
     """
     try:
         import torch  # noqa: F401
@@ -342,62 +457,47 @@ def _colbert_vs_crossencoder_spearman() -> tuple[bool, Optional[float], str]:
 
     svc = EmbeddingService()
 
-    queries = [
-        "what is karma",
-        "who is preethaji",
-        "what is ekam",
-        "how to meditate",
-        "what is moksha",
-        "what is dharma",
-        "who is krishnaji",
-        "what is atman",
-        "what is bhakti yoga",
-        "what is jnana yoga",
-    ]
-    relevant_docs = [
-        "Karma is the sum of a person's actions viewed as deciding their fate in future existences.",
-        "Sri Preethaji is a contemporary spiritual teacher and founder of Ekam meditation center.",
-        "Ekam is a oneness temple and meditation center founded by Sri Preethaji and Sri Krishnaji.",
-        "Meditation is the practice of focused attention and awareness to achieve mental clarity.",
-        "Moksha is liberation from the cycle of birth and death in Hindu and Jain philosophy.",
-        "Dharma is the cosmic law and order underlying right conduct and duty in Indian religions.",
-        "Sri Krishnaji is a contemporary spiritual teacher who co-founded Ekam with Sri Preethaji.",
-        "Atman is the eternal, unchanging self or soul in Hindu philosophy, identical with Brahman.",
-        "Bhakti yoga is the path of devotional love and surrender to a personal deity.",
-        "Jnana yoga is the path of knowledge and wisdom, realizing the self as Brahman.",
-    ]
-    irrelevant_docs = [
-        "The weather today is sunny with a light breeze across the coastal plains.",
-        "Cricket is a bat-and-ball game played between two teams of eleven players.",
-        "The stock market closed higher on strong earnings from technology companies.",
-        "Photosynthesis converts solar energy into chemical energy stored in glucose.",
-        "The Great Wall of China stretches over thirteen thousand miles across northern China.",
-        "Quantum mechanics describes the behaviour of matter at the subatomic scale.",
-        "A balanced diet includes proteins, carbohydrates, fats, vitamins, and minerals.",
-        "The Pacific Ocean is the largest and deepest of the world's five oceans.",
-        "Python is a high-level programming language with dynamic typing and garbage collection.",
-        "The Taj Mahal was commissioned by Shah Jahan as a mausoleum for his wife.",
-    ]
-
-    all_docs = relevant_docs + irrelevant_docs
     colbert_rank_positions: list[int] = []
     cross_rank_positions: list[int] = []
 
     try:
-        for q, rel, irr in zip(queries, relevant_docs, irrelevant_docs):
-            docs = [rel, irr]
-            colbert_out = svc._colbert_maxsim_rerank(q, [{"text": d} for d in docs], top_k=2)
+        for pair in ENGLISH_P4_PAIRS:
+            q = pair["query"]
+            docs = pair["docs"]
+
+            # Build separate doc-obj lists per reranker — both rerankers mutate
+            # the dicts in place (colbert adds internal fields, crossencoder
+            # adds rerank_score), so we cannot share the same list.
+            colbert_out = svc._colbert_maxsim_rerank(
+                q, [{"text": d} for d in docs], top_k=len(docs)
+            )
             colbert_order = [d["text"] for d in colbert_out]
-            colbert_pos = colbert_order.index(rel)
 
-            cross_out = svc.rerank(q, [{"text": d} for d in docs], top_k=2)
+            # min_score=-1 disables the rerank_min_score threshold filter so all
+            # docs are returned in rank order (we need full rankings, not the
+            # production filtered subset, to compute rank positions for Spearman).
+            cross_out = svc.rerank(
+                q, [{"text": d} for d in docs], top_k=len(docs), min_score=-1.0
+            )
             cross_order = [d["text"] for d in cross_out]
-            cross_pos = cross_order.index(rel)
 
-            colbert_rank_positions.append(colbert_pos)
-            cross_rank_positions.append(cross_pos)
+            for original_idx, original_doc in enumerate(docs):
+                # If a doc was dropped by a reranker's filter, assign it the
+                # worst rank (len(docs)) so the pair still contributes a signal.
+                c_pos = colbert_order.index(original_doc) if original_doc in colbert_order else len(docs)
+                x_pos = cross_order.index(original_doc) if original_doc in cross_order else len(docs)
+                colbert_rank_positions.append(c_pos)
+                cross_rank_positions.append(x_pos)
     except Exception as exc:
         return False, None, f"rerank loop failed: {exc!r}"
+
+    if len(set(colbert_rank_positions)) <= 1 and len(set(cross_rank_positions)) <= 1:
+        logger.error(
+            "P4: FAIL — zero rank variance (corpus not discriminating). "
+            "colbert_pos=%s cross_pos=%s",
+            colbert_rank_positions, cross_rank_positions,
+        )
+        return False, None, "P4: zero rank variance — corpus not discriminating enough"
 
     try:
         from scipy.stats import spearmanr
@@ -419,14 +519,18 @@ def _colbert_vs_crossencoder_spearman() -> tuple[bool, Optional[float], str]:
         spearman_path = f"fallback(scipy failed: {exc!r})"
 
     if not np.isfinite(spearman_corr):
-        logger.warning("P4: spearman non-finite (%s) — likely zero-variance ranks, skipping", spearman_corr)
-        return True, None, f"spearman non-finite — P4 skipped (ranks: colbert={colbert_rank_positions} cross={cross_rank_positions})"
+        logger.error(
+            "P4: FAIL — spearman non-finite (%s). Zero-variance ranks. "
+            "colbert_pos=%s cross_pos=%s",
+            spearman_corr, colbert_rank_positions, cross_rank_positions,
+        )
+        return False, None, "P4: zero rank variance — corpus not discriminating enough"
 
     passed = spearman_corr > _SPEARMAN_GATE
     status = "PASS" if passed else "FAIL"
     msg = (
         f"P4: {status} — spearman={spearman_corr:.4f} (gate > {_SPEARMAN_GATE}) "
-        f"[{spearman_path}] colbert_pos={colbert_rank_positions} cross_pos={cross_rank_positions}"
+        f"[{spearman_path}] n={len(colbert_rank_positions)} rank pairs"
     )
     if not passed:
         logger.error(msg)
