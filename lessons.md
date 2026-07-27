@@ -5691,3 +5691,32 @@ The backend loads three CPU ML models permanently resident for the process lifet
 5. **BGE-M3 is the only model that received this treatment because it was the only one with a pre-validated public quantized version.** The reranker and LettuceDetect models are equally quantizeable but lack the same public validation. Until they're individually validated, don't assume the quality numbers transfer.
 6. **The 7x cold-start vs 2x warm ratio reveals PyTorch overhead.** PyTorch's 150ms cold-start tax (JIT + allocator + thread pool init) dwarfs the actual inference time (35ms warm). ONNX Runtime avoids all three. For serverless or ephemeral deployments, this is the decisive advantage — not the 2x warm speedup.
 
+## ONNX Reranker + ColBERT MaxSim (Jul 27, 2026)
+
+### Tokenizer source = model repo, not upstream
+The temsa ONNX repo (`temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8`) ships its own `tokenizer.json`, `tokenizer_config.json`, `special_tokens_map.json`, and `sentencepiece.bpe.model`. The original `onnx_reranker.py` loaded the tokenizer from the UPSTREAM `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` repo — a different repo. If temsa's tokenizer files differ from upstream by even one special token, you get silent score drift. **Always load the tokenizer from the same repo as the ONNX model.** Verified against the temsa model card's own usage example.
+
+### Paired tokenization is non-negotiable for CrossEncoders
+sentence-transformers v3.4.1 `CrossEncoder.smart_batching_collate` does `self.tokenizer(*texts, ...)` — unpacking `[queries, docs]` as two positional args, producing `[CLS] q [SEP] d [SEP]` + `token_type_ids`. The old plan draft concatenated `f"{q} {d}"` before tokenizing as a single sequence — destroying the segment structure the model was fine-tuned on. The ONNX wrapper must mirror this: `tokenizer(queries, docs, padding=True, truncation=True, max_length=512, return_tensors="np")`.
+
+### ColBERT CLS exclusion: slice `[:tokens_num - 1]`, not `[:tokens_num]`
+FlagEmbedding's `_process_colbert_vecs` (bge_m3.py:140-143) returns `colbert_vecs[:tokens_num - 1]` — it excludes the CLS token. The naive `[:tokens_sum]` includes CLS, which is a different input distribution. Match FlagEmbedding exactly. Verified from the FlagEmbedding source.
+
+### Batched encode, not per-doc loop
+The old plan's `_colbert_maxsim_rerank` called `encode_with_colbert([doc_text])` once per document — 20 separate ONNX forward passes. The fix: `encode_with_colbert([query] + all_doc_texts)` in ONE call, then loop only for the MaxSim matmul (which is pure NumPy, ~2ms/doc). This is the difference between 20×100ms (2000ms) and 1×200ms (200ms) for the encode stage.
+
+### Spearman > cosine for reranker quality gates
+P2 cosine correlation between ONNX INT8 and PyTorch fp32 was 0.78 — below a >0.97 gate. But cosine on raw scores measures magnitude agreement, not ranking quality. For a RERANKER, what matters is whether the right doc ranks first. Spearman rank correlation was 0.976. **Use Spearman for reranker quality gates, not cosine.** Also force CPU for the PyTorch baseline to remove the MPS-vs-CPU numerics confound.
+
+### cp1 env_parse guard needs a lookbehind regex, not `\b`
+The cp1 concatenation bug is `SMTP_PASSWORD=secretEMBEDDING_BACKEND=onnx_int8` on one line. A `\b` word boundary regex doesn't fire between lowercase `t` and uppercase `E` (both are word chars). The lookbehind `(?<![A-Z])[A-Z][A-Z0-9_]{2,}=` fires correctly because `t` is lowercase (not `[A-Z]`), then `EMBEDDING_BACKEND=` matches. Verify the guard with a self-test on the actual cp1 pattern.
+
+### Pre-existing: `_load_onnx_encoder` must set `self._encoder` for short-circuit
+`_ensure_encoder()` short-circuits on `self._encoder is not None`. But `_load_onnx_encoder` only set `self._onnx_session`/`_onnx_tokenizer`, never `self._encoder`. Result: every `encode()`/`encode_batch()`/`encode_with_colbert()` call re-ran `snapshot_download` (~30s per call for the 570MB ONNX model). The PyTorch `flagembedding` path was unaffected (it sets `self._encoder = BGEM3FlagModel`). Fix: `self._encoder = session` at the end of `_load_onnx_encoder` — a marker that makes the short-circuit fire. Encode paths check `self._onnx_session is not None`, not `self._encoder`, so this is safe. 30657ms → 46ms per call (660× improvement). This was a silent production bug since cp1 shipped.
+
+### Cost framing: Phase 2 is a feature, not savings
+`enable_colbert` defaults to False; RAGatouille is lazy-loaded behind that gate and never loaded in production. "Removing RAGatouille -440MB" saves memory that wasn't being spent. Phase 2 (ONNX-native ColBERT MaxSim) is a NEW multilingual reranking capability (100+ languages, reuses the loaded BGE-M3 session), not a cost reduction. Real savings from this plan: ~$0.40/mo (Phase 1 ONNX reranker). The old plan's "$14/mo" was inflated by counting cp1's already-shipped $11/mo plus an imaginary $2.50/mo.
+
+### Latency extrapolation: 32-thread benchmarks don't transfer to 2-thread Railway
+temsa's published p50=168.9ms was on 32 threads, batch_size=64, max_length=256. The old plan extrapolated "~85ms (2× speedup)" to Railway's 2-thread CPU — off by 5-10×. Realistic warm P95 on 2-thread CPU: 300-600ms for the reranker, 200-2000ms for 20-doc batched ColBERT. Always recompute latency projections for the target thread count; don't extrapolate "speedup factors" across different hardware.
+
