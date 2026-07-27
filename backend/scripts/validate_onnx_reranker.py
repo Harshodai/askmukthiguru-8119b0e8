@@ -24,6 +24,7 @@ Run from anywhere; the script resolves `backend/` itself.
 from __future__ import annotations
 
 import logging
+import re
 import sys
 import time
 from pathlib import Path
@@ -32,8 +33,15 @@ from typing import Optional
 logger = logging.getLogger("validate_onnx_reranker")
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
-_REPO_ROOT = _BACKEND_DIR.parent
 _ENV_PATH = _BACKEND_DIR / ".env"
+
+_SPEARMAN_GATE = 0.90
+_WARM_P95_GATE_MS = 600.0
+_COLD_P95_GATE_MS = 1500.0
+_WARM_ITERS = 20
+_NUM_PAIRS = 100
+
+_VALUE_KEY_PATTERN = re.compile(r"(?<![A-Z])[A-Z][A-Z0-9_]{2,}=")
 
 if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
@@ -97,6 +105,14 @@ def _build_pairs(n: int = 100) -> list[tuple[str, str]]:
 # P0 — env parse
 # ---------------------------------------------------------------------------
 
+def _test_concat_guard() -> None:
+    fused = "SMTP_PASSWORD=secretEMBEDDING_BACKEND=onnx_int8"
+    stripped = fused.strip()
+    key, _, value = stripped.partition("=")
+    assert _VALUE_KEY_PATTERN.search(value), "concat guard failed to detect fused line"
+    logger.info("P0: concat guard self-test: PASS")
+
+
 def validate_env_parse(env_path: Path = _ENV_PATH) -> tuple[bool, dict]:
     """Parse `backend/.env` line-by-line; fail on any unparseable line.
 
@@ -126,6 +142,13 @@ def validate_env_parse(env_path: Path = _ENV_PATH) -> tuple[bool, dict]:
                 malformed.append(lineno)
                 logger.error("P0: line %d has empty key", lineno)
                 continue
+            if _VALUE_KEY_PATTERN.search(value):
+                malformed.append(lineno)
+                logger.error(
+                    "P0: line %d possible concatenation bug — value contains a second KEY= pattern: %s=...%s",
+                    lineno, key, value[:40],
+                )
+                continue
             keys.append(key)
             if key == "RERANKER_BACKEND":
                 info["reranker_backend"] = value.strip()
@@ -149,6 +172,7 @@ def validate_env_parse(env_path: Path = _ENV_PATH) -> tuple[bool, dict]:
             )
         except Exception as exc:
             logger.warning("P0: could not read config default: %s", exc)
+    _test_concat_guard()
     return True, info
 
 
@@ -184,7 +208,11 @@ def capability_probe() -> tuple[bool, list[float]]:
 # ---------------------------------------------------------------------------
 
 def _spearman_fallback(a: list[float], b: list[float]) -> float:
-    """Pure-Python Spearman rank correlation (no scipy dependency)."""
+    """Pure-Python Spearman rank correlation (no scipy dependency).
+
+    Uses ordinal ranks via argsort. Approximate when ties exist: scipy's
+    ``spearmanr`` averages tied ranks, this fallback does not.
+    """
     import numpy as np
     rank_a = np.argsort(np.argsort(a)).astype(float)
     rank_b = np.argsort(np.argsort(b)).astype(float)
@@ -210,10 +238,10 @@ def score_correlation(num_pairs: int = 100) -> tuple[bool, Optional[float], str]
 
     from services.onnx_reranker import OnnxReranker
 
-    print("P2: forcing CPU for PyTorch baseline to match ONNX runtime")
+    logger.info("P2: forcing CPU for PyTorch baseline to match ONNX runtime")
     try:
         pytorch_ce = CrossEncoder("cross-encoder/mmarco-mMiniLMv2-L12-H384-v1", device="cpu")
-    except (OSError, RuntimeError, Exception) as exc:
+    except Exception as exc:
         return True, None, f"PyTorch CrossEncoder load failed ({exc!r}) — P2 skipped"
 
     onnx_reranker = OnnxReranker()
@@ -254,7 +282,7 @@ def score_correlation(num_pairs: int = 100) -> tuple[bool, Optional[float], str]
     else:
         cosine_sim = float(np.dot(onnx_arr, pytorch_arr) / denom)
 
-    threshold = 0.90
+    threshold = _SPEARMAN_GATE
     passed = spearman_corr > threshold
     status = "PASS" if passed else "FAIL"
     msg = (
@@ -308,15 +336,18 @@ def latency_benchmark(num_pairs: int = 100, warm_iters: int = 20) -> tuple[bool,
         cold_ms, warm_p50, warm_p95, variance, warm_iters, len(pairs),
     )
 
-    warm_pass = warm_p95 < 600.0
-    cold_pass = cold_p95 < 1500.0
+    warm_pass = warm_p95 < _WARM_P95_GATE_MS
+    cold_pass = cold_p95 < _COLD_P95_GATE_MS
     if not (warm_pass and cold_pass):
         logger.error(
-            "P3: FAIL — warm_p95=%.1fms (need <600ms), cold_p95=%.1fms (need <1500ms)",
-            warm_p95, cold_p95,
+            "P3: FAIL — warm_p95=%.1fms (need <%dms), cold_p95=%.1fms (need <%dms)",
+            warm_p95, int(_WARM_P95_GATE_MS), cold_p95, int(_COLD_P95_GATE_MS),
         )
         return False, metrics
-    logger.info("P3: PASS — warm_p95=%.1fms <600ms, cold_p95=%.1fms <1500ms", warm_p95, cold_p95)
+    logger.info(
+        "P3: PASS — warm_p95=%.1fms <%dms, cold_p95=%.1fms <%dms",
+        warm_p95, int(_WARM_P95_GATE_MS), cold_p95, int(_COLD_P95_GATE_MS),
+    )
     return True, metrics
 
 
@@ -364,7 +395,7 @@ def main() -> int:
     try:
         import onnxruntime  # noqa: F401
     except ModuleNotFoundError:
-        print(
+        logger.info(
             "onnxruntime is not installed — validation is opt-in. "
             "Skipping P1/P2/P3 (exit 0)."
         )
