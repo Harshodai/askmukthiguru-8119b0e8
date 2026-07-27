@@ -220,6 +220,10 @@ class EmbeddingService:
         Downloads from HuggingFace Hub into the runtime cache and loads via
         onnxruntime (CPU-only). Validates output dimension against the configured
         Qdrant collection dimension — raises loud on mismatch, never silent.
+
+        Sets self._encoder = session as a marker so _ensure_encoder's short-circuit
+        fires on subsequent calls (the encode paths check self._onnx_session, not
+        self._encoder, so this is safe).
         """
         import os
         import tempfile
@@ -266,6 +270,7 @@ class EmbeddingService:
                 "BAAI/bge-m3",
                 model_max_length=8192,
             )
+            self._encoder = session
             logger.info(
                 f"Loaded ONNX INT8 encoder: {onnx_model_id} "
                 f"(dims={output_dim}, outputs={len(outputs)}: "
@@ -402,9 +407,29 @@ class EmbeddingService:
             _apply_hf_env_bounds()
             self._thread_setup()
             device = self._get_device()
+
+            # Phase 1 optimisation: prefer ONNX INT8 reranker (~23 MB, ~2x faster).
+            # Rollback: set RERANKER_BACKEND=flagembedding in .env and restart.
+            if settings.reranker_backend == "onnx_int8":
+                try:
+                    from services.onnx_reranker import OnnxReranker
+                    self._reranker = OnnxReranker(model_id=settings.reranker_onnx_model)
+                    # OnnxReranker.predict() already applies sigmoid internally.
+                    # Setting this flag tells rerank() not to apply it again.
+                    self._reranker_outputs_probs = True
+                    logger.info(
+                        "Loaded ONNX INT8 reranker: %s", settings.reranker_onnx_model
+                    )
+                    return
+                except Exception as e:
+                    logger.warning(
+                        "ONNX reranker load failed (%s); falling back to PyTorch CrossEncoder",
+                        e,
+                    )
+
             from sentence_transformers import CrossEncoder
 
-            # CPU can't afford bge-reranker-v2-m3 (~4s/doc → 88s for 19 docs). Use the
+            # CPU can't afford bge-reranker-v2-m3 (~4s/doc -> 88s for 19 docs). Use the
             # light CPU model there; heavy multilingual reranker only on GPU/MPS.
             model_id = settings.reranker_model_cpu if device == "cpu" else settings.reranker_model
             logger.info(f"Loading reranker: {model_id} on device: {device}")
@@ -738,6 +763,168 @@ class EmbeddingService:
         """Async GIL-escape wrapper for encode_batch(). Frees event loop during encoding."""
         return await asyncio.to_thread(self.encode_batch, texts)
 
+    def encode_with_colbert(self, texts: list[str]) -> dict:
+        """Return dense, sparse, AND colbert token embeddings in one batched ONNX call.
+
+        ColBERT vectors are L2-normalized per token (BGE-M3 default). CLS token
+        is excluded per FlagEmbedding convention (colbert_vecs[:tokens_num - 1]).
+        Right-padding assumed (XLM-R default for sequence classification: valid
+        tokens at start, padding at end).
+
+        LRU cache deferred — batched caller in _colbert_maxsim_rerank makes
+        per-text caching marginal. Add if profiling shows reuse.
+
+        Returns:
+            dict with keys 'dense' (list[list[float]]), 'sparse' (list[dict]),
+            'colbert' (list[np.ndarray], each shape [n_valid_tokens, 1024]).
+        """
+        import numpy as np
+
+        if not texts:
+            return {"dense": [], "sparse": [], "colbert": []}
+
+        start_time = time.monotonic()
+        with self._inference_lock:
+            self._ensure_encoder()
+            use_onnx = self._onnx_session is not None
+
+            max_retries = 3
+            last_err = None
+            for attempt in range(1, max_retries + 1):
+                try:
+                    if use_onnx:
+                        from collections import defaultdict
+
+                        inputs = self._onnx_tokenizer(
+                            texts, padding=True, truncation=True, return_tensors="np"
+                        )
+                        ort_out = self._onnx_session.run(
+                            None,
+                            {
+                                "input_ids": inputs["input_ids"].astype("int64"),
+                                "attention_mask": inputs["attention_mask"].astype("int64"),
+                            },
+                        )
+                        dense_vecs = ort_out[0].tolist()
+                        sparse_raw = ort_out[1]
+                        input_ids = inputs["input_ids"].tolist()
+                        sparse_weights = []
+                        unused_tokens = {
+                            self._onnx_tokenizer.cls_token_id,
+                            self._onnx_tokenizer.eos_token_id,
+                            self._onnx_tokenizer.pad_token_id,
+                            self._onnx_tokenizer.unk_token_id,
+                        }
+                        for row_idx, token_ids in enumerate(input_ids):
+                            weights = sparse_raw[row_idx, :, 0]
+                            result = defaultdict(int)
+                            for w, tid in zip(weights, token_ids):
+                                if tid not in unused_tokens and w > 0:
+                                    key = str(tid)
+                                    if w > result[key]:
+                                        result[key] = w
+                            sparse_weights.append(dict(result))
+
+                        colbert_raw = ort_out[2]
+                        attention_mask = inputs["attention_mask"]
+                        colbert_vecs = []
+                        for i in range(len(texts)):
+                            tokens_num_i = int(attention_mask[i].sum())
+                            n_valid = tokens_num_i - 1
+                            if n_valid <= 0:
+                                colbert_vecs.append(
+                                    np.zeros((0, 1024), dtype=np.float32)
+                                )
+                                continue
+                            colbert_i = colbert_raw[i][:n_valid].astype(np.float32)
+                            colbert_vecs.append(colbert_i)
+                    else:
+                        import torch
+
+                        with torch.inference_mode():
+                            output = self._encoder.encode(
+                                texts,
+                                return_dense=True,
+                                return_sparse=True,
+                                return_colbert_vecs=True,
+                            )
+                            dense_vecs = output["dense_vecs"].tolist()
+                            sparse_weights = output["lexical_weights"]
+                            colbert_vecs = [
+                                np.array(v, dtype=np.float32)
+                                for v in output["colbert_vecs"]
+                            ]
+
+                    EMBEDDING_LATENCY.labels(operation="encode_with_colbert").observe(
+                        time.monotonic() - start_time
+                    )
+                    return {
+                        "dense": dense_vecs,
+                        "sparse": sparse_weights,
+                        "colbert": colbert_vecs,
+                    }
+                except Exception as e:
+                    last_err = e
+                    EMBEDDING_ERRORS.labels(operation="encode_with_colbert").inc()
+                    logger.warning(
+                        f"encode_with_colbert failed on attempt {attempt}/{max_retries}: {e}. "
+                        f"Performing garbage collection and retrying in 2 seconds..."
+                    )
+                    import gc
+
+                    gc.collect()
+                    time.sleep(2)
+
+            logger.error(
+                f"All {max_retries} attempts to encode_with_colbert failed. "
+                f"Raising last error: {last_err}"
+            )
+            raise last_err
+
+    async def encode_with_colbert_async(self, texts: list[str]) -> dict:
+        """Async GIL-escape wrapper for encode_with_colbert()."""
+        return await asyncio.to_thread(self.encode_with_colbert, texts)
+
+    def _colbert_maxsim_rerank(
+        self,
+        query: str,
+        documents: list[dict],
+        top_k: int = 15,
+    ) -> list[dict]:
+        """Rerank documents using BGE-M3 ColBERT MaxSim (ONNX-native, multilingual).
+
+        Batched: encodes query + ALL docs in ONE encode_with_colbert call,
+        then scores via batch_maxsim. This replaces the old RAGatouille
+        (ColBERTv2, English-only) path with a multilingual 100+ language
+        scorer that reuses the already-loaded ONNX BGE-M3 session.
+
+        Gate: only runs when settings.enable_colbert=True. When False,
+        returns documents[:top_k] unchanged (Phase 2 ships disabled).
+        """
+        if not documents:
+            return []
+        if not settings.enable_colbert:
+            return documents[:top_k]
+
+        import numpy as np
+        from services.colbert_maxsim import batch_maxsim
+
+        all_texts = [query] + [doc.get("text", "") for doc in documents]
+        encoded = self.encode_with_colbert(all_texts)
+        query_tokens = np.array(encoded["colbert"][0], dtype=np.float32)
+        doc_tokens_list = [np.array(v, dtype=np.float32) for v in encoded["colbert"][1:]]
+
+        scores = batch_maxsim(query_tokens, doc_tokens_list)
+
+        scored = []
+        for doc, score in zip(documents, scores):
+            doc_copy = doc.copy()
+            doc_copy["colbert_score"] = float(score)
+            scored.append(doc_copy)
+        scored.sort(key=lambda d: d["colbert_score"], reverse=True)
+        logger.info(f"ColBERT MaxSim reranked {len(documents)} -> {len(scored[:top_k])} docs")
+        return scored[:top_k]
+
     def encode_single_full(self, text: str) -> dict:
         """
         Encode a single query text into both dense and sparse vectors.
@@ -864,38 +1051,42 @@ class EmbeddingService:
         cross_top_k: int = 5,
         min_score: Optional[float] = None,
     ) -> list[dict]:
-        """
-        Cascaded Pipeline:
-        1. ColBERTv2 rapidly narrows down the pool (e.g. 100 -> 15).
+        """Cascaded Pipeline:
+        1. ColBERT rapidly narrows the pool (e.g. 100 -> 15).
         2. CrossEncoder performs ultra-precise scoring (15 -> 5).
         Skips CrossEncoder when candidate count < 10 to save latency.
+
+        ColBERT stage branches on settings.enable_colbert:
+        - True: ONNX-native BGE-M3 MaxSim (multilingual, reuses loaded session).
+          If that path raises, falls back to a rough slice then CrossEncoder.
+        - False: deprecated RAGatouille ColBERTv2 path (English-only).
         """
         if not documents:
             return []
 
-        # Skip full cascade for small candidate sets - CrossEncoder adds ~200-500ms
         if len(documents) < 10:
-            logger.debug(f"cascaded_rerank: {len(documents)} docs < 10, skipping CrossEncoder, using ColBERT only")
+            logger.debug(f"cascaded_rerank: {len(documents)} docs < 10, skipping CrossEncoder")
+            if settings.enable_colbert:
+                return self._colbert_maxsim_rerank(query, documents, top_k=min(cross_top_k, len(documents)))
             return self._colbert_only_rerank(query, documents, top_k=min(cross_top_k, len(documents)))
 
         with self._inference_lock:
             self._ensure_reranker()
-            self._ensure_colbert()
 
-            # Step 1: ColBERT Reranking
             colbert_docs = documents
-            if self._colbert and len(documents) > colbert_top_k:
-                texts = [doc["text"] for doc in documents]
-                # RAGatouille rerank returns list of dicts: [{'content': text, 'score': score, 'rank': int}, ...]
+            if settings.enable_colbert:
                 try:
-                    colbert_results = self._colbert.rerank(
-                        query=query, documents=texts, k=colbert_top_k
-                    )
-
-                    # Map back to original document dicts
+                    colbert_docs = self._colbert_maxsim_rerank(query, documents, top_k=colbert_top_k)
+                except Exception as e:
+                    logger.error(f"ColBERT MaxSim rerank failed: {e}. Falling back to RAGatouille path.")
+                    colbert_docs = documents[: colbert_top_k * 2]
+            elif len(documents) > colbert_top_k:
+                self._ensure_colbert()
+                texts = [doc["text"] for doc in documents]
+                try:
+                    colbert_results = self._colbert.rerank(query=query, documents=texts, k=colbert_top_k)
                     mapped_docs = []
                     for res in colbert_results:
-                        # Find matching doc by content
                         for doc in documents:
                             if doc["text"] == res["content"]:
                                 doc_copy = doc.copy()
@@ -903,14 +1094,11 @@ class EmbeddingService:
                                 mapped_docs.append(doc_copy)
                                 break
                     colbert_docs = mapped_docs
-                    logger.info(f"ColBERT narrowed {len(documents)} -> {len(colbert_docs)} docs")
+                    logger.info(f"ColBERT (RAGatouille) narrowed {len(documents)} -> {len(colbert_docs)} docs")
                 except Exception as e:
-                    logger.error(
-                        f"ColBERT reranking failed: {e}. Falling back to straight CrossEncoder."
-                    )
-                    colbert_docs = documents[: colbert_top_k * 2]  # Fallback rough slice
+                    logger.error(f"RAGatouille ColBERT failed: {e}. Falling back to straight CrossEncoder.")
+                    colbert_docs = documents[: colbert_top_k * 2]
 
-            # Step 2: CrossEncoder Polish
             return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)
 
     async def cascaded_rerank_async(

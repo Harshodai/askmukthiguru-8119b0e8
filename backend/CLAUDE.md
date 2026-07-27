@@ -64,3 +64,17 @@ After changing OKF entries, recompile **and restart** the backend: `_OKF_CACHE` 
 ## Ops scripts
 
 - `scripts/ops/hallucination_anomaly.py` — daily CI/cron check for hallucination rate spike and faithfulness p50 drop. Reads from Supabase `chat_responses` table; exits non-zero on anomaly. Thresholds are env-driven via `ANOMALY_HALLUCINATION_RATE_THRESHOLD`, `ANOMALY_FAITHFULNESS_P50_THRESHOLD`, `ANOMALY_LOOKBACK_DAYS` (defaults in `app.config`).
+
+## ONNX Reranker + ColBERT MaxSim (Jul 27, 2026)
+
+### Reranker backend
+- `RERANKER_BACKEND=onnx_int8` (default) → `OnnxReranker` (`services/onnx_reranker.py`, temsa ONNX INT8 mMiniLMv2). Rollback: `RERANKER_BACKEND=flagembedding` → PyTorch `CrossEncoder`.
+- Validation: `python3 scripts/validate_onnx_reranker.py` from `backend/`.
+
+### ColBERT MaxSim (Phase 2, disabled by default)
+- `ENABLE_COLBERT=true` → `_colbert_maxsim_rerank` (ONNX-native BGE-M3 MaxSim, multilingual, batched). `cascaded_rerank()` uses it when enabled; falls back to deprecated RAGatouille path when disabled.
+- `encode_with_colbert(texts)` returns dense + sparse + colbert (CLS-excluded, `[n_valid, 1024]` per doc). Batched single ONNX call.
+- Validation: `python3 scripts/validate_colbert_maxsim.py` from `backend/` (forces ENABLE_COLBERT=true locally; stubs LLM creds for dev).
+
+### _load_onnx_encoder marker
+- `self._encoder = session` at the end of `_load_onnx_encoder` is a marker so `_ensure_encoder()`'s short-circuit fires. Encode paths check `self._onnx_session is not None`, not `self._encoder`, so this is safe. Do NOT remove this assignment — without it, every encode call re-downloads the 570MB ONNX model.

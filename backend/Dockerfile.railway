@@ -47,7 +47,24 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 ENV HF_HOME=/app/.cache/huggingface
 RUN mkdir -p /app/.cache/huggingface && chown -R appuser:appuser /app/.cache
 USER appuser
-RUN python -c "from FlagEmbedding import BGEM3FlagModel; BGEM3FlagModel('BAAI/bge-m3', revision='3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef', use_fp16=False, device='cpu')"
+# Pre-cache the ONNX encoder used in production (EMBEDDING_BACKEND=onnx_int8).
+# This replaces the FlagEmbedding/PyTorch bake that was here before — that loaded
+# BGEM3FlagModel (PyTorch), which is NEVER used when onnx_int8 is the active backend.
+# Pinned to commit hash 3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef so the digest
+# is immutable across rebuilds — see lessons.md "Embedding dimension contract".
+RUN python -c "\
+from huggingface_hub import snapshot_download; \
+from pathlib import Path; \
+import os; \
+hf_home = os.environ.get('HF_HOME', '/app/.cache/huggingface'); \
+encoder_dir = Path(hf_home) / 'hub' / 'models--gpahal--bge-m3-onnx-int8'; \
+encoder_dir.mkdir(parents=True, exist_ok=True); \
+snapshot_download('gpahal/bge-m3-onnx-int8', revision='3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef', local_dir=str(encoder_dir), local_dir_use_symlinks=False, ignore_patterns=['*.md', '*.py']); \
+print('BGE-M3 ONNX encoder pre-cached OK'); \
+reranker_dir = Path(hf_home) / 'hub' / 'models--temsa--mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8'; \
+reranker_dir.mkdir(parents=True, exist_ok=True); \
+snapshot_download('temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8', local_dir=str(reranker_dir), local_dir_use_symlinks=False, ignore_patterns=['*.md', '*.py']); \
+print('ONNX reranker pre-cached OK')"
 USER root
 
 # Copy app code with explicit ownership

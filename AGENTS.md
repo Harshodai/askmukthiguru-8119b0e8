@@ -25,10 +25,10 @@
 - Falls back to demo data if backend cold (never shows blank)
 - Profile `MemoryManager` graph synced with same visual style
 
-### LightRAG & Knowledge Base Status (Jul 22, 2026) ✅
+### LightRAG & Knowledge Base Status (Jul 24, 2026) ✅
 - **Qdrant `spiritual_wisdom`**: 89,053 points (full corpus: books, 450+ YouTube discourses, meditations, lectures)
-- **Neo4j Knowledge Graph**: 7,601 nodes (7,498 `base` concept nodes + 103 `OKF` 5-node transformation arc nodes)
-- **LightRAG Direct Ingestion**: Continuous Qdrant scroll ingestion (`scripts/ingest_lightrag_data.py`) reading directly from `spiritual_wisdom` payload with OpenRouter inference (`gemma-3-12b-it`) to build dual-level graph vectors.
+- **Neo4j Knowledge Graph**: 8,750+ nodes active over private network (`bolt://gb-neo4j-railway-template.railway.internal:7687`)
+- **LightRAG Direct Ingestion**: Active background ingestion worker (`scripts/ingest_lightrag_data.py`, `CONCURRENCY_WORKERS=8`) reading directly from `spiritual_wisdom` with OpenRouter inference (`meta-llama/llama-3.1-8b-instruct`) and BAAI BGE-M3 1024d embeddings to build dual-level graph vectors.
 
 ### User Personalization & Second Brain Vault Status (Jul 22, 2026) ✅
 - **Second Brain Vault (`second_brain_vault`)**: Shared multi-tenant collection in Qdrant indexed with `user_id` keyword filter. Payload NEVER holds plaintext; user notes live encrypted in Postgres (`user_brain_nodes`), vectors in Qdrant (`services/second_brain/vault_index.py`).
@@ -440,3 +440,22 @@ Supabase project `ozmjeuqbholoxypfxixb` has `mailer_autoconfirm: false`. Use ser
 
 ### start_railway.py — Blocking Import Fix
 `_run_real_lifespan()` must NOT import `app.main` directly on the event loop — PyTorch model loading blocks for 10-30s, freezing health checks. Use `asyncio.to_thread(_import_real_app)`. If Railway health check says "service unavailable" but build succeeds, the event loop is likely blocked by a synchronous import. See `lessons.md` "Jul 17, 2026 — Blocking Import on Event Loop Freezes Health Check".
+
+## ONNX Reranker + ColBERT MaxSim (Jul 27, 2026)
+
+### Phase 1 — ONNX INT8 CrossEncoder (shipped)
+- **Reranker backend**: `temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8` (23MB ONNX INT8, dynamic quantization of MatMul/Gemm/Attention). Replaces PyTorch `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` (91MB).
+- **Toggle**: `RERANKER_BACKEND=onnx_int8` (default, already in config.py). Rollback: `RERANKER_BACKEND=flagembedding` in `.env` and restart.
+- **Tokenizer source**: loaded from the temsa repo (not upstream) to match the ONNX model's own tokenizer files. See lessons.md "Tokenizer source = model repo".
+- **Validation**: `backend/scripts/validate_onnx_reranker.py` — P0 env_parse, P1 capability, P2 Spearman >0.90 (passes at 0.976), P3 latency (warm P95 449ms). Run: `cd backend && python3 scripts/validate_onnx_reranker.py`.
+
+### Phase 2 — ONNX-Native ColBERT MaxSim (shipped, disabled by default)
+- **What**: Multilingual late-interaction reranking using BGE-M3's colbert_vecs output (ort_out[2], 1024d per token, L2-normalized). Replaces the English-only RAGatouille ColBERTv2 path. 100+ languages.
+- **Toggle**: `ENABLE_COLBERT=true` in `.env` (defaults False — Phase 2 ships disabled). When True, `cascaded_rerank()` uses `_colbert_maxsim_rerank()` (ONNX-native, batched); when False, keeps the deprecated RAGatouille fallback.
+- **Batched**: `_colbert_maxsim_rerank` encodes query + ALL docs in ONE `encode_with_colbert` call, then scores via `batch_maxsim` (pure NumPy matmul). No per-doc loop.
+- **CLS exclusion**: `encode_with_colbert` slices `colbert_vecs[:tokens_num - 1]` per doc, matching FlagEmbedding's `_process_colbert_vecs`. See lessons.md.
+- **Validation**: `backend/scripts/validate_colbert_maxsim.py` — P0 env_parse, P1 capability, P2 latency (warm P95 248ms < 2000ms gate), P3 multilingual (en/hi/te/mr all pass), P4 ColBERT-vs-CrossEncoder Spearman 0.89 > 0.85 gate. Run: `cd backend && python3 scripts/validate_colbert_maxsim.py`.
+- **RAGatouille**: kept in `requirements.txt` with a TODO comment marking it deprecated. Do NOT remove until the RAGatouille path is confirmed dead in `cascaded_rerank`.
+
+### Pre-existing bug fixed: ONNX encoder re-download
+- `_load_onnx_encoder` was not setting `self._encoder`, so `_ensure_encoder()`'s short-circuit (`if self._encoder is not None: return`) never fired on the ONNX path. Every `encode()`/`encode_batch()`/`encode_with_colbert()` call re-downloaded the 570MB ONNX model (~30s per call). Fix: `self._encoder = session` at the end of `_load_onnx_encoder` — a marker that makes the short-circuit fire. 30657ms → 46ms per call (660× improvement). This was a silent production bug since cp1 shipped (Jul 26). See lessons.md.
