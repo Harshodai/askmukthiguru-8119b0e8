@@ -880,6 +880,46 @@ class EmbeddingService:
         """Async GIL-escape wrapper for encode_with_colbert()."""
         return await asyncio.to_thread(self.encode_with_colbert, texts)
 
+    def _colbert_maxsim_rerank(
+        self,
+        query: str,
+        documents: list[dict],
+        top_k: int = 15,
+    ) -> list[dict]:
+        """Rerank documents using BGE-M3 ColBERT MaxSim (ONNX-native, multilingual).
+
+        Batched: encodes query + ALL docs in ONE encode_with_colbert call,
+        then scores via batch_maxsim. This replaces the old RAGatouille
+        (ColBERTv2, English-only) path with a multilingual 100+ language
+        scorer that reuses the already-loaded ONNX BGE-M3 session.
+
+        Gate: only runs when settings.enable_colbert=True. When False,
+        returns documents[:top_k] unchanged (Phase 2 ships disabled).
+        """
+        if not documents:
+            return []
+        if not settings.enable_colbert:
+            return documents[:top_k]
+
+        import numpy as np
+        from services.colbert_maxsim import batch_maxsim
+
+        all_texts = [query] + [doc.get("text", "") for doc in documents]
+        encoded = self.encode_with_colbert(all_texts)
+        query_tokens = np.array(encoded["colbert"][0], dtype=np.float32)
+        doc_tokens_list = [np.array(v, dtype=np.float32) for v in encoded["colbert"][1:]]
+
+        scores = batch_maxsim(query_tokens, doc_tokens_list)
+
+        scored = []
+        for doc, score in zip(documents, scores):
+            doc_copy = doc.copy()
+            doc_copy["colbert_score"] = float(score)
+            scored.append(doc_copy)
+        scored.sort(key=lambda d: d["colbert_score"], reverse=True)
+        logger.info(f"ColBERT MaxSim reranked {len(documents)} -> {len(scored[:top_k])} docs")
+        return scored[:top_k]
+
     def encode_single_full(self, text: str) -> dict:
         """
         Encode a single query text into both dense and sparse vectors.
@@ -1008,36 +1048,40 @@ class EmbeddingService:
     ) -> list[dict]:
         """
         Cascaded Pipeline:
-        1. ColBERTv2 rapidly narrows down the pool (e.g. 100 -> 15).
+        1. ColBERT rapidly narrows the pool (e.g. 100 -> 15).
         2. CrossEncoder performs ultra-precise scoring (15 -> 5).
         Skips CrossEncoder when candidate count < 10 to save latency.
+
+        When settings.enable_colbert=True, uses ONNX-native BGE-M3 MaxSim
+        (multilingual, reuses loaded session). When False or if that path
+        fails, falls back to RAGatouille ColBERTv2 (English-only, deprecated).
         """
         if not documents:
             return []
 
-        # Skip full cascade for small candidate sets - CrossEncoder adds ~200-500ms
         if len(documents) < 10:
-            logger.debug(f"cascaded_rerank: {len(documents)} docs < 10, skipping CrossEncoder, using ColBERT only")
+            logger.debug(f"cascaded_rerank: {len(documents)} docs < 10, skipping CrossEncoder")
+            if settings.enable_colbert:
+                return self._colbert_maxsim_rerank(query, documents, top_k=min(cross_top_k, len(documents)))
             return self._colbert_only_rerank(query, documents, top_k=min(cross_top_k, len(documents)))
 
         with self._inference_lock:
             self._ensure_reranker()
-            self._ensure_colbert()
 
-            # Step 1: ColBERT Reranking
             colbert_docs = documents
-            if self._colbert and len(documents) > colbert_top_k:
-                texts = [doc["text"] for doc in documents]
-                # RAGatouille rerank returns list of dicts: [{'content': text, 'score': score, 'rank': int}, ...]
+            if settings.enable_colbert:
                 try:
-                    colbert_results = self._colbert.rerank(
-                        query=query, documents=texts, k=colbert_top_k
-                    )
-
-                    # Map back to original document dicts
+                    colbert_docs = self._colbert_maxsim_rerank(query, documents, top_k=colbert_top_k)
+                except Exception as e:
+                    logger.error(f"ColBERT MaxSim rerank failed: {e}. Falling back to RAGatouille path.")
+                    colbert_docs = documents[: colbert_top_k * 2]
+            elif len(documents) > colbert_top_k:
+                self._ensure_colbert()
+                texts = [doc["text"] for doc in documents]
+                try:
+                    colbert_results = self._colbert.rerank(query=query, documents=texts, k=colbert_top_k)
                     mapped_docs = []
                     for res in colbert_results:
-                        # Find matching doc by content
                         for doc in documents:
                             if doc["text"] == res["content"]:
                                 doc_copy = doc.copy()
@@ -1045,14 +1089,11 @@ class EmbeddingService:
                                 mapped_docs.append(doc_copy)
                                 break
                     colbert_docs = mapped_docs
-                    logger.info(f"ColBERT narrowed {len(documents)} -> {len(colbert_docs)} docs")
+                    logger.info(f"ColBERT (RAGatouille) narrowed {len(documents)} -> {len(colbert_docs)} docs")
                 except Exception as e:
-                    logger.error(
-                        f"ColBERT reranking failed: {e}. Falling back to straight CrossEncoder."
-                    )
-                    colbert_docs = documents[: colbert_top_k * 2]  # Fallback rough slice
+                    logger.error(f"RAGatouille ColBERT failed: {e}. Falling back to straight CrossEncoder.")
+                    colbert_docs = documents[: colbert_top_k * 2]
 
-            # Step 2: CrossEncoder Polish
             return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)
 
     async def cascaded_rerank_async(
