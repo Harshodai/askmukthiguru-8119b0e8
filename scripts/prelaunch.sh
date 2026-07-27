@@ -97,11 +97,13 @@ run_playwright_suite() {
 
 DEFAULT_SUITES=(
   page-smoke
+  a11y-smoke
   google-auth-flow
   session-auth
   prelaunch-sweep
   full-regression
 )
+
 IFS=' ' read -r -a SUITES <<< "${SUITES:-${DEFAULT_SUITES[*]}}"
 
 bold "═══════════════════════════════════════════════════════════════"
