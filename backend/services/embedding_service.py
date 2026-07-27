@@ -1051,15 +1051,15 @@ class EmbeddingService:
         cross_top_k: int = 5,
         min_score: Optional[float] = None,
     ) -> list[dict]:
-        """
-        Cascaded Pipeline:
+        """Cascaded Pipeline:
         1. ColBERT rapidly narrows the pool (e.g. 100 -> 15).
         2. CrossEncoder performs ultra-precise scoring (15 -> 5).
         Skips CrossEncoder when candidate count < 10 to save latency.
 
-        When settings.enable_colbert=True, uses ONNX-native BGE-M3 MaxSim
-        (multilingual, reuses loaded session). When False or if that path
-        fails, falls back to RAGatouille ColBERTv2 (English-only, deprecated).
+        ColBERT stage branches on settings.enable_colbert:
+        - True: ONNX-native BGE-M3 MaxSim (multilingual, reuses loaded session).
+          If that path raises, falls back to a rough slice then CrossEncoder.
+        - False: deprecated RAGatouille ColBERTv2 path (English-only).
         """
         if not documents:
             return []
