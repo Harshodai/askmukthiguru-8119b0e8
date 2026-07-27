@@ -18,12 +18,26 @@ BASE_URL=https://askmukthiguru.lovable.app scripts/prelaunch.sh
 | 1 | `npm run build`     | TS errors, bundler errors, prerender failures             |
 | 2 | `vitest --run`      | Component and lib-layer contracts                         |
 | 3 | `page-smoke`        | Every route mounts without a fatal console error          |
-| 4 | `google-auth-flow`  | No One Tap double-prompt; post-login redirect contract    |
-| 5 | `session-auth`      | Protected routes bounce anonymous users to `/auth`        |
-| 6 | `prelaunch-sweep`   | Scroll + click every safe control on every critical route |
-| 7 | `full-regression`   | Chat round-trip, KG, second-brain, mobile, backend health |
+| 4 | `a11y-smoke`        | axe-core: no serious/critical WCAG 2.1 AA violations on `/`, `/auth`, `/chat`, `/profile`, `/practices`, meditation flow, `/knowledge-graph` |
+| 5 | `google-auth-flow`  | No One Tap double-prompt; post-login redirect contract    |
+| 6 | `session-auth`      | Protected routes bounce anonymous users to `/auth`        |
+| 7 | `prelaunch-sweep`   | Scroll + click every safe control on every critical route |
+| 8 | `full-regression`   | Chat round-trip, KG, second-brain, mobile, backend health |
 
 Exit code 0 = safe to publish. Non-zero = do not publish.
+
+On failure, every spec leaves a screenshot, a video and a full Playwright
+trace under `test-results/` (plus the HTML report in `playwright-report/`).
+In CI these are uploaded as artifacts by `.github/workflows/prelaunch-gate.yml`;
+locally, replay a trace with `npx playwright show-trace test-results/<dir>/trace.zip`.
+
+### CI
+
+`.github/workflows/prelaunch-gate.yml` runs this exact script on every PR
+targeting `main` and on every push to `main`. It seeds a disposable Supabase
+test user when `SUPABASE_SERVICE_ROLE_KEY` is present, and always uploads the
+report + failure artifacts.
+
 
 ### Optional: seed a disposable test user before the run
 

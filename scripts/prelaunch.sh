@@ -7,6 +7,8 @@
 #   2. Vitest unit suite            (component + lib contracts)
 #   3. Playwright suites, ordered from cheapest to most interactive:
 #        - page-smoke               (every route mounts)
+#        - a11y-smoke               (axe: no serious/critical WCAG violations)
+
 #        - google-auth-flow         (no double-prompt, redirect contract)
 #        - session-auth             (protected-route gating)
 #        - prelaunch-sweep          (scroll + click every safe control)
@@ -97,11 +99,13 @@ run_playwright_suite() {
 
 DEFAULT_SUITES=(
   page-smoke
+  a11y-smoke
   google-auth-flow
   session-auth
   prelaunch-sweep
   full-regression
 )
+
 IFS=' ' read -r -a SUITES <<< "${SUITES:-${DEFAULT_SUITES[*]}}"
 
 bold "═══════════════════════════════════════════════════════════════"
