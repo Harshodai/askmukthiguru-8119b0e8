@@ -155,6 +155,10 @@ class RerankerService:
                 from services.onnx_reranker import OnnxReranker
                 start_time = time.perf_counter()
                 self._fallback_reranker = OnnxReranker(model_id=settings.reranker_onnx_model)
+                # OnnxReranker.predict() applies sigmoid internally; flag this so
+                # _run_cross_encoder() does not apply sigmoid a second time
+                # (mirrors embedding_service._ensure_reranker line 414-418).
+                self._reranker_outputs_probs = True
                 duration = time.perf_counter() - start_time
                 logger.info(
                     "ONNX INT8 reranker loaded in %.4fs: %s",
@@ -193,6 +197,10 @@ class RerankerService:
             duration = time.perf_counter() - start_time
             logger.info(f"Fallback CrossEncoder loaded successfully in {duration:.4f}s")
             self._is_fallback = True
+            # PyTorch CrossEncoder returns raw logits — clear the ONNX flag so
+            # _run_cross_encoder applies sigmoid (matches embedding_service
+            # _ensure_reranker's _reranker_outputs_probs=False default).
+            self._reranker_outputs_probs = False
         except Exception as e:
             logger.critical(
                 f"❌ CRITICAL FAILURE: Could not load fallback reranker: {e}", exc_info=True
@@ -229,13 +237,19 @@ class RerankerService:
         with torch.inference_mode():
             raw_scores = self._fallback_reranker.predict(pairs)
 
+        # OnnxReranker.predict() already applies sigmoid and returns [0,1]
+        # probabilities; sentence-transformers CrossEncoder returns raw logits.
+        # Detected at load time and stored in self._reranker_outputs_probs
+        # (mirrors embedding_service.rerank line 987).
+        outputs_probs = getattr(self, "_reranker_outputs_probs", False)
+
         def _sigmoid(x):
             return 1.0 / (1.0 + np.exp(-x))
 
         reranked_docs = []
         for doc, raw_score in zip(documents, raw_scores):
             doc_copy = doc.copy()
-            score = float(_sigmoid(raw_score))
+            score = float(raw_score) if outputs_probs else float(_sigmoid(raw_score))
             doc_copy["rerank_score"] = score
             doc_copy["rerank_raw_logit"] = float(raw_score)
             reranked_docs.append(doc_copy)

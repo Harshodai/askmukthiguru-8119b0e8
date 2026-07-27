@@ -214,19 +214,26 @@ class EmbeddingService:
                 model_kwargs={"low_cpu_mem_usage": True},
             )
 
+    _ONNX_ENCODER_REVISION = "3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef"
+
     def _load_onnx_encoder(self, model_name: str) -> None:
         """Load the ONNX INT8 quantized BGE-M3 encoder.
 
-        Downloads from HuggingFace Hub into the runtime cache and loads via
-        onnxruntime (CPU-only). Validates output dimension against the configured
-        Qdrant collection dimension — raises loud on mismatch, never silent.
+        Resolves the pre-cached snapshot under HF_HOME (matches the Dockerfile
+        pre-bake at {HF_HOME}/hub/models--gpahal--bge-m3-onnx-int8) so Railway pod
+        restarts reuse the baked model instead of re-downloading. Falls back to a
+        snapshot_download into the same HF_HOME-aware path when the cache is cold
+        (local dev, fresh container). Pinned revision matches the Dockerfile bake
+        so the digest is immutable across rebuilds.
+
+        Validates output dimension against the configured Qdrant collection
+        dimension — raises loud on mismatch, never silent.
 
         Sets self._encoder = session as a marker so _ensure_encoder's short-circuit
         fires on subsequent calls (the encode paths check self._onnx_session, not
         self._encoder, so this is safe).
         """
         import os
-        import tempfile
 
         from huggingface_hub import snapshot_download
 
@@ -234,11 +241,19 @@ class EmbeddingService:
         from transformers import AutoTokenizer
 
         onnx_model_id = self._ONNX_CANDIDATE
-        scratch = Path(tempfile.mkdtemp(prefix="onnx_encoder_"))
+        hf_home = (
+            os.environ.get("HF_HOME")
+            or os.path.join(os.path.expanduser("~"), ".cache", "huggingface")
+        )
+        safe = "models--" + onnx_model_id.replace("/", "--")
+        cache_dir = Path(hf_home) / "hub" / safe
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
         try:
             local_path = snapshot_download(
                 repo_id=onnx_model_id,
-                local_dir=str(scratch),
+                revision=self._ONNX_ENCODER_REVISION,
+                local_dir=str(cache_dir),
                 local_dir_use_symlinks=False,
                 resume_download=True,
                 ignore_patterns=["*.md", "*.py", "requirements.txt"],
@@ -277,9 +292,6 @@ class EmbeddingService:
                 f"{[o.name for o in outputs]})"
             )
         except Exception:
-            # Clean up scratch on failure
-            import shutil
-            shutil.rmtree(scratch, ignore_errors=True)
             raise
 
     def _ensure_encoder(self) -> None:

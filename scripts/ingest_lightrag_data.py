@@ -18,34 +18,12 @@ import sys
 import time
 from pathlib import Path
 
-# LightRAG constructs its own internal QdrantClient (lightrag/kg/qdrant_impl.py)
-# with just url= and api_key=. qdrant-client's default port=6333 then gets
-# force-appended to the URL even when the URL already implies https (443) —
-# fine for Railway's *.railway.internal hostname (which really does listen on
-# 6333), but wrong for Railway's public HTTPS domain used when this script is
-# driven against Railway from outside its private network: that domain only
-# routes 443, so appending :6333 makes every request hang until connect-timeout.
-# port=None stops qdrant-client from appending a port, so it uses the URL's own
-# scheme-implied port. Also widen the timeout past the 5s default as a margin
-# for the extra public-network hop, mirroring the same fix already applied to
-# our own client at backend/services/qdrant/client.py:59-61.
-import qdrant_client  # noqa: E402
-
-_orig_qdrant_client_init = qdrant_client.QdrantClient.__init__
 
 
-def _qdrant_client_init_with_timeout(self, *args, **kwargs):
-    kwargs.setdefault("timeout", 30)
-    if kwargs.get("url", "").startswith("https://"):
-        kwargs.setdefault("port", None)
-    _orig_qdrant_client_init(self, *args, **kwargs)
-
-
-qdrant_client.QdrantClient.__init__ = _qdrant_client_init_with_timeout
-
-# Add backend directory to sys.path
+# Add backend and project root to sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-BACKEND_DIR = PROJECT_ROOT / "backend"
+BACKEND_DIR = PROJECT_ROOT / "backend" if (PROJECT_ROOT / "backend").exists() else PROJECT_ROOT
+sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(BACKEND_DIR))
 
 # Ensure backend .env is loaded
@@ -59,9 +37,9 @@ if env_file.exists():
                 os.environ.setdefault(k.strip(), v.strip())
 
 # Map Docker container hostnames to localhost for host-level execution
-if os.getenv("QDRANT_URL", "").startswith("http://qdrant"):
+if os.getenv("QDRANT_URL", "").startswith("http://qdrant:") or os.getenv("QDRANT_URL", "") == "http://qdrant":
     os.environ["QDRANT_URL"] = "http://localhost:6333"
-if os.getenv("NEO4J_URI", "").startswith("bolt://neo4j"):
+if os.getenv("NEO4J_URI", "").startswith("bolt://neo4j:") or os.getenv("NEO4J_URI", "") == "bolt://neo4j":
     os.environ["NEO4J_URI"] = "bolt://localhost:7687"
 if "redis:6379" in os.getenv("REDIS_URL", ""):
     os.environ["REDIS_URL"] = os.getenv("REDIS_URL", "").replace("redis:6379", "localhost:6379")
@@ -100,38 +78,68 @@ def save_checkpoint_atomic(next_offset, processed_count):
 
 
 async def process_single_point(lightrag_svc, point, sem, counter_lock, counters, start_time, rate_stats):
-    payload = point.payload or {}
-    text = payload.get("text") or payload.get("page_content") or ""
-    source = payload.get("source_url") or payload.get("title") or f"point-{point.id}"
+    """Process one Qdrant point through LightRAG safe_ainsert.
 
-    if not text or len(text.strip()) < 50:
+    Every failure path (payload access, preprocessing, async exceptions
+    outside safe_ainsert) is caught. counters["processed"] is incremented
+    exactly once; counters["failed"] is updated for unrecoverable points.
+    Returns False after accounting so asyncio.gather cannot silently drop
+    points (return_exceptions=True would otherwise swallow the exception
+    without incrementing counters).
+    """
+    accounted = False
+    ok = False
+    try:
+        try:
+            payload = point.payload or {}
+            text = payload.get("text") or payload.get("page_content") or ""
+            source = payload.get("source_url") or payload.get("title") or f"point-{point.id}"
+        except Exception as e:
+            # Payload access failure — record as failed, count once, return.
+            async with counter_lock:
+                if not accounted:
+                    counters["processed"] += 1
+                    counters["failed"] += 1
+                    accounted = True
+            _pid = str(getattr(point, "id", "?"))[:8]
+            print(f"⚠️ Point {_pid}... payload access failed: {e}", flush=True)
+            return False
+
+        if not text or len(text.strip()) < 50:
+            # Too-short / empty text — counted as processed (skipped), not failed.
+            async with counter_lock:
+                if not accounted:
+                    counters["processed"] += 1
+                    accounted = True
+            return False
+
+        async with sem:
+            t0 = time.time()
+            retry_count = 0
+            insert_timeout = float(os.getenv("LIGHTRAG_INSERT_TIMEOUT", "60.0"))
+
+            while retry_count < 2:
+                try:
+                    ok = await lightrag_svc.safe_ainsert(text=text, file_paths=[source], timeout=insert_timeout)
+                    break
+                except Exception as e:
+                    retry_count += 1
+                    if "rate limit" in str(e).lower() or "429" in str(e):
+                        rate_stats["rate_limit_hits"] += 1
+                        await asyncio.sleep(2.0 * retry_count)
+                    else:
+                        await asyncio.sleep(0.5)
+            else:
+                # Both retries exhausted — mark as failed.
+                ok = False
+
+            elapsed = time.time() - t0
+            await asyncio.sleep(0.05)
+
         async with counter_lock:
-            counters["processed"] += 1
-        return False
-
-    async with sem:
-        t0 = time.time()
-        ok = False
-        retry_count = 0
-        insert_timeout = float(os.getenv("LIGHTRAG_INSERT_TIMEOUT", "60.0"))
-
-        while retry_count < 2:
-            try:
-                ok = await lightrag_svc.safe_ainsert(text=text, file_paths=[source], timeout=insert_timeout)
-                break
-            except Exception as e:
-                retry_count += 1
-                if "rate limit" in str(e).lower() or "429" in str(e):
-                    rate_stats["rate_limit_hits"] += 1
-                    await asyncio.sleep(2.0 * retry_count)
-                else:
-                    await asyncio.sleep(0.5)
-
-        elapsed = time.time() - t0
-        await asyncio.sleep(0.05)
-
-        async with counter_lock:
-            counters["processed"] += 1
+            if not accounted:
+                counters["processed"] += 1
+                accounted = True
             if ok:
                 counters["success"] += 1
             else:
@@ -148,6 +156,18 @@ async def process_single_point(lightrag_svc, point, sem, counter_lock, counters,
             print(f"[{curr_processed}/89053 ({pct:.2f}%)] Point {_point_id_str[:8]}... (\"{preview}...\") {status_str} ({elapsed:.1f}s) | Rate: {rate:.1f} pts/min", flush=True)
 
         return ok
+    except Exception as e:
+        # Catch any unexpected exception (including outside safe_ainsert) so
+        # asyncio.gather(return_exceptions=True) cannot silently drop the point
+        # without incrementing counters.
+        async with counter_lock:
+            if not accounted:
+                counters["processed"] += 1
+                counters["failed"] += 1
+                accounted = True
+        _pid = str(getattr(point, "id", "?"))[:8]
+        print(f"⚠️ Point {_pid}... unhandled exception: {e}", flush=True)
+        return False
 
 
 async def main():

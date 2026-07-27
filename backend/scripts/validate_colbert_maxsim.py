@@ -196,7 +196,8 @@ def capability_probe() -> tuple[bool, dict]:
     from services.embedding_service import EmbeddingService
 
     svc = EmbeddingService()
-    result = svc.encode_with_colbert(["hello world", "karma is cause and effect"])
+    test_texts = ["hello world", "karma is cause and effect"]
+    result = svc.encode_with_colbert(test_texts)
 
     if not isinstance(result, dict) or set(result.keys()) < {"dense", "sparse", "colbert"}:
         return False, {"reason": f"missing keys: got {sorted(result.keys()) if isinstance(result, dict) else type(result)}"}
@@ -216,27 +217,50 @@ def capability_probe() -> tuple[bool, dict]:
             return False, {"reason": f"colbert[{i}] dim={dim}, expected 1024"}
         shapes.append((n_valid, dim))
 
-    max_seq_len = 8192
+    # Compute the raw token count per test input (before CLS exclusion) so we
+    # can verify CLS removal reduced the sequence dimension by exactly one.
+    # Comparing against the tokenizer's model_max_length (8192) is trivially
+    # true and does not actually prove CLS exclusion happened.
+    raw_token_counts = []
     try:
         if hasattr(svc, "_onnx_tokenizer") and svc._onnx_tokenizer is not None:
-            max_seq_len = int(getattr(svc._onnx_tokenizer, "model_max_length", 8192) or 8192)
-    except Exception:
-        pass
+            enc = svc._onnx_tokenizer(test_texts, padding=True, truncation=True, return_tensors="np")
+            raw_token_counts = [int(m.sum()) for m in enc["attention_mask"]]
+    except Exception as exc:
+        logger.warning("P1: could not compute raw token counts: %s", exc)
 
-    cls_excluded = all(s[0] < max_seq_len for s in shapes)
+    cls_excluded = True
+    per_text_check = []
+    for i, (n_valid, _dim) in enumerate(shapes):
+        if i < len(raw_token_counts):
+            raw = raw_token_counts[i]
+            # CLS exclusion removes exactly one token: n_valid == raw - 1.
+            ok = (n_valid == raw - 1)
+            per_text_check.append((n_valid, raw, ok))
+            if not ok:
+                cls_excluded = False
+        else:
+            # No raw count available (tokenizer unreachable) — fall back to
+            # the trivially-true check so we don't false-fail, but log it.
+            per_text_check.append((n_valid, None, True))
+    if not raw_token_counts:
+        logger.warning(
+            "P1: raw token counts unavailable — CLS-exclusion check falls back to trivial n_valid>0"
+        )
+
     if not cls_excluded:
         logger.warning(
-            "P1: colbert n_valid=%s not < tokenizer max_seq_len=%s — CLS exclusion may not have triggered",
-            shapes, max_seq_len,
+            "P1: CLS exclusion mismatch — per-text (n_valid, raw_tokens, ok)=%s",
+            per_text_check,
         )
 
     logger.info(
-        "P1: colbert shapes=%s (dense=%d, sparse=%d) max_seq_len=%d CLS-excluded=%s",
-        shapes, len(result["dense"]), len(result["sparse"]), max_seq_len, cls_excluded,
+        "P1: colbert shapes=%s (dense=%d, sparse=%d) raw_token_counts=%s CLS-excluded=%s",
+        shapes, len(result["dense"]), len(result["sparse"]), raw_token_counts, cls_excluded,
     )
 
     if not cls_excluded:
-        return False, {"reason": "CLS exclusion did not happen", "shapes": shapes}
+        return False, {"reason": "CLS exclusion did not reduce seq dim by 1", "shapes": shapes, "per_text_check": per_text_check}
     return True, {"shapes": shapes, "max_seq_len": max_seq_len}
 
 
