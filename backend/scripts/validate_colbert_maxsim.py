@@ -27,11 +27,21 @@ Run from anywhere; the script resolves `backend/` itself.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import sys
 import time
 from pathlib import Path
 from typing import Optional
+
+# Stub LLM credentials so app.config.Settings validator passes in local dev.
+# The validation script only exercises the embedding/ColBERT path — no LLM calls.
+# Railway/prod has real keys; these stubs are process-local and do not leak.
+os.environ.setdefault("SARVAM_API_KEY", "stub-for-validation-only")
+os.environ.setdefault("OPENROUTER_API_KEY", "stub-for-validation-only")
+os.environ.setdefault("NIM_API_KEY", "stub-for-validation-only")
+os.environ.setdefault("SUPABASE_KEY", "stub-for-validation-only")
+os.environ.setdefault("SUPABASE_URL", "http://stub-for-validation-only.example.com")
 
 logger = logging.getLogger("validate_colbert_maxsim")
 
@@ -168,7 +178,6 @@ def validate_env_parse(env_path: Path = _ENV_PATH) -> tuple[bool, dict]:
 
 def _force_enable_colbert() -> None:
     """Force ENABLE_COLBERT=true in process env + settings so the disabled-by-default path runs."""
-    import os
     os.environ["ENABLE_COLBERT"] = "true"
     try:
         from app.config import settings
