@@ -205,6 +205,12 @@ class Settings(BaseSettings):
     # but covers Hindi, Telugu, Tamil, Kannada, and all 6 app languages.
     # GPU/MPS path still uses bge-reranker-v2-m3 above.
     reranker_model_cpu: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+    # ONNX INT8 reranker backend (Phase 1 optimization).
+    # "onnx_int8" — use OnnxReranker (temsa pre-quantized, ~23 MB, ~2× faster).
+    # "flagembedding" — fall back to sentence-transformers CrossEncoder (original).
+    # Rollback: set RERANKER_BACKEND=flagembedding in .env and restart.
+    reranker_backend: str = "onnx_int8"
+    reranker_onnx_model: str = "temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8"
     enable_colbert: bool = False
 
     # --- Whisper / Transcription ---

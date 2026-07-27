@@ -402,9 +402,29 @@ class EmbeddingService:
             _apply_hf_env_bounds()
             self._thread_setup()
             device = self._get_device()
+
+            # Phase 1 optimisation: prefer ONNX INT8 reranker (~23 MB, ~2x faster).
+            # Rollback: set RERANKER_BACKEND=flagembedding in .env and restart.
+            if settings.reranker_backend == "onnx_int8":
+                try:
+                    from services.onnx_reranker import OnnxReranker
+                    self._reranker = OnnxReranker(model_id=settings.reranker_onnx_model)
+                    # OnnxReranker.predict() already applies sigmoid internally.
+                    # Setting this flag tells rerank() not to apply it again.
+                    self._reranker_outputs_probs = True
+                    logger.info(
+                        "Loaded ONNX INT8 reranker: %s", settings.reranker_onnx_model
+                    )
+                    return
+                except Exception as e:
+                    logger.warning(
+                        "ONNX reranker load failed (%s); falling back to PyTorch CrossEncoder",
+                        e,
+                    )
+
             from sentence_transformers import CrossEncoder
 
-            # CPU can't afford bge-reranker-v2-m3 (~4s/doc → 88s for 19 docs). Use the
+            # CPU can't afford bge-reranker-v2-m3 (~4s/doc -> 88s for 19 docs). Use the
             # light CPU model there; heavy multilingual reranker only on GPU/MPS.
             model_id = settings.reranker_model_cpu if device == "cpu" else settings.reranker_model
             logger.info(f"Loading reranker: {model_id} on device: {device}")

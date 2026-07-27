@@ -148,7 +148,26 @@ class RerankerService:
                         logger.info(f"Cleared HF cache: {match}")
 
     def _load_fallback(self) -> None:
-        """Load the fallback sentence-transformers CrossEncoder."""
+        """Load the fallback sentence-transformers CrossEncoder (or ONNX reranker)."""
+        # Phase 1: prefer ONNX INT8 reranker when configured.
+        if settings.reranker_backend == "onnx_int8":
+            try:
+                from services.onnx_reranker import OnnxReranker
+                start_time = time.perf_counter()
+                self._fallback_reranker = OnnxReranker(model_id=settings.reranker_onnx_model)
+                duration = time.perf_counter() - start_time
+                logger.info(
+                    "ONNX INT8 reranker loaded in %.4fs: %s",
+                    duration,
+                    settings.reranker_onnx_model,
+                )
+                self._is_fallback = True
+                return
+            except Exception as e:
+                logger.warning(
+                    "ONNX reranker load failed (%s); falling back to PyTorch CrossEncoder", e
+                )
+
         try:
             import torch
             from sentence_transformers import CrossEncoder
