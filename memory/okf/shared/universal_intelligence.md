@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "Universal Intelligence"
-description: "Universal intelligence is the soul of the universe — and it responds not to your words, but to your state of being."
-source: "YouTube — International Yoga Day (https://www.youtube.com/watch?v=8Xy8xsLIgAU)"
-video_id: 8Xy8xsLIgAU
-tags: [universal-intelligence, oneness, yoga, state, connection]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=8Xy8xsLIgAU"
+title: Universal Intelligence
+description: Universal intelligence is the soul of the universe — and it responds
+  not to your words, but to your state of being.
+resource: https://www.youtube.com/watch?v=8Xy8xsLIgAU
+source: YouTube — International Yoga Day (https://www.youtube.com/watch?v=8Xy8xsLIgAU)
+teacher: both
+tags:
+- universal-intelligence
+- oneness
+- yoga
+- state
+- connection
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=8Xy8xsLIgAU
+  title: Universal Intelligence
 ---
 
 # Universal Intelligence

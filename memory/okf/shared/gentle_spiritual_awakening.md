@@ -1,13 +1,30 @@
 ---
 type: teaching
-title: "Gentle Spiritual Awakening"
-description: "Awakening need not be violent or dramatic. The Kundalini rises as energy, as heat, as light — and sometimes as a quiet knowing that nothing has ever been wrong."
-source: "YouTube — Mukthi Guru (https://www.youtube.com/watch?v=LrMyaDh_MSo)"
-video_id: LrMyaDh_MSo
-tags: [awakening, kundalini, gentle, consciousness, spiritual-experience]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=LrMyaDh_MSo"
+title: Gentle Spiritual Awakening
+description: Awakening need not be violent or dramatic. The Kundalini rises as energy,
+  as heat, as light — and sometimes as a quiet knowing that nothing has ever been
+  wrong.
+resource: https://www.youtube.com/watch?v=LrMyaDh_MSo
+source: YouTube — Mukthi Guru (https://www.youtube.com/watch?v=LrMyaDh_MSo)
+teacher: both
+tags:
+- awakening
+- kundalini
+- gentle
+- consciousness
+- spiritual-experience
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=LrMyaDh_MSo
+  title: Gentle Spiritual Awakening
 ---
 
 # Gentle Spiritual Awakening

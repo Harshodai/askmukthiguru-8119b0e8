@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "The First Sacred Secret — Live with a Spiritual Vision"
-description: "Which state of being is carrying you determines the quality of your life. The first sacred secret is to shift from stress-driven living to vision-guided living."
-source: "YouTube — Sri Preethaji (https://www.youtube.com/watch?v=0z-IZ2ar4eA)"
-video_id: 0z-IZ2ar4eA
-tags: [four-sacred-secrets, spiritual-vision, consciousness, transformation, prosperity]
-teacher: "sri-preethaji"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=0z-IZ2ar4eA"
+title: The First Sacred Secret — Live with a Spiritual Vision
+description: Which state of being is carrying you determines the quality of your life.
+  The first sacred secret is to shift from stress-driven living to vision-guided living.
+resource: https://www.youtube.com/watch?v=0z-IZ2ar4eA
+source: YouTube — Sri Preethaji (https://www.youtube.com/watch?v=0z-IZ2ar4eA)
+teacher: sri-preethaji
+tags:
+- four-sacred-secrets
+- spiritual-vision
+- consciousness
+- transformation
+- prosperity
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=0z-IZ2ar4eA
+  title: The First Sacred Secret — Live with a Spiritual Vision
 ---
 
 # The First Sacred Secret — Live with a Spiritual Vision

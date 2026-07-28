@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "The Voice That Speaks to You and Guides You"
-description: "There is a voice within that always knows. It is not drowned out — it is simply not listened to. The practice is learning to hear it."
-source: "YouTube — Sri Preethaji (https://www.youtube.com/watch?v=-yGLiryVQoQ)"
-video_id: -yGLiryVQoQ
-tags: [inner-guidance, intuition, stillness, beautiful-state, practice]
-teacher: "sri-preethaji"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=-yGLiryVQoQ"
+title: The Voice That Speaks to You and Guides You
+description: There is a voice within that always knows. It is not drowned out — it
+  is simply not listened to. The practice is learning to hear it.
+resource: https://www.youtube.com/watch?v=-yGLiryVQoQ
+source: YouTube — Sri Preethaji (https://www.youtube.com/watch?v=-yGLiryVQoQ)
+teacher: sri-preethaji
+tags:
+- inner-guidance
+- intuition
+- stillness
+- beautiful-state
+- practice
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=-yGLiryVQoQ
+  title: The Voice That Speaks to You and Guides You
 ---
 
 # The Voice That Speaks to You and Guides You

@@ -1,13 +1,30 @@
 ---
 type: teaching
-title: "Beautiful State Practice"
-description: "The beautiful state is not a reward for good behaviour — it is the ground from which synchronicities arise, universal intelligence becomes personal, and life begins to flow with a magical quality."
-source: "YouTube — Mukthi Guru (https://www.youtube.com/watch?v=0ypG1mlekNY)"
-video_id: 0ypG1mlekNY
-tags: [beautiful-state, synchronicity, universal-intelligence, practice, transformation]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=0ypG1mlekNY"
+title: Beautiful State Practice
+description: The beautiful state is not a reward for good behaviour — it is the ground
+  from which synchronicities arise, universal intelligence becomes personal, and life
+  begins to flow with a magical quality.
+resource: https://www.youtube.com/watch?v=0ypG1mlekNY
+source: YouTube — Mukthi Guru (https://www.youtube.com/watch?v=0ypG1mlekNY)
+teacher: both
+tags:
+- beautiful-state
+- synchronicity
+- universal-intelligence
+- practice
+- transformation
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=0ypG1mlekNY
+  title: Beautiful State Practice
 ---
 
 # Beautiful State Practice

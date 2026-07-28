@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "Stillness and Inner Truth"
-description: "Each moment of stillness reveals the truth within. Not because truth arrives in stillness — but because the noise that was hiding it falls away."
-source: "YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=tDcy09esbe8)"
-video_id: tDcy09esbe8
-tags: [stillness, inner-truth, meditation, interconnectedness, unity]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=tDcy09esbe8"
+title: Stillness and Inner Truth
+description: Each moment of stillness reveals the truth within. Not because truth
+  arrives in stillness — but because the noise that was hiding it falls away.
+resource: https://www.youtube.com/watch?v=tDcy09esbe8
+source: YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=tDcy09esbe8)
+teacher: both
+tags:
+- stillness
+- inner-truth
+- meditation
+- interconnectedness
+- unity
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=tDcy09esbe8
+  title: Stillness and Inner Truth
 ---
 
 # Stillness and Inner Truth

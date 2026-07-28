@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "Inner Peace and Consciousness"
-description: "Peace is not a break between crises. It is the native quality of consciousness when it recognises itself as one field, not many separate fragments."
-source: "YouTube — Peace Festival (https://www.youtube.com/watch?v=pmSPHJfg3AU)"
-video_id: pmSPHJfg3AU
-tags: [peace, consciousness, oneness, universal-intelligence, awakening]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=pmSPHJfg3AU"
+title: Inner Peace and Consciousness
+description: Peace is not a break between crises. It is the native quality of consciousness
+  when it recognises itself as one field, not many separate fragments.
+resource: https://www.youtube.com/watch?v=pmSPHJfg3AU
+source: YouTube — Peace Festival (https://www.youtube.com/watch?v=pmSPHJfg3AU)
+teacher: both
+tags:
+- peace
+- consciousness
+- oneness
+- universal-intelligence
+- awakening
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=pmSPHJfg3AU
+  title: Inner Peace and Consciousness
 ---
 
 # Inner Peace and Consciousness

@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "Beautiful State and Health Challenges"
-description: "When the body faces crisis, the state of consciousness determines whether the experience is suffering — or a journey through difficulty held in peace."
-source: "YouTube — Mukthi Guru (https://www.youtube.com/watch?v=pPHQMD3w9-s)"
-video_id: pPHQMD3w9-s
-tags: [beautiful-state, health, crisis, consciousness, resilience]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=pPHQMD3w9-s"
+title: Beautiful State and Health Challenges
+description: When the body faces crisis, the state of consciousness determines whether
+  the experience is suffering — or a journey through difficulty held in peace.
+resource: https://www.youtube.com/watch?v=pPHQMD3w9-s
+source: YouTube — Mukthi Guru (https://www.youtube.com/watch?v=pPHQMD3w9-s)
+teacher: both
+tags:
+- beautiful-state
+- health
+- crisis
+- consciousness
+- resilience
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=pPHQMD3w9-s
+  title: Beautiful State and Health Challenges
 ---
 
 # Beautiful State and Health Challenges

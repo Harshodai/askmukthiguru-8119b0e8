@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "Claiming the Inner State"
-description: "Spiritual transformation is not something that happens to you — it is something you claim. And then proclaim."
-source: "YouTube — Mukthi Guru (https://www.youtube.com/watch?v=b-MkLkpTeVY)"
-video_id: b-MkLkpTeVY
-tags: [inner-state, claiming, proclamation, beautiful-state, transformation]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=b-MkLkpTeVY"
+title: Claiming the Inner State
+description: Spiritual transformation is not something that happens to you — it is
+  something you claim. And then proclaim.
+resource: https://www.youtube.com/watch?v=b-MkLkpTeVY
+source: YouTube — Mukthi Guru (https://www.youtube.com/watch?v=b-MkLkpTeVY)
+teacher: both
+tags:
+- inner-state
+- claiming
+- proclamation
+- beautiful-state
+- transformation
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=b-MkLkpTeVY
+  title: Claiming the Inner State
 ---
 
 # Claiming the Inner State

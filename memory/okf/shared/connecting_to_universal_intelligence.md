@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "Connecting to Universal Intelligence"
-description: "Universal intelligence responds not to what you do or say, but to your state of being. The connection is forged in the quality of your inner condition."
-source: "YouTube — International Yoga Day (https://www.youtube.com/watch?v=8Xy8xsLIgAU)"
-video_id: 8Xy8xsLIgAU
-tags: [universal-intelligence, state-of-being, oneness, connection, yoga]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=8Xy8xsLIgAU"
+title: Connecting to Universal Intelligence
+description: Universal intelligence responds not to what you do or say, but to your
+  state of being. The connection is forged in the quality of your inner condition.
+resource: https://www.youtube.com/watch?v=8Xy8xsLIgAU
+source: YouTube — International Yoga Day (https://www.youtube.com/watch?v=8Xy8xsLIgAU)
+teacher: both
+tags:
+- universal-intelligence
+- state-of-being
+- oneness
+- connection
+- yoga
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=8Xy8xsLIgAU
+  title: Connecting to Universal Intelligence
 ---
 
 # Connecting to Universal Intelligence

@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "Inner Truth and Being"
-description: "Your truth is a statement of truth. The self is not a label — it is an expression of fundamental reality. Repeat this until the doubt dissolves."
-source: "YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=-4wCvcPrX-E)"
-video_id: -4wCvcPrX-E
-tags: [mantra, inner-truth, being, authenticity, identity]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=-4wCvcPrX-E"
+title: Inner Truth and Being
+description: Your truth is a statement of truth. The self is not a label — it is an
+  expression of fundamental reality. Repeat this until the doubt dissolves.
+resource: https://www.youtube.com/watch?v=-4wCvcPrX-E
+source: YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=-4wCvcPrX-E)
+teacher: both
+tags:
+- mantra
+- inner-truth
+- being
+- authenticity
+- identity
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=-4wCvcPrX-E
+  title: Inner Truth and Being
 ---
 
 # Inner Truth and Being

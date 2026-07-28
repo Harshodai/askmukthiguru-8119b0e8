@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "Universal Intelligence and Oneness"
-description: "The spirit of yoga is oneness — the oneness of humanity and the oneness of all life. Universal intelligence is the ground of that oneness."
-source: "YouTube — International Yoga Day (https://www.youtube.com/watch?v=8Xy8xsLIgAU)"
-video_id: 8Xy8xsLIgAU
-tags: [oneness, universal-intelligence, yoga, atma, humanity]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=8Xy8xsLIgAU"
+title: Universal Intelligence and Oneness
+description: The spirit of yoga is oneness — the oneness of humanity and the oneness
+  of all life. Universal intelligence is the ground of that oneness.
+resource: https://www.youtube.com/watch?v=8Xy8xsLIgAU
+source: YouTube — International Yoga Day (https://www.youtube.com/watch?v=8Xy8xsLIgAU)
+teacher: both
+tags:
+- oneness
+- universal-intelligence
+- yoga
+- atma
+- humanity
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=8Xy8xsLIgAU
+  title: Universal Intelligence and Oneness
 ---
 
 # Universal Intelligence and Oneness

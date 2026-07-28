@@ -1,13 +1,30 @@
 ---
 type: teaching
-title: "Feeling One with Universal Intelligence"
-description: "Every division and every separation in this world is created by us — from a suffering state. Oneness is not achieved; it is what remains when the creator of division falls silent."
-source: "YouTube — Mukthi Guru (https://www.youtube.com/watch?v=UgQV_5FjPNk)"
-video_id: UgQV_5FjPNk
-tags: [oneness, universal-intelligence, awakening, moksha, suffering]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=UgQV_5FjPNk"
+title: Feeling One with Universal Intelligence
+description: Every division and every separation in this world is created by us —
+  from a suffering state. Oneness is not achieved; it is what remains when the creator
+  of division falls silent.
+resource: https://www.youtube.com/watch?v=UgQV_5FjPNk
+source: YouTube — Mukthi Guru (https://www.youtube.com/watch?v=UgQV_5FjPNk)
+teacher: both
+tags:
+- oneness
+- universal-intelligence
+- awakening
+- moksha
+- suffering
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=UgQV_5FjPNk
+  title: Feeling One with Universal Intelligence
 ---
 
 # Feeling One with Universal Intelligence

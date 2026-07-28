@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "Experiencing the Divine — Manifest and Unmanifest"
-description: "The divine can be met in two ways — as the gods and sages of your tradition, or as a formless field of universal intelligence everywhere present. Both are valid."
-source: "YouTube — Sri Preethaji (https://www.youtube.com/watch?v=-yGLiryVQoQ)"
-video_id: -yGLiryVQoQ
-tags: [divine-experience, manifest, unmanifest, universal-intelligence, spiritual-perception]
-teacher: "sri-preethaji"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=-yGLiryVQoQ"
+title: Experiencing the Divine — Manifest and Unmanifest
+description: The divine can be met in two ways — as the gods and sages of your tradition,
+  or as a formless field of universal intelligence everywhere present. Both are valid.
+resource: https://www.youtube.com/watch?v=-yGLiryVQoQ
+source: YouTube — Sri Preethaji (https://www.youtube.com/watch?v=-yGLiryVQoQ)
+teacher: sri-preethaji
+tags:
+- divine-experience
+- manifest
+- unmanifest
+- universal-intelligence
+- spiritual-perception
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=-yGLiryVQoQ
+  title: Experiencing the Divine — Manifest and Unmanifest
 ---
 
 # Experiencing the Divine — Manifest and Unmanifest

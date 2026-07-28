@@ -1,11 +1,29 @@
 ---
 type: glossary
-title: "Glossary — Core Teachings Vocabulary"
-description: "Definitions of the core vocabulary of the teachings: beautiful state, stressful state, and related terms."
-source: "Compiled from Beautiful State (TqxxCYnAxo8) and Serene Mind (igSp4H0OWLE) transcripts"
-tags: [glossary, definitions]
-teacher: "both"
-updated: "2026-07-10"
+title: Glossary — Core Teachings Vocabulary
+description: 'Definitions of the core vocabulary of the teachings: beautiful state,
+  stressful state, and related terms.'
+resource: Compiled from Beautiful State (TqxxCYnAxo8) and Serene Mind (igSp4H0OWLE)
+  transcripts
+source: Compiled from Beautiful State (TqxxCYnAxo8) and Serene Mind (igSp4H0OWLE)
+  transcripts
+teacher: both
+tags:
+- glossary
+- definitions
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: Compiled from Beautiful State (TqxxCYnAxo8) and Serene Mind (igSp4H0OWLE)
+    transcripts
+  title: Glossary — Core Teachings Vocabulary
 ---
 
 # Glossary of Core Terms

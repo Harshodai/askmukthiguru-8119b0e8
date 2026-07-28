@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "Awakening to Compassion"
-description: "Compassion is not cultivated — it is what remains when the self-centric shell cracks open in stillness."
-source: "YouTube — Mukthi Guru (https://www.youtube.com/watch?v=x-mTRlE0TC4)"
-video_id: x-mTRlE0TC4
-tags: [compassion, awakening, beautiful-state, stillness, moksha]
-teacher: "sri-krishnaji"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+title: Awakening to Compassion
+description: Compassion is not cultivated — it is what remains when the self-centric
+  shell cracks open in stillness.
+resource: https://www.youtube.com/watch?v=x-mTRlE0TC4
+source: YouTube — Mukthi Guru (https://www.youtube.com/watch?v=x-mTRlE0TC4)
+teacher: sri-krishnaji
+tags:
+- compassion
+- awakening
+- beautiful-state
+- stillness
+- moksha
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=x-mTRlE0TC4
+  title: Awakening to Compassion
 ---
 
 # Awakening to Compassion

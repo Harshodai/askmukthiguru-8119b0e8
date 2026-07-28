@@ -1,6 +1,10 @@
+---
+okf_version: "0.2"
+---
+
 # Mukthi Guru — Doctrine Bundle
 
-An [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.1 bundle.
+An [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) v0.2 bundle.
 
 **Scope: the teachings of Sri Preethaji and Sri Krishnaji, and nothing else.**
 

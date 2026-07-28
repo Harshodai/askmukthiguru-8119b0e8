@@ -36,8 +36,13 @@ def _load_okf_entries() -> list[dict[str, Any]]:
             "embed_text": e.embed_text,
             "tags": e.tags,
             "source": e.source,
+            "resource": e.resource,
             "teacher": e.teacher,
             "body": e.body,
+            "status": e.status,
+            "generated": e.generated,
+            "verified": e.verified,
+            "sources": e.sources,
         }
         for e in store.list_entries()
     ]
@@ -87,12 +92,17 @@ def compile_okf() -> Path:
             "description": e.get("description", ""),
             "tags": e["tags"],
             "source": e["source"],
+            "resource": e.get("resource", e["source"]),
             "teacher": e.get("teacher", "both"),
             "body": e["body"][:2000],
             "embedding": emb if embed_ok else [],
+            "status": e.get("status", "stable"),
+            "generated": e.get("generated"),
+            "verified": e.get("verified"),
+            "sources": e.get("sources", []),
         })
 
-    output = {"version": 1, "entries": compiled}
+    output = {"version": 2, "entries": compiled}
     _COMPILED_PATH.write_text(json.dumps(output, ensure_ascii=False), encoding="utf-8")
     logger.info("OKF compiled → %s", _COMPILED_PATH)
     return _COMPILED_PATH

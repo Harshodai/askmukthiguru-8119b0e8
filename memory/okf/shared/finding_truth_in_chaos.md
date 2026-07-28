@@ -1,13 +1,30 @@
 ---
 type: teaching
-title: "Finding Truth in Chaos"
-description: "The truth is that we are the true Self, distinct from the experience. All chaos is in the 'it' — never in the 'I.'"
-source: "YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=AyUE-2Uh5Vg)"
-video_id: AyUE-2Uh5Vg
-tags: [self-realization, atma, moksha, truth, consciousness, separation]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=AyUE-2Uh5Vg"
+title: Finding Truth in Chaos
+description: The truth is that we are the true Self, distinct from the experience.
+  All chaos is in the 'it' — never in the 'I.'
+resource: https://www.youtube.com/watch?v=AyUE-2Uh5Vg
+source: YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=AyUE-2Uh5Vg)
+teacher: both
+tags:
+- self-realization
+- atma
+- moksha
+- truth
+- consciousness
+- separation
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=AyUE-2Uh5Vg
+  title: Finding Truth in Chaos
 ---
 
 # Finding Truth in Chaos

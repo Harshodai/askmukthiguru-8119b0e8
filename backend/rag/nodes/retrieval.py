@@ -117,7 +117,7 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
                     "text": f"{e['title']}\n\n{e.get('body', '')}",
                     "score": 0.9 + sim * 0.1,
                     "metadata": {
-                        "source": e.get("source", "OKF"),
+                        "source": e.get("resource") or e.get("source", "OKF"),
                         "title": e["title"],
                         "type": e.get("type", "okf"),
                         "teacher": e.get("teacher", "both"),
@@ -143,7 +143,7 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
             "text": f"{e['title']}\n\n{e.get('body', '')}",
             "score": 0.9 + score * 0.01,
             "metadata": {
-                "source": e.get("source", "OKF"),
+                "source": e.get("resource") or e.get("source", "OKF"),
                 "title": e["title"],
                 "type": e.get("type", "okf"),
                 "teacher": e.get("teacher", "both"),

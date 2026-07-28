@@ -77,6 +77,28 @@ class OKFEntry:
         return self.meta.get("source", "")
 
     @property
+    def resource(self) -> str:
+        """OKF v0.2 canonical resource; falls back to v0.1 source."""
+        return self.meta.get("resource", "") or self.source
+
+    @property
+    def status(self) -> str:
+        return self.meta.get("status", "stable")
+
+    @property
+    def generated(self) -> Optional[dict]:
+        return self.meta.get("generated")
+
+    @property
+    def verified(self) -> Optional[Any]:
+        return self.meta.get("verified")
+
+    @property
+    def sources(self) -> list[dict]:
+        s = self.meta.get("sources", [])
+        return s if isinstance(s, list) else [s] if s else []
+
+    @property
     def teacher(self) -> str:
         return self.meta.get("teacher", "both")
 

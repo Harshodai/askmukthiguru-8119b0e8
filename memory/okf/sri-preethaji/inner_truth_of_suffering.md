@@ -1,13 +1,28 @@
 ---
 type: teaching
-title: "The Inner Truth of Suffering"
-description: "Sri Krishnaji's realisation at Big Bear Lake that obsessive, self-centric thinking is what keeps suffering alive long after the stressful event has passed."
-source: "Beautiful State — Sri Preethaji (YouTube https://www.youtube.com/watch?v=TqxxCYnAxo8)"
-video_id: TqxxCYnAxo8
-tags: [suffering, self-centric-thinking, liberation, inner-truth]
-teacher: "sri-preethaji"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=TqxxCYnAxo8"
+title: The Inner Truth of Suffering
+description: Sri Krishnaji's realisation at Big Bear Lake that obsessive, self-centric
+  thinking is what keeps suffering alive long after the stressful event has passed.
+resource: https://www.youtube.com/watch?v=TqxxCYnAxo8
+source: Beautiful State — Sri Preethaji (YouTube https://www.youtube.com/watch?v=TqxxCYnAxo8)
+teacher: sri-preethaji
+tags:
+- suffering
+- self-centric-thinking
+- liberation
+- inner-truth
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=TqxxCYnAxo8
+  title: The Inner Truth of Suffering
 ---
 
 # The Inner Truth of Suffering

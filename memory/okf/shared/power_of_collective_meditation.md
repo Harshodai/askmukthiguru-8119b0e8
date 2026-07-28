@@ -1,13 +1,29 @@
 ---
 type: teaching
-title: "Power of Collective Meditation"
-description: "When millions move from separation-driven consciousness to oneness consciousness, the field shifts. Individual peace becomes collective transformation."
-source: "YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=AyUE-2Uh5Vg)"
-video_id: AyUE-2Uh5Vg
-tags: [collective-meditation, oneness, field, peace, transformation]
-teacher: "both"
-updated: "2026-07-10"
-resource: "https://www.youtube.com/watch?v=AyUE-2Uh5Vg"
+title: Power of Collective Meditation
+description: When millions move from separation-driven consciousness to oneness consciousness,
+  the field shifts. Individual peace becomes collective transformation.
+resource: https://www.youtube.com/watch?v=AyUE-2Uh5Vg
+source: YouTube — Sri Preethaji & Sri Krishnaji (https://www.youtube.com/watch?v=AyUE-2Uh5Vg)
+teacher: both
+tags:
+- collective-meditation
+- oneness
+- field
+- peace
+- transformation
+updated: '2026-07-10'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-10T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.youtube.com/watch?v=AyUE-2Uh5Vg
+  title: Power of Collective Meditation
 ---
 
 # Power of Collective Meditation

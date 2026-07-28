@@ -1,12 +1,29 @@
 ---
 type: teaching
-title: "Social Media Handles & Links"
-description: "Official social media handles, websites, and online platforms of Sri Preethaji and Sri Krishnaji — the Oneness Movement."
-source: "Official website ekam.org"
-tags: [social, media, handles, links, contact]
-teacher: "both"
-updated: "2026-07-11"
-resource: "https://www.ekam.org/sri-preethaji-sri-krishnaji/"
+title: Social Media Handles & Links
+description: Official social media handles, websites, and online platforms of Sri
+  Preethaji and Sri Krishnaji — the Oneness Movement.
+resource: https://www.ekam.org/sri-preethaji-sri-krishnaji/
+source: Official website ekam.org
+teacher: both
+tags:
+- social
+- media
+- handles
+- links
+- contact
+updated: '2026-07-11'
+status: stable
+generated:
+  by: human:curator
+  at: '2026-07-11T00:00:00Z'
+verified:
+  by: human:curator
+  at: '2026-07-11T00:00:00Z'
+sources:
+- id: primary
+  resource: https://www.ekam.org/sri-preethaji-sri-krishnaji/
+  title: Social Media Handles & Links
 ---
 
 # Social Media Handles & Links
