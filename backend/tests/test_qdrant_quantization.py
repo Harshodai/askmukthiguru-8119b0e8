@@ -2,6 +2,8 @@ import os
 import sys
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from qdrant_client.http.models import (
@@ -42,11 +44,8 @@ def test_turboquant_configs():
 
 def test_invalid_quantization_raises():
     for bad in ["scalar_int4", "turboquant_8bit", "unknown"]:
-        try:
+        with pytest.raises(ValueError):
             QdrantClientManager._build_quantization_config(bad)
-            raise AssertionError(f"Expected ValueError for {bad}")
-        except ValueError:
-            pass
 
 
 def test_search_params_scalar_default_is_none():
@@ -95,6 +94,9 @@ def test_hybrid_prefetch_dense_includes_params():
         assert dense_prefetch.params is not None
         assert dense_prefetch.params.quantization.rescore is True
         assert dense_prefetch.params.quantization.oversampling == 4.0
+
+        sparse_prefetch = next(p for p in prefetches if p.using == "sparse")
+        assert sparse_prefetch.params is None
 
 
 if __name__ == "__main__":

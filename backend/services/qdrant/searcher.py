@@ -196,9 +196,13 @@ class QdrantSearcher:
                 logger.debug(f"Hybrid search (RRF): {len(hits)} results")
             except Exception as e:
                 logger.warning(f"Hybrid search failed, falling back to dense: {e}")
-                hits = self._dense_search(query_vector, internal_limit, search_filter)
+                hits = self._dense_search(
+                    query_vector, internal_limit, search_filter, dense_search_params
+                )
         else:
-            hits = self._dense_search(query_vector, internal_limit, search_filter)
+            hits = self._dense_search(
+                query_vector, internal_limit, search_filter, dense_search_params
+            )
 
         # Filter out poisoned nodes
         hits = [hit for hit in hits if not self._utils.is_poisoned_node(hit.payload.get("text", ""))]
@@ -264,7 +268,13 @@ class QdrantSearcher:
             )
         )
 
-    def _dense_search(self, query_vector, limit, search_filter):
+    def _dense_search(
+        self,
+        query_vector,
+        limit,
+        search_filter,
+        search_params: Optional[SearchParams] = None,
+    ):
         """Dense-only search using the named 'dense' vector."""
         try:
             results = self._client.query_points(
@@ -273,7 +283,7 @@ class QdrantSearcher:
                 using="dense",
                 limit=limit,
                 query_filter=search_filter,
-                search_params=self._dense_quantization_search_params(),
+                search_params=search_params if search_params is not None else self._dense_quantization_search_params(),
                 with_payload=True,
             )
             return results.points
