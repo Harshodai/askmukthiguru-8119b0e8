@@ -92,6 +92,152 @@ class RelationType(Enum):
     IS_ASPECT_OF = "is_aspect_of"            # Partial identity
 
 
+# Aliases for relation extraction. Maps natural-language verbs and uppercase
+# labels (from LLM extractors) to the canonical RelationType.
+# This single map prevents divergent relation typing across the codebase.
+RELATION_TYPE_ALIASES: dict[str, RelationType] = {
+    # Generic / co-occurrence
+    "related_to": RelationType.IS_RELATED_TO,
+    "is_related_to": RelationType.IS_RELATED_TO,
+    "related": RelationType.IS_RELATED_TO,
+    "RELATED_TO": RelationType.IS_RELATED_TO,
+    # Teaching lineage
+    "teaches": RelationType.IS_TAUGHT_BY,
+    "teach": RelationType.IS_TAUGHT_BY,
+    "guides": RelationType.IS_TAUGHT_BY,
+    "guide": RelationType.IS_TAUGHT_BY,
+    "expounds": RelationType.IS_TAUGHT_BY,
+    "expound": RelationType.IS_TAUGHT_BY,
+    "EXPOUNDS": RelationType.IS_TAUGHT_BY,
+    "TEACHES": RelationType.IS_TAUGHT_BY,
+    "IS_TAUGHT_BY": RelationType.IS_TAUGHT_BY,
+    # Causal / leads_to
+    "leads_to": RelationType.LEADS_TO,
+    "leads": RelationType.LEADS_TO,
+    "brings": RelationType.LEADS_TO,
+    "bring": RelationType.LEADS_TO,
+    "frees": RelationType.LEADS_TO,
+    "free": RelationType.LEADS_TO,
+    "LEADS_TO": RelationType.LEADS_TO,
+    "causes": RelationType.CAUSES,
+    "cause": RelationType.CAUSES,
+    "creates": RelationType.CAUSES,
+    "create": RelationType.CAUSES,
+    "CAUSES": RelationType.CAUSES,
+    "prevents": RelationType.PREVENTS,
+    "prevent": RelationType.PREVENTS,
+    "PREVENTS": RelationType.PREVENTS,
+    # Transformative
+    "transforms": RelationType.TRANSFORMS,
+    "transform": RelationType.TRANSFORMS,
+    "dissolves": RelationType.TRANSFORMS,
+    "dissolve": RelationType.TRANSFORMS,
+    "TRANSFORMS": RelationType.TRANSFORMS,
+    "awakens": RelationType.LEADS_TO_STATE,
+    "awaken": RelationType.LEADS_TO_STATE,
+    "LEADS_TO_STATE": RelationType.LEADS_TO_STATE,
+    "manifests": RelationType.IS_MANIFESTATION_OF,
+    "manifest": RelationType.IS_MANIFESTATION_OF,
+    "MANIFESTS_AS": RelationType.IS_MANIFESTATION_OF,
+    "EXPRESSION_OF": RelationType.IS_ASPECT_OF,
+    # Revealing / showing
+    "reveals": RelationType.IS_MENTIONED_IN,
+    "reveal": RelationType.IS_MENTIONED_IN,
+    "shows": RelationType.IS_MENTIONED_IN,
+    "show": RelationType.IS_MENTIONED_IN,
+    "REVEALS": RelationType.IS_MENTIONED_IN,
+    # Pragmatic
+    "helps": RelationType.IS_USED_FOR,
+    "help": RelationType.IS_USED_FOR,
+    "IS_USED_FOR": RelationType.IS_USED_FOR,
+    "IS_TECHNIQUE_FOR": RelationType.IS_TECHNIQUE_FOR,
+    "PRACTICE_FOR": RelationType.IS_TECHNIQUE_FOR,
+    "IS_PREREQUISITE_FOR": RelationType.IS_PREREQUISITE_FOR,
+    "PREREQUISITE_FOR": RelationType.IS_PREREQUISITE_FOR,
+    "CONTRASTS_WITH": RelationType.IS_OPPOSITE_OF,
+    "IS_OPPOSITE_OF": RelationType.IS_OPPOSITE_OF,
+    "COMPONENT_OF": RelationType.PART_OF,
+    "IS_A": RelationType.IS_A,
+    "PART_OF": RelationType.PART_OF,
+    # Passive / inverse forms
+    "is_technique_for": RelationType.IS_TECHNIQUE_FOR,
+    "is_prerequisite_for": RelationType.IS_PREREQUISITE_FOR,
+    "is_opposite_of": RelationType.IS_OPPOSITE_OF,
+    "is_manifestation_of": RelationType.IS_MANIFESTATION_OF,
+    "is_aspect_of": RelationType.IS_ASPECT_OF,
+    "is_mentioned_in": RelationType.IS_MENTIONED_IN,
+    # Copula
+    "is": RelationType.IS_A,
+    "are": RelationType.IS_A,
+    "was": RelationType.IS_A,
+    "were": RelationType.IS_A,
+}
+
+
+def resolve_relation_type(verb: str, *, strict: bool = False) -> tuple[RelationType, bool]:
+    """
+    Resolve a relation string to a canonical RelationType.
+
+    Returns (relation_type, is_known). When `strict` is False, unknown verbs
+    fall back to RelationType.IS_RELATED_TO so no edge is lost. When strict is
+    True, unknown verbs return (None, False) — callers should drop them.
+    """
+    if not verb:
+        return (RelationType.IS_RELATED_TO, False) if not strict else (None, False)  # type: ignore[return-value]
+    key = verb.strip()
+    if key in RELATION_TYPE_ALIASES:
+        return RELATION_TYPE_ALIASES[key], True
+    lower = key.lower()
+    if lower in RELATION_TYPE_ALIASES:
+        return RELATION_TYPE_ALIASES[lower], True
+    upper = key.upper()
+    if upper in RELATION_TYPE_ALIASES:
+        return RELATION_TYPE_ALIASES[upper], True
+    return (RelationType.IS_RELATED_TO, False) if not strict else (None, False)  # type: ignore[return-value]
+
+
+def relation_type_to_neo4j_label(rel: RelationType) -> str:
+    """Canonical Neo4j edge label: snake_case -> UPPER_SNAKE_CASE."""
+    return rel.value.upper()
+
+
+# Canonical entity aliases: maps common surface forms to a single entity_id.
+# Used at ingestion time to deduplicate nodes across extraction sources.
+CANONICAL_ENTITY_ALIASES: dict[str, str] = {
+    # Teachers
+    "preethaji": "Sri Preethaji",
+    "krishnaji": "Sri Krishnaji",
+    "amma bhagavan": "Sri Amma Bhagavan",
+    "sri preethaji": "Sri Preethaji",
+    "sri krishnaji": "Sri Krishnaji",
+    # Organizations
+    "o&o": "O&O Academy",
+    "o and o academy": "O&O Academy",
+    "o and o": "O&O Academy",
+    # Practices
+    "breath awareness": "Breath Awareness",
+    "soul sync": "Soul Sync",
+    "serene mind": "Serene Mind",
+    "japa": "Japa",
+    # Texts / traditions
+    "bhagavad gita": "Bhagavad Gita",
+    "gita": "Bhagavad Gita",
+    "yoga sutras": "Yoga Sutras",
+    "patanjali": "Yoga Sutras",
+}
+
+
+def normalize_entity_name(name: str) -> str:
+    """Normalize entity name: strip whitespace, collapse inner spaces."""
+    return " ".join(name.strip().split())
+
+
+def canonical_entity_id(name: str) -> str:
+    """Resolve entity name to canonical entity_id (case-insensitive)."""
+    normalized = normalize_entity_name(name)
+    return CANONICAL_ENTITY_ALIASES.get(normalized.lower(), normalized)
+
+
 @dataclass
 class SpiritualConcept:
     """

@@ -17,7 +17,12 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Iterable, Optional
 
-from domain.spiritual_ontology import ConceptType, RelationType
+from domain.spiritual_ontology import (
+    ConceptType,
+    RelationType,
+    canonical_entity_id,
+    resolve_relation_type,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,109 +86,13 @@ _PRACTICE_KEYWORDS: tuple[str, ...] = (
 
 # =============================================================================
 # Relation-verb -> RelationType mapping
-# Covers verbs emitted by hyper_extract_adapter._infer_relation
-# (see _RELATION_VERBS) + triple_extractor uppercase relation strings.
-# Unknown -> IS_RELATED_TO.
+# Central map lives in domain.spiritual_ontology.RELATION_TYPE_ALIASES.
 # =============================================================================
-
-_RELATION_VERB_TO_ENUM: dict[str, RelationType] = {
-    # Generic / co-occurrence
-    "related_to": RelationType.IS_RELATED_TO,
-    "is_related_to": RelationType.IS_RELATED_TO,
-    "related": RelationType.IS_RELATED_TO,
-    # Teaching lineage
-    "teaches": RelationType.IS_TAUGHT_BY,
-    "teach": RelationType.IS_TAUGHT_BY,
-    "guides": RelationType.IS_TAUGHT_BY,
-    "guide": RelationType.IS_TAUGHT_BY,
-    "expounds": RelationType.IS_TAUGHT_BY,
-    "expound": RelationType.IS_TAUGHT_BY,
-    # Causal / leads_to
-    "leads_to": RelationType.LEADS_TO,
-    "leads": RelationType.LEADS_TO,
-    "brings": RelationType.LEADS_TO,
-    "bring": RelationType.LEADS_TO,
-    "creates": RelationType.CAUSES,
-    "create": RelationType.CAUSES,
-    "causes": RelationType.CAUSES,
-    "cause": RelationType.CAUSES,
-    "prevents": RelationType.PREVENTS,
-    # Transformative
-    "transforms": RelationType.TRANSFORMS,
-    "transform": RelationType.TRANSFORMS,
-    "awakens": RelationType.LEADS_TO_STATE,
-    "awaken": RelationType.LEADS_TO_STATE,
-    "manifests": RelationType.IS_MANIFESTATION_OF,
-    "manifest": RelationType.IS_MANIFESTATION_OF,
-    # Revealing / showing
-    "reveals": RelationType.IS_MENTIONED_IN,
-    "reveal": RelationType.IS_MENTIONED_IN,
-    "shows": RelationType.IS_MENTIONED_IN,
-    "show": RelationType.IS_MENTIONED_IN,
-    # Helper verbs -> pragmatic
-    "helps": RelationType.IS_USED_FOR,
-    "help": RelationType.IS_USED_FOR,
-    "connects": RelationType.IS_RELATED_TO,
-    "connect": RelationType.IS_RELATED_TO,
-    "opens": RelationType.IS_RELATED_TO,
-    "open": RelationType.IS_RELATED_TO,
-    "clears": RelationType.IS_RELATED_TO,
-    "clear": RelationType.IS_RELATED_TO,
-    "dissolves": RelationType.TRANSFORMS,
-    "dissolve": RelationType.TRANSFORMS,
-    "frees": RelationType.LEADS_TO,
-    "free": RelationType.LEADS_TO,
-    "expands": RelationType.IS_RELATED_TO,
-    "expand": RelationType.IS_RELATED_TO,
-    "deepens": RelationType.IS_RELATED_TO,
-    "deepen": RelationType.IS_RELATED_TO,
-    "restores": RelationType.IS_RELATED_TO,
-    "restore": RelationType.IS_RELATED_TO,
-    # Copula
-    "is": RelationType.IS_A,
-    "are": RelationType.IS_A,
-    "was": RelationType.IS_A,
-    "were": RelationType.IS_A,
-    # Uppercase variants from triple_extractor LLM output
-    "EXPOUNDS": RelationType.IS_TAUGHT_BY,
-    "TEACHES": RelationType.IS_TAUGHT_BY,
-    "PRACTICE_FOR": RelationType.IS_TECHNIQUE_FOR,
-    "CONTRASTS_WITH": RelationType.IS_OPPOSITE_OF,
-    "LEADS_TO": RelationType.LEADS_TO,
-    "CAUSES": RelationType.CAUSES,
-    "PREVENTS": RelationType.PREVENTS,
-    "TRANSFORMS": RelationType.TRANSFORMS,
-    "RELATED_TO": RelationType.IS_RELATED_TO,
-    "REVEALS": RelationType.IS_MENTIONED_IN,
-    "MANIFESTS_AS": RelationType.IS_MANIFESTATION_OF,
-    "EXPRESSION_OF": RelationType.IS_ASPECT_OF,
-    "PREREQUISITE_FOR": RelationType.IS_PREREQUISITE_FOR,
-    "COMPONENT_OF": RelationType.PART_OF,
-    "IS_A": RelationType.IS_A,
-    "PART_OF": RelationType.PART_OF,
-    # Inverse predicate forms — the relation-verb map uses active voice
-    # (teaches/guides/expounds → IS_TAUGHT_BY), but triple extractors may
-    # emit the passive inverse ("is a technique for" → IS_TECHNIQUE_FOR).
-    # These inverse verbs ensure both directions are recognised.
-    "IS_TAUGHT_BY": RelationType.IS_TAUGHT_BY,
-    "IS_TECHNIQUE_FOR": RelationType.IS_TECHNIQUE_FOR,
-    "IS_OPPOSITE_OF": RelationType.IS_OPPOSITE_OF,
-    "IS_MENTIONED_IN": RelationType.IS_MENTIONED_IN,
-    "IS_MANIFESTATION_OF": RelationType.IS_MANIFESTATION_OF,
-    "IS_ASPECT_OF": RelationType.IS_ASPECT_OF,
-    "IS_PREREQUISITE_FOR": RelationType.IS_PREREQUISITE_FOR,
-    "IS_USED_FOR": RelationType.IS_USED_FOR,
-}
-
-
-def _normalize_entity(name: str) -> str:
-    """Normalize entity name: strip whitespace, collapse inner spaces."""
-    return " ".join(name.strip().split())
 
 
 def _map_concept_type(entity: str) -> ConceptType:
     """Heuristic: teacher name -> BEING; practice keyword -> PRACTICE; else PRINCIPLE."""
-    name = _normalize_entity(entity)
+    name = " ".join(entity.strip().split())
     lower_set = {t.lower() for t in _KNOWN_TEACHERS}
     if name in _KNOWN_TEACHERS or name.lower() in lower_set:
         return ConceptType.BEING
@@ -196,18 +105,9 @@ def _map_concept_type(entity: str) -> ConceptType:
     return ConceptType.PRINCIPLE
 
 
-def _map_relation(verb: str) -> RelationType:
-    """Map a relation string (verb lemma or UPPERCASE label) -> RelationType."""
-    key = verb.strip()
-    if key in _RELATION_VERB_TO_ENUM:
-        return _RELATION_VERB_TO_ENUM[key]
-    lower_key = key.lower()
-    if lower_key in _RELATION_VERB_TO_ENUM:
-        return _RELATION_VERB_TO_ENUM[lower_key]
-    upper_key = key.upper()
-    if upper_key in _RELATION_VERB_TO_ENUM:
-        return _RELATION_VERB_TO_ENUM[upper_key]
-    return RelationType.IS_RELATED_TO
+def _resolve_relation(verb: str) -> RelationType:
+    """Map verb -> RelationType via central domain map."""
+    return resolve_relation_type(verb, strict=False)[0]
 
 
 # Map ConceptType -> Neo4j label. BEING -> Teacher; PRACTICE -> Practice; else Concept.
@@ -309,12 +209,13 @@ async def write_extraction_to_neo4j(
                     name = (entity or "").strip()
                     if not name:
                         continue
-                    concept_type = _map_concept_type(name)
+                    canon_id = canonical_entity_id(name)
+                    concept_type = _map_concept_type(canon_id)
                     label = _CONCEPT_TYPE_TO_LABEL.get(concept_type, "Concept")
                     cypher = _NODE_MERGE_CYPHER_TEMPLATE.format(label=label)
                     tx.run(
                         cypher,
-                        entity_id=name,
+                        entity_id=canon_id,
                         name=name,
                         entity_type=concept_type.name.lower(),
                         source_doc_id=source_doc_id,
@@ -330,13 +231,15 @@ async def write_extraction_to_neo4j(
                     o_name = (obj or "").strip()
                     if not s_name or not o_name:
                         continue
-                    rel_enum = _map_relation(relation_str)
+                    s_id = canonical_entity_id(s_name)
+                    o_id = canonical_entity_id(o_name)
+                    rel_enum = _resolve_relation(relation_str)
                     rel_type = rel_enum.value.upper()
                     cypher = _REL_MERGE_CYPHER_TEMPLATE.format(rel_type=rel_type)
                     tx.run(
                         cypher,
-                        subject_id=s_name,
-                        object_id=o_name,
+                        subject_id=s_id,
+                        object_id=o_id,
                         source="hyper_extract",
                         source_doc_id=source_doc_id,
                         source_chunk_id=source_chunk_id,
@@ -353,13 +256,15 @@ async def write_extraction_to_neo4j(
                         relation_str = (t.get("relation") or "").strip()
                         if not s_name or not o_name or not relation_str:
                             continue
-                        rel_enum = _map_relation(relation_str)
+                        s_id = canonical_entity_id(s_name)
+                        o_id = canonical_entity_id(o_name)
+                        rel_enum = _resolve_relation(relation_str)
                         rel_type = rel_enum.value.upper()
                         cypher = _REL_MERGE_CYPHER_TEMPLATE.format(rel_type=rel_type)
                         tx.run(
                             cypher,
-                            subject_id=s_name,
-                            object_id=o_name,
+                            subject_id=s_id,
+                            object_id=o_id,
                             source="triple_extractor",
                             source_doc_id=source_doc_id,
                             source_chunk_id=source_chunk_id,
