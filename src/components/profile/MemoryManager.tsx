@@ -31,6 +31,7 @@ import {
   type GuruMemory,
   type SessionSummary,
   type ConversationContinuity,
+  type UserSkill,
   type KGNode,
   type KGEdge,
 } from '@/lib/memoryApi';
@@ -135,6 +136,8 @@ export const MemoryManager = () => {
   const [conversations, setConversations] = useState<ConversationContinuity[]>([]);
   const [persona, setPersona] = useState<string>('');
   const [personaLoading, setPersonaLoading] = useState(false);
+  const [skills, setSkills] = useState<UserSkill[]>([]);
+  const [skillsLoading, setSkillsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
@@ -365,12 +368,13 @@ export const MemoryManager = () => {
   const refresh = async () => {
     setLoading(true);
     setUnavailable(null);
-    const [listResult, coreResult, summariesResult, conversationsResult, personaResult] = await Promise.allSettled([
+    const [listResult, coreResult, summariesResult, conversationsResult, personaResult, skillsResult] = await Promise.allSettled([
       memoryApi.list(1, 100),
       memoryApi.getCore(),
       memoryApi.getSummaries(10),
       memoryApi.getConversations(5),
       memoryApi.getPersona(),
+      memoryApi.getSkills(),
     ]);
     if (listResult.status === 'fulfilled') {
       setMemories(listResult.value.memories);
@@ -392,6 +396,9 @@ export const MemoryManager = () => {
     if (personaResult.status === 'fulfilled') {
       setPersona(personaResult.value.content ?? '');
     }
+    if (skillsResult.status === 'fulfilled') {
+      setSkills(skillsResult.value ?? []);
+    }
     setLoading(false);
   };
 
@@ -405,6 +412,19 @@ export const MemoryManager = () => {
       toast({ title: t('memory.personaRegenerateFailed', 'Could not refresh persona'), variant: 'destructive' });
     } finally {
       setPersonaLoading(false);
+    }
+  };
+
+  const regenerateSkills = async () => {
+    setSkillsLoading(true);
+    try {
+      const updated = await memoryApi.regenerateSkills();
+      setSkills(updated ?? []);
+      toast({ title: t('memory.skillsRegenerated', 'Skills refreshed') });
+    } catch {
+      toast({ title: t('memory.skillsRegenerateFailed', 'Could not refresh skills'), variant: 'destructive' });
+    } finally {
+      setSkillsLoading(false);
     }
   };
 
@@ -1427,6 +1447,58 @@ export const MemoryManager = () => {
           <CardContent>
             <div className="prose prose-invert prose-sm max-w-none text-muted-foreground whitespace-pre-wrap font-sans">
               {persona}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Skills (Auto-Generated) ──────────────────────────────────────── */}
+      {skills.length > 0 && !isFullscreen && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-emerald-400" /> {t('memory.skills', 'Skills')}
+                <Badge variant="secondary" className="ml-2 font-display">{skills.length}</Badge>
+              </CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={regenerateSkills}
+                disabled={skillsLoading}
+                className="h-8 px-3 font-display text-xs"
+              >
+                {skillsLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                {t('memory.regenerate', 'Regenerate')}
+              </Button>
+            </div>
+            <CardDescription>
+              {t('memory.skillsDesc', 'Skills and techniques identified from your practice')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {skills.map((sk) => (
+                <div key={sk.id ?? sk.name} className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-white">{sk.name}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {t('memory.proficiency', 'Proficiency')}: {Math.round((sk.proficiency ?? 0) * 100)}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{sk.description}</p>
+                  <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500/70 rounded-full transition-all"
+                      style={{ width: `${Math.round((sk.proficiency ?? 0) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

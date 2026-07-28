@@ -370,6 +370,42 @@ async def regenerate_persona_endpoint(
     return {"status": "ok" if ok else "error", "content": persona}
 
 
+@router.get("/memory/skills")
+async def list_skills_endpoint(
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> list[dict]:
+    """List auto-generated skills for the current user."""
+    from services.layered_memory.skill_generator import get_skills
+    from services.tenant_context import TenantContext
+
+    if not getattr(container, "supabase_client", None):
+        return []
+    tenant_id = TenantContext.get()
+    return await get_skills(container.supabase_client, user["id"], tenant_id)
+
+
+@router.post("/memory/skills/regenerate")
+async def regenerate_skills_endpoint(
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Regenerate skills from recent L1 atoms."""
+    from services.layered_memory.skill_generator import generate_skills, get_skills, save_skills
+    from services.tenant_context import TenantContext
+
+    if not getattr(container, "memory_service", None):
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+    tenant_id = TenantContext.get()
+    atoms = await container.memory_service.get_recent_atoms(user["id"], limit=30)
+    atoms_text = "\n".join(a.get("content", "") for a in atoms) if atoms else ""
+    existing = await get_skills(container.supabase_client, user["id"], tenant_id)
+    skills = await generate_skills(atoms_text, existing)
+    if skills:
+        await save_skills(container.supabase_client, user["id"], tenant_id, skills)
+    return {"skills": skills, "count": len(skills)}
+
+
 @router.post("/memory/relevant")
 async def relevant_memories_endpoint(
     body: RelevantMemoryRequest,

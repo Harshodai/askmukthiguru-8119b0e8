@@ -12,6 +12,11 @@
 import { supabase as supabaseTyped } from '@/integrations/supabase/client';
 import { BACKEND_URL } from './backendUrl';
 
+/** Minimal supabase-js client for endpoints that accept one. */
+type SupabaseClient = {
+  from: (table: string) => any;
+};
+
 // Generated Supabase types don't yet include the guru_* memory tables.
 // Cast to `any` for those queries — RLS still enforces auth/row scoping.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,6 +65,16 @@ export interface RelevantMemory {
 
 export interface PersonaResponse {
   content: string;
+  updated_at: string;
+}
+
+export interface UserSkill {
+  id: string;
+  name: string;
+  description: string;
+  proficiency: number;
+  practice_count: number;
+  created_at: string;
   updated_at: string;
 }
 
@@ -458,6 +473,50 @@ export const memoryApi = {
       return (await res.json()) as PersonaResponse & { status: string };
     } catch {
       return { content: '', updated_at: '', status: 'error' };
+    }
+  },
+
+  /** List auto-generated skills. */
+  async getSkills(): Promise<UserSkill[]> {
+    const BACKEND = BACKEND_URL;
+    if (!BACKEND) return [];
+
+    const session = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (session.data.session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.data.session.access_token}`;
+    }
+
+    try {
+      const res = await fetch(`${BACKEND}/api/memory/skills`, { headers });
+      if (!res.ok) return [];
+      return (await res.json()) as UserSkill[];
+    } catch {
+      return [];
+    }
+  },
+
+  /** Regenerate skills from recent L1 atoms. */
+  async regenerateSkills(): Promise<UserSkill[]> {
+    const BACKEND = BACKEND_URL;
+    if (!BACKEND) return [];
+
+    const session = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (session.data.session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.data.session.access_token}`;
+    }
+
+    try {
+      const res = await fetch(`${BACKEND}/api/memory/skills/regenerate`, {
+        method: 'POST',
+        headers,
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.skills ?? []) as UserSkill[];
+    } catch {
+      return [];
     }
   },
 };

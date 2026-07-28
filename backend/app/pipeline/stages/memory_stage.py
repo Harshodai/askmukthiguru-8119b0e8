@@ -143,6 +143,29 @@ class MemoryStage(Stage):
 
             asyncio.create_task(_l1_extract())
 
+            # L2 scene compression — symbolic short-term offload.
+            async def _l2_compress():
+                try:
+                    from services.layered_memory.l2_scene_compressor import compress_turns_to_scene, save_scene_block
+                    from services.tenant_context import TenantContext
+
+                    turns = [
+                        {"role": "user", "content": user_msg},
+                        {"role": "assistant", "content": final_answer},
+                    ]
+                    block = await compress_turns_to_scene(turns)
+                    if block and getattr(container, "supabase_client", None):
+                        tenant_id = TenantContext.get()
+                        await save_scene_block(
+                            container.supabase_client,
+                            user_id, tenant_id,
+                            stable_session_id, block,
+                        )
+                except Exception as e:
+                    logger.warning(f"L2 scene compression failed (non-fatal): {e}")
+
+            asyncio.create_task(_l2_compress())
+
         # Wave 3 — episodic memory: log the raw turn (query + answer + citations).
         # ponytail: fire-and-forget; anonymous users skipped inside log_episode.
         episodic = getattr(container, "episodic_memory_service", None)
