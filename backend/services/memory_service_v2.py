@@ -11,6 +11,7 @@ All tiers are independently operational — failures in one don't block others.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import os
@@ -23,6 +24,7 @@ from redis import asyncio as aioredis
 
 from app.config import settings
 from app.metrics import MEMORY_LRU_EVICTIONS
+from services import kg_analytics
 from services.memory_service import MemoryService
 from services.tenant_context import TenantContext
 
@@ -147,6 +149,32 @@ class MemoryServiceV2(MemoryService):
         except Exception as e:
             logger.warning(f"classify_memory_content failed: {e}")
         return {}
+
+    async def add_atoms(
+        self,
+        user_id: str,
+        session_id: str,
+        atoms: list[Any],
+    ) -> None:
+        """Persist L1 atomic memories to Supabase and Neo4j."""
+        from services.layered_memory.models import MemoryAtom
+
+        for atom in atoms:
+            if not isinstance(atom, MemoryAtom):
+                continue
+            classified = {
+                "insight": atom.content[:40],
+                "state_category": "Neutral",
+                "related_concepts": atom.metadata.get("related_concepts", []),
+                "atom_type": atom.type,
+                "priority": atom.priority,
+                "scene_name": atom.scene_name,
+                "source_message_ids": atom.source_message_ids,
+                "session_id": session_id,
+            }
+            await self.add_explicit(
+                user_id, atom.content, is_core=False, source="l1_atom", run_compaction=False, metadata=classified
+            )
 
     async def add_explicit(
         self,
@@ -848,6 +876,13 @@ class MemoryServiceV2(MemoryService):
             except Exception as e:
                 logger.warning(f"build_personal_knowledge_graph ontology view failed: {e}")
             result = {"nodes": list(nodes.values()), "edges": edges}
+            enriched = copy.deepcopy(result)
+            _do_enrich = lambda: kg_analytics.enrich_graph(enriched, enabled=settings.kg_analytics_enabled)
+            try:
+                await asyncio.wait_for(asyncio.to_thread(_do_enrich), timeout=30.0)
+                result = enriched
+            except (asyncio.TimeoutError, Exception):
+                pass
             self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)
             return result
 
@@ -1094,6 +1129,13 @@ class MemoryServiceV2(MemoryService):
             logger.warning(f"Failed to add concept peer edges: {e}")
 
         result = {"nodes": list(nodes.values()), "edges": edges}
+        enriched = copy.deepcopy(result)
+        _do_enrich = lambda: kg_analytics.enrich_graph(enriched, enabled=settings.kg_analytics_enabled)
+        try:
+            await asyncio.wait_for(asyncio.to_thread(_do_enrich), timeout=30.0)
+            result = enriched
+        except (asyncio.TimeoutError, Exception):
+            pass
         self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)
         # Evict old cache entries (bounded).
         if len(self._KG_CACHE) > 256:

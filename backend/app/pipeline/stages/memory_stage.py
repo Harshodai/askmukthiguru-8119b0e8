@@ -125,6 +125,24 @@ class MemoryStage(Stage):
 
             asyncio.create_task(_extract_with_retry())
 
+            # L1 atomic memory extraction — Tencent-style layer-1 atoms.
+            async def _l1_extract():
+                try:
+                    from services.layered_memory.l1_extractor import extract_atoms
+
+                    atoms = await extract_atoms(
+                        user_msg=user_msg,
+                        assistant_msg=final_answer,
+                        prior_messages=chat_body_messages,
+                        previous_scene_name=intent or "General",
+                    )
+                    if atoms:
+                        await container.memory_service.add_atoms(user_id, stable_session_id, atoms)
+                except Exception as e:
+                    logger.warning(f"L1 atom extraction failed (non-fatal): {e}")
+
+            asyncio.create_task(_l1_extract())
+
         # Wave 3 — episodic memory: log the raw turn (query + answer + citations).
         # ponytail: fire-and-forget; anonymous users skipped inside log_episode.
         episodic = getattr(container, "episodic_memory_service", None)

@@ -383,7 +383,7 @@ class MemoryService:
             end = start + page_size - 1
             result = await asyncio.to_thread(
                 self._supabase.table("guru_memories")
-                .select("id, content, source, created_at, updated_at, summary")
+                .select("id, content, source, created_at, updated_at, summary, claim, confidence, decay_score, metadata")
                 .eq("user_id", user_id)
                 .order("created_at", desc=True)
                 .range(start, end)
