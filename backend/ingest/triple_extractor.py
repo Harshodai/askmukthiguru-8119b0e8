@@ -49,13 +49,23 @@ class TripleSet(BaseModel):
 
 
 _SYSTEM_PROMPT = (
-    "You are a knowledge-graph information-extraction assistant. "
+    "You are a knowledge-graph information-extraction assistant for spiritual teachings. "
     "Read the user text and extract entity-relation-entity triples. "
     "Return ONLY a JSON object of the form "
     '{"triples": [{"subject": str, "relation": str, "object": str}, ...]}. '
     "No prose, no markdown fences, no commentary. "
-    "Use short canonical relation verbs in UPPERCASE (e.g. EXPOUNDS, TEACHES, "
-    "PRACTICE_FOR, CONTRASTS_WITH, RELATED_TO). Empty input -> {\"triples\": []}."
+    "Use canonical relation verbs in UPPERCASE from this ontology: "
+    "IS_A, PART_OF, INSTANCE_OF, "
+    "LEADS_TO, CAUSES, PREVENTS, "
+    "PRECEDES, FOLLOWS, "
+    "IS_RELATED_TO, IS_SIMILAR_TO, IS_OPPOSITE_OF, "
+    "IS_USED_FOR, IS_PREREQUISITE_FOR, IS_TECHNIQUE_FOR, "
+    "IS_MENTIONED_IN, IS_TAUGHT_BY, LEADS_TO_STATE, REQUIRES_QUALITY, "
+    "TRANSFORMS, IS_MANIFESTATION_OF, IS_ASPECT_OF. "
+    "Entity types (for your reference): TEACHER (person/org), PRACTICE (technique/meditation), "
+    "PRINCIPLE (doctrine/concept), EXPERIENCE (state/feeling), TEXT (scripture/book), "
+    "TRADITION (lineage/school), QUALITY (virtue/trait), OBSTACLE (hindrance), TOOL (instrument), PATH (way). "
+    "Empty input -> {\"triples\": []}."
 )
 
 
@@ -128,26 +138,37 @@ async def extract_triples(text: str, llm: Any) -> list[dict[str, str]]:
 
 
 def write_triples_to_neo4j(triples: list[dict[str, str]], driver=None) -> int:
-    """Optional helper: MERGE triples into Neo4j as :base nodes + :RELATED_TO.
+    """Optional helper: MERGE triples into Neo4j as :base nodes + typed edges.
 
+    Uses the central relation-type map from domain.spiritual_ontology.
     Ponytail: one Cypher, MERGE idempotent. Returns count written.
     Caller passes a neo4j.Driver; if None, no-op (returns 0). Kept here so
     callers don't reinvent it, but `extract_triples` itself is storage-free.
     """
+    from domain.spiritual_ontology import (
+        canonical_entity_id,
+        relation_type_to_neo4j_label,
+        resolve_relation_type,
+    )
+
     if not triples or driver is None:
         return 0
     written = 0
     try:
         with driver.session() as session:
             for t in triples:
+                rel_enum, _ = resolve_relation_type(t.get("relation", ""), strict=False)
+                rel_label = relation_type_to_neo4j_label(rel_enum)
+                s_id = canonical_entity_id(t.get("subject", ""))
+                o_id = canonical_entity_id(t.get("object", ""))
                 session.run(
-                    """
-                    MERGE (s:base {entity_id: $subject})
-                    MERGE (o:base {entity_id: $object})
-                    MERGE (s)-[:RELATED_TO]->(o)
+                    f"""
+                    MERGE (s:base {{entity_id: $subject}})
+                    MERGE (o:base {{entity_id: $object}})
+                    MERGE (s)-[:{rel_label}]->(o)
                     """,
-                    subject=t["subject"],
-                    object=t["object"],
+                    subject=s_id,
+                    object=o_id,
                 )
                 written += 1
     except Exception as e:
