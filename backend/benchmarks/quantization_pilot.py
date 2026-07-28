@@ -35,6 +35,10 @@ from app.config import settings  # noqa: E402
 from services.embedding_service import EmbeddingService  # noqa: E402
 from services.qdrant.client import QdrantClientManager  # noqa: E402
 
+# Imported lazily below to avoid paying import cost during self-check.
+_QuantizationSearchParams: Any = None
+_SearchParams: Any = None
+
 logger = logging.getLogger(__name__)
 
 BASELINE_COLLECTION = "spiritual_wisdom"
@@ -186,14 +190,49 @@ def _percentile(values: list[float], pct: float) -> float:
     return sorted_values[k]
 
 
+def _is_quantized_collection(client_manager: QdrantClientManager, collection_name: str) -> bool:
+    """Return True if the collection uses any quantization besides scalar int8."""
+    try:
+        info = client_manager.client.get_collection(collection_name)
+        qc = getattr(info.config, "quantization_config", None)
+        if qc is None:
+            return False
+        # Scalar int8 is the production baseline; we do not apply extra search params there.
+        scalar = getattr(qc, "scalar", None)
+        if scalar and getattr(scalar, "type", None) == "int8":
+            return False
+        return True
+    except Exception as exc:
+        logger.warning(f"Could not read quantization config for '{collection_name}': {exc}")
+        return False
+
+
+def _quantization_search_params() -> Any:
+    """Build SearchParams with rescore + oversampling for quantized collections."""
+    global _QuantizationSearchParams, _SearchParams
+    if _QuantizationSearchParams is None:
+        from qdrant_client.http.models import QuantizationSearchParams, SearchParams
+
+        _QuantizationSearchParams = QuantizationSearchParams
+        _SearchParams = SearchParams
+    return _SearchParams(
+        quantization=_QuantizationSearchParams(
+            rescore=True,
+            oversampling=settings.qdrant_quantization_oversampling,
+        )
+    )
+
+
 def _dense_search(
     client_manager: QdrantClientManager,
     collection_name: str,
     query_vector: list[float],
     limit: int,
+    use_quantization_params: bool = False,
 ) -> tuple[list[SearchResult], float]:
     """Run a dense-only search and return hits plus wall-clock latency in ms."""
     client = client_manager.client
+    search_params = _quantization_search_params() if use_quantization_params else None
     start = time.perf_counter()
     try:
         response = client.query_points(
@@ -202,6 +241,7 @@ def _dense_search(
             using="dense",
             limit=limit,
             with_payload=True,
+            search_params=search_params,
         )
         hits = _parse_hits(response.points)
     except Exception as exc:
@@ -286,6 +326,13 @@ async def run_benchmark(
     baseline_latencies: list[float] = []
     candidate_latencies: list[float] = []
 
+    use_quant_params_for_pilot = pilot_exists and _is_quantized_collection(baseline_manager, pilot_collection)
+    if use_quant_params_for_pilot:
+        logger.info(
+            f"Pilot collection '{pilot_collection}' is quantized; applying "
+            f"rescore=True, oversampling={settings.qdrant_quantization_oversampling} search params."
+        )
+
     for query, vector in zip(queries, query_vectors):
         baseline_hits, baseline_ms = _dense_search(
             baseline_manager, BASELINE_COLLECTION, vector, top_k
@@ -296,7 +343,7 @@ async def run_benchmark(
         candidate_ms = 0.0
         if pilot_exists:
             candidate_hits, candidate_ms = _dense_search(
-                baseline_manager, pilot_collection, vector, top_k
+                baseline_manager, pilot_collection, vector, top_k, use_quant_params_for_pilot
             )
             candidate_latencies.append(candidate_ms)
 
@@ -310,13 +357,13 @@ async def run_benchmark(
             )
         )
 
-    recalls_10 = [o.recall_at_10 for o in outcomes]
-    recalls_50 = [o.recall_at_50 for o in outcomes]
+    candidate_recalls_10 = [o.recall_at_10 for o in outcomes]
+    candidate_recalls_50 = [o.recall_at_50 for o in outcomes]
 
     aggregated = {
         "baseline": {
-            "recall_at_10_mean": statistics.mean(recalls_10) if recalls_10 else 0.0,
-            "recall_at_50_mean": statistics.mean(recalls_50) if recalls_50 else 0.0,
+            "recall_at_10_mean": 1.0,
+            "recall_at_50_mean": 1.0,
             "median_ms": statistics.median(baseline_latencies) if baseline_latencies else 0.0,
             "p95_ms": _percentile(baseline_latencies, 95.0),
             "collection": BASELINE_COLLECTION,
@@ -324,8 +371,8 @@ async def run_benchmark(
             "top_k": top_k,
         },
         "candidate": {
-            "recall_at_10_mean": statistics.mean(recalls_10) if recalls_10 else 0.0,
-            "recall_at_50_mean": statistics.mean(recalls_50) if recalls_50 else 0.0,
+            "recall_at_10_mean": statistics.mean(candidate_recalls_10) if candidate_recalls_10 else 0.0,
+            "recall_at_50_mean": statistics.mean(candidate_recalls_50) if candidate_recalls_50 else 0.0,
             "median_ms": statistics.median(candidate_latencies) if candidate_latencies else 0.0,
             "p95_ms": _percentile(candidate_latencies, 95.0),
             "collection": pilot_collection,
