@@ -499,7 +499,13 @@ export const MemoryManager = () => {
       setMemories((prev) => [created, ...prev]);
       setNewText('');
       toast({ title: t('memory.memorySaved'), description: t('memory.memorySavedDesc') });
-      loadKg(); // Refresh KG layout to include the new memory node
+      loadKg();
+      memoryApi.reflect().then((res) => {
+        if (res.status === 'ok') {
+          setPersona(res.persona ?? '');
+          setSkills(res.skills ?? []);
+        }
+      });
     } catch (err) {
       const msg = err instanceof MemoryApiError ? err.message : 'Could not save memory.';
       toast({ title: t('memory.couldNotSave'), description: msg, variant: 'destructive' });

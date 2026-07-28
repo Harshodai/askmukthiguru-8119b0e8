@@ -34,6 +34,7 @@ celery_app = Celery(
     backend=REDIS_URL,
     include=[
         "tasks.ingest_tasks",
+        "tasks.layered_memory_tasks",
         "tasks.okf_extract_tasks",
         "tasks.okf_compile_tasks",
         "tasks.cancel_flow_tasks",
@@ -65,6 +66,10 @@ celery_app.conf.update(
         "dispatch-due-win-back-emails": {
             "task": "tasks.cancel_flow_tasks.dispatch_due_win_back_emails",
             "schedule": 86400.0,  # every 24h
+        },
+        "process-batched-layered-memories": {
+            "task": "tasks.layered_memory_tasks.process_batched_memories",
+            "schedule": 300.0,  # every 5 minutes
         },
     },
 )

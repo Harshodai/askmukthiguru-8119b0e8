@@ -370,6 +370,51 @@ async def regenerate_persona_endpoint(
     return {"status": "ok" if ok else "error", "content": persona}
 
 
+@router.post("/memory/reflect")
+async def reflect_endpoint(
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """On-demand full reflection: L1 → L3 persona + skills + reset turn counter."""
+    from services.layered_memory.l1_extractor import get_recent_atoms
+    from services.layered_memory.l3_persona_generator import generate_persona
+    from services.layered_memory.persona_store import get_persona, save_persona
+    from services.layered_memory.skill_generator import generate_skills, get_skills, save_skills
+    from services.tenant_context import TenantContext
+
+    if not getattr(container, "memory_service", None) or not getattr(container, "supabase_client", None):
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+    tenant_id = TenantContext.get()
+    atoms = await get_recent_atoms(container.memory_service, user["id"], limit=50)
+    if not atoms:
+        return {"status": "ok", "persona": "", "skills": [], "note": "no atoms yet"}
+
+    atoms_text = "\n".join(a.content for a in atoms)
+    existing_persona = await get_persona(container.supabase_client, user["id"])
+    persona = await generate_persona(atoms, existing_persona)
+    if persona:
+        await save_persona(container.supabase_client, user["id"], persona)
+
+    existing_skills = await get_skills(container.supabase_client, user["id"], tenant_id)
+    new_skills = await generate_skills(atoms_text, existing_skills)
+    if new_skills:
+        await save_skills(container.supabase_client, user["id"], tenant_id, new_skills)
+
+    _reset_turn_counter(user["id"])
+    return {"status": "ok", "persona": persona or "", "skills": new_skills}
+
+
+def _reset_turn_counter(user_id: str) -> None:
+    try:
+        import json, os
+        import redis as sync_redis
+        r = sync_redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
+        key = f"turn_counter:{user_id}"
+        r.set(key, json.dumps({"count": 0, "last_ts": __import__("time").time()}), ex=7200)
+    except Exception:
+        pass
+
+
 @router.get("/memory/skills")
 async def list_skills_endpoint(
     user: dict = Depends(get_current_user_from_supabase),

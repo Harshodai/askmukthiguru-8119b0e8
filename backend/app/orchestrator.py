@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import os
 import time
 import uuid
 import logging
@@ -102,6 +103,11 @@ class ChatRequestOrchestrator:
             session_id=session_id,
             user_msg=user_msg,
             assistant_slug=assistant_slug,
+        )
+
+        # Increment turn counter for batched layered memory processing.
+        background_tasks.add_task(
+            _increment_turn_counter, user_id,
         )
 
         return ChatResponse(
@@ -329,3 +335,27 @@ def _coerce_citations_to_str(citations) -> list[str]:
         else:
             out.append(str(c))
     return out
+
+
+async def _increment_turn_counter(user_id: str) -> None:
+    """Increment the Redis turn counter for batched layered memory processing."""
+    import json
+    import time
+
+    try:
+        import redis.asyncio as aredis
+
+        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+        r = aredis.from_url(redis_url, decode_responses=True)
+        key = f"turn_counter:{user_id}"
+        data = await r.get(key)
+        if data:
+            parsed = json.loads(data)
+            parsed["count"] = parsed.get("count", 0) + 1
+            parsed["last_ts"] = time.time()
+        else:
+            parsed = {"count": 1, "last_ts": time.time()}
+        await r.set(key, json.dumps(parsed), ex=7200)
+        await r.aclose()
+    except Exception:
+        pass  # non-critical

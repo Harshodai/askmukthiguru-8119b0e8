@@ -519,4 +519,24 @@ export const memoryApi = {
       return [];
     }
   },
+
+  /** On-demand full reflection: refreshes persona + skills from recent atoms. */
+  async reflect(): Promise<{ status: string; persona: string; skills: UserSkill[] }> {
+    const BACKEND = BACKEND_URL;
+    if (!BACKEND) return { status: 'error', persona: '', skills: [] };
+
+    const session = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (session.data.session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.data.session.access_token}`;
+    }
+
+    try {
+      const res = await fetch(`${BACKEND}/api/memory/reflect`, { method: 'POST', headers });
+      if (!res.ok) return { status: 'error', persona: '', skills: [] };
+      return await res.json();
+    } catch {
+      return { status: 'error', persona: '', skills: [] };
+    }
+  },
 };
