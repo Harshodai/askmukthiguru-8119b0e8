@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Any, Optional
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
+    BinaryQuantization,
+    BinaryQuantizationConfig,
     Distance,
     HnswConfigDiff,
     ScalarQuantization,
@@ -14,6 +17,9 @@ from qdrant_client.http.models import (
     ScalarType,
     SparseIndexParams,
     SparseVectorParams,
+    TurboQuantBitSize,
+    TurboQuantization,
+    TurboQuantQuantizationConfig,
     VectorParams,
 )
 
@@ -77,7 +83,6 @@ class QdrantClientManager:
             )
 
         # Use tenant context for collection name to support multi-tenancy
-        from services.tenant_context import TenantContext
         if collection:
             self._collection = collection
         else:
@@ -98,6 +103,48 @@ class QdrantClientManager:
     def dimension(self) -> int:
         return self._dimension
 
+    @staticmethod
+    def _build_quantization_config(quantization: str):
+        """Build Qdrant quantization_config from settings.qdrant_quantization.
+
+        Default ``scalar_int8`` matches the original hardcoded production
+        schema exactly. ``always_ram=True`` keeps the quantized index in RAM
+        for low-latency search; dense vectors remain ``on_disk=True``.
+        """
+        q = quantization.lower()
+        if q == "scalar_int8":
+            return ScalarQuantization(
+                scalar=ScalarQuantizationConfig(
+                    type=ScalarType.INT8,
+                    always_ram=True,
+                )
+            )
+        if q == "binary":
+            return BinaryQuantization(
+                binary=BinaryQuantizationConfig(always_ram=True)
+            )
+        if q.startswith("turboquant_"):
+            bit_map = {
+                "turboquant_1bit": TurboQuantBitSize.BITS1,
+                "turboquant_2bit": TurboQuantBitSize.BITS2,
+                "turboquant_4bit": TurboQuantBitSize.BITS4,
+            }
+            if q not in bit_map:
+                raise ValueError(
+                    f"Unsupported turboquant setting: {quantization}. "
+                    "Use turboquant_1bit, turboquant_2bit, or turboquant_4bit."
+                )
+            return TurboQuantization(
+                turbo=TurboQuantQuantizationConfig(
+                    bits=bit_map[q],
+                    always_ram=True,
+                )
+            )
+        raise ValueError(
+            f"Unsupported qdrant_quantization: {quantization}. "
+            "Valid options: scalar_int8, binary, turboquant_1bit, turboquant_2bit, turboquant_4bit."
+        )
+
     def init_collection(self) -> None:
         """Create collection with named dense + sparse vectors if it doesn't exist."""
         try:
@@ -105,12 +152,6 @@ class QdrantClientManager:
             existing = [c.name for c in collections]
 
             if self._collection not in existing:
-                from qdrant_client.http.models import (
-                    ScalarQuantization,
-                    ScalarQuantizationConfig,
-                    ScalarType,
-                )
-
                 try:
                     self._client.create_collection(
                         collection_name=self._collection,
@@ -131,11 +172,8 @@ class QdrantClientManager:
                             ef_construct=200,
                             full_scan_threshold=10000,
                         ),
-                        quantization_config=ScalarQuantization(
-                            scalar=ScalarQuantizationConfig(
-                                type=ScalarType.INT8,
-                                always_ram=True,
-                            )
+                        quantization_config=self._build_quantization_config(
+                            settings.qdrant_quantization
                         ),
                         on_disk_payload=True,
                     )
@@ -247,7 +285,7 @@ class QdrantClientManager:
         Uses Qdrant's scroll with text-matching filter for keyword retrieval.
         Results are scored by text relevance, not vector similarity.
         """
-        from qdrant_client.http.models import FieldCondition, MatchText, Filter
+        from qdrant_client.http.models import FieldCondition, Filter, MatchText
 
         text_filter = Filter(
             must=[FieldCondition(key="text", match=MatchText(text=query))]
@@ -299,3 +337,28 @@ class QdrantClientManager:
             self._client.close()
         except Exception:
             pass
+
+
+if __name__ == "__main__":
+    import json
+
+    print("Quantization configs by setting:")
+    for setting in (
+        "scalar_int8",
+        "binary",
+        "turboquant_1bit",
+        "turboquant_2bit",
+        "turboquant_4bit",
+    ):
+        cfg = QdrantClientManager._build_quantization_config(setting)
+        print(f"  {setting}: {cfg}")
+        print(f"    json: {json.dumps(cfg.model_dump(), default=str)}")
+
+    # Verify unsupported settings raise ValueError
+    bad = ["scalar_int4", "turboquant_8bit", "unknown"]
+    for setting in bad:
+        try:
+            QdrantClientManager._build_quantization_config(setting)
+            print(f"  {setting}: ERROR should have raised ValueError")
+        except ValueError as e:
+            print(f"  {setting}: raised ValueError ({e})")

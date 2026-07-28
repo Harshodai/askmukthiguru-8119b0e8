@@ -144,6 +144,13 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "spiritual_wisdom_contextual"
     qdrant_api_key: str = ""  # empty = no auth (current default); set to require API-key auth
+    # Quantization strategy for the Qdrant dense vector index.
+    # Options: scalar_int8 (default, current production behavior), binary,
+    # turboquant_1bit, turboquant_2bit, turboquant_4bit.
+    qdrant_quantization: str = "scalar_int8"
+    # Oversampling factor used for non-scalar quantizers (binary / TurboQuant).
+    # Higher values improve recall at the cost of extra compute during search.
+    qdrant_quantization_oversampling: float = 3.0
 
 
     # --- Chunking Strategies ---
@@ -501,6 +508,10 @@ class Settings(BaseSettings):
     # uses LightRAG for graph context alongside Qdrant vector search.
     # Ingestion, ontology seeder, and Qdrant-only paths are unaffected.
     knowledge_graph_query_enabled: bool = True
+    # Knowledge graph analytics (PageRank, HITS, centrality, Louvain communities)
+    kg_analytics_enabled: bool = True
+    # Knowledge graph standalone HTML export via D3Blocks (requires d3blocks)
+    kg_export_enabled: bool = False
 
     # --- GraphRAG Fusion (multi-hop vector + KG) ---
     graphrag_fusion_enabled: bool = Field(default=False, description="Enable GraphRAG fusion (multi-hop vector+KG)")
@@ -918,6 +929,8 @@ if __name__ == "__main__":
     validated = {
         "kg_max_query_len": s.kg_max_query_len,
         "kg_query_timeout_s": s.kg_query_timeout_s,
+        "qdrant_quantization": s.qdrant_quantization,
+        "qdrant_quantization_oversampling": s.qdrant_quantization_oversampling,
     }
     print(f"Settings ok: {json.dumps(validated)}")
 

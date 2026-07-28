@@ -16,8 +16,11 @@ from qdrant_client.http.models import (
     MatchAny,
     MatchValue,
     Prefetch,
+    QuantizationSearchParams,
+    SearchParams,
 )
 
+from app.config import settings
 from services.phonetic import IndicPhoneticMatcher
 from services.qdrant.filters import QdrantFilterBuilder
 from services.qdrant.utils import QdrantUtils
@@ -163,6 +166,7 @@ class QdrantSearcher:
         # Hybrid search: only dense + sparse on the requested level.
         # Dropping the extra summary/phonetic prefetches cuts Qdrant CPU and network
         # time roughly in half, eliminating the hybrid-timeout path on simple queries.
+        dense_search_params = self._dense_quantization_search_params()
         if sparse_vector:
             try:
                 prefetch_queries = [
@@ -171,6 +175,7 @@ class QdrantSearcher:
                         using="dense",
                         limit=internal_limit,
                         filter=search_filter,
+                        params=dense_search_params,
                     ),
                     Prefetch(
                         query=sparse_qvec,
@@ -243,6 +248,22 @@ class QdrantSearcher:
             should=should if should else None,
         )
 
+    def _dense_quantization_search_params(self) -> Optional[SearchParams]:
+        """Return search params with rescore + oversampling for non-scalar quantizers.
+
+        Scalar INT8 is Qdrant's default quantization baseline and does not need
+        extra search-time parameters. Binary and TurboQuant benefit from
+        oversampling + rescoring against the original full-precision vectors.
+        """
+        if settings.qdrant_quantization == "scalar_int8":
+            return None
+        return SearchParams(
+            quantization=QuantizationSearchParams(
+                rescore=True,
+                oversampling=settings.qdrant_quantization_oversampling,
+            )
+        )
+
     def _dense_search(self, query_vector, limit, search_filter):
         """Dense-only search using the named 'dense' vector."""
         try:
@@ -252,6 +273,7 @@ class QdrantSearcher:
                 using="dense",
                 limit=limit,
                 query_filter=search_filter,
+                search_params=self._dense_quantization_search_params(),
                 with_payload=True,
             )
             return results.points
