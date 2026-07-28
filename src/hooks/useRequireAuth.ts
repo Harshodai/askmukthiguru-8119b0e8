@@ -42,6 +42,16 @@ export function useRequireAuth() {
       navigate('/auth', { replace: true });
     };
 
+    const requiresMfaStepUp = async (): Promise<boolean> => {
+      try {
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        return !!aal && aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2';
+      } catch (err) {
+        console.error('[useRequireAuth] AAL check failed:', err);
+        return false;
+      }
+    };
+
     const validateAndSetSession = async (session: any) => {
       if (!session?.user) {
         handleNoSession();
@@ -57,11 +67,23 @@ export function useRequireAuth() {
         return;
       }
 
+      // Enforce 2FA step-up on every session load, not just at interactive login.
+      if (await requiresMfaStepUp()) {
+        if (cancelled) return;
+        initialCheckDone = true;
+        if (window.location.pathname !== '/auth/mfa') {
+          sessionStorage.setItem('auth_redirect_path', window.location.pathname + window.location.search);
+          navigate('/auth/mfa', { replace: true });
+        }
+        return;
+      }
+
       if (cancelled) return;
       setUser(session.user);
       setLoading(false);
       initialCheckDone = true;
     };
+
 
     const check = async () => {
       try {
