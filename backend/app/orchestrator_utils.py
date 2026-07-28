@@ -509,6 +509,20 @@ async def prepare_user_memory(
             if memory_blocks:
                 new_memory_context = "\n\n".join(memory_blocks)
                 memory_context = f"{memory_context}\n\n{new_memory_context}" if memory_context else new_memory_context
+
+            # L3 persona context: short, stable user profile summary.
+            try:
+                from services.layered_memory.persona_store import get_persona
+
+                persona_md = await get_persona(container.supabase_client, user_id)
+                if persona_md:
+                    persona_lines = [ln for ln in persona_md.splitlines() if ln.strip() and not ln.startswith("#")]
+                    persona_summary = "\n".join(persona_lines[:8])
+                    if persona_summary:
+                        persona_block = f"USER PERSONA SUMMARY:\n{persona_summary}"
+                        memory_context = f"{memory_context}\n\n{persona_block}" if memory_context else persona_block
+            except Exception as e:
+                logger.warning(f"Persona context injection failed: {e}")
         except asyncio.TimeoutError:
             logger.warning(f"Memory layer fetch timed out for user {user_id} (exceeded 200ms budget)")
         except Exception as e:

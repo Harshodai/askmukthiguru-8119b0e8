@@ -58,9 +58,23 @@ export interface RelevantMemory {
   similarity: number;
 }
 
+export interface PersonaResponse {
+  content: string;
+  updated_at: string;
+}
+
 export interface ConversationContinuity {
   session_id: string;
   started_at: string;
+}
+
+export interface KGNodeAnalytics {
+  degree: number;
+  betweenness: number;
+  closeness: number;
+  pagerank: number;
+  hits_hub: number;
+  hits_authority: number;
 }
 
 export interface KGNode {
@@ -70,6 +84,8 @@ export interface KGNode {
   teacher?: string | null;
   state_category?: string | null;
   content?: string | null;
+  analytics?: KGNodeAnalytics | null;
+  community?: number;
 }
 
 export interface KGEdge {
@@ -356,6 +372,30 @@ export const memoryApi = {
     }
   },
 
+  /** Export the knowledge graph as a standalone interactive HTML file. */
+  async exportKnowledgeGraph(view = 'personal', title = 'Wisdom Map'): Promise<Blob | null> {
+    const BACKEND = BACKEND_URL;
+    if (!BACKEND) return null;
+
+    const session = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session.data.session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.data.session.access_token}`;
+    }
+
+    try {
+      const res = await fetch(`${BACKEND}/api/memory/knowledge-graph/export`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ view, title }),
+      });
+      if (!res.ok) return null;
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  },
+
   /** Get recent conversation sessions (derives from chat_sessions table). */
   async getConversations(limit = 3): Promise<ConversationContinuity[]> {
     const session = await supabase.auth.getSession();
@@ -376,5 +416,48 @@ export const memoryApi = {
       session_id: row.id,
       started_at: row.created_at,
     }));
+  },
+
+  /** Get the L3 generated persona Markdown. */
+  async getPersona(): Promise<PersonaResponse> {
+    const BACKEND = BACKEND_URL;
+    if (!BACKEND) return { content: '', updated_at: '' };
+
+    const session = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (session.data.session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.data.session.access_token}`;
+    }
+
+    try {
+      const res = await fetch(`${BACKEND}/api/memory/persona`, { headers });
+      if (!res.ok) return { content: '', updated_at: '' };
+      return (await res.json()) as PersonaResponse;
+    } catch {
+      return { content: '', updated_at: '' };
+    }
+  },
+
+  /** Regenerate the L3 persona from recent L1 atoms. */
+  async regeneratePersona(): Promise<PersonaResponse & { status: string }> {
+    const BACKEND = BACKEND_URL;
+    if (!BACKEND) return { content: '', updated_at: '', status: 'error' };
+
+    const session = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (session.data.session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.data.session.access_token}`;
+    }
+
+    try {
+      const res = await fetch(`${BACKEND}/api/memory/persona/regenerate`, {
+        method: 'POST',
+        headers,
+      });
+      if (!res.ok) return { content: '', updated_at: '', status: 'error' };
+      return (await res.json()) as PersonaResponse & { status: string };
+    } catch {
+      return { content: '', updated_at: '', status: 'error' };
+    }
   },
 };

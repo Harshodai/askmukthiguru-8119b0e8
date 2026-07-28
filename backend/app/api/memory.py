@@ -2,17 +2,35 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime as _dt
-from typing import Optional
+import html
+import logging
+import re
+from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
+from app.config import settings
 from app.dependencies import ServiceContainer, get_container
+from services import kg_analytics
 from services.auth_service import auth_bridge, get_current_user_from_supabase
 from services.user_profile_service import SpiritualLevel
 
 router = APIRouter(tags=["Memory"])
+
+logger = logging.getLogger(__name__)
+
+
+_SANITIZE_TITLE_RE = re.compile(r"[^A-Za-z0-9 _-]")
+_MAX_EXPORT_TITLE_LEN = 120
+
+
+def _sanitize_filename(title: str) -> str:
+    cleaned = _SANITIZE_TITLE_RE.sub("", title).strip()
+    cleaned = re.sub(r"\s+", "_", cleaned)
+    return (cleaned or "wisdom_map").lower()
 
 
 class EpisodeResponse(BaseModel):
@@ -319,6 +337,39 @@ async def list_summaries_endpoint(
     return out
 
 
+@router.get("/memory/persona")
+async def get_persona_endpoint(
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Return the user's L3 generated persona Markdown."""
+    from services.layered_memory.persona_store import get_persona
+
+    if not getattr(container, "supabase_client", None):
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+    content = await get_persona(container.supabase_client, user["id"])
+    return {"content": content or "", "updated_at": ""}
+
+
+@router.post("/memory/persona/regenerate")
+async def regenerate_persona_endpoint(
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Regenerate the user's L3 persona from recent L1 atoms."""
+    from services.layered_memory.l1_extractor import get_recent_atoms
+    from services.layered_memory.l3_persona_generator import generate_persona
+    from services.layered_memory.persona_store import get_persona, save_persona
+
+    if not getattr(container, "memory_service", None):
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+    atoms = await get_recent_atoms(container.memory_service, user["id"], limit=50)
+    existing = await get_persona(container.supabase_client, user["id"])
+    persona = await generate_persona(atoms, existing)
+    ok = await save_persona(container.supabase_client, user["id"], persona)
+    return {"status": "ok" if ok else "error", "content": persona}
+
+
 @router.post("/memory/relevant")
 async def relevant_memories_endpoint(
     body: RelevantMemoryRequest,
@@ -372,6 +423,15 @@ async def list_conversation_continuity_endpoint(
     return out
 
 
+class KGNodeAnalytics(BaseModel):
+    degree: int = 0
+    betweenness: float = 0.0
+    closeness: float = 0.0
+    pagerank: float = 0.0
+    hits_hub: float = 0.0
+    hits_authority: float = 0.0
+
+
 class KGNode(BaseModel):
     id: str
     label: str
@@ -379,6 +439,8 @@ class KGNode(BaseModel):
     teacher: str | None = None
     state_category: str | None = None
     content: str | None = None
+    analytics: KGNodeAnalytics | None = None
+    community: int = -1
 
 
 class KGEdge(BaseModel):
@@ -403,34 +465,102 @@ async def personal_knowledge_graph_endpoint(
 
     With Supabase auth: returns personal consciousness graph if view == "personal".
     Supports view="ontology" to get the public teaching ontology.
+    Anonymous access is allowed when no credentials are present.
     """
     svc = getattr(container, "memory_service_v2", None) or getattr(container, "memory_service", None)
     if svc is None:
         raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
 
-    # Try auth; fallback to public ontology view
-    user_id = None
-    try:
-        _token = None
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            from fastapi.security.http import HTTPAuthorizationCredentials
-            _token = HTTPAuthorizationCredentials(scheme="Bearer", credentials=auth_header[7:])
-        user = await auth_bridge.get_user(request, _token)
-        if user and user.get("id"):
-            user_id = user["id"]
-    except Exception:
-        pass
+    user_id = await _resolve_kg_user_id(request)
 
-    # Ensure build_personal_knowledge_graph is called with view param if supported
-    try:
-        result = await svc.build_personal_knowledge_graph(user_id, view=view)
-    except TypeError:
-        # Fallback if old service v1 doesn't support view param
-        result = await svc.build_personal_knowledge_graph(user_id)
+    result = await svc.build_personal_knowledge_graph(user_id, view=view)
 
     return PersonalKGResponse(
         nodes=[KGNode(**n) for n in result["nodes"]],
         edges=[KGEdge(**e) for e in result["edges"]],
         count=len(result["nodes"]),
+    )
+
+
+async def _resolve_kg_user_id(request: Request) -> str | None:
+    """Resolve the KG caller's user id, allowing anonymous access.
+
+    Uses the shared auth bridge. Valid credentials return their user id.
+    Missing credentials fall back to None (anonymous / public ontology view).
+    Invalid or expired credentials propagate the 401 from the auth bridge.
+    """
+    from fastapi.security.http import HTTPAuthorizationCredentials
+
+    auth_header = request.headers.get("Authorization", "")
+    token: HTTPAuthorizationCredentials | None = None
+    if auth_header.startswith("Bearer "):
+        token = HTTPAuthorizationCredentials(scheme="Bearer", credentials=auth_header[7:])
+    try:
+        user = await auth_bridge.get_user(request, token)
+    except HTTPException:
+        # Only propagate auth errors when the client actually sent credentials.
+        if token is not None:
+            raise
+        return None
+    if user:
+        return user.get("id")
+    return None
+
+
+class KGExportRequest(BaseModel):
+    view: str = "personal"
+    title: str = "Wisdom Map"
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def _validate_title(cls, value: Any) -> str:
+        if value is None:
+            return "Wisdom Map"
+        text = str(value)
+        if len(text) > _MAX_EXPORT_TITLE_LEN:
+            raise ValueError(f"title must be at most {_MAX_EXPORT_TITLE_LEN} characters")
+        if not re.match(r"^[\w\s\-_.()]+$", text, re.UNICODE):
+            raise ValueError("title contains disallowed characters")
+        return text
+
+
+@router.post("/memory/knowledge-graph/export")
+async def export_knowledge_graph_endpoint(
+    request: Request,
+    body: KGExportRequest,
+    container: ServiceContainer = Depends(get_container),
+):
+    """Export the current knowledge graph as a standalone interactive HTML file."""
+    if not settings.kg_export_enabled:
+        raise HTTPException(status_code=501, detail="Knowledge graph export is not enabled.")
+
+    svc = getattr(container, "memory_service_v2", None) or getattr(container, "memory_service", None)
+    if svc is None:
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+
+    user_id = await _resolve_kg_user_id(request)
+
+    result = await svc.build_personal_knowledge_graph(user_id, view=body.view)
+
+    try:
+        html_content = await asyncio.wait_for(
+            asyncio.to_thread(kg_analytics.export_d3blocks_html, result, title=html.escape(body.title)),
+            timeout=30.0,
+        )
+    except ImportError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=500, detail="Export failed: timed out")
+    except Exception:
+        logger.exception("Knowledge graph export failed")
+        raise HTTPException(status_code=500, detail="Export failed")
+
+    from fastapi.responses import StreamingResponse
+    from io import StringIO
+
+    filename = f"{_sanitize_filename(body.title)}_map.html"
+    return StreamingResponse(
+        StringIO(html_content),
+        media_type="text/html",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )

@@ -55,13 +55,15 @@ const NODE_CONFIG: Record<string, { color: string; stroke: string; r: number; ri
 
 const DEFAULT_NODE = { color: 'hsl(220 40% 50%)', stroke: 'hsl(220 40% 30%)', r: 15, ring: 2 };
 
+const COMMUNITY_HUES = [30, 150, 210, 270, 330, 45, 120, 180, 240, 300];
+
 const DEFAULT_DEMO_MEMORIES: GuruMemory[] = [
   { id: 'mem-1', content: 'Deeply resonates with Sri Preethaji guidance on dissolving self-centric anxiety.', source: 'explicit', created_at: new Date().toISOString() },
   { id: 'mem-2', content: 'Practices Serene Mind 4-4-4-4 breathwork during morning meditation.', source: 'explicit', created_at: new Date().toISOString() },
   { id: 'mem-3', content: 'Second Brain Vault encrypted key active — Qdrant multi-tenant privacy verified.', source: 'explicit', created_at: new Date().toISOString() },
 ];
 
-const getCfgForNode = (node: KGNode) => {
+const getCfgForNode = (node: KGNode, useCommunityColor: boolean = false) => {
   if (node.type === 'Memory' && node.state_category) {
     const cat = node.state_category;
     if (cat === 'Beautiful State') return { color: 'hsl(142 65% 45%)', stroke: 'hsl(142 65% 28%)', r: 14, ring: 3 };
@@ -69,6 +71,10 @@ const getCfgForNode = (node: KGNode) => {
     if (cat === 'Shrinking Self') return { color: 'hsl(25 80% 55%)', stroke: 'hsl(25 80% 35%)', r: 14, ring: 3 };
     if (cat === 'Destructive Self') return { color: 'hsl(0 75% 50%)', stroke: 'hsl(0 75% 30%)', r: 14, ring: 3 };
     if (cat === 'Inert Self') return { color: 'hsl(275 60% 55%)', stroke: 'hsl(275 60% 35%)', r: 14, ring: 3 };
+  }
+  if (useCommunityColor && node.community !== undefined && node.community >= 0) {
+    const hue = COMMUNITY_HUES[node.community % COMMUNITY_HUES.length];
+    return { color: `hsl(${hue} 75% 60%)`, stroke: `hsl(${hue} 75% 40%)`, r: NODE_CONFIG[node.type]?.r ?? DEFAULT_NODE.r, ring: NODE_CONFIG[node.type]?.ring ?? DEFAULT_NODE.ring };
   }
   return (NODE_CONFIG[node.type] ?? DEFAULT_NODE) as { color: string; stroke: string; r: number; ring: number };
 };
@@ -127,6 +133,8 @@ export const MemoryManager = () => {
   const [coreSaving, setCoreSaving] = useState(false);
   const [summaries, setSummaries] = useState<SessionSummary[]>([]);
   const [conversations, setConversations] = useState<ConversationContinuity[]>([]);
+  const [persona, setPersona] = useState<string>('');
+  const [personaLoading, setPersonaLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
@@ -171,6 +179,8 @@ export const MemoryManager = () => {
   const [kgLoading, setKgLoading] = useState(false);
   const [graphView, setGraphView] = useState<'personal'>('personal');
   const [showInsightsPanel, setShowInsightsPanel] = useState(false);
+  const [metricMode, setMetricMode] = useState<'none' | 'degree' | 'pagerank' | 'betweenness' | 'closeness' | 'hits_hub' | 'hits_authority'>('none');
+  const [colorByCommunity, setColorByCommunity] = useState(false);
 
   // UI Interactive States
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -355,11 +365,12 @@ export const MemoryManager = () => {
   const refresh = async () => {
     setLoading(true);
     setUnavailable(null);
-    const [listResult, coreResult, summariesResult, conversationsResult] = await Promise.allSettled([
+    const [listResult, coreResult, summariesResult, conversationsResult, personaResult] = await Promise.allSettled([
       memoryApi.list(1, 100),
       memoryApi.getCore(),
       memoryApi.getSummaries(10),
       memoryApi.getConversations(5),
+      memoryApi.getPersona(),
     ]);
     if (listResult.status === 'fulfilled') {
       setMemories(listResult.value.memories);
@@ -378,7 +389,23 @@ export const MemoryManager = () => {
     if (conversationsResult.status === 'fulfilled') {
       setConversations(conversationsResult.value);
     }
+    if (personaResult.status === 'fulfilled') {
+      setPersona(personaResult.value.content ?? '');
+    }
     setLoading(false);
+  };
+
+  const regeneratePersona = async () => {
+    setPersonaLoading(true);
+    try {
+      const res = await memoryApi.regeneratePersona();
+      setPersona(res.content ?? '');
+      toast({ title: t('memory.personaRegenerated', 'Persona refreshed') });
+    } catch {
+      toast({ title: t('memory.personaRegenerateFailed', 'Could not refresh persona'), variant: 'destructive' });
+    } finally {
+      setPersonaLoading(false);
+    }
   };
 
   const loadKg = async (view: 'personal' = 'personal') => {
@@ -571,6 +598,30 @@ export const MemoryManager = () => {
               </button>
             )}
 
+            {kgNodes.length > 0 && (
+              <>
+                <select
+                  value={metricMode}
+                  onChange={(e) => setMetricMode(e.target.value as typeof metricMode)}
+                  className="bg-background border border-border rounded px-2 py-1 text-[10px]"
+                >
+                  <option value="none">{t('memory.graph.metricNone', 'Size: default')}</option>
+                  <option value="degree">{t('memory.graph.metricDegree', 'Size: degree')}</option>
+                  <option value="pagerank">{t('memory.graph.metricPagerank', 'Size: PageRank')}</option>
+                  <option value="betweenness">{t('memory.graph.metricBetweenness', 'Size: bridges')}</option>
+                  <option value="closeness">{t('memory.graph.metricCloseness', 'Size: closeness')}</option>
+                  <option value="hits_hub">{t('memory.graph.metricHitsHub', 'Size: hubs')}</option>
+                  <option value="hits_authority">{t('memory.graph.metricHitsAuthority', 'Size: authorities')}</option>
+                </select>
+                <button
+                  onClick={() => setColorByCommunity((v) => !v)}
+                  className={`p-1.5 px-2 rounded border text-[11px] ${colorByCommunity ? 'bg-ojas/20 border-ojas text-white' : 'border-border bg-background'}`}
+                >
+                  {t('memory.graph.colorByCommunity', 'Communities')}
+                </button>
+              </>
+            )}
+
             <button onClick={() => setZoom((z) => Math.min(4, z + 0.25))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom in"><ZoomIn className="w-3.5 h-3.5" /></button>
             <button onClick={() => setZoom((z) => Math.max(0.2, z - 0.25))} className="p-1.5 rounded border border-border hover:bg-muted" title="Zoom out"><ZoomOut className="w-3.5 h-3.5" /></button>
             <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1.5 rounded border border-border hover:bg-muted" title="Reset view"><RotateCcw className="w-3.5 h-3.5" /></button>
@@ -579,6 +630,22 @@ export const MemoryManager = () => {
             </button>
             <span className="ml-2 hidden lg:inline">Drag to pan · Scroll to zoom</span>
           </div>
+
+          {kgNodes.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] w-full md:w-auto">
+              {(['pagerank', 'betweenness', 'hits_hub', 'hits_authority'] as const).map((key) => {
+                const top = [...kgNodes]
+                  .filter((n) => n.analytics)
+                  .sort((a, b) => (b.analytics![key] as number) - (a.analytics![key] as number))[0];
+                return top ? (
+                  <div key={key} className="rounded-lg bg-zinc-900/40 border border-zinc-800 p-2">
+                    <div className="text-muted-foreground uppercase tracking-wider">{t(`memory.graph.insight.${key}`, key)}</div>
+                    <div className="font-medium truncate text-white">{top.type === 'User' ? 'You' : top.label}</div>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          )}
 
           <div className="relative flex-1 max-w-[280px]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -787,12 +854,16 @@ export const MemoryManager = () => {
                     const pos = positions.get(node.id);
                     if (!pos) return null;
 
-                    const cfg = getCfgForNode(node);
+                    const cfg = getCfgForNode(node, colorByCommunity);
                     const isUser = node.type === 'User';
                     const isHovered = hoveredNode?.id === node.id;
                     const isSelected = selectedNode?.id === node.id;
                     const degree = kgEdges.filter(e => e.source === node.id || e.target === node.id).length;
-                    const dynamicR = Math.max(8, Math.min(28, degree * 3 + 8));
+                    const dynamicR = node.analytics && metricMode !== 'none'
+                      ? (metricMode === 'degree'
+                        ? Math.max(8, Math.min(28, (node.analytics[metricMode] as number) * 3 + 8))
+                        : Math.max(8, Math.min(32, 8 + (node.analytics[metricMode] as number) * 80)))
+                      : Math.max(8, Math.min(28, degree * 3 + 8));
                     const isGlowing = isHovered || (hoveredNode && connectedNodeIds.has(node.id));
 
                     // Fade out nodes not in focused neighbor set
@@ -906,7 +977,7 @@ export const MemoryManager = () => {
                     <div
                       className="absolute top-0 left-0 right-0 h-1.5"
                       style={{
-                        background: `linear-gradient(90deg, ${getCfgForNode(selectedNode).color}, transparent)`,
+                        background: `linear-gradient(90deg, ${getCfgForNode(selectedNode, colorByCommunity).color}, transparent)`,
                       }}
                     />
 
@@ -914,7 +985,7 @@ export const MemoryManager = () => {
                       <div>
                         <Badge
                           className="mb-1.5 text-[9px] uppercase tracking-wider font-semibold"
-                          style={{ background: getCfgForNode(selectedNode).color }}
+                          style={{ background: getCfgForNode(selectedNode, colorByCommunity).color }}
                         >
                           {selectedNode.type}
                         </Badge>
@@ -938,7 +1009,7 @@ export const MemoryManager = () => {
                           {selectedNode.state_category && (
                             <div className="flex items-center gap-1.5 mb-1">
                               <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">State Category:</span>
-                              <Badge className="text-[8px] uppercase tracking-wide px-1.5 py-0" style={{ background: getCfgForNode(selectedNode).color }}>
+                              <Badge className="text-[8px] uppercase tracking-wide px-1.5 py-0" style={{ background: getCfgForNode(selectedNode, colorByCommunity).color }}>
                                 {selectedNode.state_category}
                               </Badge>
                             </div>
@@ -977,7 +1048,7 @@ export const MemoryManager = () => {
                                   </span>
                                   <Badge
                                     className="scale-75 origin-right uppercase text-[8px]"
-                                    style={{ background: getCfgForNode(neighbor).color }}
+                                    style={{ background: getCfgForNode(neighbor, colorByCommunity).color }}
                                   >
                                     {neighbor.type}
                                   </Badge>
@@ -1070,7 +1141,7 @@ export const MemoryManager = () => {
                               <div key={state} className="space-y-1 bg-zinc-950/40 p-2 rounded-lg border border-zinc-900">
                                 <div className="flex items-center justify-between">
                                   <span className="font-semibold text-white">{state}</span>
-                                  <Badge className="text-[8px] scale-75 origin-right px-1.5 py-0" style={{ background: getCfgForNode({ type: 'Memory', state_category: state } as any).color }}>
+                                  <Badge className="text-[8px] scale-75 origin-right px-1.5 py-0" style={{ background: getCfgForNode({ type: 'Memory', state_category: state } as KGNode).color }}>
                                     {matchingNodes.length}
                                   </Badge>
                                 </div>
@@ -1322,6 +1393,41 @@ export const MemoryManager = () => {
             {core?.updated_at && (
               <p className="text-xs text-muted-foreground">{t('memory.lastSaved', { date: formatDate(core.updated_at) })}</p>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Persona (L3 Self-Synthesis) ──────────────────────────────────── */}
+      {persona && !isFullscreen && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-violet-400" /> {t('memory.persona', 'Persona')}
+              </CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={regeneratePersona}
+                disabled={personaLoading}
+                className="h-8 px-3 font-display text-xs"
+              >
+                {personaLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                {t('memory.regenerate', 'Regenerate')}
+              </Button>
+            </div>
+            <CardDescription>
+              {t('memory.personaDesc', 'AI-synthesized self-portrait from your recent memories')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="prose prose-invert prose-sm max-w-none text-muted-foreground whitespace-pre-wrap font-sans">
+              {persona}
+            </div>
           </CardContent>
         </Card>
       )}
