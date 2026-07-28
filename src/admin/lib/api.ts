@@ -596,6 +596,7 @@ export interface OkfEntry {
   source: string;
   tags: string[];
   body_preview: string;
+  verified?: { by: string; at: string };
 }
 
 export async function listOkfEntries(typeFilter?: string): Promise<{ entries: OkfEntry[]; total: number }> {
@@ -605,6 +606,34 @@ export async function listOkfEntries(typeFilter?: string): Promise<{ entries: Ok
 
 export async function compileOkfIndex(): Promise<{ status: string; path: string }> {
   return fetchWithAuth('/api/admin/okf/compile', { method: 'POST' });
+}
+
+/* ── OKF Review Queue ──────────────────────────────────────────────────────── */
+export interface OkfReviewItem {
+  id: string;
+  entry_json: Record<string, any>;
+  source_video_id?: string;
+  source_video_title?: string;
+  guru_slug?: string;
+  status: string;
+  created_at: string;
+  reviewer_notes?: string;
+}
+
+export async function listOkfReviewQueue(status = 'pending'): Promise<OkfReviewItem[]> {
+  return fetchWithAuth(`/api/admin/okf/review?status=${encodeURIComponent(status)}`);
+}
+
+export async function approveOkfReview(reviewId: string): Promise<{ status: string; file: string }> {
+  return fetchWithAuth(`/api/admin/okf/review/${reviewId}/approve`, { method: 'POST' });
+}
+
+export async function rejectOkfReview(reviewId: string, notes?: string): Promise<{ status: string }> {
+  return fetchWithAuth(`/api/admin/okf/review/${reviewId}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reviewer_notes: notes }),
+  });
 }
 
 /* ── Global Settings management ─────────────────────────────────────────────── */
