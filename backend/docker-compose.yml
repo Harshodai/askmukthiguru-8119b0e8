@@ -93,7 +93,7 @@ services:
           cpus: '0.25'
 
   qdrant:
-    image: qdrant/qdrant:v1.17.1
+    image: qdrant/qdrant:v1.18.0
     container_name: mukthiguru-qdrant
     ports:
       - "6333:6333" # REST API
