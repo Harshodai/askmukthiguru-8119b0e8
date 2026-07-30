@@ -63,6 +63,7 @@ import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { useAssistants } from '@/hooks/useAssistants';
 import { ChatComposer } from './ChatComposer';
+import { HealingPathCard } from './HealingPathCard';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
 import {
@@ -1942,6 +1943,11 @@ return (
 
       {!isLandingMode && (
         <div className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]">
+          <HealingPathCard
+            lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
+            onAskGuru={(prompt) => handleSubmit(undefined, prompt)}
+            onOpenSereneMind={() => openSereneMind('audio')}
+          />
           <ChatComposer
             inputValue={inputValue}
             inputRef={inputRef}
