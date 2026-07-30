@@ -2011,6 +2011,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_course_progress: {
+        Row: {
+          assigned_reason: string | null
+          completed_at: string | null
+          completed_lessons: string[]
+          course_slug: string
+          created_at: string
+          current_lesson_index: number
+          id: string
+          started_at: string
+          status: string
+          trigger_signal: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_reason?: string | null
+          completed_at?: string | null
+          completed_lessons?: string[]
+          course_slug: string
+          created_at?: string
+          current_lesson_index?: number
+          id?: string
+          started_at?: string
+          status?: string
+          trigger_signal?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_reason?: string | null
+          completed_at?: string | null
+          completed_lessons?: string[]
+          course_slug?: string
+          created_at?: string
+          current_lesson_index?: number
+          id?: string
+          started_at?: string
+          status?: string
+          trigger_signal?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_episodes: {
         Row: {
           answer: string
