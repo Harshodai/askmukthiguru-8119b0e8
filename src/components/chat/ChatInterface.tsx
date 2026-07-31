@@ -28,7 +28,8 @@ import { ChatErrorBanner } from './ChatErrorBanner';
 import { MoodBanner } from '@/components/mood/MoodBanner';
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, getAIConfig } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
+import { getCourse } from '@/lib/healingCourses';
 import { memoryApi } from '@/lib/memoryApi';
 import { supabase } from '@/integrations/supabase/client';
 import { getLastCompletedMeditationTimestamp, loadMeditationSessions } from '@/lib/meditationStorage';
@@ -63,7 +64,7 @@ import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { useAssistants } from '@/hooks/useAssistants';
 import { ChatComposer } from './ChatComposer';
-import { HealingPathCard } from './HealingPathCard';
+import { HealingPathCard, type HealingCourseRecommendation, type UserTurn } from './HealingPathCard';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
 import {
@@ -99,6 +100,30 @@ export const ChatInterface = () => {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isIncognito, setIsIncognito] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [recommendedCourse, setRecommendedCourse] = useState<HealingCourseRecommendation | null>(null);
+  const userTurnHistory = useMemo<UserTurn[]>(
+    () =>
+      messages
+        .filter((m) => m.role === 'user')
+        .slice(-5)
+        .map((m) => ({
+          text: m.content,
+          timestamp: m.timestamp instanceof Date ? m.timestamp.getTime() : new Date(m.timestamp).getTime(),
+        })),
+    [messages],
+  );
+  const mapRecommendedCourse = useCallback(
+    (raw: RecommendedCourse | null | undefined): HealingCourseRecommendation | null => {
+      if (!raw?.slug) return null;
+      return {
+        slug: raw.slug,
+        title: getCourse(raw.slug)?.title ?? raw.slug,
+        reason: raw.reason ?? '',
+        trigger_signal: raw.signal ?? 'general',
+      };
+    },
+    [],
+  );
   const [sourcesPanelOpen, setSourcesPanelOpen] = useState(false);
   const [sourcesFilterMessageId, setSourcesFilterMessageId] = useState<string | null>(null);
   const uniqueSourcesCount = useMemo(() => {
@@ -949,6 +974,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
         let streamedBlockReason: string | null = null;
         let streamedProactiveSereneMind: ProactiveSereneMindTrigger | null = null;
         let streamedFollowUpSuggestions: string[] = [];
+        let streamedRecommendedCourse: RecommendedCourse | null = null;
   let streamedConfidenceScore: number | null = null;
   let streamedConfidenceReason: string | null = null;
   for await (const chunk of stream) {
@@ -992,6 +1018,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
             streamedBlockReason = chunk.blockReason ?? null;
             streamedProactiveSereneMind = chunk.proactiveSereneMind ?? null;
             streamedFollowUpSuggestions = chunk.followUpSuggestions ?? [];
+            streamedRecommendedCourse = chunk.recommendedCourse ?? null;
             streamedConfidenceScore = chunk.confidenceScore ?? null;
             streamedConfidenceReason = chunk.confidenceReason ?? null;
             continue;
@@ -1057,6 +1084,8 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
           if (streamedMedStep !== undefined) {
             setMeditationStep(streamedMedStep);
           }
+
+          setRecommendedCourse(mapRecommendedCourse(streamedRecommendedCourse));
 
           // Trigger Serene Mind based on response signals
           if (streamedBlocked) {
@@ -1271,6 +1300,8 @@ openSereneMind('audio');
           setMeditationStep(response.meditationStep);
         }
 
+        setRecommendedCourse(mapRecommendedCourse(response.recommendedCourse));
+
         if (response.intent === 'MEDITATION' || response.intent === 'MEDITATION_CONTINUE') {
           // Voluntary request: non-gated
           openSereneMind('audio');
@@ -1482,6 +1513,7 @@ const handleNewConversation = useCallback(async () => {
   setCurrentConversation(newConversation);
   await setCurrentConversationId(newConversation.id);
   setMessages([welcomeMessage]);
+  setRecommendedCourse(null);
   setRefreshTrigger(prev => prev + 1);
 }, [stopSpeaking, isIncognito, profile.prePracticeLog, selected?.slug]);
 
@@ -1503,6 +1535,7 @@ const handleNewIncognitoConversation = async () => {
 
   setCurrentConversation(newConversation);
   setMessages([welcomeMessage]);
+  setRecommendedCourse(null);
   setRefreshTrigger(prev => prev + 1);
 };
 
@@ -1518,6 +1551,7 @@ const handleSelectConversation = useCallback(async (conversation: Conversation) 
   setCurrentConversation(conversation);
   await setCurrentConversationId(conversation.id);
   setMessages(conversation.messages);
+  setRecommendedCourse(null);
   // Scroll to bottom when switching conversations
   isNearBottomRef.current = true;
   requestAnimationFrame(() => {
@@ -1945,6 +1979,8 @@ return (
         <div className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]">
           <HealingPathCard
             lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
+            recommendedCourse={recommendedCourse}
+            userTurnHistory={userTurnHistory}
             onAskGuru={(prompt) => handleSubmit(undefined, prompt)}
             onOpenSereneMind={() => openSereneMind('audio')}
           />

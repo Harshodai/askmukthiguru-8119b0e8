@@ -144,6 +144,7 @@ export const sendMessage = async (
                   blocked: result.blocked || false,
                   blockReason: result.block_reason,
                   proactiveSereneMind: result.proactive_serene_mind ?? null,
+                  recommendedCourse: result.recommended_course ?? null,
                 };
               }
               if (job.status === 'failed') {
@@ -219,6 +220,7 @@ export const sendMessage = async (
         blockReason: data.block_reason,
         proactiveSereneMind: data.proactive_serene_mind ?? null,
         followUpSuggestions: data.follow_up_suggestions ?? [],
+        recommendedCourse: data.recommended_course ?? null,
       };
     } catch (err: any) {
       let code: AIErrorCode = 'network';

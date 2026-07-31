@@ -5,6 +5,7 @@ export type {
   AIErrorCode,
   AIResponse,
   ProactiveSereneMindTrigger,
+  RecommendedCourse,
   StreamChunk,
 } from './types';
 
