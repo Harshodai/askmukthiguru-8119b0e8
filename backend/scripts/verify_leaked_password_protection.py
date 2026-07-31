@@ -8,16 +8,27 @@ Required env:
     SUPABASE_URL      e.g. https://<project-ref>.supabase.co
     SUPABASE_ANON_KEY project anon/public key
 
-Optional env (for cleanup of test identity when feature is not yet enabled):
-    SUPABASE_SERVICE_ROLE_KEY  project service-role key — used to delete the
-                               test account created during verification so no
-                               orphaned identities accumulate in the auth project.
+Optional env:
+    SUPABASE_SERVICE_ROLE_KEY  project service-role key — required for cleanup on
+                               any non-local (remote) target so no orphaned identities
+                               accumulate in the auth project. On local targets the
+                               script proceeds without it (disposable local DB policy)
+                               but prints a warning so the omission is never silent.
+
+Install paths and resolved-version verification:
+    CI (GitHub Actions): uv sync --frozen reads backend/uv.lock (authoritative).
+    Docker:              pip install -r backend/requirements.txt; uv.lock NOT used.
+                         Verify with `pip show <pkg>` inside the image.
+    Local dev:           uv sync reads uv.lock by default; plain pip uses
+                         requirements.txt ranges. Run `pip show <pkg>` or
+                         `uv pip show <pkg>` to confirm the resolved version.
 """
 
 import json
 import os
 import sys
 import uuid
+from urllib.parse import urlparse
 
 import requests
 
@@ -59,9 +70,32 @@ def main() -> int:
         )
         return 1
 
-    is_local_target = any(
-        host in supabase_url for host in ("localhost", "127.0.0.1", "host.docker.internal")
-    )
+    # Use exact hostname comparison (not substring) to prevent lookalike bypasses,
+    # e.g. https://localhost.evil.com would pass a naive `"localhost" in url` check.
+    _APPROVED_LOCAL_HOSTS = {"localhost", "127.0.0.1", "host.docker.internal"}
+    _APPROVED_REMOTE_HOSTS = {"supabase.co"}  # rightmost label of allowed SaaS targets
+
+    parsed_host = urlparse(supabase_url).hostname or ""
+    is_local_target = parsed_host in _APPROVED_LOCAL_HOSTS
+
+    if not is_local_target and service_role_key:
+        # Remote target with a service-role key: validate the key isn't being sent
+        # to an unexpected host.
+        host_ok = any(parsed_host == h or parsed_host.endswith(f".{h}") for h in _APPROVED_REMOTE_HOSTS)
+        if not host_ok:
+            print(
+                json.dumps(
+                    {
+                        "ok": False,
+                        "error": (
+                            f"Refusing to send SUPABASE_SERVICE_ROLE_KEY to unrecognised "
+                            f"host '{parsed_host}'. Add it to _APPROVED_REMOTE_HOSTS if intentional."
+                        ),
+                    }
+                )
+            )
+            return 1
+
     if not service_role_key and not is_local_target:
         print(
             json.dumps(
@@ -76,6 +110,16 @@ def main() -> int:
             )
         )
         return 1
+
+    if not service_role_key and is_local_target:
+        # Disposable-local-DB policy: local Supabase instances are ephemeral,
+        # so an orphaned test user is acceptable. Document explicitly rather than
+        # silently skipping cleanup.
+        print(
+            "WARNING: SUPABASE_SERVICE_ROLE_KEY not set; test identity will NOT be "
+            "deleted (local/disposable target — acceptable per disposable-local-DB policy).",
+            file=sys.stderr,
+        )
 
     url = f"{supabase_url}/auth/v1/signup"
     headers = {"apikey": anon_key, "Content-Type": "application/json"}
@@ -96,12 +140,23 @@ def main() -> int:
     created_user_id: str | None = (
         data.get("id") if isinstance(data, dict) and response.status_code == 200 else None
     )
+    cleanup_ok: bool | None = None  # None = cleanup not attempted
     if created_user_id and service_role_key:
-        _delete_test_user(supabase_url, service_role_key, created_user_id)
+        cleanup_ok = _delete_test_user(supabase_url, service_role_key, created_user_id)
+    elif created_user_id and not service_role_key:
+        # Signup succeeded (feature not enabled) but no key available to clean up.
+        # Already warned above for local targets; for safety, surface in output too.
+        cleanup_ok = False
 
     response_text = json.dumps(data)
     if response.status_code == 200 or "leaked_password" not in response_text:
-        print(json.dumps({"ok": False, "response": data}))
+        failure: dict = {"ok": False, "response": data}
+        if cleanup_ok is False:
+            failure["cleanup_ok"] = False
+            failure["cleanup_warning"] = (
+                "Test identity may be orphaned — delete manually or set SUPABASE_SERVICE_ROLE_KEY."
+            )
+        print(json.dumps(failure))
         return 1
 
     print(json.dumps({"ok": True}))

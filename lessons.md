@@ -5767,8 +5767,15 @@ A single distress signal must NOT trigger course assignment (false positives). T
 ### Killing a docker-proxy process (port holder) triggers Docker Desktop engine restart
 `lsof -tiTCP:8000 | xargs kill -9` killed Docker Desktop's proxy process holding port 8000 — Docker Desktop interpreted the proxy death as an engine fault and restarted the whole VM (~5+ min downtime, all containers down). Lesson: don't kill processes owned by com.docker to free a port; use `docker ps` to find the container and `docker stop` it, or run your server on another port.
 
-### Security audit 2026-07-31: dependency CVE verification requires checking uv.lock, not requirements.txt
-`requirements.txt` contains version *ranges* (floors/ceilings), not resolved versions. The floor may be below a CVE patch threshold while the *actual installed version* (in `uv.lock`) is safe. Always check `uv.lock` for the authoritative resolved version. Conversely, `starlette==1.0.0` was resolved despite `fastapi>=0.115.0` — one patch below CVE-2026-48710 fix (`1.0.1`). Explicit pins in `requirements.txt` (`starlette>=1.0.1`) are the only reliable defense because `uv lock --upgrade-package` won't bump transitive deps unless a floor forces it.
+### Security audit 2026-07-31: dependency CVE verification requires checking the resolved lockfile, not requirements.txt
+`requirements.txt` contains version *ranges* (floors/ceilings), not resolved versions. The floor may be below a CVE patch threshold while the *actual installed version* is safe — or vice-versa. The source of truth differs by install path:
+
+- **CI (GitHub Actions):** `uv sync --frozen` reads `backend/uv.lock` (authoritative). Check the resolved version with `grep -A2 'name = "starlette"' backend/uv.lock`.
+- **Docker (`Dockerfile`):** uses `pip install -r backend/requirements.txt` directly — `uv.lock` is **not** consulted. Resolved version may differ from CI. Verify with `pip show starlette` inside the built image or add a `RUN pip show starlette` assertion to the Dockerfile.
+- **Local dev with uv:** `uv sync` reads `uv.lock` by default — same as CI. Verify with `uv pip show starlette`.
+- **Local dev with plain pip:** resolves from `requirements.txt` ranges at install time. Verify with `pip show starlette`.
+
+The concrete incident: `starlette` was resolved to `1.0.0` — one patch below the CVE-2026-48710 fix (`1.0.1`) — despite `fastapi>=0.115.0` transitively pulling it. Adding a **minimum version constraint** `starlette>=1.0.1` to `requirements.txt` (not an exact pin) is the correct fix: it forces any resolver — uv, pip, or Docker — to install at least the patched version, and `uv lock --upgrade-package starlette` then re-resolves to satisfy it. After adding the constraint, verify the resolved version on every install path above.
 
 ### threading_config: both FastAPI process AND Celery worker need the call
 `configure_threading()` was correctly wired into `app/main.py` (uvicorn process) but never called from `celery_config.py`. The Celery worker forks a separate Python process and has no connection to main.py's startup. Fix: import+call as first line of `celery_config.py`. The fix is idempotent — calling it in both processes is safe.

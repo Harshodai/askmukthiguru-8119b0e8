@@ -15,7 +15,7 @@ asset store outside version control.
 
 | Asset | Format | Rights Basis | Owner / Publisher | Status | Registered |
 |-------|--------|--------------|-------------------|--------|------------|
-| The Four Sacred Secrets | PDF (removed from repo 2026-08-01) | **Pending** — must be verified with Ekam Science Foundation / OneWorld Academy before re-ingesting from private asset store. Possible bases: CC license on ekam.org, direct arrangement with rights holder, or fair-use academic commentary. | Sri Preethaji & Sri Krishnaji / Sounds True | ⚠️ Rights basis unconfirmed — do not re-ingest until verified | 2026-08-01 |
+| The Four Sacred Secrets | PDF — **removed from git index 2026-08-01** (commit `9680a0f5`); file retained locally under `data/private/` (gitignored) | **Pending** — rights basis must be confirmed with Ekam Science Foundation / OneWorld Academy before re-ingesting from private asset store. Possible bases: CC license on ekam.org, direct arrangement with rights holder, or fair-use academic commentary. | Sri Preethaji & Sri Krishnaji / Sounds True | ⚠️ Rights basis unconfirmed — do not re-ingest until verified. Rights review scheduled; no deadline yet set. | Removed from repo: 2026-08-01; rights review: pending |
 
 ## Asset Storage Policy
 
