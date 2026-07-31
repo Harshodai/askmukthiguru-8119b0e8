@@ -1,0 +1,42 @@
+# ============================================================
+# Mukthi Guru — Nightly RLS Policy Verification
+# Runs backend/scripts/verify_rls_policies.py against the
+# production Supabase project (ozmjeuqbholoxypfxixb.supabase.co)
+# every night and on manual trigger. Fails CI on policy breach.
+#
+# Required repo secrets:
+#   SUPABASE_URL                    — https://ozmjeuqbholoxypfxixb.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY       — service_role key (admin API only)
+#   SUPABASE_ANON_KEY               — anon/publishable key
+# ============================================================
+
+name: Nightly RLS Check
+
+on:
+  schedule:
+    # Every night at 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  rls:
+    name: Cross-User RLS Policy Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install verifier dependencies
+        run: pip install supabase requests
+
+      - name: Run RLS verifier against production
+        run: python3 backend/scripts/verify_rls_policies.py
+        # Script exits 0 on pass, 1 on any policy breach -> fails the job
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
