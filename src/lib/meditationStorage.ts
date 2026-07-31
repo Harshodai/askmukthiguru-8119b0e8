@@ -164,78 +164,20 @@ export const completeMeditationSession = async (
   return completedSession;
 };
 
-/**
- * Calculate streak days from sessions
- */
-const calculateStreak = (sessions: MeditationSession[]): number => {
-  if (sessions.length === 0) return 0;
-
-  // Forgiving streak: any genuine sit keeps the streak alive — a full session OR a
-  // partial of at least 30s (Insight-Timer pattern). Zero-duration rows (mood
-  // check-ins are stored as completed 0s sessions) do NOT count, so they can't
-  // silently inflate the streak.
-  const STREAK_MIN_SECONDS = 30;
-  const completedSessions = sessions.filter(
-    s => s.durationSeconds >= STREAK_MIN_SECONDS || (s.completed && s.durationSeconds > 0),
-  );
-  if (completedSessions.length === 0) return 0;
-
-  // Get unique dates (only date part, not time)
-  const sessionDates = completedSessions
-    .map(s => {
-      const date = new Date(s.completedAt || s.startedAt);
-      return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-    })
-    .filter((date, index, arr) => arr.indexOf(date) === index)
-    .sort((a, b) => b - a);
-
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const yesterday = todayStart - 86400000;
-
-  // Check if most recent session is today or yesterday
-  if (sessionDates[0] !== todayStart && sessionDates[0] !== yesterday) {
-    return 0;
-  }
-
-  let streak = 1;
-  let currentDate = sessionDates[0];
-
-  for (let i = 1; i < sessionDates.length; i++) {
-    const expectedPreviousDate = currentDate - 86400000;
-    if (sessionDates[i] === expectedPreviousDate) {
-      streak++;
-      currentDate = sessionDates[i];
-    } else {
-      break;
-    }
-  }
-
-  return streak;
-};
+/** Adapt a stored session into the shared metric shape. */
+const toNormalized = (s: MeditationSession): NormalizedSession => ({
+  at: new Date(s.completedAt ?? s.startedAt),
+  durationSeconds: s.durationSeconds ?? 0,
+  breathCycles: s.breathCycles ?? 0,
+  completed: s.completed,
+});
 
 /**
- * Get meditation statistics
+ * Get meditation statistics from localStorage.
+ * All arithmetic lives in `meditationMetrics` so the DB path can't drift.
  */
-export const getMeditationStats = (): MeditationStats => {
-  const sessions = loadMeditationSessions();
-  const completedSessions = sessions.filter(s => s.completed);
-
-  const totalSeconds = completedSessions.reduce((acc, s) => acc + s.durationSeconds, 0);
-  const totalCycles = completedSessions.reduce((acc, s) => acc + s.breathCycles, 0);
-
-  const sortedSessions = completedSessions.sort(
-    (a, b) => new Date(b.completedAt || b.startedAt).getTime() - new Date(a.completedAt || a.startedAt).getTime()
-  );
-
-  return {
-    totalSessions: completedSessions.length,
-    totalMinutes: Math.round(totalSeconds / 60),
-    totalCycles,
-    streakDays: calculateStreak(sessions),
-    lastSessionDate: sortedSessions[0]?.completedAt || sortedSessions[0]?.startedAt || null,
-  };
-};
+export const getMeditationStats = (): MeditationStats =>
+  computeMetrics(loadMeditationSessions().map(toNormalized));
 
 /**
  * DB-backed meditation stats for authenticated users. Falls back to localStorage
@@ -250,38 +192,20 @@ export const getMeditationStatsFromDb = async (): Promise<MeditationStats> => {
       .from('meditation_sessions')
       .select('duration_seconds, breath_cycles, completed, completed_at, started_at')
       .eq('user_id', session.user.id)
-      .eq('completed', true)
       .order('completed_at', { ascending: false });
 
     if (error || !data) return getMeditationStats();
 
-    const totalSeconds = data.reduce((a, s) => a + (s.duration_seconds ?? 0), 0);
-    const totalCycles = data.reduce((a, s) => a + (s.breath_cycles ?? 0), 0);
-
-    // Streak from DB rows
-    const dates = new Set(
-      data
-        .map((s) => (s.completed_at ?? s.started_at)?.toString().slice(0, 10))
-        .filter(Boolean) as string[],
+    // Same normalization, same calculator as the localStorage path — a signed-in
+    // seeker and an anonymous one can never see different arithmetic.
+    return computeMetrics(
+      data.map((s) => ({
+        at: new Date((s.completed_at ?? s.started_at) as string),
+        durationSeconds: s.duration_seconds ?? 0,
+        breathCycles: s.breath_cycles ?? 0,
+        completed: s.completed ?? false,
+      })),
     );
-    let streak = 0;
-    const cur = new Date();
-    while (dates.has(cur.toISOString().slice(0, 10))) {
-      streak++;
-      cur.setDate(cur.getDate() - 1);
-    }
-
-    return {
-      totalSessions: data.length,
-      totalMinutes: Math.round(totalSeconds / 60),
-      totalCycles,
-      streakDays: streak,
-      lastSessionDate: data[0]?.completed_at
-        ? new Date(data[0].completed_at)
-        : data[0]?.started_at
-          ? new Date(data[0].started_at)
-          : null,
-    };
   } catch {
     return getMeditationStats();
   }
