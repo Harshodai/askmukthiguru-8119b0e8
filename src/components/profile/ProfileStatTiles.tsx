@@ -40,13 +40,14 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
   );
 
 
-  const max = Math.max(1, ...last7.map((d) => d.minutes));
+  // Plot raw seconds: a 40-second sit shows as a real bump instead of snapping to 1 min.
+  const max = Math.max(1, ...last7.map((d) => d.seconds));
   const w = 280;
   const h = 56;
   const step = w / (last7.length - 1);
   const pts = last7.map((d, i) => {
     const x = i * step;
-    const y = h - (d.minutes / max) * (h - 6) - 3;
+    const y = h - (d.seconds / max) * (h - 6) - 3;
     return { x, y, ...d };
   });
   const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
