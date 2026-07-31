@@ -14,7 +14,7 @@ from app.config import settings
 import app.dependencies as _app_deps
 from app.dependencies import ServiceContainer, get_container
 from app.metrics import metrics_endpoint
-from services.auth_service import get_current_user_from_supabase
+from services.auth_service import get_current_user_from_supabase, require_aal2
 from services.circuit_breaker import CircuitState
 
 router = APIRouter(tags=["Health"])
@@ -168,6 +168,16 @@ async def _check_neo4j(container) -> bool:
 async def services_health_endpoint(container: ServiceContainer = Depends(get_container)) -> JSONResponse:
     """Alias for /api/health — comprehensive service health with go/no-go per service."""
     return await health_endpoint(container)
+
+
+@router.get("/api/health/mfa")
+async def health_mfa(user: dict = Depends(require_aal2)) -> dict:
+    """Probe endpoint for MFA step-up (AAL2) enforcement.
+
+    Returns 200 only when the caller has aal='aal2' on their identity.
+    Useful for verifying require_aal2 wiring and for release readiness checks.
+    """
+    return {"ok": True, "aal": "aal2"}
 
 
 @router.get("/api/ready")
