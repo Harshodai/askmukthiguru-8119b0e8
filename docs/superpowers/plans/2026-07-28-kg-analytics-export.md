@@ -63,6 +63,8 @@ D3Blocks HTML file. This module has no side effects and no Neo4j dependency.
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
 from typing import Any, Optional
 
 import networkx as nx
@@ -1087,19 +1089,25 @@ If all verification passes, present the diff summary and ask for approval before
 
 ## Execution Handoff — Implemented (Jul 28, 2026)
 
-All tasks complete. Key implementation notes:
+Core tasks complete as of Jul 28, 2026. Two issues found and fixed on 2026-07-31:
+
+1. **temp-file ordering** — `d3.d3graph()` was called before `NamedTemporaryFile` was created,
+   risking a stray `d3graph.html` in the cwd. Fixed: tmp_path created first and passed to both
+   `d3graph()` and `D3Graph.show()`.
+2. **test isolation** — `test_export_disabled_by_default` relied on env defaults for
+   `kg_export_enabled` and on dev-mode auth fallback. Fixed: explicit `monkeypatch` in fixture.
 
 ### Changes Made
 
 | File | Change |
 |------|--------|
-| `backend/services/kg_analytics.py` | Created with `enrich_graph()` + `export_d3blocks_html()`; bounded betweenness via k-sample for >2000 nodes |
+| `backend/services/kg_analytics.py` | Created with `enrich_graph()` + `export_d3blocks_html()`; bounded betweenness via k-sample for >2000 nodes; temp-file path now created before d3graph call |
 | `backend/services/memory_service_v2.py` | Wrapped `enrich_graph` calls in `asyncio.to_thread` with 30s timeout |
 | `backend/app/api/memory.py` | Wrapped `export_d3blocks_html` in `asyncio.to_thread` with 30s timeout |
 | `backend/app/api/kg.py` | Extended `KGNode` with analytics/community; enriched subgraph results |
 | `backend/app/config.py` | Added `kg_analytics_enabled`, `kg_export_enabled` flags |
 | `backend/tests/test_kg_analytics.py` | Added `importorskip("d3blocks")` guard, `__main__` block |
-| `backend/tests/test_kg_export_endpoint.py` | Added `__main__` block |
+| `backend/tests/test_kg_export_endpoint.py` | Explicit monkeypatch for `kg_export_enabled` + isolated auth path |
 | `src/components/kg/KGConceptMap.tsx` | metricScale degree normalization, export gate with feedback, export button title/aria-label clarifies full-ontology export |
 | `src/components/profile/MemoryManager.tsx` | dynamicR degree fix, getCfgForNode parameter fix |
 | `src/locales/en.json` | Renamed `insights` → `insight` key; added `kg.exportFullOntology` key |
@@ -1118,3 +1126,4 @@ All tasks complete. Key implementation notes:
 
 - Install `d3blocks>=1.4.0` in the backend image if export is needed
 - Set `KG_EXPORT_ENABLED=true` in Railway env to activate the export endpoint
+- Add D3Blocks-enabled regression test asserting no stray `d3graph.html` survives in tempdir

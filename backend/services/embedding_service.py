@@ -214,9 +214,10 @@ class EmbeddingService:
                 model_kwargs={"low_cpu_mem_usage": True},
             )
 
-    # Revision pin removed 2026-07-31: hash 3a90cc8b 404s on HuggingFace.
-    # Restore a pinned hash once the correct revision is confirmed from HF.
-    # For Railway Dockerfile pre-bake, set HF_REVISION env var instead.
+    # No hardcoded revision: the 3a90cc8b hash 404s on HuggingFace.
+    # Set HF_REVISION env var to a confirmed commit hash before enabling the
+    # ONNX backend. _load_onnx_encoder will raise if neither source provides a
+    # revision (fail-closed: never download an unversioned HEAD).
     _ONNX_ENCODER_REVISION: str | None = None
 
     def _load_onnx_encoder(self, model_name: str) -> None:
@@ -252,10 +253,19 @@ class EmbeddingService:
         cache_dir = Path(hf_home) / "hub" / safe
         cache_dir.mkdir(parents=True, exist_ok=True)
 
+        revision = os.environ.get("HF_REVISION") or self._ONNX_ENCODER_REVISION
+        if revision is None:
+            raise RuntimeError(
+                "ONNX encoder requires a pinned revision. "
+                "Set HF_REVISION env var to a verified commit hash, or restore "
+                "_ONNX_ENCODER_REVISION in embedding_service.py. "
+                "Refusing to download an unversioned HEAD checkpoint."
+            )
+
         try:
             local_path = snapshot_download(
                 repo_id=onnx_model_id,
-                revision=self._ONNX_ENCODER_REVISION,
+                revision=revision,
                 local_dir=str(cache_dir),
                 local_dir_use_symlinks=False,
                 resume_download=True,

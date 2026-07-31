@@ -45,6 +45,12 @@ def test_embedding_service_ragatouille_optional_graceful_fallback(monkeypatch):
 
     from app.config import settings
     monkeypatch.setattr(settings, "embedding_backend", "flagembedding")
+    # enable_colbert=True so _ensure_colbert() enters the ragatouille import path
+    # (when False it short-circuits at line 480, never reaching the ImportError).
+    monkeypatch.setattr(settings, "enable_colbert", True)
+    # Pin the model name to the encoder the mocks represent so any env override
+    # that selects a different model doesn't bypass the FlagEmbedding mock path.
+    monkeypatch.setattr(settings, "embedding_model", "BAAI/bge-m3")
 
     # Mock importing ragatouille to raise an ImportError (as if not installed)
     original_import = __import__

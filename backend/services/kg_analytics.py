@@ -213,13 +213,19 @@ def export_d3blocks_html(graph: dict[str, Any], title: str = "Wisdom Map") -> st
     sizes = [n.get("analytics", {}).get("degree", 1) + 1 for n in nodes]
     node_labels = [n.get("label", n["id"]) for n in nodes]
 
+    # Create the temp file before calling d3graph so that D3Blocks writes
+    # directly to our path rather than a default 'd3graph.html' in the cwd
+    # or system temp directory.
+    with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w") as tmp:
+        tmp_path = tmp.name
+
     d3 = D3Blocks()
 
     if df_edges.empty:
         df_edges = pd.DataFrame([{"source": nodes[0]["id"], "target": nodes[0]["id"], "weight": 1}])
 
-    # Process edges -- no color/size kwargs; will set via set_node_properties
-    d3.d3graph(df_edges, showfig=False)
+    # Process edges — pass our temp path so d3blocks never writes a stray default file.
+    d3.d3graph(df_edges, showfig=False, filepath=tmp_path)
 
     # Build color/size/label arrays in adjacency-matrix column order
     adj_nodes = list(d3.D3graph.adjmat.columns)
@@ -245,8 +251,6 @@ def export_d3blocks_html(graph: dict[str, Any], title: str = "Wisdom Map") -> st
                 "edge_size": 0.1,
             }
 
-    with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w") as tmp:
-        tmp_path = tmp.name
     try:
         d3.D3graph.show(
             filepath=tmp_path,
