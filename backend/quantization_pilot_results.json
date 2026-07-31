@@ -1,0 +1,64 @@
+{
+  "baseline": {
+    "recall_at_10_mean": 1.0,
+    "recall_at_50_mean": 1.0,
+    "median_ms": 9.8424170000726,
+    "p95_ms": 20.443041999897105,
+    "collection": "spiritual_wisdom",
+    "query_count": 5,
+    "top_k": 50
+  },
+  "candidate": {
+    "recall_at_10_mean": 1.0,
+    "recall_at_50_mean": 1.0,
+    "median_ms": 5.6532919998062425,
+    "p95_ms": 11.875416999828303,
+    "collection": "spiritual_wisdom",
+    "exists": true,
+    "query_count": 5,
+    "top_k": 50
+  },
+  "per_query": [
+    {
+      "query": "What is Deeksha?",
+      "baseline_ms": 20.443041999897105,
+      "candidate_ms": 5.6532919998062425,
+      "recall_at_10": 1.0,
+      "recall_at_50": 1.0
+    },
+    {
+      "query": "Who are Sri Preethaji and Sri Krishnaji?",
+      "baseline_ms": 7.19262499933393,
+      "candidate_ms": 4.247832999681123,
+      "recall_at_10": 1.0,
+      "recall_at_50": 1.0
+    },
+    {
+      "query": "Where is Ekam located?",
+      "baseline_ms": 9.8424170000726,
+      "candidate_ms": 7.071457999700215,
+      "recall_at_10": 1.0,
+      "recall_at_50": 1.0
+    },
+    {
+      "query": "Explain the Four Sacred Secrets.",
+      "baseline_ms": 9.28475000000617,
+      "candidate_ms": 4.675582999880135,
+      "recall_at_10": 1.0,
+      "recall_at_50": 1.0
+    },
+    {
+      "query": "What is a beautiful state?",
+      "baseline_ms": 15.071916999659152,
+      "candidate_ms": 11.875416999828303,
+      "recall_at_10": 1.0,
+      "recall_at_50": 1.0
+    }
+  ],
+  "settings": {
+    "qdrant_url": "http://localhost:6333",
+    "embedding_model": "BAAI/bge-m3",
+    "embedding_backend": "flagembedding",
+    "embedding_dimension": 1024
+  }
+}
