@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Flame, Clock, Calendar, Wind } from 'lucide-react';
 import type { MeditationSession, MeditationStats } from '@/lib/meditationStorage';
+import { dailySeries } from '@/lib/meditationMetrics';
 
 interface Props {
   stats: MeditationStats;
@@ -19,25 +20,25 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
     { icon: Wind, label: 'Breaths', value: stats.totalCycles },
   ];
 
-  const last7 = useMemo(() => {
-    const days: { label: string; minutes: number }[] = [];
-    const now = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      const next = new Date(d);
-      next.setDate(next.getDate() + 1);
-      const mins = sessions
-        .filter((s) => {
-          const t = new Date(s.completedAt ?? s.startedAt).getTime();
-          return t >= d.getTime() && t < next.getTime() && s.completed;
-        })
-        .reduce((sum, s) => sum + Math.round((s.durationSeconds ?? 0) / 60), 0);
-      days.push({ label: d.toLocaleDateString(undefined, { weekday: 'narrow' }), minutes: mins });
-    }
-    return days;
-  }, [sessions]);
+  // Same calculator the tiles/DB use — the caption total and the curve can't disagree.
+  const last7 = useMemo(
+    () =>
+      dailySeries(
+        sessions.map((s) => ({
+          at: new Date(s.completedAt ?? s.startedAt),
+          durationSeconds: s.durationSeconds ?? 0,
+          breathCycles: s.breathCycles ?? 0,
+          completed: s.completed,
+        })),
+      ),
+    [sessions],
+  );
+
+  const weekMinutes = useMemo(
+    () => Math.round(last7.reduce((sum, d) => sum + d.seconds, 0) / 60),
+    [last7],
+  );
+
 
   const max = Math.max(1, ...last7.map((d) => d.minutes));
   const w = 280;
