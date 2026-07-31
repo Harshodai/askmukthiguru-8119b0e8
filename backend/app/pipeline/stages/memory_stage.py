@@ -70,6 +70,17 @@ class MemoryStage(Stage):
         try:
             from services.user_profile_service import ConversationMemory
 
+            signal = "general"
+            if ctx.assessment and ctx.assessment.detected_signals:
+                try:
+                    from services.healing_course_service import suffering_signal_from_text
+
+                    signal = suffering_signal_from_text(
+                        user_msg, ctx.assessment.detected_signals
+                    )
+                except Exception:
+                    pass
+
             memory = ConversationMemory(
                 session_id=stable_session_id,
                 user_id=user_id,
@@ -85,6 +96,7 @@ class MemoryStage(Stage):
                         "distress_level": distress_level,
                         "provoked": False,
                         "topic": intent,
+                        "signal": signal,
                     }
                 ],
                 follow_up_suggestions=[],

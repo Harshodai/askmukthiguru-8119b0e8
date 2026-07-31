@@ -1,3 +1,23 @@
+## Jul 31, 2026 — Proactive Healing Course Assignment (Task 10)
+
+### 1. Sync Supabase Client — `await client.table(...)` is a Trap
+- **Problem:** The Task 11 brief samples `await supabase.table('user_course_progress').select(...).execute()` directly. This codebase uses the **sync** `supabase.create_client` (app/container.py); awaiting it fails (or silently misbehaves) — every existing service wraps calls in `asyncio.to_thread(...)`.
+- **Fix/Pattern:** `healing_course_service.assign_course_if_needed` wraps both the active-course check and the upsert in `asyncio.to_thread`. Route handlers (Task 11) must reuse `assign_course_if_needed` / `maybe_assign_healing_course` rather than inlining awaited client chains.
+
+### 2. Trigger Priority Ordering Shapes Test Expectations
+- **Problem:** The brief's evaluator checks 3-of-5 frequency BEFORE consecutive streak. A 3-turn consecutive streak also satisfies 3-of-5, so it reports `freq_3_of_5`, not `consecutive_2`; similarly `repeated_signal` (same signal ≥2x in 24h) fires on patterns that look like "streak broken by calm" when both distress turns carry the same signal and timestamps. First-draft tests asserting the intuitive pattern failed.
+- **Fix/Pattern:** Tests must construct histories that isolate ONE trigger: break streak with different signals, spread old turns >24h (also positions >window), and accept priority overrides (3-streak → freq_3_of_5).
+
+### 3. Word-Boundary Signal Matching — "distress" contains "stress"
+- **Problem:** Substring keyword matching classified "Persistent distress over rolling window" as `anxiety` because "distress" contains "stress".
+- **Fix/Pattern:** `suffering_signal_from_text` matches keywords with `\b...\b` word boundaries (and keeps inflected forms explicitly: stress/stressed, worry/worrying, overwhelm/overwhelmed, meaning/meaningless).
+
+### 4. Emotional Arc Now Carries `signal` (backend SufferingSignal taxonomy)
+- **Pattern:** `memory_stage.py` writes `signal` into the emotional_arc entry (from Serene Mind `detected_signals` + user text via `suffering_signal_from_text`). The frontend owns the curriculum (`src/lib/healingCourses.ts`); the backend owns only a keyword classifier + signal→slug map. Drift risk accepted and confined to `_SIGNAL_KEYWORDS`.
+
+### 5. `user_course_progress` Table Does Not Exist Yet
+- **Pattern:** Assignment degrades gracefully (log + return None) when the table/RLS is missing. A migration (unique `(user_id, course_slug)`, RLS) is required before prod — flagged in task-10-report for the release sweep.
+
 ## Jul 24, 2026 — LightRAG Production Audit & System Invariants
 
 ### 1. Neo4j Internal Network Routing & Public Bolt Security

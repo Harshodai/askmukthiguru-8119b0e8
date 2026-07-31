@@ -487,6 +487,20 @@ class Settings(BaseSettings):
     proactive_distress_frequency_threshold: float = 0.6  # Minimum frequency of moderate+
     proactive_min_conversation_points: int = 3  # Minimum data points needed
 
+    # --- Proactive Healing Course Assignment (Task 10) ---
+    # Assigns a short healing course (curriculum lives on the frontend in
+    # src/lib/healingCourses.ts; backend maps SufferingSignal -> course slug)
+    # when a seeker shows a sustained distress pattern. Triggers, in priority
+    # order: >=consecutive_threshold distress turns in a row; distress in
+    # >=frequency_threshold of the last frequency_window turns; escalating
+    # severity; the same suffering signal repeated >=2x within
+    # repeat_window_hours. Skips users who already hold an active course.
+    proactive_course_assignment_enabled: bool = True
+    proactive_course_consecutive_threshold: int = 2
+    proactive_course_frequency_threshold: int = 3
+    proactive_course_frequency_window: int = 5
+    proactive_course_repeat_window_hours: int = 24
+
     # --- A/B Testing ---
     ab_testing_enabled: bool = False  # Randomly switch between primary LLM and Krutrim
     ab_testing_ratio: float = 0.1  # 10% traffic to Krutrim
