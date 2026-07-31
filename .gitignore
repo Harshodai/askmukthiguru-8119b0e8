@@ -6,6 +6,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+# Runtime log files — never commit these
+backend/logs.txt
+scripts/railway_logs.txt
+*.log.txt
 
 node_modules
 dist
@@ -48,7 +52,10 @@ venv/
 .env.*
 !.env.example
 !.env.mobile
-# .env.production (commented - never commit production env files)
+# Explicit block — these were force-added previously; never re-add them
+.env.production
+backend/.env.prod
+backend/.env.optimized
 
 # Security and dump files
 cookies.txt
@@ -77,6 +84,13 @@ data/lightrag/kv_store_*.json
 backend/data/feedback.jsonl
 backend/data/lightrag/kv_store_*.json
 data/feedback.jsonl
+# Poisoned/debug data exports — never commit these
+data/*_poisoned_*.json
+data/*_poisoned_*.jsonl
+# bun.lock — npm (package-lock.json) is the canonical lockfile; bun.lock causes drift
+bun.lock
+# Copyrighted ingestion assets — store outside repo in private asset store
+*.pdf
 
 # OS
 Thumbs.db

@@ -13,6 +13,13 @@ from __future__ import annotations
 
 import os
 
+# Apply thread-count caps (OMP/MKL/BLIS/OpenBLAS) before any heavy import.
+# configure_threading() is also called from app/main.py for the uvicorn process;
+# this copy covers the Celery worker process path. Idempotent — safe to call twice.
+from app.core.threading_config import configure_threading
+
+configure_threading()
+
 from celery import Celery
 from kombu import Exchange, Queue
 

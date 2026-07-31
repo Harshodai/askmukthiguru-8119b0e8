@@ -22,17 +22,25 @@ import uuid
 import requests
 
 
-def _delete_test_user(supabase_url: str, service_role_key: str, user_id: str) -> None:
-    """Best-effort deletion of a test identity via the Admin API."""
+def _delete_test_user(supabase_url: str, service_role_key: str, user_id: str) -> bool:
+    """Best-effort deletion of a test identity via the Admin API.
+
+    Returns True on confirmed deletion. Failures don't abort the
+    verification run (cleanup is non-fatal) but are printed to stderr so an
+    orphaned identity is never silent.
+    """
     try:
         delete_url = f"{supabase_url}/auth/v1/admin/users/{user_id}"
-        requests.delete(
+        response = requests.delete(
             delete_url,
             headers={"apikey": service_role_key, "Authorization": f"Bearer {service_role_key}"},
             timeout=10,
         )
-    except Exception:
-        pass  # cleanup is non-fatal
+        response.raise_for_status()
+        return True
+    except Exception as exc:
+        print(f"WARNING: failed to delete test user {user_id}: {exc}", file=sys.stderr)
+        return False
 
 
 def main() -> int:
@@ -46,6 +54,24 @@ def main() -> int:
                 {
                     "ok": False,
                     "error": "Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables",
+                }
+            )
+        )
+        return 1
+
+    is_local_target = any(
+        host in supabase_url for host in ("localhost", "127.0.0.1", "host.docker.internal")
+    )
+    if not service_role_key and not is_local_target:
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "error": (
+                        "Refusing to sign up a test identity against a non-local "
+                        "SUPABASE_URL without SUPABASE_SERVICE_ROLE_KEY set — the "
+                        "test account could not be cleaned up afterward."
+                    ),
                 }
             )
         )

@@ -5766,3 +5766,24 @@ A single distress signal must NOT trigger course assignment (false positives). T
 
 ### Killing a docker-proxy process (port holder) triggers Docker Desktop engine restart
 `lsof -tiTCP:8000 | xargs kill -9` killed Docker Desktop's proxy process holding port 8000 — Docker Desktop interpreted the proxy death as an engine fault and restarted the whole VM (~5+ min downtime, all containers down). Lesson: don't kill processes owned by com.docker to free a port; use `docker ps` to find the container and `docker stop` it, or run your server on another port.
+
+### Security audit 2026-07-31: dependency CVE verification requires checking uv.lock, not requirements.txt
+`requirements.txt` contains version *ranges* (floors/ceilings), not resolved versions. The floor may be below a CVE patch threshold while the *actual installed version* (in `uv.lock`) is safe. Always check `uv.lock` for the authoritative resolved version. Conversely, `starlette==1.0.0` was resolved despite `fastapi>=0.115.0` — one patch below CVE-2026-48710 fix (`1.0.1`). Explicit pins in `requirements.txt` (`starlette>=1.0.1`) are the only reliable defense because `uv lock --upgrade-package` won't bump transitive deps unless a floor forces it.
+
+### threading_config: both FastAPI process AND Celery worker need the call
+`configure_threading()` was correctly wired into `app/main.py` (uvicorn process) but never called from `celery_config.py`. The Celery worker forks a separate Python process and has no connection to main.py's startup. Fix: import+call as first line of `celery_config.py`. The fix is idempotent — calling it in both processes is safe.
+
+### Root-level `slowapi/` stub shadows real package in CI
+A hand-written no-op `slowapi/__init__.py` at the repo root (a relic of pre-Docker development) shadows the real `slowapi` package for any process run with `PYTHONPATH` including the repo root (Python's default). Production Docker wasn't affected (COPY only pulls `backend/`), but test runs would have silently loaded the fake Limiter with a no-op `__call__`. Lesson: never create stubs at repo root with the same package name as a real PyPI dependency. Always rename to `_stub_slowapi` or similar.
+
+### git rm --cached to untrack files already tracked despite .gitignore
+`git add -f` was used in the past to force-add files matching `.env.*` patterns. Merely updating `.gitignore` does not untrack already-tracked files. Must run `git rm --cached <file>` explicitly, then commit, then add the explicit block to `.gitignore`. Pattern: `.env.production`, `backend/.env.prod`, `backend/.env.optimized`, log files, PDFs.
+
+### Content assets vs code licenses: two separate governance documents needed
+`LICENSE-EXCEPTIONS.md` covers code *dependencies* only. Copyrighted books/PDFs fed to the RAG ingestion pipeline are a completely different rights category (copyright, not software licensing). Added `CONTENT-RIGHTS.md` as the parallel registry for ingested content. Both must be maintained. Rights basis for ingested third-party content must be documented *before* ingestion.
+
+### neo4j_poisoned_backup.json: prompt injection is traceable in dry-run exports
+The extraction pipeline's dry-run output (exported for debugging) captured raw LLM chain-of-thought that revealed the model reasoning about injected "developer instructions" in ingested text. This creates a double risk: (1) the JSON file itself documents the attack surface in the repo, and (2) if CVE-2025-68664 (LangGrinch) is unpatched, injected content can escalate to deserialization. Action: delete poisoned exports after debugging, do not commit them. Add `data/*_poisoned_*.json` to `.gitignore`.
+
+### npm audit fix with peer dep conflicts: use --legacy-peer-deps
+`npm audit fix` fails with vite peer dependency conflicts (vite v7 vs plugin expectations). Use `npm audit fix --legacy-peer-deps`. If react-router advisories remain after fix, they require a v6→v7 major upgrade with API migration — do not use `--force` blindly.
