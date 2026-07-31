@@ -51,7 +51,7 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
   });
   const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
   const areaPath = `${linePath} L${w},${h} L0,${h} Z`;
-  const hasData = last7.some((d) => d.minutes > 0);
+  const hasData = last7.some((d) => d.seconds > 0);
 
   return (
     <div className="space-y-4">
