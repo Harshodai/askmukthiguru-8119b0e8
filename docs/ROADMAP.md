@@ -170,3 +170,21 @@ requirements.txt (no deps)
 3. **Start work**: Move from Backlog to "In Progress", create branch
 4. **Ship**: Move from "In Progress" to "Completed" with ship date and branch/commit
 5. **Defer**: If blocked on infra, resources, or external decisions, move to "Deferred / Needs Planning" with reason and path forward
+## Completed (Jul 31, 2026) — Security + RLS + Metrics + Release Readiness Epic
+
+- AAL2/MFA regression E2E extended (`security-aal2.spec.ts`, `serviceWorkers: 'block'` fix) — 251 E2E green.
+- Backend `require_aal2` dependency + `/api/health/mfa` probe (12 tests).
+- RLS: idempotent WITH CHECK migration, cross-user verifier script (12 probes green), nightly CI workflow.
+- Supabase leaked-password protection enabled manually (Pro) — verify script added.
+- Metrics parity: pydantic/zod shared schema, `GET /api/metrics`, `useMetrics` hook + ProfilePage Journey card.
+- Streak-based healing course assignment (service + API + HealingPathCard) — 37 backend + 17 frontend tests.
+- Release-readiness document `docs/RELEASE_READINESS_2026_07_30.md` (Railway + Lovable decision + rollback).
+- Langhanam unified guru voice (default-off, benchmark-gated).
+
+## Technical Debt / Follow-ups
+
+- Flip `langhanam_voice_enabled` after a live-LLM benchmark run (OpenRouter key 403 locally).
+- Set repo secrets for nightly RLS workflow; review ephemeral-prod-user cleanup before enabling.
+- Local dev requires service URL overrides (docker hostnames in `.env`) — document in start_local.sh.
+- 8 pre-existing vitest failures at legacy `src/test/*` paths (duplicate newer suites at `src/test/components/*` pass) — delete stale suites.
+- 3 pre-existing backend test failures depend on HF model revision `3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef` which 404s — pin a valid revision or mock model loading.
