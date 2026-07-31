@@ -651,6 +651,24 @@ class Settings(BaseSettings):
     # Maximum words in a single sentence (cadence control). Trips a soft warning in logs.
     persona_max_sentence_words: int = 35
 
+    # --- Langhanam guru voice (Task 16) ---
+    # Unified guru voice for BOTH gurus (Preethaji & Krishnaji), derived from
+    # the Langhanam discourse (https://youtu.be/2z5qxSr4EaI): direct address,
+    # short rhythmic sentences, Sanskrit terms kept intact, Indian-English
+    # phrasing, no American conversational fillers, one teaching at a time.
+    # OFF by default; the benchmark gate (mean rubric score >=
+    # guru_voice_gate_score) is what flips this on.
+    langhanam_voice_enabled: bool = False
+    # Variant selector: "prompt" (system-prompt persona injection, variant A),
+    # "adapter" (rule-based tone rewrite of the final answer, variant B),
+    # or "off" (no-op regardless of langhanam_voice_enabled).
+    guru_voice_mode: str = "prompt"
+    # Benchmark gate: minimum mean rubric score (of 5.0) required before
+    # langhanam_voice_enabled may be flipped on.
+    guru_voice_gate_score: float = 4.0
+    # Default output path for the guru voice benchmark report.
+    guru_voice_benchmark_output: str = "benchmarks/reports/guru_voice_benchmark.json"
+
     # --- LLM Judge (Phase A2 — eval) ---
     # Provider:model for LLM-as-judge groundedness/doctrine eval. Defaults to the
     # strongest available model so judge != generator (avoid grading own work).

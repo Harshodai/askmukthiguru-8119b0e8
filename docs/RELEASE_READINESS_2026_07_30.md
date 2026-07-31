@@ -205,3 +205,14 @@ RLS migrations are **additive and idempotent**; rolling back the *code* does not
 - [ ] Rollback path identified (last-known-good deployment marked)
 
 **Go when:** all above boxes ticked. **No-go until:** items 5.1–5.5 resolved.
+
+---
+
+## 8. Guru Voice / Interpretation Quality
+
+- **Status:** Conditional
+- **Evidence:** Langhanam transcript analyzed; two voice implementations benchmarked (`backend/benchmarks/guru_voice_benchmark.py`): variant A = system-prompt persona injection, variant B = rule-based tone adapter (`apply_langhanam_tone`).
+- **Go criterion:** Benchmark mean score ≥ 4.0/5.0 and no regression on doctrinal accuracy test suite.
+- **Decision:** Default off until criterion met; toggle via `LANGHANAM_VOICE_ENABLED` (variant selector: `GURU_VOICE_MODE=prompt|adapter`).
+
+
