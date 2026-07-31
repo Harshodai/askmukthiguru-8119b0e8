@@ -1,3 +1,23 @@
+## Jul 31, 2026 — Proactive Healing Course Assignment (Task 10)
+
+### 1. Sync Supabase Client — `await client.table(...)` is a Trap
+- **Problem:** The Task 11 brief samples `await supabase.table('user_course_progress').select(...).execute()` directly. This codebase uses the **sync** `supabase.create_client` (app/container.py); awaiting it fails (or silently misbehaves) — every existing service wraps calls in `asyncio.to_thread(...)`.
+- **Fix/Pattern:** `healing_course_service.assign_course_if_needed` wraps both the active-course check and the upsert in `asyncio.to_thread`. Route handlers (Task 11) must reuse `assign_course_if_needed` / `maybe_assign_healing_course` rather than inlining awaited client chains.
+
+### 2. Trigger Priority Ordering Shapes Test Expectations
+- **Problem:** The brief's evaluator checks 3-of-5 frequency BEFORE consecutive streak. A 3-turn consecutive streak also satisfies 3-of-5, so it reports `freq_3_of_5`, not `consecutive_2`; similarly `repeated_signal` (same signal ≥2x in 24h) fires on patterns that look like "streak broken by calm" when both distress turns carry the same signal and timestamps. First-draft tests asserting the intuitive pattern failed.
+- **Fix/Pattern:** Tests must construct histories that isolate ONE trigger: break streak with different signals, spread old turns >24h (also positions >window), and accept priority overrides (3-streak → freq_3_of_5).
+
+### 3. Word-Boundary Signal Matching — "distress" contains "stress"
+- **Problem:** Substring keyword matching classified "Persistent distress over rolling window" as `anxiety` because "distress" contains "stress".
+- **Fix/Pattern:** `suffering_signal_from_text` matches keywords with `\b...\b` word boundaries (and keeps inflected forms explicitly: stress/stressed, worry/worrying, overwhelm/overwhelmed, meaning/meaningless).
+
+### 4. Emotional Arc Now Carries `signal` (backend SufferingSignal taxonomy)
+- **Pattern:** `memory_stage.py` writes `signal` into the emotional_arc entry (from Serene Mind `detected_signals` + user text via `suffering_signal_from_text`). The frontend owns the curriculum (`src/lib/healingCourses.ts`); the backend owns only a keyword classifier + signal→slug map. Drift risk accepted and confined to `_SIGNAL_KEYWORDS`.
+
+### 5. `user_course_progress` Table Does Not Exist Yet
+- **Pattern:** Assignment degrades gracefully (log + return None) when the table/RLS is missing. A migration (unique `(user_id, course_slug)`, RLS) is required before prod — flagged in task-10-report for the release sweep.
+
 ## Jul 24, 2026 — LightRAG Production Audit & System Invariants
 
 ### 1. Neo4j Internal Network Routing & Public Bolt Security
@@ -5720,3 +5740,29 @@ The cp1 concatenation bug is `SMTP_PASSWORD=secretEMBEDDING_BACKEND=onnx_int8` o
 ### Latency extrapolation: 32-thread benchmarks don't transfer to 2-thread Railway
 temsa's published p50=168.9ms was on 32 threads, batch_size=64, max_length=256. The old plan extrapolated "~85ms (2× speedup)" to Railway's 2-thread CPU — off by 5-10×. Realistic warm P95 on 2-thread CPU: 300-600ms for the reranker, 200-2000ms for 20-doc batched ColBERT. Always recompute latency projections for the target thread count; don't extrapolate "speedup factors" across different hardware.
 
+
+## Security + RLS + Metrics + Release Readiness Epic (Jul 31, 2026)
+
+### Local `.env` uses docker hostnames — dev servers on host need overrides
+`backend/.env` ships docker-network hostnames (`qdrant:6333`, `neo4j:7687`, `redis:6379`, `host.docker.internal:54321`). Running uvicorn/vitest/pytest on the HOST fails with `[Errno 8] nodename nor servname provided` unless overridden: `QDRANT_URL=http://localhost:6333 NEO4J_URI=bolt://localhost:7687 REDIS_URL=redis://:mukthiguru_redis_pass@localhost:6379/0 SUPABASE_URL=http://127.0.0.1:54321`. Also `VITE_BACKEND_URL=http://localhost:8001 npm run dev` when the backend runs on a non-default port (Playwright's webServer only starts Vite, not the backend).
+
+### `backend/dotenv/` shim silently kills all `.env` loading
+An untracked `backend/dotenv/__init__.py` (test shim with a no-op `load_dotenv`, no `dotenv_values`) shadowed the real python-dotenv in site-packages for any process launched from `backend/`. Symptom: Settings silently fell back to defaults (`llm_provider=sarvam_cloud`) and pydantic failed validation on missing keys even though `.env` was fine. pydantic-settings catches the missing `dotenv_values` import and treats dotenv as unavailable — no ImportError surfaces. Deleting the shim fixes it. This was flagged by the Task 3 subagent as finding #1.
+
+### Playwright: service workers bypass `page.route()` mocks
+The app registers a service worker that intercepts fetches, so API mocks via `page.route()` never fire — requests go through the SW to the real network. Fix: `test.use({ serviceWorkers: 'block' })` in the spec (must be declared before `test.extend`, not after). Also: this Playwright version's `expect.poll` does not resolve to the polled value — capture via side effect instead of assignment.
+
+### MFA step-up UI fallback: read verified TOTP factors from session
+The MFA challenge page originally assumed `session.user.factors` was populated; on some paths (fresh session load) it's undefined. Fallback: `supabase.auth.mfa.getAuthenticatorAssuranceLevel()` + `userAuthenticated` verification factors from the session's `aal`/`factors` so the challenge form renders deterministically (this is what the AAL2 E2E depends on).
+
+### Healing course assignment: streak/repetition, not single signal
+A single distress signal must NOT trigger course assignment (false positives). Triggers: ≥2 consecutive distress turns, ≥3-of-5 frequency, escalating severity, or the same SufferingSignal ≥2× within 24h. Idempotency: never assign when an active course exists in `user_course_progress`. Implemented in `backend/services/healing_course_service.py` with 37 tests; frontend card at `src/components/chat/HealingPathCard.tsx` (17 tests) mirrors the same trigger rules locally as fallback and prefers the backend `recommended_course`.
+
+### Guru voice: gate by benchmark, ship default-off
+`langhanam_voice_enabled` defaults False; `GURU_VOICE_MODE` picks prompt-based (A) vs tone-adapter rewrite (B). The rule-based benchmark scored 5.0/5.0 on a synthetic corpus but the gate is forced False on degraded runs (no LLM key) — never flip the flag without a live LLM run against the rubric (direct_address, sanskrit_terms, indian_english, no_fillers, single_teaching, rhythm).
+
+### RLS verification: ephemeral users via Admin API, not SQL
+`backend/scripts/verify_rls_policies.py` creates Alice/Bob via the Supabase Admin API (works under RLS too), seeds rows as Alice, probes as Bob with the user-scoped client (SELECT/UPDATE/DELETE on conversations, chat_messages, meditation_sessions, user_profiles), cleans up in `finally`. 12 probes pass locally. The nightly workflow (`.github/workflows/nightly-rls.yml`) runs it against PROD — but it creates ephemeral test users in production, so repo secrets must be set and cleanup verified before enabling.
+
+### Killing a docker-proxy process (port holder) triggers Docker Desktop engine restart
+`lsof -tiTCP:8000 | xargs kill -9` killed Docker Desktop's proxy process holding port 8000 — Docker Desktop interpreted the proxy death as an engine fault and restarted the whole VM (~5+ min downtime, all containers down). Lesson: don't kill processes owned by com.docker to free a port; use `docker ps` to find the container and `docker stop` it, or run your server on another port.

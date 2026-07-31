@@ -1,0 +1,249 @@
+"""Tests for the Langhanam unified guru voice (Task 16).
+
+Covers the no-filler detection, direct-address detection, single-teaching
+guard, Sanskrit-term preservation, system-prompt rendering (variant A),
+rule-based tone adapter (variant B), and feature-flag gating.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from services.guru_voice_langhanam import (
+    LANGHANAM_ELIGIBLE_INTENTS,
+    LANGHANAM_VOICE_BLOCK,
+    REFERENCE_VOICE,
+    contains_sanskrit_terms,
+    count_fillers,
+    detect_combined_teachings,
+    has_direct_address,
+    is_voice_eligible,
+    mean_sentence_length,
+    render_langhanam_system_prompt,
+    split_sentences,
+    strip_fillers,
+)
+
+
+# --- Reference voice -------------------------------------------------------
+
+def test_reference_voice_has_five_to_seven_paragraphs():
+    paragraphs = [p.strip() for p in REFERENCE_VOICE.split("\n\n") if p.strip()]
+    assert 5 <= len(paragraphs) <= 7
+
+
+def test_reference_voice_keeps_sanskrit_terms():
+    assert "langhanam" in REFERENCE_VOICE.lower()
+    assert "vaak shakti" in REFERENCE_VOICE.lower()
+
+
+def test_reference_voice_has_no_transcription_errors():
+    assert "shittim" not in REFERENCE_VOICE.lower()
+    assert "love venoms" not in REFERENCE_VOICE.lower()
+
+
+def test_reference_voice_has_no_fillers():
+    assert count_fillers(REFERENCE_VOICE) == 0
+
+
+# --- No-filler detection ---------------------------------------------------
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Like, you know, basically this is how it works.",
+        "Totally, I think you should try this.",
+        "kind of like a practice, you know what i mean?",
+    ],
+)
+def test_count_fillers_detects_american_fillers(text):
+    assert count_fillers(text) >= 1
+
+
+def test_count_fillers_clean_text():
+    assert count_fillers("Listen. Practice langhanam. Observe your breath.") == 0
+
+
+def test_strip_fillers_removes_them():
+    cleaned = strip_fillers("Basically, you know, practice langhanam like this.")
+    assert count_fillers(cleaned) == 0
+    assert "practice langhanam" in cleaned
+
+
+def test_strip_fillers_does_not_remove_legit_words():
+    # "kind of" after a determiner is legit Indian-English ("any kind of fasting"),
+    # and "thinkers" must never be hit by the "i think" pattern.
+    cleaned = strip_fillers("Deep thinkers practice any kind of fasting.")
+    assert "thinkers" in cleaned
+    assert "any kind of fasting" in cleaned
+    assert count_fillers(cleaned) == 0
+
+
+# --- Direct address --------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "I want you to practice langhanam.",
+        "Listen to the end before you come to any conclusion.",
+        "Try this: sit still and observe your breath.",
+        "Notice how your thoughts settle.",
+    ],
+)
+def test_direct_address_detected(text):
+    assert has_direct_address(text)
+
+
+def test_direct_address_absent_in_passive_text():
+    assert not has_direct_address("Langhanam is a principle used by ancients.")
+
+
+# --- Single-teaching guard -------------------------------------------------
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "In another teaching, the gurus also explain Deeksha.",
+        "Similarly, the book teaches about the Beautiful State.",
+        "Other teachings say the same about intention.",
+    ],
+)
+def test_combined_teachings_detected(text):
+    assert detect_combined_teachings(text)
+
+
+def test_single_teaching_text_passes_guard():
+    assert detect_combined_teachings(
+        "The first langhanam is fasting from food. Practice it daily."
+    ) == []
+
+
+# --- Sanskrit terms --------------------------------------------------------
+
+def test_sanskrit_terms_detected():
+    assert contains_sanskrit_terms("vaak Shakti grows when you speak truth.")
+    assert contains_sanskrit_terms("Prana moves with slow breath.")
+
+
+def test_no_sanskrit_terms():
+    assert not contains_sanskrit_terms("Just eat well and rest.")
+
+
+# --- Sentence helpers ------------------------------------------------------
+
+def test_split_sentences_and_mean_length():
+    text = "First sentence. Second, longer sentence here!"
+    sentences = split_sentences(text)
+    assert len(sentences) == 2
+    assert mean_sentence_length(text) == pytest.approx(
+        (len(sentences[0].split()) + len(sentences[1].split())) / 2
+    )
+
+
+def test_mean_sentence_length_empty():
+    assert mean_sentence_length("") == 0.0
+
+
+# --- Variant A: system-prompt rendering ------------------------------------
+
+def test_render_langhanam_system_prompt_appends_voice_block():
+    base = "You are Mukthi Guru."
+    rendered = render_langhanam_system_prompt(base)
+    assert rendered.startswith(base)
+    assert "use this voice" in rendered
+    assert "Do not combine or genericize teachings" in rendered
+
+
+def test_render_langhanam_system_prompt_empty_base():
+    assert render_langhanam_system_prompt("") == LANGHANAM_VOICE_BLOCK
+
+
+# --- Variant B: rule-based tone adapter ------------------------------------
+
+def test_apply_langhanam_tone_strips_fillers():
+    from rag.nodes.guru_tone_adapter import apply_langhanam_tone
+
+    text = "Basically, you know, the first langhanam is fasting from food."
+    rewritten = apply_langhanam_tone(text)
+    assert count_fillers(rewritten) == 0
+    assert "langhanam" in rewritten
+
+
+def test_apply_langhanam_tone_preserves_citations_and_sanskrit():
+    from rag.nodes.guru_tone_adapter import apply_langhanam_tone
+
+    text = (
+        "Basically the second langhanam is fasting from breath. "
+        "Practice slow inhalations with breath pauses. [[CITE:1]]"
+    )
+    rewritten = apply_langhanam_tone(text)
+    assert "[[CITE:1]]" in rewritten
+    assert "langhanam" in rewritten
+
+
+def test_apply_langhanam_tone_breaks_long_sentences():
+    from rag.nodes.guru_tone_adapter import (
+        _LANGHANAM_MAX_SENTENCE_WORDS,
+        apply_langhanam_tone,
+    )
+
+    long_sentence = (
+        "When you speak words that are true, and that cause joy to others, "
+        "and that are spoken in a pleasing tone, your vaak Shakti grows "
+        "steadily day after day, year after year."
+    )
+    assert len(long_sentence.split()) > _LANGHANAM_MAX_SENTENCE_WORDS
+    rewritten = apply_langhanam_tone(long_sentence)
+    for sentence in split_sentences(rewritten):
+        assert len(sentence.split()) <= _LANGHANAM_MAX_SENTENCE_WORDS + 2
+    assert "vaak Shakti" in rewritten
+
+
+def test_apply_langhanam_tone_returns_original_when_shrunk():
+    from rag.nodes.guru_tone_adapter import apply_langhanam_tone
+
+    filler_heavy = "I think I think I think you know like basically totally kind of honestly literally."
+    assert apply_langhanam_tone(filler_heavy) == filler_heavy
+
+
+def test_apply_langhanam_tone_empty():
+    from rag.nodes.guru_tone_adapter import apply_langhanam_tone
+
+    assert apply_langhanam_tone("") == ""
+    assert apply_langhanam_tone(None) is None
+
+
+# --- Feature flag gating ---------------------------------------------------
+
+def test_langhanam_voice_flag_defaults_off():
+    from app.config import Settings
+
+    settings = Settings(llm_provider="ollama")
+    assert settings.langhanam_voice_enabled is False
+
+
+def test_guru_voice_mode_defaults_to_prompt():
+    from app.config import Settings
+
+    settings = Settings(llm_provider="ollama")
+    assert settings.guru_voice_mode == "prompt"
+
+
+def test_guru_voice_gate_score_default():
+    from app.config import Settings
+
+    settings = Settings(llm_provider="ollama")
+    assert settings.guru_voice_gate_score == pytest.approx(4.0)
+
+
+def test_voice_eligibility():
+    assert is_voice_eligible("DISTRESS")
+    assert is_voice_eligible("QUERY")
+    assert is_voice_eligible("RELATIONAL")
+    assert is_voice_eligible("COMPARATIVE")
+    assert is_voice_eligible("teaching")
+    assert is_voice_eligible("DOCTRINE")
+    assert not is_voice_eligible("FACTUAL")
+    assert not is_voice_eligible("CASUAL")
+    assert not is_voice_eligible("")
+    assert "FACTUAL" not in LANGHANAM_ELIGIBLE_INTENTS

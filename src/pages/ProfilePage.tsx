@@ -25,6 +25,7 @@ import {
   Bug,
   Upload,
   Paperclip,
+  Clock,
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
@@ -85,6 +86,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
+import { useMetrics } from '@/hooks/useMetrics';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import {
@@ -142,6 +144,7 @@ const ProfilePage = () => {
   const { setTheme: applyThemeNow } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { teaching: dailyTeaching } = useDailyTeaching();
+  const { metrics, loading: metricsLoading, error: metricsError } = useMetrics();
 
   // Local form state — only persists on Save
   const [form, setForm] = useState(profile);
@@ -566,6 +569,88 @@ const ProfilePage = () => {
                       <p className="text-xs text-muted-foreground">Meditation practices</p>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Journey Overview</CardTitle>
+                  <CardDescription>Your path across conversations, practice, and healing.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {metricsLoading && !metrics && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {[0, 1, 2, 3].map((i) => (
+                        <div key={i} className="rounded-2xl border border-hairline bg-card px-4 py-3.5 animate-pulse">
+                          <div className="h-2.5 w-16 rounded-full bg-muted mb-3" />
+                          <div className="h-5 w-12 rounded-full bg-muted" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!metricsLoading && metricsError && !metrics && (
+                    <p className="text-xs text-muted-foreground">
+                      Couldn't load journey metrics right now. They'll reappear once the Guru's memory is awake.
+                    </p>
+                  )}
+                  {metrics && (
+                    <>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Flame className="w-3.5 h-3.5" />
+                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium">Conversations</span>
+                          </div>
+                          <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
+                            {metrics.totalConversations}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium">Messages</span>
+                          </div>
+                          <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
+                            {metrics.totalMessages}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium">Meditation</span>
+                          </div>
+                          <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
+                            {Math.round(metrics.totalMeditationMinutes)}m
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 text-muted-foreground">
+                            <Target className="w-3.5 h-3.5" />
+                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium">Course progress</span>
+                          </div>
+                          <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
+                            {metrics.courseCompletionPercent}%
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <Heart className="w-3.5 h-3.5 text-ojas" />
+                          {metrics.activeHealingCourse ?? 'No active healing course'}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <TrendingUp className="w-3.5 h-3.5" />
+                          Distress {metrics.averageDistressLevel ?? '—'} · {metrics.distressTrend}
+                        </span>
+                        {metrics.lastActiveAt && (
+                          <span className="flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            Last active {formatRelativeTime(new Date(metrics.lastActiveAt))}
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 

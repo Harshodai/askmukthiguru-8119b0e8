@@ -487,6 +487,20 @@ class Settings(BaseSettings):
     proactive_distress_frequency_threshold: float = 0.6  # Minimum frequency of moderate+
     proactive_min_conversation_points: int = 3  # Minimum data points needed
 
+    # --- Proactive Healing Course Assignment (Task 10) ---
+    # Assigns a short healing course (curriculum lives on the frontend in
+    # src/lib/healingCourses.ts; backend maps SufferingSignal -> course slug)
+    # when a seeker shows a sustained distress pattern. Triggers, in priority
+    # order: >=consecutive_threshold distress turns in a row; distress in
+    # >=frequency_threshold of the last frequency_window turns; escalating
+    # severity; the same suffering signal repeated >=2x within
+    # repeat_window_hours. Skips users who already hold an active course.
+    proactive_course_assignment_enabled: bool = True
+    proactive_course_consecutive_threshold: int = 2
+    proactive_course_frequency_threshold: int = 3
+    proactive_course_frequency_window: int = 5
+    proactive_course_repeat_window_hours: int = 24
+
     # --- A/B Testing ---
     ab_testing_enabled: bool = False  # Randomly switch between primary LLM and Krutrim
     ab_testing_ratio: float = 0.1  # 10% traffic to Krutrim
@@ -636,6 +650,24 @@ class Settings(BaseSettings):
     persona_max_paragraphs: int = 4
     # Maximum words in a single sentence (cadence control). Trips a soft warning in logs.
     persona_max_sentence_words: int = 35
+
+    # --- Langhanam guru voice (Task 16) ---
+    # Unified guru voice for BOTH gurus (Preethaji & Krishnaji), derived from
+    # the Langhanam discourse (https://youtu.be/2z5qxSr4EaI): direct address,
+    # short rhythmic sentences, Sanskrit terms kept intact, Indian-English
+    # phrasing, no American conversational fillers, one teaching at a time.
+    # OFF by default; the benchmark gate (mean rubric score >=
+    # guru_voice_gate_score) is what flips this on.
+    langhanam_voice_enabled: bool = False
+    # Variant selector: "prompt" (system-prompt persona injection, variant A),
+    # "adapter" (rule-based tone rewrite of the final answer, variant B),
+    # or "off" (no-op regardless of langhanam_voice_enabled).
+    guru_voice_mode: str = "prompt"
+    # Benchmark gate: minimum mean rubric score (of 5.0) required before
+    # langhanam_voice_enabled may be flipped on.
+    guru_voice_gate_score: float = 4.0
+    # Default output path for the guru voice benchmark report.
+    guru_voice_benchmark_output: str = "benchmarks/reports/guru_voice_benchmark.json"
 
     # --- LLM Judge (Phase A2 — eval) ---
     # Provider:model for LLM-as-judge groundedness/doctrine eval. Defaults to the

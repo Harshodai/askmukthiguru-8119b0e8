@@ -211,6 +211,7 @@ export async function* sendMessageStreaming(
               followUpSuggestions: meta.follow_up_suggestions ?? [],
               confidenceScore: meta.confidence_score ?? null,
               confidenceReason: meta.confidence_reason ?? null,
+              recommendedCourse: meta.recommended_course ?? null,
             };
           } catch {
             // Ignore malformed done payload

@@ -98,6 +98,8 @@ from app.api.srs import router as srs_router
 from app.api.push import router as push_router
 from app.api.cancel_flow import router as cancel_flow_router
 from app.api.retention import router as retention_router
+from app.api.metrics import router as metrics_router
+from app.api.healing_course import router as healing_course_router
 
 # Job and trace routers are imported where needed below to avoid
 # heavy imports during module load.
@@ -972,6 +974,8 @@ app.include_router(srs_router, prefix="/api")
 app.include_router(push_router, prefix="/api")
 app.include_router(cancel_flow_router, prefix="/api")
 app.include_router(retention_router)
+app.include_router(metrics_router)
+app.include_router(healing_course_router)
 from app.api.kg import router as kg_router
 
 app.include_router(kg_router, prefix="/api")

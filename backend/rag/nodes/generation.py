@@ -19,6 +19,7 @@ from rag.prompts import (
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from services.humanizer import scrub
+from services.guru_voice_langhanam import is_voice_eligible, render_langhanam_system_prompt
 from services.language_router import LanguageCode, LanguageRouter
 
 from . import _services
@@ -37,6 +38,35 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _maybe_apply_langhanam_voice(
+    state: GraphState, system_prompt: str, answer: str
+) -> tuple[str, str]:
+    """Apply the Langhanam guru voice to generation (feature-flagged, default off).
+
+    Variant A (``guru_voice_mode == "prompt"``) appends the voice block to
+    the system prompt; variant B (``"adapter"``) rewrites the finished
+    answer with ``apply_langhanam_tone``. Gated on
+    ``settings.langhanam_voice_enabled`` and intent eligibility
+    (teaching/doctrine/distress — pure FACTUAL lookup-only queries are
+    excluded). Any failure degrades to the untouched inputs.
+    """
+    if not getattr(settings, "langhanam_voice_enabled", False):
+        return system_prompt, answer
+    if not is_voice_eligible(state.get("intent") or "FACTUAL"):
+        return system_prompt, answer
+    mode = getattr(settings, "guru_voice_mode", "prompt")
+    if mode == "prompt":
+        return render_langhanam_system_prompt(system_prompt), answer
+    if mode == "adapter":
+        try:
+            from rag.nodes.guru_tone_adapter import apply_langhanam_tone
+
+            return system_prompt, apply_langhanam_tone(answer)
+        except Exception as _voice_err:  # pragma: no cover - safety net
+            logger.warning("Langhanam tone adapter failed (non-fatal): %s", _voice_err)
+    return system_prompt, answer
 
 
 
@@ -950,6 +980,10 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "If the context doesn't fully answer the question, say so clearly rather than making things up."
         )
 
+    # Langhanam guru voice — variant A (prompt persona injection). Feature-
+    # flagged off by default; benchmark gate in guru_voice_benchmark.py.
+    system_prompt, _ = _maybe_apply_langhanam_voice(state, system_prompt, "")
+
     ab_model = state.get("ab_model", "primary")
     generation_kwargs = _generation_route(state, context_chars=len(context))
     route_metadata = generation_kwargs.pop("_route_metadata", {})
@@ -1239,6 +1273,10 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                     "If the context doesn't fully answer the question, say so clearly rather than making things up."
                 )
 
+            # Langhanam guru voice — keep variant A consistent on the
+            # CCR re-generation path.
+            system_prompt, _ = _maybe_apply_langhanam_voice(state, system_prompt, "")
+
             logger.info("headroom CCR: Re-generating answer with uncompressed context...")
             if gateway and gateway.enabled:
                 try:
@@ -1298,6 +1336,12 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             answer = scrub(answer)
         except Exception as _humanizer_err:
             logger.warning("Humanizer skipped (non-fatal): %s", _humanizer_err)
+
+    # Langhanam guru voice — variant B (tone adapter): rewrite the finished
+    # answer. Streaming responses are left untouched (chunks were already
+    # pushed to the client). Feature-flagged off by default.
+    if getattr(settings, "langhanam_voice_enabled", False) and not stream_queue:
+        system_prompt, answer = _maybe_apply_langhanam_voice(state, system_prompt, answer)
 
     # Step 1 — Intent-gated factual slot corrections (NEC-style, removed per P1-10)
     # Step 2 — Append missing doctrine keywords as footnotes (removed per P1-10)

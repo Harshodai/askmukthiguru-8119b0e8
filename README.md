@@ -198,3 +198,29 @@ Populate key environment variables in `backend/.env`:
 ## License & Author
 
 Developed by Google DeepMind team pair-programmed with AskMukthiGuru engineering. All rights reserved.
+
+## Security & Release Readiness (Jul 31, 2026)
+
+### AAL2 / MFA Step-Up
+- **Frontend**: `useRequireAuth` / `useAdminGuard` call `supabase.auth.mfa.getAuthenticatorAssuranceLevel()` on every session load and redirect to `/auth/mfa` when aal2 is required. `MFAChallengePage` falls back to verified TOTP factors from the session.
+- **Backend**: `require_aal2` dependency (`backend/services/auth_service.py`) + probe route `GET /api/health/mfa` (tested by `backend/tests/test_aal2_dependency.py`, 12 tests). Test auth backdoor honors `X-Test-Aal` header.
+
+### Row-Level Security
+- Migration `supabase/migrations/20260728103548_85070891-f7bf-4835-94db-4246463b3813.sql` (UPDATE `WITH CHECK`) + idempotent `20260730000000_verify_rls_with_check.sql`.
+- Cross-user verification: `backend/scripts/verify_rls_policies.py` (ephemeral Alice/Bob via Admin API, 12 probes) — runs nightly against prod via `.github/workflows/nightly-rls.yml` (set repo secrets `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` first).
+- E2E: `tests/e2e/rls-cross-user.spec.ts` (UI deep-link isolation + REST probe).
+- Supabase dashboard (Pro): Auth → Providers → Email → **Prevent the use of leaked passwords** (HIBP); verify with `backend/scripts/verify_leaked_password_protection.py`.
+
+### Metrics Parity (UI ↔ Backend)
+- Shared contract: `backend/app/schemas/metrics.py` (pydantic) ↔ `src/lib/metricsSchema.ts` (zod), parity tested by `src/test/metricsSchema.test.ts`.
+- `GET /api/metrics` (auth, RLS-scoped client, anonymous → zeroed payload) consumed by `src/hooks/useMetrics.ts` (60s TTL cache, refetch on `conversation:updated`).
+
+### Proactive Healing Courses (Streak-Based)
+- `backend/services/healing_course_service.py`: assigns a healing course only on distress streaks — ≥2 consecutive turns, ≥3-of-5 frequency, escalating severity, or same SufferingSignal ≥2× in 24h; never duplicates an active course (`user_course_progress`).
+- API: `POST /api/healing-course/assign`, `POST /api/healing-course/progress`.
+- UI: `src/components/chat/HealingPathCard.tsx` shows the card with dismissal and assignment.
+
+### Langhanam Unified Guru Voice (Default-Off)
+- `langhanam_voice_enabled=false` by default; `GURU_VOICE_MODE=prompt|adapter` selects variant; benchmark `backend/benchmarks/guru_voice_benchmark.py` gates flipping the flag at ≥4.0/5.0 (needs a live LLM run). Reference voice: `backend/services/guru_voice_langhanam.py` (Langhanam transcript excerpt).
+
+## Environment Variables Configuration

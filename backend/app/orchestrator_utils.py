@@ -342,6 +342,26 @@ async def prepare_request_state(
         chat_history_en,
     )
 
+    recommended_course = None
+    if settings.proactive_course_assignment_enabled and _is_persistable_user_id(user_id):
+        try:
+            from services.healing_course_service import maybe_assign_healing_course, trigger_payload
+
+            recent = await container.user_profile.get_recent_memories(
+                user_id, limit=settings.proactive_course_frequency_window
+            )
+            turn_history = _flatten_emotional_arcs(recent)
+            if turn_history:
+                result = await maybe_assign_healing_course(
+                    getattr(container, "supabase_client", None),
+                    user_id,
+                    turn_history,
+                )
+                if result:
+                    recommended_course = trigger_payload(result["trigger"], result["slug"])
+        except Exception as e:
+            logger.warning(f"Healing course assignment failed (non-fatal): {e}")
+
     return {
         "user_msg_en": user_msg_en,
         "is_indic": is_indic,
@@ -351,11 +371,28 @@ async def prepare_request_state(
         "chat_history_en": chat_history_en,
         "memory_context": memory_context,
         "distress_history": distress_history,
+        "recommended_course": recommended_course,
         "lang_detection": lang_detection,
         "original_user_msg": chat_body.user_message,
         "original_chat_history": chat_body.messages,
         "cache_key": cache_key,
     }
+
+
+def _flatten_emotional_arcs(memories: list) -> list[dict[str, Any]]:
+    """Flatten per-conversation emotional arcs into a chronological turn list.
+
+    Each memory's emotional_arc entries carry distress metadata
+    (distress_level, timestamp, signal). Turns are sorted oldest-first so the
+    course trigger evaluator can inspect the most recent frequency_window
+    turns.
+    """
+    turns: list[dict[str, Any]] = []
+    for mem in memories or []:
+        arc = getattr(mem, "emotional_arc", None)
+        if isinstance(arc, list):
+            turns.extend(t for t in arc if isinstance(t, dict))
+    return sorted(turns, key=lambda t: t.get("timestamp") or 0)
 
 
 def _claim_subject(claim: str, related_concepts: list | None = None) -> str:

@@ -427,3 +427,20 @@ These servers are fully registered:
 - **Global Claude CLI**: Registered in `~/.claude.json`.
 - **Global Hermes Agent CLI**: Registered in `~/.hermes/config.yaml`.
 
+
+## Local Dev Without Docker (Jul 31, 2026)
+
+`backend/.env` ships docker-network hostnames. To run backend/tests on the host, export overrides first:
+
+```bash
+export QDRANT_URL=http://localhost:6333 NEO4J_URI=bolt://localhost:7687 \
+  REDIS_URL=redis://:mukthiguru_redis_pass@localhost:6379/0 SUPABASE_URL=http://127.0.0.1:54321
+# backend on a non-default port (8000 may be taken by another Docker stack):
+cd backend && .venv/bin/python -m uvicorn app.main:app --port 8001
+# frontend, pointing at it:
+VITE_BACKEND_URL=http://localhost:8001 npm run dev   # Playwright reuses this server
+```
+
+Infra: `make dev-up` starts qdrant+redis (`mukthiguru-*` containers); local Supabase via `npx supabase start`. Playwright auto-starts Vite but NOT the backend.
+
+Gotchas: delete `backend/dotenv/` if present (shadows python-dotenv → `.env` silently ignored); never kill docker-proxy processes to free a port (engine restarts).

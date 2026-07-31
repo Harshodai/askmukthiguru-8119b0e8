@@ -941,3 +941,12 @@ A catalogue of ~30 additional servers is available in `ecc/mcp-configs/mcp-serve
 - **Cost Steering**: Automatically steer LLM prompting towards brevity (`COST_STEERED_BREVITY_LIMIT` words) when context/history length is high to optimize token usage.
 - **Reversible Context Compression (CCR)**: Allow the LLM to request full text for compressed text using `[RETRIEVE: <source_url>]` pattern; generation stage will intercept and swap the original text.
 - **Timeout and Resource Headroom**: Always configure timeouts with safety margins (e.g. 120s timeouts for sequence calls, or 10% GPU/CUDA headroom) to avoid transient service lockups.
+
+## Security & Release Readiness (Jul 31, 2026)
+
+- **AAL2/MFA**: backend `require_aal2` in `backend/services/auth_service.py` + probe `GET /api/health/mfa`; E2E `tests/e2e/security-aal2.spec.ts` (needs `serviceWorkers: 'block'` — SW bypasses `page.route()`).
+- **RLS**: idempotent migration `20260730000000_verify_rls_with_check.sql`; verifier `backend/scripts/verify_rls_policies.py` (Admin-API ephemeral Alice/Bob); nightly CI `.github/workflows/nightly-rls.yml` (needs repo secrets); E2E `tests/e2e/rls-cross-user.spec.ts`.
+- **Metrics**: `GET /api/metrics` → `UserMetrics` (pydantic `backend/app/schemas/metrics.py` ↔ zod `src/lib/metricsSchema.ts`) consumed by `src/hooks/useMetrics.ts` (60s TTL, refetch on `conversation:updated`).
+- **Healing courses**: `POST /api/healing-course/assign|progress`; streak triggers in `backend/services/healing_course_service.py`; card `src/components/chat/HealingPathCard.tsx`.
+- **Guru voice**: `GURU_VOICE_MODE=prompt|adapter`, `langhanam_voice_enabled=false` default, benchmark `backend/benchmarks/guru_voice_benchmark.py`, reference `backend/services/guru_voice_langhanam.py`.
+- **Deploy doc**: `docs/RELEASE_READINESS_2026_07_30.md` (Railway tarball `railway up`, 1 replica, Lovable frontend-only decision, leaked-password steps, rollback).

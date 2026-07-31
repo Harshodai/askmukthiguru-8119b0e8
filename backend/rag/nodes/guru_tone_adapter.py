@@ -26,6 +26,78 @@ from services.guru_brain.persona_discriminator import PersonaDiscriminator
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Langhanam unified guru voice — variant B (rule-based tone adapter)
+# ---------------------------------------------------------------------------
+# Rewrites a finished answer toward the Langhanam voice: strip American
+# conversational fillers, break over-long sentences into the short rhythmic
+# cadence of the reference voice, keep Sanskrit terms and citation markers
+# intact. New Sanskrit terms are intentionally NOT inserted — inserting
+# doctrine vocabulary into generated text risks editing the facts.
+# Benchmark evidence: benchmarks/guru_voice_benchmark.py compares this
+# adapter against variant A (system-prompt injection) and reports the winner.
+
+_LANGHANAM_MAX_SENTENCE_WORDS = 30
+_LANGHANAM_MIN_SURVIVAL_RATIO = 0.5
+
+
+def _break_long_sentence(sentence: str, max_words: int = _LANGHANAM_MAX_SENTENCE_WORDS) -> str:
+    """Split an over-long sentence at the clause separator nearest its midpoint."""
+    words = sentence.split()
+    if len(words) <= max_words:
+        return sentence
+    mid = len(words) // 2
+    split_at = None
+    for sep in (",", ";", ":", "—", "–"):
+        positions = [i for i, w in enumerate(words) if sep in w]
+        if not positions:
+            continue
+        split_at = min(positions, key=lambda i: abs(i - mid))
+        break
+    if split_at is None:
+        return sentence
+    left = " ".join(words[: split_at + 1]).rstrip(",").rstrip(";")
+    right = " ".join(words[split_at + 1:]).lstrip(",").lstrip(";")
+    if not right:
+        return sentence
+    return f"{left}. {right}"
+
+
+def apply_langhanam_tone(text: str) -> str:
+    """Rewrite ``text`` toward the Langhanam guru voice (variant B, rule-based).
+
+    Strips American conversational fillers and splits sentences longer than
+    ``_LANGHANAM_MAX_SENTENCE_WORDS`` words at a clause boundary. If the
+    rewrite would shrink the text below ``_LANGHANAM_MIN_SURVIVAL_RATIO`` of
+    the original length, the original draft is returned unchanged so factual
+    content is never silently lost.
+    """
+    if not text or not text.strip():
+        return text
+
+    from services.guru_voice_langhanam import split_sentences, strip_fillers
+
+    original_len = len(text)
+    cleaned = strip_fillers(text)
+
+    rewritten_parts: list[str] = []
+    for sentence in split_sentences(cleaned):
+        if len(sentence.split()) > _LANGHANAM_MAX_SENTENCE_WORDS:
+            rewritten_parts.append(_break_long_sentence(sentence))
+        else:
+            rewritten_parts.append(sentence)
+
+    rewritten = " ".join(part for part in rewritten_parts if part).strip()
+    if len(rewritten) < _LANGHANAM_MIN_SURVIVAL_RATIO * original_len:
+        logger.warning(
+            "apply_langhanam_tone: rewrite shrank text to %.0f%% of original "
+            "— returning original draft unchanged",
+            100.0 * len(rewritten) / original_len if original_len else 0.0,
+        )
+        return text
+    return rewritten
+
+
 # Dedicated bounded executor for Neo4j KG operations.
 # Limits concurrent Neo4j threads to prevent thread-pool starvation
 # when asyncio.wait_for abandons the future (the underlying thread

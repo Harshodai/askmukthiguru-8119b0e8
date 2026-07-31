@@ -58,12 +58,29 @@
 - Native app: uses Capacitor speech plugin
 - Language read from `i18n.language`, forwarded to backend in FormData
 
+### Completed (Jul 31, 2026) — Security/RLS/Metrics/Release epic
+- AAL2/MFA: backend `require_aal2` + `/api/health/mfa`; E2E extended (`serviceWorkers: 'block'` — SW bypasses `page.route()`).
+- RLS: idempotent WITH CHECK migration; `backend/scripts/verify_rls_policies.py` (12 probes, ephemeral Alice/Bob via Admin API); nightly `.github/workflows/nightly-rls.yml` (set repo secrets before enabling); E2E `tests/e2e/rls-cross-user.spec.ts`.
+- Leaked passwords: enable manually (Pro) Auth → Providers → Email → "Prevent the use of leaked passwords"; verify with `backend/scripts/verify_leaked_password_protection.py`.
+- Metrics parity: `backend/app/schemas/metrics.py` ↔ `src/lib/metricsSchema.ts`; `GET /api/metrics`; `src/hooks/useMetrics.ts`.
+- Healing courses: streak-based (≥2 consecutive, 3-of-5, escalation, 24h repeat) via `backend/services/healing_course_service.py`; `POST /api/healing-course/{assign,progress}`; `HealingPathCard.tsx`.
+- Guru voice: `langhanam_voice_enabled=false` default; `GURU_VOICE_MODE=prompt|adapter`; benchmark-gated flip (needs live LLM run).
+- `docs/RELEASE_READINESS_2026_07_30.md` (Railway + Lovable decision + rollback).
+
 ### Remaining Before Prod Deploy
 1. Language coverage: audit `t()` usage vs translation keys, add missing keys to 6 real locales
 2. Full responsive stress-test at every breakpoint (especially 768–1024)
 3. Google login E2E test using dedicated OAuth test identities or an isolated provider test app with CI-injected secrets (verify single redirect in staging or with tight production safeguards)
 4. Forgot password E2E test with real Supabase email (verify email sent + link works)
 5. Audio E2E on production (CDN-accessible Lovable asset, not `:8080`)
+6. Live-LLM guru-voice benchmark → flip `langhanam_voice_enabled` at ≥4.0/5.0
+7. Enable leaked-password protection in Supabase dashboard (Pro) + run verifier
+8. Set nightly-RLS repo secrets and confirm ephemeral-user cleanup before first prod run
+
+### Local Dev Caveats (Jul 31, 2026)
+- `backend/.env` uses docker hostnames (`qdrant:6333`, `neo4j:7687`, `redis:6379`) — running uvicorn/pytest on the HOST requires overrides (`QDRANT_URL=http://localhost:6333`, `NEO4J_URI=bolt://localhost:7687`, `REDIS_URL=redis://:mukthiguru_redis_pass@localhost:6379/0`, `SUPABASE_URL=http://127.0.0.1:54321`), and Vite needs `VITE_BACKEND_URL=http://localhost:8001` when the backend is not on 8000.
+- NEVER `kill -9` a process owned by `com.docker` to free a port (e.g. docker-proxy on 8000) — Docker Desktop restarts the whole engine VM (~5 min, all containers down). Use `docker stop <container>` or run on another port.
+- `backend/dotenv/` (untracked test shim) shadows python-dotenv and silently kills `.env` loading — delete it if present.
 
 This file serves as a knowledge base for AI agents interacting with this workspace.
 

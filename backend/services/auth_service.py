@@ -244,12 +244,18 @@ class TestAuthStrategy(AuthStrategy):
         test_key = request.headers.get("X-Test-Key")
         benchmark_secret = getattr(settings, "benchmark_secret", None)
         if test_key and benchmark_secret and test_key == benchmark_secret:
+            # Optional X-Test-Aal header lets probes mint aal1/aal2 identities
+            # for MFA step-up verification without a real Supabase MFA setup.
+            aal = request.headers.get("X-Test-Aal", "aal1")
+            if aal not in ("aal1", "aal2"):
+                aal = "aal1"
             return {
                 "id": "00000000-0000-0000-0000-000000000000",
                 "email": "benchmark-admin@mukthi.guru",
                 "is_superuser": True,
                 "provider": "test",
                 "tenant_id": "00000000-0000-0000-0000-000000000000",
+                "aal": aal,
             }
         return None
 
@@ -366,6 +372,10 @@ class SupabaseAuthStrategy(AuthStrategy):
             user_email = payload.get("email")
             jwt_role = payload.get("role", "authenticated")
             tenant_id = payload.get("tenant_id", user_id)
+            # Supabase GoTrue JWTs carry an Authenticator Assurance Level claim
+            # ("aal1" default, "aal2" after MFA step-up). Default to aal1 when
+            # absent so MFA-gated routes deny by default.
+            aal = payload.get("aal") or "aal1"
 
             # service_role tokens are always superuser
             if jwt_role == "service_role":
@@ -376,6 +386,7 @@ class SupabaseAuthStrategy(AuthStrategy):
                     "is_superuser": True,
                     "provider": "supabase",
                     "tenant_id": tenant_id,
+                    "aal": aal,
                 }
 
             # For authenticated users, check user_roles table for admin role
@@ -388,6 +399,7 @@ class SupabaseAuthStrategy(AuthStrategy):
                 "is_superuser": is_admin,
                 "provider": "supabase",
                 "tenant_id": tenant_id,
+                "aal": aal,
             }
 
         except jwt.ExpiredSignatureError:
@@ -556,11 +568,35 @@ def require_scoped_identity(user: dict) -> None:
     Call after resolve_anon_identity() on any endpoint that looks up a
     resource by an id previously written to job_meta["user_id"] (job
     poll/cancel/stream). Without this, an anonymous caller with no
-    session_id collapses onto the same shared "anonymous" id as every other
-    session_id-less anonymous caller, and can access/cancel each other's jobs.
+    session_id collapses onto the same shared "anonymous" user_id and
+    can access/cancel each other's jobs.
     """
     if user and user.get("is_anonymous") and user.get("id") == "anonymous":
         raise HTTPException(
             status_code=400,
             detail="A session id is required for anonymous access to this resource.",
         )
+
+
+async def require_aal2(user: dict = Depends(get_current_user_from_supabase)) -> dict:
+    """MFA step-up dependency: require Authenticator Assurance Level 2.
+
+    Composes get_current_user_from_supabase so AAL enforcement rides the same
+    auth bridge as every other protected route. Works with dict-like user
+    objects (Supabase/test tokens) and dataclass-like user objects
+    (FastAPI-Users). Returns the user on success; raises 401 when
+    unauthenticated, 403 when the AAL is insufficient.
+    """
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    aal = None
+    if isinstance(user, dict):
+        aal = user.get("aal")
+    else:
+        aal = getattr(user, "aal", None)
+
+    if aal != "aal2":
+        raise HTTPException(status_code=403, detail="AAL2 step-up required")
+
+    return user

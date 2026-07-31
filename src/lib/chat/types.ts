@@ -21,6 +21,14 @@ export type AIErrorCode =
   | 'network'
   | 'unknown';
 
+/** Healing course recommended by the backend (streak-based assignment). */
+export interface RecommendedCourse {
+  slug: string;
+  signal: string;
+  pattern: string;
+  reason: string;
+}
+
 export interface AIResponse {
   content: string;
   error?: string;
@@ -32,6 +40,7 @@ export interface AIResponse {
   blockReason?: string;
   proactiveSereneMind?: ProactiveSereneMindTrigger | null;
   followUpSuggestions?: string[];
+  recommendedCourse?: RecommendedCourse | null;
 }
 
 /** Shape of the proactive Serene Mind trigger object returned by the backend */
@@ -68,6 +77,8 @@ export type StreamChunk =
       confidenceScore?: number | null;
       /** E3.2 one-line explainable reason (optional, forward-compat). */
       confidenceReason?: string | null;
+      /** Streak-based healing course assignment from the backend. */
+      recommendedCourse?: RecommendedCourse | null;
     }
   | { type: 'error'; text: string };
 

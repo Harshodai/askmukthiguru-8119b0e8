@@ -1,60 +1,216 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, Check, Play, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useHealingCourse } from '@/hooks/useHealingCourse';
+import { BACKEND_URL } from '@/lib/backendUrl';
+import { getAccessToken } from '@/lib/chat/auth';
 import {
   courseForSignal,
   courseMinutes,
   detectSufferingSignal,
   getCourse,
   type HealingCourse,
+  type SufferingSignal,
 } from '@/lib/healingCourses';
 
+/** Course assignment surfaced by the backend chat response. */
+export interface HealingCourseRecommendation {
+  slug: string;
+  title: string;
+  reason: string;
+  trigger_signal: string;
+}
+
+export interface CourseTrigger {
+  signal: SufferingSignal;
+  pattern: 'consecutive_2' | 'freq_3_of_5' | 'escalation' | 'repeated_signal';
+  reason: string;
+}
+
+export interface UserTurn {
+  text: string;
+  timestamp?: number;
+}
+
 interface HealingPathCardProps {
-  /** Most recent seeker message — used to detect the suffering signal. */
+  /** Most recent seeker message. */
   lastUserText: string;
   /** Backend already flagged distress for this turn. */
   distressFlagged?: boolean;
+  /** Streak-based course recommendation from the backend response. */
+  recommendedCourse?: HealingCourseRecommendation | null;
+  /** Recent seeker turns (text + ts) — used for local streak detection. */
+  userTurnHistory?: UserTurn[];
   onAskGuru: (prompt: string) => void;
   onOpenSereneMind: () => void;
 }
 
 /**
- * When a seeker is in suffering, prescribe a short sequenced path of
- * teachings instead of a single answer. Sits above the composer.
+ * Local streak detector — mirrors the backend trigger evaluator
+ * (services/healing_course_service.py) over text-only turns. A single
+ * distress message never triggers; only sustained patterns do.
+ *
+ * Pattern priority (text-only proxies): escalation (last 3 turns all
+ * distressed with shifting signals — the closest text-only proxy for rising
+ * severity), freq_3_of_5, consecutive_2, repeated_signal (same signal twice
+ * within 24h).
+ */
+export function detectCourseTrigger(turns: UserTurn[] | undefined | null): CourseTrigger | null {
+  if (!turns || turns.length === 0) return null;
+
+  const lastThree = turns.slice(-3).map((t) => detectSufferingSignal(t.text));
+  if (
+    lastThree.length === 3 &&
+    lastThree.every((s) => s !== null) &&
+    new Set(lastThree).size >= 2
+  ) {
+    return {
+      signal: lastThree[2] as SufferingSignal,
+      pattern: 'escalation',
+      reason: 'distress shifting across recent turns',
+    };
+  }
+
+  const window = turns.slice(-5);
+  const distressed = window.filter((t) => detectSufferingSignal(t.text) !== null);
+  if (distressed.length >= 3) {
+    const signal = detectSufferingSignal(distressed[distressed.length - 1].text) ?? 'general';
+    return {
+      signal,
+      pattern: 'freq_3_of_5',
+      reason: `distress in ${distressed.length} of last 5 turns`,
+    };
+  }
+
+  let consecutive = 0;
+  let lastSignal: SufferingSignal | null = null;
+  for (const t of [...turns].reverse()) {
+    const s = detectSufferingSignal(t.text);
+    if (s) {
+      consecutive += 1;
+      lastSignal = s;
+    } else {
+      break;
+    }
+  }
+  if (consecutive >= 2 && lastSignal) {
+    return {
+      signal: lastSignal,
+      pattern: 'consecutive_2',
+      reason: `${consecutive} consecutive distress turns`,
+    };
+  }
+
+  const now = Date.now();
+  const counts = new Map<SufferingSignal, number>();
+  for (const t of turns) {
+    const s = detectSufferingSignal(t.text);
+    if (!s) continue;
+    const ts = t.timestamp ?? now;
+    if (now - ts > 24 * 3600 * 1000) continue;
+    counts.set(s, (counts.get(s) ?? 0) + 1);
+  }
+  for (const [signal, count] of counts) {
+    if (count >= 2) {
+      return {
+        signal,
+        pattern: 'repeated_signal',
+        reason: `'${signal}' distress signal repeated ${count}x within 24h`,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * When a seeker shows a sustained (streak-based) distress pattern, prescribe a
+ * short sequenced path of teachings instead of a single answer. Sits above the
+ * composer.
  */
 export function HealingPathCard({
   lastUserText,
-  distressFlagged,
+  recommendedCourse,
+  userTurnHistory,
   onAskGuru,
   onOpenSereneMind,
 }: HealingPathCardProps) {
   const { progress, enroll, completeLesson } = useHealingCourse();
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const assignAttemptedRef = useRef<string | null>(null);
+  const prevCourseSlugRef = useRef<string | null>(null);
 
   const signal = useMemo(() => detectSufferingSignal(lastUserText), [lastUserText]);
+  const trigger = useMemo(
+    () => detectCourseTrigger(userTurnHistory ?? (lastUserText ? [{ text: lastUserText }] : [])),
+    [userTurnHistory, lastUserText],
+  );
 
   const activeSlug = Object.values(progress).find((p) => p.status === 'active')?.course_slug;
+  const recommendedCourseObj = recommendedCourse ? getCourse(recommendedCourse.slug) ?? null : null;
+
   const course: HealingCourse | null = activeSlug
     ? getCourse(activeSlug) ?? null
-    : signal || distressFlagged
-      ? courseForSignal(signal ?? 'general')
-      : null;
+    : recommendedCourseObj
+      ? recommendedCourseObj
+      : trigger
+        ? courseForSignal(trigger.signal)
+        : null;
+
+  const state = course ? progress[course.slug] : undefined;
+  const enrolled = Boolean(state);
+
+  useEffect(() => {
+    if (prevCourseSlugRef.current !== (course?.slug ?? null)) {
+      setDismissed(false);
+    }
+    prevCourseSlugRef.current = course?.slug ?? null;
+  }, [course?.slug]);
+
+  useEffect(() => {
+    if (!course || enrolled || assignAttemptedRef.current === course.slug) return;
+    assignAttemptedRef.current = course.slug;
+    const history = (userTurnHistory ?? []).map((t) => {
+      const s = detectSufferingSignal(t.text);
+      return {
+        distress_level: s ? 2 : 0,
+        signal: s ?? 'general',
+        timestamp: (t.timestamp ?? Date.now()) / 1000,
+      };
+    });
+    void (async () => {
+      try {
+        const token = await getAccessToken();
+        await fetch(`${BACKEND_URL}/api/healing-course/assign`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ history }),
+        });
+      } catch {
+        // Best-effort — the assignment is idempotent server-side.
+      }
+    })();
+  }, [course, enrolled, userTurnHistory]);
 
   if (!course || dismissed) return null;
 
-  const state = progress[course.slug];
   const done = state?.completed_lessons ?? [];
   const total = course.lessons.length;
   const pct = Math.round((done.length / total) * 100);
-  const enrolled = Boolean(state);
+
+  const triggerSignal = recommendedCourse?.trigger_signal ?? trigger?.signal ?? signal ?? 'general';
+  const reason = recommendedCourse?.reason ?? trigger?.reason;
 
   const startLesson = (lessonId: string) => {
     const lesson = course.lessons.find((l) => l.id === lessonId);
     if (!lesson) return;
-    if (!enrolled) enroll(course, signal ?? 'general', 'Detected suffering in conversation');
+    if (!enrolled) enroll(course, triggerSignal, reason ?? 'Detected suffering in conversation');
     if (lesson.practice === 'serene-mind') onOpenSereneMind();
     else onAskGuru(lesson.guruPrompt);
     completeLesson(course.slug, lesson.id);
@@ -80,6 +236,9 @@ export function HealingPathCard({
             </p>
             <h3 className="mt-0.5 font-serif text-base text-foreground">{course.title}</h3>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{course.subtitle}</p>
+            {reason && (
+              <p className="mt-1 text-xs text-primary/70">{reason}</p>
+            )}
 
             <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
@@ -141,7 +300,7 @@ export function HealingPathCard({
               <Button
                 size="sm"
                 onClick={() => {
-                  if (!enrolled) enroll(course, signal ?? 'general', 'Detected suffering in conversation');
+                  if (!enrolled) enroll(course, triggerSignal, reason ?? 'Detected suffering in conversation');
                   setExpanded((v) => !v);
                 }}
               >

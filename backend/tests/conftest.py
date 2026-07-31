@@ -33,6 +33,12 @@ configure_threading()
 os.environ["REDIS_URL"] = "redis://:mukthiguru_redis_pass@127.0.0.1:6379/0"
 os.environ["IS_PRODUCTION"] = "false"
 
+# Enable the X-Test-Key benchmark auth backdoor (dev-only; guarded by
+# IS_PRODUCTION=false above). Set before any app.config import so
+# services.auth_service registers TestAuthStrategy at import time.
+os.environ["ENABLE_TEST_AUTH"] = "true"
+os.environ["BENCHMARK_SECRET"] = os.environ.get("BENCHMARK_SECRET", "test-benchmark-secret-for-aal2-tests")
+
 
 
 # Ensure JWT_SECRET is set for import-time validation
