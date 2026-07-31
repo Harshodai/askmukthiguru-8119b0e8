@@ -79,7 +79,7 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
               This week
             </p>
             <p className="text-sm font-serif text-foreground mt-0.5">
-              {hasData ? `${last7.reduce((s, d) => s + d.minutes, 0)} minutes over 7 days` : 'No practice this week'}
+              {hasData ? `${weekMinutes} minutes over 7 days` : 'No practice this week'}
             </p>
           </div>
         </div>
