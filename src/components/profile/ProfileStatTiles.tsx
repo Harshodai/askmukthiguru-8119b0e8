@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Flame, Clock, Calendar, Wind } from 'lucide-react';
 import type { MeditationSession, MeditationStats } from '@/lib/meditationStorage';
+import { dailySeries } from '@/lib/meditationMetrics';
 
 interface Props {
   stats: MeditationStats;
@@ -19,38 +20,39 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
     { icon: Wind, label: 'Breaths', value: stats.totalCycles },
   ];
 
-  const last7 = useMemo(() => {
-    const days: { label: string; minutes: number }[] = [];
-    const now = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      const next = new Date(d);
-      next.setDate(next.getDate() + 1);
-      const mins = sessions
-        .filter((s) => {
-          const t = new Date(s.completedAt ?? s.startedAt).getTime();
-          return t >= d.getTime() && t < next.getTime() && s.completed;
-        })
-        .reduce((sum, s) => sum + Math.round((s.durationSeconds ?? 0) / 60), 0);
-      days.push({ label: d.toLocaleDateString(undefined, { weekday: 'narrow' }), minutes: mins });
-    }
-    return days;
-  }, [sessions]);
+  // Same calculator the tiles/DB use — the caption total and the curve can't disagree.
+  const last7 = useMemo(
+    () =>
+      dailySeries(
+        sessions.map((s) => ({
+          at: new Date(s.completedAt ?? s.startedAt),
+          durationSeconds: s.durationSeconds ?? 0,
+          breathCycles: s.breathCycles ?? 0,
+          completed: s.completed,
+        })),
+      ),
+    [sessions],
+  );
 
-  const max = Math.max(1, ...last7.map((d) => d.minutes));
+  const weekMinutes = useMemo(
+    () => Math.round(last7.reduce((sum, d) => sum + d.seconds, 0) / 60),
+    [last7],
+  );
+
+
+  // Plot raw seconds: a 40-second sit shows as a real bump instead of snapping to 1 min.
+  const max = Math.max(1, ...last7.map((d) => d.seconds));
   const w = 280;
   const h = 56;
   const step = w / (last7.length - 1);
   const pts = last7.map((d, i) => {
     const x = i * step;
-    const y = h - (d.minutes / max) * (h - 6) - 3;
+    const y = h - (d.seconds / max) * (h - 6) - 3;
     return { x, y, ...d };
   });
   const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
   const areaPath = `${linePath} L${w},${h} L0,${h} Z`;
-  const hasData = last7.some((d) => d.minutes > 0);
+  const hasData = last7.some((d) => d.seconds > 0);
 
   return (
     <div className="space-y-4">
@@ -78,7 +80,7 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
               This week
             </p>
             <p className="text-sm font-serif text-foreground mt-0.5">
-              {hasData ? `${last7.reduce((s, d) => s + d.minutes, 0)} minutes over 7 days` : 'No practice this week'}
+              {hasData ? `${weekMinutes} minutes over 7 days` : 'No practice this week'}
             </p>
           </div>
         </div>
@@ -111,7 +113,7 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
                   key={i}
                   cx={p.x}
                   cy={p.y}
-                  r={p.minutes > 0 ? 2.2 : 0}
+                  r={p.seconds > 0 ? 2.2 : 0}
                   fill="hsl(var(--ojas))"
                 />
               ))}
