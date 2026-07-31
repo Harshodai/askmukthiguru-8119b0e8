@@ -214,7 +214,10 @@ class EmbeddingService:
                 model_kwargs={"low_cpu_mem_usage": True},
             )
 
-    _ONNX_ENCODER_REVISION = "3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef"
+    # Revision pin removed 2026-07-31: hash 3a90cc8b 404s on HuggingFace.
+    # Restore a pinned hash once the correct revision is confirmed from HF.
+    # For Railway Dockerfile pre-bake, set HF_REVISION env var instead.
+    _ONNX_ENCODER_REVISION: str | None = None
 
     def _load_onnx_encoder(self, model_name: str) -> None:
         """Load the ONNX INT8 quantized BGE-M3 encoder.

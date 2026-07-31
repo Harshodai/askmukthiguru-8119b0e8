@@ -43,6 +43,9 @@ def test_embedding_service_ragatouille_optional_graceful_fallback(monkeypatch):
     fake_sentence_transformers.CrossEncoder = MockCrossEncoder
     monkeypatch.setitem(sys.modules, "sentence_transformers", fake_sentence_transformers)
 
+    from app.config import settings
+    monkeypatch.setattr(settings, "embedding_backend", "flagembedding")
+
     # Mock importing ragatouille to raise an ImportError (as if not installed)
     original_import = __import__
 

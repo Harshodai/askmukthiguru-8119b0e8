@@ -31,6 +31,7 @@ def test_embedding_no_double_prefix(monkeypatch):
     # Avoid cache hit by creating a clean service instance
     from app.config import settings
     monkeypatch.setattr(settings, "embedding_model", "BAAI/bge-m3")
+    monkeypatch.setattr(settings, "embedding_backend", "flagembedding")
 
     from services.embedding_service import EmbeddingService
     service = EmbeddingService()

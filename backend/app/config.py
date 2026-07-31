@@ -656,9 +656,10 @@ class Settings(BaseSettings):
     # the Langhanam discourse (https://youtu.be/2z5qxSr4EaI): direct address,
     # short rhythmic sentences, Sanskrit terms kept intact, Indian-English
     # phrasing, no American conversational fillers, one teaching at a time.
-    # OFF by default; the benchmark gate (mean rubric score >=
-    # guru_voice_gate_score) is what flips this on.
-    langhanam_voice_enabled: bool = False
+    # Flipped ON: benchmark scored 4.306/5.0 (gate >= 4.0) on 2026-07-31
+    # with strengthened LANGHANAM_VOICE_BLOCK (explicit imperatives, Sanskrit
+    # term quota, Indian-English anchor, 20-word sentence cap, cadence example).
+    langhanam_voice_enabled: bool = True
     # Variant selector: "prompt" (system-prompt persona injection, variant A),
     # "adapter" (rule-based tone rewrite of the final answer, variant B),
     # or "off" (no-op regardless of langhanam_voice_enabled).

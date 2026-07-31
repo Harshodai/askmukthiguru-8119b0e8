@@ -34,7 +34,7 @@ def main() -> int:
 
     url = f"{supabase_url}/auth/v1/signup"
     headers = {"apikey": anon_key, "Content-Type": "application/json"}
-    email = f"leak-test-{uuid.uuid4()}@example.com"
+    email = f"leak-test-{uuid.uuid4()}@gmail.com"
     payload = {"email": email, "password": "password123"}
 
     try:
