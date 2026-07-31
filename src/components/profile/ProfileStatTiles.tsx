@@ -113,7 +113,7 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
                   key={i}
                   cx={p.x}
                   cy={p.y}
-                  r={p.minutes > 0 ? 2.2 : 0}
+                  r={p.seconds > 0 ? 2.2 : 0}
                   fill="hsl(var(--ojas))"
                 />
               ))}
