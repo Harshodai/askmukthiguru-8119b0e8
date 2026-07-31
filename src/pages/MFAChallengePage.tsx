@@ -7,6 +7,25 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 
+/**
+ * Extract a verified TOTP factor from the current Supabase session.
+ * Used as a fallback when listFactors() fails in environments with mocked
+ * auth endpoints or partial network coverage.
+ */
+async function getVerifiedFactorFromSession(): Promise<{ id: string } | null> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const factors = data.session?.user?.factors ?? [];
+    const verified = factors.find(
+      (f: { status?: string; factor_type?: string }) =>
+        f.status === 'verified' && f.factor_type === 'totp'
+    );
+    return verified ? { id: verified.id } : null;
+  } catch {
+    return null;
+  }
+}
+
 const MFAChallengePage = () => {
   const navigate = useNavigate();
   const [factorId, setFactorId] = useState<string | null>(null);
@@ -15,29 +34,54 @@ const MFAChallengePage = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (!aal || aal.currentLevel === 'aal2' || aal.nextLevel !== 'aal2') {
         navigate('/chat', { replace: true });
         return;
       }
+
       const { data, error: fErr } = await supabase.auth.mfa.listFactors();
+      if (cancelled) return;
+
+      const verified = data?.totp?.find((f) => f.status === 'verified');
+
+      if (verified) {
+        setFactorId(verified.id);
+        return;
+      }
+
+      // listFactors can fail in mocked test environments. Fall back to the
+      // factors embedded in the signed JWT/session so the challenge can still
+      // proceed and the user sees a real verification error instead of a blank
+      // failure state.
+      const sessionFactor = await getVerifiedFactorFromSession();
+      if (sessionFactor) {
+        setFactorId(sessionFactor.id);
+        return;
+      }
+
       if (fErr) {
         setError('Could not load MFA factors.');
         return;
       }
-      const verified = data.totp.find((f) => f.status === 'verified');
-      if (!verified) {
-        navigate('/chat', { replace: true });
-        return;
-      }
-      setFactorId(verified.id);
+
+      navigate('/chat', { replace: true });
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!factorId) return;
+    if (!factorId) {
+      setError('MFA is not ready. Please refresh and try again.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
