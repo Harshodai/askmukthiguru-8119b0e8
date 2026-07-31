@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
+import { computeMetrics, type NormalizedSession } from '@/lib/meditationMetrics';
 export interface MeditationSession {
   id: string;
   startedAt: Date;
