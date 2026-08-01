@@ -197,7 +197,8 @@ Populate key environment variables in `backend/.env`:
 
 ## License & Author
 
-Developed by Google DeepMind team pair-programmed with AskMukthiGuru engineering. All rights reserved.
+Developed by Harshodai Kolluru. Built with AI pair-programming assistance (Anthropic Claude, Google Gemini, GitHub Copilot, and Lovable).
+All rights reserved.
 
 ## Security & Release Readiness (Jul 31, 2026)
 
@@ -223,4 +224,3 @@ Developed by Google DeepMind team pair-programmed with AskMukthiGuru engineering
 ### Langhanam Unified Guru Voice (Default-Off)
 - `langhanam_voice_enabled=false` by default; `GURU_VOICE_MODE=prompt|adapter` selects variant; benchmark `backend/benchmarks/guru_voice_benchmark.py` gates flipping the flag at ≥4.0/5.0 (needs a live LLM run). Reference voice: `backend/services/guru_voice_langhanam.py` (Langhanam transcript excerpt).
 
-## Environment Variables Configuration

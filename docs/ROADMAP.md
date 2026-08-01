@@ -81,13 +81,6 @@ graph LR
 | 3 | Full-suite test isolation for `test_health_check` and `test_retrieve_documents_empty_results_is_safe` | `main` | Known order-dependence under full ~925-test run; not yet isolated |
 | 4 | Cross-provider LLM failover for OpenRouter 429s | `main` | NIM provider exists but wiring removed per security audit (external silent fallback); revisit if natively available local fallback is desired |
 
-## In Progress
-
-| # | Feature | Branch | Status |
-|---|---------|--------|--------|
-| 1 | Remaining 357-video ingestion run (Qdrant + Neo4j KG) | `main` | Deferred per user direction, June 2026 — 359 extracted, 75 ingested, 357 remaining; 29 permanently failed (DLQ) |
-| 2 | LightRAG KG backfill sweep for 72 Qdrant-only videos (`--retry-lightrag-missing`) | `main` | Deferred per user direction, June 2026 |
-
 ---
 
 ## Deferred / Needs Planning

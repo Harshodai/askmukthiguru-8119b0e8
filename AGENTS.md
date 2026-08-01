@@ -82,7 +82,30 @@
 - NEVER `kill -9` a process owned by `com.docker` to free a port (e.g. docker-proxy on 8000) — Docker Desktop restarts the whole engine VM (~5 min, all containers down). Use `docker stop <container>` or run on another port.
 - `backend/dotenv/` (untracked test shim) shadows python-dotenv and silently kills `.env` loading — delete it if present.
 
+### Completed (Aug 1, 2026) — Ruthless audit remediation
+- **Git history scrub**: `The_Four_Sacred_Secrets.pdf` fully removed from ALL commits via `git-filter-repo`. Confirmed 0 commits remain. `CONTENT-RIGHTS.md` updated with scrub date.
+- **nginx security hardening**: `/ui` Gradio location now has `allow/deny` IP restriction (RFC1918 + loopback only — blocks public). CSP cleaned: removed unidentified `gs-extension-embeds-final.vercel.app` from `style-src`; removed all `localhost`/`127.0.0.1` entries from `connect-src`. HSTS/TLS mismatch documented with comment.
+- **Docker Compose bug fixed**: `LMCACHE_REMOTE_URL=${REDIS_URL}` → explicit `redis://:${REDIS_PASSWORD}@redis:6379/0` (Docker Compose cannot self-reference env block vars).
+- **Bandit CI hardened**: removed `|| true`; added `backend/.bandit` config file with documented justified skips. Scanner now blocks CI.
+- **DEVELOPER_GUIDE.md rewritten**: removed `$0/local-only/Ollama` v1 constraints. Architecture diagram, §1, §4b, §6 pipeline updated to current reality (cloud LLMs, Railway, lightweight guardrails, 12-layer pipeline). Old SPEC_DEV.md explicitly marked as historical.
+- **README attribution fixed**: removed false "Google DeepMind" claim; replaced with accurate solo-dev + AI assistant attribution. Removed duplicate env section.
+- **ROADMAP.md**: removed duplicate "In Progress" section.
+- **PRE_LAUNCH_CHECKLIST_PLAN.md**: marked 4 items as Done with evidence (RLS, .env nginx deny, HSTS, rate limiting).
+- **docs/GUARDRAILS_DECISION.md** [NEW]: ADR documenting `lightweight` mode as explicit architectural decision with risk table and path-to-ML-rails criteria.
+- **docs/INCIDENT_RESPONSE.md** [NEW]: Runbook covering 5 scenarios (credential exposure, cross-tenant data leak, LLM hallucination, DoS/OOM, data loss).
+- **SECURITY_CHECKLIST.md**: item #25 (IR runbook) marked DONE.
+- **lessons.md**: 5 new Aug 1 lessons prepended (Docker Compose self-ref, filter-repo N prompt, Bandit || true, CSP localhost pollution, third-party CSP domains).
+
+### Security Invariants (as of Aug 1, 2026)
+- **nginx `/ui`**: IP-restricted. Only RFC1918 + 127.0.0.1 allowed. Never remove the `deny all` without adding explicit IP allowlist.
+- **CSP domains**: Every third-party domain in CSP must have a comment naming what it is and who owns it. Unattributed domains get removed.
+- **Bandit**: Must NOT run with `|| true`. Add known FPs to `backend/.bandit` with justification comments.
+- **Docker Compose env self-reference**: Never `${VAR}` in an `environment:` block if `VAR` is also defined in the same block. Use literal values or host env.
+- **`The_Four_Sacred_Secrets.pdf`**: Removed from git history 2026-08-01. Do not re-add. Embeddings derived from this book may still be in Qdrant — rights basis unconfirmed. See `CONTENT-RIGHTS.md`.
+- **git-filter-repo**: Answer `N` to "treat as continuation" prompt for a fresh rewrite. Re-add `origin` remote manually after run.
+
 This file serves as a knowledge base for AI agents interacting with this workspace.
+
 
 ## Plan & Review
 ### Before starting work

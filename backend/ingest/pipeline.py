@@ -48,6 +48,7 @@ from ingest.youtube_loader import (
 from services.contextual_chunking_service import ContextualChunkingService
 from services.embedding_service import EmbeddingService
 from services.injection_scanner import scan_chunks_for_injection
+from services.text_quality_filter import select_clean
 from services.ocr_service import OCRService
 from services.metadata_extractor import extract_video_metadata
 from services.ollama_service import OllamaService
@@ -1466,33 +1467,36 @@ class IngestionPipeline:
                 except json.JSONDecodeError:
                     pass
 
-            # Fallback: comma-split but strip reasoning lines
-            lines = cleaned.split("\n")
-            topic_lines = []
-            for line in lines:
-                line = line.strip().strip('"').strip("'")
-                # Skip lines that are LLM reasoning artifacts
-                if any(skip in line.lower() for skip in [
-                    "brainstorm", "topic ideas", "select the top", "synthesize",
-                    "deconstruction", "refine", "group the idea", "i have", "let's",
-                    "call it", "potential topic", "candidate", "this is a",
-                    "i need to", "good.", "perfect", "these are", "the user",
-                    "**topic", "paragraph", "sentence", "now i have"
-                ]):
-                    continue
-                # Skip empty or very long lines
-                if not line or len(line) > 100:
-                    continue
-                topic_lines.append(line)
+            # Fail CLOSED. The previous fallback salvaged free text through a
+            # blocklist, which fails open by construction: any line not on the
+            # list became a "topic", was written into the chunk header, embedded,
+            # and served as doctrine. The 2026-08-01 audit measured 29.4% of the
+            # live corpus poisoned this way — e.g. the persisted topic label
+            # "a common transcription error where a space is omitted."
+            # A topic we cannot parse is not a topic. `clean_topic_label` applies
+            # positive validation (short noun phrase, single clause, no artifact),
+            # the same shape raptor.py:269 already used correctly for its labels.
+            from services.text_quality_filter import clean_topic_label
 
-            if topic_lines:
-                topics = []
-                for t in topic_lines:
-                    t = t.strip().strip(",").strip()
-                    if t and t not in topics and t != "Spiritual":
-                        topics.append(t)
-                return topics[:5] if topics else ["Spiritual"]
+            salvaged: list[str] = []
+            for line in cleaned.split("\n"):
+                label = clean_topic_label(line.strip().strip(",").strip())
+                if label and label != "Spiritual" and label not in salvaged:
+                    salvaged.append(label)
+            if salvaged:
+                logger.info(
+                    "_extract_topics: JSON parse failed; salvaged %d validated "
+                    "label(s) from %d line(s)",
+                    len(salvaged), len(cleaned.split("\n")),
+                )
+                return salvaged[:5]
 
+            logger.warning(
+                "_extract_topics: unparseable LLM response and no line passed "
+                "validation — falling back to ['Spiritual'] rather than "
+                "persisting reasoning text as a topic. Response head: %r",
+                cleaned[:120],
+            )
             return ["Spiritual"]
 
         except Exception as e:
@@ -2133,15 +2137,62 @@ class IngestionPipeline:
                 threshold=settings.ingestion_dedup_threshold,
             )
 
-        # Injection scan and skip risky chunks
-        clean_chunks, risky_chunks = scan_chunks_for_injection(chunks)
+        # ---------------------------------------------------------------
+        # Single quality gate for everything persisted to Qdrant.
+        #
+        # Two defects fixed here (2026-08-01 corpus audit):
+        #  1. No LLM-artifact filter guarded this path. `OKFQualityFilter` caught
+        #     exactly this text but was wired only to the 23-entry OKF bundle, so
+        #     the extraction LLM's chain-of-thought reached 29.4% of the 89k-chunk
+        #     corpus and was retrievable as doctrine.
+        #  2. `extra_metadatas[i]` was indexed by POST-filter position while it was
+        #     built for the PRE-filter list — one dropped chunk shifted every
+        #     later chunk's metadata onto the wrong chunk, silently.
+        # Filtering by index keeps every parallel array aligned.
+        # ---------------------------------------------------------------
+        injection_clean, risky_chunks = scan_chunks_for_injection(chunks)
         if risky_chunks:
             logger.warning(
                 f"Injection patterns detected in {len(risky_chunks)}/{len(chunks)} chunks "
                 f"from source_url={source_url} — skipped"
             )
-        if not clean_chunks:
+        # Recover indices: the scanner preserves order and only drops, so walking
+        # both lists by identity reconstructs which positions survived.
+        keep_indices: list[int] = []
+        cursor = 0
+        for i, chunk in enumerate(chunks):
+            if cursor < len(injection_clean) and injection_clean[cursor] is chunk:
+                keep_indices.append(i)
+                cursor += 1
+
+        artifact_keep, artifact_rejected = select_clean(chunks[i] for i in keep_indices)
+        if artifact_rejected:
+            logger.warning(
+                "LLM artifacts detected in %d/%d chunks from source_url=%s — skipped. "
+                "First: %r in %r",
+                len(artifact_rejected), len(chunks), source_url,
+                artifact_rejected[0][1], artifact_rejected[0][2],
+            )
+        keep_indices = [keep_indices[j] for j in artifact_keep]
+
+        if not keep_indices:
+            logger.warning(
+                "All %d chunks from source_url=%s were rejected (injection or LLM "
+                "artifact) — nothing persisted", len(chunks), source_url,
+            )
             return 0
+
+        clean_chunks = [chunks[i] for i in keep_indices]
+        if extra_metadatas:
+            extra_metadatas = [
+                extra_metadatas[i] if i < len(extra_metadatas) else {}
+                for i in keep_indices
+            ]
+        if chunk_speakers is not None:
+            chunk_speakers = [
+                chunk_speakers[i] if i < len(chunk_speakers) else None
+                for i in keep_indices
+            ]
 
         # P1-10: resolve per-chunk speaker labels. Prefer pre-resolved (LLM fallback or
         # whisperx cache); otherwise fall back to the whisperx cache lookup.

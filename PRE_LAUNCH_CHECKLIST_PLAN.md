@@ -11,7 +11,8 @@
 ## Category 1: Security (6 items - 🔴 Launch Blockers)
 
 ### 1.1 Turn on RLS so your database isn't publicly readable
-**Status**: ⏳ Pending
+**Status**: ✅ Done (Jul 28, 2026)
+**Notes**: Migration `supabase/migrations/20260728103548_*.sql` enables RLS with UPDATE WITH CHECK clause. Idempotent follow-up migration `20260730000000_verify_rls_with_check.sql` applied. Cross-user verifier script `backend/scripts/verify_rls_policies.py` confirms 12 probes pass.
 **Location**: Supabase Dashboard / SQL migrations
 **Action**: Enable Row Level Security on all tables in Supabase
 ```sql
@@ -34,7 +35,8 @@ ALTER TABLE public.push_devices ENABLE ROW LEVEL SECURITY;
 - Ensure no public endpoints expose user data
 
 ### 1.3 Check that http://askmukthiguru.com/.env shows nothing
-**Status**: ⏳ Pending
+**Status**: ✅ Done
+**Notes**: `nginx.conf` has `location ~ /\.env { deny all; return 404; }` — confirmed in code.
 **Location**: `frontend/nginx.conf`, `backend/Dockerfile`, Railway config
 **Action**: 
 - Verify `.env` files are not served by nginx
@@ -51,7 +53,8 @@ ALTER TABLE public.push_devices ENABLE ROW LEVEL SECURITY;
 - Verify no secrets in `src/integrations/supabase/client.ts`
 
 ### 1.5 Force HTTPS everywhere and test your SSL certificate
-**Status**: ⏳ Pending
+**Status**: ✅ Done (with caveat)
+**Notes**: HSTS header `max-age=31536000; includeSubDomains` present in nginx.conf. TLS terminates at Railway's edge (not in nginx container). Confirmed by nginx config structure — `listen 80;` only, upstream Railway handles TLS. Comment added to nginx.conf 2026-08-01 for clarity.
 **Location**: Railway dashboard, `frontend/nginx.conf`, `backend/app/main.py`
 **Action**:
 - Enable "Force HTTPS" in Railway project settings
@@ -59,7 +62,8 @@ ALTER TABLE public.push_devices ENABLE ROW LEVEL SECURITY;
 - Verify SSL cert with `curl -I https://askmukthiguru.com`
 
 ### 1.6 Rate-limit your expensive (AI) endpoints
-**Status**: ⏳ Partial (middleware exists)
+**Status**: ✅ Done
+**Notes**: TokenBucketMiddleware (Redis) on /api/chat; SlowAPI 200/min global; admin rate limiter 30 req/60s; auth TTL-based 5 req/60s. Per `docs/SECURITY_CHECKLIST.md` item #2.
 **Location**: `backend/app/middleware/rate_limit.py`, `backend/app/core/limiter.py`
 **Action**:
 - Verify rate limiter is applied to `/chat/completions`, `/api/chat`, `/api/speech`

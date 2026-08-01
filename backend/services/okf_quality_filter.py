@@ -18,16 +18,23 @@ logger = logging.getLogger(__name__)
 # analyze a spiritual teaching and list the top 3-5 distinct topics"). Every OKF entry
 # is embedded and injected verbatim into answers, so this text gets cited to a seeker
 # as the gurus' words. generation.py's own prompt (rule 6) forbids exposing exactly it.
-_LEAKAGE_PATTERNS = (
-    r"RAPTOR Level\s*:",
-    r"_\(Source:\s*unknown\)_",
-    r"\bThe user (?:wants me to|has provided)\b",
-    r"\bInterpret the Input\b",
-    r"\bLet me analyze\b",
-    r"\bWe are given\b",
-    r"\bcomma-separated list\b",
-    r"^\s*>\s*\[Source:",  # raw chunk-provenance blockquote
+#
+# The shared table in ``services.text_quality_filter`` is the source of truth. The
+# 2026-08-01 corpus audit proved these same artifacts reach BOTH the OKF bundle and
+# the 89k-chunk Qdrant corpus, and maintaining two separate lists is exactly how the
+# corpus ended up unguarded. A pattern added to the shared table is now enforced at
+# every persistence point; only OKF-markdown-specific shapes stay local.
+from services.text_quality_filter import _ARTIFACT_PATTERNS as _SHARED_ARTIFACT_PATTERNS
+
+_LEAKAGE_PATTERNS = _SHARED_ARTIFACT_PATTERNS + (
+    # OKF-markdown-specific: raw chunk provenance pasted in as a blockquote.
+    r"^\s*>\s*\[Source:",
     r"^\s*>\s*\[RAPTOR",
+    # Retained from the original OKF list. Ambiguous in free prose ("We are given
+    # this life…"), so it is deliberately NOT in the shared corpus table — a false
+    # positive there would delete real doctrine. Here it only blocks an
+    # auto-extracted entry from going live, which human review can override.
+    r"\bWe are given\b",
 )
 _LEAKAGE_RE = re.compile("|".join(_LEAKAGE_PATTERNS), re.IGNORECASE | re.MULTILINE)
 

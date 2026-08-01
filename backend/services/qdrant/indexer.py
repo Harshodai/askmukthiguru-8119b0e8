@@ -89,6 +89,46 @@ class QdrantIndexer:
                 f"vectors={len_vectors}, metadatas={len_metadatas}"
             )
 
+        # ------------------------------------------------------------------
+        # Quality gate at the storage boundary — the LAST line of defence.
+        #
+        # `ingest/pipeline.py:_embed_and_upsert` gates earlier (before embedding,
+        # so it also saves the embed cost), but it is not the only writer:
+        # `ingest/raptor.py:118` upserts LLM-generated summaries, and several
+        # standalone scripts under scripts/ingestion/ build chunks themselves and
+        # never touch IngestionPipeline at all. The 2026-08-01 audit found 29.4%
+        # of the live corpus contaminated precisely because validation lived on
+        # one path instead of at the chokepoint every path must cross.
+        #
+        # Gating here means no caller — pipeline, RAPTOR, ad-hoc script, or a
+        # script written next year — can put LLM chain-of-thought or an ASR
+        # decoder loop into the corpus. Rejections are logged with the matched
+        # artifact so they stay auditable, never silently dropped.
+        # ------------------------------------------------------------------
+        from services.text_quality_filter import select_clean
+
+        keep, rejected = select_clean(texts)
+        if rejected:
+            logger.warning(
+                "upsert_chunks: rejected %d/%d chunks failing the quality gate "
+                "(collection=%s). First: %r in %r",
+                len(rejected), len_texts, self._collection,
+                rejected[0][1], rejected[0][2],
+            )
+            texts = [texts[i] for i in keep]
+            vectors = [vectors[i] for i in keep]
+            metadatas = [metadatas[i] for i in keep]
+            if sparse_vectors:
+                sparse_vectors = [
+                    sparse_vectors[i] if i < len(sparse_vectors) else {} for i in keep
+                ]
+        if not texts:
+            logger.warning(
+                "upsert_chunks: every chunk was rejected by the quality gate "
+                "(collection=%s) — nothing written", self._collection,
+            )
+            return 0
+
         points = []
         for i, (text, vector, meta) in enumerate(zip(texts, vectors, metadatas)):
             # Deterministic ID for deduplication

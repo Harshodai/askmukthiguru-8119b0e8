@@ -7,46 +7,57 @@
 
 ## 1. What this project is
 
-AskMukthiGuru is a privacy-first AI spiritual companion grounded in the public
-teachings of Sri Preethaji and Sri Krishnaji. It pairs a React/Vite/TypeScript
-frontend (deployed on **Lovable Cloud**) with a Python FastAPI backend that
-runs a 12-layer retrieval-augmented-generation (RAG) pipeline against a local
-Qdrant vector store and a local Ollama LLM or cloud OpenRouter (supporting free-tier Llama models).
+AskMukthiGuru is an AI spiritual companion grounded in the public teachings of
+Sri Preethaji and Sri Krishnaji. It pairs a React/Vite/TypeScript frontend
+(deployed on **Lovable Cloud** + **Railway**) with a Python FastAPI backend
+that runs a **12-layer** retrieval-augmented-generation (RAG) pipeline.
 
-Non-negotiable constraints (see `SPEC_DEV.md`):
+Current runtime defaults (updated 2026-08-01; see `AGENTS.md` for invariants):
 
-- $0 budget — only free-tier infra (Colab, Qdrant local, Ollama).
-- 100 % local processing at inference; zero external API calls.
-- All dependencies open source (Apache 2.0, MIT, or Meta Community).
-- Target: < 1 % hallucination, < 3 s response time.
+- **LLM provider**: Sarvam Cloud 30B (Indian multilingual), OpenRouter (Llama
+  free tier), or NIM (low latency) — set via `LLM_PROVIDER` env var.
+- **Safety guardrails**: `GUARDRAILS_PROVIDER=lightweight` — 13 regex-based topic
+  categories + prompt injection detection + emotional wellness redirects.
+  NeMo Guardrails is available in `backend/guardrails/` but not the runtime default.
+- **Hosting**: Railway.app (backend, via `backend/Dockerfile.railway`); Lovable Cloud
+  (frontend build + Supabase auth). `docker-compose.prod.yml` is for self-hosted.
+- **Target**: < 3 s TTFT, < 1 % hallucination rate (measured by eval harness).
+
+> ⚠️ `docs/SPEC_DEV.md` describes the original v1 zero-budget / local-Ollama
+> architecture. It is **historical only** — not the current production constraints.
 
 ---
 
 ## 2. Architecture at a glance
 
 ```
-┌──────────────┐    HTTPS     ┌────────────────┐    SQL/RLS    ┌────────────────┐
-│  React UI    │◄────────────►│  Lovable Cloud │◄─────────────►│   Postgres     │
-│ (Vite, TS)   │   auth +     │  (Supabase)    │               │ + RLS policies │
-└──────┬───────┘   realtime   └────────────────┘               └────────────────┘
+┌──────────────┐   HTTPS    ┌───────────────────┐   SQL/RLS  ┌────────────────┐
+│  React UI    │◄──────────►│ Lovable Cloud /   │◄──────────►│   Supabase     │
+│ (Vite, TS)   │  auth +    │ Supabase Auth     │            │ Postgres + RLS │
+└──────┬───────┘  realtime  └───────────────────┘            └────────────────┘
        │
        │ SSE  POST /api/chat/stream
        ▼
-┌──────────────┐   gRPC/HTTP  ┌────────────────┐    REST       ┌────────────────┐
-│  FastAPI     │◄────────────►│    Qdrant      │               │   Ollama       │
-│  (12-layer   │   vector     │  (vector DB)   │               │  (sarvam-30b)  │
-│   RAG)       │   search     └────────────────┘               └────────┬───────┘
-└──────┬───────┘                                                        │
-       └────────────────────────── LLM completions ─────────────────────┘
+┌──────────────┐  HTTP/gRPC ┌────────────────┐   Bolt     ┌─────────────────┐
+│  FastAPI     │◄──────────►│    Qdrant      │            │    Neo4j 5.17   │
+│  (12-layer   │  vector    │ (89k+ vectors) │            │ (LightRAG KG)   │
+│   RAG)       │  search    └────────────────┘            └─────────────────┘
+└──────┬───────┘
+       │  LLM completions (cloud)
+       ▼
+┌─────────────────────────────────────────────────────────┐
+│  LLM Provider (one of):                                 │
+│    Sarvam Cloud 30B  |  OpenRouter Llama  |  NIM API   │
+└─────────────────────────────────────────────────────────┘
 ```
 
 Three deployable surfaces:
 
-| Surface           | Hosted on            | Entry file                    |
-| ----------------- | -------------------- | ----------------------------- |
-| End-user web app  | Lovable Cloud / Vite | `src/main.tsx` → `src/App.tsx`|
-| Admin console     | Same bundle, `/admin`| `src/admin/layout/AdminShell` |
-| FastAPI backend   | Docker / VM          | `backend/app/main.py`         |
+| Surface           | Hosted on                   | Entry file                     |
+| ----------------- | --------------------------- | ------------------------------ |
+| End-user web app  | Lovable Cloud + Railway     | `src/main.tsx` → `src/App.tsx` |
+| Admin console     | Same bundle, `/admin`       | `src/admin/layout/AdminShell`  |
+| FastAPI backend   | Railway (`backend/Dockerfile.railway`) | `backend/app/main.py` |
 
 ---
 
@@ -105,10 +116,15 @@ at a running FastAPI backend.
 ```bash
 # 1. Backend (in another terminal)
 cd backend
-cp .env.example .env                 # fill secrets if needed
-docker compose up -d --build         # starts Qdrant + FastAPI
-ollama serve                         # on host, NOT in Docker
-ollama pull sarvam-30b               # one-time
+cp .env.example .env                 # fill secrets: LLM_PROVIDER, SARVAM_API_KEY, etc.
+
+# Start infrastructure containers (Qdrant, Neo4j, Redis)
+bash ../scripts/docker-safe.sh docker compose up -d qdrant neo4j redis
+
+# Run FastAPI on host (override docker hostnames for local)
+export QDRANT_URL=http://localhost:6333 NEO4J_URI=bolt://localhost:7687 \
+       REDIS_URL=redis://:mukthiguru_redis_pass@localhost:6379/0
+.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # 2. Frontend
 cp .env.example .env.local
@@ -118,6 +134,10 @@ cp .env.example .env.local
 npm install
 npm run dev
 ```
+
+> **Note**: Ollama is available as a fallback LLM provider (`LLM_PROVIDER=ollama`)
+> for fully offline dev, but is not used in production. Cloud providers
+> (Sarvam, OpenRouter, NIM) are the defaults.
 
 OpenTelemetry traces are exported to Jaeger when `OTEL_ENABLED=true`:
 
@@ -172,22 +192,32 @@ FastAPI /api/chat/stream  (backend/app/main.py)
 Normalize session_id ─► Load compact memory context
    │
    ▼
-NeMo Input Rail ─► Depression Detector ─► LangGraph
-                                              │
-                                              ▼
-   intent_router → decompose → retrieve → rerank → grade
-                                              │ (CRAG loop ≤3×)
-                                              ▼
-                                         extract_hints → generate
-                                              │
-                                              ▼
-                                  check_faithfulness → CoVe verify
-                                              │
-                                              ▼
-                                       format_final_answer
-                                              │
-                                              ▼
-                                    NeMo Output Rail
+Input Rail (GUARDRAILS_PROVIDER=lightweight by default)
+   │  13 regex topic categories + prompt injection + emotional wellness redirects.
+   │  NeMo/LlamaGuard available in backend/guardrails/ but not the active default.
+   │
+   ▼
+Depression Detector ─► 12-layer RAG pipeline
+                              │
+                              ▼
+   intent_router → decompose → retrieve (Qdrant + Neo4j)
+                              │
+                              ▼
+                    rerank (cross-encoder) → grade (CRAG ≤3×)
+                              │
+                              ▼
+                    extract_hints → 3-Pass Generation:
+                              │   Pass 1: inline citation verification
+                              │   Pass 2: factually grounded draft
+                              │   Pass 3: Guru voice tone adapter
+                              ▼
+                    CoVe verify → faithfulness gate
+                              │
+                              ▼
+                       format_final_answer
+                              │
+                              ▼
+                    Output Rail (lightweight regex)
    │
    │  SSE events:
    │     event: token            { text }

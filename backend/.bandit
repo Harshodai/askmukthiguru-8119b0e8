@@ -1,0 +1,16 @@
+[bandit]
+# Skips for known false positives — documented per finding below.
+# Do NOT add skips without a justification comment.
+
+skips =
+    # B101: assert_used — pytest tests and benchmark harnesses legitimately use assert
+    # B104: hardcoded_bind_all_interfaces — FastAPI dev server uses 0.0.0.0 intentionally in dev mode
+    # B108: probable_temp_file — mkdtemp usage in backup scripts is intentional, cleaned up properly
+    # B311: random — non-cryptographic random is fine for jitter/sampling; secrets.token_* used for auth
+    # B603: subprocess_without_shell_equals_true — caffeinate/git calls use args list (safe form)
+    # B607: start_process_with_partial_path — git/caffeinate are always from PATH in known CI envs
+
+exclude_dirs = tests,benchmarks,scripts/ops
+
+[tool:bandit]
+targets = app,rag,services,guardrails,ingest,routers

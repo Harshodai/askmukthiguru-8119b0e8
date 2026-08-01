@@ -1,4 +1,31 @@
+## Aug 1, 2026 — Ruthless Audit Remediation Session
+
+### 1. Docker Compose Cannot Self-Reference Environment Block Variables
+- **Problem**: `LMCACHE_REMOTE_URL=${REDIS_URL}` in `docker-compose.prod.yml` was resolving to an empty string. `REDIS_URL` was defined in the same `environment:` block, but Docker Compose interpolates `${}` from the *host environment* at startup — not from other lines in the same block.
+- **Fix**: Use explicit literal values: `LMCACHE_REMOTE_URL=redis://:${REDIS_PASSWORD}@redis:6379/0`. `${REDIS_PASSWORD}` resolves from host env (where it should be set), not from the sibling block.
+- **Lesson**: When a Docker Compose environment block variable references another env var, and that variable is also defined in the same block (not on the host), it resolves empty. Always test with `docker compose config` to see the resolved values.
+
+### 2. `git-filter-repo --force` Needs `N` to Start Fresh After Previous Run
+- **Problem**: `git-filter-repo` creates `.git/filter-repo/already_ran` after first run. A subsequent `--force` invocation still asks "treat as continuation? (Y/N)". Sending `Y` would apply the filter as a delta on the previous run; `N` starts a clean fresh pass.
+- **Fix**: Always answer `N` for a fresh rewrite. After completion, `origin` is removed by filter-repo (by design) — add it back manually: `git remote add origin <url>`.
+- **Lesson**: Add to any filter-repo runbook: "answer N to continuation prompt; re-add remote after run completes."
+
+### 3. Bandit `|| true` Makes the Security Scanner Decorative
+- **Problem**: `bandit -r . ... || true` in CI means the security scanner always exits 0. It produces output but never blocks a merge. This is silent security theater — you're running Bandit but ignoring all its findings.
+- **Fix**: Remove `|| true`. Create a `.bandit` config file with documented justifications for known false positives (B101 asserts in tests, etc). The config file converts selective ignores into an auditable allowlist, not a blanket suppression.
+- **Lesson**: If a security tool is run with `|| true`, it is not a security gate — it is a log sink. Every `|| true` on a security scanner must have a JIRA ticket or a documented upgrade path.
+
+### 4. CSP connect-src Localhost URLs Are Active in Production
+- **Problem**: `nginx.conf` CSP `connect-src` contained `http://localhost`, `http://localhost:8000`, `ws://127.0.0.1:54321`, etc. These were copied from local dev config and never stripped for production. In production, these entries are unreachable surface noise — they don't add capability but do widen the allowed policy unnecessarily.
+- **Fix**: Remove all localhost/127.0.0.1/backend:8000 entries from the production nginx CSP. These only belong in a development-mode config.
+
+### 5. Third-Party Domains in CSP Need Ownership Verification
+- **Problem**: `gs-extension-embeds-final.vercel.app` was in `style-src` CSP. No file in the codebase explained what this Vercel domain was. An unrecognized third-party domain in CSP means: (a) if compromised, it can inject styles into your pages; (b) it creates a persistent dependency on an unknown deployment you don't control.
+- **Fix**: Remove until ownership can be confirmed. If it's a widget vendor, document it; if it was a dev artifact, delete it.
+- **Lesson**: Any third-party domain in CSP must be (a) owned by you or a named vendor with a documented integration, (b) written with a comment explaining what it's for. Unattributed domains are a future security incident waiting to happen.
+
 ## Jul 31, 2026 — Proactive Healing Course Assignment (Task 10)
+
 
 ### 1. Sync Supabase Client — `await client.table(...)` is a Trap
 - **Problem:** The Task 11 brief samples `await supabase.table('user_course_progress').select(...).execute()` directly. This codebase uses the **sync** `supabase.create_client` (app/container.py); awaiting it fails (or silently misbehaves) — every existing service wraps calls in `asyncio.to_thread(...)`.
