@@ -251,6 +251,14 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
           transition={{ duration: 0.25 }}
           className="fixed inset-0 z-[9998] pointer-events-none"
         >
+          {/* Backdrop click target — tapping the dimmed area exits, the behaviour
+              every mainstream product tour ships. Sits under the spotlight/card. */}
+          <div
+            className="absolute inset-0 pointer-events-auto"
+            onClick={dismiss}
+            aria-hidden
+          />
+
           {/* Dark overlay using clip-path trick for the spotlight cutout.
               We use box-shadow on the spotlight element — the standard driver.js
               technique, immune to ancestor stacking context bugs. */}
