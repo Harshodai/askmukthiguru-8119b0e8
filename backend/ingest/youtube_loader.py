@@ -253,8 +253,8 @@ def _fetch_watch_page_captions(
     excludes ASR (auto-generated) tracks when allow_auto is False.
     """
     import html as html_module
-    from xml.etree import ElementTree
 
+    import defusedxml.ElementTree as ElementTree
     import httpx
 
     url = f"https://www.youtube.com/watch?v={video_id}"

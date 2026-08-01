@@ -235,11 +235,19 @@ def transcribe_with_whisper(
     # Bias Whisper toward canonical doctrine spellings via initial_prompt (prevents "Ekam"->"Akam"
     # at the source); apply_corrections() below is the deterministic safety-net. Both derive from
     # the single source of truth in services.doctrine_terms (admin-editable, drift-proof).
+    decode_kwargs: dict = {}
+    try:
+        from services.asr_gate import asr_decode_kwargs
+
+        decode_kwargs = asr_decode_kwargs(backend="mlx")
+    except Exception:
+        pass
     try:
         result = mlx_whisper.transcribe(
             audio_path, path_or_hf_repo=model, verbose=False,
             language=language if language != "en" else None,
             initial_prompt=get_whisper_initial_prompt(),
+            **decode_kwargs,
         )
         text = result.get("text", "").strip()
 
@@ -256,6 +264,19 @@ def transcribe_with_whisper(
         if not text:
             logger.warning(f"[{video_id}] Whisper returned empty transcript")
             return None
+
+        # ASR gate backstop (§6.1): reject degenerate transcripts (decoder loops)
+        # BEFORE the LLM corrector. The corrector writes prose about a loop; the
+        # gate refuses it at the transcript stage. Fail-closed: None aborts ingest.
+        try:
+            from services.asr_gate import reject_transcript
+
+            rejection = reject_transcript(text)
+            if rejection:
+                logger.warning(f"[{video_id}] ASR gate rejected transcript: {rejection}")
+                return None
+        except Exception as gate_err:
+            logger.debug(f"[{video_id}] ASR gate check skipped (non-fatal): {gate_err}")
 
         # Filter out common Whisper hallucinations (e.g., repeated "Thank you" loops)
         import re

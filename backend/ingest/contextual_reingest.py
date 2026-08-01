@@ -30,15 +30,15 @@ from typing import Any, Optional
 import aiohttp
 import urllib.request
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import PointStruct
 
 from app.config import settings
 from ingest.boundary_chunker import BoundaryChunker
+from ingest.deduplication import LSHNearDupIndex
 from services.contextual_chunking_service import ContextualChunkingService
 from services.embedding_service import EmbeddingService
 from services.ollama_service import OllamaService
 from services.qdrant.client import QdrantClientManager
-from services.qdrant.utils import QdrantUtils
+from services.qdrant_service import QdrantService
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def _ollama_model_available_sync(base_url: str, model: str, timeout: float = 10.
     url = f"{base_url.rstrip('/')}/api/tags"
     try:
         req = urllib.request.Request(url, method="GET")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
             if resp.status != 200:
                 return False
             data = _json.loads(resp.read().decode("utf-8"))
@@ -209,8 +209,9 @@ class ContextualReingestEngine:
 
         # Lazy-created clients
         self._qdrant: Optional[QdrantClient] = None
-        self._target_manager: Optional[QdrantClientManager] = None
-        self._utils = QdrantUtils()
+        self._target_service_instance: Optional[QdrantService] = None
+        self._dedup_index: Optional[LSHNearDupIndex] = None
+        self._dedup_index_seeded: bool = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -342,9 +343,24 @@ class ContextualReingestEngine:
         return self._qdrant
 
     def _ensure_target_collection(self) -> None:
-        if self._target_manager is None:
-            self._target_manager = QdrantClientManager(collection=self._target_collection)
-        self._target_manager.init_collection()
+        self._target_service().init_collection()
+
+    def _target_service(self) -> QdrantService:
+        """QdrantService facade bound to the contextual target collection.
+
+        All writes (and the source-level delete) for this migration flow
+        through services/qdrant_service.py — the approved storage boundary —
+        not the raw Qdrant client. When an external client was injected
+        (tests / batch runners), it is forwarded here too, so collection
+        initialization, deletes, and upserts all hit the same Qdrant endpoint
+        instead of a client rebuilt from application settings.
+        """
+        if self._target_service_instance is None:
+            self._target_service_instance = QdrantService(
+                collection=self._target_collection,
+                client=self._external_qdrant,
+            )
+        return self._target_service_instance
 
     def _embedder(self) -> EmbeddingService:
         if self._embedding is None:
@@ -355,6 +371,65 @@ class ContextualReingestEngine:
         if self._contextualizer is None:
             self._contextualizer = _LocalOllamaContextualizer(skip_health_check=skip_health_check)
         return self._contextualizer
+
+    def _get_dedup_index(self) -> Optional[LSHNearDupIndex]:
+        """Lazy MinHash-LSH index of already-accepted raw chunk texts (§6.4).
+
+        The gurus deliver the same core teaching across hundreds of talks, so
+        the identical raw chunk text (or a near-identical variant) shows up
+        under many source_urls. Deduplicating the *raw* chunks (before the
+        contextualizer LLM call) drops those repeats early: fewer LLM calls,
+        fewer embeddings, and a green collection without duplicate teachings.
+        Contextualized text is NOT used for similarity — the per-document
+        context prefix would mask true duplicates.
+        """
+        if self._dedup_index is None:
+            self._dedup_index = LSHNearDupIndex(threshold=settings.ingestion_dedup_threshold)
+        return self._dedup_index
+
+    def _seed_dedup_index_from_target(self) -> None:
+        """Index chunk texts already in the target collection (resume-safe)."""
+        try:
+            client = self._client()
+            offset: Optional[Any] = None
+            page_size = 1000
+            while True:
+                records, next_offset = client.scroll(
+                    collection_name=self._target_collection,
+                    limit=page_size,
+                    offset=offset,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+                for rec in records:
+                    payload = rec.payload or {}
+                    text = payload.get("parent_text") or payload.get("text", "")
+                    if text:
+                        self._get_dedup_index().add(text, {"authority_tier": payload.get("authority_tier", "primary")})
+                if next_offset is None:
+                    break
+                offset = next_offset
+        except Exception as exc:
+            logger.warning("Could not seed dedup index from target collection: %s", exc)
+
+    def _dedup_raw_chunks(self, raw_chunks: list[str]) -> list[str]:
+        """Drop raw chunks that are near-duplicates of already-accepted chunks."""
+        if not settings.ingestion_deduplication_enabled:
+            return raw_chunks
+        if not self._dedup_index_seeded:
+            self._seed_dedup_index_from_target()
+            self._dedup_index_seeded = True
+        kept: list[str] = []
+        dropped = 0
+        for chunk in raw_chunks:
+            if self._get_dedup_index().is_near_duplicate(chunk):
+                dropped += 1
+                continue
+            self._get_dedup_index().add(chunk, {"authority_tier": "primary"})
+            kept.append(chunk)
+        if dropped:
+            logger.info("Cross-source dedup: dropped %d duplicate chunks", dropped)
+        return kept
 
     def _list_source_groups(
         self,
@@ -453,6 +528,14 @@ class ContextualReingestEngine:
             logger.info("No chunks produced for %s", source_url)
             return 0
 
+        # §6.4 — drop chunks whose teaching already entered the green collection
+        # from an earlier source. Runs before the contextualizer LLM call, so
+        # duplicates cost zero LLM tokens and zero embeddings.
+        raw_chunks = self._dedup_raw_chunks(raw_chunks)
+        if not raw_chunks:
+            logger.info("All chunks for %s are duplicates of earlier sources; skipping", source_url)
+            return 0
+
         contextual_chunks = await self._contextualize(full_text, raw_chunks, source_url)
 
         # Embed dense + sparse in one pass.
@@ -509,6 +592,24 @@ class ContextualReingestEngine:
                 "dense": [_dense[i] for i in _keep],
                 "sparse": [_sparse[i] if i < len(_sparse) else {} for i in _keep],
             }
+
+        # Re-enumerate chunk indices from the retained list so deterministic
+        # point IDs (source_url:chunk_index:raptor_level) are regenerated from
+        # what actually survives the gate. Stale trailing points from an earlier
+        # run cannot linger under old indices.
+        for _i, _meta in enumerate(metadatas):
+            _meta["chunk_index"] = _i
+
+        # Replace, never append: delete every existing target point for this
+        # source BEFORE writing — including when the quality gate rejects every
+        # chunk, so a fully-rejected source cannot leave old points queryable.
+        target_service = self._target_service()
+        if target_service.check_source_exists(source_url):
+            logger.info(
+                "Contextual re-ingest: deleting existing target points for %s", source_url,
+            )
+            target_service.delete_by_source(source_url)
+
         if not contextual_chunks:
             logger.warning(
                 "Contextual re-ingest: every chunk from %s was rejected — this "
@@ -516,38 +617,23 @@ class ContextualReingestEngine:
             )
             return 0
 
-        # Prepare sparse vectors.
-        sparse_vectors = embeddings.get("sparse", [])
-        point_structs = []
-        for i, (chunk, dense, meta) in enumerate(zip(contextual_chunks, embeddings["dense"], metadatas)):
-            point_id = self._utils.make_point_id(source_url, i, 0)
-            vector: dict[str, Any] = {"dense": dense}
-            if i < len(sparse_vectors) and sparse_vectors[i]:
-                vector["sparse"] = self._utils.sparse_dict_to_vector(sparse_vectors[i])
-            point_structs.append(
-                PointStruct(
-                    id=point_id,
-                    vector=vector,
-                    payload={"text": chunk, **meta},
-                )
-            )
-
-        client = self._target_manager.client if self._target_manager else self._client()
-        batch_size = 200
-        for start in range(0, len(point_structs), batch_size):
-            batch = point_structs[start : start + batch_size]
-            client.upsert(
-                collection_name=self._target_collection,
-                points=batch,
-            )
+        # Route the replacement upsert through QdrantService (the approved
+        # storage boundary). The indexer re-applies the quality gate as a last
+        # line of defence and rebuilds point IDs from chunk_index.
+        written = target_service.upsert_chunks(
+            contextual_chunks,
+            embeddings["dense"],
+            metadatas,
+            sparse_vectors=embeddings.get("sparse", []),
+        )
 
         logger.info(
             "Contextual re-ingest: wrote %d chunks for %s to %s",
-            len(point_structs),
+            written,
             source_url,
             self._target_collection,
         )
-        return len(point_structs)
+        return written
 
 
 async def _smoke_test() -> None:

@@ -25,6 +25,12 @@ os.environ.setdefault("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "0.0")
 ONNX_CANDIDATE = "gpahal/bge-m3-onnx-int8"
 SCRATCH = Path(tempfile.mkdtemp(prefix="onnx_phase4_"))
 
+# Immutable revisions (commit SHAs), resolved from the HF API on 2026-08-01.
+# No repo heads: BGEM3FlagModel has no revision= kwarg, so the fp32 baseline
+# is loaded from a pinned local snapshot dir (see _setup_baseline).
+BGE_M3_REVISION = "5617a9f61b028005a4858fdac845db406aefb181"
+ONNX_CANDIDATE_REVISION = "2b34e84df040034d4b9eabb62383a87c18955822"
+
 # Production thread setup (copied from embedding_service.py._thread_setup)
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
@@ -53,8 +59,19 @@ def _thread_setup():
 
 def _setup_baseline():
     from FlagEmbedding import BGEM3FlagModel
+    from huggingface_hub import snapshot_download
     _thread_setup()
-    return BGEM3FlagModel("BAAI/bge-m3", use_fp16=False, device="cpu")
+    # Pinned local snapshot of BAAI/bge-m3 (BGEM3FlagModel has no revision=
+    # kwarg; a local dir cannot drift from a repo head).
+    bge_local = snapshot_download(
+        repo_id="BAAI/bge-m3",
+        revision=BGE_M3_REVISION,
+        local_dir=str(SCRATCH / "bge_m3_fp32"),
+        local_dir_use_symlinks=False,
+        resume_download=True,
+        ignore_patterns=["*.md", "*.py", "requirements.txt"],
+    )
+    return BGEM3FlagModel(bge_local, use_fp16=False, device="cpu")
 
 
 def _setup_onnx():
@@ -62,8 +79,10 @@ def _setup_onnx():
     from huggingface_hub import snapshot_download
     from transformers import AutoTokenizer
     _thread_setup()
+    # Pinned candidate + immutable revision (validated in-process).
     local_path = snapshot_download(
         repo_id=ONNX_CANDIDATE,
+        revision=ONNX_CANDIDATE_REVISION,
         local_dir=str(SCRATCH),
         local_dir_use_symlinks=False,
         resume_download=True,
@@ -73,7 +92,9 @@ def _setup_onnx():
         os.path.join(local_path, "model_quantized.onnx"),
         providers=["CPUExecutionProvider"],
     )
-    tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-m3")
+    tokenizer = AutoTokenizer.from_pretrained(
+        "BAAI/bge-m3", revision=BGE_M3_REVISION
+    )
     return session, tokenizer
 
 

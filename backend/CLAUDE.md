@@ -78,3 +78,6 @@ After changing OKF entries, recompile **and restart** the backend: `_OKF_CACHE` 
 
 ### _load_onnx_encoder marker
 - `self._encoder = session` at the end of `_load_onnx_encoder` is a marker so `_ensure_encoder()`'s short-circuit fires. Encode paths check `self._onnx_session is not None`, not `self._encoder`, so this is safe. Do NOT remove this assignment — without it, every encode call re-downloads the 570MB ONNX model.
+
+### HF model pins (mandatory)
+- Every `from_pretrained`/`snapshot_download`/`SentenceTransformer`/`CrossEncoder`/`BGEM3FlagModel` load passes a pinned commit SHA; `BGEM3FlagModel` has no `revision=` kwarg (load from a pinned local `snapshot_download` dir). Registry: `scripts/download_models.py::_MODEL_REVISIONS`. `OnnxReranker._load()` refuses any model id other than the allowlisted temsa ONNX repo (CVE-2024-0791 class). Validators: `scripts/validate_onnx_reranker.py`, `scripts/validate_onnx_retrieval.py` (cross-config gate), `scripts/validate_colbert_maxsim.py`.

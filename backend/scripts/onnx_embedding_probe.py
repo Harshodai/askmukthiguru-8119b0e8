@@ -23,14 +23,20 @@ CANDIDATE = "gpahal/bge-m3-onnx-int8"
 SCRATCH = Path(tempfile.mkdtemp(prefix="onnx_probe_"))
 ONNX_FILE = SCRATCH / "model_quantized.onnx"
 
+# Immutable revisions (commit SHAs), resolved from the HF API on 2026-08-01.
+# No repo heads — a later commit can silently change weights or tokenizer files.
+CANDIDATE_REVISION = "2b34e84df040034d4b9eabb62383a87c18955822"
+BGE_M3_REVISION = "5617a9f61b028005a4858fdac845db406aefb181"
+
 
 def _download_checkpoint() -> str:
     """Download the candidate ONNX checkpoint to a scratch directory."""
     from huggingface_hub import snapshot_download
 
-    print(f"Downloading {CANDIDATE} to scratch: {SCRATCH}")
+    print(f"Downloading {CANDIDATE} (rev {CANDIDATE_REVISION}) to scratch: {SCRATCH}")
     local_path = snapshot_download(
         repo_id=CANDIDATE,
+        revision=CANDIDATE_REVISION,
         local_dir=str(SCRATCH),
         local_dir_use_symlinks=False,
         resume_download=True,
@@ -97,7 +103,7 @@ def _probe_with_optimum(model_path: str) -> dict:
 
     from transformers import AutoTokenizer
 
-    tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-m3")
+    tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-m3", revision=BGE_M3_REVISION)
     model = ORTModelForCustomTasks.from_pretrained(
         str(SCRATCH),
         file_name="model_quantized.onnx",
@@ -133,9 +139,9 @@ def _probe_with_optimum(model_path: str) -> dict:
 
 
 def _get_tokenizer():
-    """Get the bge-m3 tokenizer (used for both probe methods)."""
+    """Get the bge-m3 tokenizer (used for both probe methods), pinned revision."""
     from transformers import AutoTokenizer
-    return AutoTokenizer.from_pretrained("BAAI/bge-m3")
+    return AutoTokenizer.from_pretrained("BAAI/bge-m3", revision=BGE_M3_REVISION)
 
 
 def _produce_verdict(ort_info: dict, optimum_info: dict) -> str:

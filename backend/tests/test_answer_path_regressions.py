@@ -82,11 +82,22 @@ def test_constitution_preserves_rather_than_flattens_first_person():
 
 def test_generation_voice_rule_forbids_inventing_first_person():
     """All prompt branches must carry the preserve-but-never-invent rule."""
-    text = (_BACKEND / "rag" / "nodes" / "generation.py").read_text(encoding="utf-8")
+    from rag.prompts.system import GURU_VOICE_RULE
 
-    assert "PRONOUN RULE" not in text, "old flattening rule still present"
-    assert text.count("VOICE RULE") >= 2, "voice rule missing from a prompt branch"
-    assert "never invent a first-person sentence" in text
+    generation_text = (_BACKEND / "rag" / "nodes" / "generation.py").read_text(encoding="utf-8")
+    prompts_text = (_BACKEND / "rag" / "prompts" / "system.py").read_text(encoding="utf-8")
+
+    assert "PRONOUN RULE" not in generation_text, "old flattening rule still present"
+    # The shared GURU_VOICE_RULE constant must keep the full rule, including the
+    # flattening and context-only clauses.
+    assert "GURU_VOICE_RULE" in prompts_text
+    assert "VOICE RULE" in prompts_text
+    assert "never invent a first-person sentence" in GURU_VOICE_RULE
+    assert "that flattening turns a living teaching into a summary" in GURU_VOICE_RULE
+    assert "it is not their voice" in GURU_VOICE_RULE
+    # Every prompt branch must reference the constant, not re-paste the text:
+    # tier2 prompt + standard prompt + CCR re-generation prompt.
+    assert generation_text.count("GURU_VOICE_RULE") >= 3, "voice rule missing from a prompt branch"
 
 
 # ---------------------------------------------------------------------------

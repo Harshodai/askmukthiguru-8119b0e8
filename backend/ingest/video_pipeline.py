@@ -70,10 +70,12 @@ class VideoPipeline:
             return VideoIngestResult(0, duration, cleaned[:200], "no_chunks")
 
         # 5. Embed and upsert
-        await self._upsert_chunks(chunks, file_path)
+        written = await self._upsert_chunks(chunks, file_path)
+        if written == 0:
+            return VideoIngestResult(0, duration, cleaned[:200], "chunks_rejected")
 
         return VideoIngestResult(
-            chunks_ingested=len(chunks),
+            chunks_ingested=written,
             duration_seconds=duration,
             transcript_preview=cleaned[:500],
             status="ok",
@@ -201,8 +203,13 @@ class VideoPipeline:
             step = max(effective_size - effective_overlap, 1)
             return [" ".join(words[i : i + effective_size]) for i in range(0, len(words), step)]
 
-    async def _upsert_chunks(self, chunks: list, source: str) -> None:
-        """Embed and upsert chunks to Qdrant with modality:video."""
+    async def _upsert_chunks(self, chunks: list, source: str) -> int:
+        """Embed and upsert chunks to Qdrant with modality:video.
+
+        Returns the number of points actually written after the quality gate —
+        zero when every chunk is rejected (so callers can distinguish a clean
+        skip from a successful write).
+        """
         import uuid
 
         # Quality gate. This path writes through the raw Qdrant client, so it
@@ -224,7 +231,7 @@ class VideoPipeline:
             logger.warning(
                 "video_pipeline: all chunks from %s rejected — nothing written", source
             )
-            return
+            return 0
 
         embeddings = self._embedder.embed(chunks)
         points = []
@@ -243,3 +250,4 @@ class VideoPipeline:
             )
         await self._qdrant.upsert("mukthi_guru", points)
         logger.info("Upserted %d video chunks", len(points))
+        return len(points)

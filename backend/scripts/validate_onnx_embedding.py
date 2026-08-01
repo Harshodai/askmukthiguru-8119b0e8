@@ -33,6 +33,12 @@ BATCH_SIZE = 32
 SCRATCH = Path(tempfile.mkdtemp(prefix="onnx_phase2_"))
 ONNX_CANDIDATE = "gpahal/bge-m3-onnx-int8"
 
+# Immutable revisions (commit SHAs), resolved from the HF API on 2026-08-01.
+# No repo heads: BGEM3FlagModel has no revision= kwarg, so the fp32 baseline
+# is loaded from a pinned local snapshot dir (see BaselineEncoder.load).
+BGE_M3_REVISION = "5617a9f61b028005a4858fdac845db406aefb181"
+ONNX_CANDIDATE_REVISION = "2b34e84df040034d4b9eabb62383a87c18955822"
+
 # ── Thresholds (hard, per plan) ──
 MEAN_COS_THRESHOLD = 0.985
 MIN_COS_THRESHOLD = 0.95
@@ -118,9 +124,20 @@ class BaselineEncoder:
     def load(self):
         print("Loading baseline (fp32 BGEM3FlagModel)...")
         from FlagEmbedding import BGEM3FlagModel
+        from huggingface_hub import snapshot_download
 
         t0 = time.monotonic()
-        self._encoder = BGEM3FlagModel("BAAI/bge-m3", use_fp16=False, device="cpu")
+        # Pinned local snapshot of BAAI/bge-m3 (BGEM3FlagModel has no
+        # revision= kwarg; a local dir cannot drift from a repo head).
+        bge_local = snapshot_download(
+            repo_id="BAAI/bge-m3",
+            revision=BGE_M3_REVISION,
+            local_dir=str(SCRATCH / "bge_m3_fp32"),
+            local_dir_use_symlinks=False,
+            resume_download=True,
+            ignore_patterns=["*.md", "*.py", "requirements.txt"],
+        )
+        self._encoder = BGEM3FlagModel(bge_local, use_fp16=False, device="cpu")
         print(f"  Loaded in {time.monotonic() - t0:.1f}s")
 
     def encode_dense(self, texts: list[str]) -> np.ndarray:
@@ -156,7 +173,9 @@ class OnnxEncoder:
             model_file,
             providers=["CPUExecutionProvider"],
         )
-        self._tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-m3")
+        self._tokenizer = AutoTokenizer.from_pretrained(
+            "BAAI/bge-m3", revision=BGE_M3_REVISION
+        )
         print(f"  Loaded in {time.monotonic() - t0:.1f}s")
 
     def _download(self) -> str:
@@ -164,8 +183,10 @@ class OnnxEncoder:
 
         print(f"Downloading {ONNX_CANDIDATE}...")
         t0 = time.monotonic()
+        # Pinned candidate + immutable revision (validated in-process).
         local_path = snapshot_download(
             repo_id=ONNX_CANDIDATE,
+            revision=ONNX_CANDIDATE_REVISION,
             local_dir=str(SCRATCH),
             local_dir_use_symlinks=False,
             resume_download=True,

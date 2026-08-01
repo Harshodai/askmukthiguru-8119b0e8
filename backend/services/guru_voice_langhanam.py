@@ -249,8 +249,11 @@ def render_langhanam_system_prompt(base_system_prompt: str) -> str:
 def is_voice_eligible(intent: str) -> bool:
     """True when ``intent`` should receive the guru voice.
 
-    Teaching/doctrine queries and distress qualify; pure factual
-    lookup-only queries (FACTUAL) are excluded.
+    Teaching/doctrine queries, distress, and FACTUAL queries qualify — FACTUAL
+    is included in ``LANGHANAM_ELIGIBLE_INTENTS``: ``on_device_intent`` seeds it
+    with what/who/why/how/explain/teach-me, the shape of nearly every seeker
+    question. CASUAL and GREETING stay excluded: a one-line "Namaste" does not
+    need a teaching register.
     """
     return (intent or "").upper() in LANGHANAM_ELIGIBLE_INTENTS
 
@@ -267,5 +270,5 @@ if __name__ == "__main__":
     print(f"mean sentence length: {mean_sentence_length(sample):.1f} words")
     print(f"combined teachings: {detect_combined_teachings('similar teachings also say')}")
     print(f"render appends block: {'use this voice' in render_langhanam_system_prompt('base')}")
-    print(f"eligible: {is_voice_eligible('DISTRESS')}, not eligible: {is_voice_eligible('FACTUAL')}")
+    print(f"eligible: {is_voice_eligible('DISTRESS')}, eligible: {is_voice_eligible('FACTUAL')}")
     print("guru_voice_langhanam self-check OK")

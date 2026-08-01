@@ -12,11 +12,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 from app.config import settings
 from app.language_utils import detect_and_prepare_language_info
 from rag.memory import build_memory_context, normalize_session_id
+from rag.timeout_utils import get_node_timeout
 from services.user_profile_service import _is_persistable_user_id
 
 if TYPE_CHECKING:
@@ -347,18 +349,27 @@ async def prepare_request_state(
         try:
             from services.healing_course_service import maybe_assign_healing_course, trigger_payload
 
-            recent = await container.user_profile.get_recent_memories(
-                user_id, limit=settings.proactive_course_frequency_window
-            )
-            turn_history = _flatten_emotional_arcs(recent)
-            if turn_history:
-                result = await maybe_assign_healing_course(
+            async def _assign_healing_course():
+                recent = await container.user_profile.get_recent_memories(
+                    user_id, limit=settings.proactive_course_frequency_window
+                )
+                turn_history = _flatten_emotional_arcs(recent)
+                if not turn_history:
+                    return None
+                return await maybe_assign_healing_course(
                     getattr(container, "supabase_client", None),
                     user_id,
                     turn_history,
                 )
-                if result:
-                    recommended_course = trigger_payload(result["trigger"], result["slug"])
+
+            # Bounded by the shared pipeline timeout convention (see
+            # rag/timeout_utils.py) so a slow store never stalls the request.
+            result = await asyncio.wait_for(
+                _assign_healing_course(),
+                timeout=get_node_timeout("healing_course", 10.0),
+            )
+            if result:
+                recommended_course = trigger_payload(result["trigger"], result["slug"])
         except Exception as e:
             logger.warning(f"Healing course assignment failed (non-fatal): {e}")
 
@@ -444,6 +455,25 @@ def _format_scored_memory_block(memories: list[dict[str, Any]]) -> str:
         lines.append(f"    claim: {claim_safe}")
     lines.append("```")
     return "\n".join(lines)
+
+
+def _is_persona_fresh(updated_at: Optional[str], max_age_days: int) -> bool:
+    """True if the persona was updated within max_age_days.
+
+    Fail-closed by design: a missing or malformed timestamp cannot prove
+    freshness, so the persona is treated as stale rather than served on the
+    strength of an unverifiable age.
+    """
+    if not updated_at:
+        return False
+    try:
+        parsed = datetime.fromisoformat(str(updated_at).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    age = datetime.now(timezone.utc) - parsed
+    return age <= timedelta(days=max_age_days)
 
 
 async def prepare_user_memory(
@@ -551,8 +581,8 @@ async def prepare_user_memory(
             try:
                 from services.layered_memory.persona_store import get_persona
 
-                persona_md = await get_persona(container.supabase_client, user_id)
-                if persona_md:
+                persona_md, persona_updated_at = await get_persona(container.supabase_client, user_id)
+                if persona_md and _is_persona_fresh(persona_updated_at, max_age_days=settings.persona_max_age_days):
                     persona_lines = [ln for ln in persona_md.splitlines() if ln.strip() and not ln.startswith("#")]
                     persona_summary = "\n".join(persona_lines[:8])
                     if persona_summary:

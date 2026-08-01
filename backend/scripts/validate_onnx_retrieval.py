@@ -28,8 +28,18 @@ BATCH_SIZE = 32
 ONNX_CANDIDATE = "gpahal/bge-m3-onnx-int8"
 SCRATCH = Path(tempfile.mkdtemp(prefix="onnx_phase3_"))
 
+# Immutable revisions (commit SHAs), resolved from the HF API on 2026-08-01.
+# No repo heads: BGEM3FlagModel has no revision= kwarg, so the fp32 baseline
+# is loaded from a pinned local snapshot dir (see EncodeBoth.load).
+BGE_M3_REVISION = "5617a9f61b028005a4858fdac845db406aefb181"
+ONNX_CANDIDATE_REVISION = "2b34e84df040034d4b9eabb62383a87c18955822"
+
 TOP_K = 10
 OVERLAP_THRESHOLD = 0.85
+
+# Corpus sources that could not be loaded. A reduced corpus must never pass
+# the Phase-3 overlap gate, so main() fails the run when this is non-empty.
+CORPUS_MISSING: list[str] = []
 
 
 def _build_corpus() -> list[str]:
@@ -66,8 +76,9 @@ def _build_corpus() -> list[str]:
         store = OKFStore()
         for entry in store.list_entries():
             add(f"{entry.title}: {entry.description}" if entry.description else entry.title)
-    except Exception:
-        pass
+    except Exception as e:
+        CORPUS_MISSING.append("OKF entries")
+        print(f"WARN: OKF corpus unavailable ({e}) — continuing without it")
 
     # 3. Clean LightRAG chunks (filtered, truncated)
     import requests
@@ -83,8 +94,9 @@ def _build_corpus() -> list[str]:
                 # Clean up transcription artifacts
                 t = t.replace("[Source: ", "").replace("]", "")
                 add(t[:1500])
-    except Exception:
-        pass
+    except Exception as e:
+        CORPUS_MISSING.append("LightRAG chunks")
+        print(f"WARN: LightRAG chunks unavailable ({e}) — continuing without them")
 
     print(f"Corpus built: {len(texts)} passages")
     return texts
@@ -124,6 +136,33 @@ def _top_k_overlap(fp32_sims: list[float], onnx_sims: list[float], k: int = TOP_
     return len(intersection) / k  # Jaccard using k as union (since both have k items)
 
 
+def _cross_config_overlap(
+    qv: np.ndarray,
+    corpus_a: np.ndarray,
+    corpus_b: np.ndarray,
+    k: int = TOP_K,
+) -> float:
+    """Top-k overlap of two passage corpora ranked with the SAME query vector.
+
+    Isolates passage-side drift: query-only drift cannot change this score,
+    because one shared query embedding produces both rankings.
+    """
+    sims_a = [float(np.dot(cv, qv)) for cv in corpus_a]
+    sims_b = [float(np.dot(cv, qv)) for cv in corpus_b]
+    return _top_k_overlap(sims_a, sims_b, k)
+
+
+def _evaluate_cross_config(cross_avg: float, threshold: float = OVERLAP_THRESHOLD) -> bool:
+    """Cross-config gate: fail only when shared-query overlap is below baseline.
+
+    The legacy gate (``cross_avg > same-model avg + 0.02``) fired on QUERY-only
+    drift — where cross-config overlap is legitimately HIGH — and missed
+    PASSAGE-only drift, where it is low. The threshold is the calibrated
+    Phase-3 baseline (>= 0.85) applied to the shared-query passage overlap.
+    """
+    return cross_avg >= threshold
+
+
 class EncodeBoth:
     """Load both models and encode with both."""
 
@@ -139,12 +178,24 @@ class EncodeBoth:
         from transformers import AutoTokenizer
 
         t0 = time.monotonic()
-        self._baseline = BGEM3FlagModel("BAAI/bge-m3", use_fp16=False, device="cpu")
+        # fp32 baseline loads from a pinned local snapshot of BAAI/bge-m3
+        # (BGEM3FlagModel has no revision= kwarg; a local dir cannot drift).
+        bge_local = snapshot_download(
+            repo_id="BAAI/bge-m3",
+            revision=BGE_M3_REVISION,
+            local_dir=str(SCRATCH / "bge_m3_fp32"),
+            local_dir_use_symlinks=False,
+            resume_download=True,
+            ignore_patterns=["*.md", "*.py", "requirements.txt"],
+        )
+        self._baseline = BGEM3FlagModel(bge_local, use_fp16=False, device="cpu")
         print(f"  Baseline loaded in {time.monotonic() - t0:.1f}s")
 
         t0 = time.monotonic()
+        # Pinned candidate + immutable revision (validated in-process).
         local_path = snapshot_download(
             repo_id=ONNX_CANDIDATE,
+            revision=ONNX_CANDIDATE_REVISION,
             local_dir=str(SCRATCH),
             local_dir_use_symlinks=False,
             resume_download=True,
@@ -154,7 +205,9 @@ class EncodeBoth:
             os.path.join(local_path, "model_quantized.onnx"),
             providers=["CPUExecutionProvider"],
         )
-        self._tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-m3")
+        self._tokenizer = AutoTokenizer.from_pretrained(
+            "BAAI/bge-m3", revision=BGE_M3_REVISION
+        )
         print(f"  ONNX loaded in {time.monotonic() - t0:.1f}s")
 
     def encode_both(self, texts: list[str]) -> tuple[np.ndarray, np.ndarray]:
@@ -263,24 +316,21 @@ def main():
     print(f"\n{'=' * 60}")
     print("Cross-Config Check (ONNX query → fp32 passage NN overlap)")
     print('=' * 60)
-    cross_overlaps = []
-    for i, q in enumerate(queries):
-        qv_onnx = q_onnx[i]
-        fp32_sims = [float(np.dot(cv, qv_onnx)) for cv in corpus_fp32]
-        onnx_sims = [float(np.dot(cv, qv_onnx)) for cv in corpus_onnx]
-        overlap = _top_k_overlap(fp32_sims, onnx_sims, TOP_K)
-        cross_overlaps.append(overlap)
+    cross_overlaps = [
+        _cross_config_overlap(q_onnx[i], corpus_fp32, corpus_onnx, TOP_K)
+        for i in range(len(queries))
+    ]
 
     cross_avg = sum(cross_overlaps) / len(cross_overlaps)
     print(f"  Cross-config avg overlap: {cross_avg:.4f}")
     print(f"  Same-model avg overlap:   {overall_avg:.4f}")
 
-    if cross_avg > overall_avg + 0.02:
-        print(f"  ⚠ Cross-config > same-model (Δ={cross_avg - overall_avg:.4f})")
-        print(f"  → ONNX passage embeddings are less discriminative than fp32")
+    if not _evaluate_cross_config(cross_avg):
+        print(f"  ⚠ Cross-config overlap {cross_avg:.4f} < baseline {OVERLAP_THRESHOLD}")
+        print(f"  → ONNX passage embeddings diverge from fp32 — discriminative quality degraded")
         all_pass = False
     else:
-        print(f"  ✓ Cross-config <= same-model (Δ={cross_avg - overall_avg:.4f})")
+        print(f"  ✓ Cross-config overlap >= baseline (Δ={cross_avg - overall_avg:.4f})")
 
     # Zero-overlap queries
     zero_qs = [(queries[i], total_overlaps[i]) for i in range(len(queries)) if total_overlaps[i] == 0]
@@ -290,6 +340,13 @@ def main():
             print(f"    [{q['category']}] {q['q'][:80]}")
     else:
         print(f"\n  ✓ No zero-overlap queries")
+
+    # A reduced corpus cannot validate the Phase-3 gate: any source that was
+    # unavailable must fail the run, regardless of the overlap numbers.
+    if CORPUS_MISSING:
+        print("\n  ⚠ Corpus degraded — unavailable sources: " + ", ".join(CORPUS_MISSING))
+        print("  → Phase-3 overlap measured on a reduced corpus; treated as FAIL.")
+        all_pass = False
 
     # Final verdict
     print(f"\n{'=' * 60}")

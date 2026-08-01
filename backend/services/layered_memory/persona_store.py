@@ -6,6 +6,7 @@ import base64
 import hashlib
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Optional
 
 from services.second_brain.crypto import AESGCM, _KEY_LEN, _NONCE_LEN, _PREAMBLE, _b64d, _b64e
@@ -58,15 +59,16 @@ def decrypt(blob: str, user_id: str) -> str:
     return aes.decrypt(nonce, ct, associated_data=aad).decode("utf-8")
 
 
-async def get_persona(supabase, user_id: str) -> Optional[str]:
+async def get_persona(supabase, user_id: str) -> tuple[Optional[str], Optional[str]]:
+    """Return (decrypted persona content, updated_at ISO timestamp) or (None, None)."""
     try:
         tenant_id = TenantContext.get()
-        res = await supabase.table(_TABLE).select("content").eq("user_id", user_id).eq("tenant_id", tenant_id).maybe_single().execute()
+        res = await supabase.table(_TABLE).select("content, updated_at").eq("user_id", user_id).eq("tenant_id", tenant_id).maybe_single().execute()
         if res.data and res.data.get("content"):
-            return decrypt(res.data["content"], user_id)
+            return decrypt(res.data["content"], user_id), res.data.get("updated_at")
     except Exception as e:
         logger.debug(f"get_persona miss: {e}")
-    return None
+    return None, None
 
 
 async def save_persona(supabase, user_id: str, content: str) -> bool:
@@ -74,7 +76,12 @@ async def save_persona(supabase, user_id: str, content: str) -> bool:
         tenant_id = TenantContext.get()
         encrypted = encrypt(content, user_id)
         await supabase.table(_TABLE).upsert(
-            {"user_id": user_id, "tenant_id": tenant_id, "content": encrypted},
+            {
+                "user_id": user_id,
+                "tenant_id": tenant_id,
+                "content": encrypted,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            },
             on_conflict="user_id,tenant_id",
         ).execute()
         return True

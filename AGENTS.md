@@ -61,7 +61,7 @@
 ### Completed (Jul 31, 2026) — Security/RLS/Metrics/Release epic
 - AAL2/MFA: backend `require_aal2` + `/api/health/mfa`; E2E extended (`serviceWorkers: 'block'` — SW bypasses `page.route()`).
 - RLS: idempotent WITH CHECK migration; `backend/scripts/verify_rls_policies.py` (12 probes, ephemeral Alice/Bob via Admin API); nightly `.github/workflows/nightly-rls.yml` (set repo secrets before enabling); E2E `tests/e2e/rls-cross-user.spec.ts`.
-- Leaked passwords: enable manually (Pro) Auth → Providers → Email → "Prevent the use of leaked passwords"; verify with `backend/scripts/verify_leaked_password_protection.py`.
+- Leaked passwords: enabled manually (Pro) Auth → Providers → Email → "Prevent the use of leaked passwords"; verified with `backend/scripts/verify_leaked_password_protection.py`.
 - Metrics parity: `backend/app/schemas/metrics.py` ↔ `src/lib/metricsSchema.ts`; `GET /api/metrics`; `src/hooks/useMetrics.ts`.
 - Healing courses: streak-based (≥2 consecutive, 3-of-5, escalation, 24h repeat) via `backend/services/healing_course_service.py`; `POST /api/healing-course/{assign,progress}`; `HealingPathCard.tsx`.
 - Guru voice: `langhanam_voice_enabled=false` default; `GURU_VOICE_MODE=prompt|adapter`; benchmark-gated flip (needs live LLM run).
@@ -74,8 +74,7 @@
 4. Forgot password E2E test with real Supabase email (verify email sent + link works)
 5. Audio E2E on production (CDN-accessible Lovable asset, not `:8080`)
 6. Live-LLM guru-voice benchmark → flip `langhanam_voice_enabled` at ≥4.0/5.0
-7. Enable leaked-password protection in Supabase dashboard (Pro) + run verifier
-8. Set nightly-RLS repo secrets and confirm ephemeral-user cleanup before first prod run
+7. Set nightly-RLS repo secrets and confirm ephemeral-user cleanup before first prod run
 
 ### Local Dev Caveats (Jul 31, 2026)
 - `backend/.env` uses docker hostnames (`qdrant:6333`, `neo4j:7687`, `redis:6379`) — running uvicorn/pytest on the HOST requires overrides (`QDRANT_URL=http://localhost:6333`, `NEO4J_URI=bolt://localhost:7687`, `REDIS_URL=redis://:mukthiguru_redis_pass@localhost:6379/0`, `SUPABASE_URL=http://127.0.0.1:54321`), and Vite needs `VITE_BACKEND_URL=http://localhost:8001` when the backend is not on 8000.
@@ -103,6 +102,9 @@
 - **Docker Compose env self-reference**: Never `${VAR}` in an `environment:` block if `VAR` is also defined in the same block. Use literal values or host env.
 - **`The_Four_Sacred_Secrets.pdf`**: Removed from git history 2026-08-01. Do not re-add. Embeddings derived from this book may still be in Qdrant — rights basis unconfirmed. See `CONTENT-RIGHTS.md`.
 - **git-filter-repo**: Answer `N` to "treat as continuation" prompt for a fresh rewrite. Re-add `origin` remote manually after run.
+- **HF model pins**: Every `from_pretrained`/`snapshot_download`/`SentenceTransformer`/`CrossEncoder`/`BGEM3FlagModel` load MUST pass a pinned commit SHA (resolved from the HF API; comment "resolved 2026-08-01; do not bump to a repo head"). Registry: `backend/scripts/download_models.py::_MODEL_REVISIONS`. `BGEM3FlagModel` has no `revision=` kwarg — load from a pinned local `snapshot_download` dir. Any new model added to the repo gets a SHA in `_MODEL_REVISIONS` first. Never add a mutable repo-head load.
+- **ONNX model pins (encoder + reranker)**: ONNX snapshot loads (`embedding_service.py::_load_onnx_encoder`, `services/onnx_reranker.py::_load`) MUST pass `snapshot_download(revision=<pinned SHA>)`. `HF_REVISION` (the env override for the ONNX encoder) MUST be a full 40-hex commit SHA (`^[0-9a-f]{40}$`) — reject missing or non-40-hex/mutable values before loading (fail-closed, never a repo head); `_load_onnx_encoder` validates and raises. Code constants `_ONNX_ENCODER_REVISION`/`_ONNX_RERANKER_REVISION` are themselves full SHAs. ONNX artifacts are pre-baked into offline images by `backend/scripts/download_models.py` (temsa reranker pinned in `_MODEL_REVISIONS` at `59d3305e...`; snapshot lands under `HF_HOME/hub/models--<org>--<model>` so the runtime cache lookup hits without network).
+- **Credentialed HTTP clients**: Any urllib/httpx client sending a key must validate scheme (`https`) + expected hostname, and refuse to follow 3xx redirects (`HTTPRedirectHandler` override) — see `backend/scripts/verify_sarvam.py`.
 
 This file serves as a knowledge base for AI agents interacting with this workspace.
 

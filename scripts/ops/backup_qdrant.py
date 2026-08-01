@@ -143,12 +143,15 @@ def cleanup_old_backups(collection: str, retention: int) -> None:
 # ─── Verification Logic ───────────────────────────────────────────────────────
 
 
-def verify_snapshot(path: Path) -> bool:
+def verify_snapshot(
+    path: Path, expected_points: int | None = None, source_collection: str | None = None
+) -> bool:
     """
     Verify a snapshot archive:
       1. File is non-empty.
       2. Checksum matches sidecar (if present).
       3. Archive can be opened and contains expected metadata.
+      4. Test-restore into a throwaway collection returns the expected point count.
     """
     print(f"\n[Verify] Checking {path.name} ...")
 
@@ -193,9 +196,19 @@ def verify_snapshot(path: Path) -> bool:
     temp_collection = f"_verify_{int(time.time())}"
     try:
         # Create empty temp collection first (copy basic config from original if needed)
-        _create_temp_collection(temp_collection)
+        _create_temp_collection(temp_collection, source_collection=source_collection)
         if _restore_to_temp(path, temp_collection):
             print("  [+] Test-restore OK")
+            if expected_points is not None:
+                restored = _collection_points(temp_collection)
+                if restored == expected_points:
+                    print(f"  [+] Point count matches: {restored}")
+                else:
+                    print(
+                        f"  [-] FAIL: Expected {expected_points} points, restored {restored}."
+                    )
+                    _drop_collection(temp_collection)
+                    return False
             _drop_collection(temp_collection)
             return True
         else:
@@ -208,10 +221,32 @@ def verify_snapshot(path: Path) -> bool:
         return False
 
 
-def _create_temp_collection(name: str) -> None:
-    """Create a minimal temporary collection for verification."""
+def _create_temp_collection(name: str, source_collection: str | None = None) -> None:
+    """Create a minimal temporary collection for verification.
+
+    Mirrors the source collection's vector config when known — a snapshot
+    restore is rejected if the temp collection does not match the snapshot's
+    own vector layout (multi-vector dense+sparse collections in particular).
+    """
     url = f"{QDRANT_URL}/collections/{name}"
-    payload = json.dumps({"vectors": {"size": 1024, "distance": "Cosine"}}).encode("utf-8")
+    if source_collection:
+        try:
+            src_url = f"{QDRANT_URL}/collections/{source_collection}"
+            with urllib.request.urlopen(src_url, timeout=30) as res:
+                src = json.loads(res.read().decode()).get("result", {})
+            params = src.get("config", {}).get("params", {})
+            body = {
+                "vectors": params.get("vectors", {"size": 1024, "distance": "Cosine"}),
+                "sparse_vectors": params.get("sparse_vectors"),
+                "quantization_config": src.get("config", {}).get("quantization_config"),
+                "on_disk_payload": params.get("on_disk_payload"),
+            }
+            payload = json.dumps({k: v for k, v in body.items() if v is not None}).encode("utf-8")
+        except Exception as e:
+            print(f"  [!] Could not mirror source collection config ({e}); using defaults.")
+            payload = json.dumps({"vectors": {"size": 1024, "distance": "Cosine"}}).encode("utf-8")
+    else:
+        payload = json.dumps({"vectors": {"size": 1024, "distance": "Cosine"}}).encode("utf-8")
     req = urllib.request.Request(
         url, data=payload, headers={"Content-Type": "application/json"}, method="PUT"
     )
@@ -237,7 +272,12 @@ def _drop_collection(name: str) -> None:
 
 
 def _restore_to_temp(path: Path, collection: str) -> bool:
-    """Upload snapshot to a temp collection and check status."""
+    """Upload snapshot to a temp collection and wait until the restore completes.
+
+    Qdrant's upload endpoint responds immediately with ``{"result": true}`` while
+    the restore runs asynchronously; verification must poll the collection status
+    until it is ready and then confirm the point count matches the source.
+    """
     url = f"{QDRANT_URL}/collections/{collection}/snapshots/upload?priority=snapshot"
     boundary = b"----WebKitFormBoundaryMukthiGuruBackup"
     with open(path, "rb") as f:
@@ -262,7 +302,35 @@ def _restore_to_temp(path: Path, collection: str) -> bool:
     )
     with urllib.request.urlopen(req, timeout=300) as res:
         resp = json.loads(res.read().decode())
-        return resp.get("result", {}).get("status") == "ok" or resp.get("status") == "ok"
+        if not resp.get("result", False):
+            print(f"  [-] FAIL: snapshot upload rejected: {resp}")
+            return False
+    for _ in range(60):
+        status = _collection_status(collection)
+        if status == "green":
+            return True
+        if status == "grey":
+            print("  [-] FAIL: restore errored (collection turned grey).")
+            return False
+        time.sleep(2)
+    print("  [-] FAIL: restore did not complete within 120s.")
+    return False
+
+
+def _collection_status(collection: str) -> str:
+    """Return the status ('green'/'grey'/'yellow') of a collection."""
+    url = f"{QDRANT_URL}/collections/{collection}"
+    with urllib.request.urlopen(url, timeout=30) as res:
+        resp = json.loads(res.read().decode())
+        return resp.get("result", {}).get("status", "unknown")
+
+
+def _collection_points(collection: str) -> int:
+    """Return the number of points in a collection."""
+    url = f"{QDRANT_URL}/collections/{collection}"
+    with urllib.request.urlopen(url, timeout=30) as res:
+        resp = json.loads(res.read().decode())
+        return int(resp.get("result", {}).get("points_count", 0))
 
 
 # ─── Main Entry Point ─────────────────────────────────────────────────────────
@@ -277,6 +345,7 @@ def backup(collection: str, retention: int) -> bool:
     BACKUP_BASE_DIR.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     dest = BACKUP_BASE_DIR / f"{collection}_{ts}.snapshot"
+    source_points = _collection_points(collection)
 
     try:
         print(f"[*] Creating remote snapshot for '{collection}' ...")
@@ -288,7 +357,7 @@ def backup(collection: str, retention: int) -> bool:
         checksum = _sha256_file(dest)
         _write_checksum(dest, checksum)
 
-        ok = verify_snapshot(dest)
+        ok = verify_snapshot(dest, expected_points=source_points, source_collection=collection)
         if ok:
             print(f"\n[✅] Backup verified: {dest}")
         else:
@@ -321,12 +390,27 @@ def main() -> int:
         metavar="PATH",
         help="Verify an existing snapshot file",
     )
+    parser.add_argument(
+        "--expect-points",
+        type=int,
+        metavar="N",
+        help="Expected point count after restore (with --verify-only)",
+    )
+    parser.add_argument(
+        "--source-collection",
+        metavar="NAME",
+        help="Source collection whose vector config the verify temp collection should mirror",
+    )
     args = parser.parse_args()
 
     _enforce_docker_path()
 
     if args.verify_only:
-        ok = verify_snapshot(args.verify_only)
+        ok = verify_snapshot(
+            args.verify_only,
+            expected_points=args.expect_points,
+            source_collection=args.source_collection,
+        )
         return 0 if ok else 1
 
     ok = backup(args.collection, args.retention)

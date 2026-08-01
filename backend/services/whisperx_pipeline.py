@@ -151,6 +151,10 @@ def transcribe_with_alignment(
         transcribe_kwargs: dict[str, Any] = {"batch_size": batch_size, "print_progress": True}
         if language:
             transcribe_kwargs["language"] = language
+        # ASR gate (§6.1): decode-level degenerate-output suppression
+        from services.asr_gate import asr_decode_kwargs
+
+        transcribe_kwargs.update(asr_decode_kwargs())
         raw_result = whisper_model.transcribe(audio_path, **transcribe_kwargs)
 
         detected = raw_result.get("language", "en")
@@ -168,7 +172,21 @@ def transcribe_with_alignment(
                 batch_size=batch_size,
                 print_progress=True,
                 language=resolved_lang,
+                **asr_decode_kwargs(),
             )
+
+        # ASR gate: per-segment confidence floors (avg_logprob / no_speech_prob)
+        segments = raw_result.get("segments", [])
+        if segments:
+            from services.asr_gate import filter_low_confidence_segments
+
+            kept_segments, dropped = filter_low_confidence_segments(segments)
+            if dropped:
+                logger.warning(
+                    f"[{video_id}] ASR gate dropped {dropped}/{len(segments)} "
+                    f"low-confidence segments before alignment"
+                )
+            raw_result["segments"] = kept_segments
 
         logger.info(
             f"[{video_id}] Transcription done in {time.time() - tl:.1f}s "
@@ -293,6 +311,17 @@ def transcribe_with_alignment(
             text_parts.append(f"[{speaker}] {text}")
 
     full_text = "\n".join(text_parts)
+
+    # ASR gate backstop: reject degenerate transcripts (decoder loops) that
+    # slipped past decode-level and segment-level controls. Return None so the
+    # caller falls back to MLX Whisper — the gate contract is "reject before
+    # the corrector ever sees it", not "re-write the transcript".
+    from services.asr_gate import reject_transcript
+
+    rejection = reject_transcript(full_text)
+    if rejection:
+        logger.warning(f"[{video_id}] ASR gate rejected transcript: {rejection}")
+        return None
 
     logger.info(
         f"[{video_id}] WhisperX pipeline complete in {time.time() - t0:.1f}s "

@@ -14,6 +14,11 @@ logger = logging.getLogger(__name__)
 
 REJECTION_THRESHOLD = 0.85
 
+# Immutable commit SHA of protectai/distilroberta-base-rejection-v1, resolved
+# from the HF API on 2026-08-01 (vetted OSS classifier — see
+# scripts/download_models.py). Do not bump to a repo head.
+_REJECTION_MODEL_REVISION = "86520b5f35829cf9209a449e1716b56c70ddd802"
+
 
 class RejectionClassifierHandler(BaseGuardrailHandler):
     def __init__(self) -> None:
@@ -36,8 +41,12 @@ class RejectionClassifierHandler(BaseGuardrailHandler):
                 "Loading Rejection Classifier on %s (this may take a moment)...",
                 self._device,
             )
-            self._tokenizer = AutoTokenizer.from_pretrained(model_id)
-            self._model = AutoModelForSequenceClassification.from_pretrained(model_id).to(
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                model_id, revision=_REJECTION_MODEL_REVISION
+            )
+            self._model = AutoModelForSequenceClassification.from_pretrained(
+                model_id, revision=_REJECTION_MODEL_REVISION
+            ).to(
                 self._device
             )
             self._model.eval()

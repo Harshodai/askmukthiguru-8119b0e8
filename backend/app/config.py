@@ -205,6 +205,7 @@ class Settings(BaseSettings):
     # flip in production without a full re-index — see
     # scripts/validate_onnx_embedding.py.
     embedding_backend: str = "flagembedding"
+    hf_revision: Optional[str] = None
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
     # CPU-only deployments (Railway) must NOT run bge-reranker-v2-m3:
     # 568M params on CPU costs ~4s/doc → 88s for 19 docs (verified in docker logs).
@@ -241,6 +242,18 @@ class Settings(BaseSettings):
     # HuggingFace token for the gated pyannote/speaker-diarization-3.1 model.
     # If unset, diarization is skipped (alignment still runs).
     hf_token: Optional[str] = None
+
+    # --- ASR Gate (§6.1 of corpus-remediation-and-migration-plan) ---
+    # Reject degenerate transcripts BEFORE the LLM corrector. Decode-level
+    # kwargs apply to whisperx/faster-whisper; segment-level floors apply to
+    # whisperx output; the transcript backstop (5-gram x >=4 loop detector,
+    # services/text_quality_filter) applies to every ASR path including MLX.
+    asr_gate_enabled: bool = True
+    asr_vad_filter: bool = False  # faster-whisper VAD; True skips silent segments
+    asr_repetition_penalty: float = 1.0  # >1.0 suppresses decoder loops at decode time
+    asr_compression_ratio_threshold: Optional[float] = None  # e.g. 2.4 (whisper default)
+    asr_avg_logprob_floor: Optional[float] = None  # e.g. -1.0; below = reject segment
+    asr_no_speech_prob_ceiling: Optional[float] = None  # e.g. 0.6; above = reject segment
 
     # --- LLM Speaker-Role Fallback ---
     # When whisperx diarization is unavailable (MLX-only, cross-process, or cache
@@ -650,6 +663,9 @@ class Settings(BaseSettings):
     persona_max_paragraphs: int = 4
     # Maximum words in a single sentence (cadence control). Trips a soft warning in logs.
     persona_max_sentence_words: int = 35
+    # Maximum age (days) of a stored persona before prepare_user_memory stops
+    # injecting it into prompts; a stale persona is skipped, not served.
+    persona_max_age_days: int = 30
 
     # --- Langhanam guru voice (Task 16) ---
     # Unified guru voice for BOTH gurus (Preethaji & Krishnaji), derived from

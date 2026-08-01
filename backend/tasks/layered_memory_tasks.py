@@ -69,7 +69,7 @@ async def _refresh_persona_and_skills(user_id: str):
         return
 
     atoms_text = "\n".join(a.content for a in atoms)
-    existing_persona = await get_persona(client, user_id)
+    existing_persona, _ = await get_persona(client, user_id)
     persona = await generate_persona(atoms, existing_persona)
     if persona:
         await save_persona(client, user_id, persona)

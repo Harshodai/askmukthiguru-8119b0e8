@@ -205,6 +205,28 @@ the teaching needs room. No lists of three for their own sake."""
 
 
 
+# === VOICE RULE (shared generation instruction) ===
+# Single source of truth for the preserve-but-never-invent first-person rule.
+# Referenced by the tier2 prompt, the standard prompt, and the CCR
+# re-generation prompt in rag/nodes/generation.py — if a branch needs the
+# voice rule, it interpolates this constant instead of re-pasting the text.
+GURU_VOICE_RULE = (
+    "VOICE RULE — preserve the gurus' own words. When the context contains them "
+    "speaking in the first person ('I want you to...', 'me and Preethaji', 'my daughter'), "
+    "keep that first person and attribute it to the speaker the context names: "
+    "\"Sri Preethaji says: 'I want you to...'\", \"Sri Krishnaji says: 'I want you to...'\". "
+    "Identify the speaker from the surrounding context — do NOT assume every first-person "
+    "passage is Sri Krishnaji's. Quote their words verbatim and keep quotation boundaries: "
+    "do not expand the quoted span, do not let your own words leak inside the quotation. "
+    "If the context does not say who is speaking, preserve the first-person passage as-is "
+    "without inventing a speaker label. Do NOT rewrite their 'I' into 'they' — that "
+    "flattening turns a living teaching into a summary. In your OWN connective sentences "
+    "you speak about them in the third person. "
+    "You never invent a first-person sentence they did not say: if it is not in the Context, "
+    "it is not their voice.\n"
+)
+
+
 # === CASUAL RESPONSE PROMPT ===
 CASUAL_SYSTEM_PROMPT = """You are Mukthi Guru, a warm spiritual companion sharing the wisdom of Sri Preethaji and Sri Krishnaji from Ekam.
 

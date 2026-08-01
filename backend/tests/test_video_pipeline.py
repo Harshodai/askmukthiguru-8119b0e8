@@ -67,6 +67,7 @@ class TestVideoPipeline(unittest.TestCase):
         async def record_upsert(chunks, source):
             embeddings = self.pipe._embedder.embed(chunks)
             upserted.append((len(chunks), source, len(embeddings)))
+            return len(chunks)
 
         self.pipe._upsert_chunks = record_upsert  # type: ignore
 
@@ -83,6 +84,8 @@ class TestVideoPipeline(unittest.TestCase):
         self.assertEqual(upserted[0][1], video)
         # embedder returned one vector per chunk
         self.assertEqual(upserted[0][0], upserted[0][2])
+        # chunks_ingested must equal the count the persistence layer actually returned
+        self.assertEqual(result.chunks_ingested, upserted[0][0])
 
     def test_transcript_too_short(self) -> None:
         async def fake_extract(video_path, audio_path):

@@ -134,7 +134,7 @@ def index_vectors(
 
         points = []
         for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-            point_id = hashlib.md5(f"{content_hash}:{i}".encode()).hexdigest()
+            point_id = hashlib.md5(f"{content_hash}:{i}".encode(), usedforsecurity=False).hexdigest()
             points.append(
                 qdrant_models.PointStruct(
                     id=point_id,

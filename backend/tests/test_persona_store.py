@@ -78,12 +78,12 @@ def test_is_persona_fresh_rejects_stale():
     assert _is_persona_fresh(old, max_age_days=30) is False
 
 
-def test_is_persona_fresh_treats_missing_as_fresh():
-    assert _is_persona_fresh(None, max_age_days=30) is True
+def test_is_persona_fresh_treats_missing_as_stale():
+    assert _is_persona_fresh(None, max_age_days=30) is False
 
 
-def test_is_persona_fresh_treats_malformed_as_fresh():
-    assert _is_persona_fresh("not-a-timestamp", max_age_days=30) is True
+def test_is_persona_fresh_treats_malformed_as_stale():
+    assert _is_persona_fresh("not-a-timestamp", max_age_days=30) is False
 
 
 if __name__ == "__main__":

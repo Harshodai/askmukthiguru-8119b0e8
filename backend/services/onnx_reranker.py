@@ -34,6 +34,11 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 _ONNX_RERANKER_MODEL_ID = "temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8"
+# Immutable commit SHA of the temsa repo, resolved from the HF API on
+# 2026-08-01 and validated by scripts/validate_onnx_reranker.py (Spearman
+# >0.90 gate). Never download a repo head. The tokenizer ships in this same
+# repo and is loaded from the snapshot dir, so one revision pins both.
+_ONNX_RERANKER_REVISION = "59d3305e534a9abf92f6eb6238c34b748a89dc83"
 # Tokeniser ships IN the temsa repo (tokenizer.json, tokenizer_config.json,
 # special_tokens_map.json, sentencepiece.bpe.model). Load it from the same
 # repo as the ONNX model to avoid silent tokenization drift if temsa's
@@ -83,12 +88,25 @@ class OnnxReranker:
         import onnxruntime as ort
         from transformers import AutoTokenizer
 
+        # Fail-closed: only the validated model id may be loaded. A
+        # from_pretrained/snapshot_download call for an arbitrary repo would
+        # download and execute unvetted model code (CVE-2024-0791 class).
+        if model_id != _ONNX_RERANKER_MODEL_ID:
+            raise ValueError(
+                f"Refusing to load unvetted reranker model id '{model_id}'. "
+                f"Only '{_ONNX_RERANKER_MODEL_ID}' (revision "
+                f"{_ONNX_RERANKER_REVISION}) is allowed."
+            )
+
         # Use a stable, HF_HOME-aware cache dir — not a tempdir.
         cache_dir = _hf_cache_dir(model_id)
         cache_dir.mkdir(parents=True, exist_ok=True)
 
+        # Pinned model id + immutable revision (temsa ONNX INT8 reranker),
+        # validated by scripts/validate_onnx_reranker.py (Spearman >0.90 gate).
         local_path = snapshot_download(
             repo_id=model_id,
+            revision=_ONNX_RERANKER_REVISION,
             local_dir=str(cache_dir),
             local_dir_use_symlinks=False,
             resume_download=True,
@@ -123,10 +141,15 @@ class OnnxReranker:
         self._has_token_type_ids = "token_type_ids" in input_names
 
         self._session = session
+        # Tokenizer files ship in the pinned snapshot dir (same revision as the
+        # ONNX graph) — load from local_path, never from a mutable repo head.
+        # nosec B615: local_path is a locally pinned snapshot_download dir, not
+        # a repo-head model id — the pinned-revision requirement is already
+        # enforced in _load() via snapshot_download(revision=...).
         self._tokenizer = AutoTokenizer.from_pretrained(
-            model_id,
+            local_path,
             use_fast=True,
-        )
+        )  # nosec B615
         logger.info(
             "Loaded ONNX INT8 reranker: %s  (file=%s, inputs=%s, "
             "token_type_ids=%s, outputs=%s)",

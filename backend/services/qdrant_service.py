@@ -82,8 +82,12 @@ class QdrantService:
     retained for backward compatibility.
     """
 
-    def __init__(self) -> None:
-        self._client_manager = QdrantClientManager()
+    def __init__(
+        self,
+        collection: Optional[str] = None,
+        client: Optional[Any] = None,
+    ) -> None:
+        self._client_manager = QdrantClientManager(collection=collection, client=client)
         self._client = self._client_manager.client
         self._collection = self._client_manager.collection
         self._dimension = self._client_manager.dimension

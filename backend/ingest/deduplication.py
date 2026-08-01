@@ -92,8 +92,6 @@ def near_duplicate_similarity(
     hash_count: int = _DEFAULT_HASH_COUNT,
 ) -> float:
     """
-    Return a similarity score in [0, 1] for two text strings.
-
     For short texts (< 200 chars), uses exact Jaccard over character shingles.
     For longer texts, uses MinHash signatures over word shingles.
     """
@@ -252,3 +250,151 @@ def deduplicate_retrieved_docs(
             kept_sigs.append((text, sig if sig is not None else [hash(norm)]))
 
     return kept
+
+
+# ---------------------------------------------------------------------------
+# MinHash-LSH banding — corpus-level near-duplicate index (§6.4)
+# ---------------------------------------------------------------------------
+# In-batch dedup above is O(n²) within one document and misses the corpus's
+# dominant duplicate mode: the gurus deliver the same core teaching across
+# hundreds of talks, so the same chunk text (or near-identical variants) lives
+# under many source_urls. Those cross-source duplicates crowd the top-k by
+# sheer count. MinHash-LSH banding makes the comparison candidate-based
+# (O(1) buckets per chunk instead of O(corpus)) — the production standard
+# behind C4 / RefinedWeb / RedPajama / FineWeb.
+
+_LSH_BANDS = 8
+_LSH_ROWS_PER_BAND = 4  # bands * rows == _DEFAULT_HASH_COUNT (32)
+
+
+def _lsh_band_keys(signature: list[int], bands: int = _LSH_BANDS) -> list[str]:
+    """Split a signature into band keys; identical keys are candidate near-dups."""
+    rows = len(signature) // bands
+    keys: list[str] = []
+    for b in range(bands):
+        band = signature[b * rows : (b + 1) * rows]
+        key = ",".join(str(v) for v in band)
+        keys.append(f"{b}:{key}")
+    return keys
+
+
+def _text_signature(text: str, k: int, hash_count: int) -> Optional[list[int]]:
+    """Signature for a text, or None for very short texts (handled separately)."""
+    norm = _normalize(text)
+    if not norm:
+        return None
+    if len(norm) < 200:
+        return None
+    return _minhash_signature(_shingles(norm, k), hash_count)
+
+
+class LSHNearDupIndex:
+    """Candidate-based near-duplicate index over a corpus of chunk texts.
+
+    Build once per corpus (``add_many``), then ``find_near_duplicates(text)``
+    returns candidate texts above ``threshold`` in O(bands) bucket lookups —
+    no full-corpus scan per chunk. Keeps the first-seen (or highest
+    ``authority_tier``, see ``add``) copy of each near-duplicate group.
+    """
+
+    def __init__(
+        self,
+        threshold: float = _DEFAULT_DEDUP_THRESHOLD,
+        k: int = _DEFAULT_SHINGLE_SIZE,
+        hash_count: int = _DEFAULT_HASH_COUNT,
+        bands: int = _LSH_BANDS,
+    ) -> None:
+        self.threshold = threshold
+        self.k = k
+        self.hash_count = hash_count
+        self.bands = bands
+        self._buckets: dict[str, list[tuple[list[int], dict]]] = {}
+        self._short: list[tuple[str, dict]] = []  # short texts: exact Jaccard fallback
+        self.count = 0
+
+    def add(self, text: str, meta: Optional[dict] = None) -> None:
+        """Index one chunk. Meta carries e.g. ``authority_tier``."""
+        sig = _text_signature(text, self.k, self.hash_count)
+        if sig is None:
+            self._short.append((text, meta or {}))
+        else:
+            for key in _lsh_band_keys(sig, self.bands):
+                self._buckets.setdefault(key, []).append((sig, meta or {}))
+        self.count += 1
+
+    def add_many(self, texts: list[str]) -> None:
+        for t in texts:
+            self.add(t)
+
+    def _candidates(self, sig: list[int]) -> list[tuple[list[int], dict]]:
+        seen: dict[int, tuple[list[int], dict]] = {}
+        for key in _lsh_band_keys(sig, self.bands):
+            for item in self._buckets.get(key, []):
+                seen[id(item[0])] = item
+        return list(seen.values())
+
+    def find_near_duplicates(self, text: str) -> list[dict]:
+        """Return metas of corpus chunks near-duplicate to ``text`` (order: insertion)."""
+        sig = _text_signature(text, self.k, self.hash_count)
+        if sig is None:
+            hits = []
+            for existing, meta in self._short:
+                if near_duplicate_similarity(text, existing, self.k, self.hash_count) >= self.threshold:
+                    hits.append(meta)
+            return hits
+
+        hits = []
+        for existing_sig, meta in self._candidates(sig):
+            if _signature_similarity(sig, existing_sig) >= self.threshold:
+                hits.append(meta)
+        return hits
+
+    def is_near_duplicate(self, text: str) -> bool:
+        return bool(self.find_near_duplicates(text))
+
+
+if __name__ == "__main__":  # runnable self-check
+    # Identical teaching under two source_urls — the corpus's dominant duplicate mode.
+    # Length matches real chunks (500+ chars) so MinHash variance is low.
+    teaching = (
+        "When you practice the sacred breath, observe how the mind settles "
+        "into stillness. Do not force the breath. Simply allow it. The body "
+        "becomes a vessel of peace when the mind stops chasing and begins to "
+        "witness. This is the beginning of true meditation. As you sit each "
+        "morning, let the thoughts arrive and depart like clouds crossing the "
+        "sky. You are not the thoughts. You are the awareness behind them, the "
+        "stillness that watches. When the breath is long and soft, the nervous "
+        "system rests, and the heart opens to what is truly present. Do not "
+        "hurry the practice. Patience is itself the practice. The sacred breath "
+        "carries you home to the peace that was never lost, only forgotten, "
+        "hidden beneath the noise of daily life and its endless demands."
+    )
+    variant = teaching.replace("the sacred breath", "this sacred breath").replace(
+        "true meditation", "true stillness"
+    )
+
+    idx = LSHNearDupIndex()
+    idx.add(teaching, {"source_url": "a", "authority_tier": "primary"})
+    idx.add(variant, {"source_url": "b", "authority_tier": "primary"})
+    idx.add(
+        "A completely different chunk about farming methods and soil nutrients "
+        "that shares no vocabulary with the teaching above. Rain, harvest, and "
+        "irrigation cycles determine yield quality across the season.",
+        {"source_url": "c"},
+    )
+
+    near = idx.find_near_duplicates(variant)
+    urls = {n["source_url"] for n in near}
+    assert "a" in urls and "c" not in urls, near
+    assert idx.is_near_duplicate(variant)
+    assert not idx.is_near_duplicate(
+        "Farming methods and soil nutrients differ from the teaching about "
+        "breath. Rain and harvest determine yield across the season."
+    )
+
+    # Band-key determinism
+    sig = _text_signature(teaching, _DEFAULT_SHINGLE_SIZE, _DEFAULT_HASH_COUNT)
+    assert sig is not None and len(_lsh_band_keys(sig)) == _LSH_BANDS
+
+    print("deduplication LSH self-check OK")
+

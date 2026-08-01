@@ -61,26 +61,36 @@ class QdrantClientManager:
         ("teacher_id", "keyword"),
     ]
 
-    def __init__(self, collection: Optional[str] = None) -> None:
-        # Use a generous timeout for complex hybrid queries with 4 prefetches + RRF fusion.
-        # The default 5s is too short and causes cascading timeout/retry loops.
-        _timeout = getattr(settings, "qdrant_timeout", 30.0)
-        if settings.qdrant_local_path:
-            logger.info(f"Qdrant: local mode at {settings.qdrant_local_path}")
-            self._client = QdrantClient(
-                path=settings.qdrant_local_path,
-                check_compatibility=False,
-                timeout=_timeout,
-            )
+    def __init__(
+        self,
+        collection: Optional[str] = None,
+        client: Optional[QdrantClient] = None,
+    ) -> None:
+        # An injected client wins over settings: tests and batch runners hand
+        # in a pre-bound QdrantClient so every operation in the flow uses the
+        # same endpoint, never a client rebuilt from application settings.
+        if client is not None:
+            self._client = client
         else:
-            logger.info(f"Qdrant: remote mode at {settings.qdrant_url}")
-            self._client = QdrantClient(
-                url=settings.qdrant_url,
-                api_key=getattr(settings, "qdrant_api_key", "") or None,
-                prefer_grpc=False,
-                check_compatibility=False,
-                timeout=_timeout,
-            )
+            # Use a generous timeout for complex hybrid queries with 4 prefetches + RRF fusion.
+            # The default 5s is too short and causes cascading timeout/retry loops.
+            _timeout = getattr(settings, "qdrant_timeout", 30.0)
+            if settings.qdrant_local_path:
+                logger.info(f"Qdrant: local mode at {settings.qdrant_local_path}")
+                self._client = QdrantClient(
+                    path=settings.qdrant_local_path,
+                    check_compatibility=False,
+                    timeout=_timeout,
+                )
+            else:
+                logger.info(f"Qdrant: remote mode at {settings.qdrant_url}")
+                self._client = QdrantClient(
+                    url=settings.qdrant_url,
+                    api_key=getattr(settings, "qdrant_api_key", "") or None,
+                    prefer_grpc=False,
+                    check_compatibility=False,
+                    timeout=_timeout,
+                )
 
         # Use tenant context for collection name to support multi-tenancy
         if collection:

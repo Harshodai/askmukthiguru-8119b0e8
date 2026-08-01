@@ -99,7 +99,7 @@ Each lesson framed What / Where / When / Who / Why / How-to-prevent.
 - **When:** Would have fired on the very re-ingest intended to *fix* the contamination.
 - **Who:** The migration would have copied all ~26,161 poisoned chunks into the clean collection and accomplished nothing.
 - **Why:** The gate was placed where the bug was found, not at the boundary every writer must cross.
-- **How to prevent:** **Gate at the storage boundary** (`services/qdrant/indexer.py:upsert_chunks`), plus the earlier pipeline gate for cost savings. Defence in depth, guarantee at the bottom. Enumerate every writer with `grep -rn "upsert"` and prove each is covered.
+- **How to prevent:** **Gate at the storage boundary — `services/qdrant_service.py` is the approved boundary for ALL Qdrant operations.** Writes (and source-level deletes) must flow through the `QdrantService` facade (`upsert_chunks`, `delete_by_source`, …); `services/qdrant/indexer.py:upsert_chunks` is an internal helper — if it stays callable directly, document that calls must still flow through `qdrant_service.py` and never bypass it. Plus the earlier pipeline gate for cost savings. Defence in depth, guarantee at the bottom. Enumerate every writer with `grep -rn "upsert"` and prove each is covered. When auditing, confirm which Qdrant instance you are pointing at via `QDRANT_URL` (remote) vs `QDRANT_LOCAL_PATH` (local) — environment selection decides what the gate actually protects.
 
 ### 13. Don't Trust Your Own Number Until The Detector Is Validated
 - **What:** The contamination figure moved three times: **59% → 13.7% → 24.3% → 29.4%**.
@@ -137,26 +137,41 @@ Each lesson framed What / Where / When / Who / Why / How-to-prevent.
 
 ## Aug 1, 2026 — Ruthless Audit Remediation Session
 
-### 1. Docker Compose Cannot Self-Reference Environment Block Variables
+### 1. Hugging Face Repo Heads Are a Mutable Supply-Chain Footgun
+- **Problem**: `AutoTokenizer.from_pretrained("BAAI/bge-m3")` etc. resolve the *default branch HEAD* — any upstream force-push or retrain silently changes what production downloads and embeds. The 2026-07-16 embedding-dimension incident is this class of bug. No pin anywhere; all 7 models were unversioned.
+- **Fix**: Pin every load to an immutable commit SHA resolved from `https://huggingface.co/api/models/{id}` (comments record "resolved 2026-08-01; do not bump to a repo head"). Caveats learned: `FlagEmbedding`'s `BGEM3FlagModel` has **no `revision=` kwarg** — load the fp32 baseline via `snapshot_download(revision=...)` into a local dir and pass that path; gated repos (e.g. `meta-llama/Llama-Guard-3-1B`, `gated: manual`) work but only with a token; the HF API redirects mistyped names (`ms-marco-MiniLM-L-6-v2` → `ms-marco-MiniLM-L6-v2`) — verify the resolved SHA against the canonical id.
+- **Lesson**: A model load without a pinned revision is a latent supply-chain incident. The pinned-SHA registry lives in `backend/scripts/download_models.py::_MODEL_REVISIONS`; any new model added to the repo must get a SHA there first.
+
+### 2. urllib Follows Redirects By Default — Headers Leak to the New Host
+- **Problem**: `urllib.request.urlopen` transparently follows 3xx. `verify_sarvam.py` sent `api-subscription-key` on every request; a compromised or misconfigured base URL could redirect to an attacker host and the key travels with it. No scheme/host validation either — `http://` or any host was callable (SSRF surface).
+- **Fix**: Validate `urlparse` scheme == `https` and hostname == expected (`api.sarvam.ai`) before opening, and install a `urllib.request.HTTPRedirectHandler` subclass that raises on `redirect_request` — 3xx is a hard failure for a credentialed client.
+- **Lesson**: Any urllib/httpx client that sends credentials must (a) validate scheme+host before the request, (b) refuse to follow redirects. `# nosec B310` is only justified after both checks exist.
+
+### 3. Cross-Config Comparison Gates: Delta Heuristics Fire on the Wrong Axis
+- **Problem**: `validate_onnx_retrieval.py` compared "cross-config retrieval" against same-model baselines with `cross_avg > same_avg + 0.02`. It fired when *query-vector* drift changed both models' scores equally (false positive — no config bug) and missed *passage-only* drift where the shared query anchored both numbers (false negative — the real contamination). A gate that detects neither direction is decoration.
+- **Fix**: Replace with a single shared query vector ranked against both corpora: `_cross_config_overlap()` computes passage overlap of the two rankings; `_evaluate_cross_config()` compares that overlap against a calibrated baseline (≥ 0.85). One shared query isolates the config change; a ratio baseline isolates a fixed quality bar.
+- **Lesson**: A comparison gate is only meaningful if the comparison *isolates the changed variable*. Delta-to-self heuristics conflate shared drift with the variable under test. Pinned by `tests/test_onnx_retrieval_gate.py` (5 tests, incl. the legacy false-positive and false-negative scenarios).
+
+### 4. Docker Compose Cannot Self-Reference Environment Block Variables
 - **Problem**: `LMCACHE_REMOTE_URL=${REDIS_URL}` in `docker-compose.prod.yml` was resolving to an empty string. `REDIS_URL` was defined in the same `environment:` block, but Docker Compose interpolates `${}` from the *host environment* at startup — not from other lines in the same block.
 - **Fix**: Use explicit literal values: `LMCACHE_REMOTE_URL=redis://:${REDIS_PASSWORD}@redis:6379/0`. `${REDIS_PASSWORD}` resolves from host env (where it should be set), not from the sibling block.
 - **Lesson**: When a Docker Compose environment block variable references another env var, and that variable is also defined in the same block (not on the host), it resolves empty. Always test with `docker compose config` to see the resolved values.
 
-### 2. `git-filter-repo --force` Needs `N` to Start Fresh After Previous Run
+### 5. `git-filter-repo --force` Needs `N` to Start Fresh After Previous Run
 - **Problem**: `git-filter-repo` creates `.git/filter-repo/already_ran` after first run. A subsequent `--force` invocation still asks "treat as continuation? (Y/N)". Sending `Y` would apply the filter as a delta on the previous run; `N` starts a clean fresh pass.
 - **Fix**: Always answer `N` for a fresh rewrite. After completion, `origin` is removed by filter-repo (by design) — add it back manually: `git remote add origin <url>`.
 - **Lesson**: Add to any filter-repo runbook: "answer N to continuation prompt; re-add remote after run completes."
 
-### 3. Bandit `|| true` Makes the Security Scanner Decorative
+### 6. Bandit `|| true` Makes the Security Scanner Decorative
 - **Problem**: `bandit -r . ... || true` in CI means the security scanner always exits 0. It produces output but never blocks a merge. This is silent security theater — you're running Bandit but ignoring all its findings.
 - **Fix**: Remove `|| true`. Create a `.bandit` config file with documented justifications for known false positives (B101 asserts in tests, etc). The config file converts selective ignores into an auditable allowlist, not a blanket suppression.
 - **Lesson**: If a security tool is run with `|| true`, it is not a security gate — it is a log sink. Every `|| true` on a security scanner must have a JIRA ticket or a documented upgrade path.
 
-### 4. CSP connect-src Localhost URLs Are Active in Production
+### 7. CSP connect-src Localhost URLs Are Active in Production
 - **Problem**: `nginx.conf` CSP `connect-src` contained `http://localhost`, `http://localhost:8000`, `ws://127.0.0.1:54321`, etc. These were copied from local dev config and never stripped for production. In production, these entries are unreachable surface noise — they don't add capability but do widen the allowed policy unnecessarily.
 - **Fix**: Remove all localhost/127.0.0.1/backend:8000 entries from the production nginx CSP. These only belong in a development-mode config.
 
-### 5. Third-Party Domains in CSP Need Ownership Verification
+### 8. Third-Party Domains in CSP Need Ownership Verification
 - **Problem**: `gs-extension-embeds-final.vercel.app` was in `style-src` CSP. No file in the codebase explained what this Vercel domain was. An unrecognized third-party domain in CSP means: (a) if compromised, it can inject styles into your pages; (b) it creates a persistent dependency on an unknown deployment you don't control.
 - **Fix**: Remove until ownership can be confirmed. If it's a widget vendor, document it; if it was a dev artifact, delete it.
 - **Lesson**: Any third-party domain in CSP must be (a) owned by you or a named vendor with a documented integration, (b) written with a comment explaining what it's for. Unattributed domains are a future security incident waiting to happen.

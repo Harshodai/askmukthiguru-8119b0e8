@@ -50,6 +50,7 @@ ragatouille>=0.0.8
 # --- YouTube Ingestion ---
 youtube-transcript-api>=1.0.0
 yt-dlp>=2026.3.3
+defusedxml>=0.7.1  # hardened XML parsing for timedtext caption feeds (youtube_loader); no stdlib xml fallback
 
 # --- Web Ingestion ---
 playwright>=1.40.0,<2.0

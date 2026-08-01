@@ -8,6 +8,10 @@ from guardrails.base import BaseGuardrailHandler
 
 logger = logging.getLogger(__name__)
 
+# Immutable commit SHA of meta-llama/Llama-Guard-3-1B, resolved from the HF
+# API on 2026-08-01 (gated repo — see the load path for the deployment note).
+_LLAMA_GUARD_REVISION = "acf7aafa60f0410f8f42b1fa35e077d705892029"
+
 _LLAMA_GUARD_CATEGORIES = {
     "S1": "violent_crimes",
     "S2": "non_violent_crimes",
@@ -76,12 +80,19 @@ class LlamaGuardHandler(BaseGuardrailHandler):
             from transformers import AutoModelForCausalLM, AutoTokenizer
 
             model_id = "meta-llama/Llama-Guard-3-1B"
+            # Immutable revision (commit SHA) of the gated repo, resolved and
+            # verified 2026-08-01. Gated model: requires license acceptance
+            # + hf login — used only by this local guardrail handler, never
+            # by the ingestion or answer paths. Deployment approval recorded
+            # in AGENTS.md; do not bump to a repo head.
+            revision = _LLAMA_GUARD_REVISION
             device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
             logger.info("Loading Llama Guard 3 1B on %s (this may take a moment)...", device)
-            self._tokenizer = AutoTokenizer.from_pretrained(model_id)
+            self._tokenizer = AutoTokenizer.from_pretrained(model_id, revision=revision)
             self._model = AutoModelForCausalLM.from_pretrained(
                 model_id,
+                revision=revision,
                 torch_dtype=torch.float16 if device != "cpu" else torch.float32,
                 device_map=device,
             )

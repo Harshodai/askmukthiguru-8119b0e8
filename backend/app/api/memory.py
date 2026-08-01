@@ -347,8 +347,8 @@ async def get_persona_endpoint(
 
     if not getattr(container, "supabase_client", None):
         raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
-    content = await get_persona(container.supabase_client, user["id"])
-    return {"content": content or "", "updated_at": ""}
+    content, updated_at = await get_persona(container.supabase_client, user["id"])
+    return {"content": content or "", "updated_at": updated_at or ""}
 
 
 @router.post("/memory/persona/regenerate")
@@ -364,7 +364,7 @@ async def regenerate_persona_endpoint(
     if not getattr(container, "memory_service", None):
         raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
     atoms = await get_recent_atoms(container.memory_service, user["id"], limit=50)
-    existing = await get_persona(container.supabase_client, user["id"])
+    existing, _ = await get_persona(container.supabase_client, user["id"])
     persona = await generate_persona(atoms, existing)
     ok = await save_persona(container.supabase_client, user["id"], persona)
     return {"status": "ok" if ok else "error", "content": persona}
@@ -390,7 +390,7 @@ async def reflect_endpoint(
         return {"status": "ok", "persona": "", "skills": [], "note": "no atoms yet"}
 
     atoms_text = "\n".join(a.content for a in atoms)
-    existing_persona = await get_persona(container.supabase_client, user["id"])
+    existing_persona, _ = await get_persona(container.supabase_client, user["id"])
     persona = await generate_persona(atoms, existing_persona)
     if persona:
         await save_persona(container.supabase_client, user["id"], persona)

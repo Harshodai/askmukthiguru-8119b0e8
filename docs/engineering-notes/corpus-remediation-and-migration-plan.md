@@ -535,18 +535,29 @@ Intrinsic eval: 91.07% mean across five metrics over 33 documents / ~1.18M token
 
 **Three reasons it is a candidate and not the default:**
 
-1. **Benchmarked on documents; our corpus is speech.** Its metrics are *Block
-   Integrity*, *Reference Continuity*, *Size Compliance*, and it ships page-based
-   splitting with PDF parsers. A YouTube transcript has no pages, no blocks, no
-   cross-references — **the mechanisms producing its win largely do not exist in
-   our data.** Its 33 documents across 3 domains are document domains.
+1. **Benchmarked on documents; our corpus is speech.** The package also accepts
+   raw text and custom chunking callables — page parsers are optional — but the
+   published benchmark contains **no speech/transcript validation**: its metrics
+   are *Block Integrity*, *Reference Continuity*, *Size Compliance*, and it ships
+   page-based splitting with PDF parsers. A YouTube transcript has no pages and
+   no blocks — **the mechanisms producing its win largely do not exist in our
+   data.** We must therefore assess the raw-transcript path ourselves and
+   **replace or disable the page-specific metrics (Block Integrity, page-based
+   splitting)** before trusting any win. Its 33 documents across 3 domains are
+   document domains.
 2. **Licence trap.** Core is MIT ✅, but `[coref]` is **CC BY-NC-SA 4.0
    (non-commercial)** and `[parsing]` is **AGPL-3.0 or Artifex Commercial** — both
    outside this project's "Apache-2.0 / MIT / Meta Community only" rule
-   (`CLAUDE.md`, `LICENSE-EXCEPTIONS.md`). Install **core only; extras forbidden.**
-   Note the irony: coreference resolution is the extra that would help transcripts
-   most — spoken discourse is dense with unresolved pronouns ("*this* is what I
-   want you to see") — and it is the one we cannot legally use.
+   (`CLAUDE.md`, `LICENSE-EXCEPTIONS.md`). Before the bake-off, do not rely on
+   the core package's MIT licence alone: **pin the upstream package version,
+   generate and review its SBOM, and scan the complete resolved runtime
+   dependency closure** against the allowed-licence rule. Install **core only**;
+   explicitly disable the `[coref]` and `[parsing]` extras **and all LLM-based
+   modes** so no non-commercial/AGPL code or LLM-output-to-persistence surface
+   can be pulled in. Note the irony: coreference resolution is the extra that
+   would help transcripts most — spoken discourse is dense with unresolved
+   pronouns ("*this* is what I want you to see") — and it is the one we cannot
+   legally use.
 3. **Its "LLM regex chunking" mode generates chunking patterns with an LLM.**
    Per §1, that is another LLM-output-to-persistence surface. Gate it or avoid
    that mode.
@@ -569,10 +580,28 @@ selects the worse strategy.
 | D | Boundary + **speaker-turn breaks** | small | Stops question/answer bleed across a chunk |
 
 Rules:
+- **Pre-declare the hard limits before evaluation** — a p50 latency ceiling, a
+  p95 latency ceiling, and quality-gate compliance (write through §7). A
+  candidate that fails **any** pre-declared limit is ineligible, whatever its
+  accuracy or recall.
+- Candidate B precondition — **RESOLVED 2026-08-01: candidate B stays in the
+  plan.** Late chunking needs bge-m3's 8192-token context, and
+  `services/embedding_service.py` now runs **BAAI/bge-m3 as the primary model**
+  (ONNX INT8 path `gpahal/bge-m3-onnx-int8`, 1024-dim, tokenizer pinned to an
+  immutable commit SHA); `all-MiniLM-L6-v2` remains only as the 384-dim
+  emergency fallback (`sentence-transformers/all-MiniLM-L6-v2`, also pinned).
+  Decision: **option (a) — bge-m3 is the corpus embedding model**, embeddings
+  already flow through `services/embedding_service.py`, and the 384-dim
+  fallback never writes to the corpus (it is a degraded-response path only).
+  Residual risk to record in the bake-off: late chunking must be evaluated on
+  the **ONNX INT8** encoder, not the PyTorch fp32 baseline — quantization must
+  not degrade the pooling behaviour late chunking depends on. External
+  embedding APIs remain forbidden (§8.1).
 - Baseline first (current config), or the comparison is meaningless.
 - Change **one** variable at a time; A and B are separable and both free.
-- A candidate wins only if it beats baseline on **both** metrics, or wins accuracy
-  without materially losing recall.
+- Among candidates that pass every pre-declared limit, a candidate wins only if
+  it beats baseline on **both** metrics, or wins accuracy without materially
+  losing recall.
 - Record p50/p95 latency per candidate — a winner that doubles TTFT is not a winner.
 - Whatever wins, it still writes through the quality gate (§7). No exceptions.
 

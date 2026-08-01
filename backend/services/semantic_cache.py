@@ -223,7 +223,7 @@ class SemanticCacheService:
 
         try:
             # Generate entry ID
-            entry_id = int(hashlib.md5(query.encode()).hexdigest()[:8], 16)
+            entry_id = int(hashlib.md5(query.encode(), usedforsecurity=False).hexdigest()[:8], 16)
 
             # Store the entry
             entry = {

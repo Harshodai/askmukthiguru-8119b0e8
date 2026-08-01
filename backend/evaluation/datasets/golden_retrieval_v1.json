@@ -1,0 +1,1791 @@
+{
+  "version": "v1",
+  "collection": "spiritual_wisdom",
+  "generated": "2026-08-01",
+  "labeling": "source-level all-terms coverage over full corpus scroll (verified question bank)",
+  "items": [
+    {
+      "id": "doctrine_four_secrets-000",
+      "query": "What are the Four Sacred Secrets?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "spiritual vision",
+        "inner truth",
+        "universal intelligence",
+        "spiritual right action"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 384
+    },
+    {
+      "id": "doctrine_four_secrets-001",
+      "query": "Explain the first sacred secret.",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "spiritual vision"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=38-NgBAet1c",
+        "https://www.youtube.com/watch?v=4_Fqfew1PRk",
+        "https://www.youtube.com/watch?v=8mmungGgDNw",
+        "https://www.youtube.com/watch?v=AxlmYK0B9Yw",
+        "https://www.youtube.com/watch?v=EpReLy7g6WM",
+        "https://www.youtube.com/watch?v=IGryscyFmV8",
+        "https://www.youtube.com/watch?v=K-AFDVOkIoE",
+        "https://www.youtube.com/watch?v=LrMyaDh_MSo",
+        "https://www.youtube.com/watch?v=Tc8f9ZasRRM",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=VO3fi1c9ids",
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+        "https://www.youtube.com/watch?v=tl2Ek-QakME",
+        "https://www.youtube.com/watch?v=u3xrPJu51SM",
+        "https://www.youtube.com/watch?v=wDaE92bNRNw"
+      ],
+      "correct_chunks": 240
+    },
+    {
+      "id": "doctrine_four_secrets-002",
+      "query": "What is the second secret about Inner Truth?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "inner truth",
+        "observe",
+        "suffering"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=0u9oe-5HPmk",
+        "https://www.youtube.com/watch?v=38-NgBAet1c",
+        "https://www.youtube.com/watch?v=4LIZkNHlNaM",
+        "https://www.youtube.com/watch?v=6rLvPzNyLRw",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=Gdd-5uWUW5w",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=LrMyaDh_MSo",
+        "https://www.youtube.com/watch?v=QAnRefsK-3Y",
+        "https://www.youtube.com/watch?v=TqxxCYnAxo8",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=b-MkLkpTeVY",
+        "https://www.youtube.com/watch?v=cI7D2aO34yw",
+        "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "https://www.youtube.com/watch?v=kMc_kat7YLE",
+        "https://www.youtube.com/watch?v=nen-DB_tz4M",
+        "https://www.youtube.com/watch?v=o_eg6YTifRE",
+        "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "https://www.youtube.com/watch?v=pTnZt0SqDFM",
+        "https://www.youtube.com/watch?v=pmSPHJfg3AU",
+        "https://www.youtube.com/watch?v=r_l2RNcSPPA",
+        "https://www.youtube.com/watch?v=tDcy09esbe8",
+        "https://www.youtube.com/watch?v=vIUY446FVPw",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=y2ZgKdt4Cj0"
+      ],
+      "correct_chunks": 2529
+    },
+    {
+      "id": "doctrine_four_secrets-003",
+      "query": "How does Universal Intelligence work?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "universal intelligence",
+        "ask",
+        "manifest"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-yGLiryVQoQ",
+        "https://www.youtube.com/watch?v=0ypG1mlekNY",
+        "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=F9Vo4fezmcE",
+        "https://www.youtube.com/watch?v=Gw4Ng9FKJyY",
+        "https://www.youtube.com/watch?v=IGryscyFmV8",
+        "https://www.youtube.com/watch?v=JRX5W9AhWoA",
+        "https://www.youtube.com/watch?v=MmiI3xo5Ju4",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "https://www.youtube.com/watch?v=avCLyAi9DeY",
+        "https://www.youtube.com/watch?v=bh_kjn-1CAY",
+        "https://www.youtube.com/watch?v=hwNlLB1sze0",
+        "https://www.youtube.com/watch?v=n3UBbCXJaJ0",
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+        "https://www.youtube.com/watch?v=tCWfCISvo5k",
+        "https://www.youtube.com/watch?v=wDaE92bNRNw",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "correct_chunks": 1680
+    },
+    {
+      "id": "doctrine_four_secrets-004",
+      "query": "What is Spiritual Right Action?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "spiritual right action",
+        "present",
+        "connection"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=1PlGMOAypCI"
+      ],
+      "correct_chunks": 418
+    },
+    {
+      "id": "doctrine_four_secrets-005",
+      "query": "What is a 'beautiful state' according to the book?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "beautiful state",
+        "suffering",
+        "connection"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=-u6ZDfHdB54",
+        "https://www.youtube.com/watch?v=-yGLiryVQoQ",
+        "https://www.youtube.com/watch?v=07NOYJmkkFo",
+        "https://www.youtube.com/watch?v=0k5f8G9uXqY",
+        "https://www.youtube.com/watch?v=0u9oe-5HPmk",
+        "https://www.youtube.com/watch?v=0ypG1mlekNY",
+        "https://www.youtube.com/watch?v=1J0HpmGWsZs",
+        "https://www.youtube.com/watch?v=1PlGMOAypCI",
+        "https://www.youtube.com/watch?v=1imcyoNUO-A",
+        "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "https://www.youtube.com/watch?v=1sMxPhQcvEA",
+        "https://www.youtube.com/watch?v=1w-IStuMl3M",
+        "https://www.youtube.com/watch?v=207izZBbqVg",
+        "https://www.youtube.com/watch?v=2DLb6hDIhmg",
+        "https://www.youtube.com/watch?v=2JL1ZgMS7nY",
+        "https://www.youtube.com/watch?v=2z5qxSr4EaI",
+        "https://www.youtube.com/watch?v=38-NgBAet1c",
+        "https://www.youtube.com/watch?v=3EqnSkAzfIg",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=3weAVHuSCxg",
+        "https://www.youtube.com/watch?v=4LIZkNHlNaM",
+        "https://www.youtube.com/watch?v=4_Fqfew1PRk",
+        "https://www.youtube.com/watch?v=4ytgjpow498",
+        "https://www.youtube.com/watch?v=5hNCT4duOgc",
+        "https://www.youtube.com/watch?v=5xxp7L-Ktp8",
+        "https://www.youtube.com/watch?v=6-GWHR9_iSU",
+        "https://www.youtube.com/watch?v=6rLvPzNyLRw",
+        "https://www.youtube.com/watch?v=7NVPsHdyw_Y",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI",
+        "https://www.youtube.com/watch?v=7b6tnI7VmB4",
+        "https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "https://www.youtube.com/watch?v=81fCD_f4exU",
+        "https://www.youtube.com/watch?v=8Xy8xsLIgAU",
+        "https://www.youtube.com/watch?v=8mmungGgDNw",
+        "https://www.youtube.com/watch?v=8p3zqYg5wuo",
+        "https://www.youtube.com/watch?v=9-NMv5E-18s",
+        "https://www.youtube.com/watch?v=9Mv4Thnx9SU",
+        "https://www.youtube.com/watch?v=AB-t5CoxMHM",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=AviNwtN1luo",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=B8wapoLAu84",
+        "https://www.youtube.com/watch?v=BkM7IcqUaj0",
+        "https://www.youtube.com/watch?v=CZ_r5sYeTyY",
+        "https://www.youtube.com/watch?v=D9obnqNB4aI",
+        "https://www.youtube.com/watch?v=E8N04l1Lptk",
+        "https://www.youtube.com/watch?v=FP5O9F9JiOk",
+        "https://www.youtube.com/watch?v=F_yRNKupugs",
+        "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "https://www.youtube.com/watch?v=Gdd-5uWUW5w",
+        "https://www.youtube.com/watch?v=GfAMCHC6_ek",
+        "https://www.youtube.com/watch?v=Gt3o8lcbcII",
+        "https://www.youtube.com/watch?v=HELtP96Dd4w",
+        "https://www.youtube.com/watch?v=H_uhawaiO3E",
+        "https://www.youtube.com/watch?v=HtmLQkxj8ec",
+        "https://www.youtube.com/watch?v=I6yC-aUQUvw",
+        "https://www.youtube.com/watch?v=IGryscyFmV8",
+        "https://www.youtube.com/watch?v=JRX5W9AhWoA",
+        "https://www.youtube.com/watch?v=JRlaAip4kmk",
+        "https://www.youtube.com/watch?v=Ji-hdW1t30g",
+        "https://www.youtube.com/watch?v=Js7ongWaW64",
+        "https://www.youtube.com/watch?v=JwMlR98BgrI",
+        "https://www.youtube.com/watch?v=K-AFDVOkIoE",
+        "https://www.youtube.com/watch?v=KTe11DlB4QI",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=LrMyaDh_MSo",
+        "https://www.youtube.com/watch?v=Lst4MvxPCx4",
+        "https://www.youtube.com/watch?v=M7ItOHTrvz8",
+        "https://www.youtube.com/watch?v=M8XASiz30oE",
+        "https://www.youtube.com/watch?v=MKOAMUmZ-RA",
+        "https://www.youtube.com/watch?v=MmiI3xo5Ju4",
+        "https://www.youtube.com/watch?v=Mr1cjAz2y9I",
+        "https://www.youtube.com/watch?v=Mrngwfko5kk",
+        "https://www.youtube.com/watch?v=NJQ573JDmAg",
+        "https://www.youtube.com/watch?v=NMjYsvaOOQM",
+        "https://www.youtube.com/watch?v=O1VkNuEChD4",
+        "https://www.youtube.com/watch?v=OWMBvMlGWTA",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=OZiElH5pKmo",
+        "https://www.youtube.com/watch?v=Oc5ar2g2rnI",
+        "https://www.youtube.com/watch?v=OnAAtrwsfOc",
+        "https://www.youtube.com/watch?v=OuDAdSnFtbw",
+        "https://www.youtube.com/watch?v=PLVPL1dXKc0",
+        "https://www.youtube.com/watch?v=PslFhdZaBFA",
+        "https://www.youtube.com/watch?v=Q4QyNologtw",
+        "https://www.youtube.com/watch?v=QAnRefsK-3Y",
+        "https://www.youtube.com/watch?v=Qr_pw4E-REk",
+        "https://www.youtube.com/watch?v=QzJ_Ft1de1o",
+        "https://www.youtube.com/watch?v=RBb_3sgOgFY",
+        "https://www.youtube.com/watch?v=RFx74Q6Oq2c",
+        "https://www.youtube.com/watch?v=RkLY_uJL0xc",
+        "https://www.youtube.com/watch?v=Tc8f9ZasRRM",
+        "https://www.youtube.com/watch?v=TqxxCYnAxo8",
+        "https://www.youtube.com/watch?v=U1qRvz3hnMA",
+        "https://www.youtube.com/watch?v=U23yKxWbIcI",
+        "https://www.youtube.com/watch?v=UJM00IqGKtc",
+        "https://www.youtube.com/watch?v=UNdwPjyLGn0",
+        "https://www.youtube.com/watch?v=UZHSssZflFQ",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=UlOt31lBhLY",
+        "https://www.youtube.com/watch?v=UrVvSqKYU8c",
+        "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "https://www.youtube.com/watch?v=V5fBJwo_KQk",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=VTx4G0KEuUE",
+        "https://www.youtube.com/watch?v=Vr3PS2DdbDU",
+        "https://www.youtube.com/watch?v=Vt_CjAdzebM",
+        "https://www.youtube.com/watch?v=WtRGXnnGiVE",
+        "https://www.youtube.com/watch?v=WwgBOejW_pI",
+        "https://www.youtube.com/watch?v=X1mtpheWDhs",
+        "https://www.youtube.com/watch?v=X3LKG0Ycl3A",
+        "https://www.youtube.com/watch?v=XK2Wna2YG6Y",
+        "https://www.youtube.com/watch?v=XMzZe5aEmTo",
+        "https://www.youtube.com/watch?v=XS9EXhxRbi8",
+        "https://www.youtube.com/watch?v=YguId6pF5KI",
+        "https://www.youtube.com/watch?v=YkIBYppBtro",
+        "https://www.youtube.com/watch?v=Z7w7soyXmHs",
+        "https://www.youtube.com/watch?v=ZD1nQPtpojM",
+        "https://www.youtube.com/watch?v=_XDcXdBDZ0c",
+        "https://www.youtube.com/watch?v=aDQhPZUnDqA",
+        "https://www.youtube.com/watch?v=aJIunwxx3NI",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=b-MkLkpTeVY",
+        "https://www.youtube.com/watch?v=bCzjP2UaKRI",
+        "https://www.youtube.com/watch?v=bSyewSnu2Ak",
+        "https://www.youtube.com/watch?v=bh_kjn-1CAY",
+        "https://www.youtube.com/watch?v=c32xomNzUIs",
+        "https://www.youtube.com/watch?v=cHAJiF2byzg",
+        "https://www.youtube.com/watch?v=cI7D2aO34yw",
+        "https://www.youtube.com/watch?v=dR7olu353VY",
+        "https://www.youtube.com/watch?v=dqUq_a0DyLs",
+        "https://www.youtube.com/watch?v=eumRL5DfFzM",
+        "https://www.youtube.com/watch?v=fdPQxZsPAwI",
+        "https://www.youtube.com/watch?v=ffhDTzE4nDU",
+        "https://www.youtube.com/watch?v=fj2_d2lNGVk",
+        "https://www.youtube.com/watch?v=fzfhimnVghE",
+        "https://www.youtube.com/watch?v=gMrOMT4mfno",
+        "https://www.youtube.com/watch?v=gQiIwfA3mlk",
+        "https://www.youtube.com/watch?v=h9S9Hh4aBN8",
+        "https://www.youtube.com/watch?v=hUmlujE6SN0",
+        "https://www.youtube.com/watch?v=hcNDrMy6gCE",
+        "https://www.youtube.com/watch?v=hh61tFdyX8c",
+        "https://www.youtube.com/watch?v=hqre34QIMZg",
+        "https://www.youtube.com/watch?v=hwNlLB1sze0",
+        "https://www.youtube.com/watch?v=idoWVpnJz-Y",
+        "https://www.youtube.com/watch?v=iikr2xzAK6Y",
+        "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "https://www.youtube.com/watch?v=jW3JDLY0cDA",
+        "https://www.youtube.com/watch?v=jy4hcpUSBms",
+        "https://www.youtube.com/watch?v=k5RDNv-CH9M",
+        "https://www.youtube.com/watch?v=kMc_kat7YLE",
+        "https://www.youtube.com/watch?v=kPuvsIyt6UI",
+        "https://www.youtube.com/watch?v=kYVY4_zxLVQ",
+        "https://www.youtube.com/watch?v=kzRqQOvjRhA",
+        "https://www.youtube.com/watch?v=l6svaRx35TI",
+        "https://www.youtube.com/watch?v=mNM-x9RFMcE",
+        "https://www.youtube.com/watch?v=mbhdVEKEbLg",
+        "https://www.youtube.com/watch?v=n3UBbCXJaJ0",
+        "https://www.youtube.com/watch?v=nUrc8O7Avvk",
+        "https://www.youtube.com/watch?v=nen-DB_tz4M",
+        "https://www.youtube.com/watch?v=nwQaU-agzFE",
+        "https://www.youtube.com/watch?v=o6X1TVEFHAY",
+        "https://www.youtube.com/watch?v=oSAPs1YDkq0",
+        "https://www.youtube.com/watch?v=oUCZWSi8zY4",
+        "https://www.youtube.com/watch?v=oXRZhJTHuOA",
+        "https://www.youtube.com/watch?v=oZRQoiRe7s4",
+        "https://www.youtube.com/watch?v=o_eg6YTifRE",
+        "https://www.youtube.com/watch?v=obK5uqYXOJU",
+        "https://www.youtube.com/watch?v=odNtpKqbCQo",
+        "https://www.youtube.com/watch?v=odXq5g-Y7gM",
+        "https://www.youtube.com/watch?v=owC8E_G2fY4",
+        "https://www.youtube.com/watch?v=owXqW04b08o",
+        "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "https://www.youtube.com/watch?v=pQ7yAREnJaw",
+        "https://www.youtube.com/watch?v=pTnEtB8mcVA",
+        "https://www.youtube.com/watch?v=pTnZt0SqDFM",
+        "https://www.youtube.com/watch?v=pmSPHJfg3AU",
+        "https://www.youtube.com/watch?v=q15gR1aGjVs",
+        "https://www.youtube.com/watch?v=qJxGtSDiayM",
+        "https://www.youtube.com/watch?v=qQmrTz6i2x4",
+        "https://www.youtube.com/watch?v=r_l2RNcSPPA",
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+        "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+        "https://www.youtube.com/watch?v=smrj15-QOAI",
+        "https://www.youtube.com/watch?v=tCWfCISvo5k",
+        "https://www.youtube.com/watch?v=tDcy09esbe8",
+        "https://www.youtube.com/watch?v=tOi1Ho5Kwhk",
+        "https://www.youtube.com/watch?v=tegTDWT3SDc",
+        "https://www.youtube.com/watch?v=tl2Ek-QakME",
+        "https://www.youtube.com/watch?v=uA7E_SUdtM8",
+        "https://www.youtube.com/watch?v=uZg9XnRub7w",
+        "https://www.youtube.com/watch?v=vARTudIEq30",
+        "https://www.youtube.com/watch?v=vIUY446FVPw",
+        "https://www.youtube.com/watch?v=vNj7OSHos1I",
+        "https://www.youtube.com/watch?v=vjEsXpEtpH4",
+        "https://www.youtube.com/watch?v=vy09aBxslx0",
+        "https://www.youtube.com/watch?v=w1gF90_cBl4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=y-C_8_p_F5w",
+        "https://www.youtube.com/watch?v=y2ZgKdt4Cj0",
+        "https://www.youtube.com/watch?v=y9iL10DPhzI",
+        "https://www.youtube.com/watch?v=yDTGeNo-w0c",
+        "https://www.youtube.com/watch?v=z0iCoqwZE_U",
+        "https://www.youtube.com/watch?v=z3fSeC_oG-s",
+        "https://www.youtube.com/watch?v=zCnqQBfyXa4",
+        "https://www.youtube.com/watch?v=zGhlBQ8iWl4",
+        "https://www.youtube.com/watch?v=zp2w7DTmOwc"
+      ],
+      "correct_chunks": 11976
+    },
+    {
+      "id": "doctrine_four_secrets-006",
+      "query": "What is the focus of the chapter on Inner Truth?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "inner truth",
+        "nonjudgmental",
+        "awareness"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 101
+    },
+    {
+      "id": "doctrine_four_secrets-007",
+      "query": "How can I access Universal Intelligence to change my destiny?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "universal intelligence",
+        "destiny",
+        "manifest"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=0ypG1mlekNY",
+        "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=8Lp2qPXYix4",
+        "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+        "https://www.youtube.com/watch?v=J81diFHJqWw",
+        "https://www.youtube.com/watch?v=MmiI3xo5Ju4",
+        "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "https://www.youtube.com/watch?v=jGG6-a4IrNw",
+        "https://www.youtube.com/watch?v=tCWfCISvo5k"
+      ],
+      "correct_chunks": 381
+    },
+    {
+      "id": "doctrine_four_secrets-008",
+      "query": "Explain the blueprint for behavior in Spiritual Right Action.",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "spiritual right action",
+        "blueprint",
+        "behavior"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 55
+    },
+    {
+      "id": "doctrine_four_secrets-009",
+      "query": "What happens when we are engrossed in ourselves according to the secrets?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "inner truth",
+        "engrossed",
+        "suffering"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=NMjYsvaOOQM",
+        "https://www.youtube.com/watch?v=UlOt31lBhLY"
+      ],
+      "correct_chunks": 104
+    },
+    {
+      "id": "doctrine_four_secrets-011",
+      "query": "What year was The Four Sacred Secrets published?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "2019"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=36rdT1bFOk0",
+        "https://www.youtube.com/watch?v=FYQHXDtlYX4",
+        "https://www.youtube.com/watch?v=YZaEmcxvYvc",
+        "https://www.youtube.com/watch?v=bHd9dYS6UiU",
+        "https://www.youtube.com/watch?v=pTw6RbHzm-U"
+      ],
+      "correct_chunks": 9
+    },
+    {
+      "id": "doctrine_four_secrets-012",
+      "query": "How does the second secret help with stress?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "inner truth",
+        "dissolve",
+        "stress"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=38-NgBAet1c",
+        "https://www.youtube.com/watch?v=6rLvPzNyLRw",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=Qr_pw4E-REk",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=_X5jRvqxEEo",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=b-MkLkpTeVY",
+        "https://www.youtube.com/watch?v=kMc_kat7YLE",
+        "https://www.youtube.com/watch?v=o_eg6YTifRE",
+        "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "https://www.youtube.com/watch?v=pTnZt0SqDFM",
+        "https://www.youtube.com/watch?v=r_l2RNcSPPA",
+        "https://www.youtube.com/watch?v=tDcy09esbe8",
+        "https://www.youtube.com/watch?v=tOi1Ho5Kwhk",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=y2ZgKdt4Cj0"
+      ],
+      "correct_chunks": 701
+    },
+    {
+      "id": "doctrine_four_secrets-013",
+      "query": "What is the definition of Spiritual Vision?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "spiritual vision",
+        "purpose",
+        "clarity"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=38-NgBAet1c",
+        "https://www.youtube.com/watch?v=4_Fqfew1PRk",
+        "https://www.youtube.com/watch?v=8mmungGgDNw",
+        "https://www.youtube.com/watch?v=IGryscyFmV8",
+        "https://www.youtube.com/watch?v=K-AFDVOkIoE",
+        "https://www.youtube.com/watch?v=LrMyaDh_MSo",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=tl2Ek-QakME"
+      ],
+      "correct_chunks": 597
+    },
+    {
+      "id": "doctrine_four_secrets-014",
+      "query": "How does the book describe the connection between inner states and outer reality?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "inner state",
+        "outer reality",
+        "consciousness"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=5hNCT4duOgc",
+        "https://www.youtube.com/watch?v=8p3zqYg5wuo",
+        "https://www.youtube.com/watch?v=AviNwtN1luo",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "https://www.youtube.com/watch?v=HELtP96Dd4w",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=PslFhdZaBFA",
+        "https://www.youtube.com/watch?v=RFx74Q6Oq2c",
+        "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "https://www.youtube.com/watch?v=XK2Wna2YG6Y",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=bSyewSnu2Ak",
+        "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "https://www.youtube.com/watch?v=nen-DB_tz4M",
+        "https://www.youtube.com/watch?v=o_eg6YTifRE",
+        "https://www.youtube.com/watch?v=owC8E_G2fY4",
+        "https://www.youtube.com/watch?v=q15gR1aGjVs",
+        "https://www.youtube.com/watch?v=qJxGtSDiayM",
+        "https://www.youtube.com/watch?v=tDcy09esbe8",
+        "https://www.youtube.com/watch?v=vIUY446FVPw",
+        "https://www.youtube.com/watch?v=y4ZR5U8VuQY"
+      ],
+      "correct_chunks": 2476
+    },
+    {
+      "id": "doctrine_four_secrets-016",
+      "query": "Does the book provide a blueprint for behavior?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "spiritual right action",
+        "blueprint"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 41
+    },
+    {
+      "id": "doctrine_four_secrets-017",
+      "query": "How do Sri Preethaji and Sri Krishnaji define connection in the book?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "connection",
+        "disconnection",
+        "suffering"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=38-NgBAet1c",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=3weAVHuSCxg",
+        "https://www.youtube.com/watch?v=4_Fqfew1PRk",
+        "https://www.youtube.com/watch?v=5hNCT4duOgc",
+        "https://www.youtube.com/watch?v=8Xy8xsLIgAU",
+        "https://www.youtube.com/watch?v=AviNwtN1luo",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=E8N04l1Lptk",
+        "https://www.youtube.com/watch?v=HtmLQkxj8ec",
+        "https://www.youtube.com/watch?v=I6yC-aUQUvw",
+        "https://www.youtube.com/watch?v=JRX5W9AhWoA",
+        "https://www.youtube.com/watch?v=K-AFDVOkIoE",
+        "https://www.youtube.com/watch?v=LrMyaDh_MSo",
+        "https://www.youtube.com/watch?v=MKOAMUmZ-RA",
+        "https://www.youtube.com/watch?v=MmiI3xo5Ju4",
+        "https://www.youtube.com/watch?v=OWMBvMlGWTA",
+        "https://www.youtube.com/watch?v=OnAAtrwsfOc",
+        "https://www.youtube.com/watch?v=PslFhdZaBFA",
+        "https://www.youtube.com/watch?v=QAnRefsK-3Y",
+        "https://www.youtube.com/watch?v=RkLY_uJL0xc",
+        "https://www.youtube.com/watch?v=TqxxCYnAxo8",
+        "https://www.youtube.com/watch?v=VTx4G0KEuUE",
+        "https://www.youtube.com/watch?v=ZD1nQPtpojM",
+        "https://www.youtube.com/watch?v=bCzjP2UaKRI",
+        "https://www.youtube.com/watch?v=bSyewSnu2Ak",
+        "https://www.youtube.com/watch?v=dqUq_a0DyLs",
+        "https://www.youtube.com/watch?v=fdPQxZsPAwI",
+        "https://www.youtube.com/watch?v=fj2_d2lNGVk",
+        "https://www.youtube.com/watch?v=jy4hcpUSBms",
+        "https://www.youtube.com/watch?v=kMc_kat7YLE",
+        "https://www.youtube.com/watch?v=l6svaRx35TI",
+        "https://www.youtube.com/watch?v=m-m2wMW4020",
+        "https://www.youtube.com/watch?v=nUrc8O7Avvk",
+        "https://www.youtube.com/watch?v=nen-DB_tz4M",
+        "https://www.youtube.com/watch?v=o6X1TVEFHAY",
+        "https://www.youtube.com/watch?v=oZRQoiRe7s4",
+        "https://www.youtube.com/watch?v=obK5uqYXOJU",
+        "https://www.youtube.com/watch?v=odNtpKqbCQo",
+        "https://www.youtube.com/watch?v=odXq5g-Y7gM",
+        "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "https://www.youtube.com/watch?v=pTnZt0SqDFM",
+        "https://www.youtube.com/watch?v=q15gR1aGjVs",
+        "https://www.youtube.com/watch?v=qJxGtSDiayM",
+        "https://www.youtube.com/watch?v=qQmrTz6i2x4",
+        "https://www.youtube.com/watch?v=r_l2RNcSPPA",
+        "https://www.youtube.com/watch?v=vIUY446FVPw",
+        "https://www.youtube.com/watch?v=vjEsXpEtpH4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=y9iL10DPhzI"
+      ],
+      "correct_chunks": 4274
+    },
+    {
+      "id": "doctrine_four_secrets-018",
+      "query": "What is the relationship between the third secret and manifestation?",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "universal intelligence",
+        "manifestation",
+        "destiny"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=0ypG1mlekNY",
+        "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "https://www.youtube.com/watch?v=tCWfCISvo5k"
+      ],
+      "correct_chunks": 159
+    },
+    {
+      "id": "doctrine_four_secrets-019",
+      "query": "Explain the four secrets in a single sentence each.",
+      "category": "doctrine_four_secrets",
+      "must_mention": [
+        "spiritual vision",
+        "inner truth",
+        "universal intelligence",
+        "spiritual right action"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 384
+    },
+    {
+      "id": "doctrine_founders-021",
+      "query": "Who is Lokaa?",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "lokaa",
+        "daughter"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 37
+    },
+    {
+      "id": "doctrine_founders-025",
+      "query": "Who founded the Oneness Movement?",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "preethaji",
+        "krishnaji",
+        "founders"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=UlOt31lBhLY",
+        "https://www.youtube.com/watch?v=w2qbJB6ie9Y"
+      ],
+      "correct_chunks": 146
+    },
+    {
+      "id": "doctrine_founders-026",
+      "query": "What is the relationship between Lokaa and the founders?",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "daughter",
+        "lokaa"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 37
+    },
+    {
+      "id": "doctrine_founders-027",
+      "query": "Where is the Lokaa Foundation based?",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "india",
+        "ekam",
+        "villages"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=1imcyoNUO-A",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=vARTudIEq30",
+        "https://www.youtube.com/watch?v=wDaE92bNRNw",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "correct_chunks": 657
+    },
+    {
+      "id": "doctrine_founders-028",
+      "query": "How does the Lokaa Foundation improve health in rural communities?",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "healthcare",
+        "villages",
+        "health"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=vARTudIEq30"
+      ],
+      "correct_chunks": 4
+    },
+    {
+      "id": "doctrine_founders-029",
+      "query": "What is the vision of Sri Preethaji and Sri Krishnaji for humanity?",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "elevating",
+        "consciousness",
+        "oneness",
+        "beautiful state"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "https://www.youtube.com/watch?v=HELtP96Dd4w",
+        "https://www.youtube.com/watch?v=I6yC-aUQUvw",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=_XDcXdBDZ0c",
+        "https://www.youtube.com/watch?v=b-MkLkpTeVY",
+        "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "https://www.youtube.com/watch?v=owC8E_G2fY4",
+        "https://www.youtube.com/watch?v=q15gR1aGjVs"
+      ],
+      "correct_chunks": 1438
+    },
+    {
+      "id": "doctrine_founders-031",
+      "query": "What is the co-founders' philosophy on wealth and success?",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "flourish",
+        "abundance",
+        "beautiful state"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "https://www.youtube.com/watch?v=3EqnSkAzfIg",
+        "https://www.youtube.com/watch?v=QAnRefsK-3Y",
+        "https://www.youtube.com/watch?v=idoWVpnJz-Y",
+        "https://www.youtube.com/watch?v=oXRZhJTHuOA",
+        "https://www.youtube.com/watch?v=owC8E_G2fY4",
+        "https://www.youtube.com/watch?v=qQmrTz6i2x4",
+        "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+        "https://www.youtube.com/watch?v=smrj15-QOAI",
+        "https://www.youtube.com/watch?v=vy09aBxslx0",
+        "https://www.youtube.com/watch?v=zCnqQBfyXa4"
+      ],
+      "correct_chunks": 967
+    },
+    {
+      "id": "doctrine_founders-032",
+      "query": "How do Sri Preethaji and Sri Krishnaji describe the oneness of humanity?",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "unitary fabric",
+        "interconnected",
+        "consciousness"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 190
+    },
+    {
+      "id": "doctrine_founders-033",
+      "query": "Who is Lokaa's daughter?",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "daughter",
+        "founders",
+        "lokaa"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 37
+    },
+    {
+      "id": "doctrine_founders-035",
+      "query": "Explain Oneness philosophy in the context of the co-founders.",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "interconnectedness",
+        "consciousness",
+        "unitary fabric"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 187
+    },
+    {
+      "id": "doctrine_founders-037",
+      "query": "Do the founders believe that inner peace changes outer reality?",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "inner state",
+        "outer reality",
+        "consciousness"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=5hNCT4duOgc",
+        "https://www.youtube.com/watch?v=8p3zqYg5wuo",
+        "https://www.youtube.com/watch?v=AviNwtN1luo",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "https://www.youtube.com/watch?v=HELtP96Dd4w",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=PslFhdZaBFA",
+        "https://www.youtube.com/watch?v=RFx74Q6Oq2c",
+        "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "https://www.youtube.com/watch?v=XK2Wna2YG6Y",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=bSyewSnu2Ak",
+        "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "https://www.youtube.com/watch?v=nen-DB_tz4M",
+        "https://www.youtube.com/watch?v=o_eg6YTifRE",
+        "https://www.youtube.com/watch?v=owC8E_G2fY4",
+        "https://www.youtube.com/watch?v=q15gR1aGjVs",
+        "https://www.youtube.com/watch?v=qJxGtSDiayM",
+        "https://www.youtube.com/watch?v=tDcy09esbe8",
+        "https://www.youtube.com/watch?v=vIUY446FVPw",
+        "https://www.youtube.com/watch?v=y4ZR5U8VuQY"
+      ],
+      "correct_chunks": 2476
+    },
+    {
+      "id": "doctrine_founders-038",
+      "query": "How does Lokaa Foundation ensure clean water in villages?",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "water",
+        "villages",
+        "clean"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=rRs__D_3mKY",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "correct_chunks": 58
+    },
+    {
+      "id": "doctrine_founders-039",
+      "query": "Summarize the co-founders' global spiritual contribution.",
+      "category": "doctrine_founders",
+      "must_mention": [
+        "oneness",
+        "consciousness",
+        "beautiful state",
+        "ekam"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-u6ZDfHdB54",
+        "https://www.youtube.com/watch?v=0k5f8G9uXqY",
+        "https://www.youtube.com/watch?v=3EqnSkAzfIg",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=4LIZkNHlNaM",
+        "https://www.youtube.com/watch?v=4_Fqfew1PRk",
+        "https://www.youtube.com/watch?v=5xxp7L-Ktp8",
+        "https://www.youtube.com/watch?v=6-GWHR9_iSU",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI",
+        "https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "https://www.youtube.com/watch?v=81fCD_f4exU",
+        "https://www.youtube.com/watch?v=8mmungGgDNw",
+        "https://www.youtube.com/watch?v=AB-t5CoxMHM",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=BkM7IcqUaj0",
+        "https://www.youtube.com/watch?v=GfAMCHC6_ek",
+        "https://www.youtube.com/watch?v=HtmLQkxj8ec",
+        "https://www.youtube.com/watch?v=IGryscyFmV8",
+        "https://www.youtube.com/watch?v=JRX5W9AhWoA",
+        "https://www.youtube.com/watch?v=JRlaAip4kmk",
+        "https://www.youtube.com/watch?v=Ji-hdW1t30g",
+        "https://www.youtube.com/watch?v=Js7ongWaW64",
+        "https://www.youtube.com/watch?v=Mr1cjAz2y9I",
+        "https://www.youtube.com/watch?v=O1VkNuEChD4",
+        "https://www.youtube.com/watch?v=OWMBvMlGWTA",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=Oc5ar2g2rnI",
+        "https://www.youtube.com/watch?v=Qr_pw4E-REk",
+        "https://www.youtube.com/watch?v=U1qRvz3hnMA",
+        "https://www.youtube.com/watch?v=UrVvSqKYU8c",
+        "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=Vr3PS2DdbDU",
+        "https://www.youtube.com/watch?v=Vt_CjAdzebM",
+        "https://www.youtube.com/watch?v=X1mtpheWDhs",
+        "https://www.youtube.com/watch?v=XK2Wna2YG6Y",
+        "https://www.youtube.com/watch?v=Z7w7soyXmHs",
+        "https://www.youtube.com/watch?v=_XDcXdBDZ0c",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=b-MkLkpTeVY",
+        "https://www.youtube.com/watch?v=bCzjP2UaKRI",
+        "https://www.youtube.com/watch?v=bSyewSnu2Ak",
+        "https://www.youtube.com/watch?v=btbKcsb9Dzw",
+        "https://www.youtube.com/watch?v=dqUq_a0DyLs",
+        "https://www.youtube.com/watch?v=ehkqJ54DIC0",
+        "https://www.youtube.com/watch?v=ffhDTzE4nDU",
+        "https://www.youtube.com/watch?v=h9S9Hh4aBN8",
+        "https://www.youtube.com/watch?v=hh61tFdyX8c",
+        "https://www.youtube.com/watch?v=iikr2xzAK6Y",
+        "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "https://www.youtube.com/watch?v=jy4hcpUSBms",
+        "https://www.youtube.com/watch?v=kMc_kat7YLE",
+        "https://www.youtube.com/watch?v=kPuvsIyt6UI",
+        "https://www.youtube.com/watch?v=kYVY4_zxLVQ",
+        "https://www.youtube.com/watch?v=mbhdVEKEbLg",
+        "https://www.youtube.com/watch?v=n3UBbCXJaJ0",
+        "https://www.youtube.com/watch?v=o_eg6YTifRE",
+        "https://www.youtube.com/watch?v=obK5uqYXOJU",
+        "https://www.youtube.com/watch?v=odNtpKqbCQo",
+        "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "https://www.youtube.com/watch?v=pQ7yAREnJaw",
+        "https://www.youtube.com/watch?v=q15gR1aGjVs",
+        "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+        "https://www.youtube.com/watch?v=tCWfCISvo5k",
+        "https://www.youtube.com/watch?v=tDcy09esbe8",
+        "https://www.youtube.com/watch?v=tl2Ek-QakME",
+        "https://www.youtube.com/watch?v=vARTudIEq30",
+        "https://www.youtube.com/watch?v=vIUY446FVPw",
+        "https://www.youtube.com/watch?v=vNj7OSHos1I",
+        "https://www.youtube.com/watch?v=vy09aBxslx0",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=y4ZR5U8VuQY",
+        "https://www.youtube.com/watch?v=y9iL10DPhzI",
+        "https://www.youtube.com/watch?v=yDTGeNo-w0c",
+        "https://www.youtube.com/watch?v=zs_JKa0cVsY"
+      ],
+      "correct_chunks": 7924
+    },
+    {
+      "id": "doctrine_manifest-041",
+      "query": "What is the Power of Intention in Manifest 2026?",
+      "category": "doctrine_manifest",
+      "must_mention": [
+        "intention",
+        "january"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=dR7olu353VY"
+      ],
+      "correct_chunks": 30
+    },
+    {
+      "id": "doctrine_manifest-042",
+      "query": "What is the Power of Deeksha in Manifest 2026?",
+      "category": "doctrine_manifest",
+      "must_mention": [
+        "deeksha",
+        "august"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 4
+    },
+    {
+      "id": "doctrine_manifest-045",
+      "query": "Which month represents the Power of Gratitude?",
+      "category": "doctrine_manifest",
+      "must_mention": [
+        "gratitude",
+        "november"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=HpoWKtIcTcw"
+      ],
+      "correct_chunks": 19
+    },
+    {
+      "id": "doctrine_manifest-048",
+      "query": "Which month corresponds to the Power of Health?",
+      "category": "doctrine_manifest",
+      "must_mention": [
+        "health",
+        "april"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=UbCEX5KBbPw",
+        "https://www.youtube.com/watch?v=_KtWOkUsy1w",
+        "https://www.youtube.com/watch?v=btbKcsb9Dzw",
+        "https://www.youtube.com/watch?v=mJOReEqkgMM"
+      ],
+      "correct_chunks": 11
+    },
+    {
+      "id": "doctrine_manifest-052",
+      "query": "What is the power for May in Manifest 2026?",
+      "category": "doctrine_manifest",
+      "must_mention": [
+        "universal intelligence",
+        "may"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-yGLiryVQoQ",
+        "https://www.youtube.com/watch?v=0Fa4Wyv0GOk",
+        "https://www.youtube.com/watch?v=0ypG1mlekNY",
+        "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=3qEON3iXjNM",
+        "https://www.youtube.com/watch?v=4eV8OvVEm6A",
+        "https://www.youtube.com/watch?v=8CgS_ANm26Y",
+        "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=ClbKAXVvzzo",
+        "https://www.youtube.com/watch?v=FSxiSEV1iPY",
+        "https://www.youtube.com/watch?v=IGryscyFmV8",
+        "https://www.youtube.com/watch?v=JRX5W9AhWoA",
+        "https://www.youtube.com/watch?v=LpqjenfvWzQ",
+        "https://www.youtube.com/watch?v=M7ItOHTrvz8",
+        "https://www.youtube.com/watch?v=MmiI3xo5Ju4",
+        "https://www.youtube.com/watch?v=PNH5hdUnXks",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=V2WQ20Ocw_o",
+        "https://www.youtube.com/watch?v=WQWVnrG-wX4",
+        "https://www.youtube.com/watch?v=We6ENmiSSwI",
+        "https://www.youtube.com/watch?v=avCLyAi9DeY",
+        "https://www.youtube.com/watch?v=bh_kjn-1CAY",
+        "https://www.youtube.com/watch?v=dR7olu353VY",
+        "https://www.youtube.com/watch?v=hwNlLB1sze0",
+        "https://www.youtube.com/watch?v=l0bQZ9tnwvk",
+        "https://www.youtube.com/watch?v=n3UBbCXJaJ0",
+        "https://www.youtube.com/watch?v=qj6ZFtvViic",
+        "https://www.youtube.com/watch?v=s-In3a1CAoI",
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+        "https://www.youtube.com/watch?v=tCWfCISvo5k",
+        "https://www.youtube.com/watch?v=wDaE92bNRNw",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=y-C_8_p_F5w",
+        "https://www.youtube.com/watch?v=zpuRES7Fnm8"
+      ],
+      "correct_chunks": 633
+    },
+    {
+      "id": "doctrine_manifest-055",
+      "query": "Which power is celebrated in August?",
+      "category": "doctrine_manifest",
+      "must_mention": [
+        "deeksha",
+        "august"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 4
+    },
+    {
+      "id": "doctrine_manifest-057",
+      "query": "What represents November's focus in Manifest 2026?",
+      "category": "doctrine_manifest",
+      "must_mention": [
+        "gratitude",
+        "november"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=HpoWKtIcTcw"
+      ],
+      "correct_chunks": 19
+    },
+    {
+      "id": "doctrine_deeksha-060",
+      "query": "What is Deeksha?",
+      "category": "doctrine_deeksha",
+      "must_mention": [
+        "deeksha",
+        "oneness blessing",
+        "transfer",
+        "energy"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf"
+      ],
+      "correct_chunks": 23
+    },
+    {
+      "id": "doctrine_deeksha-063",
+      "query": "How does Deeksha affect the frontal lobe?",
+      "category": "doctrine_deeksha",
+      "must_mention": [
+        "frontal lobe",
+        "activate",
+        "activation"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=RFx74Q6Oq2c",
+        "https://www.youtube.com/watch?v=XsbGYVBY92c"
+      ],
+      "correct_chunks": 25
+    },
+    {
+      "id": "doctrine_deeksha-067",
+      "query": "Can I receive Deeksha online?",
+      "category": "doctrine_deeksha",
+      "must_mention": [
+        "receive",
+        "online",
+        "live"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=4LIZkNHlNaM",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Lst4MvxPCx4",
+        "https://www.youtube.com/watch?v=dR7olu353VY",
+        "https://www.youtube.com/watch?v=kMc_kat7YLE",
+        "https://www.youtube.com/watch?v=kf-IuHxVN7g",
+        "https://www.youtube.com/watch?v=vARTudIEq30",
+        "https://www.youtube.com/watch?v=wDaE92bNRNw"
+      ],
+      "correct_chunks": 409
+    },
+    {
+      "id": "doctrine_deeksha-068",
+      "query": "What is the main spiritual goal of Deeksha?",
+      "category": "doctrine_deeksha",
+      "must_mention": [
+        "awakening",
+        "oneness",
+        "consciousness"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=0u9oe-5HPmk",
+        "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "https://www.youtube.com/watch?v=1sMxPhQcvEA",
+        "https://www.youtube.com/watch?v=207izZBbqVg",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=4LIZkNHlNaM",
+        "https://www.youtube.com/watch?v=5RcKCxfLEHM",
+        "https://www.youtube.com/watch?v=5qA5ibrq9NU",
+        "https://www.youtube.com/watch?v=5xxp7L-Ktp8",
+        "https://www.youtube.com/watch?v=6-GWHR9_iSU",
+        "https://www.youtube.com/watch?v=77dJnbTCwsA",
+        "https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "https://www.youtube.com/watch?v=88NOQTz5_yI",
+        "https://www.youtube.com/watch?v=8mmungGgDNw",
+        "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+        "https://www.youtube.com/watch?v=AR0r8B6Ga8E",
+        "https://www.youtube.com/watch?v=Ao8Rhhl9E8k",
+        "https://www.youtube.com/watch?v=AviNwtN1luo",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=BkM7IcqUaj0",
+        "https://www.youtube.com/watch?v=ClbKAXVvzzo",
+        "https://www.youtube.com/watch?v=DBUJH5f6rjU",
+        "https://www.youtube.com/watch?v=EBBd2MOeOIU",
+        "https://www.youtube.com/watch?v=Ejcq9mNGJk0",
+        "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "https://www.youtube.com/watch?v=GfAMCHC6_ek",
+        "https://www.youtube.com/watch?v=HELtP96Dd4w",
+        "https://www.youtube.com/watch?v=HtmLQkxj8ec",
+        "https://www.youtube.com/watch?v=I6yC-aUQUvw",
+        "https://www.youtube.com/watch?v=IGryscyFmV8",
+        "https://www.youtube.com/watch?v=JRX5W9AhWoA",
+        "https://www.youtube.com/watch?v=JRlaAip4kmk",
+        "https://www.youtube.com/watch?v=LrMyaDh_MSo",
+        "https://www.youtube.com/watch?v=Lst4MvxPCx4",
+        "https://www.youtube.com/watch?v=Mr1cjAz2y9I",
+        "https://www.youtube.com/watch?v=Nq8BntIZb40",
+        "https://www.youtube.com/watch?v=OWMBvMlGWTA",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=Oc5ar2g2rnI",
+        "https://www.youtube.com/watch?v=QAnRefsK-3Y",
+        "https://www.youtube.com/watch?v=QpmmGqGoo-8",
+        "https://www.youtube.com/watch?v=R3ZRYoTxhUE",
+        "https://www.youtube.com/watch?v=T3I8r_NU2Wk",
+        "https://www.youtube.com/watch?v=T_SFXvO7ymc",
+        "https://www.youtube.com/watch?v=U1qRvz3hnMA",
+        "https://www.youtube.com/watch?v=UJM00IqGKtc",
+        "https://www.youtube.com/watch?v=UNdwPjyLGn0",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=UrVvSqKYU8c",
+        "https://www.youtube.com/watch?v=V5fBJwo_KQk",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=VTx4G0KEuUE",
+        "https://www.youtube.com/watch?v=Vr3PS2DdbDU",
+        "https://www.youtube.com/watch?v=Vt_CjAdzebM",
+        "https://www.youtube.com/watch?v=X1mtpheWDhs",
+        "https://www.youtube.com/watch?v=YguId6pF5KI",
+        "https://www.youtube.com/watch?v=YkIBYppBtro",
+        "https://www.youtube.com/watch?v=_KtWOkUsy1w",
+        "https://www.youtube.com/watch?v=a3sAeqXrCYI",
+        "https://www.youtube.com/watch?v=aJIunwxx3NI",
+        "https://www.youtube.com/watch?v=b-MkLkpTeVY",
+        "https://www.youtube.com/watch?v=bCzjP2UaKRI",
+        "https://www.youtube.com/watch?v=bSyewSnu2Ak",
+        "https://www.youtube.com/watch?v=btbKcsb9Dzw",
+        "https://www.youtube.com/watch?v=dR7olu353VY",
+        "https://www.youtube.com/watch?v=dqUq_a0DyLs",
+        "https://www.youtube.com/watch?v=ffhDTzE4nDU",
+        "https://www.youtube.com/watch?v=hh61tFdyX8c",
+        "https://www.youtube.com/watch?v=iikr2xzAK6Y",
+        "https://www.youtube.com/watch?v=jGG6-a4IrNw",
+        "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "https://www.youtube.com/watch?v=jy4hcpUSBms",
+        "https://www.youtube.com/watch?v=kMc_kat7YLE",
+        "https://www.youtube.com/watch?v=kYVY4_zxLVQ",
+        "https://www.youtube.com/watch?v=kyEL8OTZwBk",
+        "https://www.youtube.com/watch?v=l6svaRx35TI",
+        "https://www.youtube.com/watch?v=mbhdVEKEbLg",
+        "https://www.youtube.com/watch?v=n3UBbCXJaJ0",
+        "https://www.youtube.com/watch?v=nUrc8O7Avvk",
+        "https://www.youtube.com/watch?v=oXRZhJTHuOA",
+        "https://www.youtube.com/watch?v=o_eg6YTifRE",
+        "https://www.youtube.com/watch?v=oaKWpxmu0YI",
+        "https://www.youtube.com/watch?v=obK5uqYXOJU",
+        "https://www.youtube.com/watch?v=odNtpKqbCQo",
+        "https://www.youtube.com/watch?v=owC8E_G2fY4",
+        "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "https://www.youtube.com/watch?v=pTnZt0SqDFM",
+        "https://www.youtube.com/watch?v=pmSPHJfg3AU",
+        "https://www.youtube.com/watch?v=q15gR1aGjVs",
+        "https://www.youtube.com/watch?v=qDSfb0DZ0PE",
+        "https://www.youtube.com/watch?v=qJxGtSDiayM",
+        "https://www.youtube.com/watch?v=rRs__D_3mKY",
+        "https://www.youtube.com/watch?v=r_l2RNcSPPA",
+        "https://www.youtube.com/watch?v=sCiK7ABPcrw",
+        "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+        "https://www.youtube.com/watch?v=tCWfCISvo5k",
+        "https://www.youtube.com/watch?v=tDcy09esbe8",
+        "https://www.youtube.com/watch?v=tl2Ek-QakME",
+        "https://www.youtube.com/watch?v=uSAO5p0GIU8",
+        "https://www.youtube.com/watch?v=vARTudIEq30",
+        "https://www.youtube.com/watch?v=vIUY446FVPw",
+        "https://www.youtube.com/watch?v=vNj7OSHos1I",
+        "https://www.youtube.com/watch?v=vy09aBxslx0",
+        "https://www.youtube.com/watch?v=wDaE92bNRNw",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=xFQSF6GzQXQ",
+        "https://www.youtube.com/watch?v=y9iL10DPhzI",
+        "https://www.youtube.com/watch?v=zGhlBQ8iWl4",
+        "https://www.youtube.com/watch?v=zs_JKa0cVsY"
+      ],
+      "correct_chunks": 6831
+    },
+    {
+      "id": "doctrine_deeksha-071",
+      "query": "Is Deeksha an energy transfer?",
+      "category": "doctrine_deeksha",
+      "must_mention": [
+        "energy",
+        "transfer",
+        "blessing"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=ffhDTzE4nDU",
+        "https://www.youtube.com/watch?v=kf-IuHxVN7g"
+      ],
+      "correct_chunks": 91
+    },
+    {
+      "id": "doctrine_deeksha-073",
+      "query": "What is the alternative name for Deeksha?",
+      "category": "doctrine_deeksha",
+      "must_mention": [
+        "oneness blessing"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=_KtWOkUsy1w"
+      ],
+      "correct_chunks": 3
+    },
+    {
+      "id": "doctrine_deeksha-075",
+      "query": "Does Deeksha activate the frontal lobes?",
+      "category": "doctrine_deeksha",
+      "must_mention": [
+        "frontal",
+        "activate"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=KB_rdqB-sVw",
+        "https://www.youtube.com/watch?v=RFx74Q6Oq2c",
+        "https://www.youtube.com/watch?v=TN9W-Jc7qZc",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=XsbGYVBY92c",
+        "https://www.youtube.com/watch?v=a78n3v1aDMg",
+        "https://www.youtube.com/watch?v=r3iE2gDwIEk"
+      ],
+      "correct_chunks": 83
+    },
+    {
+      "id": "doctrine_deeksha-077",
+      "query": "Can Deeksha accelerate spiritual awakening?",
+      "category": "doctrine_deeksha",
+      "must_mention": [
+        "awakening",
+        "accelerate",
+        "consciousness"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=qQmrTz6i2x4",
+        "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "correct_chunks": 315
+    },
+    {
+      "id": "doctrine_soul_sync-080",
+      "query": "What is Soul Sync?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "soul sync",
+        "preethaji",
+        "meditation",
+        "intention"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI",
+        "https://www.youtube.com/watch?v=GQZ7A4fvts4",
+        "https://www.youtube.com/watch?v=VAMJEgwaPEc",
+        "https://www.youtube.com/watch?v=XK2Wna2YG6Y",
+        "https://www.youtube.com/watch?v=beh0v5Odn6g",
+        "https://www.youtube.com/watch?v=o_eg6YTifRE",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "correct_chunks": 664
+    },
+    {
+      "id": "doctrine_soul_sync-082",
+      "query": "What is the second step of Soul Sync?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "humming",
+        "bee humming"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=5qA5ibrq9NU",
+        "https://www.youtube.com/watch?v=QpmmGqGoo-8"
+      ],
+      "correct_chunks": 4
+    },
+    {
+      "id": "doctrine_soul_sync-086",
+      "query": "What is the purpose of the Humming step in Soul Sync?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "humming",
+        "vibration",
+        "nervous system"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=o_eg6YTifRE"
+      ],
+      "correct_chunks": 8
+    },
+    {
+      "id": "doctrine_soul_sync-087",
+      "query": "What do we visualize during the Golden Light step of Soul Sync?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "golden light",
+        "expanding",
+        "oneness"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=JRX5W9AhWoA"
+      ],
+      "correct_chunks": 68
+    },
+    {
+      "id": "doctrine_soul_sync-088",
+      "query": "What is the role of the Intention step in Soul Sync?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "intention",
+        "manifest",
+        "expanded"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI",
+        "https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "https://www.youtube.com/watch?v=AviNwtN1luo",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=BkM7IcqUaj0",
+        "https://www.youtube.com/watch?v=I6yC-aUQUvw",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=LrMyaDh_MSo",
+        "https://www.youtube.com/watch?v=OWMBvMlGWTA",
+        "https://www.youtube.com/watch?v=OWXe9v7PHDs",
+        "https://www.youtube.com/watch?v=QAnRefsK-3Y",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=YkIBYppBtro",
+        "https://www.youtube.com/watch?v=ffhDTzE4nDU",
+        "https://www.youtube.com/watch?v=hqre34QIMZg",
+        "https://www.youtube.com/watch?v=idoWVpnJz-Y",
+        "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "https://www.youtube.com/watch?v=jy4hcpUSBms",
+        "https://www.youtube.com/watch?v=kMc_kat7YLE",
+        "https://www.youtube.com/watch?v=nUrc8O7Avvk",
+        "https://www.youtube.com/watch?v=o6X1TVEFHAY",
+        "https://www.youtube.com/watch?v=oXRZhJTHuOA",
+        "https://www.youtube.com/watch?v=owC8E_G2fY4",
+        "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "https://www.youtube.com/watch?v=qJxGtSDiayM",
+        "https://www.youtube.com/watch?v=qQmrTz6i2x4",
+        "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+        "https://www.youtube.com/watch?v=smrj15-QOAI",
+        "https://www.youtube.com/watch?v=vARTudIEq30",
+        "https://www.youtube.com/watch?v=vy09aBxslx0"
+      ],
+      "correct_chunks": 1230
+    },
+    {
+      "id": "doctrine_soul_sync-089",
+      "query": "What finger movement is used to count breaths in Soul Sync?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "thumb",
+        "fingers",
+        "touching"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=5Tdb7hBwX88",
+        "https://www.youtube.com/watch?v=M_BYTcsLQuY",
+        "https://www.youtube.com/watch?v=utRatnFr-S8",
+        "https://www.youtube.com/watch?v=zO8tQkjCpyc"
+      ],
+      "correct_chunks": 10
+    },
+    {
+      "id": "doctrine_soul_sync-090",
+      "query": "Is Soul Sync a morning ritual?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "morning",
+        "daily",
+        "ritual"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=4LIZkNHlNaM",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI",
+        "https://www.youtube.com/watch?v=E8N04l1Lptk",
+        "https://www.youtube.com/watch?v=HELtP96Dd4w",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=UZHSssZflFQ",
+        "https://www.youtube.com/watch?v=VTx4G0KEuUE",
+        "https://www.youtube.com/watch?v=oXRZhJTHuOA",
+        "https://www.youtube.com/watch?v=pmSPHJfg3AU",
+        "https://www.youtube.com/watch?v=r_l2RNcSPPA",
+        "https://www.youtube.com/watch?v=wDaE92bNRNw",
+        "https://www.youtube.com/watch?v=y-C_8_p_F5w"
+      ],
+      "correct_chunks": 2868
+    },
+    {
+      "id": "doctrine_soul_sync-092",
+      "query": "Does Soul Sync help manifest desires?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "manifest",
+        "intention",
+        "desires"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=-4wCvcPrX-E",
+        "https://www.youtube.com/watch?v=-yGLiryVQoQ",
+        "https://www.youtube.com/watch?v=1kS_mQaBLdg",
+        "https://www.youtube.com/watch?v=1nhXsnx5--Y",
+        "https://www.youtube.com/watch?v=3RyCldrCxL8",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI",
+        "https://www.youtube.com/watch?v=7lggUuJtZXY",
+        "https://www.youtube.com/watch?v=9-NMv5E-18s",
+        "https://www.youtube.com/watch?v=ACvOem_B-Ek",
+        "https://www.youtube.com/watch?v=AviNwtN1luo",
+        "https://www.youtube.com/watch?v=AyUE-2Uh5Vg",
+        "https://www.youtube.com/watch?v=BkM7IcqUaj0",
+        "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "https://www.youtube.com/watch?v=HtmLQkxj8ec",
+        "https://www.youtube.com/watch?v=I6yC-aUQUvw",
+        "https://www.youtube.com/watch?v=KTlY-lHs_Ew",
+        "https://www.youtube.com/watch?v=LrMyaDh_MSo",
+        "https://www.youtube.com/watch?v=MmiI3xo5Ju4",
+        "https://www.youtube.com/watch?v=Mr1cjAz2y9I",
+        "https://www.youtube.com/watch?v=OWMBvMlGWTA",
+        "https://www.youtube.com/watch?v=PslFhdZaBFA",
+        "https://www.youtube.com/watch?v=RFx74Q6Oq2c",
+        "https://www.youtube.com/watch?v=UJM00IqGKtc",
+        "https://www.youtube.com/watch?v=UgQV_5FjPNk",
+        "https://www.youtube.com/watch?v=V5fBJwo_KQk",
+        "https://www.youtube.com/watch?v=VTx4G0KEuUE",
+        "https://www.youtube.com/watch?v=Vr3PS2DdbDU",
+        "https://www.youtube.com/watch?v=Vt_CjAdzebM",
+        "https://www.youtube.com/watch?v=XK2Wna2YG6Y",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=ffhDTzE4nDU",
+        "https://www.youtube.com/watch?v=gQiIwfA3mlk",
+        "https://www.youtube.com/watch?v=hh61tFdyX8c",
+        "https://www.youtube.com/watch?v=hqre34QIMZg",
+        "https://www.youtube.com/watch?v=iikr2xzAK6Y",
+        "https://www.youtube.com/watch?v=kMc_kat7YLE",
+        "https://www.youtube.com/watch?v=l6svaRx35TI",
+        "https://www.youtube.com/watch?v=nUrc8O7Avvk",
+        "https://www.youtube.com/watch?v=nen-DB_tz4M",
+        "https://www.youtube.com/watch?v=o6X1TVEFHAY",
+        "https://www.youtube.com/watch?v=oSAPs1YDkq0",
+        "https://www.youtube.com/watch?v=oXRZhJTHuOA",
+        "https://www.youtube.com/watch?v=obK5uqYXOJU",
+        "https://www.youtube.com/watch?v=odNtpKqbCQo",
+        "https://www.youtube.com/watch?v=owC8E_G2fY4",
+        "https://www.youtube.com/watch?v=qJxGtSDiayM",
+        "https://www.youtube.com/watch?v=qQmrTz6i2x4",
+        "https://www.youtube.com/watch?v=r_l2RNcSPPA",
+        "https://www.youtube.com/watch?v=smrj15-QOAI",
+        "https://www.youtube.com/watch?v=tCWfCISvo5k",
+        "https://www.youtube.com/watch?v=tOi1Ho5Kwhk",
+        "https://www.youtube.com/watch?v=vARTudIEq30",
+        "https://www.youtube.com/watch?v=vIUY446FVPw",
+        "https://www.youtube.com/watch?v=w1gF90_cBl4",
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4",
+        "https://www.youtube.com/watch?v=yDTGeNo-w0c",
+        "https://www.youtube.com/watch?v=zCnqQBfyXa4",
+        "https://www.youtube.com/watch?v=zGhlBQ8iWl4"
+      ],
+      "correct_chunks": 2206
+    },
+    {
+      "id": "doctrine_soul_sync-093",
+      "query": "What is the third step of Soul Sync about?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "pause",
+        "breath"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=07NOYJmkkFo",
+        "https://www.youtube.com/watch?v=2z5qxSr4EaI",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI",
+        "https://www.youtube.com/watch?v=EFJZ2l5Rc10",
+        "https://www.youtube.com/watch?v=Fbd7ln2i9dw",
+        "https://www.youtube.com/watch?v=I6yC-aUQUvw",
+        "https://www.youtube.com/watch?v=JRX5W9AhWoA",
+        "https://www.youtube.com/watch?v=Qr_pw4E-REk",
+        "https://www.youtube.com/watch?v=RkLY_uJL0xc",
+        "https://www.youtube.com/watch?v=T3I8r_NU2Wk",
+        "https://www.youtube.com/watch?v=XK2Wna2YG6Y",
+        "https://www.youtube.com/watch?v=aSNQUkuyB18",
+        "https://www.youtube.com/watch?v=cI7D2aO34yw",
+        "https://www.youtube.com/watch?v=ffhDTzE4nDU",
+        "https://www.youtube.com/watch?v=g1tezETHrfY",
+        "https://www.youtube.com/watch?v=jK7-PPBXwr4",
+        "https://www.youtube.com/watch?v=l6svaRx35TI",
+        "https://www.youtube.com/watch?v=mmpmX3-qfc4",
+        "https://www.youtube.com/watch?v=n3UBbCXJaJ0",
+        "https://www.youtube.com/watch?v=o_eg6YTifRE",
+        "https://www.youtube.com/watch?v=pPHQMD3w9-s",
+        "https://www.youtube.com/watch?v=r_l2RNcSPPA",
+        "https://www.youtube.com/watch?v=sMgbjxyrgqw",
+        "https://www.youtube.com/watch?v=tDcy09esbe8",
+        "https://www.youtube.com/watch?v=utRatnFr-S8",
+        "https://www.youtube.com/watch?v=vjEsXpEtpH4",
+        "https://www.youtube.com/watch?v=zO8tQkjCpyc"
+      ],
+      "correct_chunks": 2083
+    },
+    {
+      "id": "doctrine_soul_sync-095",
+      "query": "Who created Soul Sync?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "preethaji",
+        "founders"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=UlOt31lBhLY",
+        "https://www.youtube.com/watch?v=w2qbJB6ie9Y"
+      ],
+      "correct_chunks": 95
+    },
+    {
+      "id": "doctrine_soul_sync-096",
+      "query": "Can I do Soul Sync while sitting in a chair?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "sit comfortably",
+        "chair"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=5Tdb7hBwX88",
+        "https://www.youtube.com/watch?v=7Pfat_DztMI"
+      ],
+      "correct_chunks": 3
+    },
+    {
+      "id": "doctrine_soul_sync-097",
+      "query": "Is humming part of Soul Sync?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "humming",
+        "bee humming"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=5qA5ibrq9NU",
+        "https://www.youtube.com/watch?v=QpmmGqGoo-8"
+      ],
+      "correct_chunks": 4
+    },
+    {
+      "id": "doctrine_soul_sync-098",
+      "query": "How does Soul Sync shift brain states?",
+      "category": "doctrine_soul_sync",
+      "must_mention": [
+        "alpha",
+        "beta",
+        "brain states",
+        "shift"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=x-mTRlE0TC4"
+      ],
+      "correct_chunks": 95
+    },
+    {
+      "id": "doctrine_ekam_architecture-107",
+      "query": "How does Ekam represent a Surya Yantra?",
+      "category": "doctrine_ekam_architecture",
+      "must_mention": [
+        "surya yantra",
+        "mandala",
+        "three-dimensional"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=MX7tos4L1jQ",
+        "https://www.youtube.com/watch?v=sZXuNv0L8YA"
+      ],
+      "correct_chunks": 4
+    },
+    {
+      "id": "doctrine_ekam_architecture-110",
+      "query": "What is the Ekam World Peace Festival?",
+      "category": "doctrine_ekam_architecture",
+      "must_mention": [
+        "festival",
+        "world peace",
+        "meditation",
+        "millions"
+      ],
+      "correct_sources": [
+        "The_Four_Sacred_Secrets.pdf",
+        "https://www.youtube.com/watch?v=HtmLQkxj8ec",
+        "https://www.youtube.com/watch?v=JRX5W9AhWoA",
+        "https://www.youtube.com/watch?v=j66VV2XKBJk",
+        "https://www.youtube.com/watch?v=rRs__D_3mKY",
+        "https://www.youtube.com/watch?v=rXkyO0fOOLE",
+        "https://www.youtube.com/watch?v=vARTudIEq30"
+      ],
+      "correct_chunks": 219
+    },
+    {
+      "id": "doctrine_ekam_architecture-111",
+      "query": "What is the theme of Day 1 of the Ekam World Peace Festival?",
+      "category": "doctrine_ekam_architecture",
+      "must_mention": [
+        "peace between nations",
+        "day 1"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU",
+        "https://www.youtube.com/watch?v=tLNsDEp-JcA"
+      ],
+      "correct_chunks": 3
+    },
+    {
+      "id": "doctrine_ekam_architecture-112",
+      "query": "What is the theme of Day 2 of the Ekam World Peace Festival?",
+      "category": "doctrine_ekam_architecture",
+      "must_mention": [
+        "peace for children",
+        "day 2"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU",
+        "https://www.youtube.com/watch?v=tLNsDEp-JcA"
+      ],
+      "correct_chunks": 2
+    },
+    {
+      "id": "doctrine_ekam_architecture-113",
+      "query": "What is the theme of Day 3 of the Ekam World Peace Festival?",
+      "category": "doctrine_ekam_architecture",
+      "must_mention": [
+        "peace between races and religions",
+        "day 3"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU",
+        "https://www.youtube.com/watch?v=tLNsDEp-JcA"
+      ],
+      "correct_chunks": 2
+    },
+    {
+      "id": "doctrine_ekam_architecture-114",
+      "query": "What is the theme of Day 4 of the Ekam World Peace Festival?",
+      "category": "doctrine_ekam_architecture",
+      "must_mention": [
+        "peace for nature and wildlife",
+        "day 4"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU",
+        "https://www.youtube.com/watch?v=tLNsDEp-JcA"
+      ],
+      "correct_chunks": 2
+    },
+    {
+      "id": "doctrine_ekam_architecture-115",
+      "query": "What is the theme of Day 5 of the Ekam World Peace Festival?",
+      "category": "doctrine_ekam_architecture",
+      "must_mention": [
+        "peace for women",
+        "day 5"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU",
+        "https://www.youtube.com/watch?v=tLNsDEp-JcA"
+      ],
+      "correct_chunks": 2
+    },
+    {
+      "id": "doctrine_ekam_architecture-116",
+      "query": "What is the theme of Day 6 of the Ekam World Peace Festival?",
+      "category": "doctrine_ekam_architecture",
+      "must_mention": [
+        "economic sufficiency",
+        "day 6"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU"
+      ],
+      "correct_chunks": 1
+    },
+    {
+      "id": "doctrine_ekam_architecture-117",
+      "query": "What is the theme of Day 7 of the Ekam World Peace Festival?",
+      "category": "doctrine_ekam_architecture",
+      "must_mention": [
+        "collective human evolution",
+        "day 7"
+      ],
+      "correct_sources": [
+        "https://www.youtube.com/watch?v=5daxvIoDLVU",
+        "https://www.youtube.com/watch?v=tLNsDEp-JcA"
+      ],
+      "correct_chunks": 3
+    }
+  ]
+}

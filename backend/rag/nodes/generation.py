@@ -13,6 +13,7 @@ from rag.prompts import (
     CANONICAL_URLS_LOGISTICS,
     FALLBACK_RESPONSE,
     GURU_SYSTEM_PROMPT,
+    GURU_VOICE_RULE,
     MULTI_TURN_PROMPT,
     STIMULUS_RAG_PROMPT,
 )
@@ -49,14 +50,15 @@ _PERSONA_TOKEN_BUDGET = 2048
 def _maybe_apply_langhanam_voice(
     state: GraphState, system_prompt: str, answer: str
 ) -> tuple[str, str]:
-    """Apply the Langhanam guru voice to generation (feature-flagged, default off).
+    """Apply the Langhanam guru voice to generation (feature-flagged, default on).
 
     Variant A (``guru_voice_mode == "prompt"``) appends the voice block to
     the system prompt; variant B (``"adapter"``) rewrites the finished
     answer with ``apply_langhanam_tone``. Gated on
-    ``settings.langhanam_voice_enabled`` and intent eligibility
-    (teaching/doctrine/distress — pure FACTUAL lookup-only queries are
-    excluded). Any failure degrades to the untouched inputs.
+    ``settings.langhanam_voice_enabled`` (defaults to True) and intent
+    eligibility — teaching/doctrine/distress/FACTUAL qualify (FACTUAL is in
+    ``LANGHANAM_ELIGIBLE_INTENTS``); CASUAL and GREETING are excluded. Any
+    failure degrades to the untouched inputs.
     """
     if not getattr(settings, "langhanam_voice_enabled", False):
         return system_prompt, answer
@@ -852,11 +854,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 "Answer the user's question using only the provided context. "
                 f"Keep answers to {('80-150' if _cs < 0.30 else '150-300' if _cs < 0.55 else '300-500')} words. "
                 "Cite sources using [Source: <title>].\n"
-                "VOICE RULE — preserve the gurus' own words. When the context contains them speaking "
-                "in the first person ('I want you to...', 'me and Preethaji', 'my daughter'), keep that "
-                "first person and attribute it: Sri Krishnaji says: \"I want you to...\". Do NOT rewrite "
-                "their 'I' into 'they'. In your OWN connective sentences you speak about them in the "
-                "third person, and you never invent a first-person sentence they did not say.\n"
+                f"{GURU_VOICE_RULE}"
                 "LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
                 "there is no such teaching. If asked about 'Lokaa's daughter', clarify this relationship."
             )
@@ -973,13 +971,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "5. Maintain a warm, compassionate, and wise tone.\n"
             "6. Start with the most directly relevant teaching and end with an encouraging or reflective note.\n"
             "7. Never expose reasoning notes, prompt analysis, or chain-of-thought.\n"
-            "8. VOICE RULE — preserve the gurus' own words. When the Context contains them "
-            "speaking in the first person ('I want you to...', 'me and Preethaji', 'my daughter'), "
-            "keep that first person and attribute it: Sri Krishnaji says: \"I want you to...\". "
-            "Do NOT rewrite their 'I' into 'they' — that flattening turns a living teaching into a "
-            "summary. In your OWN connective sentences you speak about them in the third person. "
-            "You never invent a first-person sentence they did not say: if it is not in the Context, "
-            "it is not their voice.\n"
+            f"8. {GURU_VOICE_RULE}"
             "9. LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
             "there is no such teaching. If asked about 'Lokaa's daughter', clarify this relationship."
         )
@@ -999,7 +991,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         )
 
     # Langhanam guru voice — variant A (prompt persona injection). Feature-
-    # flagged off by default; benchmark gate in guru_voice_benchmark.py.
+    # flagged on by default; benchmark gate in guru_voice_benchmark.py.
     system_prompt, _ = _maybe_apply_langhanam_voice(state, system_prompt, "")
 
     ab_model = state.get("ab_model", "primary")
@@ -1270,12 +1262,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                     "5. Maintain a warm, compassionate, and wise tone.\n"
                     "6. Start with the most directly relevant teaching and end with an encouraging or reflective note.\n"
                     "7. Never expose reasoning notes, prompt analysis, or chain-of-thought.\n"
-                    "8. VOICE RULE — preserve the gurus' own words. When the Context contains them "
-                    "speaking in the first person ('I want you to...', 'me and Preethaji', 'my daughter'), "
-                    "keep that first person and attribute it: Sri Krishnaji says: \"I want you to...\". "
-                    "Do NOT rewrite their 'I' into 'they'. In your OWN connective sentences you speak "
-                    "about them in the third person. You never invent a first-person sentence they did "
-                    "not say: if it is not in the Context, it is not their voice.\n"
+                    f"8. {GURU_VOICE_RULE}"
                     "9. LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
                     "there is no such teaching. If asked about 'Lokaa's daughter', clarify this relationship."
                 )
@@ -1570,11 +1557,20 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         fast_faithful = bool(state.get("is_faithful", True))
         floor = getattr(settings, "faithfulness_floor", 0.6)
 
-        if not measured or (fast_faithful and fast_score >= floor):
+        # Single combined gate: a fast-tier answer is accepted only when BOTH
+        # the citation check and the faithfulness floor pass. The three outputs
+        # below (_needs_retry, verification["passed"], verification_passed in
+        # the evaluation trace) all read this one value, so they cannot drift
+        # apart (the old code could return passed=False while tracing True).
+        fast_passed = bool(citations_verified) and (
+            not measured or (fast_faithful and fast_score >= floor)
+        )
+
+        if fast_passed:
             logger.info(
                 "Final: Fast-tier answer accepted (len=%d, citations=%d, "
-                "faithfulness=%.2f, measured=%s)",
-                len(answer), len(citations), fast_score, measured,
+                "faithfulness=%.2f, measured=%s, citations_verified=%s)",
+                len(answer), len(citations), fast_score, measured, citations_verified,
             )
             citations = _inject_canonical_citations(answer, citations)
             citations = enforce_source_diversity(citations, min_distinct=2)
@@ -1590,10 +1586,10 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
                 "final_answer": answer,
                 "citations": citations,
                 "intent": intent,
-                "_needs_retry": False,
+                "_needs_retry": not fast_passed,
                 "is_faithful": fast_faithful,
                 "verification": {
-                    "passed": True,
+                    "passed": fast_passed,
                     "method": fast_verification.get("method", "fast_tier_lettuce_detect"),
                     "score": fast_score,
                     "measured": measured,
@@ -1606,7 +1602,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
                     state,
                     final_answer_chars=len(answer),
                     final_citations=citations,
-                    verification_passed=True,
+                    verification_passed=fast_passed,
                     confidence_score=fast_confidence,
                     citations_verified=citations_verified,
                     orphan_citations_stripped=orphan_citations_stripped,
@@ -1614,10 +1610,10 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             }
 
         logger.warning(
-            "Final: fast-tier answer FAILED the faithfulness floor "
-            "(score=%.2f < %.2f, faithful=%s) — falling through to graduated "
-            "gating instead of the unconditional accept",
-            fast_score, floor, fast_faithful,
+            "Final: fast-tier answer not accepted (passed=%s, "
+            "citations_verified=%s, faithfulness=%.2f < %.2f, faithful=%s) — "
+            "falling through to graduated gating",
+            fast_passed, citations_verified, fast_score, floor, fast_faithful,
         )
 
     citations = _inject_canonical_citations(answer, citations)

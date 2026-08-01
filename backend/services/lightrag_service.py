@@ -391,7 +391,7 @@ class LightRAGService:
         Supported Modes: 'local' (entities), 'global' (community summaries), 'hybrid' (both)
         """
         # ponytail: 5min TTL cache for identical queries
-        cache_key = hashlib.md5(f"{query}:{mode}:{only_need_context}".encode()).hexdigest()
+        cache_key = hashlib.md5(f"{query}:{mode}:{only_need_context}".encode(), usedforsecurity=False).hexdigest()
         cached = self._query_cache.get(cache_key)
         if cached is not None:
             logger.info("LightRAG cache hit for query")

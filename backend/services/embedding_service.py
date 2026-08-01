@@ -220,6 +220,13 @@ class EmbeddingService:
     # revision (fail-closed: never download an unversioned HEAD).
     _ONNX_ENCODER_REVISION: str | None = None
 
+    # Immutable commit SHA of BAAI/bge-m3, resolved from the HF API on
+    # 2026-08-01 and cross-checked against the gpahal/bge-m3-onnx-int8 encoder
+    # snapshot (same upstream weights, 1024-dim). The tokenizer must be pinned
+    # separately from the encoder: it is loaded from the mutable upstream repo,
+    # not from the ONNX snapshot. Do not bump to a repo head.
+    _ONNX_TOKENIZER_REVISION = "5617a9f61b028005a4858fdac845db406aefb181"
+
     def _load_onnx_encoder(self, model_name: str) -> None:
         """Load the ONNX INT8 quantized BGE-M3 encoder.
 
@@ -238,6 +245,7 @@ class EmbeddingService:
         self._encoder, so this is safe).
         """
         import os
+        import re
 
         from huggingface_hub import snapshot_download
 
@@ -253,13 +261,22 @@ class EmbeddingService:
         cache_dir = Path(hf_home) / "hub" / safe
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-        revision = os.environ.get("HF_REVISION") or self._ONNX_ENCODER_REVISION
+        revision = settings.hf_revision or os.environ.get("HF_REVISION") or self._ONNX_ENCODER_REVISION
         if revision is None:
             raise RuntimeError(
                 "ONNX encoder requires a pinned revision. "
                 "Set HF_REVISION env var to a verified commit hash, or restore "
                 "_ONNX_ENCODER_REVISION in embedding_service.py. "
                 "Refusing to download an unversioned HEAD checkpoint."
+            )
+        # Fail-closed: HF_REVISION must be a full 40-hex commit SHA. A short
+        # hash, branch name, or tag is mutable (resolves to a repo head) and
+        # is rejected before any download happens.
+        if not re.fullmatch(r"[0-9a-f]{40}", revision):
+            raise ValueError(
+                f"HF_REVISION must be a full 40-hex commit SHA, got {revision!r}. "
+                "Resolve a commit hash from the HF API and pin it; refusing to "
+                "load a mutable revision."
             )
 
         try:
@@ -294,8 +311,12 @@ class EmbeddingService:
                 )
 
             self._onnx_session = session
+            # Tokenizer loaded from BAAI/bge-m3 at the immutable revision
+            # _ONNX_TOKENIZER_REVISION — never a repo head. The encoder snapshot
+            # above is separately revision-pinned (HF_REVISION / _ONNX_ENCODER_REVISION).
             self._onnx_tokenizer = AutoTokenizer.from_pretrained(
                 "BAAI/bge-m3",
+                revision=self._ONNX_TOKENIZER_REVISION,
                 model_max_length=8192,
             )
             self._encoder = session

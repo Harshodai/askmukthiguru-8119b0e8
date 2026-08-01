@@ -6,12 +6,47 @@ from typing import Optional
 import json
 import sys
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
+from typing import Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import settings  # noqa: E402
+
+# The Sarvam Cloud API lives at this host; anything else is a proxy/staging
+# override that this verifier must not call (SSRF + api-subscription-key leak).
+SARVAM_EXPECTED_HOST = "api.sarvam.ai"
+
+
+def _validate_base_url(base_url: str) -> Optional[str]:
+    """Return an error message if base_url is unsafe to call, else None."""
+    try:
+        parsed = urllib.parse.urlparse(base_url)
+    except ValueError:
+        return f"Base URL is not a valid URL: {base_url!r}"
+    if parsed.scheme != "https":
+        return f"Base URL must use https (got scheme {parsed.scheme!r}): {base_url}"
+    if parsed.hostname != SARVAM_EXPECTED_HOST:
+        return (
+            f"Base URL host must be {SARVAM_EXPECTED_HOST} (got {parsed.hostname!r}): "
+            f"{base_url}"
+        )
+    return None
+
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse to follow any redirect — a 3xx could leak the subscription key
+    to a different host than the one we validated."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise RuntimeError(
+            f"redirect blocked ({code}) to {newurl} — refusing to follow "
+            "(would leak api-subscription-key to an unvalidated host)"
+        )
 
 
 def verify_sarvam() -> tuple[bool, str, Optional[float]]:
@@ -39,10 +74,15 @@ def verify_sarvam() -> tuple[bool, str, Optional[float]]:
         print("RESULT: FAIL — sarvam_api_key is empty (check .env)")
         return False, "Missing API key", None
 
+    url_error = _validate_base_url(base_url)
+    if url_error:
+        print(f"RESULT: FAIL — {url_error}")
+        return False, url_error, None
+
     try:
-        import urllib.request
-    except ImportError:
-        return False, "urllib not available", None
+        opener = urllib.request.build_opener(_NoRedirectHandler)
+    except Exception as e:  # pragma: no cover
+        return False, f"Failed to build opener: {e}", None
 
     # Sarvam uses api-subscription-key header, not Bearer
     headers = {
@@ -65,7 +105,8 @@ def verify_sarvam() -> tuple[bool, str, Optional[float]]:
 
     try:
         start = time.time()
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        # base_url is validated above: https + api.sarvam.ai only.
+        with opener.open(req, timeout=30) as resp:  # nosec B310
             latency = time.time() - start
             body = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
