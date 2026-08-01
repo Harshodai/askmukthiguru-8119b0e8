@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export type AIProvider = 'placeholder' | 'custom';
 
 export interface AIConfig {
