@@ -149,6 +149,14 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     let left = rect.left + rect.width / 2 - tooltipWidth / 2;
     left = clamp(left, gap, vw - tooltipWidth - gap);
 
+    // The rAF tracker calls this 60×/s. Writing state unconditionally re-rendered
+    // the whole overlay every frame; only commit when the geometry actually moved.
+    const signature = [top, left, tooltipWidth, side, rect.top, rect.left, rect.width, rect.height]
+      .map((n) => (typeof n === 'number' ? Math.round(n) : n))
+      .join('|');
+    if (lastSignature.current === signature) return;
+    lastSignature.current = signature;
+
     setTooltipStyle({ position: 'fixed', top, left, width: tooltipWidth });
     setArrow({
       side,
@@ -194,12 +202,12 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') dismiss();
-      if (e.key === 'ArrowRight' && stepIndex < STEPS.length - 1) setStepIndex(i => i + 1);
+      if (e.key === 'ArrowRight' && stepIndex < steps.length - 1) setStepIndex(i => i + 1);
       if (e.key === 'ArrowLeft' && stepIndex > 0) setStepIndex(i => i - 1);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, dismiss, stepIndex]);
+  }, [isOpen, dismiss, stepIndex, steps.length]);
 
   // Reset state when tour closes
   useEffect(() => {
@@ -207,11 +215,12 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
       setReady(false);
       setStepIndex(0);
       setShowConfetti(false);
+      lastSignature.current = '';
     }
   }, [isOpen]);
 
   const handleNext = () => {
-    if (stepIndex < STEPS.length - 1) {
+    if (stepIndex < steps.length - 1) {
       setStepIndex(i => i + 1);
     }
   };
