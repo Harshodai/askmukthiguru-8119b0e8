@@ -12,6 +12,8 @@ interface WisdomCardGeneratorProps {
 
 const CARD_STYLES = [
   { id: 'golden', label: 'Golden Hour', bg: 'from-[#D4A574] via-[#C4956A] to-[#8B6914]', text: 'text-white' },
+  { id: 'ekam', label: 'Ekam Sanctuary', bg: 'from-[#1e1b4b] via-[#311b92] to-[#4a148c]', text: 'text-amber-200' },
+  { id: 'serene', label: 'Serene Mind', bg: 'from-[#064e3b] via-[#047857] to-[#0f766e]', text: 'text-emerald-100' },
   { id: 'lotus', label: 'Lotus Night', bg: 'from-[#1a1a2e] via-[#16213e] to-[#0f3460]', text: 'text-white' },
   { id: 'dawn', label: 'Sacred Dawn', bg: 'from-[#ffecd2] via-[#fcb69f] to-[#ff9a9e]', text: 'text-[#3d2c2c]' },
 ] as const;
@@ -98,13 +100,13 @@ const { t } = useTranslation();
             className="w-full max-w-md space-y-4"
           >
             {/* Style selector */}
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-1.5 max-w-[85%]">
                 {CARD_STYLES.map((s, i) => (
                   <button
                     key={s.id}
                     onClick={() => setSelectedStyle(i)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border ${
                       i === selectedStyle
                         ? 'border-ojas bg-ojas/10 text-ojas'
                         : 'border-border text-muted-foreground hover:border-ojas/40'
