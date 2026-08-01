@@ -67,6 +67,7 @@ export const ChatHeader = ({
               size="icon"
               variant="ghost"
               onClick={onOpenMobileMenu}
+              data-tour="mobile-menu"
               className="sm:hidden h-8 w-8"
               aria-label={t('chat.openConversations')}
             >
@@ -139,7 +140,7 @@ export const ChatHeader = ({
               from `sm` up) renders its own UserMenu in its footer, so the header
               one must disappear at exactly that breakpoint — `md:hidden` left
               two avatars on screen between sm and md. */}
-          <div className={sidebarCollapsed ? '' : 'sm:hidden'}>
+          <div className={sidebarCollapsed ? '' : 'sm:hidden'} data-tour="profile">
             <UserMenu />
           </div>
         </div>

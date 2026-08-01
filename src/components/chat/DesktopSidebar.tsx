@@ -3,9 +3,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Plus, Flame, MessageCircle, Trash2, Edit2, Search, X,
-  ChevronLeft, ChevronRight, ChevronDown, BookOpen, Brain, Compass, HardDrive, EyeOff
+  ChevronLeft, ChevronRight, BookOpen, Brain, Compass, HardDrive, EyeOff
 } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useNavigate } from 'react-router-dom';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 import { MeditationStats } from './MeditationStats';
@@ -46,14 +45,6 @@ export const DesktopSidebar = ({
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [search, setSearch] = useState('');
-  // Closed by default — that's the decluttering. But GuidedTour walks
-  // [data-tour="meditation"|"notebook"|"knowledge-graph"], which only exist while
-  // this section is expanded, and its positioner silently keeps the previous
-  // tooltip position when a target is missing. So seekers who haven't finished
-  // the tour get it open; everyone else gets the quiet sidebar.
-  const [exploreOpen, setExploreOpen] = useState(
-    () => localStorage.getItem('askmukthiguru_tour_completed') !== '1',
-  );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -110,8 +101,8 @@ export const DesktopSidebar = ({
     setEditingId(null);
   };
 
-  // Single source of truth for the secondary destinations — the collapsed rail
-  // renders them as icons, the expanded sidebar as rows in "Explore".
+  // Single source of truth for secondary destinations — collapsed rail renders
+  // them as icons, expanded sidebar as rows in the always-visible explore strip.
   const exploreItems = [
     { id: 'serene', icon: Flame, label: t('meditation.sereneMind'), onClick: onOpenSereneMind, title: t('desktopSidebar.sereneMindTooltip'), tour: 'meditation' },
     { id: 'practices', icon: Compass, label: t('nav.practices'), onClick: () => navigate('/practices'), title: t('nav.practices') },
@@ -174,7 +165,7 @@ export const DesktopSidebar = ({
 
           {conversations.length > 0 && (
             <div className="flex flex-col items-center gap-0.5 mt-1">
-              {conversations.slice(0, 4).map((c, i) => (
+              {conversations.slice(0, 4).map((c) => (
                 <button
                   key={c.id}
                   onClick={() => { onSelectConversation?.(c); }}
@@ -203,6 +194,7 @@ export const DesktopSidebar = ({
         </div>
       ) : (
         <div className="flex flex-col h-full min-w-0 relative">
+          {/* Header */}
           <div className="flex items-center gap-2.5 px-3 py-3 border-b border-hairline">
             <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-ojas/20 flex-shrink-0">
               <img src={gurusPhoto} alt={t('desktopSidebar.gurusAlt')} className="w-full h-full object-cover" />
@@ -221,6 +213,7 @@ export const DesktopSidebar = ({
             </button>
           </div>
 
+          {/* New Conversation */}
           <div className="px-2 pt-2.5 pb-2">
             <button
               onClick={onNewConversation}
@@ -231,6 +224,7 @@ export const DesktopSidebar = ({
             </button>
           </div>
 
+          {/* Search */}
           <div className="px-2 pb-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -254,6 +248,7 @@ export const DesktopSidebar = ({
             </div>
           </div>
 
+          {/* Conversation list — scrollable middle */}
           <div className="flex-1 overflow-y-auto scrollbar-spiritual px-1.5 pb-2">
             {groups.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
@@ -330,39 +325,37 @@ export const DesktopSidebar = ({
             )}
           </div>
 
-          {/* Secondary destinations live behind one disclosure so the
-              conversation list — the thing people actually scan — owns the
-              sidebar. The collapsed rail still exposes every icon directly. */}
-          <Collapsible open={exploreOpen} onOpenChange={setExploreOpen}>
-            <CollapsibleTrigger className="w-full flex items-center gap-2 px-4 py-2 border-t border-hairline text-[11px] font-medium tracking-wide text-muted-foreground hover:text-foreground transition-colors">
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${exploreOpen ? '' : '-rotate-90'}`} />
-              {t('desktopSidebar.explore', 'Explore')}
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="px-2 pb-2 space-y-0.5 max-h-[45vh] overflow-y-auto scrollbar-spiritual">
-                {exploreItems.map(({ id, icon: Icon, label, onClick, title, tour, accent }) => (
-                  <button
-                    key={id}
-                    onClick={onClick}
-                    title={title}
-                    data-tour={tour}
-                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-muted-foreground transition-colors ${
-                      accent === 'amber' ? 'hover:bg-amber-950/10 hover:text-amber-600' : 'hover:bg-ojas/10 hover:text-ojas'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    {label}
-                  </button>
-                ))}
-                <div className="pt-1">
-                  <MeditationStats compact />
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+          {/* ── Explore — always visible, no collapsible ── */}
+          <div className="border-t border-hairline px-2 py-1.5">
+            <p className="px-1 pb-1 pt-0.5 text-[10px] font-semibold tracking-widest text-muted-foreground/50 uppercase select-none">
+              Explore
+            </p>
+            <div className="space-y-px">
+              {exploreItems.map(({ id, icon: Icon, label, onClick, title, tour, accent }) => (
+                <button
+                  key={id}
+                  onClick={onClick}
+                  title={title}
+                  data-tour={tour}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground transition-colors ${
+                    accent === 'amber' ? 'hover:bg-amber-950/10 hover:text-amber-600' : 'hover:bg-ojas/10 hover:text-ojas'
+                  }`}
+                >
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="pt-1.5">
+              <MeditationStats compact />
+            </div>
+          </div>
 
+          {/* Footer: UserMenu + memories */}
           <div className="border-t border-border/30 px-2 py-1.5 flex items-center gap-1.5">
-            <UserMenu />
+            <div data-tour="profile">
+              <UserMenu />
+            </div>
             <button
               className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all text-[11px]"
             >
@@ -371,6 +364,7 @@ export const DesktopSidebar = ({
             </button>
           </div>
 
+          {/* Delete confirmation overlay */}
           {deleteConfirmId && (
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 text-center">
               <div className="bg-card border border-border/50 rounded-2xl p-4 shadow-xl max-w-[240px] space-y-3">

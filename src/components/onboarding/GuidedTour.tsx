@@ -1,15 +1,20 @@
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, ChevronLeft, Sparkles, MapPin } from 'lucide-react';
 
 interface Step {
   target: string;
+  /** Mobile fallback target — used when `target` anchor is not visible (e.g. desktop sidebar is hidden on mobile). */
+  mobileFallback?: string;
   titleKey: string;
   descriptionKey: string;
   emoji?: string;
 }
 
+// Desktop anchors that only exist inside `hidden sm:flex` sidebar map to
+// mobile-visible alternatives that live in the MobileConversationSheet's
+// Explore tab (data-tour on each card there).
 const STEPS: Step[] = [
   {
     target: 'chat-input',
@@ -25,18 +30,21 @@ const STEPS: Step[] = [
   },
   {
     target: 'meditation',
+    mobileFallback: 'mobile-menu',
     titleKey: 'onboarding.tour.step3.title',
     descriptionKey: 'onboarding.tour.step3.description',
     emoji: '🧘',
   },
   {
     target: 'notebook',
+    mobileFallback: 'mobile-menu',
     titleKey: 'onboarding.tour.step4.title',
     descriptionKey: 'onboarding.tour.step4.description',
     emoji: '📖',
   },
   {
     target: 'knowledge-graph',
+    mobileFallback: 'mobile-menu',
     titleKey: 'onboarding.tour.step5.title',
     descriptionKey: 'onboarding.tour.step5.description',
     emoji: '🧠',
@@ -63,20 +71,28 @@ const SPOTLIGHT_PAD = 10;
 /** Clamp a number between min and max */
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
-/** A target only counts if it's mounted AND actually laid out (mobile hides the
- *  sidebar entirely — walking to a display:none anchor used to stall the tour
- *  on a stale spotlight with no way forward). */
+/** A target only counts as visible if it's mounted, laid out, AND not
+ *  aria-hidden (prevents matching sidebar elements hidden via ARIA). */
 const isAnchorVisible = (target: string) => {
   const el = document.querySelector<HTMLElement>(`[data-tour="${target}"]`);
   if (!el) return false;
+  // Skip elements inside an aria-hidden ancestor
+  if (el.closest('[aria-hidden="true"]')) return false;
   const r = el.getBoundingClientRect();
   return r.width > 0 && r.height > 0;
+};
+
+/** Resolve a step's effective target — prefer primary, fall back to mobile alias. */
+const resolveTarget = (step: Step): string | null => {
+  if (isAnchorVisible(step.target)) return step.target;
+  if (step.mobileFallback && isAnchorVisible(step.mobileFallback)) return step.mobileFallback;
+  return null;
 };
 
 export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) => {
   const dismiss = onDismiss ?? onComplete;
   const { t } = useTranslation();
-  const [steps, setSteps] = useState<Step[]>(STEPS);
+  const [steps, setSteps] = useState<(Step & { resolvedTarget: string })[]>([]);
   const [stepIndex, setStepIndex] = useState(0);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
   const [spotlight, setSpotlight] = useState<{
@@ -91,38 +107,45 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
   const [showConfetti, setShowConfetti] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const lastSignature = useRef('');
+  // Stable ref for stepIndex to avoid stale closures in keyboard handler
+  const stepIndexRef = useRef(stepIndex);
+  stepIndexRef.current = stepIndex;
 
-  // Resolve the walkable steps once per opening, against the DOM we actually have.
+  // Resolve walkable steps on open — skip steps whose primary AND mobile-fallback
+  // anchor are both invisible (e.g. language-selector not rendered on some screens).
   useEffect(() => {
     if (!isOpen) return;
     const resolve = () => {
-      const visible = STEPS.filter((s) => isAnchorVisible(s.target));
-      setSteps(visible.length ? visible : STEPS.slice(0, 1));
+      const resolved = STEPS.reduce<(Step & { resolvedTarget: string })[]>((acc, s) => {
+        const target = resolveTarget(s);
+        if (target) acc.push({ ...s, resolvedTarget: target });
+        return acc;
+      }, []);
+      setSteps(resolved.length ? resolved : STEPS.slice(0, 1).map(s => ({ ...s, resolvedTarget: s.target })));
       setStepIndex(0);
     };
-    const t = setTimeout(resolve, 60);
+    const t = setTimeout(resolve, 80);
     return () => clearTimeout(t);
   }, [isOpen]);
 
   const currentStep = steps[Math.min(stepIndex, steps.length - 1)];
   const isLastStep = stepIndex >= steps.length - 1;
-  const progress = (stepIndex + 1) / steps.length;
+  const progress = steps.length > 0 ? (stepIndex + 1) / steps.length : 0;
 
-  // Re-reads the target's *current* rect every call — safe to call from a resize
-  // handler, a ResizeObserver, or after a step change.
   const positionTooltip = useCallback(() => {
-    const el = document.querySelector<HTMLElement>(`[data-tour="${currentStep.target}"]`);
+    if (!currentStep) return;
+    const el = document.querySelector<HTMLElement>(`[data-tour="${currentStep.resolvedTarget}"]`);
     if (!el) return;
 
     const rect = el.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const gap = 14;
-    const tooltipWidth = clamp(340, 280, vw - gap * 2);
-    // Use a stable estimated height to prevent feedback loop during layout animations
+    const tooltipWidth = clamp(vw - gap * 2, 280, 340);
+    // Stable estimated height prevents layout feedback loop
     const tooltipHeight = 200;
 
-    // Determine radius of the element (approximated from computed style)
+    // Determine border radius from computed style
     let radius = 12;
     try {
       const cs = window.getComputedStyle(el);
@@ -150,8 +173,6 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     let left = rect.left + rect.width / 2 - tooltipWidth / 2;
     left = clamp(left, gap, vw - tooltipWidth - gap);
 
-    // The rAF tracker calls this 60×/s. Writing state unconditionally re-rendered
-    // the whole overlay every frame; only commit when the geometry actually moved.
     const signature = [top, left, tooltipWidth, side, rect.top, rect.left, rect.width, rect.height]
       .map((n) => (typeof n === 'number' ? Math.round(n) : n))
       .join('|');
@@ -159,10 +180,13 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     lastSignature.current = signature;
 
     setTooltipStyle({ position: 'fixed', top, left, width: tooltipWidth });
-    setArrow({
-      side,
-      left: clamp(rect.left + rect.width / 2 - left, 20, tooltipWidth - 20),
-    });
+
+    // Arrow points FROM the tooltip TOWARD the target.
+    // side='bottom' → tooltip is below target → arrow on top of tooltip points UP at target.
+    // side='top'    → tooltip is above target → arrow on bottom of tooltip points DOWN at target.
+    const arrowLeft = clamp(rect.left + rect.width / 2 - left, 20, tooltipWidth - 20);
+    setArrow({ side, left: arrowLeft });
+
     setSpotlight({
       top: rect.top - SPOTLIGHT_PAD,
       left: rect.left - SPOTLIGHT_PAD,
@@ -170,14 +194,13 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
       height: rect.height + SPOTLIGHT_PAD * 2,
       radius: radius + 4,
     });
-  }, [currentStep.target]);
+  }, [currentStep]);
 
-  // Target changed: scroll it into view and position synchronously before paint.
+  // Scroll target into view and position before paint
   useLayoutEffect(() => {
-    if (!isOpen) return;
-    const el = document.querySelector<HTMLElement>(`[data-tour="${currentStep.target}"]`);
+    if (!isOpen || !currentStep) return;
+    const el = document.querySelector<HTMLElement>(`[data-tour="${currentStep.resolvedTarget}"]`);
     el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    // Give scroll a moment, then position
     const t = setTimeout(() => {
       positionTooltip();
       setReady(true);
@@ -185,8 +208,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     return () => clearTimeout(t);
   }, [isOpen, positionTooltip, stepIndex]);
 
-  // Continuous rAF tracking — same technique as Shepherd.js / driver.js.
-  // Can't miss a layout shift because it never assumes one won't happen.
+  // Continuous rAF tracking — same technique as Shepherd.js / driver.js
   useEffect(() => {
     if (!isOpen) return;
     let raf: number;
@@ -198,17 +220,19 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     return () => cancelAnimationFrame(raf);
   }, [isOpen, positionTooltip]);
 
-  // Keyboard handling
+  // Keyboard handling — uses ref for stepIndex to avoid stale closure
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') dismiss();
-      if (e.key === 'ArrowRight' && stepIndex < steps.length - 1) setStepIndex(i => i + 1);
-      if (e.key === 'ArrowLeft' && stepIndex > 0) setStepIndex(i => i - 1);
+      if (e.key === 'ArrowRight' && stepIndexRef.current < steps.length - 1)
+        setStepIndex(i => i + 1);
+      if (e.key === 'ArrowLeft' && stepIndexRef.current > 0)
+        setStepIndex(i => i - 1);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, dismiss, stepIndex, steps.length]);
+  }, [isOpen, dismiss, steps.length]);
 
   // Reset state when tour closes
   useEffect(() => {
@@ -233,13 +257,17 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     }, 600);
   };
 
-  // Confetti particles
-  const confettiParticles = Array.from({ length: 20 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    delay: Math.random() * 0.3,
-    color: ['#d4af37', '#f59e0b', '#fbbf24', '#fef08a', '#a7f3d0'][Math.floor(Math.random() * 5)],
-  }));
+  // Stable confetti particles — memoised so they don't regenerate every render
+  const confettiParticles = useMemo(
+    () =>
+      Array.from({ length: 20 }, (_, i) => ({
+        id: i,
+        x: (i * 5.3) % 100, // deterministic spread
+        delay: (i * 0.017) % 0.3,
+        color: ['#d4af37', '#f59e0b', '#fbbf24', '#fef08a', '#a7f3d0'][i % 5],
+      })),
+    [],
+  );
 
   return (
     <AnimatePresence>
@@ -251,20 +279,16 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
           transition={{ duration: 0.25 }}
           className="fixed inset-0 z-[9998] pointer-events-none"
         >
-          {/* Backdrop click target — tapping the dimmed area exits, the behaviour
-              every mainstream product tour ships. Sits under the spotlight/card. */}
+          {/* Backdrop click target — tapping the dimmed area exits */}
           <div
             className="absolute inset-0 pointer-events-auto"
             onClick={dismiss}
             aria-hidden
           />
 
-          {/* Dark overlay using clip-path trick for the spotlight cutout.
-              We use box-shadow on the spotlight element — the standard driver.js
-              technique, immune to ancestor stacking context bugs. */}
+          {/* Spotlight */}
           {spotlight && (
             <>
-              {/* Spotlight cutout */}
               <motion.div
                 key={`spotlight-${stepIndex}`}
                 layout
@@ -278,14 +302,12 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                   width: spotlight.width,
                   height: spotlight.height,
                   borderRadius: spotlight.radius,
-                  // Single large box-shadow = the dark overlay with a "hole" at this element
                   boxShadow: '0 0 0 9999px rgba(0,0,0,0.65)',
-                  // Accent border around the target - Gold
                   border: '2px solid rgba(212, 175, 55, 0.65)',
                 }}
               />
 
-              {/* Animated pulse ring — the "this is where to look" signal */}
+              {/* Pulse ring */}
               <motion.div
                 key={`pulse-${stepIndex}`}
                 className="absolute pointer-events-none"
@@ -328,7 +350,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
               style={tooltipStyle}
               className="pointer-events-auto"
             >
-              {/* Outer shell — double-bezel technique */}
+              {/* Outer shell */}
               <div
                 style={{
                   background: 'rgba(24, 18, 15, 0.95)',
@@ -351,31 +373,46 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                     background: 'linear-gradient(135deg, rgba(32, 25, 20, 0.97) 0%, rgba(20, 16, 13, 0.99) 100%)',
                     boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.06)',
                     padding: '18px 20px 20px',
+                    position: 'relative',
                   }}
                 >
-                  {/* Arrow pointer */}
+                  {/* Arrow pointer
+                      side='bottom' → tooltip is BELOW the target → arrow on TOP edge
+                      side='top'    → tooltip is ABOVE the target → arrow on BOTTOM edge */}
                   {arrow && (
                     <div
                       style={{
                         position: 'absolute',
                         left: arrow.left - 7,
-                        [arrow.side === 'bottom' ? 'top' : 'bottom']: -7,
+                        ...(arrow.side === 'bottom'
+                          ? { top: -7 }
+                          : { bottom: -7 }),
                         width: 14,
                         height: 14,
                         background: 'rgba(20, 16, 13, 0.99)',
-                        border: `1px solid rgba(212, 175, 55, 0.3)`,
                         transform: 'rotate(45deg)',
-                        borderRight: arrow.side === 'bottom' ? 'none' : '1px solid rgba(212, 175, 55, 0.3)',
-                        borderBottom: arrow.side === 'bottom' ? 'none' : '1px solid rgba(212, 175, 55, 0.3)',
-                        borderTop: arrow.side === 'top' ? 'none' : '1px solid rgba(212, 175, 55, 0.3)',
-                        borderLeft: arrow.side === 'top' ? 'none' : '1px solid rgba(212, 175, 55, 0.3)',
+                        // When arrow is on TOP of tooltip (pointing up at target below):
+                        //   hide the bottom-right corner of the diamond → show top-left
+                        // When arrow is on BOTTOM of tooltip (pointing down at target above):
+                        //   hide the top-left corner of the diamond → show bottom-right
+                        borderTop: arrow.side === 'bottom'
+                          ? '1px solid rgba(212, 175, 55, 0.3)'
+                          : 'none',
+                        borderLeft: arrow.side === 'bottom'
+                          ? '1px solid rgba(212, 175, 55, 0.3)'
+                          : 'none',
+                        borderBottom: arrow.side === 'top'
+                          ? '1px solid rgba(212, 175, 55, 0.3)'
+                          : 'none',
+                        borderRight: arrow.side === 'top'
+                          ? '1px solid rgba(212, 175, 55, 0.3)'
+                          : 'none',
                       }}
                     />
                   )}
 
-                  {/* Header: step indicator + emoji + close */}
+                  {/* Header: step indicator + close */}
                   <div className="flex items-center gap-2 mb-3">
-                    {/* Eyebrow pill */}
                     <span
                       style={{
                         background: 'rgba(212, 175, 55, 0.12)',
@@ -445,7 +482,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                             filter: 'drop-shadow(0 2px 8px rgba(212,175,55,0.3))',
                           }}
                         >
-                          {currentStep.emoji}
+                          {currentStep?.emoji}
                         </span>
                         <div>
                           <h3
@@ -458,7 +495,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                               letterSpacing: '-0.01em',
                             }}
                           >
-                            {t(currentStep.titleKey)}
+                            {currentStep && t(currentStep.titleKey)}
                           </h3>
                           <p
                             style={{
@@ -467,7 +504,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                               lineHeight: 1.6,
                             }}
                           >
-                            {t(currentStep.descriptionKey)}
+                            {currentStep && t(currentStep.descriptionKey)}
                           </p>
                         </div>
                       </div>
@@ -525,7 +562,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
 
                     <div style={{ flex: 1 }} />
 
-                    {/* Back — a tour you can only go forward in is a slideshow. */}
+                    {/* Back */}
                     {stepIndex > 0 && (
                       <button
                         onClick={() => setStepIndex(i => Math.max(0, i - 1))}
@@ -547,7 +584,6 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                         {t('onboarding.tour.back', 'Back')}
                       </button>
                     )}
-
 
                     {/* Skip (only on non-last steps) */}
                     {!isLastStep && (
@@ -650,7 +686,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                     animate={{
                       opacity: 0,
                       y: -120,
-                      rotate: Math.random() * 360,
+                      rotate: p.id * 18,
                       scale: 0,
                     }}
                     transition={{
