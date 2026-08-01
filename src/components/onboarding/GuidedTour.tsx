@@ -499,7 +499,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                   <div className="flex items-center gap-3">
                     {/* Step dots */}
                     <div className="flex gap-1.5">
-                      {STEPS.map((_, i) => (
+                      {steps.map((_, i) => (
                         <button
                           key={i}
                           onClick={() => setStepIndex(i)}
@@ -524,6 +524,30 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                     </div>
 
                     <div style={{ flex: 1 }} />
+
+                    {/* Back — a tour you can only go forward in is a slideshow. */}
+                    {stepIndex > 0 && (
+                      <button
+                        onClick={() => setStepIndex(i => Math.max(0, i - 1))}
+                        aria-label="Back to previous tour step"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          fontSize: 12,
+                          color: 'rgba(255,255,255,0.5)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px 6px',
+                          borderRadius: 8,
+                        }}
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        {t('onboarding.tour.back', 'Back')}
+                      </button>
+                    )}
+
 
                     {/* Skip (only on non-last steps) */}
                     {!isLastStep && (
