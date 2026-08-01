@@ -2053,14 +2053,24 @@ return (
             exit={{ opacity: 0, y: 10 }}
             className="absolute left-4 right-4 md:left-1/2 md:-translate-x-1/2 bottom-24 z-30 flex flex-col md:max-w-2xl gap-2 p-3 rounded-xl bg-zinc-950/95 border border-emerald-500/30 shadow-xl backdrop-blur-md"
           >
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase">
-                {currentLanguage === 'en' ? 'Voice Streaming (Low Latency)' : 'Voice Recording'}
-              </span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase">
+                  {currentLanguage === 'en' ? 'Voice Streaming (Low Latency)' : 'Voice Recording'}
+                </span>
+              </div>
+              {/* Animated Audio Equalizer Bars */}
+              <div className="flex items-end gap-1 h-4 px-1" aria-hidden="true">
+                <div className="w-1 bg-emerald-400/90 rounded-full h-2.5 animate-bounce [animation-delay:0.1s]" />
+                <div className="w-1 bg-emerald-400/90 rounded-full h-4 animate-bounce [animation-delay:0.2s]" />
+                <div className="w-1 bg-emerald-400/90 rounded-full h-3 animate-bounce [animation-delay:0.3s]" />
+                <div className="w-1 bg-emerald-400/90 rounded-full h-4.5 animate-bounce [animation-delay:0.15s]" />
+                <div className="w-1 bg-emerald-400/90 rounded-full h-2 animate-bounce [animation-delay:0.25s]" />
+              </div>
             </div>
             {interimTranscript ? (
               <p className="text-sm text-zinc-100 font-medium leading-relaxed">
