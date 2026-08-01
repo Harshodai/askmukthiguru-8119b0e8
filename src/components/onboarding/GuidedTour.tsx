@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, Sparkles, MapPin } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Sparkles, MapPin } from 'lucide-react';
 
 interface Step {
   target: string;
@@ -63,9 +63,20 @@ const SPOTLIGHT_PAD = 10;
 /** Clamp a number between min and max */
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
+/** A target only counts if it's mounted AND actually laid out (mobile hides the
+ *  sidebar entirely — walking to a display:none anchor used to stall the tour
+ *  on a stale spotlight with no way forward). */
+const isAnchorVisible = (target: string) => {
+  const el = document.querySelector<HTMLElement>(`[data-tour="${target}"]`);
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+};
+
 export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) => {
   const dismiss = onDismiss ?? onComplete;
   const { t } = useTranslation();
+  const [steps, setSteps] = useState<Step[]>(STEPS);
   const [stepIndex, setStepIndex] = useState(0);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
   const [spotlight, setSpotlight] = useState<{
@@ -79,10 +90,23 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
   const [ready, setReady] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const lastSignature = useRef('');
 
-  const currentStep = STEPS[stepIndex];
-  const isLastStep = stepIndex === STEPS.length - 1;
-  const progress = (stepIndex + 1) / STEPS.length;
+  // Resolve the walkable steps once per opening, against the DOM we actually have.
+  useEffect(() => {
+    if (!isOpen) return;
+    const resolve = () => {
+      const visible = STEPS.filter((s) => isAnchorVisible(s.target));
+      setSteps(visible.length ? visible : STEPS.slice(0, 1));
+      setStepIndex(0);
+    };
+    const t = setTimeout(resolve, 60);
+    return () => clearTimeout(t);
+  }, [isOpen]);
+
+  const currentStep = steps[Math.min(stepIndex, steps.length - 1)];
+  const isLastStep = stepIndex >= steps.length - 1;
+  const progress = (stepIndex + 1) / steps.length;
 
   // Re-reads the target's *current* rect every call — safe to call from a resize
   // handler, a ResizeObserver, or after a step change.
@@ -125,6 +149,14 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
 
     let left = rect.left + rect.width / 2 - tooltipWidth / 2;
     left = clamp(left, gap, vw - tooltipWidth - gap);
+
+    // The rAF tracker calls this 60×/s. Writing state unconditionally re-rendered
+    // the whole overlay every frame; only commit when the geometry actually moved.
+    const signature = [top, left, tooltipWidth, side, rect.top, rect.left, rect.width, rect.height]
+      .map((n) => (typeof n === 'number' ? Math.round(n) : n))
+      .join('|');
+    if (lastSignature.current === signature) return;
+    lastSignature.current = signature;
 
     setTooltipStyle({ position: 'fixed', top, left, width: tooltipWidth });
     setArrow({
@@ -171,12 +203,12 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') dismiss();
-      if (e.key === 'ArrowRight' && stepIndex < STEPS.length - 1) setStepIndex(i => i + 1);
+      if (e.key === 'ArrowRight' && stepIndex < steps.length - 1) setStepIndex(i => i + 1);
       if (e.key === 'ArrowLeft' && stepIndex > 0) setStepIndex(i => i - 1);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, dismiss, stepIndex]);
+  }, [isOpen, dismiss, stepIndex, steps.length]);
 
   // Reset state when tour closes
   useEffect(() => {
@@ -184,11 +216,12 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
       setReady(false);
       setStepIndex(0);
       setShowConfetti(false);
+      lastSignature.current = '';
     }
   }, [isOpen]);
 
   const handleNext = () => {
-    if (stepIndex < STEPS.length - 1) {
+    if (stepIndex < steps.length - 1) {
       setStepIndex(i => i + 1);
     }
   };
@@ -218,6 +251,14 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
           transition={{ duration: 0.25 }}
           className="fixed inset-0 z-[9998] pointer-events-none"
         >
+          {/* Backdrop click target — tapping the dimmed area exits, the behaviour
+              every mainstream product tour ships. Sits under the spotlight/card. */}
+          <div
+            className="absolute inset-0 pointer-events-auto"
+            onClick={dismiss}
+            aria-hidden
+          />
+
           {/* Dark overlay using clip-path trick for the spotlight cutout.
               We use box-shadow on the spotlight element — the standard driver.js
               technique, immune to ancestor stacking context bugs. */}
@@ -351,7 +392,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                       <MapPin className="w-2.5 h-2.5 inline mr-1 -mt-0.5" />
                       {t('onboarding.tour.stepIndicator', {
                         current: stepIndex + 1,
-                        total: STEPS.length,
+                        total: steps.length,
                       })}
                     </span>
 
@@ -458,7 +499,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                   <div className="flex items-center gap-3">
                     {/* Step dots */}
                     <div className="flex gap-1.5">
-                      {STEPS.map((_, i) => (
+                      {steps.map((_, i) => (
                         <button
                           key={i}
                           onClick={() => setStepIndex(i)}
@@ -483,6 +524,30 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                     </div>
 
                     <div style={{ flex: 1 }} />
+
+                    {/* Back — a tour you can only go forward in is a slideshow. */}
+                    {stepIndex > 0 && (
+                      <button
+                        onClick={() => setStepIndex(i => Math.max(0, i - 1))}
+                        aria-label="Back to previous tour step"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          fontSize: 12,
+                          color: 'rgba(255,255,255,0.5)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px 6px',
+                          borderRadius: 8,
+                        }}
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        {t('onboarding.tour.back', 'Back')}
+                      </button>
+                    )}
+
 
                     {/* Skip (only on non-last steps) */}
                     {!isLastStep && (
