@@ -1,3 +1,39 @@
+## Aug 1, 2026 — Lovable Publish Pipeline: bun Integrity / Vite Peer Dep Failures
+
+Three distinct failure modes that together blocked every Lovable publish.
+Every fix is measurable: `bun install --ignore-scripts` exits 0 after cache clear.
+
+### L1. Aliased npm Packages Need Correct `resolved` + `integrity` in `package-lock.json` — or Bun Breaks
+
+- **What:** `package-lock.json` used npm aliases (`string-width-cjs npm:string-width@^4.2.0` etc.) with truncated / wrong SHA-512 integrity hashes. Bun's migration from `package-lock.json` read the hash, downloaded the tarball from npmjs.org, and failed the integrity check with `IntegrityCheckFailed`.
+- **Where:** `node_modules/string-width-cjs`, `strip-ansi-cjs`, `wrap-ansi-cjs` entries in `package-lock.json`.
+- **When:** Every `bun install` invocation, including Lovable's sandbox build.
+- **Who:** Lovable sandbox CI — blocked every publish; local dev was fine because `node_modules/` was cached.
+- **Why:** The hashes were injected manually and were truncated (86 chars instead of 88 chars base64). The npm registry returns `sha512-<88-char-base64>==`; anything shorter fails bun's crypto check.
+- **How to prevent:**
+  1. Never manually write integrity hashes. Use `npm install --package-lock-only` to regenerate, then inspect.
+  2. If manual injection is necessary, fetch hashes from `https://registry.npmjs.org/<pkg>/<version>` → `dist.integrity` — that value is canonical.
+  3. Verify locally with `bun pm cache rm && bun install --ignore-scripts` before committing.
+
+### L2. Bun Cannot Resolve Aliased Package Tarballs Via Private Registries (Lovable Sandbox Specific)
+
+- **What:** Lovable's sandbox npm registry (`europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache`) mirrors packages by their real name, not their alias. When bun encounters `string-width-cjs`, it constructs a URL using the alias name → `string-width-cjs/-/string-width-cjs-4.2.3.tgz` → HTTP 404 from the private registry, even though the real tarball exists under `string-width`.
+- **Where:** Lovable sandbox build environment only.
+- **When:** When `bun install` migrates from `package-lock.json` and the aliased packages have no `resolved` field pointing to the canonical public registry URL.
+- **Why:** The `resolved` field in `package-lock.json` is the authoritative tarball URL. Without it, bun synthesises a URL from the alias name, which doesn't exist on private mirrors.
+- **How to prevent:** Always ensure aliased packages have an explicit `resolved: https://registry.npmjs.org/<real-name>/-/<real-name>-<version>.tgz` field in `package-lock.json`. The lockfile commit that introduced the aliases must include this field.
+
+### L3. `@vitejs/plugin-react-swc` v3 Does Not Support Vite 8 — Upgrade to v4
+
+- **What:** Project upgraded to `vite@^8.0.16` but kept `@vitejs/plugin-react-swc@^3.11.0`. v3 declares peer dep `vite: "^4 || ^5 || ^6 || ^7"`. npm's resolver rejects this, failing `npm install --package-lock-only` with `ERESOLVE`. Bun was more lenient but the resulting `bun.lockb` was still broken for the Lovable CI which runs a stricter resolver.
+- **Where:** `package.json` devDependencies.
+- **When:** After any vite major version bump without checking plugin peer dep ranges.
+- **Who:** Lovable publish CI; local `vite build` happened to work because the installed `node_modules/` was from before the lockfile mismatch.
+- **Why:** The `^3.x` range has an upper bound on peer vite; `^4.x` (`4.3.3` latest as of Aug 1, 2026) explicitly adds `|| ^8`.
+- **How to prevent:** When bumping vite to a new major, always check `@vitejs/plugin-react-swc` (and any other vite plugin) peer dep ranges and bump those too. Run `npm install --package-lock-only` as a CI gate — if it exits non-zero, the lockfile is invalid.
+
+---
+
 ## Aug 1, 2026 — Ruthless E2E Audit: 29.4% Corpus Contamination + Answer-Path Failures
 
 Full-system audit. Every number measured against the live stack, not estimated.
@@ -132,6 +168,102 @@ Each lesson framed What / Where / When / Who / Why / How-to-prevent.
 - **Who:** A handoff prompt had already been written saying "ALREADY DONE — do not redo", which would have made the next agent skip the most important work.
 - **Why:** Untracked files survive `git restore .` / `git checkout .`; tracked-file edits do not. Any tooling, hook, or IDE action that restores tracked files silently erases uncommitted work while leaving new files behind — a deceptively partial state that *looks* like the work is there.
 - **How to prevent:** Before asserting "landed", verify by content (`grep` for a distinctive symbol from each edit), not by memory of having made the edit. Regression tests that fail when the fix is absent are the cheapest tripwire — they are what caught this. For work that matters, commit to a branch rather than leaving it in the working tree.
+
+---
+
+## Aug 1, 2026 — Phase 2 §6.4: Measuring Dedup on the Live Corpus
+
+Validating the shipped MinHash-LSH dedup against all 89,061 chunks. Every number
+below is measured on the local Docker stack, cross-validated by two independent
+implementations. Three of the four lessons are corrections to things this project
+believed and I asserted.
+
+### 17. A Borrowed Benchmark Is Not Evidence About *Your* Corpus
+- **What:** Plan §6.4 justified MinHash-LSH with a published comparison — byte-exact catches 5.81% of duplicates, MinHash-LSH catches 31.32% — and built the whole rationale on **cross-source** near-duplicates. Measured on this corpus: cross-source near-dup is **0.38%** (335 of 89,061). The rationale was off by ~80×. Total duplication is real (20.29%, 18,071 chunks), but **19.9% of it is same-source** — 95.8% of duplicate groups (2,044 of 2,134) never leave a single `source_url`.
+- **Where:** `docs/engineering-notes/corpus-remediation-and-migration-plan.md` §6.4; measured by `benchmarks/reports/dedup_measurement_20260801.json`.
+- **When:** From the moment the plan was written until the first full-corpus run — the intervening implementation work was done against an unvalidated premise.
+- **Who:** Me, and any agent handed the plan: the handoff prompt stated "Expected: cross-source near-dup rate ~30% per plan §6.4" as if it were a prediction to confirm rather than a hypothesis to test.
+- **Why:** The 31.32% figure is from web-scale corpora (C4, RefinedWeb, FineWeb) where the *same document is re-hosted across domains*. This corpus is 391 YouTube transcripts ingested once each. The failure mode the citation describes structurally cannot dominate here. A number lifted from a paper describes that paper's data, not yours.
+- **How to prevent:** Cite external benchmarks as *motivation for measuring*, never as a substitute for the measurement. When a plan states an expected number, write it as `HYPOTHESIS: x%` with the validating command next to it — so the next reader cannot mistake it for a finding. The tool was still correct here (LSH banding is what made a 20% scan possible in 111s); only the stated reason was wrong. **Right answer, wrong reason, is still a bug in the reasoning** — and it would have sent the green build optimising cross-source curation that does not exist.
+
+### 18. A Per-Item Detector Cannot See a Loop That Spans Items
+- **What:** Chasing *why* 19.9% of the corpus is same-source duplicate found a writer failure loop: 14,292 redundant copies trace to only 2,134 distinct texts, the worst being **227, 222, and 195 identical copies** — each sharing one `source_url`, one `parent_id`, and *consecutive* `chunk_index` values. Their content is degenerate: `"source topic power of observation the streets are the way we are"` — a header remnant plus a chain-of-thought topic label, no teaching at all.
+- **Where:** Written by the ingest path into `spiritual_wisdom`; the storage gate is `services/qdrant/indexer.py:upsert_chunks`.
+- **When:** Every ingestion run since the contextual-header chunker shipped — invisibly, because nothing counted repeats.
+- **Who:** Retrieval. 227 copies of one degenerate chunk crowd top-k by sheer count, which is precisely the starvation §6.4 was written to prevent — arriving by the mechanism nobody modelled.
+- **Why:** `has_repetition_loop` detects an n-gram loop *within* one chunk. A loop that emits the same chunk 227 times in a row produces 227 individually-innocent chunks. The detector's unit of analysis was smaller than the failure's. `upsert_chunks` already receives the whole batch and already gates it on quality (`select_clean`), but does no dedup — so the batch-level signal was sitting right there, unused.
+- **How to prevent:** Match the detector's unit of analysis to the failure's. For any generator that emits a *sequence*, add a check on the sequence — cardinality of distinct outputs vs count — not only on each element. Concretely: `upsert_chunks` should reject a batch where one normalised text repeats beyond a small threshold, and log the source. Also worth noting the sampling gap: this is invisible to a random 8,000-chunk sample because 227 near-adjacent copies look like 227 ordinary chunks unless you *group by text*.
+
+### 19. Measure the Complexity of the Fallback Path, Not Just the Fast Path
+- **What:** The first two full-corpus measurement attempts ran >600s with no output and were killed — diagnosed at the time as "MinHash is slow in pure Python". Wrong. MinHash was fine: the whole corpus scans in **111s**. The hang was `LSHNearDupIndex`'s *short-text fallback*, a `list` scanned linearly with pairwise Jaccard. This corpus holds 41,951 chunks under 200 chars, so that path is 880M comparisons — **~4.4 hours, measured** on a 2,500-chunk extrapolation.
+- **Where:** `backend/ingest/deduplication.py:LSHNearDupIndex._short`.
+- **When:** Shipped the previous session with a passing self-check and 98 green tests. Every test used a handful of texts, where O(n²) and O(1) are indistinguishable.
+- **Who:** The green re-ingest would have hit it: `_seed_dedup_index_from_target()` seeds from the target collection, so the quadratic grows as the collection fills — the run degrades progressively and looks like a hang, not a bug.
+- **Why:** The LSH banding index was built specifically to *avoid* an O(corpus) scan per chunk, and then the fallback for texts LSH can't handle reintroduced exactly that scan. Attention went to the interesting path; the boring one carried 47% of the data.
+- **How to prevent:** When adding a fallback branch, state its complexity next to the fast path's, and ask what fraction of real data takes it — here, nearly half. A self-check with 3 items proves correctness, never scalability; if a structure exists to beat O(n²), add one check that would time out if the quadratic came back. **The fix was replacing the list with a dict** (exact match, O(1)): measured on a 2,500-chunk sample, exact matching catches 8.6% while near-but-not-exact adds only **0.48%** — the quadratic was bought back for half a percent of detection.
+
+### 20. Spot Checks Confirm Whatever You Went Looking For
+- **What:** Five short chunks sampled by eye showed three visibly poisoned, and I concluded the proposition tier carried most of the contamination and might be droppable wholesale. The full-corpus split says the opposite: **passage tier 45.9% poisoned (8,518/18,556) vs proposition tier 26.1% (18,395/70,505)** — passages are **1.8× worse**.
+- **Where:** `backend/scripts/ops/corpus_audit.py`, which now splits `by_tier`; report at `benchmarks/reports/corpus_audit_20260801_full.json`.
+- **When:** Between forming the hypothesis and running the scan — about twenty minutes of reasoning built on a five-item sample.
+- **Who:** Would have shaped the Phase 2 strategy: "re-ingest only passages, drop the proposition tier" is a tempting shortcut that leaves the *worse* half of the corpus in place.
+- **Why:** Five items chosen because they looked interesting is not a sample. The mechanism also runs the other way from intuition — a longer chunk offers more surface area for one chain-of-thought fragment to land in, and a single hit condemns the whole chunk. Longer text is *more* exposed, not less.
+- **How to prevent:** A spot check generates hypotheses; it never confirms them. Cheap full scans exist here (89,061 chunks audit in ~2 min locally) — when the full measurement costs minutes, there is no excuse for reasoning from five items. Also: the full scan validated the earlier sampling method (8,000-chunk estimate 29.4% vs true **30.2%**, projected 26,161 vs actual 26,913) — *random* sampling was accurate; *hand-picked* sampling was not. The distinction is the whole lesson.
+
+### 21. The API That Looks Like The Right Input Can Be Orthogonal To It
+- **What:** Late chunking (§6.3) needs per-token vectors in the query's embedding space. `encode_with_colbert()` returns per-token vectors of exactly the right shape (`[n_valid, 1024]`), so it reads as the obvious input. Measured cosine between pooled-ColBERT and the production dense vector for the same text: **−0.041** — orthogonal. The real source is `last_hidden_state`, whose CLS token *is* the dense vector (cosine **0.914**).
+- **Where:** `backend/services/embedding_service.py:encode_with_colbert`; evidence in plan §6.3.1.
+- **When:** Would have surfaced only after building the encoder, re-embedding a collection, and watching recall@k collapse for no visible reason.
+- **Who:** Anyone implementing §6.3 from the plan text, which said late chunking was "available today at no additional inference cost" and named no vector source.
+- **Why:** BGE-M3 has three heads — dense (CLS), sparse, ColBERT — and the ColBERT head is a *separate linear projection*. Right dtype, right shape, right token count, wrong space. Nothing raises: you get plausible float vectors and silently near-random retrieval. Shape-compatible is not space-compatible, and only the second one matters.
+- **How to prevent:** Before building on any embedding output, measure cosine against the vector it must be comparable with — one line, one document. Treat "same shape as what I need" as zero evidence. More generally, when a plan says a capability is *free*, find the specific API that delivers it before believing the estimate: here the honest cost is zero extra **LLM** calls plus an encoder-path change, because the ONNX export emits only dense/sparse/colbert and `last_hidden_state` is not among them.
+
+---
+
+## Aug 1, 2026 — Late Chunking, Model Selection, and the Knowledge Graph
+
+Building §6.3 and auditing the derived stores. Everything measured on the local
+Docker stack.
+
+### 22. Derived Stores Inherit The Poison And Concentrate It
+- **What:** The corpus audit stopped at Qdrant's `spiritual_wisdom`. The stores *built from* it were never checked. Scanned with the same `find_artifact` gate: `lightrag_vdb_chunks` **41.4%** contaminated (770 points), `lightrag_vdb_entities` **7.6%** (1,638), `lightrag_vdb_relationships` **1.4%** (1,922). The chunk store is **worse than the 30.2% source corpus** it was derived from.
+- **Where:** Qdrant collections `lightrag_vdb_*_baai_bge_m3_1024d`; contrast with Neo4j's curated ontology (184 named nodes, **0** artifacts).
+- **When:** From whenever LightRAG last indexed — and invisible to every audit, because the audit named one collection.
+- **Who:** Every RELATIONAL/FACTUAL query. `KNOWLEDGE_GRAPH_QUERY_ENABLED` is `true`, so graph traversal runs inside the retrieval `asyncio.gather` and feeds these documents into answers.
+- **Why:** Two reasons it concentrates rather than dilutes. LightRAG indexed a *subset*, and nothing made that subset representative — if anything, verbose machine-generated chunks are likelier to survive a selection step than terse teaching. And the gate landed at Qdrant's `upsert_chunks` chokepoint, which LightRAG's own writers never cross. "Gate the storage boundary" was right, but there is more than one storage boundary.
+- **How to prevent:** Enumerate **every** store derived from the corpus and audit each — vector, graph, cache, index. When cleaning a corpus, the re-ingest plan must name the derived stores as first-class targets, not assume they follow. A clean `spiritual_wisdom` with a 41% dirty LightRAG chunk store is still a poisoned answer path.
+
+### 23. Extraction Launders Noise Into Schema
+- **What:** The graph contains an entity named **"Kan Kan Kan"** — an ASR decoder repetition loop — described as "a repeated word within the data". And a relationship node **"Punctuation Transcription Errors"**. A transcription *defect* was promoted to a concept in a doctrine knowledge graph.
+- **Where:** `lightrag_vdb_entities_*` / `lightrag_vdb_relationships_*`.
+- **When:** At entity-extraction time, on any chunk carrying an ASR loop — 4,737 of them corpus-wide.
+- **Who:** Graph traversal can now return "Punctuation Transcription Errors" as a *related concept* to a seeker's question about suffering.
+- **Why:** An extraction LLM asked "what entities are in this text?" will always answer. Given `Kan Kan Kan Kan...` it does not say "this is noise" — it says "this is a repeated word", which is *true*, and emits a well-formed entity. Structure confers false authority: once noise has a name, a description, and edges, every downstream consumer treats it as knowledge. Garbage that passes a schema is harder to spot than garbage that doesn't.
+- **How to prevent:** Gate the **input** to extraction, not just the output — extraction cannot distinguish noise from signal, so it must never be handed noise. The corpus filter must run *before* the entity extractor, and the extracted entities need their own quality pass. Also: an entity whose description is about the *text* ("a repeated word within the data", "transcription errors") rather than about the *domain* is a reliable tell.
+
+### 24. A Config Justified By A Number Nobody Re-Checked
+- **What:** `KNOWLEDGE_GRAPH_QUERY_ENABLED` is documented as enabled because the ontology expansion grew Neo4j past a 1,000-edge threshold where traversal "adds real retrieval signal". True for Neo4j (8,745 nodes / 13,300 rels today). But LightRAG's chunk store holds **770 points against a corpus of 89,061 — 0.86%**. The retrieval-side graph sees under one percent of the teaching.
+- **Where:** `app/config.py:397` and the CLAUDE.md note; `lightrag_vdb_chunks_baai_bge_m3_1024d`.
+- **When:** Since the LightRAG index last ran; the Neo4j number was verified 2026-07-10, the LightRAG one never was.
+- **Who:** Every query pays the traversal latency (up to `LIGHTRAG_RETRIEVAL_TIMEOUT`) while Qdrant returns in ~150ms.
+- **Why:** Two different stores back "the knowledge graph", and the justification measured one of them. Neo4j's edge count says nothing about LightRAG's coverage, but the config note reads as though "the graph" is a single thing.
+- **How to prevent:** When a flag's justification cites a number, the note must say **which store** and carry a re-check date. Coverage (fraction of corpus indexed) belongs next to size (node/edge count) — a densely connected graph over 0.86% of the corpus is not the same asset as a sparse one over all of it.
+
+### 25. A Reasoning Model Is The Wrong Tool For An Ingestion Path
+- **What:** Bake-off of four OpenRouter models on real corpus chunks, scored with our own `find_artifact`. `openai/gpt-5-nano` returned **`None` content** — the token budget went to hidden reasoning. `google/gemma-3-12b-it` 2.09s/chunk, `amazon/nova-lite-v1` 6.28s, `qwen/qwen3.7-flash` 8.78s with 72% more tokens; 0 artifacts from all three that answered.
+- **Where:** `ingest/contextual_reingest.py:_OpenRouterContextualizer`, which now raises on empty content instead of writing a blank header.
+- **When:** Every call — a null return is not intermittent, it is what that model does under a low `max_tokens`.
+- **Who:** Silently writing empty context headers would have degraded every chunk it touched, invisibly, at ingest time.
+- **Why:** Chain-of-thought leaking into chunk text is what poisoned 30.2% of this corpus. A model *architecturally built* to emit reasoning is the wrong instrument for the job that failed that way — and with a small `max_tokens` it does not merely leak, it spends the whole budget thinking and returns nothing. Note also that the cheapest per-token model lost on cost: qwen's lower unit price was cancelled by 72% more tokens and 4.2× the wall-clock.
+- **How to prevent:** For ingestion paths, prefer non-reasoning instruction-followers and **measure seconds-per-chunk, not list price** — one call per chunk means throughput is the bill. Treat empty content as an error, never as an empty string. And bake off on *real corpus samples* scored by the project's own detector; a leaderboard cannot tell you which model leaks into your schema.
+
+### 26. I Applied The Right Validator To The Wrong Unit — Twice In One Session
+- **What:** (a) Scanned OKF entries by feeding whole `.md` files to `find_artifact`; it flagged 1 of 23 as a repetition loop. The "loop" was the entry's own title recurring across YAML `title:`, `sources[].title`, and the H1 — the body contained the phrase **once**. Body-only rescan: **0 of 23**. (b) Scanned Neo4j node names with `clean_topic_label`; 29 of 184 "failed". They are `GuruTeaching`/`RootLimitingBelief` nodes whose name *is* a teaching sentence — a topic-label validator has no business judging them.
+- **Where:** `services/text_quality_filter.py` (`find_artifact` expects a chunk **body**; `clean_topic_label` expects a **short noun phrase**).
+- **When:** Both while gathering evidence for decisions — the OKF scan was about to justify deleting human-curated doctrine.
+- **Who:** Me, twice, in the space of an hour. The first nearly became "1 entry is poisoned, which supports removing OKF."
+- **Why:** A validator encodes assumptions about its input's *shape*, and those assumptions live in the docstring, not the signature. Nothing stops you passing a whole file where a chunk body is expected — the types match, so it runs and returns a confident answer about the wrong thing. Structural repetition (frontmatter, headers, templates) looks exactly like a decoder loop to an n-gram counter.
+- **How to prevent:** Before reusing a detector on a new corpus, read what unit it was written for and normalise to that unit — strip frontmatter, strip headers, take the body. When a scan flags a *small* number, inspect every hit by hand before reporting it; the base rate for false positives is highest exactly when the count is low. This is lesson #13 recurring, and it recurred because the discipline was applied to *numbers I reported* but not to *numbers I used to decide*.
 
 ---
 
