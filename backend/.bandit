@@ -1,16 +1,32 @@
-[bandit]
-# Skips for known false positives — documented per finding below.
-# Do NOT add skips without a justification comment.
+# Bandit configuration — YAML format
+# Known false-positive skips, each with a justification comment.
+# Do NOT add skips without explaining why the finding is safe.
 
-skips =
-    # B101: assert_used — pytest tests and benchmark harnesses legitimately use assert
-    # B104: hardcoded_bind_all_interfaces — FastAPI dev server uses 0.0.0.0 intentionally in dev mode
-    # B108: probable_temp_file — mkdtemp usage in backup scripts is intentional, cleaned up properly
-    # B311: random — non-cryptographic random is fine for jitter/sampling; secrets.token_* used for auth
-    # B603: subprocess_without_shell_equals_true — caffeinate/git calls use args list (safe form)
-    # B607: start_process_with_partial_path — git/caffeinate are always from PATH in known CI envs
+skips:
+  # B101: assert_used — pytest tests legitimately use assert; benchmark harnesses too
+  - B101
+  # B104: hardcoded_bind_all_interfaces — dev-mode FastAPI uvicorn uses 0.0.0.0 intentionally
+  - B104
+  # B108: probable_temp_file — mkdtemp in backup scripts is intentional; cleaned up via finally
+  - B108
+  # B311: random — non-cryptographic random used for jitter/sampling only; secrets.token_* used for auth
+  - B311
+  # B603: subprocess_without_shell_equals_true — all subprocess calls use args list (safe form, not shell=True)
+  - B603
+  # B607: start_process_with_partial_path — git/caffeinate always from PATH in known CI environments
+  - B607
 
-exclude_dirs = tests,benchmarks,scripts/ops
+exclude_dirs:
+  - tests
+  - benchmarks
+  - scripts/ops
+  - venv
+  - .venv
 
-[tool:bandit]
-targets = app,rag,services,guardrails,ingest,routers
+targets:
+  - app
+  - rag
+  - services
+  - guardrails
+  - ingest
+  - routers

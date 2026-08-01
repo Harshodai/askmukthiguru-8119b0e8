@@ -56,7 +56,7 @@ def _minhash_signature(shingle_set: set[str], hash_count: int = _DEFAULT_HASH_CO
         seed_bytes = str(seed).encode("utf-8")
         min_hash = None
         for shingle in shingle_set:
-            digest = hashlib.md5(seed_bytes + shingle.encode("utf-8")).hexdigest()
+            digest = hashlib.md5(seed_bytes + shingle.encode("utf-8"), usedforsecurity=False).hexdigest()
             value = int(digest, 16)
             if min_hash is None or value < min_hash:
                 min_hash = value

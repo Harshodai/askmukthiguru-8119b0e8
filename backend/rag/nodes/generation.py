@@ -39,6 +39,12 @@ from .utils import (
 
 logger = logging.getLogger(__name__)
 
+# Must exceed len(GURU_SYSTEM_PROMPT.split()) * 1.3 plus the appended
+# [USER CLASSIFICATION] style block. Pinned by
+# tests/test_answer_path_regressions.py — if the constitution grows past this,
+# that test fails rather than the prompt silently losing its tail.
+_PERSONA_TOKEN_BUDGET = 2048
+
 
 def _maybe_apply_langhanam_voice(
     state: GraphState, system_prompt: str, answer: str
@@ -246,7 +252,15 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
             "Focus on deep spiritual transformation."
         )
 
-    persona = cap_to_token_budget(persona, 512)
+    # The constitution is 1,183 words ≈ 1,537 tokens. The previous 512-token cap
+    # discarded 67% of it, cutting mid-sentence at "You ground every factual claim
+    # in the provided context." — so the model never received the ban on invented
+    # quotes, the crisis-helpline-first rule, the clinical redirect, the doctrine
+    # vocabulary, the citation format, or the Voice section. The
+    # [USER CLASSIFICATION] block appended just above was discarded 100% of the time.
+    # `max_tokens_per_request` is 12000, so the cap was never budget-driven — it was
+    # simply too small. Sized to fit the whole constitution plus the style block.
+    persona = cap_to_token_budget(persona, _PERSONA_TOKEN_BUDGET)
 
     # Layer 2: Knowledge (Retrieved Chunks) — tier-aware budget
     query_tier = state.get("query_tier", "standard")
@@ -838,10 +852,11 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 "Answer the user's question using only the provided context. "
                 f"Keep answers to {('80-150' if _cs < 0.30 else '150-300' if _cs < 0.55 else '300-500')} words. "
                 "Cite sources using [Source: <title>].\n"
-                "PRONOUN RULE: Always refer to the co-founders in the third person. Translate all first-person references "
-                "to the co-founders in retrieved teachings (e.g., 'me and Preethaji', 'my daughter', 'I took her', "
-                "'we took her') into appropriate third-person references (e.g., 'Sri Krishnaji and Sri Preethaji', "
-                "'their daughter', 'Sri Krishnaji and Sri Preethaji took her'). Never refer to them using first-person pronouns.\n"
+                "VOICE RULE — preserve the gurus' own words. When the context contains them speaking "
+                "in the first person ('I want you to...', 'me and Preethaji', 'my daughter'), keep that "
+                "first person and attribute it: Sri Krishnaji says: \"I want you to...\". Do NOT rewrite "
+                "their 'I' into 'they'. In your OWN connective sentences you speak about them in the "
+                "third person, and you never invent a first-person sentence they did not say.\n"
                 "LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
                 "there is no such teaching. If asked about 'Lokaa's daughter', clarify this relationship."
             )
@@ -958,10 +973,13 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "5. Maintain a warm, compassionate, and wise tone.\n"
             "6. Start with the most directly relevant teaching and end with an encouraging or reflective note.\n"
             "7. Never expose reasoning notes, prompt analysis, or chain-of-thought.\n"
-            "8. PRONOUN RULE: Always refer to the co-founders in the third person. Translate all first-person references "
-            "to the co-founders in retrieved teachings (e.g., 'me and Preethaji', 'my daughter', 'I took her', "
-            "'we took her') into appropriate third-person (e.g., 'Sri Krishnaji and Sri Preethaji', 'their daughter', "
-            "'Sri Krishnaji and Sri Preethaji took her'). Never refer to them in the first person.\n"
+            "8. VOICE RULE — preserve the gurus' own words. When the Context contains them "
+            "speaking in the first person ('I want you to...', 'me and Preethaji', 'my daughter'), "
+            "keep that first person and attribute it: Sri Krishnaji says: \"I want you to...\". "
+            "Do NOT rewrite their 'I' into 'they' — that flattening turns a living teaching into a "
+            "summary. In your OWN connective sentences you speak about them in the third person. "
+            "You never invent a first-person sentence they did not say: if it is not in the Context, "
+            "it is not their voice.\n"
             "9. LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
             "there is no such teaching. If asked about 'Lokaa's daughter', clarify this relationship."
         )
@@ -1252,10 +1270,12 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                     "5. Maintain a warm, compassionate, and wise tone.\n"
                     "6. Start with the most directly relevant teaching and end with an encouraging or reflective note.\n"
                     "7. Never expose reasoning notes, prompt analysis, or chain-of-thought.\n"
-                    "8. PRONOUN RULE: Always refer to the co-founders in the third person. Translate all first-person references "
-                    "to the co-founders in retrieved teachings (e.g., 'me and Preethaji', 'my daughter', 'I took her', "
-                    "'we took her') into appropriate third-person (e.g., 'Sri Krishnaji and Sri Preethaji', 'their daughter', "
-                    "'Sri Krishnaji and Sri Preethaji took her'). Never refer to them in the first person.\n"
+                    "8. VOICE RULE — preserve the gurus' own words. When the Context contains them "
+                    "speaking in the first person ('I want you to...', 'me and Preethaji', 'my daughter'), "
+                    "keep that first person and attribute it: Sri Krishnaji says: \"I want you to...\". "
+                    "Do NOT rewrite their 'I' into 'they'. In your OWN connective sentences you speak "
+                    "about them in the third person. You never invent a first-person sentence they did "
+                    "not say: if it is not in the Context, it is not their voice.\n"
                     "9. LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
                     "there is no such teaching. If asked about 'Lokaa's daughter', clarify this relationship."
                 )
@@ -1529,41 +1549,76 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     state["verification"] = verification
     verified = verification.get("passed", False)  # refresh for downstream gate
 
-    # Fast-tier: accept unconditionally (skips full verification pipeline)
+    # Fast tier skips the heavy verification NODES, not the faithfulness GATE.
+    #
+    # This branch used to accept unconditionally and hardcode
+    # `faithfulness_score: 1.0, method: "fast_tier_bypass"` — overwriting the real
+    # LettuceDetect score that generate_answer had just computed for exactly this
+    # purpose ("to give format_final_answer an honest signal instead of a hardcoded
+    # pass"). Because ~73% of live queries route to the fast graph, that made the
+    # <1% hallucination target unfalsifiable on the majority path and left
+    # scripts/ops/hallucination_anomaly.py reading a constant.
+    #
+    # Now: report the measured score, and take the shortcut only when it passes.
+    # A fast answer that fails the floor falls through to the graduated gating
+    # below rather than being waved through.
     if query_tier in ("fast", "tier2_simple") and answer and len(answer.strip()) > 20:
-        logger.info(
-            f"Final: Fast-tier answer accepted (len={len(answer)}, citations={len(citations)})"
+        fast_score = state.get("faithfulness_score")
+        fast_verification = state.get("verification") or {}
+        measured = isinstance(fast_score, (int, float))
+        fast_score = float(fast_score) if measured else 1.0
+        fast_faithful = bool(state.get("is_faithful", True))
+        floor = getattr(settings, "faithfulness_floor", 0.6)
+
+        if not measured or (fast_faithful and fast_score >= floor):
+            logger.info(
+                "Final: Fast-tier answer accepted (len=%d, citations=%d, "
+                "faithfulness=%.2f, measured=%s)",
+                len(answer), len(citations), fast_score, measured,
+            )
+            citations = _inject_canonical_citations(answer, citations)
+            citations = enforce_source_diversity(citations, min_distinct=2)
+            citations = [
+                str(c.get("url") or c.get("doc_id") or c.get("source") or "Retrieved document")
+                if isinstance(c, dict) else str(c)
+                for c in citations
+            ]
+            answer = remap_citation_markers(answer, relevant_docs, citations)
+            answer = scrub(answer)
+            fast_confidence = fast_score * 10.0 if measured else 8.0
+            return {
+                "final_answer": answer,
+                "citations": citations,
+                "intent": intent,
+                "_needs_retry": False,
+                "is_faithful": fast_faithful,
+                "verification": {
+                    "passed": True,
+                    "method": fast_verification.get("method", "fast_tier_lettuce_detect"),
+                    "score": fast_score,
+                    "measured": measured,
+                },
+                "faithfulness_score": fast_score,
+                "confidence_score": fast_confidence,
+                "citations_verified": citations_verified,
+                "orphan_citations_stripped": orphan_citations_stripped,
+                "evaluation_trace": _trace_update(
+                    state,
+                    final_answer_chars=len(answer),
+                    final_citations=citations,
+                    verification_passed=True,
+                    confidence_score=fast_confidence,
+                    citations_verified=citations_verified,
+                    orphan_citations_stripped=orphan_citations_stripped,
+                ),
+            }
+
+        logger.warning(
+            "Final: fast-tier answer FAILED the faithfulness floor "
+            "(score=%.2f < %.2f, faithful=%s) — falling through to graduated "
+            "gating instead of the unconditional accept",
+            fast_score, floor, fast_faithful,
         )
-        citations = _inject_canonical_citations(answer, citations)
-        citations = enforce_source_diversity(citations, min_distinct=2)
-        citations = [
-            str(c.get("url") or c.get("doc_id") or c.get("source") or "Retrieved document")
-            if isinstance(c, dict) else str(c)
-            for c in citations
-        ]
-        answer = remap_citation_markers(answer, relevant_docs, citations)
-        answer = scrub(answer)
-        return {
-            "final_answer": answer,
-            "citations": citations,
-            "intent": intent,
-            "_needs_retry": False,
-            "is_faithful": True,
-            "verification": {"passed": True, "method": "fast_tier_bypass"},
-            "faithfulness_score": 1.0,
-            "confidence_score": 8.0,
-            "citations_verified": citations_verified,
-            "orphan_citations_stripped": orphan_citations_stripped,
-            "evaluation_trace": _trace_update(
-                state,
-                final_answer_chars=len(answer),
-                final_citations=citations,
-                verification_passed=True,
-                confidence_score=8.0,
-                citations_verified=citations_verified,
-                orphan_citations_stripped=orphan_citations_stripped,
-            ),
-        }
 
     citations = _inject_canonical_citations(answer, citations)
     citations = enforce_source_diversity(citations, min_distinct=2)

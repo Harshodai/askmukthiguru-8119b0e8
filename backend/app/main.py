@@ -432,7 +432,7 @@ async def _background_startup_body(container, fastapi_app) -> None:
 
         _embed_model_name = getattr(settings, "embedding_model", "BAAI/bge-m3")
         _embed_dim = getattr(settings, "embedding_dimension", 1024)
-        _fingerprint = _hashlib.md5(f"{_embed_model_name}:{_embed_dim}".encode()).hexdigest()
+        _fingerprint = _hashlib.md5(f"{_embed_model_name}:{_embed_dim}".encode(), usedforsecurity=False).hexdigest()
         _fp_redis_key = "embedding_model_fingerprint"
 
         # Use Redis for durable cross-deploy persistence; fall back to /tmp on failure

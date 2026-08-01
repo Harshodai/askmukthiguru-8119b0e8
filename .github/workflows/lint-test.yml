@@ -74,7 +74,8 @@ jobs:
         # AUDIT FIX 2026-08-01: removed '|| true' — bandit must block CI on
         # medium+ severity findings. Add known false positives to .bandit instead
         # of suppressing the entire scanner.
-        run: bandit -r . -x tests/,benchmarks/ --severity-level medium --confidence-level medium --quiet --configfile .bandit
+        # Exclude venv/.venv to avoid scanning third-party packages.
+        run: bandit -r . -x tests/,benchmarks/,venv/,.venv/ --severity-level medium --confidence-level medium --quiet --configfile .bandit
 
       - name: Run pytest
         run: pytest tests/ -v --tb=short

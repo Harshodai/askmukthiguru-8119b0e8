@@ -81,6 +81,20 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (norm_a * norm_b)
 
 
+# Minimum cosine an OKF entry must reach before it is injected at all. Below
+# this the curated bundle has nothing to say about the question and injecting it
+# only crowds out genuinely retrieved teachings.
+_OKF_MIN_SIMILARITY = 0.45
+# Curated, human-reviewed doctrine outranks a raw chunk of equal similarity —
+# but by a margin, not by a floor of 0.9.
+_OKF_CURATION_BOOST = 1.10
+# Keyword-fallback gates (used only when EmbeddingService is unavailable):
+# fraction of the query's content words an entry must contain, and the ceiling
+# its score may reach so lexical overlap never outranks a real embedding match.
+_OKF_MIN_KEYWORD_COVERAGE = 0.30
+_OKF_KEYWORD_SCORE_CEILING = 0.60
+
+
 def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[dict]:
     """Semantic match via cosine similarity on title embeddings; keyword fallback.
 
@@ -108,14 +122,26 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
         for e in entries:
             emb = e.get("embedding", [])
             if emb and len(emb) > 0:
-                scored.append((_cosine(q_vec, emb), e))
+                sim = _cosine(q_vec, emb)
+                # Relevance floor. The score used to be `0.9 + sim * 0.1`, so an
+                # entry with cosine 0.0 still scored 0.9 — above essentially every
+                # genuine Qdrant hit. With 23 entries in the bundle, top-3 was
+                # "the 3 least-irrelevant of 23", prepended to EVERY non-casual
+                # query. On the fast graph (no reranker, documents[:5]) that meant
+                # 3 of the 5 documents the model saw were unrelated doctrine —
+                # the mechanical cause of answers that blend unrelated teachings.
+                if sim >= _OKF_MIN_SIMILARITY:
+                    scored.append((sim, e))
         if scored:
             scored.sort(key=lambda x: x[0], reverse=True)
             docs = []
             for sim, e in scored[:limit]:
                 docs.append({
                     "text": f"{e['title']}\n\n{e.get('body', '')}",
-                    "score": 0.9 + sim * 0.1,
+                    # Honest similarity. Curated doctrine still earns a modest
+                    # edge over a raw chunk of equal similarity, but it can no
+                    # longer outrank a strongly-matching retrieved teaching.
+                    "score": min(1.0, sim * _OKF_CURATION_BOOST),
                     "metadata": {
                         "source": e.get("resource") or e.get("source", "OKF"),
                         "title": e["title"],
@@ -127,21 +153,28 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
     except Exception:
         pass
 
-    # Keyword fallback — naive word overlap when EmbeddingService unavailable
+    # Keyword fallback — naive word overlap when EmbeddingService unavailable.
+    # Requires a meaningful share of the query's content words to match, not a
+    # single incidental hit: with a 23-entry bundle, "match >= 1 word" selects an
+    # entry for practically any question.
     import re as _re
     words = set(w.lower() for w in _re.findall(r"\w+", query) if len(w) > 2)
     scored: list[tuple[float, dict]] = []
     for e in entries:
         text = f"{e.get('title', '')} {e.get('body', '')}".lower()
         matches = sum(1 for w in words if w in text)
-        if matches:
-            scored.append((matches, e))
+        # Coverage, not raw count — a long entry should not win by being long.
+        coverage = matches / len(words) if words else 0.0
+        if coverage >= _OKF_MIN_KEYWORD_COVERAGE:
+            scored.append((coverage, e))
     scored.sort(key=lambda x: x[0], reverse=True)
     docs = []
     for score, e in scored[:limit]:
         docs.append({
             "text": f"{e['title']}\n\n{e.get('body', '')}",
-            "score": 0.9 + score * 0.01,
+            # Keyword overlap is a weaker signal than cosine; scored below the
+            # semantic path so it never outranks a real embedding match.
+            "score": min(1.0, score) * _OKF_KEYWORD_SCORE_CEILING,
             "metadata": {
                 "source": e.get("resource") or e.get("source", "OKF"),
                 "title": e["title"],

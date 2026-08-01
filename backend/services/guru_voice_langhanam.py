@@ -44,23 +44,69 @@ Langhanam is power. Practice these four fasts, and you will feel great power in 
 """.strip()
 
 # Voice block appended to the generation system prompt (variant A).
+#
+# REBUILT 2026-08-01 from evidence, replacing a version distilled from a single
+# discourse about fasting. That block mandated a register the gurus do not use.
+# Measured across 2,700 sentences of their real speech in the `guru_tone_podcast`
+# collection (157 labelled exemplars):
+#
+#   MANDATED BY THE OLD BLOCK           | ACTUAL OCCURRENCES IN 2,700 SENTENCES
+#   ----------------------------------- | -------------------------------------
+#   >=2 Sanskrit terms per response     | 2 total
+#   "Our ancients in India"/"the rishis"| 0
+#   Open with "Listen."/"I want you to" | 5 (0.2%)
+#   Max 20 words/sentence               | 18% of their sentences exceed it
+#
+#   WHAT THEY ACTUALLY DO
+#   "you" x2488 · "I/my/me" x1005 · "we" x697 · rhetorical questions x223
+#   "beautiful state" x100 · "suffering/stressful state" x50 · "Let us" x26
+#   sentence length: median 10 words, mean 23.6, p90 27 (bimodal, not capped)
+#
+# Their register is direct second-person address in their OWN doctrinal
+# vocabulary, not Sanskrit ornamentation. Forcing terms and "our ancients" claims
+# absent from the retrieved context was also hallucination by instruction, layered
+# on top of a prompt that forbids hallucination.
 LANGHANAM_VOICE_BLOCK = """
-SPEAK AS THE GURU — LANGHANAM VOICE. This is mandatory. Every response must:
+THE GURU'S VOICE. Match this register — it is measured from how Sri Preethaji and
+Sri Krishnaji actually speak, not an imitation of generic spiritual English.
 
-1. OPEN with a direct command to the seeker. Begin with one of: "Listen.", "I want you to understand this.", "Try this.", "Observe this.", "Notice what happens when...". Never begin with "I" followed by an opinion.
+1. SPEAK TO THE SEEKER, NOT ABOUT THEM. Second person is the dominant register:
+   "you are", "when you look", "notice what happens in you". Address the person
+   in front of you, not an audience.
 
-2. USE SANSKRIT TERMS in every response — at least two of: langhanam, vaak Shakti, prana, shuddhi, deeksha, aham. Do not translate them; use them as the guru would, naturally embedded in the sentence.
+2. KEEP THEIR FIRST PERSON WHEN THE TEACHINGS CONTAIN IT. If the provided context
+   has them speaking as "I" or "we" ("In my observation...", "Let us observe..."),
+   preserve it and attribute it — Sri Krishnaji: "In my observation...". Do NOT
+   flatten their "I" into "they"; that turns a living teaching into a summary.
+   Never invent a first-person sentence that is not in the context.
 
-3. ANCHOR IN INDIA. Use Indian-English phrasing: "Our ancients in India...", "In our tradition...", "The rishis understood...". This is not optional.
+3. USE THEIR VOCABULARY, NOT SANSKRIT DECORATION. The words that carry this
+   lineage are: beautiful state, suffering state, stressful state, inner truth,
+   self-centric thinking, connection, presence, surrender, Soul Sync, Deeksha,
+   Ekam. Use a Sanskrit term ONLY when the provided context uses it. Never insert
+   Sanskrit to sound authentic.
 
-4. SHORT SENTENCES. Maximum 20 words per sentence. If a sentence exceeds 20 words, break it in two. Rhythm comes from brevity and repetition.
+4. ASK, DO NOT ONLY TELL. A rhetorical question turned back on the seeker is
+   characteristic: "Is it not you who is still carrying her?", "What is happening
+   inside you right now?" Use one where it opens something.
 
-5. ONE TEACHING ONLY. Do not blend sources. The seeker asked one question — answer it from one teaching, deeply.
+5. RHYTHM: SHORT, THEN LONG. Most sentences are short — around ten words. Then one
+   longer sentence when the teaching needs room. Do not cap every sentence at the
+   same length; the alternation IS the voice.
 
-6. NO FILLERS. Never use: like, you know, basically, totally, I think, kind of, sort of, I mean, literally, honestly.
+6. NO INVENTED TRADITION. Never write "Our ancients in India...", "The rishis
+   understood...", "In our tradition..." unless the provided context says it.
+   These are claims, not flavour.
 
-EXAMPLE of correct voice (copy this cadence exactly):
-"Listen. Our ancients in India had one answer for this. They called it langhanam. I want you to try this today. Sit still. Observe your prana. Even one minute of this will change your state. This is the power of langhanam."
+7. NO FILLERS: like, you know, basically, totally, I think, kind of, sort of,
+   I mean, literally, honestly.
+
+EXAMPLE of the real cadence (from their own words):
+"In a beautiful state, you are powerful enough to help yourself and help others
+around you. You are outright intelligent. Your actions are decisive. Let us
+observe this a little longer — when a stressful state mounts over your ideas,
+however lofty those ideas are, what happens to your connection with the person
+in front of you?"
 """.strip()
 
 # American conversational fillers to avoid (word-boundary, case-insensitive).
@@ -91,13 +137,25 @@ LANGHANAM_SANSKRIT_TERMS: tuple[str, ...] = (
     "aham",
 )
 
-# Intents eligible for the guru voice: teaching/doctrine queries and
-# distress. Pure factual lookup-only queries (FACTUAL) are excluded so a
-# voice rewrite never muffles a direct fact. COMPARATIVE joins RELATIONAL
-# as a teaching-bearing intent in the graph's taxonomy (intent.py routes
-# DEEP/TEMPORAL/CAPABILITY into FACTUAL, which stays excluded).
+# Intents eligible for the guru voice.
+#
+# FACTUAL was excluded on the theory that it means "pure lookup" and a voice
+# would muffle a direct fact. Measurement killed that theory: `on_device_intent`
+# seeds FACTUAL with `what is`, `who is`, `why`, `how`, `explain`, `teach me`,
+# `how do i`, `practice` — the shape of nearly every seeker question. Excluding
+# it meant the voice fired on **1 of 8** realistic queries, which is why answers
+# still read in a generic register. "What is the Beautiful State?" and "Why do I
+# keep suffering?" are teaching questions, not lookups.
+#
+# Safe to include now: variant A only shapes register in the system prompt — it
+# rewrites nothing and adds no claims (the block forbids inserting vocabulary or
+# tradition claims absent from the retrieved context). CASUAL and GREETING stay
+# out: a one-line "Namaste" does not need a teaching register.
 LANGHANAM_ELIGIBLE_INTENTS: frozenset[str] = frozenset(
-    {"TEACHING", "DOCTRINE", "QUERY", "COMPARATIVE", "RELATIONAL", "DISTRESS"}
+    {
+        "TEACHING", "DOCTRINE", "QUERY", "COMPARATIVE", "RELATIONAL",
+        "DISTRESS", "FACTUAL", "FOLLOW_UP", "GUIDED_TOUR",
+    }
 )
 
 # Stacked fixed-width negative lookbehinds: "kind of"/"sort of" are only

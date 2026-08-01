@@ -240,7 +240,7 @@ class PipelineCoordinator:
                     last_user_msg = msg.get("content", "")
                     break
             if last_user_msg:
-                prev_hash = hashlib.md5(last_user_msg.encode()).hexdigest()[:8]
+                prev_hash = hashlib.md5(last_user_msg.encode(), usedforsecurity=False).hexdigest()[:8]
                 return f"{base_key}:ctx:{prev_hash}"
 
         return base_key

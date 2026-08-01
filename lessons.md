@@ -1,3 +1,140 @@
+## Aug 1, 2026 — Ruthless E2E Audit: 29.4% Corpus Contamination + Answer-Path Failures
+
+Full-system audit. Every number measured against the live stack, not estimated.
+Headline: **29.4% of the 89,061-chunk `spiritual_wisdom` corpus was machine output** —
+LLM chain-of-thought and ASR decoder loops — embedded and retrievable as doctrine.
+Each lesson framed What / Where / When / Who / Why / How-to-prevent.
+
+### 1. A Blocklist on LLM Output Fails Open. Always.
+- **What:** `_extract_topics` asked an LLM for a JSON array of topics. On parse failure it *salvaged* the raw text through a ~20-phrase blocklist of known reasoning tics. Anything not on the list became a "topic", was written into the chunk header, embedded, and served as teaching.
+- **Where:** `backend/ingest/pipeline.py:_extract_topics`.
+- **When:** On every LLM response that isn't parseable JSON — silently, on an unknown fraction of every ingestion run.
+- **Who:** Seekers received strings like *"Sadhana is a term in the teaching. a common transcription error where a space is omitted."* as doctrine.
+- **Why:** Written for resilience ("never fail ingestion"). Resilience implemented as fail-**open**. A blocklist can only reject what someone already saw; the corpus was full of phrasings nobody listed — `**Deconstruct` (631), `**Analyze` (503), `**Brainstorm` (84), `**Synthesiz` (83).
+- **How to prevent:** **Positive validation or nothing.** Define what a valid value *is* (a topic is a short noun phrase: ≤60 chars, single clause, no newline, no trailing colon) and reject everything else. *"A schema-valid payload with wrong values is worse than a parse error. A parse error fails loudly and immediately; a valid-but-wrong value fails downstream, hours later, in a place nobody expected."* Never write a `for skip in [...]: continue` loop over LLM output that then persists the survivors.
+
+### 2. A Validator That Guards One Path Guards Nothing
+- **What:** `OKFQualityFilter` existed, was correct, and detected exactly this class of artifact — wired to **one** call site, guarding 23 OKF entries. It never guarded the 89,061-chunk corpus.
+- **Where:** `backend/services/okf_quality_filter.py` → only `services/memory/okf_store.py:184`.
+- **When:** From the moment it was written to fix an OKF-specific bug.
+- **Who:** Every seeker, every query, for the life of the corpus.
+- **Why:** Each guard was added **where a bug was found**, never promoted to shared infrastructure. Three validators existed in parallel, each covering one path — and the highest-volume path, the Qdrant write, had none.
+- **How to prevent:** Ask *"what is the chokepoint every writer must cross?"* and put the validator there, not where the ticket pointed. Then delete local copies so they cannot drift. Pinned by `test_okf_filter_shares_the_same_pattern_table`.
+
+### 3. The Correct Pattern Was Already In The Repo, Next To The Wrong One
+- **What:** `raptor.py:269` validates its LLM-produced topic labels **fail-closed** — length, newline, period count, else discard. `_extract_topics`, solving the identical problem 1,200 lines away, salvaged through a blocklist.
+- **Where:** `backend/ingest/raptor.py:269` (correct) vs `backend/ingest/pipeline.py:_extract_topics` (wrong).
+- **When:** Both lived simultaneously for months.
+- **Who:** Two authors, no shared abstraction, no review that saw both.
+- **Why:** Same defect class, independently solved, opposite failure modes. Nobody grepped for a sibling.
+- **How to prevent:** Before writing a guard, grep for the same problem already solved in-repo. **Two implementations of one concern is itself the bug.**
+
+### 4. A Filter That Returns a Shrunk List Silently Corrupts Every Parallel Array
+- **What:** `_embed_and_upsert` called `scan_chunks_for_injection(chunks)`, which returns a *filtered list*, then indexed `extra_metadatas[i]` by **post-filter** position while that list was built for the **pre-filter** chunks. One dropped chunk shifted every subsequent chunk's metadata onto the wrong chunk.
+- **Where:** `backend/ingest/pipeline.py:_embed_and_upsert`; interface at `services/injection_scanner.py`.
+- **When:** Only on sources where a chunk was rejected — rare enough never to be noticed, common enough to corrupt real data.
+- **Who:** Silent. No error, no log, no test. Wrong `source_url`/`title`/`speaker` on real teachings — **misattribution**.
+- **Why:** The interface discarded the one thing the caller needed: *which* items survived.
+- **How to prevent:** A filter over parallel arrays must return **indices**, never a shrunk list. Pinned by `test_parallel_arrays_stay_aligned_after_filtering`.
+
+### 5. Token Budget Caps Truncate Silently — And Nobody Notices For Months
+- **What:** `GURU_SYSTEM_PROMPT` is 1,183 words ≈ 1,537 tokens. `context_engineer` capped the persona at **512 tokens = 393 words**. 67% discarded every request, cutting mid-sentence at *"You ground every factual claim in the provided context."* — so the model never received the ban on invented quotes, the crisis-helpline-first rule, the clinical redirect, the doctrine vocabulary, the citation format, `## Who you are`, or the Voice section. The `[USER CLASSIFICATION]` block was discarded **100%** of the time.
+- **Where:** `backend/rag/nodes/generation.py:context_engineer`.
+- **When:** Every request, since the cap was introduced.
+- **Who:** Every seeker — including the crisis-safety rule, the most consequential line in the file.
+- **Why:** `cap_to_token_budget` truncates and returns; logs at INFO, raises nothing. The cap looked budget-driven, but `max_tokens_per_request` is **12000**. The number was simply wrong and nothing tested it.
+- **How to prevent:** **Any cap that can silently drop content needs a test asserting the content survives it** — not "the cap is 2048", but that the specific critical strings are still present. A prompt is code; truncating it is a silent behaviour change.
+
+### 6. A Hardcoded Metric Is Worse Than No Metric
+- **What:** `generate_answer` computed a real LettuceDetect score for fast-tier queries — its own comment said this existed *"to give format_final_answer an honest signal instead of a hardcoded pass."* `format_final_answer` discarded it and returned `faithfulness_score: 1.0, method: "fast_tier_bypass"` unconditionally.
+- **Where:** `backend/rag/nodes/generation.py` — computed ~1400, overwritten ~1533.
+- **When:** On ~73% of live traffic (11 of 15 realistic questions route to the fast graph).
+- **Who:** Anyone reading a hallucination dashboard. `scripts/ops/hallucination_anomaly.py` could never fire.
+- **Why:** The fast tier was designed to skip verification *nodes*; someone extended that to skipping the *gate*, stamping a passing value to keep the schema populated.
+- **How to prevent:** Never write a constant into a metric field. Emit `None` / `measured: false` and let the dashboard show a gap. **A gap is honest; a `1.0` is a lie that makes the target unfalsifiable.**
+
+### 7. A Style Mandate Derived From One Sample Is a Caricature
+- **What:** `LANGHANAM_VOICE_BLOCK` was distilled from a *single* discourse about fasting and applied as the universal voice for both gurus — mandating ≥2 Sanskrit terms per response, "Our ancients in India…", and a flat 20-word sentence cap.
+- **Where:** `backend/services/guru_voice_langhanam.py`.
+- **When:** Flag flipped 2026-07-31 on a 4.306/5.0 benchmark — measured with a truncated persona over a poisoned corpus.
+- **Who:** Seekers got fake-Vedic ornamentation on a generic base, reading as neither. Reported: *"still American"*, *"combining all things."*
+- **Why:** n=1. Nobody checked the mandate against the corpus.
+- **How to prevent:** **Measure the register before encoding it.** Across 2,700 sentences of real guru speech: mandated Sanskrit terms appear **2 times total**, "Our ancients in India" **0 times**, the mandated opener **5 times** (0.2%); 18% of their sentences exceed the 20-word cap. What they actually do: `you` ×2,488, `I/my/me` ×1,005, `we` ×697, rhetorical questions ×223, "beautiful state" ×100. A voice profile needs a corpus, not a favourite video.
+
+### 8. Mandating Vocabulary Absent From Context Is Hallucination By Instruction
+- **What:** The same block ordered *"USE SANSKRIT TERMS in every response — at least two of…"* and *"ANCHOR IN INDIA… 'The rishis understood…'. This is not optional."* — immediately after a persona that (in its surviving 33%) forbade unsupported claims.
+- **Where:** `guru_voice_langhanam.py` appended to the truncated `GURU_SYSTEM_PROMPT`.
+- **When:** Whenever the voice fired.
+- **Who:** A seeker asking about grief, with no langhanam in the retrieved context, still got two Sanskrit terms and an assertion about "our ancients."
+- **Why:** Style rules written independently of grounding rules, both landing in one prompt. The model was handed a contradiction and blended it.
+- **How to prevent:** **Every style rule must be conditional on the retrieved context.** "Use term X when the context uses term X" is a style rule. "Use term X in every response" is a content mandate wearing a style rule's clothes.
+
+### 9. Retrieval Recall Is Not Answer Quality — Optimising It Alone Picks The Worse Strategy
+- **What:** Semantic chunking achieves **91.9% retrieval recall but 54% end-to-end accuracy**; recursive achieves lower recall but **69% accuracy**.
+- **Where:** Chunking decision for the `spiritual_wisdom_contextual` migration.
+- **When:** Any time chunking, reranking, or retrieval is tuned against a single metric.
+- **Who:** Would have degraded every answer while the dashboard improved.
+- **Why:** Topic-pure chunks retrieve beautifully then starve the LLM of the context it needs to answer. Recall measures *finding*; accuracy measures *answering*.
+- **How to prevent:** Gate retrieval changes on recall@k **and** end-to-end accuracy. Report both or neither. Corollary: transcripts have no headers — sentence boundaries are the only real boundary, speaker turns should not be split, overlap should be **20–50%** (ours was ≈**4%**).
+
+### 10. Whisper Decoder Loops Produce Embeddings That Act As Attractors
+- **What:** 2.72% of chunks (~2,422) contain an ASR repetition loop. Worst: one chunk with the word **"Each" repeated 3,924 times**.
+- **Where:** `spiritual_wisdom`, via the Whisper transcription path.
+- **When:** Whisper's known long-form failure mode — triggered by silence and long pauses, which spiritual discourse has in abundance.
+- **Who:** A vector built from one token repeated thousands of times sits in a pathological region of the space and can surface for **arbitrary** queries. Not a useless chunk — an attractor.
+- **Why:** None of the published mitigations were configured: no VAD, no `repetition_penalty`, and — most galling — no `compression_ratio_threshold`, Whisper's *own* degenerate-output signal, already in the API being called. Compounding: the corrector LLM was then fed the loop and wrote prose *about* it; both were persisted.
+- **How to prevent:** Regex cannot express "same n-gram many times" — use a counter. `has_repetition_loop()` flags a 5-gram recurring ≥4×. **Threshold deliberately well above rhetorical repetition**: real teaching repeats for emphasis ("life, life, and life alone"; "When you connect to X… When you connect to Y…"). Verified against real doctrine before shipping.
+
+### 11. Config Defaults Are Not Deployed Values — Check The Env, Not The Source
+- **What:** `settings.qdrant_collection` defaults to `spiritual_wisdom_contextual`, which holds **11 points**. `.env` overrides to `spiritual_wisdom` (89,061).
+- **Where:** `backend/app/config.py:146` vs `.env:48`.
+- **When:** Any deployment that doesn't explicitly set `QDRANT_COLLECTION`.
+- **Who:** Production would answer from 11 chunks while `/api/health` stayed green.
+- **Why:** A default changed in anticipation of a migration that never completed.
+- **How to prevent:** Never point a default at a resource that doesn't exist yet. Change the default **after** the migration. When auditing, read the deployed env — a source default proves nothing.
+
+### 12. Migration Scripts Bypass The Gates The Main Path Has
+- **What:** The gate was added to `ingest/pipeline.py:_embed_and_upsert`. That was **one writer of four**: `raptor.py:118` upserts LLM-generated summaries, `video_pipeline.py:223` writes raw to another collection, and `contextual_reingest.py:507` — **the migration script itself** — writes through the raw client. Four more scripts under `scripts/ingestion/` never touch `IngestionPipeline`.
+- **Where:** `backend/ingest/*`, `scripts/ingestion/*`.
+- **When:** Would have fired on the very re-ingest intended to *fix* the contamination.
+- **Who:** The migration would have copied all ~26,161 poisoned chunks into the clean collection and accomplished nothing.
+- **Why:** The gate was placed where the bug was found, not at the boundary every writer must cross.
+- **How to prevent:** **Gate at the storage boundary** (`services/qdrant/indexer.py:upsert_chunks`), plus the earlier pipeline gate for cost savings. Defence in depth, guarantee at the bottom. Enumerate every writer with `grep -rn "upsert"` and prove each is covered.
+
+### 13. Don't Trust Your Own Number Until The Detector Is Validated
+- **What:** The contamination figure moved three times: **59% → 13.7% → 24.3% → 29.4%**.
+- **Where:** Successive scans of `spiritual_wisdom`.
+- **When:** 59% was an ad-hoc regex conflating three defects, including a false positive of my own making — an "empty source_url" pattern matching the header string *inside* `text`, while the real field was **0%** empty. 13.7% corrected but under-powered. 24.3% validated. 29.4% added loop detection.
+- **Who:** Each revision changed the recommended remediation scope and cost.
+- **Why:** Every number before the last came from a detector nobody had checked for precision *or* recall.
+- **How to prevent:** Before reporting a measurement: spot-check the positives, spot-check the negatives, run against known-good data to bound false positives. Report the validated number, and **say plainly when an earlier figure was wrong** — remediation cost is scoped off it.
+
+### 14. A Flipped Flag With Red Tests Is An Unowned Flag
+- **What:** `langhanam_voice_enabled` was flipped to `True` while `test_langhanam_voice_flag_defaults_off` still asserted `False`, and another test asserted a string (`"use this voice"`) that existed in no version of the block. Both sat red. The module's `__main__` self-check also printed `False`.
+- **Where:** `backend/app/config.py:687`, `backend/tests/test_guru_voice_langhanam.py`.
+- **When:** 2026-07-31, on a benchmark gate.
+- **Who:** Anyone reading the suite learned to ignore two failures — which is how the *other* pre-existing failures stayed invisible.
+- **Why:** The flag change and the test change were treated as separate work.
+- **How to prevent:** Flipping a feature flag is a behaviour change; the tests asserting old behaviour are part of that diff. A permanently-red test trains the team to ignore red.
+
+### 15. Style Transfer Is Not How You Sound Like Someone — Retrieval Is
+- **What:** Four prompt sites plus the persona ordered the model to *"translate all first-person references… into third person."* Simultaneously a synthetic voice block tried to manufacture a first-person guru register.
+- **Where:** `backend/rag/nodes/generation.py` ×4, `rag/prompts/system.py`.
+- **When:** Every answer.
+- **Who:** Seekers got a summary of a teaching instead of the teaching.
+- **Why:** Backwards. The corpus **already contains** the gurus speaking as "I" (`I/my/me` ×1,005 in the tone corpus). The pipeline was deleting the exact signal that makes a guru assistant feel authentic, then synthesising a replacement. (Surfaced by comparison: Sadhguru's *Miracle of Mind* feels authentic because it retrieves his actual first-person speech — nobody prompted a model to imitate him.)
+- **How to prevent:** **Preserve the retrieved first person; never synthesise it.** Quote and attribute what the context contains; write third-person otherwise. Authentic voice, zero fabricated quotes — which matters doubly for **living** teachers, where an invented first-person sentence is a fabricated quote from a real person.
+
+### 16. Verify The Working Tree Before Claiming Work Is Landed
+- **What:** All 11 file edits from this audit were reported as landed with a green suite. A later check found every edit to a *tracked* file gone; only the 5 new *untracked* files survived. The regression tests then correctly failed — they detect their own fixes' absence.
+- **Where:** Whole working tree; discovered via `grep -c select_clean` across the gated files returning 0.
+- **When:** Between two turns of the same session, with no deliberate revert by the user.
+- **Who:** A handoff prompt had already been written saying "ALREADY DONE — do not redo", which would have made the next agent skip the most important work.
+- **Why:** Untracked files survive `git restore .` / `git checkout .`; tracked-file edits do not. Any tooling, hook, or IDE action that restores tracked files silently erases uncommitted work while leaving new files behind — a deceptively partial state that *looks* like the work is there.
+- **How to prevent:** Before asserting "landed", verify by content (`grep` for a distinctive symbol from each edit), not by memory of having made the edit. Regression tests that fail when the fix is absent are the cheapest tripwire — they are what caught this. For work that matters, commit to a branch rather than leaving it in the working tree.
+
+---
+
 ## Aug 1, 2026 — Ruthless Audit Remediation Session
 
 ### 1. Docker Compose Cannot Self-Reference Environment Block Variables

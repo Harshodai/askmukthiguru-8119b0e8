@@ -150,8 +150,28 @@ def test_render_langhanam_system_prompt_appends_voice_block():
     base = "You are Mukthi Guru."
     rendered = render_langhanam_system_prompt(base)
     assert rendered.startswith(base)
-    assert "use this voice" in rendered
-    assert "Do not combine or genericize teachings" in rendered
+    # Asserted against the block's actual content. The previous probes
+    # ("use this voice", "Do not combine or genericize teachings") matched no
+    # version of the block and had been failing since the flag was flipped on.
+    assert "THE GURU'S VOICE" in rendered
+    assert "SPEAK TO THE SEEKER" in rendered
+
+
+def test_voice_block_is_evidence_based_not_sanskrit_ornamentation():
+    """The block must not re-acquire the mandates measurement disproved.
+
+    Across 2,700 sentences of real guru speech the old block's requirements
+    appeared: Sanskrit quota 2x, "our ancients"/"the rishis" 0x, its mandated
+    opener 5x. Re-adding any of them pushes output away from their register and
+    forces claims absent from the retrieved context.
+    """
+    block = LANGHANAM_VOICE_BLOCK.lower()
+    assert "at least two of" not in block, "Sanskrit term quota must not return"
+    assert "maximum 20 words" not in block, "flat sentence cap must not return"
+    assert "this is not optional" not in block, "invented-tradition mandate must not return"
+    # Positive: the markers that ARE their measured voice.
+    for marker in ("second person", "first person", "beautiful state", "rhetorical question"):
+        assert marker in block, f"voice block lost its evidence-based marker: {marker!r}"
 
 
 def test_render_langhanam_system_prompt_empty_base():
@@ -215,11 +235,17 @@ def test_apply_langhanam_tone_empty():
 
 # --- Feature flag gating ---------------------------------------------------
 
-def test_langhanam_voice_flag_defaults_off():
+def test_langhanam_voice_flag_default():
+    """The flag ships ON with the evidence-based block (2026-08-01).
+
+    It was flipped on in app/config.py while this test still asserted the old
+    safety default, so it sat red. The default is now asserted to match the
+    shipped config — if someone changes one, this fails instead of drifting.
+    """
     from app.config import Settings
 
     settings = Settings(llm_provider="ollama")
-    assert settings.langhanam_voice_enabled is False
+    assert settings.langhanam_voice_enabled is True
 
 
 def test_guru_voice_mode_defaults_to_prompt():
@@ -243,7 +269,13 @@ def test_voice_eligibility():
     assert is_voice_eligible("COMPARATIVE")
     assert is_voice_eligible("teaching")
     assert is_voice_eligible("DOCTRINE")
-    assert not is_voice_eligible("FACTUAL")
+    # FACTUAL is now eligible (2026-08-01). It was excluded as "pure lookup",
+    # but on_device_intent seeds FACTUAL with what/who/why/how/explain/teach me
+    # — the shape of nearly every seeker question — so excluding it meant the
+    # voice fired on 1 of 8 realistic queries and output stayed generic.
+    assert is_voice_eligible("FACTUAL")
+    assert not is_voice_eligible("CASUAL")
     assert not is_voice_eligible("CASUAL")
     assert not is_voice_eligible("")
-    assert "FACTUAL" not in LANGHANAM_ELIGIBLE_INTENTS
+    assert "FACTUAL" in LANGHANAM_ELIGIBLE_INTENTS
+    assert "CASUAL" not in LANGHANAM_ELIGIBLE_INTENTS

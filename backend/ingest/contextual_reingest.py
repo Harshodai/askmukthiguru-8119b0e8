@@ -484,6 +484,38 @@ class ContextualReingestEngine:
             }
             metadatas.append(meta)
 
+        # Quality gate. This script is the backfill path from `spiritual_wisdom`
+        # into `spiritual_wisdom_contextual`, and it writes through the raw Qdrant
+        # client — so it bypasses the gate in `QdrantIndexer.upsert_chunks`.
+        # Without this, the migration would faithfully copy the ~26,161
+        # contaminated chunks (LLM chain-of-thought + ASR decoder loops) measured
+        # in the 2026-08-01 audit straight into the clean collection, and the
+        # re-ingest would accomplish nothing.
+        from services.text_quality_filter import select_clean
+
+        _keep, _rejected = select_clean(contextual_chunks)
+        if _rejected:
+            logger.warning(
+                "Contextual re-ingest: dropped %d/%d chunks from %s failing the "
+                "quality gate. First: %r in %r",
+                len(_rejected), len(contextual_chunks), source_url,
+                _rejected[0][1], _rejected[0][2],
+            )
+            _dense = embeddings["dense"]
+            _sparse = embeddings.get("sparse", [])
+            contextual_chunks = [contextual_chunks[i] for i in _keep]
+            metadatas = [metadatas[i] for i in _keep]
+            embeddings = {
+                "dense": [_dense[i] for i in _keep],
+                "sparse": [_sparse[i] if i < len(_sparse) else {} for i in _keep],
+            }
+        if not contextual_chunks:
+            logger.warning(
+                "Contextual re-ingest: every chunk from %s was rejected — this "
+                "source needs re-ingestion from origin, not migration", source_url,
+            )
+            return 0
+
         # Prepare sparse vectors.
         sparse_vectors = embeddings.get("sparse", [])
         point_structs = []

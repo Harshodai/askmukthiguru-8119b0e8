@@ -80,7 +80,7 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
     logger.info(f"cross_teacher_reasoning: Comparison detected between: {teachers}")
 
     # ponytail: Check cache before Neo4j query
-    cache_key = hashlib.md5(",".join(sorted(teachers)).encode()).hexdigest()
+    cache_key = hashlib.md5(",".join(sorted(teachers)).encode(), usedforsecurity=False).hexdigest()
     cached_results = _neo4j_query_cache.get(cache_key)
     if cached_results is not None:
         logger.info("Neo4j cross-teacher cache hit")

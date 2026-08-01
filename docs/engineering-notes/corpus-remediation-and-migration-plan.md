@@ -519,6 +519,71 @@ strategy.
 
 ---
 
+### 8.4 `ekimetrics/adaptive-chunking` — candidate, not default
+
+[github.com/ekimetrics/adaptive-chunking](https://github.com/ekimetrics/adaptive-chunking).
+Published benchmarks are genuinely strong:
+
+| Metric | Adaptive | LangChain recursive | Page splitting |
+|---|---|---|---|
+| Retrieval Completeness | **67.7** | 58.1 | 59.1 |
+| Answer Correctness | **78.0** | 70.1 | 73.3 |
+| Answered queries | **65/99** | 49/99 | 49/99 |
+
+33% more queries answerable is the number worth chasing. Accepted at LREC 2026.
+Intrinsic eval: 91.07% mean across five metrics over 33 documents / ~1.18M tokens.
+
+**Three reasons it is a candidate and not the default:**
+
+1. **Benchmarked on documents; our corpus is speech.** Its metrics are *Block
+   Integrity*, *Reference Continuity*, *Size Compliance*, and it ships page-based
+   splitting with PDF parsers. A YouTube transcript has no pages, no blocks, no
+   cross-references — **the mechanisms producing its win largely do not exist in
+   our data.** Its 33 documents across 3 domains are document domains.
+2. **Licence trap.** Core is MIT ✅, but `[coref]` is **CC BY-NC-SA 4.0
+   (non-commercial)** and `[parsing]` is **AGPL-3.0 or Artifex Commercial** — both
+   outside this project's "Apache-2.0 / MIT / Meta Community only" rule
+   (`CLAUDE.md`, `LICENSE-EXCEPTIONS.md`). Install **core only; extras forbidden.**
+   Note the irony: coreference resolution is the extra that would help transcripts
+   most — spoken discourse is dense with unresolved pronouns ("*this* is what I
+   want you to see") — and it is the one we cannot legally use.
+3. **Its "LLM regex chunking" mode generates chunking patterns with an LLM.**
+   Per §1, that is another LLM-output-to-persistence surface. Gate it or avoid
+   that mode.
+
+Its *concept* — select the strategy per document — is well supported: adaptive
+beat fixed-token 87% vs 50% (p = 0.001) on a clinical task. The concept is right
+for us; the document-tuned implementation may not be.
+
+### 8.5 The bake-off — decide from our data, not their benchmark
+
+Run all four against the **same golden set** from §6.7. Score **recall@k AND
+end-to-end accuracy** — §8.1 is the standing proof that optimising recall alone
+selects the worse strategy.
+
+| # | Candidate | Cost | Hypothesis |
+|---|---|---|---|
+| A | Boundary chunker + **overlap 20–25%** (from ≈4%) | free | Largest expected gain; pure config |
+| B | Boundary + **late chunking** | free (bge-m3 8192 ctx) | Document context per chunk, zero LLM calls |
+| C | **adaptive-chunking, core/MIT only** | new dependency | Strong published numbers, wrong data shape — test it |
+| D | Boundary + **speaker-turn breaks** | small | Stops question/answer bleed across a chunk |
+
+Rules:
+- Baseline first (current config), or the comparison is meaningless.
+- Change **one** variable at a time; A and B are separable and both free.
+- A candidate wins only if it beats baseline on **both** metrics, or wins accuracy
+  without materially losing recall.
+- Record p50/p95 latency per candidate — a winner that doubles TTFT is not a winner.
+- Whatever wins, it still writes through the quality gate (§7). No exceptions.
+
+Expected outcome, stated in advance so we notice if we are fooling ourselves:
+**A and B are the likely wins** because they address defects measured *in this
+corpus* (4% overlap; long discourses losing document context). C is the
+higher-variance bet. If C wins on our golden set, adopt it — that is what the
+bake-off is for.
+
+---
+
 ## 9. Pre-re-ingest: snapshot before you clear
 
 Order matters. Do not clear anything until the snapshot is verified restorable.

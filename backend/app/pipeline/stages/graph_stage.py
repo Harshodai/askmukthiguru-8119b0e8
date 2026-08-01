@@ -148,7 +148,7 @@ class GraphStage(Stage):
 
         user_id = ctx.user_id or str(uuid.uuid4())
         session_id = getattr(chat_body, "session_id", None) or str(uuid.uuid4())
-        history_hash = hashlib.md5(str([m["content"] for m in chat_history_en[-4:]]).encode()).hexdigest()[:8]
+        history_hash = hashlib.md5(str([m["content"] for m in chat_history_en[-4:]]).encode(), usedforsecurity=False).hexdigest()[:8]
         start_lat = time.time()
         try:
             result = await asyncio.wait_for(

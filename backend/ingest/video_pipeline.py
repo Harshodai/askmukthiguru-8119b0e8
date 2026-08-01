@@ -205,6 +205,27 @@ class VideoPipeline:
         """Embed and upsert chunks to Qdrant with modality:video."""
         import uuid
 
+        # Quality gate. This path writes through the raw Qdrant client, so it
+        # bypasses the gate in `QdrantIndexer.upsert_chunks`. Applied before
+        # embedding so rejected chunks cost nothing. See the 2026-08-01 audit:
+        # 29.4% of the main corpus became machine output because validation
+        # lived on one write path instead of all of them.
+        from services.text_quality_filter import select_clean
+
+        _keep, _rejected = select_clean(chunks)
+        if _rejected:
+            logger.warning(
+                "video_pipeline: rejected %d/%d chunks from %s failing the "
+                "quality gate. First: %r in %r",
+                len(_rejected), len(chunks), source, _rejected[0][1], _rejected[0][2],
+            )
+            chunks = [chunks[i] for i in _keep]
+        if not chunks:
+            logger.warning(
+                "video_pipeline: all chunks from %s rejected — nothing written", source
+            )
+            return
+
         embeddings = self._embedder.embed(chunks)
         points = []
         for i, (chunk, vec) in enumerate(zip(chunks, embeddings)):
