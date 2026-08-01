@@ -247,6 +247,7 @@ const ProfilePage = () => {
       bio: form.bio.slice(0, 280),
       preferredLanguage: form.preferredLanguage,
       guruTone: form.guruTone,
+      familiarityLevel: form.familiarityLevel || 'seeker',
       theme: form.theme,
       ttsEnabled: form.ttsEnabled,
       ttsRate: form.ttsRate,
@@ -490,7 +491,7 @@ const ProfilePage = () => {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>Preferred Language</Label>
                       <Select value={form.preferredLanguage} onValueChange={(v) => patch('preferredLanguage', v)}>
@@ -519,6 +520,31 @@ const ProfilePage = () => {
                               <span className="ml-2 text-xs text-muted-foreground">{t.hint}</span>
                             </SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Guidance Depth</Label>
+                      <Select
+                        value={form.familiarityLevel || 'seeker'}
+                        onValueChange={(v) => patch('familiarityLevel', v as 'seeker' | 'practitioner' | 'advanced')}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="seeker">
+                            <span className="font-medium">Seeker</span>
+                            <span className="ml-2 text-xs text-muted-foreground">Clear Sanskrit explanations</span>
+                          </SelectItem>
+                          <SelectItem value="practitioner">
+                            <span className="font-medium">Practitioner</span>
+                            <span className="ml-2 text-xs text-muted-foreground">Balanced meditation guidance</span>
+                          </SelectItem>
+                          <SelectItem value="advanced">
+                            <span className="font-medium">Advanced</span>
+                            <span className="ml-2 text-xs text-muted-foreground">Deep philosophical terms</span>
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

@@ -6,6 +6,7 @@ import { BACKEND_URL } from './backendUrl';
 
 export type GuruTone = 'gentle' | 'direct' | 'poetic';
 export type ThemePreference = 'light' | 'dark' | 'system';
+export type FamiliarityLevel = 'seeker' | 'practitioner' | 'advanced';
 
 /** What the seeker did right before opening the chat. */
 export type PrePracticeAnswer = 'soul_sync' | 'serene_mind' | 'both' | 'none';
@@ -39,6 +40,7 @@ export interface UserProfile {
   /** ISO code of one of the 22 scheduled Indic languages + English */
   preferredLanguage: string;
   guruTone: GuruTone;
+  familiarityLevel?: FamiliarityLevel;
   theme: ThemePreference;
   ttsEnabled: boolean;
   ttsRate: number; // 0.5–1.5
@@ -81,6 +83,7 @@ export const createDefaultProfile = (): UserProfile => {
     bio: '',
     preferredLanguage: 'en',
     guruTone: 'gentle',
+    familiarityLevel: 'seeker',
     theme: 'system',
     ttsEnabled: false,
     ttsRate: 0.9,
