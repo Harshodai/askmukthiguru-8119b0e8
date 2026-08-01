@@ -63,9 +63,20 @@ const SPOTLIGHT_PAD = 10;
 /** Clamp a number between min and max */
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
+/** A target only counts if it's mounted AND actually laid out (mobile hides the
+ *  sidebar entirely — walking to a display:none anchor used to stall the tour
+ *  on a stale spotlight with no way forward). */
+const isAnchorVisible = (target: string) => {
+  const el = document.querySelector<HTMLElement>(`[data-tour="${target}"]`);
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+};
+
 export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) => {
   const dismiss = onDismiss ?? onComplete;
   const { t } = useTranslation();
+  const [steps, setSteps] = useState<Step[]>(STEPS);
   const [stepIndex, setStepIndex] = useState(0);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
   const [spotlight, setSpotlight] = useState<{
@@ -80,9 +91,21 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
   const [showConfetti, setShowConfetti] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  const currentStep = STEPS[stepIndex];
-  const isLastStep = stepIndex === STEPS.length - 1;
-  const progress = (stepIndex + 1) / STEPS.length;
+  // Resolve the walkable steps once per opening, against the DOM we actually have.
+  useEffect(() => {
+    if (!isOpen) return;
+    const resolve = () => {
+      const visible = STEPS.filter((s) => isAnchorVisible(s.target));
+      setSteps(visible.length ? visible : STEPS.slice(0, 1));
+      setStepIndex(0);
+    };
+    const t = setTimeout(resolve, 60);
+    return () => clearTimeout(t);
+  }, [isOpen]);
+
+  const currentStep = steps[Math.min(stepIndex, steps.length - 1)];
+  const isLastStep = stepIndex >= steps.length - 1;
+  const progress = (stepIndex + 1) / steps.length;
 
   // Re-reads the target's *current* rect every call — safe to call from a resize
   // handler, a ResizeObserver, or after a step change.
