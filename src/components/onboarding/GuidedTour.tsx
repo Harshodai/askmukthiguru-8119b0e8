@@ -90,6 +90,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
   const [ready, setReady] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const lastSignature = useRef('');
 
   // Resolve the walkable steps once per opening, against the DOM we actually have.
   useEffect(() => {
