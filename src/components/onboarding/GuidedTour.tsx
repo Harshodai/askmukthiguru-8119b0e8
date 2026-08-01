@@ -392,7 +392,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                       <MapPin className="w-2.5 h-2.5 inline mr-1 -mt-0.5" />
                       {t('onboarding.tour.stepIndicator', {
                         current: stepIndex + 1,
-                        total: STEPS.length,
+                        total: steps.length,
                       })}
                     </span>
 
