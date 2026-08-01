@@ -3,10 +3,13 @@ import json
 import logging
 import re
 import time
+import hmac
+import hashlib
 import threading
 import requests
 from flask import Flask, request, jsonify
 from twilio.twiml.messaging_response import MessagingResponse
+from twilio.request_validator import RequestValidator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -17,8 +20,44 @@ app = Flask(__name__)
 # Configuration (loaded from environment or defaults)
 BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
 BACKEND_TOKEN = os.getenv('BACKEND_TOKEN', '')
-VERIFY_TOKEN = os.getenv('VERIFY_TOKEN', 'MukthiGuruVerifyToken123')
+VERIFY_TOKEN = os.getenv('VERIFY_TOKEN', '')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
+META_APP_SECRET = os.getenv('META_APP_SECRET', '')
 PORT = int(os.getenv('PORT', 5000))
+
+def validate_twilio_signature(req) -> bool:
+    """Validates X-Twilio-Signature against TWILIO_AUTH_TOKEN."""
+    if not TWILIO_AUTH_TOKEN:
+        # If token is not set, log warning in dev or fail-open only if dev
+        if os.getenv('ENVIRONMENT') == 'production':
+            logger.error("TWILIO_AUTH_TOKEN missing in production! Rejecting request.")
+            return False
+        return True
+
+    signature = req.headers.get('X-Twilio-Signature', '')
+    validator = RequestValidator(TWILIO_AUTH_TOKEN)
+    url = req.url
+    # Twilio POST parameters
+    post_vars = req.form.to_dict()
+    return validator.validate(url, post_vars, signature)
+
+def validate_meta_signature(req) -> bool:
+    """Validates X-Hub-Signature-256 against META_APP_SECRET."""
+    if not META_APP_SECRET:
+        if os.getenv('ENVIRONMENT') == 'production':
+            logger.error("META_APP_SECRET missing in production! Rejecting request.")
+            return False
+        return True
+
+    header_sig = req.headers.get('X-Hub-Signature-256', '')
+    if not header_sig.startswith('sha256='):
+        return False
+    
+    expected_sig = header_sig[7:]
+    raw_body = req.get_data()
+    computed_sig = hmac.new(META_APP_SECRET.encode('utf-8'), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(computed_sig, expected_sig)
+
 
 # In-memory conversation cache with TTL
 # { session_id: {"messages": [{role, content}], "timestamp": epoch_seconds} }
@@ -86,6 +125,10 @@ def health_check():
 @app.route('/whatsapp/twilio', methods=['POST'])
 def twilio_webhook():
     """Webhook handler for Twilio WhatsApp incoming messages."""
+    if not validate_twilio_signature(request):
+        logger.warning("Invalid Twilio signature rejected.")
+        return 'Unauthorized signature', 403
+
     incoming_msg = request.values.get('Body', '').strip()
     from_number = request.values.get('From', '').replace('whatsapp:', '').strip()
     
@@ -173,6 +216,10 @@ def verify_meta_webhook():
 @app.route('/whatsapp/meta', methods=['POST'])
 def meta_webhook():
     """Webhook handler for Meta Cloud API incoming messages."""
+    if not validate_meta_signature(request):
+        logger.warning("Invalid Meta signature rejected.")
+        return 'Unauthorized signature', 403
+
     body = request.get_json()
     logger.info(f"Incoming Meta payload: {json.dumps(body)}")
     

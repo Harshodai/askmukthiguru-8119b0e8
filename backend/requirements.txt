@@ -59,7 +59,7 @@ beautifulsoup4>=4.12.0,<5.0
 
 # --- Image Handling ---
 requests>=2.32.0,<3.0
-Pillow>=12.2.0,<13.0
+Pillow>=12.3.0,<13.0  # Patched for CVE-2026-59199/59200/59204/59205 heap corruption and DoS
 
 # --- RAPTOR Clustering ---
 # umap-learn>=0.5.7  # Removed: incompatible with Python 3.12 (llvmlite build failure)
