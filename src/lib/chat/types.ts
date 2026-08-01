@@ -21,13 +21,17 @@ export type AIErrorCode =
   | 'network'
   | 'unknown';
 
-/** Healing course recommended by the backend (streak-based assignment). */
-export interface RecommendedCourse {
-  slug: string;
-  signal: string;
-  pattern: string;
-  reason: string;
-}
+/** Healing course recommended by the backend (streak-based assignment).
+ *  Mirrors `healing_course_service.trigger_payload()` 1:1 — the zod schema is
+ *  the runtime guard, the type is derived from it so they can't drift. */
+export const recommendedCourseSchema = z.object({
+  slug: z.string(),
+  signal: z.string(),
+  pattern: z.string(),
+  reason: z.string(),
+});
+
+export type RecommendedCourse = z.infer<typeof recommendedCourseSchema>;
 
 export interface AIResponse {
   content: string;
