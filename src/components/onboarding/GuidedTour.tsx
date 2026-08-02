@@ -567,7 +567,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                         (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)';
                         (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.4)';
                       }}
-                      aria-label="Close tour"
+                      aria-label={t('onboarding.tour.close', 'Close tour')}
                     >
                       <X className="w-3 h-3" />
                     </button>
