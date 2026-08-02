@@ -681,7 +681,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                     {stepIndex > 0 && (
                       <button
                         onClick={() => setStepIndex(i => Math.max(0, i - 1))}
-                        aria-label="Back to previous tour step"
+                        aria-label={t('onboarding.tour.back', 'Back to previous tour step')}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
