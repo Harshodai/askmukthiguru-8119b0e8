@@ -1754,7 +1754,7 @@ return (
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto momentum-scroll px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2 scrollbar-spiritual safe-x"
+        className="flex-1 overflow-y-auto momentum-scroll scroll-stable anchor-stable tap-clean px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2 scrollbar-spiritual safe-x"
       >
         <div ref={innerContentRef} className="max-w-3xl mx-auto min-h-full">
           {isLandingMode ? (
