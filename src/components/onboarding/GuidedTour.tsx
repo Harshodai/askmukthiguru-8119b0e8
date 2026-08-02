@@ -666,7 +666,11 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                             padding: 0,
                             cursor: 'pointer',
                           }}
-                          aria-label={`Step ${i + 1}`}
+                          aria-current={i === stepIndex ? 'step' : undefined}
+                          aria-label={t('onboarding.tour.goToStep', {
+                            defaultValue: 'Go to step {{n}}',
+                            n: i + 1,
+                          })}
                         />
                       ))}
                     </div>
