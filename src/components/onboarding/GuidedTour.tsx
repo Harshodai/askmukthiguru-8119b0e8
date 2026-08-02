@@ -595,6 +595,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                         </span>
                         <div>
                           <h3
+                            id="guided-tour-title"
                             style={{
                               fontSize: 15,
                               fontWeight: 700,
@@ -607,6 +608,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                             {currentStep && t(currentStep.titleKey)}
                           </h3>
                           <p
+                            id="guided-tour-description"
                             style={{
                               fontSize: 13,
                               color: 'rgba(255,255,255,0.55)',
