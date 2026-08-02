@@ -405,28 +405,30 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                 }}
               />
 
-              {/* Pulse ring */}
-              <motion.div
-                key={`pulse-${stepIndex}`}
-                className="absolute pointer-events-none"
-                style={{
-                  top: spotlight.top - 4,
-                  left: spotlight.left - 4,
-                  width: spotlight.width + 8,
-                  height: spotlight.height + 8,
-                  borderRadius: spotlight.radius + 4,
-                  border: '2px solid rgba(212, 175, 55, 0.4)',
-                }}
-                animate={{
-                  scale: [1, 1.06, 1],
-                  opacity: [0.7, 0.2, 0.7],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
-              />
+              {/* Pulse ring — skipped entirely under prefers-reduced-motion */}
+              {!reduceMotion && (
+                <motion.div
+                  key={`pulse-${stepIndex}`}
+                  className="absolute pointer-events-none"
+                  style={{
+                    top: spotlight.top - 4,
+                    left: spotlight.left - 4,
+                    width: spotlight.width + 8,
+                    height: spotlight.height + 8,
+                    borderRadius: spotlight.radius + 4,
+                    border: '2px solid rgba(212, 175, 55, 0.4)',
+                  }}
+                  animate={{
+                    scale: [1, 1.06, 1],
+                    opacity: [0.7, 0.2, 0.7],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                />
+              )}
             </>
           )}
 
