@@ -86,7 +86,7 @@ export const MessageList = React.memo(({
   /** E6.3: when true and there are no messages yet, render shadcn skeletons. */
   loading?: boolean;
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // E6.3: skeleton placeholder during an async initial load with no messages yet.
   if (loading && messages.length === 0) {
