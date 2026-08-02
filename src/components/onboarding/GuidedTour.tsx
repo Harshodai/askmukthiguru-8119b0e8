@@ -92,6 +92,7 @@ const resolveTarget = (step: Step): string | null => {
 export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) => {
   const dismiss = onDismiss ?? onComplete;
   const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
   const [steps, setSteps] = useState<(Step & { resolvedTarget: string })[]>([]);
   const [stepIndex, setStepIndex] = useState(0);
   const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
@@ -107,26 +108,53 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
   const [showConfetti, setShowConfetti] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const lastSignature = useRef('');
+  /** Real measured card height — the flip decision used to run off a hardcoded
+   *  200px guess, which mis-flipped tall cards in long translations. */
+  const cardHeight = useRef(200);
+  const restoreFocus = useRef<HTMLElement | null>(null);
   // Stable ref for stepIndex to avoid stale closures in keyboard handler
   const stepIndexRef = useRef(stepIndex);
   stepIndexRef.current = stepIndex;
 
-  // Resolve walkable steps on open — skip steps whose primary AND mobile-fallback
-  // anchor are both invisible (e.g. language-selector not rendered on some screens).
+  /** Resolve walkable steps against the DOM we actually have. Steps whose
+   *  primary AND mobile-fallback anchors are both invisible are skipped, so a
+   *  phone (no desktop sidebar) never walks into a dead spotlight. */
+  const resolveSteps = useCallback((preserveIndex = false) => {
+    const resolved = STEPS.reduce<(Step & { resolvedTarget: string })[]>((acc, s) => {
+      const target = resolveTarget(s);
+      if (target) acc.push({ ...s, resolvedTarget: target });
+      return acc;
+    }, []);
+    const next = resolved.length
+      ? resolved
+      : STEPS.slice(0, 1).map((s) => ({ ...s, resolvedTarget: s.target }));
+    setSteps(next);
+    setStepIndex((i) => (preserveIndex ? clamp(i, 0, next.length - 1) : 0));
+  }, []);
+
   useEffect(() => {
     if (!isOpen) return;
-    const resolve = () => {
-      const resolved = STEPS.reduce<(Step & { resolvedTarget: string })[]>((acc, s) => {
-        const target = resolveTarget(s);
-        if (target) acc.push({ ...s, resolvedTarget: target });
-        return acc;
-      }, []);
-      setSteps(resolved.length ? resolved : STEPS.slice(0, 1).map(s => ({ ...s, resolvedTarget: s.target })));
-      setStepIndex(0);
+    const id = setTimeout(() => resolveSteps(false), 80);
+    return () => clearTimeout(id);
+  }, [isOpen, resolveSteps]);
+
+  // Rotating a phone or resizing a window changes which anchors exist — re-resolve
+  // instead of leaving the tour pointing at an element that just disappeared.
+  useEffect(() => {
+    if (!isOpen) return;
+    let id: number | undefined;
+    const onViewportChange = () => {
+      window.clearTimeout(id);
+      id = window.setTimeout(() => resolveSteps(true), 150);
     };
-    const t = setTimeout(resolve, 80);
-    return () => clearTimeout(t);
-  }, [isOpen]);
+    window.addEventListener('resize', onViewportChange);
+    window.addEventListener('orientationchange', onViewportChange);
+    return () => {
+      window.clearTimeout(id);
+      window.removeEventListener('resize', onViewportChange);
+      window.removeEventListener('orientationchange', onViewportChange);
+    };
+  }, [isOpen, resolveSteps]);
 
   const currentStep = steps[Math.min(stepIndex, steps.length - 1)];
   const isLastStep = stepIndex >= steps.length - 1;
@@ -138,12 +166,19 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
     if (!el) return;
 
     const rect = el.getBoundingClientRect();
+    // Anchor got unmounted or collapsed mid-tour (sheet closed, sidebar toggled) —
+    // recompute the walk rather than freezing on a stale spotlight.
+    if (rect.width === 0 && rect.height === 0) {
+      resolveSteps(true);
+      return;
+    }
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const gap = 14;
     const tooltipWidth = clamp(vw - gap * 2, 280, 340);
-    // Stable estimated height prevents layout feedback loop
-    const tooltipHeight = 200;
+    const measured = tooltipRef.current?.offsetHeight;
+    if (measured && measured > 40) cardHeight.current = measured;
+    const tooltipHeight = cardHeight.current;
 
     // Determine border radius from computed style
     let radius = 12;
@@ -166,12 +201,12 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
       top = rect.top - tooltipHeight - gap;
       side = 'top';
     } else {
-      top = clamp(gap, gap, vh - tooltipHeight - gap);
+      top = clamp(gap, gap, Math.max(gap, vh - tooltipHeight - gap));
       side = 'bottom';
     }
 
     let left = rect.left + rect.width / 2 - tooltipWidth / 2;
-    left = clamp(left, gap, vw - tooltipWidth - gap);
+    left = clamp(left, gap, Math.max(gap, vw - tooltipWidth - gap));
 
     const signature = [top, left, tooltipWidth, side, rect.top, rect.left, rect.width, rect.height]
       .map((n) => (typeof n === 'number' ? Math.round(n) : n))
@@ -194,45 +229,103 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
       height: rect.height + SPOTLIGHT_PAD * 2,
       radius: radius + 4,
     });
-  }, [currentStep]);
+  }, [currentStep, resolveSteps]);
 
   // Scroll target into view and position before paint
   useLayoutEffect(() => {
     if (!isOpen || !currentStep) return;
     const el = document.querySelector<HTMLElement>(`[data-tour="${currentStep.resolvedTarget}"]`);
-    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    const t = setTimeout(() => {
+    el?.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
+    const id = setTimeout(() => {
       positionTooltip();
       setReady(true);
-    }, 120);
-    return () => clearTimeout(t);
-  }, [isOpen, positionTooltip, stepIndex]);
+    }, reduceMotion ? 0 : 120);
+    return () => clearTimeout(id);
+  }, [isOpen, positionTooltip, stepIndex, currentStep, reduceMotion]);
 
-  // Continuous rAF tracking — same technique as Shepherd.js / driver.js
+  // Event-driven tracking + a short rAF burst after each step change.
+  // A permanent rAF loop (the old approach) pinned a core and drained battery
+  // on mobile for the entire duration of the tour.
   useEffect(() => {
-    if (!isOpen) return;
-    let raf: number;
+    if (!isOpen || !currentStep) return;
+    let raf = 0;
+    const settleUntil = performance.now() + 900;
     const tick = () => {
       positionTooltip();
-      raf = requestAnimationFrame(tick);
+      if (performance.now() < settleUntil) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [isOpen, positionTooltip]);
 
-  // Keyboard handling — uses ref for stepIndex to avoid stale closure
+    const onChange = () => positionTooltip();
+    window.addEventListener('scroll', onChange, true);
+    window.addEventListener('resize', onChange);
+
+    const el = document.querySelector<HTMLElement>(`[data-tour="${currentStep.resolvedTarget}"]`);
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(onChange) : null;
+    if (el && ro) ro.observe(el);
+    if (ro) ro.observe(document.documentElement);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', onChange, true);
+      window.removeEventListener('resize', onChange);
+      ro?.disconnect();
+    };
+  }, [isOpen, positionTooltip, currentStep, stepIndex]);
+
+  // Keyboard: navigation, escape, and a focus trap inside the card
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') dismiss();
-      if (e.key === 'ArrowRight' && stepIndexRef.current < steps.length - 1)
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        dismiss();
+        return;
+      }
+      if (e.key === 'ArrowRight' && stepIndexRef.current < steps.length - 1) {
         setStepIndex(i => i + 1);
-      if (e.key === 'ArrowLeft' && stepIndexRef.current > 0)
+        return;
+      }
+      if (e.key === 'ArrowLeft' && stepIndexRef.current > 0) {
         setStepIndex(i => i - 1);
+        return;
+      }
+      if (e.key === 'Tab') {
+        const card = tooltipRef.current;
+        if (!card) return;
+        const focusables = card.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input, [tabindex]:not([tabindex="-1"])',
+        );
+        if (!focusables.length) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey && (active === first || !card.contains(active))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [isOpen, dismiss, steps.length]);
+
+  // Focus the card when it appears; restore the trigger's focus on close.
+  useEffect(() => {
+    if (isOpen) {
+      restoreFocus.current = document.activeElement as HTMLElement | null;
+      return;
+    }
+    restoreFocus.current?.focus?.();
+    restoreFocus.current = null;
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && ready) tooltipRef.current?.focus?.();
+  }, [isOpen, ready]);
 
   // Reset state when tour closes
   useEffect(() => {
@@ -251,11 +344,16 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
   };
 
   const handleComplete = () => {
+    if (reduceMotion) {
+      onComplete();
+      return;
+    }
     setShowConfetti(true);
     setTimeout(() => {
       onComplete();
     }, 600);
   };
+
 
   // Stable confetti particles — memoised so they don't regenerate every render
   const confettiParticles = useMemo(
