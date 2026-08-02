@@ -1,10 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { Message } from '@/lib/chatStorage';
 import { ChatMessage } from './ChatMessage';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from 'react-i18next';
 
-// ── VirtualMessageWrapper for list virtualization (dynamic heights) ──────────────────
+/**
+ * Native CSS virtualization.
+ *
+ * The previous implementation attached a ResizeObserver *and* an
+ * IntersectionObserver to every message — 2N observers plus N pieces of React
+ * state, all of which re-rendered the list on scroll. `content-visibility:auto`
+ * hands the exact same work (skip layout/paint for off-screen subtrees) to the
+ * compositor for free, and `contain-intrinsic-size: auto <h>` makes the browser
+ * remember the last rendered height so the scrollbar never jumps.
+ *
+ * The streaming message opts out: it must stay painted so autoscroll and the
+ * thinking indicator keep working.
+ */
 const VirtualMessageWrapper = ({
   id,
   children,
@@ -15,60 +27,21 @@ const VirtualMessageWrapper = ({
   children: React.ReactNode;
   defaultHeight?: number;
   alwaysVisible?: boolean;
-}) => {
-  const [isVisible, setIsVisible] = useState(true);
-  const [height, setHeight] = useState(defaultHeight);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (alwaysVisible) {
-      setIsVisible(true);
-      return;
+}) => (
+  <div
+    data-message-id={id}
+    style={
+      alwaysVisible
+        ? undefined
+        : {
+            contentVisibility: 'auto',
+            containIntrinsicSize: `auto ${defaultHeight}px`,
+          }
     }
-
-    const el = containerRef.current;
-    if (!el) return;
-
-    // Measure the actual height dynamically as the item loads or changes size
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const measuredHeight = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
-        if (measuredHeight > 0) {
-          setHeight(measuredHeight);
-        }
-      }
-    });
-    resizeObserver.observe(el);
-
-    // Unmount content when far outside the viewport to keep DOM size small and re-renders fast
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsVisible(entry.isIntersecting);
-      },
-      {
-        rootMargin: '1000px 0px 1000px 0px', // large buffer to ensure smooth scrolling
-      }
-    );
-    observer.observe(el);
-
-    return () => {
-      resizeObserver.disconnect();
-      observer.disconnect();
-    };
-  }, [alwaysVisible]);
-
-  return (
-    <div
-      ref={containerRef}
-      data-message-id={id}
-      style={{
-        minHeight: !isVisible && height > 0 ? `${height}px` : 'auto',
-      }}
-    >
-      {alwaysVisible || isVisible ? children : <div style={{ height: `${height}px` }} />}
-    </div>
-  );
-};
+  >
+    {children}
+  </div>
+);
 
 // ── Date separator helpers ──────────────────────────────────────────
 const isSameDay = (a: Date, b: Date): boolean =>
@@ -76,14 +49,19 @@ const isSameDay = (a: Date, b: Date): boolean =>
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
 
-const formatDateLabel = (date: Date): string => {
+const formatDateLabel = (
+  date: Date,
+  t: (key: string) => string,
+  locale: string,
+): string => {
   const now = new Date();
-  if (isSameDay(date, now)) return 'Today';
+  if (isSameDay(date, now)) return t('common.today');
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (isSameDay(date, yesterday)) return 'Yesterday';
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  if (isSameDay(date, yesterday)) return t('common.yesterday');
+  return date.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
 };
+
 
 export const MessageList = React.memo(({
   messages,
@@ -108,7 +86,7 @@ export const MessageList = React.memo(({
   /** E6.3: when true and there are no messages yet, render shadcn skeletons. */
   loading?: boolean;
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // E6.3: skeleton placeholder during an async initial load with no messages yet.
   if (loading && messages.length === 0) {
@@ -143,7 +121,7 @@ export const MessageList = React.memo(({
   let currentLabel = '';
   messages.forEach((msg) => {
     const ts = msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp);
-    const label = formatDateLabel(ts);
+    const label = formatDateLabel(ts, t, i18n.language);
     if (label !== currentLabel) {
       currentLabel = label;
       groups.push({ label, messages: [msg] });
@@ -156,14 +134,15 @@ export const MessageList = React.memo(({
     <div className="space-y-3 sm:space-y-4 scrollbar-thin scrollbar-thumb-muted-foreground/20">
       {groups.map((group) => (
         <React.Fragment key={group.label}>
-          {/* Date separator — Claude.ai style */}
-          <div className="flex items-center gap-3 my-2">
+          {/* Date separator — sticks to the top of the scroller while its day is on screen. */}
+          <div className="sticky top-0 z-10 -mx-1 flex items-center gap-3 py-1.5 my-2">
             <hr className="flex-1 border-border/30" />
-            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground select-none">
+            <span className="rounded-full border border-border/40 bg-background/70 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground backdrop-blur-md select-none">
               {group.label}
             </span>
             <hr className="flex-1 border-border/30" />
           </div>
+
           {group.messages.map((message, index) => {
             let queryText = '';
             if (message.role === 'guru') {

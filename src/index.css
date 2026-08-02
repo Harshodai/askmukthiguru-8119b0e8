@@ -343,7 +343,61 @@
 }
 
 @layer utilities {
+  /* ── Advanced platform primitives ───────────────────────────────────
+     Progressive enhancement only: every rule degrades to today's layout
+     in browsers that don't support it. */
+
+  /* Scrollers reserve their gutter so content never shifts when the
+     scrollbar appears (streaming answers used to nudge the layout). */
+  .scroll-stable {
+    scrollbar-gutter: stable;
+  }
+
+  /* Keeps the read position pinned while earlier content grows/reflows. */
+  .anchor-stable {
+    overflow-anchor: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Typographic polish: headings avoid orphan words, prose avoids ragged
+     last lines. Costs nothing, reads noticeably more considered. */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  /* Off-screen sections skip layout + paint entirely (native virtualization). */
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 600px;
+  }
+
+  /* Removes the grey flash on tap in mobile WebViews (Capacitor iOS/Android). */
+  .tap-clean {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Snap rails for horizontal card carousels on touch. */
+  .snap-rail {
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .snap-rail::-webkit-scrollbar {
+    display: none;
+  }
+  .snap-rail > * {
+    scroll-snap-align: start;
+  }
+
   /* Custom scrollbar for chat - warm theme */
+  .scrollbar-spiritual::-webkit-scrollbar {
+    width: 6px;
+  }
+
   .scrollbar-spiritual::-webkit-scrollbar {
     width: 6px;
   }
