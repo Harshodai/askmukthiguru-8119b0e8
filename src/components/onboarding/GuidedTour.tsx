@@ -438,16 +438,25 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
               ref={tooltipRef}
               key={`card-${stepIndex}`}
               layout
-              initial={{ opacity: 0, y: 12, scale: 0.96 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="guided-tour-title"
+              aria-describedby="guided-tour-description"
+              tabIndex={-1}
+              initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, scale: 0.97 }}
-              transition={{
-                layout: { type: 'spring', stiffness: 340, damping: 30 },
-                opacity: { duration: 0.2 },
-                y: { type: 'spring', stiffness: 400, damping: 28 },
-                scale: { duration: 0.18 },
-              }}
-              style={tooltipStyle}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.97 }}
+              transition={
+                reduceMotion
+                  ? { duration: 0 }
+                  : {
+                      layout: { type: 'spring', stiffness: 340, damping: 30 },
+                      opacity: { duration: 0.2 },
+                      y: { type: 'spring', stiffness: 400, damping: 28 },
+                      scale: { duration: 0.18 },
+                    }
+              }
+              style={{ ...tooltipStyle, outline: 'none' }}
               className="pointer-events-auto"
             >
               {/* Outer shell */}
