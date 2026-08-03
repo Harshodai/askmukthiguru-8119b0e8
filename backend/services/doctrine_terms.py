@@ -35,6 +35,7 @@ DEFAULT_DOCTRINE_TERMS: dict[str, list[str]] = {
     "Deeksha": ["Diksha"],
     "Soul Sync": ["Soulsync", "SoulSync", "soul sink"],
     "Mukthi": ["Mukti"],
+    "I-Consciousness": ["Eye Consciousness", "Eye consciousness", "eye consciousness", "I Consciousness", "I consciousness"],
     "Sadhana": [],
     "the Beautiful State": [],
     "Oneness": [],
@@ -101,25 +102,62 @@ def _build_regexes(terms: dict[str, list[str]]) -> list[tuple[re.Pattern, str]]:
     """Compile word-boundary variant->canonical rules. Case rule lives ONLY here."""
     out: list[tuple[re.Pattern, str]] = []
     for canonical, variants in terms.items():
+        variant_literal_set = set(variants)  # exact strings, case preserved
         for v in variants:
             if not v:
                 continue
             # Capitalised form -> canonical (always safe; it is a proper noun there).
             out.append((re.compile(rf"\b{re.escape(v)}\b"), canonical))
             low = v.lower()
-            # Lowercase form -> lowercase canonical, UNLESS it is a real word (Tamil "akam" etc.).
-            if low != v and low not in _CAPITALISED_ONLY_VARIANTS:
+            # Lowercase form -> lowercase canonical, UNLESS it is a real word (Tamil
+            # "akam" etc.) OR that exact lowercase string is ALSO listed as its own
+            # explicit variant (e.g. both "Eye consciousness" and "eye consciousness"
+            # appear for I-Consciousness). In that case the explicit all-lowercase
+            # variant already generates its own correctly-cased rule when its OWN
+            # turn in this loop comes around (`eye consciousness -> I-Consciousness`,
+            # since for that entry low == v so only rule #1 fires). Generating a
+            # SECOND, identical-pattern rule here — derived from lowering a DIFFERENT
+            # mixed-case variant — races it: whichever rule sits earlier in list order
+            # wins when apply_corrections runs patterns sequentially, silently
+            # downgrading "I-Consciousness" to "i-consciousness" whenever a mixed-case
+            # variant happens to be listed before the all-lowercase one.
+            if (
+                low != v
+                and low not in _CAPITALISED_ONLY_VARIANTS
+                and low not in variant_literal_set
+            ):
                 out.append((re.compile(rf"\b{re.escape(low)}\b"), canonical.lower()))
     return out
 
 
 def apply_corrections(text: str) -> str:
-    """Deterministic doctrine-term correction. Used by the ingest corrector and the output cleanup."""
+    """Deterministic doctrine-term correction. Used by the ingest corrector and the output cleanup.
+
+    Two layers, in this order:
+
+    1. **The curated map above** — multi-word phrases ("Sri Pretty Ji" -> "Sri
+       Preethaji", "soul sink" -> "Soul Sync") and any admin override. A
+       token-level lexicon cannot express a phrase, so this layer stays.
+    2. **The derived lexicon** (``services.doctrine_lexicon``) — every single-word
+       variant nobody thought to type. The curated map has no ``Ojas`` entry, so
+       the corpus carried "Ujash"/"Ujasi"/"Ojasi" untouched from the same video
+       that spelt it correctly 15 times. The lexicon derives its vocabulary from
+       the books, the official Ekam sites and 193k English words, and corrects
+       only what none of them contain.
+
+    Layer 1 runs first so a curated phrase is never half-rewritten by layer 2.
+    """
     if not text:
         return text
     load_doctrine_terms()  # ensures _cache_regexes is populated
     for pattern, replacement in _cache_regexes or []:
         text = pattern.sub(replacement, text)
+
+    from services.doctrine_lexicon import get_lexicon
+
+    lexicon = get_lexicon()
+    if lexicon is not None:
+        text, _ = lexicon.correct(text)
     return text
 
 
@@ -146,6 +184,12 @@ if __name__ == "__main__":
     assert apply_corrections("We did soul sink today.") == "We did Soul Sync today."
     # Tamil "akam" (lowercase, inner self) must survive
     assert "akam" in apply_corrections("The word akam means the inner self.")
+    # Layer 2 (the derived lexicon) corrects what nobody typed into the map above.
+    # Skipped silently when the lexicon has not been built on this host.
+    from services.doctrine_lexicon import get_lexicon
+    if get_lexicon() is not None:
+        assert apply_corrections("The Ujash practice.") == "The Ojas practice."
+        assert apply_corrections("a piece of peace") == "a piece of peace"
     assert "Ekam" in get_whisper_initial_prompt()
     assert "misheard" in correction_term_lines()
     print("doctrine_terms self-check: all asserts passed")

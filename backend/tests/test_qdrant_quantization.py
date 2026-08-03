@@ -80,6 +80,14 @@ def test_hybrid_prefetch_dense_includes_params():
     with patch("services.qdrant.searcher.settings") as mock_settings:
         mock_settings.qdrant_quantization = "turboquant_2bit"
         mock_settings.qdrant_quantization_oversampling = 4.0
+        # Real numbers, not the MagicMock default: the prefetch limits are
+        # arithmetic, and search() deliberately reads them outside its transport
+        # try/except so a bad value raises instead of silently dropping to
+        # dense-only. A MagicMock here therefore fails loudly, which is the
+        # intended behaviour rather than something to work around.
+        mock_settings.qdrant_dense_prefetch_multiplier = 2.0
+        mock_settings.qdrant_sparse_prefetch_multiplier = 1.5
+        mock_settings.qdrant_fusion_strategy = "rrf"
         client = MagicMock()
         client.query_points.return_value = MagicMock(points=[])
         searcher = QdrantSearcher(client, "test")

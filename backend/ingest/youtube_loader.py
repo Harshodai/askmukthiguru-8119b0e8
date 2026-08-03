@@ -818,6 +818,53 @@ def _run_whisper_stt(video_id: str) -> Optional[str]:
 # ============================================================
 
 
+class AdaptiveConcurrencyThrottle:
+    """Shrinks effective concurrency when recent failure rate spikes.
+
+    A static semaphore bound only caps peak concurrency — it does nothing once
+    YouTube starts 429ing mid-run. This tracks a sliding window of outcomes and
+    lowers the number of held permits when the failure rate in that window
+    crosses a threshold, then holds there for the rest of the run. Bounded
+    above by the original `max_permits` — this only ever throttles down, never
+    above the operator-configured concurrency.
+    """
+
+    def __init__(self, max_permits: int, window_size: int = 10, failure_threshold: float = 0.4):
+        self._max_permits = max(1, max_permits)
+        self._window_size = window_size
+        self._failure_threshold = failure_threshold
+        self._outcomes: list[bool] = []  # True = success
+        self._current_permits = self._max_permits
+        self._semaphore = asyncio.Semaphore(self._current_permits)
+        self._lock = asyncio.Lock()
+
+    async def acquire(self):
+        await self._semaphore.acquire()
+
+    def release(self):
+        self._semaphore.release()
+
+    async def record_outcome(self, success: bool):
+        async with self._lock:
+            self._outcomes.append(success)
+            if len(self._outcomes) > self._window_size:
+                self._outcomes.pop(0)
+
+            if len(self._outcomes) < self._window_size:
+                return
+
+            failure_rate = 1 - (sum(self._outcomes) / len(self._outcomes))
+            if failure_rate >= self._failure_threshold and self._current_permits > 1:
+                # Shrink by one permit: acquire it now so it stays held for the
+                # rest of the run (no separate release path for a "removed" permit).
+                await self._semaphore.acquire()
+                self._current_permits -= 1
+                logger.warning(
+                    f"AdaptiveConcurrencyThrottle: failure_rate={failure_rate:.2f} "
+                    f"over last {self._window_size} — reducing concurrency to {self._current_permits}"
+                )
+
+
 async def fetch_transcripts_concurrent(
     video_list: list[dict],
     max_workers: Optional[int] = None,
@@ -825,7 +872,8 @@ async def fetch_transcripts_concurrent(
 ) -> list[dict]:
     """
     Fetch transcripts for multiple videos concurrently to speed up playlist extraction,
-    using an asyncio.Semaphore to bound concurrency and prevent rate limits.
+    using an adaptive concurrency throttle to bound concurrency and, on sustained
+    failures, shrink it further to avoid tripping YouTube rate limits mid-run.
 
     Args:
         video_list: List of dicts with 'video_id', 'title', 'url'
@@ -839,7 +887,7 @@ async def fetch_transcripts_concurrent(
     limit = getattr(settings, "transcript_concurrent_workers", 1)
     concurrency = max_workers or getattr(settings, "ingestion_concurrency", 5)
     concurrency = min(concurrency, limit)
-    semaphore = asyncio.Semaphore(concurrency)
+    throttle = AdaptiveConcurrencyThrottle(max_permits=concurrency)
     total = len(video_list)
     results = [None] * total
 
@@ -849,20 +897,24 @@ async def fetch_transcripts_concurrent(
 
         if not video_id:
             res = {"text": "", "method": "failed", "error": "No video ID"}
+            await throttle.record_outcome(False)
         else:
+            await throttle.acquire()
             try:
-                async with semaphore:
-                    res = await asyncio.to_thread(
-                        fetch_transcript_hybrid,
-                        video_id,
-                        title,
-                        False,  # allow auto-captions
-                        video.get("speaker", "Unknown"),
-                        video.get("topic", "Spiritual"),
-                    )
+                res = await asyncio.to_thread(
+                    fetch_transcript_hybrid,
+                    video_id,
+                    title,
+                    False,  # allow auto-captions
+                    video.get("speaker", "Unknown"),
+                    video.get("topic", "Spiritual"),
+                )
             except Exception as e:
                 logger.error(f"Error fetching transcript for {video_id}: {e}", exc_info=True)
                 res = {"text": "", "method": "failed", "error": str(e)}
+            finally:
+                throttle.release()
+            await throttle.record_outcome(bool(res and res.get("method") != "failed"))
         results[index] = res
         if on_progress:
             try:

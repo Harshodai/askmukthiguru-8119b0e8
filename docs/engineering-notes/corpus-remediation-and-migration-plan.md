@@ -26,6 +26,26 @@ decoder loops, §5), the shipped filter rejects **29.4% of 8,000 sampled live
 chunks — an estimated 26,161 of 89,061**: 1,930 LLM artifacts + 420 repetition
 loops per 8,000. That is the size of the re-ingest.
 
+**Confirmed against the full corpus (2026-08-01).** All 89,061 chunks scanned
+(`benchmarks/reports/corpus_audit_20260801_full.json`): **26,913 contaminated,
+30.2%** — 22,176 LLM artifacts + 4,737 repetition loops. The 8,000-chunk
+estimate was accurate to 0.8 pt, and the sampled projection of 26,161 landed
+within 3% of the true 26,913.
+
+The full scan also splits by chunk tier, which the sample did not. The result
+inverts the intuition that short, single-sentence chunks carry the poison:
+
+| Tier (body length after header strip) | Total | Poisoned | Rate |
+|---|---|---|---|
+| **passage** (≥200 chars) | 18,556 | 8,518 | **45.9%** |
+| proposition (<200 chars) | 70,505 | 18,395 | 26.1% |
+
+Passage-tier chunks are **1.8× more contaminated**. A longer chunk has more
+surface area for a single chain-of-thought fragment to land in, and one hit
+condemns the whole chunk. This closes off the tempting shortcut of dropping the
+proposition tier and re-ingesting only passages — it would leave the *worse*
+half in place.
+
 ---
 
 ## 1. Root cause analysis
@@ -330,6 +350,48 @@ transcript corpus, where a chunk's meaning depends heavily on the discourse
 around it, this is the better first move. Contextual retrieval and late chunking
 are complementary, not exclusive; measure late chunking first because it is free.
 
+#### 6.3.1 Measured 2026-08-01 — "free" is not quite right, and one obvious route is a dead end
+
+Late chunking needs **token-level vectors in the same space as the query
+embedding**. Two candidate sources exist in this stack; only one works, and it
+is not the one the production encoder exposes.
+
+| Vector source | cosine vs production dense (same text) | Verdict |
+|---|---|---|
+| Pooled **ColBERT** head (`encode_with_colbert`) | **−0.041** | ❌ dead end |
+| **CLS** of `last_hidden_state` | **0.914** | reference — this *is* the dense vector |
+| **Mean-pooled** `last_hidden_state` | **0.703** | ✅ viable, with caveats |
+
+1. **The ColBERT head is not usable for this.** `encode_with_colbert` already
+   returns per-token vectors (`[n_valid, 1024]`), which looks like exactly the
+   raw material late chunking wants. It is not: the ColBERT head is a separate
+   linear projection, and pooling it lands **orthogonal** to the dense query
+   space (−0.041). Chunk vectors built this way would be near-random against a
+   dense query. Anyone reaching for the obvious API here will get silent garbage,
+   not an error.
+
+2. **The correct source is `last_hidden_state`, which the ONNX export does not
+   emit.** The ONNX session returns exactly three outputs — dense, sparse,
+   ColBERT. Production runs `RERANKER_BACKEND=onnx_int8` with an ONNX encoder, so
+   late chunking requires *either* a new ONNX export that also emits
+   `last_hidden_state`, *or* running the PyTorch `XLMRobertaModel` path for
+   ingestion. That is a real architectural decision, not a config flag, and it is
+   the thing §6.3 quietly assumed away.
+
+3. **BGE-M3 is CLS-pooled; late chunking is mean-pooled.** The published recipe
+   (Jina) mean-pools token vectors, and jina-embeddings is mean-pooled natively
+   so query and chunk stay in one space. BGE-M3 is not: its dense vector is the
+   normalized CLS token (confirmed at 0.914 against the live encoder). Mean
+   pooling therefore sits ~0.70 from the query space — a *systematic* offset, not
+   noise, so relative ranking may well survive it. But it means late-chunked and
+   CLS-chunked vectors **cannot coexist in one collection**, and queries should
+   probably be mean-pooled too. That is a bake-off question (§8.5), not something
+   to settle by argument.
+
+**Status: not built.** The measurements above are the go/no-go evidence; the
+build is gated on decision (2) above. Cost is no longer "zero extra inference" —
+it is zero extra *LLM* calls, plus an encoder-path change.
+
 ### 6.4 Deduplication — byte-exact is leaving most duplicates on the table
 
 Empirical comparison on real corpora: byte-exact dedup catches **5.81%** of
@@ -342,6 +404,109 @@ teachings across hundreds of talks. Near-duplicate chunks do not merely waste
 space — they **crowd the top-k by sheer count**, so one heavily-repeated teaching
 can monopolise retrieval and starve the specific answer a seeker asked for.
 Deduplicate at ingest, and keep the highest-`authority_tier` copy.
+
+#### 6.3.2 Derived stores — audited 2026-08-01, rebuild DECIDED
+
+The corpus audit covered `spiritual_wisdom` only. The stores *built from* it were
+never checked, and they are worse than the source:
+
+| Store | Points | Contaminated |
+|---|---|---|
+| `lightrag_vdb_chunks_*` | 770 | **41.4%** |
+| `lightrag_vdb_entities_*` | 1,638 | 7.6% |
+| `lightrag_vdb_relationships_*` | 1,922 | 1.4% |
+| Neo4j (curated ontology) | 184 named / 8,745 nodes | **0** ✅ |
+
+Extraction did not merely copy the poison, it **laundered it into schema**: the
+graph holds an entity literally named `"Kan Kan Kan"` (an ASR decoder loop,
+described as "a repeated word within the data") and a relationship node
+`"Punctuation Transcription Errors"`. A transcription *defect* became a concept
+with a name, a description, and edges — and graph traversal can return it as a
+"related concept" to a seeker's question.
+
+Two further findings:
+
+- **Coverage, not just contamination.** `lightrag_vdb_chunks` holds 770 points
+  against a corpus of 89,061 — **0.86%**. `KNOWLEDGE_GRAPH_QUERY_ENABLED` is
+  justified in CLAUDE.md by Neo4j's edge count (accurate: 8,745 nodes / 13,300
+  rels), but that number says nothing about LightRAG's coverage. Every query pays
+  traversal latency for a retrieval graph that sees under one percent of the
+  teaching.
+- **Neo4j is regenerable.** `backend/scripts/seed_neo4j_okf.py` holds the 5-node
+  ontology literally and emits a checked-in `seed_neo4j_okf.cypher` (219 lines).
+  Despite the name it does **not** read `memory/okf/` at runtime — "OKF" there is
+  the ontology *schema*, not the doctrine bundle. Deleting Neo4j loses nothing
+  that git cannot restore.
+
+**Decision (operator, 2026-08-01): once the green Qdrant collection is stable,
+delete and re-ingest both Neo4j and LightRAG.** Sequencing matters:
+
+1. Green `spiritual_wisdom_contextual` built and passing the boundary gate.
+2. Rebuild LightRAG **from green**, never from blue.
+3. Reseed Neo4j from `seed_neo4j_okf.py`.
+4. Re-audit both with the same `find_artifact` gate; target < 1%.
+
+**The rebuild must gate the extractor's *input*, not just its output** — an
+extraction LLM handed noise will always emit a well-formed entity for it
+(lesson #23). Without an input gate the rebuild re-creates "Kan Kan Kan" from a
+clean corpus's remaining edge cases. Fix coverage in the same pass: a graph over
+0.86% of the corpus is not the asset the config note assumes.
+
+### 6.4.1 Measured on the live corpus (2026-08-01) — the premise above was wrong
+
+Full-corpus run over all 89,061 `spiritual_wisdom` chunks
+(`benchmarks/reports/dedup_measurement_20260801.json`; cross-validated by
+re-running the same workload through the production `LSHNearDupIndex` API,
+which returned an identical 20.29%):
+
+| Metric | Measured | Plan assumed |
+|---|---|---|
+| Total duplicate rate | **20.29%** (18,071) | — |
+| **Cross-source** near-dup | **0.38%** (335) | ~31% (the whole rationale) |
+| Same-source duplicates | **19.9%** (17,736) | not considered |
+| Gold-source chunks lost to a non-gold source | **1** of 89,061 | must be 0-ish ✅ |
+
+**The cross-source hypothesis is false for this corpus.** The 31.32%-vs-5.81%
+figure comes from web-scale corpora (C4/RefinedWeb/FineWeb), where the same
+document is re-hosted across domains. Here, 95.8% of duplicate groups
+(2,044 of 2,134) never leave a single `source_url`. MinHash-LSH banding is
+still the right structure — it is what made a 20% measurement possible in 111s
+— but it earns its place by cutting embedding + contextualiser-LLM cost and
+top-k crowding, **not** by cross-source curation.
+
+**Root cause of the same-source 19.9% — a writer failure loop, not duplication.**
+14,292 redundant copies trace back to just 2,134 distinct texts. The worst
+groups are 227, 222, and 195 identical copies, each sharing one `source_url`,
+one `parent_id`, and *consecutive* `chunk_index` values. Their content is
+degenerate — e.g. `"source topic power of observation the streets are the way
+we are"`: a contextual-header remnant plus a chain-of-thought topic label, with
+no teaching in it at all.
+
+So dedup here is a **backstop over an ingestion bug**, and the green build must
+fix it upstream. Two consequences:
+
+1. A per-chunk quality gate structurally **cannot** catch this.
+   `has_repetition_loop` detects an n-gram loop *within* one chunk; a loop that
+   emits the same chunk 227 times in a row is invisible to it. The prevention
+   gap is at batch level.
+2. `services/qdrant/indexer.py:upsert_chunks` already receives the whole batch
+   and already gates it on quality (`select_clean`), but does **no** dedup —
+   which is exactly how 227 copies were written. The batch-level guard belongs
+   there, alongside the existing filter. Tracked in §7.
+
+Threshold `0.85` is validated, not assumed: at that setting exactly **one**
+gold-source chunk in 89,061 was dropped in favour of a non-gold source. The
+0.80 similarity bucket holds 3,433 further chunks — available headroom, but
+nothing currently justifies spending it.
+
+**Short texts (<200 chars) are matched exactly, never by similarity.** Pairwise
+Jaccard over the 41,951 short chunks in this corpus is 880M comparisons —
+**~4.4 hours, measured** — and it is what hung the first two measurement
+attempts. On a 2,500-chunk sample, exact matching catches 8.6% while
+near-but-not-exact adds only **0.48%**. A dict lookup buys back the quadratic
+for almost nothing. MinHash is not an alternative at that length: it is
+variance-heavy below ~200 chars (a one-word change in a 245-char text scores
+0.844, under the 0.85 bar).
 
 ### 6.5 Validation as a first-class stage, not a config option
 
@@ -447,6 +612,34 @@ still on the correct chunk. An all-poison batch wrote nothing and did not call
 **Still ungated:** `ingest/video_pipeline.py:223` writes raw to a separate
 `mukthi_guru` collection. Out of scope for the teaching corpus, but it should
 route through `QdrantService` rather than the raw client.
+
+### 7.1 Batch-level repeat guard — LANDED 2026-08-01
+
+The quality gate judges **one chunk at a time**, which is the wrong unit for a
+generator loop. §6.4.1 found 227 identical copies under one `source_url`, one
+`parent_id`, with consecutive `chunk_index` values — each copy individually
+innocent, and `make_point_id` hashes `chunk_index`, so all 227 earned distinct
+point ids and persisted. The signal exists only across the batch.
+
+`upsert_chunks` already receives the whole batch, so the guard goes there:
+
+- `services/text_quality_filter.collapse_repeats(texts, sources, metadatas=None)`
+  returns `(keep_indices, repeats)` — the same index-preserving contract as
+  `select_clean`, so vectors, metadata, and sparse vectors stay aligned.
+- Keyed on `(normalized_text, source_url)`. The gurus repeat teachings across
+  talks; that is doctrine and survives. The same text twice under **one** source
+  is redundant by construction and collapses to the highest-authority representative
+  (using `authority_tier` metadata when available).
+- `is_repeat_alarm()` splits ordinary duplication from a loop: ≥5 copies of one
+  text logs at **ERROR** and names the upstream writer as the thing to fix.
+
+**Nothing is deleted or quarantined** — redundant copies are simply not written,
+and the existing corpus is untouched.
+
+Verified against live Docker Qdrant in a scratch collection: 228 chunks in
+(227 looped + 1 real teaching) → **2 stored**, payload `chunk_index` 0 and 227,
+confirming metadata still tracks its own chunk after the collapse. Unit-covered
+by tests in `backend/tests/test_text_quality_filter.py` (run via `pytest backend/tests/test_text_quality_filter.py`).
 
 **Defence in depth, deliberate:** the pipeline-level gate stays. It rejects
 *before* embedding, so it also saves the embed cost; the storage gate guarantees
@@ -647,7 +840,7 @@ achievable**, and no amount of tuning changes that until three things exist.
    these is unauditable.
 2. **A golden set** (§6.7). 50–200 real seeker queries with labelled correct
    sources. Without it there is no denominator.
-3. **A clean corpus.** With 29.4% contamination, the ceiling on groundedness is
+3. **A clean corpus.** With 30.2% contamination (26,913 contaminated chunks confirmed across the full corpus), the ceiling on groundedness is
    set by the corpus, not the model. **This is why the re-ingest gates the target.**
 
 What the shipped work does buy:
@@ -655,7 +848,7 @@ What the shipped work does buy:
   so a real number exists for the first time.
 - The four empty-context abstentions mean the system answers "I don't have that"
   instead of inventing — the correct behaviour when accuracy cannot be met.
-- 29.4% of contaminated chunks can no longer enter the corpus from any gated path.
+- 30.2% (26,913 contaminated chunks) can no longer enter the corpus from any gated path.
 
 Realistic sequence: clean corpus → golden set → measure → *then* set a target.
 A 99% claim made before step 3 is a number, not a guarantee.

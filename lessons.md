@@ -1,3 +1,140 @@
+## Aug 2, 2026 — The Corrector Ate The Doctrine: Silent Truncation Past Every Gate
+
+Forensic audit of `spiritual_wisdom_contextual`. Five defects, one systemic. Every
+number below was measured against the live stack, not estimated.
+
+### L-CORRUPT-1. `min(50, len//2)` Is Always 50 — And It Deleted 65% Of A Teaching
+- **What**: `corrector.py`'s accept guard read `len(response.strip()) < min(50, len(chunk.strip()) // 2)`. For **any** chunk over 100 chars that expression collapses to the constant **50**. A 4,000-char chunk of doctrine could be replaced by a 50-character stub and the corrector would accept it as a faithful correction. Measured on the one source in green: **22,487 chars in, 7,876 chars stored — 35% survived.**
+- **Where**: `backend/ingest/corrector.py`, guard 2 in `correct_transcript`.
+- **When**: Every chunk of every source, from the day the corrector shipped (filed as a *win* in L2, one section below).
+- **Who**: Seekers, invisibly. The stored text is fluent, on-topic, clean doctrine — with two thirds of the teaching missing. `find_artifact` passed **6/6**. `corpus_audit` reported **0.0% contaminated**.
+- **Why**: `min()` was written where a ratio was meant. The author was reaching for "reject if the reply is less than half the input, but never bother below 50 chars" — which is `max()`, not `min()`. One wrong builtin, no test, and the guard silently became a no-op for every real input.
+- **How to prevent**: **A guard whose bound is computed from the input needs a test at realistic input sizes**, not just a unit test at toy sizes — at 17 tokens my own first check false-positived; at a realistic 582-token chunk the same threshold cleanly separated a doctrine fix (0.77% token change) from a paraphrase (91.9%). Bound length in **both** directions as a ratio (0.90–1.15 here), and add an independent edit-distance ceiling, because a same-length paraphrase passes any length check.
+
+### L-CORRUPT-2. Truncation Is A Worse Failure Than Contamination, Because It Leaves No Artifact
+- **What**: The 2026-08-01 incident put chain-of-thought into 30.2% of the corpus and was *detectable* — it left strings a guru would never say, and `text_quality_filter` now catches them. This incident left nothing to match. Every gate built in response to the first incident passed the second one.
+- **Where**: the whole gate stack — `select_clean`, `collapse_repeats`, `corpus_audit`.
+- **Why**: Every gate in this pipeline detects text that is **wrong**. Nothing detected text that was **missing**. Absence has no signature.
+- **How to prevent**: Add a **coverage invariant** beside every quality gate — assert surviving character count ≥ 85% of input at each stage boundary and **raise**, don't warn. For a doctrine corpus, silently losing a teaching is worse than keeping a dirty chunk: the dirty chunk is visible and fixable, the missing one is neither. Implemented as `_assert_coverage()` in `contextual_reingest.py`.
+
+### L-CORRUPT-3. Shared Index Space + Sort-By-Index = Machine Prose Welded Into Doctrine
+- **What**: Blue stores verbatim transcript (`video_enhanced`) and abstractive RAPTOR summaries (`summary`) for the same source, **sharing one `chunk_index` space** — both have a chunk at index 0 and index 1. `_list_source_groups` sorted by `chunk_index` alone, so reconstruction interleaved them. Result, stored as doctrine: `"a new generation ion with oneself"`, `"you are the whole. fter a few months"`, `"you enter a when you live in a beautiful state"`.
+- **Where**: `backend/ingest/contextual_reingest.py:_list_source_groups`.
+- **Who**: Every source that has RAPTOR summaries — and every downstream consumer, since `payloads[0]` was then a *summary* chunk, so every re-ingested point inherited `content_type="summary"` while containing verbatim transcript.
+- **Why**: A sort key that isn't unique across the rows it sorts. The two content types were never meant to occupy one sequence.
+- **How to prevent**: A re-ingest reconstructs the **original**; derived artifacts (summaries, embeddings, graphs) are outputs of the pipeline and must never be inputs to it. Filter by `content_type`/`raptor_level` before reconstruction, and make the sort key unique (`(chunk_index, id)`).
+
+### L-CORRUPT-4. `.get(key, default)` Does Not Fire When The Key Exists And Is Empty
+- **What**: `first.get("topic", "Spiritual")` produced `topic=""` on every stored point, because blue's payloads *have* a `topic` key whose value is the empty string. The default never ran.
+- **Where**: `backend/ingest/contextual_reingest.py`, metadata block.
+- **Why**: `.get`'s default is for **missing keys**, not falsy values. Upstream data that carries empty strings defeats it silently.
+- **How to prevent**: For values inherited from external data, use `or`: `first.get("topic") or "Spiritual"`. Reserve `.get(k, default)` for cases where a present-but-empty value is genuinely meaningful.
+
+### L-CORRUPT-5. A Fake ID Is Worse Than No ID
+- **What**: Every point carried `parent_chunk_id = str(uuid.uuid4())` — a fresh random UUID per chunk, pointing at no stored parent document anywhere. The field reads as a working parent-child index and is not one.
+- **Where**: `backend/ingest/contextual_reingest.py`, metadata block. Removed.
+- **How to prevent**: Do not write a field you cannot resolve. A missing field makes the next reader ask; a dangling one makes them assume.
+
+### L-CORRUPT-7. Re-Chunking CONCENTRATES Contamination — Migration Cannot Clean A Dirty Source
+- **What**: Re-ingested source `5hNCT4duOgc` from blue with every gate active: **82 contextual chunks in, 1 written**. Not a bug — the gate was correct. That source is **46.4% contaminated in blue** (247/532 chunks carry chain-of-thought like `2. **Interpret the Input`), and re-ingest reconstructs the document *from that text*, so the poison flows straight through.
+- **Where**: `backend/ingest/contextual_reingest.py` — the whole migration path.
+- **The non-obvious part**: 46.4% of blue's chunks are dirty, but **98.8%** (81/82) of the re-chunked output was. Semantic re-chunking moves boundaries, and a single CoT fragment condemns its **entire** new chunk — so scattered contamination that affected half of a coarse chunking affects nearly all of a finer one. **Migration makes a contaminated source worse, not better.**
+- **Who**: The whole Phase-2 plan. "Migrate blue → green to clean the corpus" is only valid for sources that are *already clean*; for contaminated ones it is arithmetic that cannot work.
+- **How to prevent**: **Audit each source BEFORE deciding migrate-vs-refetch.** Run `corpus_audit` per source; above a few percent contamination the only correct path is re-fetching the transcript from origin (YouTube), never migration. The code already said this — *"this source needs re-ingestion from origin, not migration"* — and was right; the plan around it was wrong. Budget the re-ingest accordingly: the 30.2%-contaminated corpus means a large fraction of the 367 sources need origin refetch, not a cheap internal copy.
+
+### L-CORRUPT-8. `parents[N]` Path Math Breaks In The Image, And The Failure Is A Warning
+- **What**: `_STATE_FILE = Path(__file__).resolve().parents[2] / "scripts" / ...` is correct in the repo (`backend/ingest/…` → repo root) and wrong in the image, where `backend/` **is** `/app`, so `parents[2]` is `/` and the checkpoint path becomes `/scripts/ingestion/…`. Every save logged `Permission denied` as a **WARNING** and continued, so no source was ever recorded and a resumed run would silently redo all of them.
+- **Where**: `backend/ingest/contextual_reingest.py`. Same trap CLAUDE.md already documents for `OKF_DIR`.
+- **Why**: The path is computed from source layout, which differs between repo and image; and the failure to persist was treated as non-fatal.
+- **How to prevent**: Resolve layout-dependent paths by **probing which candidate exists** (repo layout, then image layout, then a writable fallback) and allow an env override. And treat a checkpoint write failure as at least an ERROR — a resume checkpoint that cannot be written is not a degraded feature, it is an absent one.
+
+### L-CORRUPT-9. A Fallback That "Keeps The Old Value" Can Mix Two Incompatible Vector Spaces
+- **What**: Late chunking replaced each chunk's CLS dense vector with a mean-pooled one. When `_chunk_spans` could not locate a chunk in the document, the code kept the CLS vector and stamped `pooling="cls"` — "safe" by every local reading. CLS and mean vectors for the same text sit **~0.757 cosine apart**, so the live green collection held `cls=118, mean=312`: whichever pooling a query used, roughly a third of the corpus was scored across that gap. Ranking was wrong on **every** query, and nothing failed.
+- **Where**: `backend/ingest/contextual_reingest.py:_reingest_source`. Fixed — an unlocatable chunk is now mean-pooled standalone (`encode_query_mean_pooled`), and a mixed-mode batch **raises**.
+- **Why it survived**: the pilot's own success metrics (chunks written, contamination rate, coverage invariant) were all green. Nothing measured *internal consistency* of what was written.
+- **How to prevent**: When a value must be uniform across a collection, **assert the uniformity at the write boundary** rather than trusting each write site. And a fallback that silently changes a vector's *space* is not a fallback — it is a second, undeclared format.
+
+### L-CORRUPT-10. "Capability Lost" Needs A CONSUMER, Not Just A Field Count
+- **What**: My own forensic tool reported six lost capabilities in green, including *YouTube citation metadata* and *doctrinal keyword injection*. A full scan of blue showed `important_kwd`, `video_id`, `channel_name`, `published_at`, `duration` and `thumbnail_url` live on **6 points out of 89,061**, from one source. They were never capabilities; they were artifacts. The report sent the reader after restoration work that restores nothing.
+- **The mirror-image error in the same table**: `source_version` was listed as prunable *bloat*. `rag/nodes/retrieval.py` uses it for pre-rerank dedup (keep highest version per source_id+title). Pruning it would have been a silent ranking regression shipped as a cleanup.
+- **Where**: `backend/scripts/ops/corpus_forensics.py`. Both directions fixed; `_CAPABILITY_FIELDS` now names the consuming module for each group.
+- **How to prevent**: Before calling a field a capability *or* bloat, grep for its reader. **Per-source presence is not coverage** — one source with 1,171 points reads as "1/720 sources" and as "1.3% of the corpus", and only the second number is honest about impact.
+
+### L-CORRUPT-11. `payloads[0]` Metadata Mis-Cites Every Multi-Section Document
+- **What**: The re-ingest took `title` (and would have taken `page_range`) from `payloads[0]` for the whole source. For `The_Four_Sacred_Secrets.pdf` — 1,171 chunks across 23 PageIndex sections — that stamps **every** chunk with `title="Front Matter", page_range="2-4"`. A citation-driven answer would attribute chapter 7 doctrine to the front matter, confidently.
+- **Where**: `backend/ingest/contextual_reingest.py`. Fixed with `_origin_index_map`: fractional-position overlap between each new chunk's span and the original payload spans, so per-chunk provenance follows the text. Verified on the real PDF: **23 distinct page ranges and titles, monotonically increasing**, versus one value for all 354 test spans before.
+- **How to prevent**: Ask which metadata is a property of the **source** (speaker, language) and which is a property of the **passage** (title, page, section id). Only the first kind may be broadcast from one payload.
+
+### L-CORRUPT-12. Parent-Child Can Be Present And Still Be A No-Op
+- **What**: Blue had `parent_id`/`parent_text`/`is_child` on 88.8% of points, which reads as a working small-to-big index. The parents were built with `RecursiveCharacterTextSplitter(chunk_size=500)` — **median 320 chars**, frequently smaller than the child they were meant to enlarge. `retrieval.py` faithfully swapped a fragment for a fragment.
+- **Where**: `backend/ingest/pipeline.py` (blue), rebuilt properly in `backend/ingest/contextual_reingest.py:_build_parents` (2,000-6,000 chars from whole consecutive chunks, deterministic ids, no runt tail).
+- **How to prevent**: Field presence is not function. For any structure with a size contract, **measure the distribution**, not the coverage — `corpus_forensics` now reports median parent length against an 800-char floor.
+
+### L-CORRUPT-13. A Substring Search Across A Whitespace Boundary Disabled A Whole Feature, Silently
+- **What**: `_chunk_spans` located each chunk in the document with `full_text.find(chunk)`. `SemanticChunker` collapses whitespace runs; a transcript reconstructed by joining payloads is full of double spaces at the seams. So the literal find matched **nothing** — the 2026-08-02 live run logged `Late chunking: 0/2 dense vectors pooled from the document`. Late chunking, the measured **+62%** retrieval improvement and the entire reason for the re-ingest, was doing nothing at all. Every gate, coverage invariant and success counter stayed green.
+- **The second casualty**: the same spans feed `_origin_index_map`. With all spans `(0, 0)`, every chunk maps to payload 0 — so the per-chunk provenance fix from L-CORRUPT-11 would have degraded right back to "everything is Front Matter" **in production while passing its unit test**, because the test supplied spans directly.
+- **Where**: `backend/ingest/contextual_reingest.py:_chunk_spans`. Fixed by matching in a whitespace-normalised copy with a position map back to real offsets. Verified on the real 424k-char book: **440/440 chunks located (was 0), 23 distinct page ranges**.
+- **How to prevent**: Two things. (1) When a function's failure mode is "return empty and let the caller degrade", the caller must **log the rate** — `0/2 pooled` is what exposed this, and it existed only because a previous fix added that counter. Consider making a 0% success rate an error, not an info line. (2) A unit test that hands a function its input **bypasses the producer**. Test at least one case end-to-end with the real producer's output shape, or the integration seam stays untested no matter how many unit tests pass.
+
+### L-CORRUPT-14. `docker run IMAGE <cmd>` Runs The ENTRYPOINT, Not Your Command
+- **What**: The backend image sets `ENTRYPOINT ["/app/docker-entrypoint.sh"]` with `CMD [uvicorn …]`. A pilot launched as `docker run … backend-backend python -u /app/run_pilot.py …` passed those words as *arguments to the entrypoint script*, which ignored them and started the API server. The container reported **healthy** for eleven minutes while the script never executed once.
+- **Where**: the ad-hoc pilot runner. Fixed with `--entrypoint python`.
+- **How to prevent**: When overriding a command on an image you did not build, check `docker inspect --format '{{.Config.Entrypoint}}'` first, and confirm the process actually started by grepping for **your script's own first log line**, not by container status. "Healthy" measured the wrong process.
+
+### L-CORRUPT-15. A Hand-Maintained Correction List Cannot Cover What ASR Invents
+- **What**: `doctrine_terms.py` held typed variant lists (`"Ekam": ["Acam","Akam",...]`). It had **no entry for `Ojas`** — a named Ekam meditation practice (Ojas/Tejas/Prana, confirmed on ekamindia.org) — so the live corpus carries "Ojas" in 15 chunks and "Ujash" in 4 **from the same video**. ASR contradicted itself and nothing reconciled it. The same word also arrives as `Ujasi`, `Ojasi`, `Ojus`: a list cannot enumerate what has not happened yet.
+- **The trap one level down**: `IndicPhoneticMatcher` looked like the fix, but scored **3/7** on real pairs — and the 3 it passed were hand-coded rules (`deeksha`, `mukti`, `ekam`). It was the same manual approach wearing an algorithm's clothes, and it was dead code (nothing read `phonetic_tokens`).
+- **How to prevent**: Derive vocabulary from sources that are already correct; compute similarity instead of listing it. `services/doctrine_lexicon.py` + `scripts/ops/build_doctrine_lexicon.py`.
+
+### L-CORRUPT-16. Similarity Cannot Separate A Real Error From A Real Word — Coverage Can
+- **What**: The obvious design (phonetic key + fuzzy match over a threshold) is unshippable, and one measurement proves it: `piece/peace` scores **0.880** while `ujash/ojas` scores **0.783**. The pair that must NEVER be touched outranks the pair that must be fixed. There is no threshold.
+- **What actually works**: the **vocabulary-membership gate**. `peace` and `piece` are both in the authority corpus, so neither can ever become a candidate; `ujash` is in none, so it can. Safety is structural, not tuned. Once that gate carries the load, the similarity threshold can drop to 0.78 and catch leading-vowel swaps.
+- **Corollary — coverage IS the safety property**: with a 7,391-word authority set, a 4,000-chunk sample produced 187 rules including `soar->sore`, `steel->steal`, `bodhi->body`, `preeta->pretty` (~30% precision). Adding a 200k English list took it to 0.117% of chunks changed at **100% precision on 12,000 chunks**.
+- **How to prevent**: When a filter's safety depends on "is this word known?", measure the vocabulary's coverage before trusting any threshold above it. And **a 22-word calibration set gives false confidence** — it reported precision 1.000 while the corpus-scale run was at ~30%.
+
+### L-CORRUPT-17. Repetition Is Not Evidence When The Errors Share One Cause
+- **What**: Admitting spellings that many independent sources agree on is a sound way to learn ordinary English — until a *systematic* ASR error qualifies. Measured: `akam` is absent from the books yet appears in **26 sources / 401 uses**, because Whisper mishears `Ekam` the same way every time. Once admitted it becomes permanently uncorrectable, since vocabulary membership is treated as proof of correctness.
+- **Fix**: refuse a consensus candidate when a higher-authority term shares its phonetic key and dominates it (`ekam` outweighs `akam` **26x**).
+- **How to prevent**: Any "majority vote" over machine-generated data must ask whether the voters are independent. They usually are not.
+
+### L-CORRUPT-18. Your Trusted Source Is Also Dirty — The Book Is OCR
+- **What**: The corrector's target vocabulary came from the professionally-edited book, which is 0% *contaminated* and still full of OCR fragments: `ealth`, `ense`. They became correction targets and repaired one fragment into another (`alth -> ealth`, `eness -> ense`).
+- **Fix**: rank sources by the damage they can carry, not by prestige. Scraped HTML has no OCR, so every word in it is a valid target (this is what keeps `ojas`, which appears twice on ekam.org, usable); words seen only in an OCR'd source must recur before they can attract anything.
+- **How to prevent**: "Authoritative" is not one property. Ask *which* failure mode a source is free of.
+
+### L-CORRUPT-6 (meta). Filed Lessons Did Not Prevent Recurrence — They Were Never Turned Into Enforcement
+- **What**: Four lessons in this very file already described the failure classes hit today. **#5** ("Token Budget Caps Truncate Silently — And Nobody Notices For Months") is *the same class* as L-CORRUPT-1, and its stated prevention — *"any cap that can silently drop content needs a test asserting the content survives it"* — was never applied to the corrector shipped afterward. **#11** (config defaults ≠ deployed values) recurred as `reingest_late_chunking=False` while every stored point had `pooling="mean"`. **#12** (migration scripts bypass gates) recurred: the re-ingest still writes through the raw client. **#13** (validate the detector) is why I re-verified all five findings myself rather than accepting the audit.
+- **Why**: The lessons were filed as **narratives about a past fix**, not as **executable invariants**. Nothing failed when the next author violated them, so the next author violated them.
+- **How to prevent**: Every lesson whose prevention clause says "always X" or "never Y" must be paired with a test that fails when X is absent — otherwise it is documentation of a habit nobody is keeping. Concretely from today: a test asserting the corrector preserves length on a realistic chunk; a test asserting no summary chunk reaches transcript reconstruction; a test asserting the pooling default matches what the collection contains. **A lesson without a failing test is a wish.**
+
+---
+
+## Aug 2, 2026 — Semantic Topic-Shift Chunking & Automated LLM Transcript Proofreading
+
+### L1. Semantic Embedding-Distance Topic-Shift Boundaries Superior to Fixed Windowing
+- **What**: Fixed-character and basic recursive chunking cut paragraphs mid-thought or mid-fable. `SemanticChunker` computes sentence-level embedding cosine distances using BGE-M3 and splits text at dynamic distance spikes ($85^{\text{th}}$–$90^{\text{th}}$ percentile), producing complete, self-contained semantic topic clusters (e.g. 6 topic clusters vs 14 fixed window splits).
+- **Where**: `backend/ingest/semantic_chunker.py` and `backend/ingest/contextual_reingest.py`.
+- **How to prevent**: Avoid fixed-character splitting for deep talks; use sentence-level embedding cosine distance spikes for natural topic boundaries.
+
+### L2. Automated LLM Proofreading Prevents Reactive Term Whack-a-Mole
+> ⚠️ **SUPERSEDED IN PART — 2026-08-02. Read L-CORRUPT-1 (top of file) before acting on this.**
+> This lesson is correct about the *motivation* and dangerously incomplete about the *risk*.
+> As written it advocates putting an LLM between raw doctrine and storage with no
+> output-volume check, and that is exactly what destroyed 65% of a transcript
+> (22,487 chars → 7,876) one day after this entry was filed. Keep the technique;
+> never ship it without the ratio + edit-distance guards described in L-CORRUPT-1.
+- **What**: Hardcoded term glossaries (`doctrine_terms.py`) are reactive and incomplete. Integrating an LLM proofreader (`TranscriptCorrector`) into `ContextualReingestEngine._reconstruct_full_text()` automatically proofreads raw ASR auto-captions zero-shot (*"eye consciousness"* $\rightarrow$ **"I-Consciousness"**, *"soul sink"* $\rightarrow$ **"Soul Sync"**, *"uncrafted"* $\rightarrow$ **"unclouded"**) *before* chunking or contextual header generation.
+- **Where**: `backend/ingest/contextual_reingest.py` (`_correct_full_text()`).
+- **How to prevent**: Always run LLM proofreading on raw ASR text *prior* to sending text to the LLM contextualizer or vector embedder, so bad ASR tokens never leak into generated headers or vector storage.
+- **Correction (2026-08-02)**: two of the three example fixes cited here (*"eye consciousness"*, *"soul sink"*) were **already in the deterministic glossary** — the LLM was not needed for them. The genuinely LLM-only win in that list is *"uncrafted"* → *"unclouded"*. The deterministic pass must stay authoritative; the LLM is advisory and handles only what the glossary cannot enumerate.
+
+### L3. LLM Wrapper Service Interfaces Must Accept `**kwargs`
+- **What**: Service wrappers (`_OpenRouterContextualizer`, `_LocalOllamaContextualizer`) failed with `TypeError: got an unexpected keyword argument 'temperature'` when called by `TranscriptCorrector`.
+- **Where**: `backend/ingest/contextual_reingest.py`.
+- **Why**: LLM callers often pass optional parameters (`temperature`, `is_structured`, `operation`). Wrappers implementing the `generate()` interface must accept `**kwargs` and pass or ignore unhandled options gracefully.
+
+---
+
 ## Aug 1, 2026 — Lovable Publish Pipeline: bun Integrity / Vite Peer Dep Failures
 
 Three distinct failure modes that together blocked every Lovable publish.
@@ -9,7 +146,7 @@ Every fix is measurable: `bun install --ignore-scripts` exits 0 after cache clea
 - **Where:** `node_modules/string-width-cjs`, `strip-ansi-cjs`, `wrap-ansi-cjs` entries in `package-lock.json`.
 - **When:** Every `bun install` invocation, including Lovable's sandbox build.
 - **Who:** Lovable sandbox CI — blocked every publish; local dev was fine because `node_modules/` was cached.
-- **Why:** The hashes were injected manually and were truncated (86 chars instead of 88 chars base64). The npm registry returns `sha512-<88-char-base64>==`; anything shorter fails bun's crypto check.
+- **Why:** The hashes were injected manually and were truncated (86 characters instead of 88 characters including trailing padding). The npm registry returns `sha512-<88-character-base64-string>` (where the 88 characters include the trailing `==` padding); anything shorter fails bun's crypto check.
 - **How to prevent:**
   1. Never manually write integrity hashes. Use `npm install --package-lock-only` to regenerate, then inspect.
   2. If manual injection is necessary, fetch hashes from `https://registry.npmjs.org/<pkg>/<version>` → `dist.integrity` — that value is canonical.
@@ -29,7 +166,7 @@ Every fix is measurable: `bun install --ignore-scripts` exits 0 after cache clea
 - **Where:** `package.json` devDependencies.
 - **When:** After any vite major version bump without checking plugin peer dep ranges.
 - **Who:** Lovable publish CI; local `vite build` happened to work because the installed `node_modules/` was from before the lockfile mismatch.
-- **Why:** The `^3.x` range has an upper bound on peer vite; `^4.x` (`4.3.3` latest as of Aug 1, 2026) explicitly adds `|| ^8`.
+- **Why:** The `^3.x` range has an upper bound on peer vite; `^4.x` (`4.3.3`) explicitly adds `|| ^8`.
 - **How to prevent:** When bumping vite to a new major, always check `@vitejs/plugin-react-swc` (and any other vite plugin) peer dep ranges and bump those too. Run `npm install --package-lock-only` as a CI gate — if it exits non-zero, the lockfile is invalid.
 
 ---
@@ -179,7 +316,7 @@ implementations. Three of the four lessons are corrections to things this projec
 believed and I asserted.
 
 ### 17. A Borrowed Benchmark Is Not Evidence About *Your* Corpus
-- **What:** Plan §6.4 justified MinHash-LSH with a published comparison — byte-exact catches 5.81% of duplicates, MinHash-LSH catches 31.32% — and built the whole rationale on **cross-source** near-duplicates. Measured on this corpus: cross-source near-dup is **0.38%** (335 of 89,061). The rationale was off by ~80×. Total duplication is real (20.29%, 18,071 chunks), but **19.9% of it is same-source** — 95.8% of duplicate groups (2,044 of 2,134) never leave a single `source_url`.
+- **What:** Plan §6.4 justified MinHash-LSH with a published comparison — byte-exact catches 5.81% of duplicates, MinHash-LSH catches 31.32% — and built the whole rationale on **cross-source** near-duplicates. Measured on this corpus: cross-source near-dup is **0.38%** (335 of 89,061). The rationale was off by ~80×. Total duplication is real (20.29%, 18,071 chunks), but **19.9% of it is same-source (17,736 of 89,061)** — 95.8% of duplicate groups (2,044 of 2,134) never leave a single `source_url`.
 - **Where:** `docs/engineering-notes/corpus-remediation-and-migration-plan.md` §6.4; measured by `benchmarks/reports/dedup_measurement_20260801.json`.
 - **When:** From the moment the plan was written until the first full-corpus run — the intervening implementation work was done against an unvalidated premise.
 - **Who:** Me, and any agent handed the plan: the handoff prompt stated "Expected: cross-source near-dup rate ~30% per plan §6.4" as if it were a prediction to confirm rather than a hypothesis to test.
@@ -256,6 +393,22 @@ Docker stack.
 - **Who:** Silently writing empty context headers would have degraded every chunk it touched, invisibly, at ingest time.
 - **Why:** Chain-of-thought leaking into chunk text is what poisoned 30.2% of this corpus. A model *architecturally built* to emit reasoning is the wrong instrument for the job that failed that way — and with a small `max_tokens` it does not merely leak, it spends the whole budget thinking and returns nothing. Note also that the cheapest per-token model lost on cost: qwen's lower unit price was cancelled by 72% more tokens and 4.2× the wall-clock.
 - **How to prevent:** For ingestion paths, prefer non-reasoning instruction-followers and **measure seconds-per-chunk, not list price** — one call per chunk means throughput is the bill. Treat empty content as an error, never as an empty string. And bake off on *real corpus samples* scored by the project's own detector; a leaderboard cannot tell you which model leaks into your schema.
+
+### 28. A Container Restart Silently Reverts Every `docker cp`
+- **What:** After the OOM, I restarted the stack and re-copied `embedding_service.py`, then launched the pilot. It died — not from memory, but because the contextualizer used **Ollama** and hit a 429 weekly limit. `grep -c "_OpenRouterContextualizer" /app/ingest/contextual_reingest.py` in the container returned **0**: the restart had reverted that module to the image version, so the OpenRouter branch I had written simply did not exist there, and the code fell through to its Ollama default.
+- **Where:** `/app/ingest/contextual_reingest.py` inside `mukthiguru-backend`; host copy was correct the whole time.
+- **When:** Silently, at container restart. Two full pilot runs were lost before I checked.
+- **Who:** The failure presented as an unrelated quota error from a provider I had explicitly configured away from — maximally misleading. I could have spent a long time debugging Ollama billing.
+- **Why:** `docker cp` writes to the container's *writable layer*, which a recreate discards; the image is the source of truth. I already knew "the container does not auto-sync code" (lesson from the same plan's handoff) and still got caught, because the earlier lesson was about *forgetting to copy*, and this was about *copies being undone by an event*. Worse: I re-copied one file after the restart, which made the environment look freshly synced while five other modules were stale — a partially-synced container is more deceptive than an obviously stale one.
+- **How to prevent:** After any container restart/recreate, re-sync **every** changed module, not the one you last touched — and **verify by content before launching**, not after failing: `docker exec … grep -c <distinctive symbol>` for each file, expecting non-zero. Cheaper still, mount the source or rebuild the image so the writable layer is never the source of truth. Same discipline as lesson #16: assert the code is present by grepping for a distinctive symbol rather than trusting memory of having put it there.
+
+### 27. O(n²) Attention Plus O(n) Accumulation Took Down The Whole Docker VM
+- **What:** The late-chunking pilot terminated containers across the stack — backend, qdrant, neo4j, redis, celery, frontend exited with 137 (SIGKILL) or 143 (SIGTERM). Exit codes alone do not prove a host OOM (since exit 137 is unhandled SIGKILL and exit 143 is SIGTERM graceful stop), but host kernel logs (`dmesg` / `Out of memory: Kill process`) and Docker events (`oomKilled: true`) confirmed host OOM. Two independent memory bugs stacked: (a) a window of 8192 tokens, where attention is O(n²): 8192² × 16 heads × 4 bytes ≈ **4.3 GB for one attention matrix** on a 7.8 GB VM; (b) `_document_token_vectors` accumulated an `[n_tokens, 1024]` float32 array for the *whole* document, hundreds of MB more on a long transcript.
+- **Where:** `services/embedding_service.py` — now `_stream_pooled_spans`, and `settings.late_chunk_window_tokens` (default 2048).
+- **When:** ~45 minutes into an unattended background run. The first symptom was `docker exec` replying "cannot exec in a stopped state" — the *wait loop* reported the failure, long after the damage.
+- **Who:** Everything. Qdrant, Neo4j and Redis died with it. The corpus survived only because volumes are never removed (`down -v` is a standing prohibition); the outcome would otherwise have been losing 89,061 chunks while trying to clean them.
+- **Why:** I sized the window by the model's *capability* (bge-m3 supports 8192 tokens) rather than by the *host's* memory. Those are unrelated numbers: the context limit says what the model can attend over, not what fits in RAM alongside a 2.3 GB model and five other containers. Then the accumulator scaled with document length — exactly the axis a "process the whole document at once" design grows along. A shared Docker VM has no per-container isolation for this: one greedy process is an outage for every service on the host.
+- **How to prevent:** Size windows by **host memory, not model capability**, and put the arithmetic in the comment where the constant lives. Any "process the whole document" routine should accumulate per *output* (here ~300 spans ≈ 1.2 MB) rather than per *input token* — the streaming rewrite's retained memory is O(window + spans) plus model overhead, while processing time remains O(tokens). Before an unattended run against a shared stack, profile memory on the largest realistic input: my 5-sentence verification passed happily and proved nothing. And treat "the wait loop errored" as a signal to check the *stack*, not the loop.
 
 ### 26. I Applied The Right Validator To The Wrong Unit — Twice In One Session
 - **What:** (a) Scanned OKF entries by feeding whole `.md` files to `find_artifact`; it flagged 1 of 23 as a repetition loop. The "loop" was the entry's own title recurring across YAML `title:`, `sources[].title`, and the H1 — the body contained the phrase **once**. Body-only rescan: **0 of 23**. (b) Scanned Neo4j node names with `clean_topic_label`; 29 of 184 "failed". They are `GuruTeaching`/`RootLimitingBelief` nodes whose name *is* a teaching sentence — a topic-label validator has no business judging them.

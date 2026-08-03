@@ -60,6 +60,39 @@ _PROMPT_LEAK_PATTERNS: list[str] = [
 
 _MIN_MEANINGFUL_CHARS = 80  # skip LLM correction below this (avoid empty-input hallucination)
 
+# A corrector fixes spellings/punctuation. It does not summarize, translate, or
+# paraphrase — so its output length tracks its input length closely. These bounds
+# exist because the previous guard (`< min(50, len(chunk)//2)`) evaluated to the
+# constant 50 for any chunk over 100 chars, and on 2026-08-01 silently accepted
+# LLM stubs in place of a full transcript: 22,487 chars in, 7,876 stored (-65%).
+# Slightly asymmetric: expanding contractions and adding punctuation legitimately
+# grows text a little, while a correction has no reason to shrink it much.
+_MIN_LENGTH_RATIO = 0.90
+_MAX_LENGTH_RATIO = 1.15
+
+# Ceiling on how much of the token stream may change. Length alone cannot catch a
+# same-length paraphrase, which is the other way an LLM "corrects" a passage into
+# something the gurus did not say.
+_MAX_TOKEN_CHANGE_RATIO = 0.15
+
+
+def _rewrote_too_much(original: str, corrected: str) -> bool:
+    """True when the correction changed more of the token stream than a correction should.
+
+    Uses difflib's ratio over word tokens rather than characters: a doctrine-term
+    fix ("soul sink" -> "Soul Sync") touches one or two tokens, while a paraphrase
+    touches most of them. Character-level similarity would be dominated by shared
+    punctuation and short function words and would miss exactly that distinction.
+    """
+    import difflib
+
+    orig_tokens = original.split()
+    corr_tokens = corrected.split()
+    if not orig_tokens:
+        return False
+    similarity = difflib.SequenceMatcher(None, orig_tokens, corr_tokens).ratio()
+    return (1.0 - similarity) > _MAX_TOKEN_CHANGE_RATIO
+
 
 def _is_content_too_short(text: str) -> bool:
     """Return True if text is too short/empty to benefit from LLM correction.
@@ -138,7 +171,16 @@ class TranscriptCorrector:
         """
         logger.info(f"Correcting transcript for {source_url}...")
 
-        chunks = _sentence_aware_split(text, chunk_size=4000, overlap=100)
+        # overlap=0, deliberately. The split used to overlap by 100 chars "to preserve
+        # cross-boundary names", but the pieces are rejoined below with a plain
+        # `" ".join(...)` that never removes the overlap — so every 4,000-char seam
+        # duplicated ~100 chars of doctrine into the stored text (~5 injected
+        # duplications per 22k-char transcript). The stated benefit is already covered
+        # twice over: the split lands on sentence boundaries, and `apply_corrections()`
+        # runs over the fully rejoined text at the end, so a doctrine term straddling a
+        # seam is still normalised. Re-introducing overlap requires stripping it on
+        # rejoin, not just adding it here.
+        chunks = _sentence_aware_split(text, chunk_size=4000, overlap=0)
         logger.info(f"Correction: split into {len(chunks)} chunks (4000-char, sentence-aware)")
 
         # Process chunks with bounded concurrency
@@ -161,10 +203,42 @@ class TranscriptCorrector:
                         operation="correction",
                         is_structured=True,
                     )
-                    # Guard 2: length check (original)
-                    if not response or len(response.strip()) < min(50, len(chunk.strip()) // 2):
+                    # Guard 2: length RATIO check.
+                    #
+                    # This guard used to read `< min(50, len(chunk)//2)`, which for any
+                    # chunk over 100 chars collapses to the constant 50 — i.e. a 50-char
+                    # stub was accepted as a faithful correction of a 4,000-char chunk.
+                    # On 2026-08-01 that silently destroyed 65% of a transcript
+                    # (22,487 chars in, 7,876 chars stored) and NOTHING caught it:
+                    # find_artifact passed 6/6, corpus_audit scored 0.0% contaminated.
+                    # Truncation leaves no artifact — it leaves fluent, on-topic doctrine
+                    # with two thirds of the teaching missing, which is a strictly worse
+                    # failure than the chain-of-thought contamination this pipeline was
+                    # built to stop, because it is invisible to every gate built for that.
+                    #
+                    # A corrector fixes spellings and punctuation; it does not change
+                    # length materially. Bound it in BOTH directions.
+                    original = chunk.strip()
+                    corrected = (response or "").strip()
+                    ratio = len(corrected) / max(len(original), 1)
+                    if not corrected or not (_MIN_LENGTH_RATIO <= ratio <= _MAX_LENGTH_RATIO):
                         logger.warning(
-                            f"Chunk {i} correction returned empty/short string. Using original."
+                            "Chunk %d correction length ratio %.2f outside [%.2f, %.2f] "
+                            "(%d chars in, %d out) — LLM summarized or padded instead of "
+                            "correcting. Using original.",
+                            i, ratio, _MIN_LENGTH_RATIO, _MAX_LENGTH_RATIO,
+                            len(original), len(corrected),
+                        )
+                        return chunk
+
+                    # Guard 2b: edit-distance ceiling. Length can match while the content
+                    # is a paraphrase, so bound how much of the text may change too. A
+                    # real correction touches a small fraction of tokens.
+                    if _rewrote_too_much(original, corrected):
+                        logger.warning(
+                            "Chunk %d correction rewrote more than %.0f%% of tokens — "
+                            "paraphrase, not correction. Using original.",
+                            i, _MAX_TOKEN_CHANGE_RATIO * 100,
                         )
                         return chunk
 

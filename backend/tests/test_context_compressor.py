@@ -31,3 +31,20 @@ def test_context_budget_manager_empty_chunks():
     assert result["chunks_before"] == 0
     assert result["chunks_after"] == 0
     assert result["compressed_context"] == ""
+
+
+def test_context_budget_manager_selected_chunks_prefers_relevance():
+    # Budget only fits one full chunk — the higher-relevance one must survive
+    # regardless of dict/list order, since callers (context_engineer) rely on
+    # selected_chunks for relevance-aware selection before a separate
+    # cache-friendly hash sort.
+    manager = ContextBudgetManager(total_budget=20, system_prompt_reserve=0.0001, history_reserve=0.0001)
+    low = {"content": "irrelevant filler text here", "relevance": 0.1, "id": "low"}
+    high = {"content": "highly relevant teaching text", "relevance": 0.9, "id": "high"}
+
+    result = manager.compress([low, high])
+
+    assert "selected_chunks" in result
+    selected_ids = [c["id"] for c in result["selected_chunks"]]
+    assert "high" in selected_ids
+    assert selected_ids[0] == "high"

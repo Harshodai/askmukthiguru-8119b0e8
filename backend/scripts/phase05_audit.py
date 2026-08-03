@@ -42,8 +42,9 @@ async def main():
         print("Encoder does not have 'model' attribute.")
 
     # Spot-check payload for instruction prefix
-    qdrant_url = "http://localhost:6333"
-    client = QdrantClient(url=qdrant_url)
+    qdrant_url = os.environ.get("QDRANT_URL", "http://localhost:6333")
+    qdrant_api_key = os.environ.get("QDRANT_API_KEY") or None
+    client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
     collection_name = "spiritual_wisdom"
     
     print(f"Scrolling 3 points from '{collection_name}'...")

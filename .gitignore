@@ -48,6 +48,9 @@ venv/
 .venv/
 .venv_whisper/
 .venv_host
+hyperresearch-venv/
+.hyperresearch-venv/
+.hyperresearch/
 .env
 .env.*
 !.env.example
@@ -111,6 +114,7 @@ graphify-out/
 __pyrefly_virtual__/
 
 # Scratch and temporary files
+research/
 ecc/
 *scratch_test.py
 scratch-llmfit/

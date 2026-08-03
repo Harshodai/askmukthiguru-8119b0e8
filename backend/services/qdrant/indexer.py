@@ -19,7 +19,7 @@ from qdrant_client.http.models import (
 from app.config import settings
 from services.tenant_context import TenantContext, get_tenant_collection
 
-from services.phonetic import IndicPhoneticMatcher
+from services.qdrant.metrics import track_upsert_latency
 from services.qdrant.utils import QdrantUtils
 
 logger = logging.getLogger(__name__)
@@ -69,6 +69,7 @@ class QdrantIndexer:
         self._utils = QdrantUtils()
 
     @retry_with_backoff(max_retries=3)
+    @track_upsert_latency
     def upsert_chunks(
         self,
         texts: list[str],
@@ -129,13 +130,71 @@ class QdrantIndexer:
             )
             return 0
 
+        # ------------------------------------------------------------------
+        # Batch-level repeat guard. The quality gate above judges one chunk at
+        # a time and therefore cannot see a generator stuck in a loop: each of
+        # the 227 identical copies found in the 2026-08-01 corpus measurement
+        # was individually innocent, and `make_point_id` hashes chunk_index, so
+        # every copy earned its own point id and all of them persisted.
+        # The signal only exists across the batch — exactly what this layer can
+        # see and the per-chunk filter cannot.
+        # ------------------------------------------------------------------
+        from services.text_quality_filter import collapse_repeats, is_repeat_alarm
+
+        sources = [
+            m.get("source_url") or "__missing_source__"
+            for m in metadatas
+        ]
+        point_ids = [
+            self._utils.make_point_id(
+                m.get("source_url", ""),
+                m.get("chunk_index", i),
+                m.get("raptor_level", 0),
+            )
+            for i, m in enumerate(metadatas)
+        ]
+        keep_unique, repeats = collapse_repeats(texts, sources, metadatas=metadatas)
+        if repeats:
+            worst_text, worst_count, worst_source = repeats[0]
+            dropped_total = sum(count for _, count, _ in repeats)
+            alarm = is_repeat_alarm(repeats)
+            # A handful of duplicates is ordinary; a run of them means the
+            # upstream writer stopped advancing, and the corpus damage starts
+            # before this gate. Say so loudly enough to be actionable.
+            (logger.error if alarm else logger.warning)(
+                "upsert_chunks: collapsed %d duplicate chunks across %d distinct "
+                "texts (collection=%s). Worst: %d copies of %r from source %r.%s",
+                dropped_total, len(repeats), self._collection,
+                worst_count, worst_text, worst_source,
+                " A repeat run this long indicates an upstream generator loop — "
+                "investigate the writer, not just this batch." if alarm else "",
+            )
+
+            # Reconcile stale Qdrant points for dropped duplicate chunks before upsert
+            keep_set = set(keep_unique)
+            stale_point_ids = [point_ids[i] for i in range(len(metadatas)) if i not in keep_set]
+
+            if stale_point_ids:
+                try:
+                    self._client.delete(
+                        collection_name=self._collection,
+                        points_selector=stale_point_ids,
+                    )
+                except Exception as exc:
+                    logger.warning("Failed to delete stale Qdrant points before upsert: %s", exc)
+
+            texts = [texts[i] for i in keep_unique]
+            vectors = [vectors[i] for i in keep_unique]
+            metadatas = [metadatas[i] for i in keep_unique]
+            point_ids = [point_ids[i] for i in keep_unique]
+            if sparse_vectors:
+                sparse_vectors = [
+                    sparse_vectors[i] if i < len(sparse_vectors) else {}
+                    for i in keep_unique
+                ]
+
         points = []
-        for i, (text, vector, meta) in enumerate(zip(texts, vectors, metadatas)):
-            # Deterministic ID for deduplication
-            source_url = meta.get("source_url", "")
-            chunk_index = meta.get("chunk_index", i)
-            raptor_level = meta.get("raptor_level", 0)
-            point_id = self._utils.make_point_id(source_url, chunk_index, raptor_level)
+        for i, (text, vector, meta, point_id) in enumerate(zip(texts, vectors, metadatas, point_ids)):
 
             # Build named vector dict
             vector_dict = {"dense": vector}
@@ -145,18 +204,22 @@ class QdrantIndexer:
                 if sparse_vec and (len(sparse_vec.get("indices", [])) > 0 or len(sparse_vec) > 0):
                     vector_dict["sparse"] = self._utils.sparse_dict_to_vector(sparse_vec)
 
-            # Generate Indic phonetic tokens for misspelling tolerance
-            phonetic_tokens = IndicPhoneticMatcher.get_phonetic_tokens(text)
-
+            # `phonetic_tokens` is no longer written. It existed to feed a
+            # phonetic prefetch in QdrantSearcher that was removed for latency
+            # (see the "Dropping the extra summary/phonetic prefetches" comment
+            # there), leaving a per-chunk token list on every point that nothing
+            # queried — 36% of blue and 100% of green. Restoring Indic
+            # misspelling tolerance means re-adding BOTH the prefetch and this
+            # write; services/phonetic.py:IndicPhoneticMatcher is still there for that.
             point = PointStruct(
                 id=point_id,
                 vector=vector_dict,
-                payload={"text": text, "phonetic_tokens": phonetic_tokens, **meta},
+                payload={"text": text, **meta},
             )
             points.append(point)
 
         # Batch upsert in chunks of 200 (bumped from 100 — Task E2.6; safe for the
-        # payload sizes used here: text + phonetic_tokens + small meta per point).
+        # payload sizes used here: text + small meta per point).
         batch_size = 200
         for i in range(0, len(points), batch_size):
             batch = points[i : i + batch_size]

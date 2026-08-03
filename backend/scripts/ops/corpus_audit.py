@@ -55,6 +55,13 @@ from services.text_quality_filter import find_artifact  # noqa: E402
 # and stripped again at answer time — is not counted as body poison.
 _HEADER_RE = re.compile(r"^\[(?:Source|RAPTOR)[^\]]*\]\s*")
 
+# Ingestion writes two chunk sizes into the same collection: proposition-tier
+# (single extracted sentences) and passage-tier (boundary-chunked teaching).
+# They fail differently — a proposition is one LLM output, so extraction
+# commentary lands as the whole chunk rather than as a fragment inside real
+# teaching — so the overall rate hides which tier actually needs re-ingest.
+PROPOSITION_MAX_CHARS = 200
+
 # Re-ingest priority. A source above TOTAL_LOSS is unusable and must come from
 # origin; PARTIAL is cheaper to re-ingest wholesale than to repair point-by-point.
 _TOTAL_LOSS = 0.80
@@ -108,18 +115,22 @@ def audit(base_url: str, collection: str, cap: int | None = None) -> dict[str, A
     reasons: Counter[str] = Counter()
     per_source: dict[str, list[int]] = defaultdict(lambda: [0, 0])  # [poisoned, total]
     samples: dict[str, list[str]] = defaultdict(list)
+    per_tier: dict[str, list[int]] = defaultdict(lambda: [0, 0])  # [poisoned, total]
 
     for payload in _scroll(base_url, collection, 500, cap):
         total += 1
         source = payload.get("source_url") or payload.get("title") or "(unknown)"
         body = _HEADER_RE.sub("", payload.get("text") or "")
         topic = payload.get("topic") or ""
+        tier = "proposition" if len(body.strip()) < PROPOSITION_MAX_CHARS else "passage"
 
         artifact = find_artifact(body) or find_artifact(topic)
         per_source[source][1] += 1
+        per_tier[tier][1] += 1
         if artifact:
             contaminated += 1
             per_source[source][0] += 1
+            per_tier[tier][0] += 1
             kind = "asr_repetition_loop" if artifact.startswith("repetition") else "llm_artifact"
             reasons[kind] += 1
             if len(samples[source]) < 2:
@@ -145,6 +156,14 @@ def audit(base_url: str, collection: str, cap: int | None = None) -> dict[str, A
         "contaminated": contaminated,
         "rate": round(contaminated / total, 4) if total else 0.0,
         "by_reason": dict(reasons),
+        "by_tier": {
+            tier: {
+                "total": tot,
+                "poisoned": bad,
+                "rate": round(bad / tot, 4) if tot else 0.0,
+            }
+            for tier, (bad, tot) in sorted(per_tier.items())
+        },
         "buckets": dict(Counter(s["bucket"] for s in sources)),
         "sources": sources,
     }
@@ -160,6 +179,12 @@ def _print_report(report: dict[str, Any], top: int = 20) -> None:
         print("by reason:")
         for kind, n in sorted(report["by_reason"].items(), key=lambda x: -x[1]):
             print(f"  {n:7,}  {kind}")
+
+    if report.get("by_tier"):
+        print(f"\nby chunk tier (proposition = body < {PROPOSITION_MAX_CHARS} chars):")
+        for tier, stats in report["by_tier"].items():
+            print(f"  {stats['poisoned']:7,}/{stats['total']:<8,} "
+                  f"{100 * stats['rate']:5.1f}%  {tier}")
 
     print("\nsource buckets (re-ingest priority):")
     for bucket in ("total_loss", "partial", "trace", "clean"):

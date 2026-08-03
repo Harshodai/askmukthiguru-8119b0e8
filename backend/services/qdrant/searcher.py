@@ -21,8 +21,8 @@ from qdrant_client.http.models import (
 )
 
 from app.config import settings
-from services.phonetic import IndicPhoneticMatcher
 from services.qdrant.filters import QdrantFilterBuilder
+from services.qdrant.metrics import track_search_latency
 from services.qdrant.utils import QdrantUtils
 
 logger = logging.getLogger(__name__)
@@ -67,6 +67,7 @@ class QdrantSearcher:
         self._filter_builder = QdrantFilterBuilder()
 
     @retry_with_backoff(max_retries=1)
+    @track_search_latency
     def search(
         self,
         query_vector: list[float],
@@ -149,11 +150,8 @@ class QdrantSearcher:
             must_not=tag_must_not if tag_must_not else None,
         )
 
-        # Extract Indic phonetic tokens from query for misspelling tolerance
-        query_str = kwargs.get("query", "")
-        query_phonetic_tokens = (
-            IndicPhoneticMatcher.get_phonetic_tokens(query_str) if query_str else []
-        )
+        # No phonetic token extraction here: the prefetch that consumed it was
+        # removed (see below), so computing it was per-query work with no reader.
 
         # Hybrid search with Multi-Vector Prefetching (Ch 6 RAG Made Simple)
         if sparse_vector:
@@ -168,19 +166,27 @@ class QdrantSearcher:
         # time roughly in half, eliminating the hybrid-timeout path on simple queries.
         dense_search_params = self._dense_quantization_search_params()
         if sparse_vector:
+            # Read config OUTSIDE the try below. That `except` exists to survive a
+            # Qdrant transport failure, and it falls back to dense-only — a real
+            # retrieval-quality drop. A misconfigured multiplier is not a transport
+            # failure, and letting it land in that handler would silently disable
+            # hybrid search on every query while health stayed green.
+            dense_limit = max(1, round(internal_limit * settings.qdrant_dense_prefetch_multiplier))
+            sparse_limit = max(1, round(internal_limit * settings.qdrant_sparse_prefetch_multiplier))
+            fusion = Fusion.DBSF if settings.qdrant_fusion_strategy == "dbsf" else Fusion.RRF
             try:
                 prefetch_queries = [
                     Prefetch(
                         query=query_vector,
                         using="dense",
-                        limit=internal_limit,
+                        limit=dense_limit,
                         filter=search_filter,
                         params=dense_search_params,
                     ),
                     Prefetch(
                         query=sparse_qvec,
                         using="sparse",
-                        limit=internal_limit,
+                        limit=sparse_limit,
                         filter=search_filter,
                     ),
                 ]
@@ -188,7 +194,7 @@ class QdrantSearcher:
                 results = self._client.query_points(
                     collection_name=self._collection,
                     prefetch=prefetch_queries,
-                    query=FusionQuery(fusion=Fusion.RRF),
+                    query=FusionQuery(fusion=fusion),
                     limit=internal_limit,
                     with_payload=True,
                 )

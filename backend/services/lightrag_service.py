@@ -73,6 +73,8 @@ class LightRAGService:
         # LightRAG Native Qdrant Configuration
         os.environ["QDRANT_URL"] = settings.qdrant_url
         os.environ["QDRANT_COLLECTION"] = f"{settings.qdrant_collection}_lightrag"
+        if getattr(settings, "qdrant_api_key", ""):
+            os.environ["QDRANT_API_KEY"] = settings.qdrant_api_key
 
         def sanitize_extraction_output(text: str) -> str:
             """Sanitize extraction to remove thinking blocks, clean up quotes, backslashes, and malformed types."""

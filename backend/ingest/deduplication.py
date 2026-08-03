@@ -309,14 +309,25 @@ class LSHNearDupIndex:
         self.hash_count = hash_count
         self.bands = bands
         self._buckets: dict[str, list[tuple[list[int], dict]]] = {}
-        self._short: list[tuple[str, dict]] = []  # short texts: exact Jaccard fallback
+        # Short texts (< 200 chars) are matched EXACTLY, not by similarity.
+        # Pairwise Jaccard over them is O(n^2): the live corpus holds 41,951
+        # short chunks, which is 880M comparisons (~4.4h measured) and would
+        # stall a full re-ingest. Measured on a 2,500-chunk sample of that
+        # corpus, exact matching catches 8.6% while near-but-not-exact adds
+        # only 0.48% — a dict lookup buys back the quadratic for almost
+        # nothing. MinHash is not an option here: it is variance-heavy below
+        # ~200 chars (a 1-word change in a 245-char text scores 0.844, under
+        # the 0.85 bar), which is why these fall out of the banding path.
+        self._short: dict[str, dict] = {}
         self.count = 0
 
     def add(self, text: str, meta: Optional[dict] = None) -> None:
         """Index one chunk. Meta carries e.g. ``authority_tier``."""
         sig = _text_signature(text, self.k, self.hash_count)
         if sig is None:
-            self._short.append((text, meta or {}))
+            norm = _normalize(text)
+            if norm:
+                self._short.setdefault(norm, meta or {})
         else:
             for key in _lsh_band_keys(sig, self.bands):
                 self._buckets.setdefault(key, []).append((sig, meta or {}))
@@ -337,11 +348,9 @@ class LSHNearDupIndex:
         """Return metas of corpus chunks near-duplicate to ``text`` (order: insertion)."""
         sig = _text_signature(text, self.k, self.hash_count)
         if sig is None:
-            hits = []
-            for existing, meta in self._short:
-                if near_duplicate_similarity(text, existing, self.k, self.hash_count) >= self.threshold:
-                    hits.append(meta)
-            return hits
+            norm = _normalize(text)
+            meta = self._short.get(norm) if norm else None
+            return [meta] if meta is not None else []
 
         hits = []
         for existing_sig, meta in self._candidates(sig):
@@ -387,6 +396,20 @@ if __name__ == "__main__":  # runnable self-check
     urls = {n["source_url"] for n in near}
     assert "a" in urls and "c" not in urls, near
     assert idx.is_near_duplicate(variant)
+
+    # Short texts take the exact-match path (see LSHNearDupIndex.__init__):
+    # identical text is caught, a reworded variant deliberately is not.
+    short = "Listening to someone is an act of respect."
+    short_idx = LSHNearDupIndex()
+    short_idx.add(short, {"source_url": "a"})
+    assert short_idx.is_near_duplicate(short), "identical short text must dedup"
+    assert short_idx.is_near_duplicate("  Listening to someone is an act of RESPECT.  "), (
+        "normalization must survive case/whitespace"
+    )
+    assert not short_idx.is_near_duplicate(
+        "Hearing another person out is an act of respect."
+    ), "short near-dups are out of scope by design"
+
     assert not idx.is_near_duplicate(
         "Farming methods and soil nutrients differ from the teaching about "
         "breath. Rain and harvest determine yield across the season."
