@@ -50,6 +50,7 @@ venv/
 .venv_host
 hyperresearch-venv/
 .hyperresearch-venv/
+hyperresearch_venv/
 .hyperresearch/
 .env
 .env.*
