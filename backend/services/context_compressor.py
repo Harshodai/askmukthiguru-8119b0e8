@@ -81,6 +81,7 @@ class ContextBudgetManager:
 
         if not chunks:
             packed = []
+            selected_chunks = []
             tokens_used = 0
         else:
             sorted_chunks = sorted(
@@ -90,6 +91,7 @@ class ContextBudgetManager:
             )
 
             packed: list[str] = []
+            selected_chunks: list[dict] = []
             tokens_used = 0
 
             for chunk in sorted_chunks:
@@ -97,12 +99,14 @@ class ContextBudgetManager:
                 chunk_tokens = _estimate_tokens(text)
                 if tokens_used + chunk_tokens <= docs_budget:
                     packed.append(text)
+                    selected_chunks.append(chunk)
                     tokens_used += chunk_tokens
                 elif tokens_used < docs_budget:
                     remaining = docs_budget - tokens_used
                     truncated = self._truncate_text(text, remaining)
                     if truncated:
                         packed.append(truncated)
+                        selected_chunks.append(chunk)
                         tokens_used += _estimate_tokens(truncated)
                     break
                 else:
@@ -131,6 +135,7 @@ class ContextBudgetManager:
             "chunks_before": chunks_before,
             "chunks_after": len(packed),
             "tokens_saved": tokens_before - total_tokens,
+            "selected_chunks": selected_chunks,
         }
 
     @staticmethod

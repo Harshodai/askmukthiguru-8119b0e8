@@ -25,6 +25,8 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from services.qdrant.metrics import get_metrics_collector
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +51,7 @@ class VectorIndexOptimizer:
               - status: "green" | "yellow" | "red"
               - points_count: total indexed vectors
               - segments_count: number of segments (lower = better post-optimization)
+              - fragmentation_pct: % of deleted/wasted space (0-100)
               - optimizer_status: current optimizer state
               - disk_usage_mb: approximate disk usage
         """
@@ -59,22 +62,48 @@ class VectorIndexOptimizer:
             points_count = getattr(info, "points_count", 0) or 0
             segments_count = getattr(info, "segments_count", 0) or 0
 
+            # Fragmentation heuristic: estimate from segment count
+            # Ideal: 1-5 segments. Each segment added = ~10% fragmentation.
+            fragmentation_pct = max(0, min(100, (segments_count - 5) * 10))
+
             # Determine health status heuristics
-            if segments_count > 50:
+            if segments_count > 50 or fragmentation_pct > 40:
+                status = "red"    # Too many segments or high fragmentation
+            elif segments_count > 20 or fragmentation_pct > 30:
                 status = "yellow"  # Many segments — benefit from optimization
-            elif segments_count > 100:
-                status = "red"    # Too many segments — severely fragmented
             else:
                 status = "green"
 
-            return {
+            health = {
                 "status": status,
                 "collection": self._collection,
                 "points_count": points_count,
                 "segments_count": segments_count,
+                "fragmentation_pct": fragmentation_pct,
                 "optimizer_status": str(optimizer_status),
                 "dimension": self._qdrant._dimension,
             }
+
+            # Push to Prometheus so /api/metrics reflects live index health
+            get_metrics_collector().update_collection_stats(
+                size_vectors=points_count,
+                size_mb=0,
+                fragmentation_pct=fragmentation_pct,
+                segment_count=segments_count,
+            )
+
+            # Log at appropriate level
+            if status == "red":
+                logger.warning(f"VectorIndexOptimizer: CRITICAL health: {health}")
+            elif status == "yellow":
+                logger.info(f"VectorIndexOptimizer: degraded health: {health}")
+
+            # Trigger auto-reopt if fragmentation is high
+            if fragmentation_pct > 30:
+                logger.info(f"VectorIndexOptimizer: auto-triggering reopt (fragmentation={fragmentation_pct}%)")
+                self.trigger_optimizer()
+
+            return health
         except Exception as exc:
             logger.warning(f"VectorIndexOptimizer: health check failed: {exc}")
             return {

@@ -48,7 +48,6 @@ class QdrantClientManager:
     # Shared between fresh-creation and existing-collection/race-handler paths.
     _PAYLOAD_INDEXES: list[tuple[str, str]] = [
         ("raptor_level", "integer"),
-        ("phonetic_tokens", "keyword"),
         ("source_url", "keyword"),
         ("source_type", "keyword"),
         ("language", "keyword"),
@@ -209,7 +208,7 @@ class QdrantClientManager:
                         )
                     logger.info(
                         f"Created collection: {self._collection} "
-                        f"(dense={self._dimension}d + sparse, raptor_level, phonetic, text-FTS, teacher_id, and metadata indexes)"
+                        f"(dense={self._dimension}d + sparse, raptor_level, text-FTS, teacher_id, and metadata indexes)"
                     )
             else:
                 logger.info(f"Collection exists: {self._collection}")

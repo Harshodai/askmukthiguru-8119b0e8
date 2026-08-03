@@ -51,7 +51,9 @@ CacheCheck → CircuitBreaker → RequestState → InputGuardrail → DoctrineCa
 
 `OKFStore.list_entries()` uses `rglob` — the teacher-subdir layout (`sri-preethaji/`, `sri-krishnaji/`, `shared/`) requires recursion — and keeps `staging/` and `_scripts/` out with an explicit `_excluded_parts` filter (`okf_store.py`). The **filter, not glob depth, is the review gate**: `staging/` holds unreviewed, LLM-generated doctrine that `extract_okf(auto_approve=False)` writes after every ingested video, and it must never reach `compiled.json`. Never remove that filter; and never revert to a non-recursive `glob` (it would silently drop every teacher-subdir teaching). See `tests/test_okf_pipeline_integrity.py`.
 
-One extractor only: `backend/scripts/extract_okf_from_stores.py` (imported by `ingest/pipeline.py:244`, `tasks/okf_extract_tasks.py:43`, `app/api/admin.py:699`). Its LLM chain must keep all three fallbacks — multi-provider → OpenRouter → Ollama — or extraction raises under `LLM_PROVIDER=ollama`.
+The extractor is imported from `backend/scripts/extract_okf_from_stores.py` (by `ingest/pipeline.py:244`, `tasks/okf_extract_tasks.py:43`, `app/api/admin.py:699`), but it ships as **two tracked copies** — the repo root has `scripts/extract_okf_from_stores.py`, added in the same commit (`1af838ee`) and never removed. Keep them byte-identical: `tests/test_okf_pipeline_integrity.py::test_extractor_copies_are_identical` fails on drift. Its LLM chain must keep all three fallbacks — multi-provider → OpenRouter → Ollama — or extraction raises under `LLM_PROVIDER=ollama`.
+
+**Ops scripts are the opposite rule — one canonical home, `backend/scripts/ops/`.** That tree and the repo-root `scripts/ops/` are unrelated collections that merely share a directory name; nothing syncs them. A same-named file in both drifts silently, and a backend ops script copied to the root is broken anyway (`_BACKEND = Path(__file__).resolve().parents[2]` resolves to the repo root there, not `backend/`). Guarded by `tests/test_repo_layout.py`.
 
 After changing OKF entries, recompile **and restart** the backend: `_OKF_CACHE` in `rag/nodes/retrieval.py` is a per-process cache.
 

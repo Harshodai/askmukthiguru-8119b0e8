@@ -67,8 +67,17 @@ async def test_feedback_lessons_mining():
     mock_container.ollama = AsyncMock()
     mock_container.ollama.generate.return_value = '{"category": "hallucination", "analysis": "Refined correctly", "suggested_correction": "Add rule"}'
 
-    # Mock container in refiner background task
-    with patch("app.core.refiner.get_container", return_value=mock_container):
+    # Mock the container everywhere it's actually built. `app.api.feedback.
+    # submit_feedback` calls the REAL `app.dependencies.get_container()`
+    # directly and unmocked — building it triggers full infra init
+    # (QdrantService.init_collection) against `QDRANT_URL=http://qdrant:6333`,
+    # a hostname that only resolves inside the docker network, not from the
+    # host running pytest. The refiner background-task patch alone doesn't
+    # cover this; both call sites need the mock.
+    with (
+        patch("app.core.refiner.get_container", return_value=mock_container),
+        patch("app.dependencies.get_container", return_value=mock_container),
+    ):
         # Post negative feedback (rating <= 0)
         response = client.post(
             "/feedback/",

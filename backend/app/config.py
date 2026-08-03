@@ -128,6 +128,37 @@ class Settings(BaseSettings):
     openrouter_classify_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     openrouter_rpm_limit: int = 20
 
+    # --- Re-ingest & Late Chunking Settings ---
+    reingest_openrouter_model: str = "google/gemma-3-12b-it"
+    reingest_llm_provider: str = "ollama"
+    # Default True so the committed config matches what the green collection
+    # actually contains. Every point in spiritual_wisdom_contextual carries
+    # pooling="mean", which only happens with late chunking on — meaning the run
+    # that built it used an env override the repo did not encode. Anyone
+    # re-running from committed defaults would have produced pooling="cls"
+    # vectors and silently MIXED pooling modes in one collection; mean-pooled and
+    # CLS-pooled vectors sit ~0.757 cosine apart, so mixing them corrupts ranking
+    # for every query without failing anything.
+    reingest_late_chunking: bool = True
+    late_chunk_window_tokens: int = Field(default=2048, gt=2)
+    late_chunk_window_batch_size: int = Field(default=4, ge=1)
+    # In-flight contextualizer LLM calls. 8 suits a hosted endpoint (calls are
+    # network-bound); _contextualize() clamps it back to 3 for local Ollama,
+    # where extra concurrency only queues behind one model.
+    reingest_contextualizer_concurrency: int = Field(default=8, ge=1, le=32)
+    # Characters of the surrounding document sent with each chunk so the model
+    # can situate it. 8,000 was sized for a local Ollama context window and, on
+    # The_Four_Sacred_Secrets.pdf, meant every chunk saw the first and last 4,000
+    # chars of a 424,302-char book — 1.9% of it, and the wrong 1.9%. Units are
+    # now book SECTIONS averaging ~18k chars, so 24,000 fits most whole. Gemma-3
+    # carries a 128k window; this is a cost/latency bound, not a model limit.
+    reingest_contextualizer_doc_chars: int = Field(default=24_000, ge=1_000, le=200_000)
+    # Chunks per encode_batch call. Bounds peak memory to a function of batch
+    # size rather than source length — a single encode over all 332 chunks of one
+    # source OOM-killed the whole Docker stack on 2026-08-01. 32 measured at
+    # 3.1/7 GB peak; raise only with a memory reading, never on reasoning alone.
+    reingest_embed_batch_size: int = Field(default=32, ge=1, le=256)
+
     # --- Gemini translation (layered ahead of Sarvam via OpenRouter) ---
     gemini_translation_enabled: bool = True
     gemini_model: str = "google/gemini-3.6-flash"
@@ -152,6 +183,17 @@ class Settings(BaseSettings):
     # Higher values improve recall at the cost of extra compute during search.
     qdrant_quantization_oversampling: float = 3.0
 
+    # Hybrid search fusion strategy: "rrf" (Reciprocal Rank Fusion, rank-based,
+    # unweighted — Qdrant's Fusion enum has no weight parameter) or "dbsf"
+    # (Distribution-Based Score Fusion — normalizes score distributions before
+    # merging, can favor one channel more when score ranges differ). Default
+    # matches current production behavior.
+    qdrant_fusion_strategy: str = "rrf"
+    # RRF has no native weight knob, so channel influence is tuned indirectly via
+    # prefetch pool size: a larger candidate pool from one channel gives it more
+    # chances to rank into the fused top-K. 1.0 = current behavior (limit + 5 each).
+    qdrant_dense_prefetch_multiplier: float = 1.0
+    qdrant_sparse_prefetch_multiplier: float = 1.0
 
     # --- Chunking Strategies ---
     use_boundary_chunker: bool = True  # Respect sentence and verse boundaries
@@ -205,6 +247,7 @@ class Settings(BaseSettings):
     # flip in production without a full re-index — see
     # scripts/validate_onnx_embedding.py.
     embedding_backend: str = "flagembedding"
+    embed_torch_threads: int = Field(default=1, ge=1)
     hf_revision: Optional[str] = None
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
     # CPU-only deployments (Railway) must NOT run bge-reranker-v2-m3:
@@ -222,11 +265,13 @@ class Settings(BaseSettings):
     enable_colbert: bool = False
 
     # --- Whisper / Transcription ---
-    whisper_model: str = "large-v3"  # Whisper model size
-    whisper_backend: str = (
-        "faster-whisper"  # Backend: 'faster-whisper' (4x faster) or 'openai-whisper'
-    )
-    whisper_compute_type: str = "float16"  # GPU: float16, CPU: int8 or float32
+    # `whisper_model`, `whisper_backend` and `whisper_compute_type` were removed
+    # on 2026-08-02: nothing read them. Transcription runs through WhisperX
+    # (`whisperx_*` below, read in services/whisper_local_service.py) or MLX
+    # (`whisper_local_model`). docker-compose.yml set all three as env vars, so
+    # the deployed stack was "configuring" Whisper through knobs the code
+    # ignored — WHISPER_MODEL=medium would have applied silently to nothing.
+    # Configure WHISPERX_MODEL / WHISPERX_COMPUTE_TYPE / WHISPERX_DEVICE instead.
     whisper_local_model: str = "mlx-community/whisper-large-v3-turbo"
 
     # --- WhisperX (word-level alignment + diarization) ---
@@ -411,7 +456,11 @@ class Settings(BaseSettings):
     bm25_result_limit: int = 10
     rag_compression_similarity_threshold: float = 0.50
     rag_context_compression_enabled: bool = False
-    rag_okf_injection_enabled: bool = True   # OKF as canonical knowledge layer (enabled by default)
+    # Stays True. The OKF bundle was cleared on 2026-08-01 for a clean rebuild from
+    # the green corpus, so injection currently finds an empty index and contributes
+    # nothing — harmless, and it means the layer switches back on by itself as soon
+    # as entries are re-extracted, reviewed, and recompiled.
+    rag_okf_injection_enabled: bool = True   # OKF as canonical knowledge layer
     rag_okf_auto_extract_enabled: bool = True  # post-ingestion OKF extraction; hardened w/ Celery retry + logging
 
     # --- FlashRank Reranking & Ingestion Service Config ---

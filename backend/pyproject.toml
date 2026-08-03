@@ -137,6 +137,8 @@ norecursedirs = [
 python_files = ["test_*.py"]
 markers = [
     "unit: Unit tests",
+    "integration: Requires live infra (Qdrant/embedding model) — skips gracefully if unavailable",
+    "slow: Opt-in stress/benchmark tests, not run by default",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

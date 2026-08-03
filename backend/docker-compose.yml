@@ -194,10 +194,13 @@ services:
       - HF_HOME=/app/model_cache/huggingface
       - TRANSFORMERS_CACHE=/app/model_cache/huggingface
       - SENTENCE_TRANSFORMERS_HOME=/app/model_cache/sentence_transformers
-      # Whisper / Transcription
-      - WHISPER_MODEL=large-v3
-      - WHISPER_BACKEND=faster-whisper
-      - WHISPER_COMPUTE_TYPE=float16
+      # Whisper / Transcription — WHISPER_MODEL / WHISPER_BACKEND /
+      # WHISPER_COMPUTE_TYPE were set here but read by nothing; removed rather
+      # than renamed. The live path is WhisperX, whose defaults (model large-v3,
+      # device auto, compute_type auto) already match what these claimed.
+      # compute_type is deliberately NOT pinned to float16: that was never in
+      # effect, and forcing it on a CPU host fails at load. Set WHISPERX_* here
+      # only after measuring on the target hardware.
       - TRANSCRIPT_LANGUAGES=en,hi,bn,te,mr,ta,ur,gu,kn,ml,or,pa,as,mai,sa,ks,ne,sd,kok,doi,mni,sat,brx
       - TRANSCRIPT_CONCURRENT_WORKERS=4
       - OCR_LANGUAGES=en,hi

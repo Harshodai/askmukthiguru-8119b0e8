@@ -224,6 +224,15 @@ async def _background_startup_body(container, fastapi_app) -> None:
     """
     import app.dependencies as _app_deps
 
+    # Advisory-only: warn if Qdrant server predates sparse-vector support (>= 1.8)
+    try:
+        from app.qdrant_version_check import check_qdrant_version
+        _vclient = _get_qdrant_service_client(container)
+        if _vclient:
+            check_qdrant_version(_vclient)
+    except Exception as e:
+        logger.info(f"Lifespan: Qdrant version check skipped (non-critical): {e}")
+
     # Seed Neo4j Spiritual Ontology Schema (non-blocking, best-effort)
     logger.info("Lifespan: about to seed ontology...")
     try:

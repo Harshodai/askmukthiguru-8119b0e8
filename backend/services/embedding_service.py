@@ -97,6 +97,10 @@ class EmbeddingService:
         self._colbert = None
         self._onnx_session = None
         self._onnx_tokenizer = None
+        # Dedicated torch backbone for late chunking (see _torch_backbone) —
+        # separate from self._encoder so encode_batch can stay on ONNX INT8.
+        self._late_chunk_transformer = None
+        self._late_chunk_tokenizer = None
         self._lock = threading.Lock()
         self._inference_lock = threading.RLock()
         # REQUIRED for multilingual-e5-large-instruct
@@ -118,15 +122,20 @@ class EmbeddingService:
         logger.info("Embedding service warm-up complete")
 
     def _thread_setup(self) -> None:
-        """Common PyTorch/CPU thread setup to keep memory low."""
-        import os
-        os.environ["OMP_NUM_THREADS"] = "1"
-        os.environ["MKL_NUM_THREADS"] = "1"
-        os.environ["OPENBLAS_NUM_THREADS"] = "1"
-        os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-        os.environ["NUMEXPR_NUM_THREADS"] = "1"
+        """Pin PyTorch CPU thread pools to ``settings.embed_torch_threads`` (default 1).
+
+        One thread is the right default for the API server: many concurrent
+        requests each spawning a full BLAS thread pool multiplies memory and
+        thrashes the scheduler, so the cap keeps a serving pod predictable.
+        """
         import torch
-        torch.set_num_threads(1)
+
+        threads = settings.embed_torch_threads
+        torch.set_num_threads(threads)
+        try:
+            torch.set_num_interop_threads(threads)
+        except RuntimeError:
+            pass
 
     def _get_device(self) -> str:
         import torch
@@ -214,11 +223,16 @@ class EmbeddingService:
                 model_kwargs={"low_cpu_mem_usage": True},
             )
 
-    # No hardcoded revision: the 3a90cc8b hash 404s on HuggingFace.
-    # Set HF_REVISION env var to a confirmed commit hash before enabling the
-    # ONNX backend. _load_onnx_encoder will raise if neither source provides a
-    # revision (fail-closed: never download an unversioned HEAD).
-    _ONNX_ENCODER_REVISION: str | None = None
+    # The 3a90cc8b hash this used to carry 404s on HuggingFace — CLAUDE.md still
+    # claimed it was "pinned" and working, and Dockerfile.railway still baked the
+    # image against it, discovered 2026-08-01 while verifying the ONNX path for
+    # the corpus-remediation pilot (`EMBEDDING_BACKEND=onnx_int8` was broken in
+    # every local environment this session touched it in). Re-resolved live via
+    # `HfApi().model_info('gpahal/bge-m3-onnx-int8').sha` on 2026-08-01;
+    # last_modified 2025-06-25, i.e. the repo has been static since — the SHA
+    # is a real pin, not a moving target. `HF_REVISION` env still overrides this
+    # for a future re-pin. Do not bump to a repo head.
+    _ONNX_ENCODER_REVISION: str | None = "2b34e84df040034d4b9eabb62383a87c18955822"
 
     # Immutable commit SHA of BAAI/bge-m3, resolved from the HF API on
     # 2026-08-01 and cross-checked against the gpahal/bge-m3-onnx-int8 encoder
@@ -926,6 +940,237 @@ class EmbeddingService:
                 f"Raising last error: {last_err}"
             )
             raise last_err
+
+    # ------------------------------------------------------------------
+    # Late chunking (plan §6.3 / arXiv:2409.04701)
+    #
+    # Embed the WHOLE document once, then mean-pool token vectors per chunk
+    # span. Every chunk embedding then carries the surrounding discourse with
+    # zero extra LLM calls — which matters for transcripts, where a chunk's
+    # referents ("this", "that state", "he said") live in neighbouring chunks.
+    #
+    # Two things measured on 2026-08-01 constrain the implementation:
+    #
+    #  1. `encode_with_colbert` looks like the right input — it already returns
+    #     per-token vectors of shape [n_valid, 1024] — but it is NOT. The
+    #     ColBERT head is a separate linear projection: pooling it lands at
+    #     cosine -0.041 to the dense query space, i.e. orthogonal. It would
+    #     produce plausible floats and near-random retrieval, with no error.
+    #     The correct source is `last_hidden_state`, whose CLS token IS the
+    #     dense vector (measured cosine 0.914 against the production encoder).
+    #
+    #  2. The ONNX export emits only dense/sparse/colbert — no
+    #     `last_hidden_state` — so late chunking requires the PyTorch path.
+    #     This method raises rather than silently falling back to a vector
+    #     space the caller did not ask for.
+    #
+    # BGE-M3 pools with CLS while late chunking pools with mean (cosine 0.757
+    # between them), so queries must ALSO be mean-pooled — see
+    # `encode_query_mean_pooled`. Late-chunked and CLS-chunked vectors cannot
+    # share a collection.
+    # ------------------------------------------------------------------
+
+    # Window size for late chunking, in tokens. NOT the model's 8192 limit —
+    # transformer attention is O(n^2) in memory, and 8192 tokens is ~4.3 GB for a
+    # single attention matrix (8192^2 x 16 heads x 4 bytes). A 2026-08-01 pilot run
+    # with an 8190-token window was SIGKILLed by the OOM killer partway through
+    # embedding: no traceback, no result file, just a vanished process — the
+    # failure mode that looks like a hang.
+    #
+    # 2048 keeps peak attention near 270 MB while still giving each chunk ~5
+    # chunks' worth of surrounding discourse (a 1500-char chunk is ~375 tokens),
+    # which is where most of late chunking's benefit lives. Raise it only with
+    # headroom measured on the target host.
+    @property
+    def _LATE_CHUNK_MAX_TOKENS(self) -> int:
+        return settings.late_chunk_window_tokens
+
+    def _torch_backbone(self):
+        """Return (transformer, tokenizer) for a DEDICATED PyTorch BGE-M3 backbone.
+
+        Loaded independently of ``self._encoder`` / ``self._onnx_session`` — those
+        follow ``settings.embedding_backend`` (ONNX INT8 in production, ~570MB,
+        3.08x faster per a 2026-08-01 measurement) and stay on that path for
+        ``encode_batch``. Late chunking's only requirement is ``last_hidden_state``,
+        which no ONNX export here emits, so it gets its own small torch instance
+        (~2.3GB) rather than forcing the whole service onto the slower backend.
+        Loaded once and cached; both backbones coexisting is ~2.9GB, which fits
+        the memory budget that OOM-killed earlier all-torch pilot runs.
+        """
+        if self._late_chunk_transformer is not None:
+            return self._late_chunk_transformer, self._late_chunk_tokenizer
+
+        with self._lock:
+            if self._late_chunk_transformer is not None:
+                return self._late_chunk_transformer, self._late_chunk_tokenizer
+
+            _apply_hf_env_bounds()
+            from huggingface_hub import snapshot_download
+            from FlagEmbedding import BGEM3FlagModel
+
+            logger.info("Loading dedicated torch backbone for late chunking: BAAI/bge-m3@%s", self._ONNX_TOKENIZER_REVISION)
+            local_path = snapshot_download(
+                repo_id="BAAI/bge-m3",
+                revision=self._ONNX_TOKENIZER_REVISION,
+            )
+            model = BGEM3FlagModel(local_path, use_fp16=False, device="cpu")
+            transformer = getattr(getattr(model, "model", None), "model", None)
+            tokenizer = getattr(getattr(model, "model", None), "tokenizer", None) or getattr(
+                model, "tokenizer", None
+            )
+            if transformer is None or tokenizer is None:
+                raise RuntimeError(
+                    "Could not reach the BGE-M3 PyTorch backbone — late chunking unavailable."
+                )
+            self._late_chunk_transformer = transformer
+            self._late_chunk_tokenizer = tokenizer
+            return transformer, tokenizer
+
+    def _stream_pooled_spans(
+        self, document: str, spans: list[tuple[int, int]]
+    ) -> list[list[float]]:
+        """Mean-pool token vectors per char span, one window at a time.
+
+        Memory is O(len(spans)) rather than O(document tokens): only the running
+        per-span sum is retained, and each window's hidden states are released
+        as soon as they have been folded in. Holding the whole document's token
+        vectors — an [n_tokens, dim] float32 array — is what OOM-killed the
+        2026-08-01 pilot container (exit 137) on a long transcript. For ~300
+        chunks the accumulator is ~1.2 MB regardless of transcript length.
+
+        Windows overlap by 25% so a chunk sitting on a seam still draws context
+        from both sides instead of being truncated at the boundary.
+        """
+        import numpy as np
+        import torch
+
+        dim = settings.embedding_dimension
+        max_tokens = settings.late_chunk_window_tokens
+        window = max_tokens - 2  # room for CLS/EOS
+        if window <= 0:
+            raise ValueError(
+                f"Invalid late chunk window tokens size {max_tokens} "
+                f"(window after CLS/EOS overhead is {window} <= 0). Must be > 2."
+            )
+
+        transformer, tokenizer = self._torch_backbone()
+        enc = tokenizer(
+            document,
+            return_offsets_mapping=True,
+            add_special_tokens=False,
+            truncation=False,
+            return_tensors=None,
+        )
+        ids = enc["input_ids"]
+        offsets = enc["offset_mapping"]
+        n = len(ids)
+        if n == 0 or not spans:
+            return [[0.0] * dim for _ in spans]
+
+        tok_starts = np.fromiter((o[0] for o in offsets), dtype=np.int64, count=n)
+        tok_ends = np.fromiter((o[1] for o in offsets), dtype=np.int64, count=n)
+
+        acc = np.zeros((len(spans), dim), dtype=np.float32)
+        counts = np.zeros(len(spans), dtype=np.float32)
+
+        stride = max(1, int(window * 0.75))
+        cls_id = tokenizer.cls_token_id
+        eos_id = tokenizer.eos_token_id
+        pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else eos_id
+        window_bounds = [(s, min(s + window, n)) for s in range(0, n, stride)]
+        n_windows = len(window_bounds)
+        window_start_time = time.monotonic()
+
+        # Batch windows together instead of one forward pass per window. A lone
+        # window is [1, seq_len] — the CPU does one matmul per call, paying full
+        # dispatch/thread-pool setup overhead each time for work BLAS could fuse
+        # into one larger call. Grouping WINDOW_BATCH windows into a single
+        # [B, max_len] padded tensor turns N small matmuls into N/B larger ones,
+        # which is the standard throughput lever for CPU transformer inference
+        # (same principle as encode_batch's own batching, applied one level down).
+        #
+        # Bounded to 4, not "as many as fit": attention is O(seq_len^2) per item,
+        # so batching multiplies that memory by the batch size — 4 * ~270MB (the
+        # 2048-token budget from the OOM postmortem above) is ~1.1GB, still well
+        # inside the headroom this run has after the 2026-08-01 all-torch OOM.
+        window_batch_size = max(1, int(getattr(settings, "late_chunk_window_batch_size", 4)))
+
+        for wb_start in range(0, n_windows, window_batch_size):
+            wb = window_bounds[wb_start : wb_start + window_batch_size]
+            lengths = [(e - s) + 2 for s, e in wb]  # +2 for CLS/EOS
+            max_len = max(lengths)
+
+            input_ids = torch.full((len(wb), max_len), pad_id, dtype=torch.long)
+            attn = torch.zeros((len(wb), max_len), dtype=torch.long)
+            for row, ((s, e), length) in enumerate(zip(wb, lengths)):
+                seq = [cls_id] + ids[s:e] + [eos_id]
+                input_ids[row, :length] = torch.tensor(seq, dtype=torch.long)
+                attn[row, :length] = 1
+
+            with torch.inference_mode():
+                hidden = transformer(input_ids=input_ids, attention_mask=attn).last_hidden_state
+
+            for row, ((s, e), length) in enumerate(zip(wb, lengths)):
+                body = hidden[row, 1 : length - 1].to(torch.float32).cpu().numpy()  # strip CLS/EOS
+                w_starts = tok_starts[s:e]
+                w_ends = tok_ends[s:e]
+                for si, (span_start, span_end) in enumerate(spans):
+                    mask = (w_ends > span_start) & (w_starts < span_end)
+                    hit = int(mask.sum())
+                    if hit:
+                        acc[si] += body[mask].sum(axis=0)
+                        counts[si] += hit
+            del hidden
+
+            # Silent otherwise between "start" and "done" — the embed batch loop
+            # got the same treatment earlier for the same reason: elapsed + ETA
+            # beats inferring progress from memory drift.
+            logger.info(
+                "Late chunking: windows %d-%d/%d (%d tokens total, %.1fs elapsed)",
+                wb_start + 1, wb_start + len(wb), n_windows, n,
+                time.monotonic() - window_start_time,
+            )
+
+        out: list[list[float]] = []
+        for si in range(len(spans)):
+            if counts[si] == 0:
+                out.append([0.0] * dim)
+                continue
+            pooled = acc[si] / counts[si]
+            norm = float(np.linalg.norm(pooled))
+            out.append((pooled / norm).tolist() if norm > 0 else [0.0] * dim)
+        return out
+
+    def encode_late_chunked(
+        self, document: str, spans: list[tuple[int, int]]
+    ) -> list[list[float]]:
+        """Embed ``document`` once, then mean-pool per ``(start, end)`` char span.
+
+        Returns one L2-normalized dim-vector per span, in the same order.
+        A span with no overlapping tokens yields a zero vector — the caller
+        should drop it rather than index a meaningless point.
+        """
+        if not spans:
+            return []
+        with self._inference_lock:
+            return self._stream_pooled_spans(document, spans)
+
+    def encode_query_mean_pooled(self, query: str) -> list[float]:
+        """Mean-pooled query vector, for searching a late-chunked collection.
+
+        BGE-M3's normal dense vector is CLS-pooled; late-chunked documents are
+        mean-pooled, and the two sit ~0.757 cosine apart. Querying a
+        late-chunked collection with a CLS vector compares across that gap on
+        every single search, so the query side must pool the same way.
+        """
+        dim = settings.embedding_dimension
+        if not query:
+            return [0.0] * dim
+        # One span covering the whole query is the same mean pool, and reuses
+        # the streaming path so both sides share one implementation.
+        with self._inference_lock:
+            pooled = self._stream_pooled_spans(query, [(0, len(query))])
+        return pooled[0] if pooled else [0.0] * dim
 
     async def encode_with_colbert_async(self, texts: list[str]) -> dict:
         """Async GIL-escape wrapper for encode_with_colbert()."""

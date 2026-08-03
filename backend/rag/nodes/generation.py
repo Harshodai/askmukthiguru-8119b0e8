@@ -9,6 +9,7 @@ import re
 from app.tracing import trace_rag_node
 from rag.compressor import cap_to_token_budget
 from rag.doc_utils import doc_text, sort_docs_canonically
+from services.context_compressor import ContextBudgetManager
 from rag.prompts import (
     CANONICAL_URLS_LOGISTICS,
     FALLBACK_RESPONSE,
@@ -273,13 +274,29 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
     else:
         knowledge_budget = 3072  # standard
 
+    knowledge_docs = [
+        doc
+        for doc in relevant_docs
+        if doc.get("content_type") not in ("graph_summary", "lightrag_relationship_summary")
+        and doc.get("source_url") != "knowledge_graph"
+    ]
+
+    # Budget-aware selection: pick which docs survive the token budget by
+    # relevance (rerank_score) BEFORE the cache-friendly hash sort, instead of
+    # hash-sorting first and blindly truncating the tail — a blind tail-cut
+    # can silently drop the single most relevant doc if its hash happens to
+    # sort it last. sort_docs_canonically still runs on the *survivors* so the
+    # prompt-cache hit-rate benefit (85-95% per doc_utils.py) is unaffected.
+    est_knowledge_tokens = sum(len(doc_text(doc)) for doc in knowledge_docs) // 4
+    if est_knowledge_tokens > knowledge_budget:
+        wrapped = [{"content": doc_text(doc), "relevance": doc.get("rerank_score", 0.0), "_orig": doc} for doc in knowledge_docs]
+        budget_mgr = ContextBudgetManager(total_budget=knowledge_budget)
+        selection = budget_mgr.compress(wrapped)
+        knowledge_docs = [w["_orig"] for w in selection["selected_chunks"]]
+
     knowledge = "\n\n".join(
-        [
-            f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc_text(doc)}"
-            for doc in relevant_docs
-            if doc.get("content_type") not in ("graph_summary", "lightrag_relationship_summary")
-            and doc.get("source_url") != "knowledge_graph"
-        ]
+        f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc_text(doc)}"
+        for doc in sort_docs_canonically(knowledge_docs)
     )
     knowledge = cap_to_token_budget(knowledge, knowledge_budget)
 

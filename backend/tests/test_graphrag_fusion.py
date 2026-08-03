@@ -107,12 +107,21 @@ def test_dual_channel_corroboration_boost():
 
 
 def test_self_test():
-    """Run the module's self-test entry point."""
+    """Run the module's self-test entry point.
+
+    ``cwd`` must resolve from this file, not a hardcoded "backend" string —
+    that assumed invocation from the repo root, but pytest here runs FROM
+    backend/, so "backend" resolved to the non-existent backend/backend and
+    the subprocess failed with FileNotFoundError before it could even start.
+    """
     import subprocess
     import sys
+    from pathlib import Path
+
+    backend_dir = Path(__file__).resolve().parents[1]
     result = subprocess.run(
         [sys.executable, "-m", "services.graphrag_fusion"],
-        capture_output=True, text=True, cwd="backend",
+        capture_output=True, text=True, cwd=str(backend_dir),
         timeout=30,
     )
     assert result.returncode == 0, f"stdout: {result.stdout}, stderr: {result.stderr}"

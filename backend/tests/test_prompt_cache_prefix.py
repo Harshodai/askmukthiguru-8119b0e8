@@ -66,6 +66,38 @@ async def test_context_engineer_prefix_cache_stability():
     assert knowledge_a == knowledge_b, "Context engineer produced different knowledge blocks for identical doc sets!"
 
 
+@pytest.mark.asyncio
+async def test_context_engineer_keeps_most_relevant_doc_when_over_budget():
+    """When retrieved docs exceed the tier's knowledge budget, the surviving
+    content must be chosen by relevance (rerank_score), not by whichever doc
+    happens to sort first/last in the cache-friendly hash order. Regression
+    test for the blind-tail-truncation bug: sort_docs_canonically sorts by
+    SHA256 hash (deliberately, for prompt-cache hit rate), which has no
+    relationship to relevance — truncating that hash-ordered blob could
+    silently drop the single most relevant doc."""
+    # fast/tier2_simple budget is 1536 tokens (~6144 chars at the cap_to_token_budget
+    # word-based estimate) — three ~2500-char docs comfortably exceed it together.
+    filler_low = "irrelevant tangential content " * 90  # ~2700 chars
+    filler_mid = "somewhat related background material " * 90  # ~3400 chars
+    filler_high = "the single most directly relevant teaching passage " * 90  # ~4700 chars
+
+    doc_low = {"title": "Low", "text": filler_low, "rerank_score": 0.1}
+    doc_mid = {"title": "Mid", "text": filler_mid, "rerank_score": 0.5}
+    doc_high = {"title": "High", "text": filler_high, "rerank_score": 0.95}
+
+    state = {
+        "intent": "FACTUAL",
+        "question": "What is the core teaching?",
+        "relevant_docs": [doc_low, doc_mid, doc_high],
+        "query_tier": "fast",
+    }
+
+    result = await context_engineer(state)
+    knowledge = result["context_layers"]["knowledge"]
+
+    assert "most directly relevant" in knowledge, "Highest-relevance doc must survive budget selection"
+
+
 def test_prompt_cache_telemetry_tracking():
     """Test telemetry module tracking cache events correctly."""
     prefix_h = compute_prompt_prefix_hash("System persona", "Sorted knowledge block")

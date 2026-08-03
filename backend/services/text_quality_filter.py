@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Iterable
+from typing import Iterable, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +69,14 @@ _ARTIFACT_PATTERNS: tuple[str, ...] = (
     r"\bReturn ONLY a JSON\b",
     r"\bDo NOT include reasoning\b",
     r"\bcomma-separated list\b",
+    # -- meta-prompt analysis / topic generation scaffolding --
+    r"\bThe system is analyzing\b",
+    r"\bCore Task\s*:",
+    r"\bThe output format is secondary\b",
+    r"\bGenerating a topic label\b",
+    r"\bRefining a list of potential topic\b",
+    r"\bevaluating (?:several|potential) topic labels\b",
+    r"\bDecompose a spiritual teaching\b",
     # -- transcription-correction commentary leaking into the teaching --
     r"\ba common transcription error\b",
     # -- known debug headers / unresolved provenance --
@@ -153,6 +161,113 @@ def select_clean(
         else:
             rejected.append((i, artifact, (chunk or "")[:80].replace("\n", " ")))
     return keep, rejected
+
+
+_REPEAT_ALARM_COUNT = 5
+
+
+def _normalize_for_repeat(text: str) -> str:
+    """Casefold + collapse whitespace, so trivial formatting drift still matches."""
+    return " ".join((text or "").split()).casefold()
+
+
+def collapse_repeats(
+    texts: Sequence[str],
+    sources: Sequence[str] | None = None,
+) -> tuple[list[int], list[tuple[str, int, str]]]:
+    """Keep the first occurrence of each repeated chunk in one write batch.
+
+    Returns ``(keep_indices, repeats)`` where ``repeats`` holds
+    ``(chunk_preview, copies_dropped, source)``, ordered worst-first. Callers
+    filter their parallel arrays by ``keep_indices``, same contract as
+    :func:`select_clean`.
+
+    Why this is not covered by :func:`has_repetition_loop`: that detects an
+    n-gram loop *within* one chunk. A generator stuck in a loop emits the same
+    chunk many times over, and each copy is individually innocent — the signal
+    only exists across the batch. The 2026-08-01 corpus measurement found
+    exactly this: 14,292 redundant copies traced to 2,134 distinct texts, the
+    worst being 227 identical copies under one ``source_url`` and one
+    ``parent_id`` with consecutive ``chunk_index`` values, whose body was a
+    header remnant plus a chain-of-thought topic label and no teaching at all.
+    ``make_point_id`` hashes ``chunk_index``, so every copy earned a distinct
+    point id and all 227 persisted.
+
+    Duplicates are keyed on ``(normalized_text, source)``: the same sentence
+    appearing in two different talks is legitimate repetition of a teaching and
+    is kept; the same sentence written twice for one source is redundant by
+    construction.
+    """
+
+
+def collapse_repeats(
+    texts: Sequence[str],
+    sources: Sequence[str] | None = None,
+    metadatas: Sequence[dict[str, Any]] | None = None,
+) -> tuple[list[int], list[tuple[str, int, str]]]:
+    """Collapse duplicate text chunks within a batch.
+
+    Duplicates are keyed on ``(normalized_text, source)``. The same sentence
+    appearing in two different talks is legitimate repetition and is kept;
+    the same sentence written twice for one source is redundant by
+    construction.
+
+    If ``metadatas`` is provided, the highest-authority representative is selected.
+    """
+    if sources is not None and len(sources) != len(texts):
+        raise ValueError(
+            f"Length mismatch: texts has {len(texts)} items but sources has {len(sources)} items."
+        )
+    if metadatas is not None and len(metadatas) != len(texts):
+        raise ValueError(
+            f"Length mismatch: texts has {len(texts)} items but metadatas has {len(metadatas)} items."
+        )
+
+    def _tier_rank(meta: dict[str, Any] | None) -> int:
+        if not meta:
+            return 0
+        tier = str(meta.get("authority_tier", "primary")).lower()
+        ranks = {"primary": 3, "secondary": 2, "tertiary": 1}
+        return ranks.get(tier, 0)
+
+    seen: dict[tuple[str, str], int] = {}
+    dropped: dict[tuple[str, str], int] = {}
+    keep: list[int] = []
+
+    for i, text in enumerate(texts):
+        source = str(sources[i]) if sources is not None else ""
+        key = (_normalize_for_repeat(text), source)
+        if not key[0]:
+            keep.append(i)  # empty/whitespace chunks are the quality gate's problem
+            continue
+        if key in seen:
+            dropped[key] = dropped.get(key, 0) + 1
+            if metadatas is not None:
+                prev_idx = seen[key]
+                if _tier_rank(metadatas[i]) > _tier_rank(metadatas[prev_idx]):
+                    keep_pos = keep.index(prev_idx)
+                    keep[keep_pos] = i
+                    seen[key] = i
+        else:
+            seen[key] = i
+            keep.append(i)
+
+    repeats = [
+        ((texts[seen[key]] or "")[:80].replace("\n", " "), count, key[1])
+        for key, count in dropped.items()
+    ]
+    repeats.sort(key=lambda r: -r[1])
+    return keep, repeats
+
+
+def is_repeat_alarm(repeats: Sequence[tuple[str, int, str]]) -> bool:
+    """True when a repeat count is high enough to mean an upstream generator loop.
+
+    A couple of duplicate chunks is ordinary. Five or more copies of one text
+    under one source is not redundancy — it is a writer that stopped advancing,
+    and the corpus damage is upstream of this gate.
+    """
+    return any(count >= _REPEAT_ALARM_COUNT for _, count, _ in repeats)
 
 
 def clean_topic_label(label: str, *, max_len: int = 60) -> str | None:

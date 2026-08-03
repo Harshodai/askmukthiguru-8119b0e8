@@ -41,7 +41,7 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 # CLAUDE.md "Embedding dimension contract". HF_HOME must match at runtime
 # (unset elsewhere, so this is the only place it's defined) for the encoder
 # load in embedding_service.py to hit this cache instead of re-downloading.
-# Pinned to commit hash 3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef so the
+# Pinned to commit hash 2b34e84df040034d4b9eabb62383a87c18955822 so the
 # digest is immutable across rebuilds — see lessons.md "Embedding dimension
 # contract" for the full incident analysis.
 ENV HF_HOME=/app/.cache/huggingface
@@ -50,7 +50,7 @@ USER appuser
 # Pre-cache the ONNX encoder used in production (EMBEDDING_BACKEND=onnx_int8).
 # This replaces the FlagEmbedding/PyTorch bake that was here before — that loaded
 # BGEM3FlagModel (PyTorch), which is NEVER used when onnx_int8 is the active backend.
-# Pinned to commit hash 3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef so the digest
+# Pinned to commit hash 2b34e84df040034d4b9eabb62383a87c18955822 so the digest
 # is immutable across rebuilds — see lessons.md "Embedding dimension contract".
 RUN python -c "\
 from huggingface_hub import snapshot_download; \
@@ -59,7 +59,7 @@ import os; \
 hf_home = os.environ.get('HF_HOME', '/app/.cache/huggingface'); \
 encoder_dir = Path(hf_home) / 'hub' / 'models--gpahal--bge-m3-onnx-int8'; \
 encoder_dir.mkdir(parents=True, exist_ok=True); \
-snapshot_download('gpahal/bge-m3-onnx-int8', revision='3a90cc8b42f5acec95e57c1e2433ba3b71ba9eef', local_dir=str(encoder_dir), local_dir_use_symlinks=False, ignore_patterns=['*.md', '*.py']); \
+snapshot_download('gpahal/bge-m3-onnx-int8', revision='2b34e84df040034d4b9eabb62383a87c18955822', local_dir=str(encoder_dir), local_dir_use_symlinks=False, ignore_patterns=['*.md', '*.py']); \
 print('BGE-M3 ONNX encoder pre-cached OK'); \
 reranker_dir = Path(hf_home) / 'hub' / 'models--temsa--mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8'; \
 reranker_dir.mkdir(parents=True, exist_ok=True); \

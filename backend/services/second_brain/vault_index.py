@@ -57,7 +57,12 @@ class VaultIndex:
             self._client = QdrantClient(path=settings.qdrant_local_path, check_compatibility=False)
         else:
             from qdrant_client import QdrantClient
-            self._client = QdrantClient(url=settings.qdrant_url, prefer_grpc=False, check_compatibility=False)
+            self._client = QdrantClient(
+                url=settings.qdrant_url,
+                api_key=getattr(settings, "qdrant_api_key", "") or None,
+                prefer_grpc=False,
+                check_compatibility=False,
+            )
         self._collection = collection
         self._dimension = settings.embedding_dimension
 

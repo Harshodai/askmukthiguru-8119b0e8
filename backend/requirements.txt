@@ -146,3 +146,10 @@ langdetect
 
 # Fast ONNX reranker (USE_FLASHRANK=true was silently falling back without it)
 flashrank>=0.2.10
+
+# Doctrine lexicon (services/doctrine_lexicon.py) — derived ASR variant
+# correction. jellyfish=metaphone, rapidfuzz=Jaro/Levenshtein, wordfreq=the
+# 200k English list that stops the corrector rewriting ordinary prose.
+jellyfish>=1.2.1      # MIT
+rapidfuzz>=3.14.5     # MIT
+wordfreq>=3.1.1       # Apache-2.0

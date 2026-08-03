@@ -1963,9 +1963,8 @@ class IngestionPipeline:
                         neo4j_entities = {r["name"].strip().lower() for r in active_res if r["name"]}
 
                     # 4. Synchronize Qdrant Vector Mismatches
-                    from qdrant_client import QdrantClient
-                    qdrant_url = getattr(settings, "qdrant_url", "http://localhost:6333")
-                    qdrant = QdrantClient(url=qdrant_url, timeout=15)
+                    qdrant_api_key = os.environ.get("QDRANT_API_KEY") or getattr(settings, "qdrant_api_key", "") or None
+                    qdrant = QdrantClient(url=qdrant_url, api_key=qdrant_api_key, timeout=15)
                     all_cols = {c.name for c in qdrant.get_collections().collections}
                     entity_cols = [c for c in all_cols if c.startswith("lightrag_vdb_entities_")]
                     

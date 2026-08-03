@@ -45,6 +45,59 @@ def test_whisper_prompt_and_llm_term_lines_derive_from_source():
     assert "Sri Preethaji" in correction_term_lines()
 
 
+def test_apply_corrections_also_runs_the_derived_lexicon():
+    """The map above is hand-typed, so it only ever covers what someone thought of.
+
+    "Ojas" is a real Ekam practice name that nobody added, so the corpus kept
+    "Ujash"/"Ujasi"/"Ojasi" from the same video that spelt it right 15 times.
+    apply_corrections must therefore chain the derived lexicon after the map —
+    otherwise the lexicon exists but corrects nothing, which is exactly the
+    failure mode this file was written to catch.
+    """
+    import services.doctrine_terms as module
+    from services.doctrine_lexicon import get_lexicon
+
+    src = Path(module.__file__).read_text(encoding="utf-8")
+    assert "doctrine_lexicon" in src, (
+        "apply_corrections no longer routes through the derived lexicon; the "
+        "hand-typed map alone cannot cover variants nobody typed."
+    )
+
+    if get_lexicon() is None:
+        return  # lexicon not built on this host — the fallback path, tested below
+    assert apply_corrections("The Ujash practice.") == "The Ojas practice."
+    assert apply_corrections("Ojasi meditation") == "Ojas meditation"
+
+
+def test_derived_lexicon_never_rewrites_ordinary_english():
+    """Precision is the property that matters: a false positive corrupts doctrine.
+
+    These pairs are the ones that broke earlier designs — `piece`/`peace` scores
+    HIGHER on similarity (0.880) than `ujash`/`ojas` (0.783), so no threshold can
+    separate them. Only vocabulary coverage can.
+    """
+    from services.doctrine_lexicon import get_lexicon
+
+    if get_lexicon() is None:
+        return
+    for word in ("peace", "piece", "soar", "steel", "bodhi", "citta", "soul", "shield"):
+        assert apply_corrections(f"the {word} here") == f"the {word} here", (
+            f"{word!r} — ordinary English — was rewritten"
+        )
+
+
+def test_missing_lexicon_degrades_to_the_curated_map(monkeypatch):
+    """A fresh checkout has no built lexicon. That must cost recall, never a crash."""
+    import services.doctrine_lexicon as lex
+
+    monkeypatch.setattr(lex, "_SHARED", None)
+    monkeypatch.setattr(lex, "_LOAD_FAILED", False)
+    monkeypatch.setattr(lex, "LEXICON_PATH", Path("/nonexistent/doctrine_lexicon.json"))
+    assert lex.get_lexicon() is None
+    assert apply_corrections("At Akam we practice.") == "At Ekam we practice."
+    lex.reload_lexicon()
+
+
 def test_no_stray_correction_dicts_in_call_sites():
     """The three correction points must route through doctrine_terms — no local dicts.
     This fails loudly if someone re-introduces a `REPLACEMENTS`/`FAST_REPLACEMENTS` map,

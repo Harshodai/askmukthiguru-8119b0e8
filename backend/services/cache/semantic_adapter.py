@@ -65,7 +65,12 @@ class SemanticCacheAdapter(ICacheRepository):
             if qdrant_path:
                 self._qdrant = QdrantClient(path=qdrant_path)
             else:
-                self._qdrant = QdrantClient(url=qdrant_url, check_compatibility=False, timeout=60.0)
+                self._qdrant = QdrantClient(
+                    url=qdrant_url,
+                    api_key=getattr(settings, "qdrant_api_key", "") or None,
+                    check_compatibility=False,
+                    timeout=60.0,
+                )
             self._init_collection()
             self._available = True
         except Exception as e:
@@ -251,6 +256,7 @@ class SemanticCacheAdapter(ICacheRepository):
             if timeout is not None:
                 qdrant = QdrantClient(
                     url=settings.qdrant_url,
+                    api_key=getattr(settings, "qdrant_api_key", "") or None,
                     timeout=timeout,
                     check_compatibility=False,
                 )
