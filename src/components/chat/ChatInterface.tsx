@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, Suspense, useDeferredValue, startTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw, Square, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -23,6 +23,7 @@ import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
 import { chatErrorBus } from '@/lib/chatErrorBus';
 import { buildGreeting, buildGreetingSubline } from '@/lib/greeting';
 import { useVisitContext } from '@/hooks/useVisitContext';
+import { useTranslation } from 'react-i18next';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
 import { MoodBanner } from '@/components/mood/MoodBanner';
@@ -34,13 +35,12 @@ import { memoryApi } from '@/lib/memoryApi';
 import { supabase } from '@/integrations/supabase/client';
 import { getLastCompletedMeditationTimestamp, loadMeditationSessions } from '@/lib/meditationStorage';
 import { hashMessages, getCachedResponse, setCachedResponse, clearResponseCache } from '@/lib/responseCache';
-import { ChatMessage } from './ChatMessage';
+import { ChatMessage, LazyWisdomCardGenerator } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
 import { ScrollToBottomFab } from './ScrollToBottomFab';
 import { MobileConversationSheet } from './MobileConversationSheet';
 import { DesktopSidebar, useSidebarCollapsed } from './DesktopSidebar';
 import { LanguageSelector, LANGUAGES } from './LanguageSelector';
-import { WisdomCardGenerator } from './WisdomCardGenerator';
 import { FloatingParticles } from '../landing/FloatingParticles';
 import { DailyTeaching } from './DailyTeaching';
 import { ChatEmptyState } from './ChatEmptyState';
@@ -81,13 +81,13 @@ import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const STARTER_CARDS = [
-  { id: 'reflect', icon: Compass, eyebrow: 'Reflect', prompt: 'What is the Beautiful State, and how do I begin?' },
-  { id: 'meditate', icon: Flower2, eyebrow: 'Meditate', prompt: 'Guide me through a short breathing meditation' },
-  { id: 'heal', icon: HeartIcon, eyebrow: 'Heal', prompt: "I'm feeling overwhelmed — help me find calm" },
-  { id: 'learn', icon: BookOpen, eyebrow: 'Learn', prompt: 'Share a teaching from Sri Preethaji on suffering' },
+  { id: 'reflect', icon: Compass, eyebrowKey: 'chat.starterCards.reflect.eyebrow', promptKey: 'chat.starterCards.reflect.prompt' },
+  { id: 'meditate', icon: Flower2, eyebrowKey: 'chat.starterCards.meditate.eyebrow', promptKey: 'chat.starterCards.meditate.prompt' },
+  { id: 'heal', icon: HeartIcon, eyebrowKey: 'chat.starterCards.heal.eyebrow', promptKey: 'chat.starterCards.heal.prompt' },
+  { id: 'learn', icon: BookOpen, eyebrowKey: 'chat.starterCards.learn.eyebrow', promptKey: 'chat.starterCards.learn.prompt' },
 ] as const;
 
-const STARTER_SUGGESTIONS = STARTER_CARDS.map((c) => c.prompt);
+const STARTER_SUGGESTIONS = STARTER_CARDS.map((c) => c.promptKey);
 
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -96,6 +96,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
 export const ChatInterface = () => {
   const { toast } = useToast();
   const { greetingContext } = useVisitContext();
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isIncognito, setIsIncognito] = useState(false);
@@ -202,6 +203,7 @@ export const ChatInterface = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | undefined>();
   const [streamingContent, setStreamingContent] = useState<string>('');
+  const deferredStreamingContent = useDeferredValue(streamingContent);
   const rotatingThinkingLabel = useThinkingStatus(isStreaming, streamingContent.length > 0);
   const { open: openSereneMind, setOnComplete: setSereneMindOnComplete } = useSereneMind();
   const [isAwaitingSereneMind, setIsAwaitingSereneMind] = useState(false);
@@ -1046,11 +1048,14 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
             rafScheduledRef.current = true;
             requestAnimationFrame(() => {
               if (rafScheduledRef.current) {
-                setStreamingContent(tokenBufferRef.current);
-                // Keep scrolling during streaming if near bottom
+                // Keep scrolling during streaming if near bottom; happens before setStreamingContent
                 if (isNearBottomRef.current && scrollContainerRef.current) {
                   scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
                 }
+                // Schedule deferred update so urgent interactions remain responsive.
+                startTransition(() => {
+                  setStreamingContent(tokenBufferRef.current);
+                });
               }
             });
           }
@@ -1131,7 +1136,7 @@ openSereneMind('audio', true);
             // Proactive: stream the teachings prelude as a guru message, then open gated after 7s
             const preludeText =
               streamedProactiveSereneMind.teachings_prelude ||
-              'Sri Preethaji and Sri Krishnaji reminds us: suffering is not the truth of who you are. Every moment of pain is also a doorway to awakening. Please do Serene Mind now to continue. You can type "do serene mind now" or click the button below to start.';
+              t('chat.proactivePrelude.streaming');
             setMessages((prev) => [
               ...prev,
               {
@@ -1311,7 +1316,7 @@ openSereneMind('audio');
           // Proactive gated path with 7s teachings prelude
           const preludeText =
             response.proactiveSereneMind?.teachings_prelude ||
-            'Sri Preethaji and Sri Krishnaji remind us: suffering is not the truth of who you are. Every moment of pain is also a doorway to awakening. Please do Serene Mind now to continue. You can click the button below to start.';
+            t('chat.proactivePrelude.standard');
           setMessages((prev) => [
             ...prev,
             {
@@ -1681,6 +1686,8 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     }
   }
   // Ctrl/Cmd+Enter sends; plain Enter still sends (legacy); Shift+Enter = newline.
+  // IME composition guard: ignore Enter while composing characters (e.g. CJK, Devanagari)
+  if (e.nativeEvent.isComposing || (e.nativeEvent as any).keyCode === 229) return;
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     handleSubmit(e);
@@ -1845,12 +1852,12 @@ return (
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.25 + idx * 0.05 }}
-                    onClick={() => handleSuggestionClick(card.prompt)}
+                    onClick={() => handleSuggestionClick(t(card.promptKey))}
                     className="group flex items-center gap-1.5 px-4 py-2 rounded-full border border-hairline bg-card/60 hover:bg-ojas/10 hover:border-ojas/40 text-xs text-muted-foreground/90 hover:text-foreground transition-all no-tap-highlight"
-                    title={card.prompt}
+                    title={t(card.promptKey)}
                   >
                     <card.icon className="w-3 h-3 text-ojas/70 group-hover:text-ojas transition-colors flex-shrink-0" />
-                    <span className="font-medium">{card.eyebrow}</span>
+                    <span className="font-medium">{t(card.eyebrowKey)}</span>
                   </motion.button>
                 ))}
               </motion.div>
@@ -1886,7 +1893,7 @@ return (
                 <MessageList
                   messages={messages}
                   streamingId={streamingMessageId}
-                  streamingContent={streamingContent}
+                  streamingContent={deferredStreamingContent}
                   onRegenerate={handleRegenerate}
                   onEditUserMessage={undefined}
                   onSubmitEdit={handleSubmitEdit}
@@ -2175,17 +2182,20 @@ return (
       onClose={() => setShowGuidedMeditation(false)}
     />
 
-    {/* Quick Wisdom Card — portaled to body to avoid sidebar z-index conflicts */}
+    {/* Quick Wisdom Card — portaled to body to avoid sidebar z-index conflicts.
+        Lazy-loaded (P1-AI-16); Suspense keeps the open state snappy. */}
     {showQuickWisdomCard && createPortal(
-      <WisdomCardGenerator
-        isOpen={showQuickWisdomCard}
-        onClose={() => setShowQuickWisdomCard(false)}
-        content={
-          messages.length > 0
-            ? (messages.filter(m => m.role === 'guru').pop()?.content ?? '')
-            : ''
-        }
-      />,
+      <Suspense fallback={null}>
+        <LazyWisdomCardGenerator
+          isOpen={showQuickWisdomCard}
+          onClose={() => setShowQuickWisdomCard(false)}
+          content={
+            messages.length > 0
+              ? (messages.filter(m => m.role === 'guru').pop()?.content ?? '')
+              : ''
+          }
+        />
+      </Suspense>,
       document.body
     )}
 

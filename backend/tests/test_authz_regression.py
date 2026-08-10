@@ -19,7 +19,11 @@ import inspect
 import pytest
 from fastapi import Depends
 
-from services.auth_service import get_current_user_from_supabase, get_optional_user
+from services.auth_service import (
+    get_current_user_from_supabase,
+    get_optional_user,
+    require_aal2,
+)
 
 
 def _dependency_names(func) -> set[str]:
@@ -37,7 +41,16 @@ def _dependency_names(func) -> set[str]:
 
 def _requires_supabase_user(func) -> bool:
     deps = _dependency_names(func)
-    return get_current_user_from_supabase.__name__ in deps
+    # P1-SEC-1: admin endpoints now depend on require_aal2 or the module-level
+    # _require_admin dependency (admin.py/compliance.py), both of which compose
+    # get_current_user_from_supabase; require_aal2 additionally enforces MFA.
+    # The _require_admin -> require_aal2 resolution is locked by
+    # test_p1_sec1_admin_aal2.py::TestAllAdminEndpointsAal2Gated.
+    return (
+        get_current_user_from_supabase.__name__ in deps
+        or require_aal2.__name__ in deps
+        or "_require_admin" in deps
+    )
 
 
 def _requires_identity(func) -> bool:
@@ -148,7 +161,13 @@ def test_no_admin_route_is_anonymous():
             src = inspect.getsource(endpoint)
         except (OSError, TypeError):
             src = ""
-        has_supabase_dep = get_current_user_from_supabase.__name__ in deps or get_current_user_from_supabase.__name__ in src
+        has_supabase_dep = (
+            get_current_user_from_supabase.__name__ in deps
+            or get_current_user_from_supabase.__name__ in src
+            or require_aal2.__name__ in deps
+            or require_aal2.__name__ in src
+            or "_require_admin" in deps  # P1-SEC-1: composes require_aal2 (MFA)
+        )
         has_optional_dep = get_optional_user.__name__ in deps or get_optional_user.__name__ in src
 
         if is_admin_route:

@@ -1,3 +1,23 @@
+-- ============================================================================
+-- REVERT: Drop notes, assistants, assistant_access + type + FK + seeds. DESTRUCTIVE:
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- all user notes and assistant configs are lost; seeded assistants
+-- (general/relationship/sky) go with the table — re-seed from this file if a
+-- partial rollback is needed.
+-- ALTER TABLE public.conversations DROP COLUMN IF EXISTS assistant_id;
+-- DROP TRIGGER IF EXISTS notes_touch_updated_at ON public.notes;
+-- DROP TRIGGER IF EXISTS assistants_touch ON public.assistants;
+-- DROP TABLE IF EXISTS public.assistant_access;
+-- DROP TABLE IF EXISTS public.assistants;
+-- DROP TYPE IF EXISTS public.assistant_visibility;
+-- DROP TABLE IF EXISTS public.notes;
+-- ============================================================================
+
 
 -- NOTES
 CREATE TABLE public.notes (

@@ -1,3 +1,17 @@
+-- ============================================================================
+-- REVERT: Drop the pending_extractions v2 table + index and last_conversation_id
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- NOTE: overlapping with 20260615120000 — drop only if the full pair is reverted.
+-- DROP INDEX IF EXISTS pending_extractions_status_idx;
+-- DROP TABLE IF EXISTS public.pending_extractions;
+-- ALTER TABLE public.profiles DROP COLUMN IF EXISTS last_conversation_id;
+-- ============================================================================
+
 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_conversation_id uuid;
 

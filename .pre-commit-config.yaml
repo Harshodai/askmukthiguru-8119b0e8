@@ -9,6 +9,12 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: detect-private-key
+      # CRIT-6 / T6: block any staged file larger than 500 KB. PII dumps
+      # (neo4j.dump 36 MB, supabase_dump.sql 11 MB, redis_dump.rdb 43 KB,
+      # cookies.txt 300 KB) are all gitignored, but this is the size-based
+      # backstop in case a dump is renamed or a new large artifact is added.
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.9
     hooks:
@@ -16,3 +22,15 @@ repos:
         args: ["-ll", "-c", "backend/pyproject.toml"]
         additional_dependencies: ["bandit[toml]"]
         files: ^(backend|scripts)/
+  # CRIT-6 / T7: local hook — fail the commit if a known PII dump filename
+  # is present in the working tree. Implementation lives in
+  # scripts/security/check_no_pii_dumps.sh (also the INV-6 verification
+  # gate). Additive; revert this repo block to remove the hook.
+  - repo: local
+    hooks:
+      - id: check-no-pii-dumps
+        name: INV-6 no PII dumps in working tree (neo4j.dump / supabase_dump / redis_dump / cookies.txt)
+        entry: bash scripts/security/check_no_pii_dumps.sh
+        language: system
+        pass_filenames: false
+        always_run: true

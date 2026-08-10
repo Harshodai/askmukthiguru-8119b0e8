@@ -1,0 +1,61 @@
+# ============================================================
+# Mukthi Guru — Migration Revert Block Check
+# Fails a PR if any new or changed migration under
+# supabase/migrations/ does not contain a "-- REVERT:" block.
+# The block must be a commented-out manual undo for the migration.
+# See docs/runbooks/MIGRATION_ROLLBACK.md.
+# ============================================================
+
+name: Migration Revert Block Check
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check-revert-blocks:
+    name: Verify migration files contain -- REVERT blocks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find changed migration files
+        id: changed
+        shell: bash
+        run: |
+          if git show-ref --verify --quiet refs/remotes/origin/main; then
+            CHANGED=$(git diff --name-only origin/main...HEAD -- supabase/migrations/*.sql || true)
+          else
+            echo "origin/main not available; checking all migration files as fallback." >&2
+            CHANGED=$(ls supabase/migrations/*.sql 2>/dev/null || true)
+          fi
+          if [ -z "$CHANGED" ]; then
+            echo "changed=" >> "$GITHUB_OUTPUT"
+            echo "No migration files changed."
+          else
+            # GitHub Actions output cannot handle multiline directly; use delimiter
+            {
+              echo "changed<<EOF"
+              echo "$CHANGED"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify every changed migration has -- REVERT
+        shell: bash
+        run: |
+          MISSING=""
+          for f in ${{ steps.changed.outputs.changed }}; do
+            if [ -f "$f" ] && ! grep -q "REVERT:" "$f"; then
+              MISSING="$MISSING\n$f"
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo -e "Missing -- REVERT block in:\n$MISSING"
+            exit 1
+          fi
+          echo "All changed migrations contain a -- REVERT block."

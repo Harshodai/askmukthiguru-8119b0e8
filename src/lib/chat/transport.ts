@@ -292,7 +292,10 @@ export const generateSummary = async (messages: MessagePayload[]): Promise<strin
   }
 };
 
-export const generateConversationTitle = async (firstUserMessage: string): Promise<string> => {
+export const generateConversationTitle = async (
+  firstUserMessage: string,
+  options?: { signal?: AbortSignal },
+): Promise<string> => {
   const { provider, endpoint } = getCurrentConfig();
   const fallback = firstUserMessage.trim().slice(0, 48);
   if (!fallback) return 'New conversation';
@@ -315,6 +318,7 @@ export const generateConversationTitle = async (firstUserMessage: string): Promi
         body: JSON.stringify({
           first_message: firstUserMessage,
         }),
+        signal: options?.signal,
       });
 
       if (!response.ok) return fallback;
@@ -324,7 +328,10 @@ export const generateConversationTitle = async (firstUserMessage: string): Promi
         .replace(/^[\"'`]+|[\"'`.]+$/g, '')
         .trim();
       return title.length > 60 ? `${title.slice(0, 57)}...` : title || fallback;
-    } catch {
+    } catch (err) {
+      // Aborts are caller-initiated cancellations — surface them so the
+      // caller can react; everything else falls back silently.
+      if (err instanceof DOMException && err.name === 'AbortError') throw err;
       return fallback;
     }
   }
@@ -337,7 +344,7 @@ export const submitFeedbackToBackend = async (payload: {
   answer: string;
   rating: number;
   comment?: string;
-}) => {
+}, options?: { signal?: AbortSignal }) => {
   const { provider, endpoint } = getCurrentConfig();
   if (provider !== 'custom' || !endpoint) return;
 
@@ -353,9 +360,13 @@ export const submitFeedbackToBackend = async (payload: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify(payload),
+      signal: options?.signal,
     });
-  } catch (error) {
-    console.error('Failed to submit feedback to server:', error);
+  } catch (err) {
+    // Aborts are caller-initiated cancellations — surface them so the
+    // caller can react; everything else is best-effort and stays silent.
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+    console.error('Failed to submit feedback to server:', err);
   }
 };
 
@@ -363,6 +374,7 @@ export const translateText = async (
   text: string,
   targetLanguage: string,
   sourceLanguage: string = 'en-IN',
+  options?: { signal?: AbortSignal },
 ): Promise<string | null> => {
   const { endpoint } = getCurrentConfig();
   if (!endpoint) return null;
@@ -383,12 +395,16 @@ export const translateText = async (
         source_language_code: sourceLanguage,
         target_language_code: targetLanguage,
       }),
+      signal: options?.signal,
     });
 
     if (!response.ok) return null;
     const data = await response.json();
     return data.translated_text || null;
-  } catch {
+  } catch (err) {
+    // Aborts are caller-initiated cancellations — surface them so the
+    // caller can react; everything else falls back to untranslated text.
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
     return null;
   }
 };

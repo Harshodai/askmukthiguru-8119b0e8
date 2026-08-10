@@ -13,7 +13,7 @@ from fastapi import status as http_status
 from app.config import settings
 import app.dependencies as _app_deps
 from app.dependencies import ServiceContainer, get_container
-from app.metrics import metrics_endpoint
+from app.metrics import HEALTH_CHECK_TOTAL, metrics_endpoint
 from services.auth_service import get_current_user_from_supabase, require_aal2
 from services.circuit_breaker import CircuitState
 
@@ -50,6 +50,7 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     Useful for debugging startup hangs and production monitoring.
     """
     if not _app_deps.startup_complete:
+        HEALTH_CHECK_TOTAL.labels(result="not_ready").inc()
         return JSONResponse({
             "ready": False,
             "status": "starting",
@@ -120,6 +121,16 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
         "queue_size": getattr(container.job_queue, "queue_size", 0) if getattr(container, "job_queue", None) else 0,
     }
 
+    # P1-OPS-8: chat admission-control contention (per-replica semaphore)
+    from app.api.chat import get_chat_backpressure
+
+    results["chat_backpressure"] = {
+        "ok": True,
+        "latency_ms": 0,
+        "critical": False,
+        **get_chat_backpressure(),
+    }
+
     # LightRAG
     results["lightrag"] = {
         "ok": not container.lightrag_degraded,
@@ -133,6 +144,8 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     # Overall
     critical_ok = all(v["ok"] for v in results.values() if v.get("critical"))
     all_ok = all(v["ok"] for v in results.values())
+
+    HEALTH_CHECK_TOTAL.labels(result="ready" if critical_ok else "not_ready").inc()
 
     return JSONResponse({
         "ready": critical_ok,
@@ -231,7 +244,7 @@ def _require_admin(user: dict) -> None:
 @router.get("/api/circuit-breaker/status")
 async def circuit_breaker_status(
     container: ServiceContainer = Depends(get_container),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(require_aal2),
 ) -> dict:
     """
     Get circuit breaker status for all registered providers. Admin only.
@@ -265,7 +278,7 @@ async def circuit_breaker_status(
 
 @router.get("/api/circuit-breaker/reset")
 async def circuit_breaker_reset_endpoint(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(require_aal2),
 ) -> dict:
     """Manually reset the active circuit breaker to CLOSED. Admin only."""
     _require_admin(user)
@@ -321,7 +334,7 @@ async def debug_headers(
 
 
 @router.get("/metrics")
-async def get_metrics(user: dict = Depends(get_current_user_from_supabase)) -> Response:
+async def get_metrics(user: dict = Depends(require_aal2)) -> Response:
     """Prometheus metrics endpoint. Admin only — may expose system internals."""
     _require_admin(user)
     data, content_type = metrics_endpoint()

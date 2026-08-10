@@ -1,3 +1,15 @@
+-- ============================================================================
+-- REVERT: Drop ingestion_checkpoints. DESTRUCTIVE: ingestion resumption state is lost
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- (ingestion workers will re-process from Redis checkpoints instead).
+-- DROP TABLE IF EXISTS public.ingestion_checkpoints;
+-- ============================================================================
+
 -- Ingestion checkpoints table to track processed chunks/transcripts across distributed workers.
 -- Used as a fallback tier if Redis is unreachable in containerized environments.
 

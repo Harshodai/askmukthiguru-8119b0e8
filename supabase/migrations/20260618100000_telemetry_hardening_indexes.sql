@@ -1,3 +1,16 @@
+-- ============================================================================
+-- REVERT: Indexes only — drop them
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- DROP INDEX IF EXISTS telemetry_events_user_session_created_idx;
+-- DROP INDEX IF EXISTS telemetry_events_metric_type_created_idx;
+-- DROP INDEX IF EXISTS telemetry_events_session_created_idx;
+-- ============================================================================
+
 -- Telemetry hardening: add indexes for faster writes and common query patterns
 -- 1. Composite index for user/session filtering (most common admin query)
 -- 2. Index for metric_type time-series queries

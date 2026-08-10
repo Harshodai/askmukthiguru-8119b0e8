@@ -48,7 +48,7 @@ try:
         if hasattr(_resource, "RLIMIT_DATA"):  # Safe heap limit (does not restrict mmap)
             _resource.setrlimit(_resource.RLIMIT_DATA, (_limit_bytes, _limit_bytes))
             logger_tmp = logging.getLogger(__name__)
-            logger_tmp.info(f"Python memory limit set to {_mb}MB via RLIMIT_DATA")
+            logger_tmp.info("Python memory limit set to %dMB via RLIMIT_DATA (PYTHON_MEMORY_LIMIT_MB=%s)", _mb, os.environ.get("PYTHON_MEMORY_LIMIT_MB", "<unset>"))
         elif hasattr(_resource, "RLIMIT_AS"):  # Fallback only
             _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))
 except Exception:
@@ -66,8 +66,10 @@ from app.telemetry_db import init_telemetry_db
 from app.telemetry_sink import SupabaseTelemetrySink, TelemetryWorker
 from services.auth_service import get_current_user_from_supabase
 
-# Initialize tenant context from request
-from services.tenant_context import TenantContext, get_tenant_collection, set_tenant_from_request
+# Tenant context is populated per-request via the ``set_tenant_from_request``
+# dependency (wired into routers, e.g. app/api/chat.py and app/api/ingest.py).
+# There is deliberately no module-level tenant init here — a bare module-level
+# call would run without a request and set the wrong tenant.
 
 # Backward-compatible module-level coalescer (tests patch app.main.coalescer).
 from app.coalescer import build_coalescer as _build_coalescer
@@ -109,19 +111,28 @@ telemetry_worker = TelemetryWorker(telemetry_sink)
 
 logger = logging.getLogger(__name__)
 
+# PII auto-redaction for log output (P1-SEC-3): every message emitted through
+# the JSON formatter is scrubbed for emails/phones/IDs/IPs/query params.
+from services.pii_scanner import PIIScanner
+
 
 # === Graceful shutdown in-flight request tracker (R3) ===
 _INFLIGHT = 0  # simple int — GIL protects single reads/writes in CPython
-_DRAIN_TIMEOUT_S = 30  # max seconds to wait for in-flight requests during shutdown
+_DRAIN_TIMEOUT_S = 45  # max seconds to wait for in-flight requests during shutdown; 15s margin under Railway drainingSeconds:60 (P1-OPS-5)
 
 
 class JSONFormatter(logging.Formatter):
     def format(self, record):
+        msg = record.getMessage()
+        if hasattr(PIIScanner, "redact"):
+            msg = PIIScanner.redact(msg)
+        else:
+            msg = PIIScanner().redact(msg)
         log_obj = {
             "timestamp": self.formatTime(record, self.datefmt),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": msg,
         }
         # Include correlation ID if available
         try:
@@ -135,9 +146,33 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(log_obj)
 
 
+class PIIScrubber(logging.Filter):
+    """Defense-in-depth: scrubs record.msg before any handler (even ones that
+    bypass JSONFormatter) formats it. Never raises — redaction must not break
+    logging."""
+
+    def filter(self, record):
+        try:
+            redacted = PIIScanner.redact(record.getMessage())
+            record.msg = redacted
+            record.args = ()
+        except Exception:
+            pass
+        return True
+
+
 handler = logging.StreamHandler()
 handler.setFormatter(JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S%z"))
 logging.basicConfig(level=logging.INFO, handlers=[handler])
+
+# Defense in depth: PIIScrubber on the root logger AND on its handlers.
+# Logger-level filters only run for records emitted by that logger itself, so
+# the handler-level filter is what actually scrubs records from child loggers
+# (e.g. app.*) before any handler — including ones that bypass JSONFormatter —
+# formats them.
+logging.getLogger().addFilter(PIIScrubber())
+for _hdlr in logging.getLogger().handlers:
+    _hdlr.addFilter(PIIScrubber())
 
 
 # === NodeObserver wiring (called during startup) ===
@@ -163,26 +198,6 @@ def _register_node_observers() -> None:
         logger.info(f"Registered {len(_node_observers)} NodeObserver(s) for pipeline telemetry")
     except Exception as exc:
         logger.warning(f"NodeObserver wiring skipped: {exc}")
-
-
-# Initialize tenant context from request
-from services.tenant_context import TenantContext, get_tenant_collection
-def _init_tenant_context_from_request(request: Request) -> None:
-    """
-    Initialize TenantContext from the FastAPI request.
-
-    Must be called before any tenant-aware operations like Qdrant indexing or search.
-    """
-    try:
-        from services.auth_service import get_current_user_from_supabase
-        user = get_current_user_from_supabase(request)
-        tenant_id = user.get("tenant_id", user.get("id", "default"))
-        email = user.get("email", "")
-        TenantContext.set(tenant_id, email)
-        logger.debug(f"Initialized TenantContext: tenant_id={tenant_id}")
-    except Exception as e:
-        logger.warning(f"Failed to initialize TenantContext: {e}")
-        TenantContext.set("default", "")
 
 
 def _wire_graph_observers() -> None:
@@ -708,8 +723,8 @@ app.add_middleware(
     allow_origins=cors_origins_exact,
     allow_origin_regex=cors_origins_regex or None,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Session-Id", "X-Correlation-Id", "Idempotency-Key", "X-Test-Key"],
 )
 
 
@@ -982,6 +997,7 @@ app.include_router(notebooks_router, prefix="/api")
 app.include_router(srs_router, prefix="/api")
 app.include_router(push_router, prefix="/api")
 app.include_router(cancel_flow_router, prefix="/api")
+app.include_router(compliance_router)
 app.include_router(retention_router)
 app.include_router(metrics_router)
 app.include_router(healing_course_router)

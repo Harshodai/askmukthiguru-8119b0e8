@@ -55,6 +55,23 @@ vi.mock('html-to-image', () => ({
   toPng: vi.fn(() => Promise.resolve('data:image/png;base64,abc')),
 }));
 
+vi.mock('react-i18next', async () => {
+  const en = (await import('@/locales/en.json')).default as Record<string, unknown>;
+  return {
+    useTranslation: () => ({
+      t: (key: string, opts?: Record<string, unknown>) => {
+        const value = key
+          .split('.')
+          .reduce((acc: unknown, part: string) => (acc as Record<string, unknown> | null)?.[part], en);
+        return (typeof value === 'string' ? value : key).replace(
+          /\{\{(\w+)\}\}/g,
+          (_, name: string) => String(opts?.[name] ?? `{{${name}}}`),
+        );
+      },
+    }),
+  };
+});
+
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>{children}</BrowserRouter>
 );

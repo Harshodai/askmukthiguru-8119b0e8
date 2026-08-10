@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 import uuid
 
@@ -20,7 +21,9 @@ from app.dependencies import ServiceContainer
 from app.orchestrator import _coerce_citations_to_str
 from app.pipeline import PipelineCoordinator
 from app.schemas import ChatRequest
+from app.security_utils import is_benchmark_request
 from app.telemetry_sink import SupabaseTelemetrySink
+from guardrails.lightweight_handler import _HARMFUL_PATTERNS
 from rag.memory import normalize_session_id
 from rag.nodes.generation import _clean_inline_citations
 
@@ -49,7 +52,7 @@ class ChatStreamRequestOrchestrator:
         assistant_slug = (
             chat_body.assistant.slug if chat_body.assistant else None
         )
-        is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
+        is_benchmark = is_benchmark_request(request)
 
         if not user_msg:
             async def _empty():
@@ -148,6 +151,14 @@ class ChatStreamRequestOrchestrator:
                         # Final answer cleanup runs on the assembled text
                         # in generation.py (_clean_inline_citations there).
                         if not item:
+                            continue
+                        # P1-AI-8: lightweight streaming safety filter. Drop
+                        # individual chunks matching prompt-injection / harmful
+                        # patterns and emit a sentinel. The full guardrail still
+                        # runs post-stream on the assembled answer.
+                        lowered = item.lower()
+                        if any(re.search(p, lowered) for p in _HARMFUL_PATTERNS):
+                            yield "event: token\ndata: [SAFETY_FILTER]\n\n"
                             continue
                         tokens_streamed += len(item)
                         escaped = item.replace("\n", "\\n")

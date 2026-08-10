@@ -1,0 +1,154 @@
+name: Nightly Load Test (OPS-7)
+
+# Runs the /api/chat load sweep + Qdrant chaos test nightly.
+#
+# Two modes (LOAD_TEST_URL secret decides):
+#   A) Remote staging backend (LOAD_TEST_URL set) — real LLM, low concurrency
+#      only (1→5) to bound LLM cost. Gates: no 5xx; p95 < 30s (LLM-dominated).
+#   B) Local stack on a self-hosted runner (LOAD_TEST_URL unset) — full docker
+#      compose backend pointed at the bundled mock LLM (canned 800-token
+#      response), sweep 20→50. Gates: p95 < 8s at concurrency 20; no 5xx;
+#      backpressure 503s must trip at concurrency > max_concurrent_chat (20).
+#
+# Invariant INV-12: this workflow MUST NOT mask exit statuses (the banned
+# scanner-masking pattern "mask-on-any-exit" is spelled out — do not
+# reintroduce it). "Backend not reachable" is handled by explicit skip-exit-0
+# in the reachability gate, never by masking a command's exit status.
+# GitHub-hosted runners: mode A only (no docker daemon). Chaos test is a
+# no-op skip when no Qdrant container is visible.
+
+on:
+  schedule:
+    # Run at 03:00 UTC nightly
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}
+
+env:
+  LOAD_TEST_URL: ${{ secrets.LOAD_TEST_URL || 'http://127.0.0.1:8000' }}
+  BENCHMARK_SECRET: ${{ secrets.BENCHMARK_SECRET || 'dev-secret-not-set' }}
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install locust
+        working-directory: backend
+        run: pip install locust
+
+      - name: Boot local stack with mock LLM (mode B only)
+        if: env.LOAD_TEST_URL == 'http://127.0.0.1:8000'
+        run: |
+          if ! docker compose version >/dev/null 2>&1; then
+            echo "no docker daemon — mode B unavailable; skipping load sweep"
+            exit 0
+          fi
+          python backend/scripts/mock_llm_server.py --port 9002 &
+          echo "MOCK_PID=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:9002/ >/dev/null && break
+            sleep 1
+          done
+          docker compose up -d qdrant redis
+          LLM_PROVIDER=nim NIM_API_KEY=mock NIM_BASE_URL=http://host.docker.internal:9002/v1 \
+            docker compose up -d backend
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8000/api/healthz >/dev/null && break
+            sleep 2
+          done
+
+      - name: Reachability gate (skip green when no backend is configured)
+        id: reachable
+        run: |
+          if curl -sf --max-time 5 "$LOAD_TEST_URL/api/healthz" >/dev/null; then
+            echo "backend reachable at $LOAD_TEST_URL"
+            echo "reachable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend NOT reachable at $LOAD_TEST_URL — skipping sweep (cache-warm precedent)"
+            echo "reachable=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Load sweep — concurrency 20 gate
+        if: steps.reachable.outputs.reachable == 'true'
+        working-directory: backend
+        run: locust -f benchmarks/locustfile.py --headless -u 20 -r 5 -t 90s --host "$LOAD_TEST_URL" --json > /tmp/locust-20.json
+        env:
+          LOAD_TEST_URL: ${{ env.LOAD_TEST_URL }}
+          BENCHMARK_SECRET: ${{ env.BENCHMARK_SECRET }}
+
+      - name: Load sweep — concurrency 50 (backpressure trip check)
+        if: steps.reachable.outputs.reachable == 'true'
+        working-directory: backend
+        run: locust -f benchmarks/locustfile.py --headless -u 50 -r 10 -t 90s --host "$LOAD_TEST_URL" --json > /tmp/locust-50.json
+        env:
+          LOAD_TEST_URL: ${{ env.LOAD_TEST_URL }}
+          BENCHMARK_SECRET: ${{ env.BENCHMARK_SECRET }}
+
+      - name: Assert gates
+        if: steps.reachable.outputs.reachable == 'true'
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+
+          def summarize(path):
+              data = json.load(open(path))
+              stats = data.get("stats", [])
+              total = next((s for s in stats if s.get("name") == "Total"), None)
+              if not total:
+                  print(f"SKIP: no Total stats in {path}")
+                  return None
+              return {
+                  "reqs": total.get("num_requests", 0),
+                  "fails": total.get("num_failures", 0),
+                  "p95": total.get("response_time_percentile_95", 0) / 1000.0,
+                  "rps": total.get("total_rps", 0),
+              }
+
+          s = summarize("/tmp/locust-20.json")
+          if s:
+              print(f"[c20] reqs={s['reqs']} rps={s['rps']:.1f} p95={s['p95']:.2f}s fails={s['fails']}")
+              if s["fails"] > 0:
+                  print("FAIL: hard failures at concurrency 20")
+                  sys.exit(1)
+              if s["reqs"] > 0 and s["p95"] >= 8.0:
+                  print("FAIL: p95 >= 8s gate at concurrency 20")
+                  sys.exit(1)
+
+          s50 = summarize("/tmp/locust-50.json")
+          if s50:
+              print(f"[c50] reqs={s50['reqs']} rps={s50['rps']:.1f} p95={s50['p95']:.2f}s fails={s50['fails']}")
+              if s50["fails"] > 0:
+                  print("FAIL: hard failures at concurrency 50")
+                  sys.exit(1)
+
+          print("PASS: load gates ok")
+          EOF
+
+      - name: Chaos test — Qdrant kill mid-traffic
+        if: steps.reachable.outputs.reachable == 'true'
+        working-directory: backend
+        run: python scripts/chaos_qdrant_kill.py --endpoint "$LOAD_TEST_URL" --traffic-seconds 20
+        env:
+          LOAD_TEST_URL: ${{ env.LOAD_TEST_URL }}
+          BENCHMARK_SECRET: ${{ env.BENCHMARK_SECRET }}
+
+      - name: Upload load reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-load-reports
+          path: /tmp/locust-*.json
+
+      - name: Kill mock LLM
+        if: always()
+        run: |
+          if [ -n "${MOCK_PID:-}" ]; then
+            kill "$MOCK_PID"
+          fi

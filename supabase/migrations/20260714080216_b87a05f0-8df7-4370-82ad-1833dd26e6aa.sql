@@ -1,3 +1,27 @@
+-- ============================================================================
+-- REVERT: Restore the authenticated-read kb policies and the LIKE-based storage
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- policy. NOTE: revokes of trigger-only functions were no-ops (they cannot be
+-- RPC-called); no restore required.
+-- DROP POLICY IF EXISTS kb_sources_admin_select ON public.kb_sources;
+-- DROP POLICY IF EXISTS kb_chunks_admin_select ON public.kb_chunks;
+-- CREATE POLICY kb_sources_select_authenticated ON public.kb_sources
+--   FOR SELECT TO authenticated USING (true);
+-- CREATE POLICY kb_chunks_select_authenticated ON public.kb_chunks
+--   FOR SELECT TO authenticated USING (true);
+-- DROP POLICY IF EXISTS public_read_active_teaching_images ON storage.objects;
+-- CREATE POLICY public_read_active_teaching_images ON storage.objects
+--   FOR SELECT TO anon, authenticated
+--   USING (bucket_id = 'daily-teachings'
+--     AND EXISTS (SELECT 1 FROM public.daily_teachings d
+--       WHERE d.expires_at > now() AND d.image_url LIKE '%' || storage.objects.name));
+-- ============================================================================
+
 
 -- 1. kb_sources / kb_chunks: drop the "authenticated can read everything" policy.
 --    Retrieval keeps working through public.match_kb_chunks (SECURITY DEFINER),

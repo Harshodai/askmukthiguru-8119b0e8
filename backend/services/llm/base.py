@@ -131,3 +131,22 @@ class LLMProvider(abc.ABC):
     async def health_check(self) -> bool:
         """Return True if the LLM service is reachable and healthy."""
         pass
+
+    # ------------------------------------------------------------------
+    # Circuit-breaker state (P1-BE-4)
+    #
+    # Public probe so callers (PipelineCoordinator._is_circuit_open) never
+    # reach into provider internals like ``_service._circuit``. Returns True
+    # when the underlying service's circuit is OPEN and rejects requests.
+    # A provider WITHOUT a circuit is never open (fail-open by contract);
+    # concrete services that own a breaker override this (default False).
+    # ------------------------------------------------------------------
+
+    def is_circuit_open(self) -> bool:
+        """Return True when the provider's circuit breaker is OPEN.
+
+        Default: False — a provider without a breaker is never considered
+        open. Services that own a circuit (Sarvam, Ollama, OpenRouter, NIM)
+        override with a delegation to their breaker.
+        """
+        return False

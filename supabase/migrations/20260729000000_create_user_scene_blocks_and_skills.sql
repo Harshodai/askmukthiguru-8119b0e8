@@ -1,3 +1,17 @@
+-- ============================================================================
+-- REVERT: Drop user_scene_blocks + user_skills. DESTRUCTIVE: all scene-block and skill
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- state is lost. NOTE: owner policies were recreated with WITH CHECK by
+-- 20260804000001 — drop with the tables.
+-- DROP TABLE IF EXISTS public.user_skills;
+-- DROP TABLE IF EXISTS public.user_scene_blocks;
+-- ============================================================================
+
 CREATE TABLE IF NOT EXISTS public.user_scene_blocks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,

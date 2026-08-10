@@ -1,3 +1,21 @@
+-- ============================================================================
+-- REVERT: Drop the push_subscriptions v2 table + index and the session-continuity
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- columns. NOTE: last_message_id / last_active_at are also added by
+-- 20260615120000 and push_subscriptions by both files — drop only if the full
+-- pair is reverted.
+-- DROP INDEX IF EXISTS push_subscriptions_user_idx;
+-- DROP TABLE IF EXISTS public.push_subscriptions;
+-- ALTER TABLE public.profiles DROP COLUMN IF EXISTS last_message_id;
+-- ALTER TABLE public.profiles DROP COLUMN IF EXISTS last_active_at;
+-- ALTER TABLE public.profiles DROP COLUMN IF EXISTS last_device_id;
+-- ============================================================================
+
 
 -- Session continuity columns
 ALTER TABLE public.profiles

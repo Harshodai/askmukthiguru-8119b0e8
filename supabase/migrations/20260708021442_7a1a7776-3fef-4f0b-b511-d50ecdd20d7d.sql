@@ -1,3 +1,16 @@
+-- ============================================================================
+-- REVERT: CREATE OR REPLACE in place — no schema change to undo. To restore the
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- pre-migration body (20260516182217 definition without search_path hardening),
+-- re-apply that file's CREATE OR REPLACE FUNCTION public.ensure_profile_and_role()
+-- from git history. Functionally equivalent — usually nothing to do.
+-- ============================================================================
+
 CREATE OR REPLACE FUNCTION public.ensure_profile_and_role()
  RETURNS jsonb
  LANGUAGE plpgsql

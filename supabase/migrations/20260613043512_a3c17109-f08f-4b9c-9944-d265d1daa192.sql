@@ -1,3 +1,21 @@
+-- ============================================================================
+-- REVERT: Drop the recreated match_user_memories() (3-arg) and the authenticated-only
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- kb policies; restore anon SELECT grants. NOTE: the 4-arg match_user_memories
+-- was dropped here — re-create from 20260607180000 if the old signature is
+-- required.
+-- DROP FUNCTION IF EXISTS public.match_user_memories(vector, integer, double precision);
+-- DROP POLICY IF EXISTS "kb_chunks_select_authenticated" ON public.kb_chunks;
+-- DROP POLICY IF EXISTS "kb_sources_select_authenticated" ON public.kb_sources;
+-- GRANT SELECT ON public.kb_chunks TO anon;
+-- GRANT SELECT ON public.kb_sources TO anon;
+-- ============================================================================
+
 
 -- 1. Fix match_user_memories: drop p_user_id, scope to auth.uid()
 DROP FUNCTION IF EXISTS public.match_user_memories(uuid, vector, int, float);

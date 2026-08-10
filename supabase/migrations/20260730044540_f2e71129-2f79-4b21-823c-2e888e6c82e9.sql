@@ -1,3 +1,17 @@
+-- ============================================================================
+-- REVERT: Drop user_course_progress + trigger. DESTRUCTIVE: all healing-course progress
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- is lost. NOTE: trigger depends on set_updated_at() (20260718120001) — the
+-- function itself stays.
+-- DROP TRIGGER IF EXISTS trg_user_course_progress_updated_at ON public.user_course_progress;
+-- DROP TABLE IF EXISTS public.user_course_progress;
+-- ============================================================================
+
 CREATE TABLE public.user_course_progress (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid NOT NULL,

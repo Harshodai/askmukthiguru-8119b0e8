@@ -35,6 +35,20 @@ jobs:
         run: python3 scripts/security_audit.py --report
         # Fail the CI pipeline on any FAIL finding (exit code 1)
 
+      - name: nginx CSP Banned-Domain Check
+        run: |
+          # P1-SEC-4: the CSP header must not whitelist loopback / private
+          # addresses or unreferenced CDNs (jsdelivr, Vercel embeds). Any
+          # match on an add_header Content-Security-Policy line fails the job.
+          if ! grep -q "add_header Content-Security-Policy" nginx.conf; then
+            echo "::error::nginx.conf missing Content-Security-Policy header"
+            exit 1
+          fi
+          if grep "add_header Content-Security-Policy" nginx.conf | grep -qE "localhost|127\.0\.0\.1|cdn\.jsdelivr|gs-extension"; then
+            echo "::error::nginx.conf CSP contains a banned domain (localhost/127.0.0.1/cdn.jsdelivr/gs-extension)"
+            exit 1
+          fi
+
       - name: Upload Security Report
         if: always()
         uses: actions/upload-artifact@v4

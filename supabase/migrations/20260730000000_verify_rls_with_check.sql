@@ -1,3 +1,15 @@
+-- ============================================================================
+-- REVERT: Idempotent verifier — no standalone state to remove. If it recreated any of
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- the four UPDATE policies, the result is identical to 20260728103548; see that
+-- file's REVERT to roll the policies back to USING-only form.
+-- ============================================================================
+
 -- Verify RLS UPDATE policies have both USING and WITH CHECK ownership predicates.
 -- Idempotent: checks pg_policy for the four UPDATE policies and only recreates
 -- them if either USING or WITH CHECK is missing. No-op when migration

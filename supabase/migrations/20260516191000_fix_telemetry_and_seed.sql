@@ -1,3 +1,20 @@
+-- ============================================================================
+-- REVERT: Drop the user_id columns and remove the seeded benchmark admin (also removed
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- by 20260615044110 later — idempotent). Data-altering: deletes the seed row.
+-- ALTER TABLE public.chat_sessions DROP COLUMN IF EXISTS user_id;
+-- ALTER TABLE public.chat_queries DROP COLUMN IF EXISTS user_id;
+-- DELETE FROM public.user_profiles WHERE user_id = '00000000-0000-0000-0000-000000000000';
+-- DELETE FROM public.user_roles WHERE user_id = '00000000-0000-0000-0000-000000000000';
+-- DELETE FROM public.profiles WHERE id = '00000000-0000-0000-0000-000000000000';
+-- DELETE FROM auth.users WHERE id = '00000000-0000-0000-0000-000000000000';
+-- ============================================================================
+
 -- Migration to fix telemetry schema gaps and seed benchmark user
 -- 1. Add user_id to chat_sessions and chat_queries
 -- 2. Seed the benchmark admin user to auth.users to satisfy foreign key constraints

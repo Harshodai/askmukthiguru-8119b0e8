@@ -310,20 +310,10 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
                     "redirect_to": None,
                 }
 
-        # Spiritual domain allowlist: only bypasses remaining topic checks.
-        # It must NOT short-circuit crisis/self-harm/medical/prompt-injection checks above.
-        for term in _SPIRITUAL_DOMAIN_ALLOWLIST:
-            if term in message_lower:
-                logger.debug(f"Spiritual domain allowlist bypass for term: '{term}'")
-                return {"blocked": False, "reason": None, "response": None, "redirect_to": None}
-
-        # Check knowledge trap bypass
-        for pattern in _KNOWLEDGE_TRAP_PATTERNS:
-            if re.search(pattern, message_lower):
-                logger.debug(f"Knowledge trap bypass: '{pattern}'")
-                return {"blocked": False, "reason": None, "response": None, "redirect_to": None}
-
-        # Check emotional wellness redirect
+        # Check emotional wellness redirect FIRST — before the spiritual-domain
+        # allowlist. A distressed seeker mentioning a spiritual term (e.g. "ekam",
+        # "preethaji") must still get the Serene Mind redirect; the allowlist may
+        # only bypass *topic* checks, never the wellness redirect (finding P1-AI-6).
         for pattern in _EMOTIONAL_WELLNESS_PATTERNS:
             if re.search(pattern, message_lower):
                 logger.info("Emotional wellness pattern matched -> serene_mind redirect")
@@ -338,6 +328,20 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
                     ),
                     "redirect_to": "serene_mind",
                 }
+
+        # Spiritual domain allowlist: only bypasses remaining topic checks.
+        # It must NOT short-circuit crisis/self-harm/medical/prompt-injection checks above,
+        # nor the emotional-wellness redirect (which now runs before this block).
+        for term in _SPIRITUAL_DOMAIN_ALLOWLIST:
+            if term in message_lower:
+                logger.debug(f"Spiritual domain allowlist bypass for term: '{term}'")
+                return {"blocked": False, "reason": None, "response": None, "redirect_to": None}
+
+        # Check knowledge trap bypass
+        for pattern in _KNOWLEDGE_TRAP_PATTERNS:
+            if re.search(pattern, message_lower):
+                logger.debug(f"Knowledge trap bypass: '{pattern}'")
+                return {"blocked": False, "reason": None, "response": None, "redirect_to": None}
 
         # LLM Guard via Instructor
         if getattr(settings, "guardrails_llm_enabled", False):

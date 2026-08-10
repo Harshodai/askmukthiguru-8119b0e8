@@ -29,6 +29,11 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional
 
+# Deep variable-length traversals (r*1..N) grow super-linearly — a caller or
+# config mistake (or a hostile request field) must never escalate into a
+# graph-traversal DoS, so the hop count is clamped at the call boundary.
+MAX_HOPS = 3
+
 logger = logging.getLogger("graphrag")
 
 # ---------------------------------------------------------------------------
@@ -144,7 +149,10 @@ class GraphRAGFusion:
         self._vector = vector_search
         self._entities = resolve_entities
         self._graph = traverse_graph
-        self.max_hops = max_hops
+        # Clamp at the call boundary: unbounded $hops in the Cypher
+        # variable-length pattern (r*1..$hops) makes traversal cost grow
+        # super-linearly with the hop count (P1-BE-6).
+        self.max_hops = min(max(int(max_hops), 1), MAX_HOPS)
         self.token_budget = token_budget
         self.vector_top_k = vector_top_k
         self.enable_graph = enable_graph

@@ -1,3 +1,28 @@
+-- ============================================================================
+-- REVERT: Drop the profiles columns, trigger/function/view, push_subscriptions and
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- pending_extractions. DESTRUCTIVE for push subs + pending extraction rows.
+-- NOTE: push_subscriptions / pending_extractions / profiles columns are also
+-- created by 20260616050645 / 20260616050717 (same objects, IF NOT EXISTS) —
+-- drop only if both migrations are reverted. daily_teachings CREATE was a no-op
+-- when 20260506061859's shape is live; only the policy drop applies then.
+-- DROP TRIGGER IF EXISTS trg_touch_last_message ON public.chat_messages;
+-- DROP FUNCTION IF EXISTS public.touch_user_last_message();
+-- DROP VIEW IF EXISTS public.v_meditation_heatmap;
+-- DROP FUNCTION IF EXISTS public.meditation_streak(uuid);
+-- ALTER TABLE public.profiles DROP COLUMN IF EXISTS last_conversation_id;
+-- ALTER TABLE public.profiles DROP COLUMN IF EXISTS last_message_id;
+-- ALTER TABLE public.profiles DROP COLUMN IF EXISTS last_active_at;
+-- DROP POLICY IF EXISTS "daily_teachings_public" ON public.daily_teachings;
+-- DROP TABLE IF EXISTS public.pending_extractions;
+-- DROP TABLE IF EXISTS public.push_subscriptions;
+-- ============================================================================
+
 -- Backend Improvements Migration: multi-device, bhakti analytics, push subs, pending extractions, daily teachings
 -- 2026-06-15
 

@@ -1,3 +1,20 @@
+-- ============================================================================
+-- REVERT: Largely no-op/security hardening. The only revertible pieces: staging read
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- policy + anon SELECT grant (CAUTION: restores anon read of the queue — revert
+-- only deliberately). The permissive realtime policy that was DROPPED here must
+-- NOT be restored (it bypassed topic scoping). Revokes + search_path hardening
+-- are intentionally not reversed.
+-- DROP POLICY IF EXISTS "Allow read access to admins only" ON public.staging_quality_queue;
+-- CREATE POLICY "Allow read access to anyone" ON public.staging_quality_queue FOR SELECT USING (true);
+-- GRANT SELECT ON public.staging_quality_queue TO anon;
+-- ============================================================================
+
 -- Security Hardening & RLS Remediation Migration
 -- Date: 2026-07-24
 

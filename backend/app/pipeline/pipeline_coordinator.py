@@ -33,7 +33,7 @@ from typing import Any
 
 from app.config import settings
 from app.dependencies import ServiceContainer
-from app.metrics import SEARCH_LATENCY_MS
+from app.metrics import SEARCH_LATENCY_MS, SLO_CHAT_LATENCY
 from app.orchestrator_utils import cache_language_key
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages import PipelineContext, StageRunner, build_default_pipeline
@@ -41,6 +41,7 @@ from app.telemetry.publisher import TelemetryPublisher
 from rag.memory import normalize_session_id
 from services.health_monitor import HealthMonitor
 from services.hot_cache import hot_cache
+from services.tenant_context import TenantContext
 from services.turboquant_cache import TurboQuantCache, get_shared_vector_cache
 
 logger = logging.getLogger(__name__)
@@ -157,6 +158,7 @@ class PipelineCoordinator:
         # Cache-hit results are built with latency_ms=0; apply the real elapsed time.
         if result.cache_hit:
             return result.with_latency(int((time.time() - start_time) * 1000))
+        SLO_CHAT_LATENCY.labels(tier=(result.route_decision or "standard")).observe(time.time() - start_time)
         return result
 
     # ------------------------------------------------------------------
@@ -226,8 +228,16 @@ class PipelineCoordinator:
         preferred_lang: str,
         chat_history: list[dict] | None = None,
     ) -> str:
-        """Build cache key that handles follow-up questions."""
-        base_key = cache_language_key(user_msg, preferred_lang)
+        """Build cache key that handles follow-up questions.
+
+        The key is prefixed with the active tenant so answers never bleed
+        across tenants: the hot/exact/semantic/vector caches are all
+        process- or Redis-wide, and without a tenant scope one tenant's
+        generic answer would be served to every other tenant. TenantContext
+        defaults to "default" (legacy single-tenant) for anonymous requests.
+        """
+        tenant = TenantContext.get() or "default"
+        base_key = f"tenant:{tenant}:{cache_language_key(user_msg, preferred_lang)}"
 
         is_standalone = self._is_standalone_question(user_msg)
         if is_standalone:
@@ -289,12 +299,29 @@ class PipelineCoordinator:
             return None
 
     def _is_circuit_open(self) -> bool:
-        """Check if the circuit breaker is open for the active provider."""
-        underlying = self.container.ollama
-        if hasattr(underlying, "_service"):
-            underlying = underlying._service
-        circuit = getattr(underlying, "_circuit", None) or getattr(underlying, "_circuit_breaker", None)
-        return circuit is not None and not circuit.can_execute()
+        """Check if the circuit breaker is open for the active provider.
+
+        P1-BE-4: uses the public ``LLMProvider.is_circuit_open()`` probe
+        (services/llm/base.py) instead of traversing provider internals like
+        ``_service._circuit``, which breaks silently on refactors. Providers
+        without a circuit report False (never open) by default.
+        """
+        provider = self.container.ollama
+        if not hasattr(provider, "is_circuit_open"):
+            # Unknown/legacy provider shape — treat as not open (fail-open,
+            # same behavior as a provider without a breaker).
+            return False
+        try:
+            result = provider.is_circuit_open()
+            # Strict literal-bool test: real providers return plain bools.
+            # Mock doubles (AsyncMock auto-attributes) return non-bool truthy
+            # objects that must never trip the breaker.
+            return result is True
+        except Exception as e:
+            # A throwing probe must not take the pipeline down — degrade to
+            # not-open and surface the state loss in logs.
+            logger.warning(f"is_circuit_open() probe failed, treating circuit as closed: {e}")
+            return False
 
     def _circuit_open_result(self, is_benchmark: bool, start_time: float) -> PipelineResult:
         """Return an error PipelineResult when the circuit is open."""

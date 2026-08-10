@@ -32,6 +32,24 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _coalesce_key(
+    user_id: str,
+    session_id: str,
+    lang_code: str,
+    user_msg_en: str,
+    history_hash: str,
+) -> str:
+    """Build the coalescer key for a graph run.
+
+    P1-BE-7: the raw user message is never embedded — it is unbounded, may
+    carry PII, and varies across locales. A bounded, deterministic SHA-256
+    digest (first 16 hex chars) keeps coalescing semantics identical while
+    keeping user text out of cache keys.
+    """
+    digest = hashlib.sha256(user_msg_en.encode("utf-8")).hexdigest()[:16]
+    return f"{user_id}:{session_id}:{lang_code}:{digest}:{history_hash}"
+
+
 class GraphStage(Stage):
     """Run the LangGraph pipeline via the selected graph strategy facade."""
 
@@ -151,9 +169,11 @@ class GraphStage(Stage):
         history_hash = hashlib.md5(str([m["content"] for m in chat_history_en[-4:]]).encode(), usedforsecurity=False).hexdigest()[:8]
         start_lat = time.time()
         try:
+            # P1-BE-7: coalesce key carries a bounded digest, never raw user text.
+            lang_code = lang_detection.primary.value if lang_detection else "en"
             result = await asyncio.wait_for(
                 coalescer.get_or_run(
-                    f"{user_id}:{session_id}:{lang_detection.primary.value if lang_detection else 'en'}:{user_msg_en}:{history_hash}",
+                    _coalesce_key(user_id, session_id, lang_code, user_msg_en, history_hash),
                     run,
                 ),
                 timeout=settings.pipeline_timeout,

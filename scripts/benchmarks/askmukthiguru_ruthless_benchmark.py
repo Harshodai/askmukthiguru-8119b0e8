@@ -1282,7 +1282,12 @@ def load_supabase_credentials() -> tuple[str | None, str | None]:
     return url, key
 
 
-def load_jwt_secret() -> str | None:
+def load_benchmark_secret() -> str | None:
+    """Load the benchmark X-Test-Key secret (BENCHMARK_SECRET only).
+
+    JWT_SECRET (the token-signing secret) must never be used as the benchmark
+    bypass key — see backend/app/security_utils.py is_benchmark_request.
+    """
     possible_paths = [
         os.path.join(os.path.dirname(__file__), "../../backend/.env"),
         os.path.join(os.path.dirname(__file__), "../backend/.env"),
@@ -1291,7 +1296,7 @@ def load_jwt_secret() -> str | None:
         ".env",
         "backend/.env",
     ]
-    secret = os.environ.get("JWT_SECRET")
+    secret = os.environ.get("BENCHMARK_SECRET")
     if not secret:
         for path in possible_paths:
             if os.path.exists(path):
@@ -1304,7 +1309,7 @@ def load_jwt_secret() -> str | None:
                             k, v = line.split("=", 1)
                             k = k.strip()
                             v = v.strip().strip("'\"")
-                            if k == "JWT_SECRET":
+                            if k == "BENCHMARK_SECRET":
                                 secret = v
                                 break
             if secret:
@@ -2890,5 +2895,5 @@ if __name__ == "__main__":
     p.add_argument("--url", default="http://localhost:8000")
     p.add_argument("--test-key", default=None)
     args = p.parse_args()
-    test_key = args.test_key or load_jwt_secret()
+    test_key = args.test_key or load_benchmark_secret()
     asyncio.run(main(args.url, test_key))

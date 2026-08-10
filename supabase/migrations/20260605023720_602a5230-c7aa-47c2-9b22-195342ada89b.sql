@@ -1,3 +1,21 @@
+-- ============================================================================
+-- REVERT: Drop kb_sources + kb_chunks and the touch trigger/function. DESTRUCTIVE:
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- all knowledge-base chunks are lost — restore from backup if data matters.
+-- NOTE: pgvector extension is shared infra — do not drop. match_kb_chunks was
+-- dropped here (deprecated); re-create only if a legacy caller returns (see git
+-- history for the prior definition).
+-- DROP TRIGGER IF EXISTS kb_sources_set_updated_at ON public.kb_sources;
+-- DROP FUNCTION IF EXISTS public.kb_sources_touch_updated_at();
+-- DROP TABLE IF EXISTS public.kb_chunks;
+-- DROP TABLE IF EXISTS public.kb_sources;
+-- ============================================================================
+
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- ── kb_sources ───────────────────────────────────────────────────

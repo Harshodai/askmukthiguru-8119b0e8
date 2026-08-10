@@ -1,3 +1,19 @@
+-- ============================================================================
+-- REVERT: Drop push_devices + touch trigger/function. DESTRUCTIVE: all registered push
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- tokens are lost — users must re-grant notification permission. NOTE:
+-- users_update_own policy recreated with WITH CHECK by 20260804000001 — drops
+-- with the table.
+-- DROP TRIGGER IF EXISTS push_devices_touch ON public.push_devices;
+-- DROP FUNCTION IF EXISTS public.push_devices_touch_updated_at();
+-- DROP TABLE IF EXISTS public.push_devices;
+-- ============================================================================
+
 -- push_devices: stores FCM (Android) / APNs (iOS) tokens for push notifications.
 -- Created for AskMukthiGuru mobile app launch (Task 7).
 create table if not exists push_devices (

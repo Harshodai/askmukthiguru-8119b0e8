@@ -1,3 +1,28 @@
+-- ============================================================================
+-- REVERT: Restore the pre-migration permissive policies. CAUTION: this RE-OPENS the
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- security holes this migration fixed (any authenticated user can write
+-- app_settings / staging_quality_queue / router_decisions; storage bucket
+-- readable by all) — only run as part of a deliberate rollback. Trigger-function
+-- revokes are intentionally not reversed.
+-- DROP POLICY IF EXISTS "Allow write access to admins only" ON public.app_settings;
+-- DROP POLICY IF EXISTS "Allow write access to admins only" ON public.staging_quality_queue;
+-- DROP POLICY IF EXISTS "Allow select for admins only" ON public.router_decisions;
+-- DROP POLICY IF EXISTS "Allow insert for admins only" ON public.router_decisions;
+-- DROP POLICY IF EXISTS "Admins manage daily-teachings bucket" ON storage.objects;
+-- CREATE POLICY "Allow write access to authenticated users" ON public.app_settings
+--   FOR ALL TO authenticated USING (true);
+-- CREATE POLICY "Allow write access to authenticated users" ON public.staging_quality_queue
+--   FOR ALL TO authenticated USING (true);
+-- CREATE POLICY "Allow select for all users" ON public.router_decisions FOR SELECT USING (true);
+-- CREATE POLICY "Allow insert for all users" ON public.router_decisions FOR INSERT WITH CHECK (true);
+-- ============================================================================
+
 -- Recreate public.v_meditation_heatmap view with security_invoker = true
 -- ── 1. Restrict App Settings & Quality Queue Write Access ──
 -- Only admins should be able to write/manage app_settings

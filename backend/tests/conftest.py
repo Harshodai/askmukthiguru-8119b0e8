@@ -31,6 +31,9 @@ configure_threading()
 
 # Point REDIS_URL to local host-mapped Redis for testing
 os.environ["REDIS_URL"] = "redis://:mukthiguru_redis_pass@127.0.0.1:6379/0"
+# backend/.env carries docker hostnames (qdrant:6333) that do not resolve on
+# the host; point QDRANT_URL at the host-mapped port instead.
+os.environ["QDRANT_URL"] = "http://127.0.0.1:6333"
 os.environ["IS_PRODUCTION"] = "false"
 
 # Enable the X-Test-Key benchmark auth backdoor (dev-only; guarded by
@@ -108,7 +111,38 @@ def _restore_event_loop():
     # current loop alive before and after each test so cross-file ordering works.
     asyncio.set_event_loop(asyncio.new_event_loop())
     yield
+    _close_global_redis_pool()
     asyncio.set_event_loop(asyncio.new_event_loop())
+
+
+def _close_global_redis_pool():
+    """Drop every module-level coalescer pool connection between tests.
+
+    pytest-asyncio creates a fresh event loop per test, so a pooled redis
+    connection created on test N's loop is dead by test N+1 and raises
+    'Event loop is closed' / 'attached to a different loop' on reuse.
+    Coalescers are built at import time (app/main.py:77, app/orchestrator.py:33)
+    and their pools outlive every test loop. Closing via RedisCoalescer.close()
+    is not enough: redis-py's aclose() does not remove connections from the
+    pool lists when their transport is already dead, so we clear the lists
+    directly. The pool lazily creates fresh connections on the next test's
+    loop.
+    """
+    for module_name, attr in (("app.main", "coalescer"), ("app.orchestrator", "_coalescer")):
+        try:
+            module = __import__(module_name, fromlist=[attr])
+        except Exception:
+            continue
+        redis_client = getattr(getattr(module, attr, None), "_redis", None)
+        pool = getattr(redis_client, "connection_pool", None)
+        if pool is None:
+            continue
+        for list_attr in ("_available_connections", "_in_use_connections"):
+            conns = getattr(pool, list_attr, ())
+            try:
+                conns.clear()
+            except Exception:
+                pass
 
 
 @pytest.fixture(autouse=True)

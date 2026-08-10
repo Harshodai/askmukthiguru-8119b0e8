@@ -1,3 +1,18 @@
+-- ============================================================================
+-- REVERT: Drop the retention_days + summary columns and the partial index. NOTE:
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- summary backfill values are lost (recomputable). CHECK constraint on
+-- conversations.retention_days drops with the column.
+-- DROP INDEX IF EXISTS idx_conversations_retention_created;
+-- ALTER TABLE public.guru_memories DROP COLUMN IF EXISTS summary;
+-- ALTER TABLE public.conversations DROP COLUMN IF EXISTS retention_days;
+-- ============================================================================
+
 -- Feature wave Task 2: retention policy + memory summary column.
 -- 1. Add per-conversation retention_days (user-configurable; 0 = forever, default 90).
 -- 2. Add guru_memories.summary TEXT for human-readable roll-up of the reflection

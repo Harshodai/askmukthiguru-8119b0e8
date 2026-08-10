@@ -16,17 +16,47 @@ Algorithm:
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Optional
 
 from app.config import settings
 from app.metrics import CONTEXT_CHUNKS_AFTER, CONTEXT_CHUNKS_BEFORE, CONTEXT_COMPRESSION_RATIO, CONTEXT_TOKENS_SAVED
+from services.language_router import LanguageRouter
 
 logger = logging.getLogger(__name__)
 
+# Indic scripts (U+0900–U+0DFF) tokenize at ~1 char ≈ 0.5–1 token with modern
+# BPE tokenizers, vs ~4 chars/token for Latin text. LanguageRouter.SCRIPT_RANGES
+# is the canonical table (Devanagari, Tamil, Telugu, Kannada, Bengali, Gujarati,
+# Gurmukhi, Malayalam); Odia is added because the router omits it.
+_EXTRA_INDIC_RANGES = {
+    "Oriya": ("\u0b00", "\u0b7f"),  # Odia
+}
+
+_ALL_INDIC_RANGES = {**LanguageRouter.SCRIPT_RANGES, **_EXTRA_INDIC_RANGES}
+
+# Single-pass, C-speed script presence scan (vs nested any() loops).
+_INDIC_SCRIPT_RE = re.compile(
+    "[" + "".join(f"{start}-{end}" for start, end in _ALL_INDIC_RANGES.values()) + "]"
+)
+
+
+def _contains_indic_script(text: str) -> bool:
+    """True when any Indic-script character is present in the text."""
+    return _INDIC_SCRIPT_RE.search(text) is not None
+
+
+def _chars_per_token(text: str) -> int:
+    """Chars per token: 2 for Indic scripts (conservative: 1 char ≈ 0.5–1
+    token), 4 for Latin (English)."""
+    return 2 if _contains_indic_script(text) else 4
+
 
 def _estimate_tokens(text: str) -> int:
-    """Fast token estimate: ~4 chars per token for English."""
-    return max(1, len(text) // 4)
+    """Fast token estimate: ~4 chars per token for English; Indic scripts
+    (hi/ta/te/kn/mr/bn/ml/pa/gu/or) are closer to ~2 chars per token, so the
+    conservative len//2 prevents context-budget overflow on Indic answers."""
+    return max(1, len(text) // _chars_per_token(text))
 
 
 class ContextBudgetManager:
@@ -140,8 +170,12 @@ class ContextBudgetManager:
 
     @staticmethod
     def _truncate_text(text: str, target_tokens: int) -> str:
-        """Truncate text to approximate target token count."""
-        target_chars = target_tokens * 4
+        """Truncate text to approximate target token count.
+
+        Uses the same script-aware chars-per-token factor as the estimator so
+        the truncated slice fits the budget for Indic scripts too.
+        """
+        target_chars = target_tokens * _chars_per_token(text)
         if len(text) <= target_chars:
             return text
         return text[:target_chars] + " [...]"

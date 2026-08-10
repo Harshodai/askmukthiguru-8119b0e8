@@ -416,7 +416,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Focused smoke test for RAG bug fixes")
     parser.add_argument("--base-url", default="http://localhost:8000", help="Backend base URL")
     parser.add_argument("--timeout", type=float, default=120.0, help="Request timeout seconds")
-    parser.add_argument("--test-key", default=os.environ.get("BENCHMARK_SECRET") or os.environ.get("JWT_SECRET"), help="X-Test-Key value for auth")
+    parser.add_argument("--test-key", default=os.environ.get("BENCHMARK_SECRET"), help="X-Test-Key value for auth (must match BENCHMARK_SECRET)")
     parser.add_argument("--concurrency", type=int, default=1, help="Run tests in parallel with N concurrent requests")
     parser.add_argument("--output", type=Path, default=None, help="JSON report output path")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")

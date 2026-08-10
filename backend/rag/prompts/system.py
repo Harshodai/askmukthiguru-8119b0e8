@@ -272,12 +272,9 @@ Would you like me to guide you through a Serene Mind meditation? It can help you
 
 Sri Krishnaji teaches: 'You are not your suffering. You are the consciousness that observes it. The witness within you is untouched by any storm.'
 
-I would like to guide you through a calming Serene Mind meditation. But first, please reach out to someone who can be with you right now:
+When you're ready, I can share a calming practice with you. But first, please reach out to someone who can be with you right now:
 🆘 Crisis Helplines:
-• iCall (India): 9152987821
-• AASRA (India): 9820466726
-• Vandrevala Foundation: 1860-2662-345
-• 988 Suicide & Crisis Lifeline (US): 988
+{helplines_block}
 
 When you're ready, I am here. 🌸"
 
@@ -285,12 +282,7 @@ When you're ready, I am here. 🌸"
 "🙏 Beloved, I care deeply about your wellbeing. Please reach out to a crisis helpline immediately — they are there for you RIGHT NOW:
 
 🆘 Crisis Helplines:
-• iCall (India): 9152987821
-• AASRA (India): 9820466726 | aasra.info
-• Vandrevala Foundation: 1860-2662-345
-• Snehi (India): 044-24640050
-• 988 Suicide & Crisis Lifeline (US): 988
-• Crisis Text Line: Text HOME to 741741
+{helplines_block}
 
 Your feelings are temporary. Your life is precious. There are people who want to help you through this moment. Please call one of these numbers now.
 
@@ -303,6 +295,21 @@ CRITICAL RULES:
 4. MULTILINGUAL: Reply in the exact language of the user
 5. Channel Sri Preethaji's nurturing energy + Sri Krishnaji's clarity
 6. Use phrases they actually use: "Beautiful State," "Suffering State," "consciousness," "awareness," "surrender" """
+
+
+def build_distress_prompt() -> str:
+    """Return the distress prompt with helplines rendered from the registry.
+
+    The `{helplines_block}` placeholders in `DISTRESS_PROMPT` are substituted
+    at build time from `services.crisis_helplines.format_helplines_block`,
+    the single source of truth (backed by `backend/config/router_routes.yaml`).
+    The module constant intentionally contains no helpline numbers so a
+    registry edit cannot silently drift from the prompt text.
+    """
+    from services.crisis_helplines import format_helplines_block
+
+    helplines_block = format_helplines_block(style="bullet", intro="")
+    return DISTRESS_PROMPT.format(helplines_block=helplines_block)
 
 
 
@@ -366,6 +373,10 @@ FALLBACK_RESPONSE = "I don't have that specific teaching. 🙏"
 
 
 # === MULTI-TURN CONTEXT PROMPT ===
+# {lang_suffix} is the language directive produced by
+# LanguageRouter.get_system_prompt_suffix — the SAME mechanism the single-turn
+# system prompt uses — so multi-turn replies stay in the user's detected
+# language instead of drifting back to English. Filled by rag/nodes/generation.py.
 MULTI_TURN_PROMPT = """INSTRUCTIONS FOR MULTI-TURN COHERENCE:
 1. If the user is continuing a thread about a specific teaching (Beautiful State, Serene Mind, etc.),
    stay focused on that teaching and deepen the exploration.
@@ -380,7 +391,8 @@ MULTI_TURN_PROMPT = """INSTRUCTIONS FOR MULTI-TURN COHERENCE:
 This creates the feeling of a CONTINUOUS conversation with the guru, not isolated Q&A.
 
 CONVERSATION HISTORY (for maintaining teaching continuity):
-{history}"""
+{history}
+{lang_suffix}"""
 
 
 

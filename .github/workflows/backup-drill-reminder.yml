@@ -1,0 +1,56 @@
+# ============================================================
+# Mukthi Guru — Monthly Backup/Restore Drill Reminder
+# Opens a GitHub issue on the first Monday of each month to
+# track the backup/restore drill described in
+# docs/runbooks/BACKUP_RESTORE_DRILL.md.
+# ============================================================
+
+name: Monthly Backup Restore Drill Reminder
+
+on:
+  schedule:
+    # First Monday of every month at 09:00 UTC
+    - cron: '0 9 1-7 * 1'
+  workflow_dispatch:
+
+jobs:
+  create-drill-issue:
+    name: Create monthly backup/restore drill issue
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Open monthly drill issue
+        uses: actions/github-script@v7
+        env:
+          ISSUE_BODY: |
+            ## Monthly Backup/Restore Drill
+
+            Run the procedure in [docs/runbooks/BACKUP_RESTORE_DRILL.md](../blob/main/docs/runbooks/BACKUP_RESTORE_DRILL.md) and post the result log as a comment below.
+
+            ### Checklist
+            - [ ] Postgres schema restore
+            - [ ] Postgres data restore (critical tables)
+            - [ ] Qdrant snapshot restore
+            - [ ] Neo4j dump restore
+            - [ ] Redis RDB restore
+            - [ ] Smoke tests pass
+            - [ ] Backup freshness verified
+            - [ ] Result log appended to this issue
+
+            ### Notes
+            - Use a non-production restore target.
+            - If any step fails, file a P1 incident issue and do not close this issue until re-run passes.
+        with:
+          script: |
+            const title = `[OPS] Monthly backup/restore drill — ${new Date().toISOString().slice(0, 10)}`;
+            const labels = ['ops', 'backup', 'drill'];
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body: process.env.ISSUE_BODY,
+              labels
+            });

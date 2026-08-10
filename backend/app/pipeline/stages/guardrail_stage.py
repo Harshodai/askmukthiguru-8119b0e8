@@ -12,7 +12,8 @@ import time
 import uuid
 from typing import TYPE_CHECKING
 
-
+from app.config import settings
+from app.language_utils import guardrail_text_for, is_non_english_message
 from app.metrics import REQUEST_LATENCY
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
@@ -46,9 +47,21 @@ class InputGuardrailStage(Stage):
         preferred_lang = ctx.preferred_lang
         container = ctx.container
 
+        # CRIT-5: guardrails must see English for EVERY input. Indic-preferred
+        # users are already covered — prepare_request_state translated to
+        # user_msg_en, so do NOT re-translate them. The real gap is an
+        # EN-preferred user typing in a non-EN script (Devanagari, Tamil, ...)
+        # — should_translate was False, so user_msg_en is the raw non-EN text.
+        # Detect on the original message and translate just that case.
+        guardrail_text = user_msg_en
+        if settings.multilingual_guardrails:
+            raw = ctx.user_msg or user_msg_en
+            if not is_indic and is_non_english_message(raw):
+                guardrail_text = await guardrail_text_for(raw, container.translation, preferred_lang)
+
         # ponytail: body of _run_input_guardrails verbatim
         with REQUEST_LATENCY.labels(stage="guardrails").time():
-            input_check = await container.guardrails.check_input(user_msg_en)
+            input_check = await container.guardrails.check_input(guardrail_text)
 
         ctx.input_check = input_check
         if input_check["blocked"]:

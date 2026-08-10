@@ -1,3 +1,24 @@
+-- ============================================================================
+-- REVERT: Mixed hardening migration — partially irreversible:
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- - match_user_memories_by_user / meditation_streak were DROPPED here; restore
+--   from 20260705000000 / 20260615120000 definitions if still needed.
+-- - handle_new_user was rewritten with a domain allow-list; restore the prior
+--   body from git history to undo (reverts the signup restriction).
+-- DROP POLICY IF EXISTS "admin_update" ON public.daily_teachings;
+-- DROP POLICY IF EXISTS "public_read_active_teaching_images" ON storage.objects;
+-- CREATE POLICY "authenticated_read_teaching_images" ON storage.objects
+--   FOR SELECT TO authenticated
+--   USING (bucket_id = 'daily-teachings');
+-- NOTE: the EXECUTE revokes were largely no-ops (prior migrations already
+-- restricted those functions); nothing to restore.
+-- ============================================================================
+
 -- 1) Drop RPCs flagged as insecure (idempotent — no-ops if absent)
 DROP FUNCTION IF EXISTS public.match_user_memories_by_user(uuid, vector, integer, double precision) CASCADE;
 DROP FUNCTION IF EXISTS public.match_user_memories_by_user(uuid, vector, integer, float) CASCADE;

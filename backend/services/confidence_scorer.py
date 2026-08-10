@@ -11,7 +11,7 @@ weighted ensemble:
   recency             10%  — newer sources score higher (if published_date)
   llm uncertainty     10%  — 1.0 minus normalized verifier uncertainty
 
-Final score is temperature-scaled (T=1.5) to prevent overconfidence, then
+Final score is temperature-scaled (T=1.0) to prevent overconfidence, then
 mapped back to the 1–10 scale expected by the rest of the system.
 
 E3.2: also emits a one-line explainable reason string via calculate_confidence_reason.
@@ -38,6 +38,11 @@ _WEIGHTS = {
 # Temperature scaling factor — values > 1 soften overconfident raw scores.
 # Tuned so a high-faithfulness, contradiction-free, well-sourced answer
 # reaches the 8.0+ confidence threshold expected by downstream verification.
+# NOTE (P1-AI-15): the module docstring previously claimed T=1.5 but the code
+# always used 1.0; no calibration evidence for 1.5 exists, and the 8.0+
+# threshold comment describes behavior under 1.0 — so the docstring was
+# corrected to 1.0 and behavior kept stable. Re-tune via a live calibration
+# eval (temperature sweep vs verification outcomes) before changing this value.
 _TEMPERATURE = 1.0
 
 # Source-type authority ranking (E3.2): book > transcript > video > social > unknown

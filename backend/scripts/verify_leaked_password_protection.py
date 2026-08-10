@@ -16,12 +16,14 @@ Optional env:
                                but prints a warning so the omission is never silent.
 
 Install paths and resolved-version verification:
-    CI (GitHub Actions): uv sync --frozen reads backend/uv.lock (authoritative).
-    Docker:              pip install -r backend/requirements.txt; uv.lock NOT used.
+    Single lockfile policy (P1-OPS-4): backend/requirements.txt is the ONLY
+    Python dependency source. uv.lock was removed 2026-08-10 — nothing consumed
+    it (Docker, pip-audit CI, and cache-warm all install from requirements.txt).
+    Docker:              pip install -r backend/requirements.txt (uv pip wrapper).
                          Verify with `pip show <pkg>` inside the image.
-    Local dev:           uv sync reads uv.lock by default; plain pip uses
-                         requirements.txt ranges. Run `pip show <pkg>` or
-                         `uv pip show <pkg>` to confirm the resolved version.
+    Local dev:           make install → uv pip install -e ".[dev]" reads
+                         pyproject.toml ranges; run `uv pip show <pkg>` to confirm.
+                         Re-sync prod parity with `uv pip install -r requirements.txt`.
 """
 
 import json

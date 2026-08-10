@@ -1,3 +1,27 @@
+-- ============================================================================
+-- REVERT: Drop the policies added here. CAUTION: the point of this migration was
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- enabling RLS — do NOT run ALTER TABLE ... DISABLE ROW LEVEL SECURITY in prod
+-- (it re-exposes the tables to anon). Policies recreated with WITH CHECK by
+-- 20260804000001 are removed by these drops regardless of version.
+-- DROP POLICY IF EXISTS "Everyone can view gurus" ON public.gurus;
+-- DROP POLICY IF EXISTS "Admins can manage gurus" ON public.gurus;
+-- DROP POLICY IF EXISTS "Admins can manage assistant_configurations" ON public.assistant_configurations;
+-- DROP POLICY IF EXISTS "Admins can manage assistant_doctrines" ON public.assistant_doctrines;
+-- DROP POLICY IF EXISTS "Users can view own communications" ON public.communications;
+-- DROP POLICY IF EXISTS "Users can insert own communications" ON public.communications;
+-- DROP POLICY IF EXISTS "Admins can manage communications" ON public.communications;
+-- DROP POLICY IF EXISTS "Users can view own digital_employees" ON public.digital_employees;
+-- DROP POLICY IF EXISTS "Users can insert own digital_employees" ON public.digital_employees;
+-- DROP POLICY IF EXISTS "Users can update own digital_employees" ON public.digital_employees;
+-- DROP POLICY IF EXISTS "Admins can manage digital_employees" ON public.digital_employees;
+-- ============================================================================
+
 -- Enable Row Level Security on all public tables that lack it.
 -- These tables had RLS disabled, making them fully exposed to anon
 -- and authenticated roles via the Supabase REST API.

@@ -1,3 +1,26 @@
+-- ============================================================================
+-- REVERT: Drop the admin RPCs and the columns added here. NOTE: seed_admin_demo() was
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- overwritten here and its demo rows remain in telemetry tables; delete manually
+-- if a full rollback is required.
+-- DROP FUNCTION IF EXISTS public.list_admins();
+-- DROP FUNCTION IF EXISTS public.promote_admin_by_email(text);
+-- DROP FUNCTION IF EXISTS public.demote_admin_by_id(uuid);
+-- ALTER TABLE public.alert_rules DROP COLUMN IF EXISTS active, DROP COLUMN IF EXISTS window_minutes, DROP COLUMN IF EXISTS channel, DROP COLUMN IF EXISTS target;
+-- ALTER TABLE public.alert_events DROP COLUMN IF EXISTS rule_name, DROP COLUMN IF EXISTS resolved_at;
+-- ALTER TABLE public.eval_runs DROP COLUMN IF EXISTS triggered_by, DROP COLUMN IF EXISTS prompt_version_id;
+-- ALTER TABLE public.golden_questions DROP COLUMN IF EXISTS active, DROP COLUMN IF EXISTS expected_sources;
+-- ALTER TABLE public.annotations DROP COLUMN IF EXISTS label, DROP COLUMN IF EXISTS notes, DROP COLUMN IF EXISTS promoted_to_golden, DROP COLUMN IF EXISTS response_id;
+-- ALTER TABLE public.safety_events DROP COLUMN IF EXISTS type, DROP COLUMN IF EXISTS excerpt;
+-- ALTER TABLE public.ingestion_runs DROP COLUMN IF EXISTS duration_ms, DROP COLUMN IF EXISTS error_log;
+-- ALTER TABLE public.app_logs DROP COLUMN IF EXISTS request_id;
+-- ============================================================================
+
 
 -- ===== Column additions =====
 ALTER TABLE public.alert_rules

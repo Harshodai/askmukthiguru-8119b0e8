@@ -216,10 +216,11 @@ Check the KEY FACTUAL CLAIMS in the Answer. Are the main teachings, stories, and
 
 IMPORTANT: The following are NOT hallucinations:
 - Connective phrases, transitions, and conversational warmth (e.g., "Let me share with you...")
-- General spiritual concepts that are universally known (e.g., "meditation brings peace")
 - Rewordings or paraphrases of Context content
 - Source citations and attributions
 - Greetings, encouragement, or closing remarks
+
+IMPORTANT: General spiritual concepts are hallucinations UNLESS the Context explicitly contains them. For example, "meditation brings peace" is hallucinated if no Context passage states it. The gurus' teachings are specific, not generic — do not credit generic platitudes (Buddhist, Advaita, Yoga, or otherwise) to the teachings. An answer that paraphrases tradition-agnostic spirituality without grounding it in the Context is HALLUCINATED even if the sentiment is widely held as common knowledge.
 
 Only mark as HALLUCINATED if the answer makes SPECIFIC factual claims about teachings, people, events, or practices that are NOT present in the Context.
 

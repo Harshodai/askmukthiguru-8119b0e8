@@ -362,6 +362,7 @@ def test_build_default_pipeline_order():
         "langgraph",
         "meditation_gen",
         "translation",
+        "tone_adapter",
         "output_guardrails",
         "memory_save",
         "cache_update",

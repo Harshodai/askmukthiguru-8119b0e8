@@ -1,3 +1,20 @@
+-- ============================================================================
+-- REVERT: Remove the columns/policy/trigger added on top of the vault table (the table
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- itself comes from 20260717191006). set_updated_at() is NOT dropped — the
+-- course-progress trigger (20260730044540) depends on it.
+-- DROP TRIGGER IF EXISTS user_brain_keys_set_updated_at ON public.user_brain_keys;
+-- ALTER TABLE public.user_brain_keys DROP COLUMN IF EXISTS kek;
+-- ALTER TABLE public.user_brain_keys DROP COLUMN IF EXISTS dek_wrapped;
+-- ALTER TABLE public.user_brain_keys DROP COLUMN IF EXISTS rotated_at;
+-- DROP POLICY IF EXISTS "owner_brain_keys" ON public.user_brain_keys;
+-- ============================================================================
+
 -- Create user_brain_keys table if not exists
 -- Required for second brain feature
 

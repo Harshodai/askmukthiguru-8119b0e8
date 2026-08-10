@@ -7,6 +7,16 @@ import { recordMetric } from './telemetry';
 import type { MessagePayload, StreamChunk } from './types';
 
 /**
+ * Split an SSE text buffer into complete lines, handling both LF and CRLF
+ * line endings. The final (possibly partial) line is the remainder to carry
+ * into the next chunk — it must never be treated as a complete event.
+ */
+export function splitSseLines(buffer: string): { lines: string[]; remainder: string } {
+  const lines = buffer.split(/\r?\n/);
+  return { lines: lines.slice(0, -1), remainder: lines[lines.length - 1] ?? '' };
+}
+
+/**
  * Streaming variant of sendMessage. Yields content chunks as they arrive
  * from an SSE/chunked endpoint. Falls back by throwing if streaming is
  * unavailable (caller should catch and use sendMessage instead).
@@ -173,8 +183,8 @@ export async function* sendMessageStreaming(
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      const sseLines = buffer.split('\n');
-      buffer = sseLines.pop() || '';
+      const { lines: sseLines, remainder } = splitSseLines(buffer);
+      buffer = remainder;
       for (const line of sseLines) {
         // Parse SSE event type lines
         if (line.startsWith('event: ')) {

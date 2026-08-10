@@ -4,10 +4,19 @@ import path from "path";
 import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const backend = env.VITE_BACKEND_URL || "http://localhost:8000";
   const isProd = mode === "production";
+  if (
+    command === "build" &&
+    (!env.VITE_SUPABASE_URL || !env.VITE_SUPABASE_PUBLISHABLE_KEY)
+  ) {
+    throw new Error(
+      "VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must be set for a build. " +
+        "Add them to .env (or .env.production) — the frontend no longer falls back to the production Supabase project.",
+    );
+  }
   return {
     server: {
       host: "::",

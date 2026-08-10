@@ -83,7 +83,8 @@ def test_resolve_empty_context():
     answer = "No citations here."
     result = resolve(answer, [])
     assert result.citation_count == 0
-    assert result.grounded is True
+    # P1-AI-12: empty context no longer vacuously "grounds" a real answer.
+    assert result.grounded is False
 
 
 def test_strip_orphan_all_bad():

@@ -488,7 +488,34 @@
     "messagesCount": "{{count}} messages",
     "yourSpiritualCompanion": "Your Spiritual Companion",
     "backToHome": "Back to Home",
-    "newConversation": "New Conversation"
+    "newConversation": "New Conversation",
+    "starterCards": {
+      "reflect": {
+        "eyebrow": "Reflect",
+        "prompt": "What is the Beautiful State, and how do I begin?"
+      },
+      "meditate": {
+        "eyebrow": "Meditate",
+        "prompt": "Guide me through a short breathing meditation"
+      },
+      "heal": {
+        "eyebrow": "Heal",
+        "prompt": "I'm feeling overwhelmed — help me find calm"
+      },
+      "learn": {
+        "eyebrow": "Learn",
+        "prompt": "Share a teaching from Sri Preethaji on suffering"
+      }
+    },
+    "proactivePrelude": {
+      "streaming": "Sri Preethaji and Sri Krishnaji reminds us: suffering is not the truth of who you are. Every moment of pain is also a doorway to awakening. Please do Serene Mind now to continue. You can type \"do serene mind now\" or click the button below to start.",
+      "standard": "Sri Preethaji and Sri Krishnaji remind us: suffering is not the truth of who you are. Every moment of pain is also a doorway to awakening. Please do Serene Mind now to continue. You can click the button below to start."
+    },
+    "savedToNotesDescription": "Find it under Profile → Notes.",
+    "translationUnavailable": "Translation unavailable",
+    "saveAsNote": "Save as note",
+    "showOriginal": "Show original",
+    "translateTo": "Translate to {{lang}}"
   },
   "notFound": {
     "message": "Oops! Page not found",
@@ -746,7 +773,10 @@
     "guruResting": "The Guru is resting. Please try again in a moment.",
     "circuitBreaker": "Service temporarily unavailable. Please try again later.",
     "chatErrorTitle": "Unable to get response",
-    "chatErrorDesc": "The Guru is resting. Please try again in a moment."
+    "chatErrorDesc": "The Guru is resting. Please try again in a moment.",
+    "unknownError": "Unknown error",
+    "boundaryDescription": "AskMukthiGuru hit an unexpected error while loading. Reloading usually fixes it.",
+    "technicalDetails": "Technical details"
   },
   "onboarding": {
     "welcome": "Welcome to AskMukthiGuru",

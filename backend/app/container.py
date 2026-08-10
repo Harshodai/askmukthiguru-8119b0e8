@@ -476,7 +476,12 @@ class ServiceContainer:
             self.episodic_memory_service = EpisodicMemoryService(supabase_client=self.supabase_client)
             self.notebook_service = NotebookService(supabase_client=self.supabase_client)
             from services.srs_service import SRSService
-            self.srs_service = SRSService(supabase_client=self.supabase_client, ollama_service=self.ollama)
+            self.srs_service = SRSService(
+                supabase_client=self.supabase_client,
+                ollama_service=self.ollama,
+                guardrails_service=self.guardrails,
+                translation_service=self.translation,
+            )
         else:
             self.user_profile = None
             self.memory_service = None

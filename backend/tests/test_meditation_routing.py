@@ -22,18 +22,16 @@ This test module pins the fix in four layers:
      graceful soft-fallback and sets _meditation_misroute=True (NEVER the
      sentinel).
 
-These tests do NOT require Qdrant, Redis, Neo4j or Supabase. Heavy optional
-dependencies are stubbed via sys.modules in _bootstrap_stubs() so the suite is
-fully hermetic for unit-level layers 1-3. Layer 4 tests (handle_meditation)
-load the full module via importlib and skip cleanly if a transitive dep is
-missing in the current environment — they always run inside the docker stack.
+These tests do NOT require Qdrant, Redis, Neo4j or Supabase. Layers 1-3
+touch only pure functions (rag.meditation, rag.intent_prerouter). Layer 4
+tests (handle_meditation) load the full module via importlib and skip
+cleanly if a transitive dep is missing in the current environment.
 """
 
 from __future__ import annotations
 
 import asyncio
 import sys
-import types
 from pathlib import Path
 
 import pytest
@@ -41,60 +39,6 @@ import pytest
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
-
-
-def _install_module_stub(name: str, attrs: dict | None = None) -> types.ModuleType:
-    """Register a minimal stand-in module so heavy optional deps can be
-    imported by application code without their real implementations."""
-    if name in sys.modules:
-        return sys.modules[name]
-    module = types.ModuleType(name)
-    for key, value in (attrs or {}).items():
-        setattr(module, key, value)
-    sys.modules[name] = module
-    return module
-
-
-def _bootstrap_stubs() -> None:
-    """Install sys.modules stubs for heavy optional dependencies."""
-    qc = _install_module_stub("qdrant_client")
-    qc.QdrantClient = type("QdrantClient", (), {"__init__": lambda self, *a, **kw: None})
-    _install_module_stub("qdrant_client.http")
-    qc_models = _install_module_stub("qdrant_client.models")
-    for cls_name in (
-        "Distance", "VectorParams", "SparseVectorParams", "SparseIndexParams",
-        "PointStruct", "Filter", "FieldCondition", "MatchValue",
-        "SparseVector", "NamedVector", "NamedSparseVector",
-    ):
-        setattr(qc_models, cls_name, type(cls_name, (), {"__init__": lambda self, *a, **kw: None}))
-    qc_models.Distance = type("Distance", (), {"COSINE": "Cosine"})
-
-    st = _install_module_stub("sentence_transformers")
-    st.SentenceTransformer = type("SentenceTransformer", (), {"__init__": lambda self, *a, **kw: None})
-    st.CrossEncoder = type("CrossEncoder", (), {"__init__": lambda self, *a, **kw: None})
-
-    n4 = _install_module_stub("neo4j")
-    n4.GraphDatabase = type("GraphDatabase", (), {"driver": staticmethod(lambda *a, **kw: None)})
-    n4.Driver = type("Driver", (), {})
-
-    lr = _install_module_stub("lightrag")
-    lr.LightRAG = type("LightRAG", (), {"__init__": lambda self, *a, **kw: None})
-    lr.QueryParam = type("QueryParam", (), {"__init__": lambda self, *a, **kw: None})
-
-    sb = _install_module_stub("supabase")
-    sb.create_client = lambda *a, **kw: None
-    sb.Client = type("Client", (), {})
-
-    for mod in (
-        "FlagEmbedding",
-        "lightrag.utils",
-        "lightrag.llm.openai",
-        "lightrag.kg.shared_storage",
-    ):
-        _install_module_stub(mod)
-
-
-_bootstrap_stubs()
 
 
 def _safe_run(coro):

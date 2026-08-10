@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { forwardRef, useState, useCallback, memo, useRef, useEffect } from 'react';
+import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX } from 'lucide-react';
 import { useNotes } from '@/hooks/useNotes';
@@ -11,7 +11,7 @@ import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
 import { useProfile } from '@/hooks/useProfile';
 import { translateText } from '@/lib/aiService';
-import { WisdomCardGenerator } from './WisdomCardGenerator';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { InlineActions, EngagementCard } from './InlineActions';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { createPortal } from 'react-dom';
@@ -48,6 +48,14 @@ const injectCitationLinks = (content: string, citationsLen: number): string => {
     return nums.map((n) => `[[${n}]](#cite-${n})`).join('');
   });
 };
+
+/**
+ * Allowlist for markdown-rendered URLs. react-markdown v10 forwards raw hrefs
+ * unless urlTransform is set; model-generated content must never open
+ * javascript:/data: links, so every scheme outside the allowlist is dropped.
+ */
+export const safeUrlTransform = (url: string): string =>
+  /^(https?:|mailto:|#)/i.test(url) ? url : '';
 
 
 /**
@@ -297,6 +305,20 @@ const getSourceDisplayName = (url: string, index: number): string => {
 };
 
 
+/**
+ * Wisdom Card generator is a big, rarely-opened modal — it ships in its own
+ * chunk and loads only when the share button is clicked, keeping it off the
+ * chat hot path (P1-AI-16). lazyWithRetry reloads once if a deploy invalidated
+ * the chunk URL mid-session. The module exports a named component, so adapt
+ * it to the `{ default }` shape lazyWithRetry expects. Shared by ChatInterface
+ * (Quick Wisdom Card) so the generator stays in exactly one lazy chunk.
+ */
+export const LazyWisdomCardGenerator = lazyWithRetry(async () => {
+  const mod = await import('./WisdomCardGenerator');
+  return { default: mod.WisdomCardGenerator };
+});
+
+
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onEditUserMessage, onSubmitEdit, onAction, onCitationClick }, ref) => {
     const { t } = useTranslation();
@@ -377,7 +399,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       if (note) {
         setNoteSaved(true);
         setTimeout(() => setNoteSaved(false), 2000);
-        toast({ title: 'Saved to Notes', description: 'Find it under Profile → Notes.' });
+        toast({ title: t('chat.savedToNotes'), description: t('chat.savedToNotesDescription') });
       } else {
         toast({ title: t('chat.signInSaveNotes'), variant: 'destructive' });
       }
@@ -528,6 +550,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           // GFM: tables, strikethrough, task lists, autolinks. Without it the
                           // model's markdown tables rendered as raw pipe soup.
                           remarkPlugins={[remarkGfm]}
+                          urlTransform={safeUrlTransform}
                           components={{
                             // Reading rhythm: a full blank line between paragraphs, the way
                             // ChatGPT/Claude set long-form answers. `mb-1.5` ran them together.
@@ -763,7 +786,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
 
               {/* Guru hover actions */}
               {isGuru && message.content && !isStreaming && !message.content.includes('_Stopped by you._') && (
-                <div className="flex items-center gap-0.5 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <div className="flex items-center gap-0.5 mt-2 opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100 transition-opacity duration-200">
                   {isLastGuru && onRegenerate && (
                     <button
                       onClick={onRegenerate}
@@ -776,7 +799,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   <button
                     onClick={handleCopy}
                     className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                    title={copied ? 'Copied!' : 'Copy response'}
+                    title={copied ? t('common.copied') : t('chat.copyResponse')}
                   >
                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </button>
@@ -788,7 +811,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           ? 'bg-ojas/15 text-ojas'
                           : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
                         }`}
-                      title={isSpeaking ? 'Stop reading' : 'Read aloud'}
+                      title={isSpeaking ? t('chat.stopReading') : t('chat.readAloud')}
                     >
                       {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                     </button>
@@ -800,7 +823,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         ? 'bg-prana/15 text-prana'
                         : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
                       } ${savingMemory ? 'opacity-60' : ''}`}
-                    title={saved ? 'Saved to memory' : 'Save to memory'}
+                    title={saved ? t('chat.savedToMemory') : t('chat.saveToMemory')}
                   >
                     <Bookmark className={`w-4 h-4 ${saved ? 'fill-current' : ''}`} />
                   </button>
@@ -810,14 +833,14 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         ? 'bg-prana/15 text-prana'
                         : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
                       }`}
-                    title={noteSaved ? 'Saved to Notes' : 'Save as note'}
+                    title={noteSaved ? t('chat.savedToNotes') : t('chat.saveAsNote')}
                   >
                     <StickyNote className={`w-4 h-4 ${noteSaved ? 'fill-current' : ''}`} />
                   </button>
                   <button
                     onClick={() => setShowWisdomCard(true)}
                     className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                    title="Share as Wisdom Card"
+                    title={t('chat.shareWisdomCard')}
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
@@ -832,22 +855,22 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               <div
                 className="text-[10.5px] text-muted-foreground/70 mt-2 select-none flex items-center gap-1.5"
                 role="status"
-                aria-label={`AI generated content${citations.length > 0 ? `, ${citations.length} ${citations.length === 1 ? 'source' : 'sources'}` : ''}`}
+                aria-label={citations.length > 0 ? t('chat.aiLabelWithSources', { count: citations.length }) : t('chat.aiLabel')}
               >
                 <Sparkles className="w-2.5 h-2.5 text-muted-foreground/60" aria-hidden />
                 <span>
-                  AI-generated
+                  {t('chat.aiLabel')}
                 </span>
               </div>
             )}
 
             {/* User hover actions */}
             {!isGuru && message.content && !isStreaming && !isEditing && (
-              <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-1 mr-1">
+              <div className="flex items-center justify-end gap-0.5 opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100 transition-opacity duration-200 mt-1 mr-1">
                 <button
                   onClick={handleCopy}
                   className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                  title={copied ? 'Copied!' : 'Copy question'}
+                  title={copied ? t('common.copied') : t('chat.copyQuestion')}
                 >
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
@@ -862,7 +885,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       }
                     }}
                     className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                    title="Edit & resend"
+                    title={t('chat.editResend')}
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
@@ -874,7 +897,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             {isGuru && message.memoriesUsed && message.memoriesUsed.length > 0 && (
               <details className="w-full rounded-lg border border-ojas/15 bg-ojas/5 px-3 py-2 text-xs">
                 <summary className="cursor-pointer font-medium text-ojas/80 select-none">
-                  Recalled from your reflections ({message.memoriesUsed.length})
+                  {t('chat.recalledFromReflections', { count: message.memoriesUsed.length })}
                 </summary>
                 <ul className="mt-2 space-y-1 list-disc pl-4 text-muted-foreground">
                   {message.memoriesUsed.slice(0, 6).map((m, i) => (
@@ -887,7 +910,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             {/* Follow-up suggestions as clickable chips */}
             {isGuru && message.followUpSuggestions && message.followUpSuggestions.length > 0 && !isStreaming && onAction && !message.content.includes('_Stopped by you._') && (
               <div className="w-full mt-1">
-                <p className="text-[10px] text-muted-foreground/60 mb-2 pl-0.5">Suggested follow-ups</p>
+                <p className="text-[10px] text-muted-foreground/60 mb-2 pl-0.5">{t('chat.suggestedFollowUps')}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {message.followUpSuggestions.map((suggestion, i) => (
                     <button
@@ -908,7 +931,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 <summary className="flex items-center gap-2.5 cursor-pointer list-none select-none">
                   <BookOpen className="w-4 h-4 text-ojas" />
                   <span className="text-[12px] font-semibold uppercase tracking-wider text-ojas/90">
-                    References
+                    {t('chat.references')}
                   </span>
                   <button
                     type="button"
@@ -1072,13 +1095,16 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
 
         </motion.div>
 
-        {/* Wisdom Card Modal */}
+        {/* Wisdom Card Modal — lazy-loaded chunk (P1-AI-16); Suspense keeps the
+            open state snappy while the chunk loads. */}
         {showWisdomCard && createPortal(
-          <WisdomCardGenerator
-            isOpen={showWisdomCard}
-            onClose={() => setShowWisdomCard(false)}
-            content={message.content}
-          />,
+          <Suspense fallback={null}>
+            <LazyWisdomCardGenerator
+              isOpen={showWisdomCard}
+              onClose={() => setShowWisdomCard(false)}
+              content={message.content}
+            />
+          </Suspense>,
           document.body
         )}
       </>
@@ -1090,6 +1116,12 @@ ChatMessageInner.displayName = 'ChatMessageInner';
 
 // React.memo to skip re-renders when props haven't changed.
 // During streaming, only the actively-streaming message changes.
+// P1-AI-17: comparator previously omitted queryText / onSubmitEdit /
+// onEditUserMessage — a changing query (e.g. the next message's question)
+// or a fresh edit handler then kept rendering stale output and captured
+// stale closures for edit/submit. All are primitives or stable identities
+// from MessageList, so reference comparison is safe. (Streaming content
+// flows through `message.content`, which is compared above.)
 export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
   return (
     prev.message.id === next.message.id &&
@@ -1098,21 +1130,28 @@ export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     prev.isStreaming === next.isStreaming &&
     prev.index === next.index &&
     prev.isLastGuru === next.isLastGuru &&
+    prev.queryText === next.queryText &&
     prev.onAction === next.onAction &&
     prev.onRegenerate === next.onRegenerate &&
+    prev.onSubmitEdit === next.onSubmitEdit &&
+    prev.onEditUserMessage === next.onEditUserMessage &&
     prev.onCitationClick === next.onCitationClick
   );
 }) as typeof ChatMessageInner;
 (ChatMessage as { displayName?: string }).displayName = 'ChatMessage';
 
-const LanguageTranslateButton = ({ message }: { message: Message }) => {
+export const LanguageTranslateButton = ({ message }: { message: Message }) => {
+  const { t } = useTranslation();
+  // ALL hooks run unconditionally, before any early return — a conditional
+  // return between hook calls crashes React ("rendered fewer hooks") when the
+  // preferred language flips from non-English to English mid-session.
   const { profile } = useProfile();
   const [translated, setTranslated] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const lang = profile?.preferredLanguage;
   const isEnglish = !lang || lang === 'en';
-  if (isEnglish) return null;
+  if (isEnglish) return <></>;
 
   const handleTranslate = async () => {
     if (translated) {
@@ -1121,7 +1160,7 @@ const LanguageTranslateButton = ({ message }: { message: Message }) => {
     }
     setLoading(true);
     const result = await translateText(message.content, lang, 'en-IN');
-    setTranslated(result || 'Translation unavailable');
+    setTranslated(result || t('chat.translationUnavailable'));
     setLoading(false);
   };
 
@@ -1131,7 +1170,7 @@ const LanguageTranslateButton = ({ message }: { message: Message }) => {
         onClick={handleTranslate}
         disabled={loading}
         className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-        title={translated ? 'Show original' : `Translate to ${lang}`}
+        title={translated ? t('chat.showOriginal') : t('chat.translateTo', { lang })}
       >
         {loading ? (
           <span className="w-3 h-3 block rounded-full border border-ojas border-t-transparent animate-spin" />

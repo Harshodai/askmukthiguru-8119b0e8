@@ -13,7 +13,7 @@ const localeLoaders = import.meta.glob<{ default: Record<string, unknown> }>(
   './locales/*.json',
 );
 
-const SUPPORTED = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'as', 'sa'] as const;
+const SUPPORTED = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'ur', 'pa', 'or', 'as', 'sa'] as const;
 
 const baseLanguage = (lng?: string) => (lng ?? 'en').split('-')[0];
 

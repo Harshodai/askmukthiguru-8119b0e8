@@ -41,6 +41,17 @@ class CacheCheckStage(Stage):
         preferred_lang = ctx.preferred_lang
         container = ctx.container
 
+        # Read-side guard (mirror of CacheUpdateStage's write guard below): a query
+        # personalized with this user's memory_context must never be served a generic
+        # cached answer. The shared caches key on (language, message) only, so without
+        # this guard a memory-context query could replay another seeker's generic answer.
+        # Defense-in-depth — in the current stage order memory_context is populated by
+        # RequestStateStage after this stage, so this also pins the invariant for any
+        # future reordering that computes memory earlier.
+        if ctx.state.get("memory_context"):
+            logger.debug("cache hit skipped: memory_context present")
+            return None
+
         # Out-of-corpus logistics queries must bypass the cache entirely. "upcoming programs
         # from Ekam" and "what is Ekam" embed close, so the semantic cache would otherwise
         # serve a teaching answer for a logistics question (and vice-versa). Skipping the
@@ -178,6 +189,38 @@ class CacheUpdateStage(Stage):
         if ctx.is_blocked or ctx.last_stage_status == "error":
             logger.info("Skipping cache update: response was blocked by guardrails or has a stage error status.")
             return None
+
+        # P1-BE-3: never cache a known-unfaithful answer — a hallucinated
+        # response must not be replayed to every seeker with the same query.
+        # The faithfulness verdict lives on ctx.graph_result (the LangGraph
+        # generation node's output — generation.py:1795), NOT on ctx.state:
+        # GraphStage copies only answer/intent/citations into ctx, so
+        # ctx.state would carry no verdict at all. When no verdict was written
+        # (non-RAG / no-context / fallback paths), keep the legacy behavior.
+        graph_result = ctx.graph_result or {}
+        verdict_present = any(
+            key in graph_result for key in ("is_faithful", "faithfulness_score", "citations_verified")
+        )
+        if verdict_present:
+            if graph_result.get("is_faithful") is False:
+                logger.info("Skipping cache update: answer failed faithfulness verification.")
+                return None
+            faithfulness_score = graph_result.get("faithfulness_score")
+            if faithfulness_score is not None and faithfulness_score < settings.cove_compulsory_threshold:
+                logger.info(
+                    "Skipping cache update: faithfulness score %.2f below cache threshold %.2f.",
+                    faithfulness_score,
+                    settings.cove_compulsory_threshold,
+                )
+                return None
+            if graph_result.get("is_faithful") is None and not graph_result.get("citations_verified", False):
+                # P1-AI-2 semantics: is_faithful None means the verifier was
+                # legitimately skipped (fast tier), NOT that the answer failed —
+                # but a cited-but-unverified answer (citations_verified=False)
+                # must not be cached either: it has no grounding evidence and
+                # would be replayed verbatim on the next identical query.
+                logger.info("Skipping cache update: faithfulness unverified and citations not verified.")
+                return None
 
         if intent in ["ERROR", "SAFETY_VIOLATION", "ADVERSARIAL", "DISTRESS"]:
             logger.info(f"Skipping cache update: intent '{intent}' is not cacheable.")

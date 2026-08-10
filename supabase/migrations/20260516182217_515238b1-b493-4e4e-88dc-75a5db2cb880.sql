@@ -1,3 +1,15 @@
+-- ============================================================================
+-- REVERT: Drop ensure_profile_and_role(). NOTE: the profile/role backfill INSERTs are
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- data-altering — rows created for pre-existing users remain after this revert.
+-- DROP FUNCTION IF EXISTS public.ensure_profile_and_role();
+-- ============================================================================
+
 -- Idempotent helper: callers (authenticated users) ensure they have a profile + default role.
 CREATE OR REPLACE FUNCTION public.ensure_profile_and_role()
 RETURNS jsonb

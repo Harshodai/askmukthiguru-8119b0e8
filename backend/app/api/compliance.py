@@ -20,13 +20,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import get_container
-from services.auth_service import get_current_user_from_supabase
+from services.auth_service import get_current_user_from_supabase, require_aal2
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/compliance", tags=["compliance"])
 
 
-def _require_admin(user: dict = Depends(get_current_user_from_supabase)) -> dict:
+def _require_admin(user: dict = Depends(require_aal2)) -> dict:
     """Gate: only superusers can access compliance endpoints."""
     if not user.get("is_superuser"):
         raise HTTPException(status_code=403, detail="Admin access required")
@@ -54,7 +54,10 @@ async def get_audit_sessions(
 
 
 @router.get("/audit/stats")
-async def get_audit_stats(_admin: dict = Depends(_require_admin)):
+async def get_audit_stats(
+    _admin: dict = Depends(require_aal2),
+    _superuser: dict = Depends(_require_admin),
+):
     """Return high-level stats from audit logs (record count per day)."""
     import os
     from pathlib import Path

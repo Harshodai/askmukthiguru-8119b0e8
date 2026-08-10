@@ -164,11 +164,22 @@ def extractive_compress_doc(question: str, text: str, max_chars: int = 1500) -> 
 
 
 def classify_user_familiarity(question: str, chat_history: list[dict]) -> str:
-    """Classifies user familiarity level deterministically based on query and history."""
+    """Classifies user familiarity level deterministically based on query and history.
+
+    P1-AI-13: ``question`` here is the graph-state field set by GraphStage
+    from ``user_msg_en`` (the translated-EN query populated by
+    ``prepare_request_state`` BEFORE the graph runs), so Indic-preferred
+    users are classified on English text, not raw script. The residual gap
+    is an EN-preferred user typing Indic script (``should_translate`` stays
+    False for that case upstream) — the Indic term variants below catch that
+    path so raw-script queries still classify correctly.
+    """
     all_text = (question + " " + " ".join([m.get("content", "") for m in chat_history])).lower()
-    
-    advanced_terms = ["deeksha", "soul sync", "aham", "frontal lobe", "parietal", "neurobiological", "golden light", "humming"]
-    practitioner_terms = ["meditation", "breath", "breath awareness", "teachings", "secrets", "wisdom", "practice"]
+
+    advanced_terms = ["deeksha", "diksha", "soul sync", "aham", "frontal lobe", "parietal", "neurobiological", "golden light", "humming",
+                      "தீட்சா", "దీక్ష", "ದೀಕ್ಷೆ", "दीक्षा", "दीक्षा"]
+    practitioner_terms = ["meditation", "breath", "breath awareness", "teachings", "secrets", "wisdom", "practice",
+                          "dhyana", "dhyan", "ध्यान", "தியானம்", "ధ్యానం", "ಧ್ಯಾನ", "சுவாசம்", "శ్వాస", "श्वास", "ಉಸಿರು"]
     
     if any(term in all_text for term in advanced_terms):
         result = "Advanced Meditator"
@@ -692,7 +703,10 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             content = msg.get("content", "")[:limit]
             history_lines.append(f"{role}: {content}")
         if history_lines:
-            history_str = MULTI_TURN_PROMPT.format(history="\n".join(history_lines))
+            history_str = MULTI_TURN_PROMPT.format(
+                history="\n".join(history_lines),
+                lang_suffix=lang_suffix,
+            )
 
     # Dynamic token budget safety enforcement (finding #17: cap baseline, lower floor)
     max_budget = getattr(settings, "max_tokens_per_request", 2000)
@@ -1076,6 +1090,14 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
 
             max_tokens_val = generation_kwargs.get("max_tokens")
+            # P1-AI-1: never pass None to the Anthropic gateway — fall back to
+            # the route ceiling so output is always bounded.
+            if not max_tokens_val:
+                max_tokens_val = (
+                    settings.llm_max_tokens_deep
+                    if state.get("query_tier") in ("deep", "tier3_complex")
+                    else settings.llm_max_tokens_fast
+                )
             temperature_val = generation_kwargs.get("temperature")
 
             if stream_queue:
@@ -1195,6 +1217,32 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 kwargs = dict(generation_kwargs)
                 if add_timeout:
                     kwargs["timeout"] = get_node_timeout("generate_answer", 60.0)
+                # P1-AI-1: hard cap on every generation call. max_tokens is
+                # already bounded per-route by _generation_kwargs (num_predict)
+                # and by the LLM gateway's own enforcement — this explicit
+                # ceiling makes the bound visible at the call site and survives
+                # even if a route override omits it.
+                max_tokens_ceiling = (
+                    settings.llm_max_tokens_deep
+                    if state.get("query_tier") in ("deep", "tier3_complex")
+                    else settings.llm_max_tokens_fast
+                )
+                kwargs["max_tokens"] = min(
+                    kwargs.get("max_tokens") or max_tokens_ceiling,
+                    max_tokens_ceiling,
+                )
+                # P1-AI-1: CCR stop sequence — when the model decides context
+                # is compressed and emits '[RETRIEVE: <url>]', generation stops
+                # immediately instead of continuing past the tag. Only wired
+                # when reversible context compression is enabled (the same flag
+                # that lets retrieved docs arrive compressed).
+                # P1-AI-8: always treat [RETRIEVE: as a stop sequence so the
+                # CCR interceptor can act on it; this is safe because any
+                # remaining tag is unconditionally stripped before the user
+                # sees the answer. When context compression is disabled the
+                # interceptor still uses the tag to fall back once.
+                kwargs.setdefault("stop", []).append("[RETRIEVE:")
+                kwargs.setdefault("stop", []).append("\n\n\n")
                 if _services._llm_gateway is not None:
                     return await _services._llm_gateway.generate(
                         system_prompt=system_prompt,
@@ -1218,8 +1266,18 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     answer = strip_cot(answer)
 
     # ---- headroom CCR (Reversible Context Compression) Interception ----
+    # P1-AI-8: cap recursive CCR rounds. After the first successful retrieve,
+    # mark the state; any second [RETRIEVE:] round falls back to the safe
+    # default response instead of unbounded recursion.
     retrieve_match = re.search(r"\[RETRIEVE:\s*([^\]]+)\]", answer)
-    if retrieve_match and state.get("query_tier") not in ("tier3_complex", "deep"):
+    if state.get("ccr_attempted") and retrieve_match:
+        logger.warning(
+            "headroom CCR: second [RETRIEVE] round detected; using fallback response"
+        )
+        answer = FALLBACK_RESPONSE
+        retrieve_match = None
+    elif retrieve_match and state.get("query_tier") not in ("tier3_complex", "deep"):
+        state["ccr_attempted"] = True
         target = retrieve_match.group(1).strip()
         logger.info(f"headroom CCR: LLM requested uncompressed context for: '{target}'")
         raw_docs = state.get("raw_documents", [])
@@ -1331,7 +1389,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                         system_prompt=system_prompt_gw,
                         user_message=gw_user_prompt,
                         documents=documents,
-                        max_tokens=generation_kwargs.get("max_tokens"),
+                        max_tokens=generation_kwargs.get("max_tokens") or settings.llm_max_tokens_deep,
                         temperature=generation_kwargs.get("temperature"),
                     )
                     answer = resp.text or ""
@@ -1659,14 +1717,29 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         logger.info(
             f"Final: Allowing {intent} answer through despite verification failure"
         )
-    elif is_faithful is None and answer and len(answer.strip()) > 50 and citations:
+    elif is_faithful is None and citations_verified and answer and len(answer.strip()) > 50 and citations:
+        # P1-AI-2: acceptance now requires citations_verified. The verifier
+        # lane may legitimately skip the faithfulness verdict in fast tier
+        # (is_faithful None ≠ failed) — but a cited-but-unverified answer
+        # (citations_verified=False, e.g. citation markers failed grounding or
+        # verification was skipped with no citation check) is NOT accepted
+        # here anymore; it falls through to rejection below.
+        #
         # Verification lane hasn't written is_faithful yet (None ≠ failed).
-        # Rejecting here throws away substantive cited answers and triggers
-        # the retry/fallback spiral — accept and let post-hoc checks log.
+        # Rejecting a CITED, citation-verified answer here would throw away
+        # substantive answers and trigger the retry/fallback spiral — accept
+        # and let post-hoc checks log.
         logger.info(
             f"Final: verification pending — accepting substantive cited answer "
-            f"(len={len(answer)}, citations={len(citations)})"
+            f"(len={len(answer)}, citations={len(citations)}, "
+            f"citations_verified={citations_verified})"
         )
+        try:
+            from app.metrics import ANSWER_ACCEPTED_UNVERIFIED
+
+            ANSWER_ACCEPTED_UNVERIFIED.inc()
+        except Exception:
+            pass
     else:
         logger.warning(
             f"Final: Answer rejected (faithful={is_faithful}, "

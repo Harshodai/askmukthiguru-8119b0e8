@@ -1,3 +1,26 @@
+-- ============================================================================
+-- REVERT: Drop the objects created here: profiles + trigger + policies + tables +
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- storage bucket. Later migrations redefine handle_new_user() and the
+-- daily-teachings storage policies — review those before reverting.
+-- DROP POLICY IF EXISTS "users_read_own_roles" ON public.user_roles;
+-- DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+-- DROP FUNCTION IF EXISTS public.handle_new_user();
+-- DROP TABLE IF EXISTS public.meditation_sessions;
+-- DROP TABLE IF EXISTS public.daily_teachings;
+-- DROP TABLE IF EXISTS public.profiles;
+-- DROP POLICY IF EXISTS "admin_upload_teaching_images" ON storage.objects;
+-- DROP POLICY IF EXISTS "public_read_teaching_images" ON storage.objects;
+-- NOTE: storage bucket objects may remain. Delete bucket only after its objects:
+-- -- DELETE FROM storage.objects WHERE bucket_id = 'daily-teachings';
+-- -- DELETE FROM storage.buckets WHERE id = 'daily-teachings';
+-- ============================================================================
+
 -- User roles (type, table, and function are already defined in 20240430000000_schema.sql)
 
 -- RLS: users can read their own roles, admins can read all

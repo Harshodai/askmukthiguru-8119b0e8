@@ -1,3 +1,43 @@
+-- ============================================================================
+-- REVERT: Drop the admin policies, grants and seed_admin_demo(). Tables were created
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- IF NOT EXISTS — many predate this migration (20240430000000 base schema), so
+-- do NOT drop the tables themselves unless the base schema never applied.
+-- DROP POLICY IF EXISTS "admins read chat_queries" ON public.chat_queries;
+-- DROP POLICY IF EXISTS "admins read chat_responses" ON public.chat_responses;
+-- DROP POLICY IF EXISTS "admins read retrieval_events" ON public.retrieval_events;
+-- DROP POLICY IF EXISTS "admins read trace_spans" ON public.trace_spans;
+-- DROP POLICY IF EXISTS "admins read trigger_events" ON public.trigger_events;
+-- DROP POLICY IF EXISTS "admins read safety_events" ON public.safety_events;
+-- DROP POLICY IF EXISTS "admins read prompt_versions" ON public.prompt_versions;
+-- DROP POLICY IF EXISTS "admins write prompt_versions" ON public.prompt_versions;
+-- DROP POLICY IF EXISTS "admins read alert_rules" ON public.alert_rules;
+-- DROP POLICY IF EXISTS "admins write alert_rules" ON public.alert_rules;
+-- DROP POLICY IF EXISTS "admins read alert_events" ON public.alert_events;
+-- DROP POLICY IF EXISTS "admins read annotations" ON public.annotations;
+-- DROP POLICY IF EXISTS "admins write annotations" ON public.annotations;
+-- DROP POLICY IF EXISTS "admins read app_logs" ON public.app_logs;
+-- DROP POLICY IF EXISTS "admins read eval_runs" ON public.eval_runs;
+-- DROP POLICY IF EXISTS "admins read eval_results" ON public.eval_results;
+-- DROP POLICY IF EXISTS "admins read golden_questions" ON public.golden_questions;
+-- DROP POLICY IF EXISTS "admins write golden_questions" ON public.golden_questions;
+-- DROP POLICY IF EXISTS "admins read ingestion_runs" ON public.ingestion_runs;
+-- DROP POLICY IF EXISTS "admins read model_pricing" ON public.model_pricing;
+-- DROP POLICY IF EXISTS "admins write model_pricing" ON public.model_pricing;
+-- DROP POLICY IF EXISTS "admins read query_clusters" ON public.query_clusters;
+-- DROP POLICY IF EXISTS "admins read user_profiles" ON public.user_profiles;
+-- DROP POLICY IF EXISTS "admins read feedback_events" ON public.feedback_events;
+-- DROP POLICY IF EXISTS "users insert feedback" ON public.feedback_events;
+-- DROP FUNCTION IF EXISTS public.seed_admin_demo();
+-- REVOKE SELECT ON public.feedback_events FROM authenticated;
+-- NOTE: demo-seed data rows remain in the telemetry tables after this revert.
+-- ============================================================================
+
 
 -- ============================================================================
 -- Admin telemetry schema

@@ -1,3 +1,17 @@
+-- ============================================================================
+-- REVERT: Drop the cancel-flow tables. DESTRUCTIVE: all exit surveys, save offers and
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- cancellation records are lost.
+-- DROP TABLE IF EXISTS public.cancellations;
+-- DROP TABLE IF EXISTS public.save_offers;
+-- DROP TABLE IF EXISTS public.exit_surveys;
+-- ============================================================================
+
 -- Cancel flow (Task B3a): exit surveys, save offers, cancellations.
 -- Implements the 5-stage churn-prevention flow with real persistence + win-back emails.
 

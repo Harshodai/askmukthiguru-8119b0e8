@@ -17,6 +17,8 @@ from typing import Any, Optional
 
 import aiohttp
 
+from app.config import settings
+
 
 class ProviderState(Enum):
     CLOSED = "closed"
@@ -153,7 +155,20 @@ class MultiProviderLLMService:
         max_tokens: int = 1024,
         temperature: float = 0.7,
     ) -> dict[str, Any]:
-        """Generate completion with auto-failover across providers."""
+        """Generate completion with auto-failover across providers.
+
+        P1-AI-1: max_tokens is validated here — a None or non-positive caller
+        value is coerced to the 1024 default and a value above the hard runaway
+        ceiling (4096) is capped down, so an unbounded call can never reach a
+        provider through this service. This service is NOT on the chat path
+        (chat is bounded by LLMGateway at settings.llm_max_tokens_fast/deep);
+        it serves offline ingest tools, where transcript polishing legitimately
+        needs up to 4096 output tokens.
+        """
+        if max_tokens is None or max_tokens <= 0:
+            max_tokens = 1024
+        if max_tokens > 4096:
+            max_tokens = 4096
         session = await self._get_session()
 
         if provider:
@@ -205,6 +220,19 @@ class MultiProviderLLMService:
             "max_tokens": max_tokens,
             "temperature": temperature,
         }
+
+        # P1-AI-1: bound generation output. OpenAI-compatible providers treat
+        # the [RETRIEVE: <url>] tag as a stop sequence (model emits it verbatim
+        # and stops, letting the CCR interceptor swap in full context) and the
+        # blank line as a soft cap on runaway paragraphs. The [RETRIEVE: stop
+        # is added only when reversible context compression is enabled — the
+        # same flag that lets retrieved docs arrive compressed (see
+        # rag/nodes/retrieval.py).
+        stop_sequences = ["\n\n\n"]
+        if getattr(settings, "rag_context_compression_enabled", False):
+            stop_sequences.append("[RETRIEVE:")
+        if stop_sequences:
+            payload["stop"] = stop_sequences
 
         async with session.post(
             f"{cfg.base_url}/chat/completions",

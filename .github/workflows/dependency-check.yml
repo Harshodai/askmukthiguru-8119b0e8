@@ -1,6 +1,6 @@
 # ============================================================
 # Mukthi Guru — Dependency Vulnerability Check
-# Runs npm audit (frontend) and pip-audit (backend) weekly.
+# Runs npm audit (frontend), pip-audit (backend), trivy fs weekly.
 # ============================================================
 
 name: Dependency Check
@@ -58,10 +58,13 @@ jobs:
       - name: Install pip-audit
         run: pip install pip-audit
 
-      - name: Run pip-audit on requirements.txt
-        run: pip-audit -r requirements.txt --desc --format=json -o pip-audit-report.json || true
+      # P1-OPS-2: failure-swallowing removed — a finding must fail the job.
+      # No --ignore-vuln exceptions: none verified as false positives
+      # (requires a live audit DB run). Triage the first CI run if it fails.
+      - name: Run pip-audit on requirements.txt (JSON report, blocking)
+        run: pip-audit -r requirements.txt --desc --format=json -o pip-audit-report.json
 
-      - name: Run pip-audit on pyproject.toml (strict)
+      - name: Run pip-audit on requirements.txt (strict)
         run: pip-audit -r requirements.txt --desc
         # Fail CI if HIGH/CRITICAL vulnerabilities are found
 
@@ -71,4 +74,32 @@ jobs:
         with:
           name: pip-audit-report
           path: backend/pip-audit-report.json
+          retention-days: 30
+
+  trivy-fs:
+    name: Trivy filesystem scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version/severity mirror build-deploy.yml image scans (aquasecurity/trivy-action@0.30.0,
+      # HIGH,CRITICAL). Exit-code 1 here (unlike the image scans' '0') — P1-OPS-2:
+      # CI security gates must block CI, never swallow findings.
+      - name: Scan repository filesystem
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Upload trivy fs scan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs
+          path: trivy-fs.sarif
           retention-days: 30

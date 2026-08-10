@@ -1,3 +1,18 @@
+-- ============================================================================
+-- REVERT: Drop the memory-layer tables. DESTRUCTIVE: all user_profiles and
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- conversation_memories data is lost. NOTE: 20260527060500 later recreates a
+-- DIFFERENT public.user_profiles (admin-telemetry shape) — after this revert
+-- re-apply that migration if the telemetry shape is still required.
+-- DROP TABLE IF EXISTS public.conversation_memories;
+-- DROP TABLE IF EXISTS public.user_profiles;
+-- ============================================================================
+
 -- Migration to create user_profiles and conversation_memories tables
 -- Supporting Seeker Continuity and Multi-Session Memory
 

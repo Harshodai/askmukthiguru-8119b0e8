@@ -1,3 +1,20 @@
+-- ============================================================================
+-- REVERT: Drop the auto-admin triggers + function. NOTE: the retroactive admin/profile
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- rows granted to the designated email remain (data-altering) — remove manually
+-- for a full rollback:
+-- -- DELETE FROM public.user_roles WHERE role = 'admin' AND user_id IN
+-- --   (SELECT id FROM auth.users WHERE lower(email) = 'kharshaengineer@gmail.com');
+-- DROP TRIGGER IF EXISTS on_auth_user_created_grant_admin ON auth.users;
+-- DROP TRIGGER IF EXISTS on_auth_user_confirmed_grant_admin ON auth.users;
+-- DROP FUNCTION IF EXISTS public.grant_admin_for_designated_emails();
+-- ============================================================================
+
 
 -- Auto-grant admin role to designated admin emails on signup/confirmation.
 -- Safe pattern: only grants for verified emails.

@@ -45,6 +45,16 @@ async def speech_to_text_endpoint(
     MAX_AUDIO_BYTES = 25 * 1024 * 1024
     ALLOWED_AUDIO_TYPES = {"audio/webm", "audio/wav", "audio/wave", "audio/mp3", "audio/mpeg", "audio/ogg", "audio/x-m4a", "audio/mp4"}
 
+    # P1-BE-8: the cap MUST be enforced before any decode/transcribe work.
+    # Order matters here:
+    #   1. declared size check (fast reject, no body read)
+    #   2. content-type check
+    #   3. bounded read of MAX_AUDIO_BYTES + 1 bytes
+    #   4. post-read size check -> 413
+    #   5. only then hand bytes to Sarvam/Whisper
+    # If the read happened first, a hostile 30MB upload would be fully
+    # buffered into memory before being rejected — the very DoS this cap
+    # exists to prevent.
     if file.size and file.size > MAX_AUDIO_BYTES:
         raise HTTPException(status_code=413, detail="Audio file too large. Maximum size is 25MB.")
     base_type = (file.content_type or "").split(";")[0].strip()

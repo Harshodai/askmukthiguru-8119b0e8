@@ -1,3 +1,23 @@
+-- ============================================================================
+-- REVERT: Indexes only — drop them. NOTE: idx_retrieval_events_query_id is also created
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- by 20260527060500; the drop is idempotent either way.
+-- DROP INDEX IF EXISTS idx_chat_queries_session_created;
+-- DROP INDEX IF EXISTS idx_chat_queries_user_created;
+-- DROP INDEX IF EXISTS idx_chat_queries_status_created;
+-- DROP INDEX IF EXISTS idx_chat_responses_query_created;
+-- DROP INDEX IF EXISTS idx_user_feedback_response_created;
+-- DROP INDEX IF EXISTS idx_app_logs_request_id;
+-- DROP INDEX IF EXISTS idx_app_logs_level_created;
+-- DROP INDEX IF EXISTS idx_retrieval_events_query_id;
+-- DROP INDEX IF EXISTS idx_trigger_events_created;
+-- ============================================================================
+
 -- Add recommended indexes for admin dashboard & analytics performance
 -- Tables: chat_queries, chat_responses, user_feedback, app_logs
 

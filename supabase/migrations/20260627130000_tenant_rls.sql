@@ -1,3 +1,27 @@
+-- ============================================================================
+-- REVERT: Drop the tenant_id columns and tenant_isolation policies. NOTE: the policies
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- were recreated with WITH CHECK by 20260804000001 — the DROP removes whichever
+-- version is live. Dropping the columns loses tenant assignments for legacy rows.
+-- DROP POLICY IF EXISTS tenant_isolation ON public.chat_queries;
+-- DROP POLICY IF EXISTS tenant_isolation ON public.chat_responses;
+-- DROP POLICY IF EXISTS tenant_isolation ON public.retrieval_events;
+-- DROP POLICY IF EXISTS tenant_isolation ON public.guru_core_memory;
+-- DROP POLICY IF EXISTS tenant_isolation ON public.guru_memories;
+-- DROP POLICY IF EXISTS tenant_isolation ON public.guru_session_summaries;
+-- ALTER TABLE public.chat_queries DROP COLUMN IF EXISTS tenant_id;
+-- ALTER TABLE public.chat_responses DROP COLUMN IF EXISTS tenant_id;
+-- ALTER TABLE public.retrieval_events DROP COLUMN IF EXISTS tenant_id;
+-- ALTER TABLE public.guru_core_memory DROP COLUMN IF EXISTS tenant_id;
+-- ALTER TABLE public.guru_memories DROP COLUMN IF EXISTS tenant_id;
+-- ALTER TABLE public.guru_session_summaries DROP COLUMN IF EXISTS tenant_id;
+-- ============================================================================
+
 -- Tenant-aware RLS: add tenant_id to core tables, create isolation policies
 -- Each table gets a tenant_id column defaulting to 'default' for legacy data.
 

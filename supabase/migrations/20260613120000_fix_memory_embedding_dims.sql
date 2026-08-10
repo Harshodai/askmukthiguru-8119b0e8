@@ -1,3 +1,21 @@
+-- ============================================================================
+-- REVERT: DESTRUCTIVE: this migration TRUNCATEs guru_memories — rows are already lost;
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- restore from backup if data mattered. Best-effort schema revert (back to the
+-- 1024-dim shape that pre-dated it):
+-- DROP INDEX IF EXISTS public.guru_memories_hnsw_idx;
+-- ALTER TABLE public.guru_memories DROP COLUMN IF EXISTS embedding;
+-- ALTER TABLE public.guru_memories ADD COLUMN embedding vector(1024);
+-- NOTE: match_user_memories was rewritten here to vector(768) and again to
+-- vector(1024) by the next migration (20260613180000) — see that file's REVERT.
+-- The live contract is 1024-dim; reverting requires a coordinated app rollback.
+-- ============================================================================
+
 -- Fix guru_memories embedding dimensions: 1024 → 768
 -- Reason: the entire system uses google/gemini-embedding-001 with dimensions=768
 -- (text-embedding-004 was shut down 2026-01-14; kb_chunks already uses vector(768))

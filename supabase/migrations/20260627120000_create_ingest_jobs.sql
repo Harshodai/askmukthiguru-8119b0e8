@@ -1,3 +1,15 @@
+-- ============================================================================
+-- REVERT: Drop ingest_jobs (policies + indexes drop with the table). DESTRUCTIVE:
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- ingestion job history is lost.
+-- DROP TABLE IF EXISTS public.ingest_jobs;
+-- ============================================================================
+
 -- Ingest job tracking table for distributed Celery pipeline.
 -- Tracks each ingestion job from pending → running → completed/failed.
 -- Used by celery_config.update_job_progress() for real-time progress.

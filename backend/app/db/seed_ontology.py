@@ -33,6 +33,9 @@ def seed_spiritual_ontology():
             tx.run("CREATE CONSTRAINT UNIQUE_TEACHER_NAME IF NOT EXISTS FOR (t:Teacher) REQUIRE t.name IS UNIQUE")
             tx.run("CREATE CONSTRAINT UNIQUE_CONCEPT_NAME IF NOT EXISTS FOR (c:Concept) REQUIRE c.name IS UNIQUE")
             tx.run("CREATE CONSTRAINT UNIQUE_PRACTICE_NAME IF NOT EXISTS FOR (p:Practice) REQUIRE p.name IS UNIQUE")
+            # P1-DB-8: MERGE (n:base {entity_id}) does a label scan on ~8.7k nodes
+            # without this index; every seed/align statement pays the full scan.
+            tx.run("CREATE INDEX base_entity_id_idx IF NOT EXISTS FOR (n:base) ON (n.entity_id)")
             
         with driver.session() as session:
             session.execute_write(_migrations)

@@ -8,6 +8,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { SessionExpiredHandler } from "@/components/common/SessionExpiredHandler";
 import { CookieConsentBanner } from "@/components/common/CookieConsentBanner";
 import { BrandedSpinner } from "@/components/common/BrandedSpinner";
+import { AdminErrorBoundary } from "@/admin/components/AdminErrorBoundary";
+import { ChatErrorBoundary } from "@/components/common/ChatErrorBoundary";
 import { SereneMindProvider } from "@/components/common/SereneMindProvider";
 import { PushPermissionPrompt } from "@/components/common/PushPermissionPrompt";
 import { PushNotificationsManager } from "@/components/common/PushNotificationsManager";
@@ -104,7 +106,31 @@ if (ADMIN_ENABLED) {
   CachePage = lazyWithRetry(() => import("./admin/pages/CachePage"));
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      retry: (failureCount, error) => {
+        // Do not retry auth failures; retry everything else up to 2 times.
+        if (error instanceof Response && error.status === 401) return false;
+        if ((error as { status?: number })?.status === 401) return false;
+        return failureCount < 3;
+      },
+      throwOnError: false,
+    },
+  },
+});
+
+/**
+ * Query-aware error boundary. Catches errors thrown by query-bound components
+ * (when throwOnError is enabled for a specific query) and TanStack Query's
+ * propagated errors, showing a recoverable fallback instead of suspending forever.
+ */
+const QueryErrorBoundary = ({ children }: { children: React.ReactNode }) => (
+  <ChatErrorBoundary>
+    {children}
+  </ChatErrorBoundary>
+);
 
 const DebugLayout = () => (
   <div id="debug-layout">
@@ -113,6 +139,15 @@ const DebugLayout = () => (
 );
 
 const isNativePlatform = Capacitor.isNativePlatform();
+
+// Wraps each lazy admin child route in its own Suspense (so one route's
+// chunk-loading or render failure never suspends/crashes the whole admin
+// area — P1-AI-19) plus the admin error boundary (per-page crash isolation).
+const AdminRoute = ({ children }: { children: React.ReactNode }) => (
+  <AdminErrorBoundary>
+    <Suspense fallback={<BrandedSpinner />}>{children}</Suspense>
+  </AdminErrorBoundary>
+);
 
 const AppRouter = ({ children }: { children: React.ReactNode }) => {
   const future = { v7_startTransition: true, v7_relativeSplatPath: true } as const;
@@ -168,6 +203,7 @@ const App = () => {
         Previously missing from this tree — Serene Mind modal never rendered.
       */}
       <SereneMindProvider>
+        <QueryErrorBoundary>
         <AppRouter>
           <RouteTracker />
           <Routes>
@@ -182,34 +218,30 @@ const App = () => {
                 <Route path="/admin" element={
                   <Suspense fallback={<BrandedSpinner />}><AdminShell /></Suspense>
                 }>
-                  <Route index element={<OverviewPage />} />
-                  <Route path="queries" element={<QueriesPage />} />
-                  <Route path="quality" element={<QualityPage />} />
-                  <Route path="retrieval" element={<RetrievalPage />} />
-                  <Route path="daily-teaching" element={<DailyTeachingPage />} />
-                  <Route path="teaching-tips" element={<TeachingTipsPage />} />
-                  <Route path="triggers" element={<TriggersPage />} />
-                  <Route path="topics" element={<TopicsPage />} />
-                  <Route path="prompts" element={<PromptsPage />} />
-                  <Route path="evals" element={<EvalsPage />} />
-                  <Route path="queue" element={<JobsPage />} />
-                  <Route path="ingestion" element={<IngestionPage />} />
-                  <Route path="data-sources" element={<DataSourcesPage />} />
-                  <Route path="logs" element={<LogsPage />} />
-                  <Route path="telemetry" element={<TelemetryPage />} />
-                  <Route path="monitoring" element={<MonitoringPage />} />
-                  <Route path="alerts" element={<AlertsPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="admins" element={<AdminsPage />} />
-                  <Route path="feedback" element={<FeedbackPage />} />
-                  <Route path="okf" element={<OkfManagerPage />} />
-                  <Route path="rag-flow" element={
-                    <Suspense fallback={<BrandedSpinner />}><RAGFlowPage /></Suspense>
-                  } />
-                  <Route path="cache" element={<CachePage />} />
-                  <Route path="self-check" element={
-                    <Suspense fallback={<BrandedSpinner />}><AdminSelfCheckPage /></Suspense>
-                  } />
+                  <Route index element={<AdminRoute><OverviewPage /></AdminRoute>} />
+                  <Route path="queries" element={<AdminRoute><QueriesPage /></AdminRoute>} />
+                  <Route path="quality" element={<AdminRoute><QualityPage /></AdminRoute>} />
+                  <Route path="retrieval" element={<AdminRoute><RetrievalPage /></AdminRoute>} />
+                  <Route path="daily-teaching" element={<AdminRoute><DailyTeachingPage /></AdminRoute>} />
+                  <Route path="teaching-tips" element={<AdminRoute><TeachingTipsPage /></AdminRoute>} />
+                  <Route path="triggers" element={<AdminRoute><TriggersPage /></AdminRoute>} />
+                  <Route path="topics" element={<AdminRoute><TopicsPage /></AdminRoute>} />
+                  <Route path="prompts" element={<AdminRoute><PromptsPage /></AdminRoute>} />
+                  <Route path="evals" element={<AdminRoute><EvalsPage /></AdminRoute>} />
+                  <Route path="queue" element={<AdminRoute><JobsPage /></AdminRoute>} />
+                  <Route path="ingestion" element={<AdminRoute><IngestionPage /></AdminRoute>} />
+                  <Route path="data-sources" element={<AdminRoute><DataSourcesPage /></AdminRoute>} />
+                  <Route path="logs" element={<AdminRoute><LogsPage /></AdminRoute>} />
+                  <Route path="telemetry" element={<AdminRoute><TelemetryPage /></AdminRoute>} />
+                  <Route path="monitoring" element={<AdminRoute><MonitoringPage /></AdminRoute>} />
+                  <Route path="alerts" element={<AdminRoute><AlertsPage /></AdminRoute>} />
+                  <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
+                  <Route path="admins" element={<AdminRoute><AdminsPage /></AdminRoute>} />
+                  <Route path="feedback" element={<AdminRoute><FeedbackPage /></AdminRoute>} />
+                  <Route path="okf" element={<AdminRoute><OkfManagerPage /></AdminRoute>} />
+                  <Route path="rag-flow" element={<AdminRoute><RAGFlowPage /></AdminRoute>} />
+                  <Route path="cache" element={<AdminRoute><CachePage /></AdminRoute>} />
+                  <Route path="self-check" element={<AdminRoute><AdminSelfCheckPage /></AdminRoute>} />
                 </Route>
               </>
             )}
@@ -255,6 +287,7 @@ const App = () => {
 
 
         </AppRouter>
+        </QueryErrorBoundary>
       </SereneMindProvider>
     </QueryClientProvider>
   );

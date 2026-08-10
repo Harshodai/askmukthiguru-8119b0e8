@@ -26,6 +26,7 @@ from app.pipeline.stages.guardrail_stage import (
 from app.pipeline.stages.doctrine_cache_stage import DoctrineCacheStage
 from app.pipeline.stages.meditation_gen_stage import MeditationGenStage
 from app.pipeline.stages.memory_stage import MemoryStage
+from app.pipeline.stages.tone_adapter_stage import ToneAdapterStage
 
 
 def build_default_pipeline() -> list[Stage]:
@@ -41,6 +42,7 @@ def build_default_pipeline() -> list[Stage]:
         GraphStage(),
         MeditationGenStage(),
         TranslationStage(),
+        ToneAdapterStage(),
         OutputGuardrailStage(),
         MemoryStage(),
         CacheUpdateStage(),

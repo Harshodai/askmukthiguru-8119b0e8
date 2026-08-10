@@ -1,3 +1,23 @@
+-- ============================================================================
+-- REVERT: DESTRUCTIVE: drops the memory tables + touch_updated_at(). All user memory
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- and chat_sessions rows are lost — restore from backup first. NOTE: tables were
+-- created IF NOT EXISTS over 20260607180000 versions; chat_sessions also exists
+-- from 20240430000000 — do NOT drop chat_sessions here unless rolling back the
+-- whole schema; it is excluded from the drops below for that reason.
+-- DROP TRIGGER IF EXISTS trg_guru_memories_touch ON public.guru_memories;
+-- DROP TRIGGER IF EXISTS trg_guru_core_touch ON public.guru_core_memory;
+-- DROP FUNCTION IF EXISTS public.touch_updated_at();
+-- DROP TABLE IF EXISTS public.guru_session_summaries;
+-- DROP TABLE IF EXISTS public.guru_core_memory;
+-- DROP TABLE IF EXISTS public.guru_memories;
+-- ============================================================================
+
 
 -- ============ guru_memories ============
 CREATE TABLE IF NOT EXISTS public.guru_memories (
@@ -20,7 +40,10 @@ CREATE POLICY "own_guru_memories_insert" ON public.guru_memories FOR INSERT TO a
 CREATE POLICY "own_guru_memories_update" ON public.guru_memories FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_guru_memories_delete" ON public.guru_memories FOR DELETE TO authenticated USING (auth.uid() = user_id);
 CREATE INDEX IF NOT EXISTS guru_memories_user_created_idx ON public.guru_memories (user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS guru_memories_embedding_idx ON public.guru_memories USING hnsw (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS guru_memories_embedding_idx
+  ON public.guru_memories
+  USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 32, ef_construction = 200);
 
 -- ============ guru_core_memory ============
 CREATE TABLE IF NOT EXISTS public.guru_core_memory (

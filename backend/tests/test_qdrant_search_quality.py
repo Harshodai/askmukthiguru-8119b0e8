@@ -23,7 +23,9 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture
 def qdrant_searcher():
-    """Real QdrantSearcher against the configured collection. Skips if unreachable."""
+    """Real QdrantSearcher against the configured collection. Skips if
+    unreachable or if the collection has no points (e.g. a fresh local
+    container with no ingested corpus)."""
     from app.config import settings
     from services.qdrant.client import QdrantClientManager
     from services.qdrant.searcher import QdrantSearcher
@@ -34,6 +36,22 @@ def qdrant_searcher():
         # (services/qdrant/client.py:335) — check the boolean, don't rely on an exception.
         if not client_mgr.health_check():
             pytest.skip("Qdrant unreachable, skipping search-quality integration test")
+        # Verify the collection exists and has points — a reachable but
+        # empty container (fresh local stack without ingested corpus) would
+        # produce NDCG=0.0 and fail the threshold assertion without testing
+        # real retrieval quality.
+        try:
+            info = client_mgr.client.get_collection(settings.qdrant_collection)
+            if info.points_count == 0:
+                pytest.skip(
+                    f"Qdrant collection '{settings.qdrant_collection}' has 0 points "
+                    "— ingest the corpus before running search-quality tests"
+                )
+        except Exception:
+            pytest.skip(
+                f"Qdrant collection '{settings.qdrant_collection}' not found "
+                "— skipping search-quality integration test"
+            )
     except Exception as e:
         pytest.skip(f"Qdrant unreachable, skipping search-quality integration test: {e}")
 

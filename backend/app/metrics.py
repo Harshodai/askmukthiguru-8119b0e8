@@ -40,6 +40,24 @@ REQUEST_COUNT = Counter(
 )
 
 # ===================================================================
+# SLO metrics (P1-OPS-1) — feed the alerting rules in
+# infrastructure/prometheus/alerting-rules.yml
+# ===================================================================
+
+SLO_CHAT_LATENCY = Histogram(
+    "slo_latency_seconds",
+    "Chat request latency time-to-completion (SLO: p95 < 8s)",
+    ["tier"],  # fast | standard | deep | fallback
+    buckets=[1, 2, 4, 8, 12, 20, 30, 60],
+)
+
+HEALTH_CHECK_TOTAL = Counter(
+    "health_check_total",
+    "Total /api/health readiness probe results (SLO: ready > 99.5%)",
+    ["result"],  # ready | not_ready
+)
+
+# ===================================================================
 # Service-Level Prometheus Metrics (Unit 13)
 # ===================================================================
 
@@ -397,6 +415,14 @@ VERIFICATION_RESULTS = Counter(
     "guru_verification_results_total",
     "Self-RAG verification results",
     ["result"],  # faithful|hallucinated|soft_pass|rejected
+)
+
+ANSWER_ACCEPTED_UNVERIFIED = Counter(
+    "guru_answer_accepted_unverified_total",
+    "Answers accepted by format_final_answer while the faithfulness "
+    "verifier wrote no verdict (is_faithful is None). Target: 0 — a cited "
+    "answer may be accepted pending verification, but one accepted with "
+    "citations_verified=False is rejected and must never reach this counter.",
 )
 
 CONFIDENCE_SCORES = Histogram(

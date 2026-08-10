@@ -9,7 +9,8 @@ client = TestClient(app)
 
 
 def mock_get_current_admin():
-    return {"id": "admin-user-id", "email": "admin@example.com", "is_superuser": True}
+    # aal2 required since P1-SEC-1: admin endpoints are MFA-gated.
+    return {"id": "admin-user-id", "email": "admin@example.com", "is_superuser": True, "aal": "aal2"}
 
 
 @pytest.fixture(autouse=True)

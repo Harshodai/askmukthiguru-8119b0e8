@@ -1,3 +1,15 @@
+-- ============================================================================
+-- REVERT: Drop study notebook tables. DESTRUCTIVE: all user notebooks and items are lost
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- DROP TABLE IF EXISTS public.study_notebook_items;
+-- DROP TABLE IF EXISTS public.study_notebooks;
+-- ============================================================================
+
 -- Phase 4: Persistent study notebooks
 
 CREATE TABLE IF NOT EXISTS public.study_notebooks (

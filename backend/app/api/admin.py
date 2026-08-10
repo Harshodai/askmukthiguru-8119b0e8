@@ -44,7 +44,18 @@ from app.telemetry_db import (
     get_trigger_trend,
     get_node_latencies,
 )
-from services.auth_service import get_current_user_from_supabase
+from services.auth_service import require_aal2
+def _require_admin(user: dict = Depends(require_aal2)) -> dict:
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    # P1-SEC-1 (T4): defense-in-depth admin allowlist. When ADMIN_USER_IDS is
+    # set, an AAL2 superuser MUST also be in the list. Empty = not enforced.
+    allowlist = settings.admin_user_ids_list
+    if allowlist and user.get("id") not in allowlist:
+        raise HTTPException(status_code=403, detail="Admin access required (not allowlisted)")
+    return user
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -54,22 +65,18 @@ admin_router = APIRouter(tags=["admin"])
 @admin_router.get("/traces")
 async def fetch_telemetry_traces(
     limit: int = 50,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Fetch recent traces for Admin UI. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_recent_traces(min(limit, 200))
 
 
 @admin_router.get("/traces/{trace_id}")
 async def fetch_query_trace(
     trace_id: str,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Fetch a single detailed trace by query ID. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     trace = await get_query_trace(trace_id)
     if not trace:
         raise HTTPException(status_code=404, detail=f"Trace {trace_id} not found")
@@ -78,10 +85,8 @@ async def fetch_query_trace(
 
 @admin_router.get("/prompts")
 async def fetch_prompts(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     from app.telemetry_db import _get_client
 
     client = _get_client()
@@ -103,11 +108,9 @@ class DoctrineTermUpdate(BaseModel):
 
 @admin_router.get("/doctrine-terms")
 async def fetch_doctrine_terms(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Effective doctrine-term correction map (code defaults + admin overrides)."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     from services.doctrine_terms import load_doctrine_terms
 
     return {"terms": load_doctrine_terms()}
@@ -116,12 +119,10 @@ async def fetch_doctrine_terms(
 @admin_router.post("/doctrine-terms")
 async def upsert_doctrine_term(
     body: DoctrineTermUpdate,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Add/update a canonical term + its mis-transcription variants. Applies without a restart —
     the whisper bias, ingest corrector and output cleanup all read the shared source of truth."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     from app.telemetry_db import _get_client
     from services.doctrine_terms import reload as reload_doctrine_terms
 
@@ -148,14 +149,12 @@ async def upsert_doctrine_term(
 @admin_router.get("/rag-flow-graph")
 async def get_rag_flow_graph(
     strategy: str = "standard",
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """
     Expose the active RAG graph strategy nodes and edges, merged with average timing latencies.
     Requires admin authentication.
     """
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
 
     try:
         container = get_container()
@@ -206,10 +205,8 @@ async def get_rag_flow_graph(
 
 @admin_router.get("/evaluations")
 async def fetch_evaluations(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_eval_runs()
 
 
@@ -217,22 +214,18 @@ async def fetch_evaluations(
 async def fetch_kpis(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Fetch aggregated KPIs for Admin UI. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
 
     return await get_kpis(from_date, to_date)
 
 
 @admin_router.get("/models")
 async def list_models(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[str]:
     """List available LLM models. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_available_models()
 
 
@@ -242,11 +235,9 @@ async def get_timeseries(
     from_date: str,
     to_date: str,
     buckets: int = 24,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Get timeseries data for a metric. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_timeseries_data(metric, from_date, to_date, buckets)
 
 
@@ -254,11 +245,9 @@ async def get_timeseries(
 async def list_triggers(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List trigger events. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_trigger_events(from_date, to_date)
 
 
@@ -266,21 +255,17 @@ async def list_triggers(
 async def list_safety_events(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List safety events. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_safety_events(from_date, to_date)
 
 
 @admin_router.get("/topic-clusters")
 async def list_topic_clusters(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List topic clusters. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_topic_clusters()
 
 
@@ -288,22 +273,18 @@ async def list_topic_clusters(
 async def get_retrieval_health_endpoint(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Get retrieval health metrics. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_retrieval_health(from_date, to_date)
 
 
 @admin_router.get("/data-stores")
 async def get_data_stores_endpoint(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
     container: ServiceContainer = Depends(get_container),
 ) -> dict[str, Any]:
     """Get data quality stats for Qdrant, Neo4j, and LightRAG. Admin only."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
 
     result: dict[str, Any] = {
         "qdrant": {},
@@ -367,91 +348,73 @@ async def get_data_stores_endpoint(
 async def get_quality_data_endpoint(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Get quality data metrics. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_quality_data(from_date, to_date)
 
 
 @admin_router.get("/eval-runs")
 async def list_eval_runs(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List evaluation runs. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_eval_runs()
 
 
 @admin_router.get("/golden-questions")
 async def list_golden_questions(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List golden questions. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_golden_questions()
 
 
 @admin_router.get("/ingestion-runs")
 async def list_ingestion_runs(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List ingestion runs. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_ingestion_runs()
 
 
 @admin_router.get("/alert-rules")
 async def list_alert_rules(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List alert rules. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_alert_rules()
 
 
 @admin_router.get("/alert-events")
 async def list_alert_events(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List alert events. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_alert_events()
 
 
 @admin_router.get("/annotations")
 async def list_annotations(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List annotations. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_annotations()
 
 
 @admin_router.get("/admins")
 async def list_admins(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List admin users. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_admins()
 
 
 @admin_router.get("/model-pricing")
 async def list_model_pricing(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List model pricing. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_model_pricing()
 
 
@@ -460,11 +423,9 @@ async def get_top_failures_endpoint(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
     limit: int = Query(8, ge=1, le=100),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Get top failures by faithfulness. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_top_failures(from_date, to_date, limit)
 
 
@@ -473,11 +434,9 @@ async def get_ragas_heatmap_endpoint(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
     buckets: int = Query(8, ge=1, le=100),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Get RAGAS heatmap data. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_ragas_heatmap(from_date, to_date, buckets)
 
 
@@ -486,11 +445,9 @@ async def get_trigger_trend_endpoint(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
     buckets: int = Query(14, ge=1, le=100),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Get trigger trend data. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_trigger_trend(from_date, to_date, buckets)
 
 
@@ -499,11 +456,9 @@ async def get_similarity_trend_endpoint(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
     buckets: int = Query(14, ge=1, le=100),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Get similarity trend data. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_similarity_trend(from_date, to_date, buckets)
 
 
@@ -511,11 +466,9 @@ async def get_similarity_trend_endpoint(
 async def get_dead_docs_endpoint(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Get dead documents. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_dead_docs(from_date, to_date)
 
 
@@ -524,41 +477,33 @@ async def get_empty_retrievals_endpoint(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
     limit: int = Query(20, ge=1, le=100),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Get empty retrievals. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_empty_retrievals(from_date, to_date, limit)
 
 
 @admin_router.get("/ingestion-health")
 async def get_ingestion_health_endpoint(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Get ingestion health status. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_ingestion_health()
 
 
 @admin_router.get("/prompt-metrics")
 async def get_prompt_metrics_by_version_endpoint(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> Any:
     """Get prompt metrics by version. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_prompt_metrics_by_version()
 
 
 @admin_router.get("/live-feed")
 async def poll_live_feed_endpoint(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Poll live feed. Requires admin authentication."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     return await get_live_feed()
 
 
@@ -570,10 +515,8 @@ class AskRequest(BaseModel):
 @admin_router.post("/ask")
 async def ask_admin_question(
     req: AskRequest,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ):
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
 
     container = get_container()
     llm_service = container.ollama
@@ -668,11 +611,9 @@ async def get_cost_usage(
     tenant_id: Optional[str] = None,
     user_id: Optional[str] = None,
     days: int = Query(30, ge=1, le=365),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Get token usage and cost report. Admin only."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     from services.cost_tracker import get_cost_tracker
     tracker = get_cost_tracker()
     report = tracker.get_usage_report(tenant_id=tenant_id, user_id=user_id, days=days)
@@ -694,11 +635,9 @@ async def get_cost_usage(
 async def get_daily_cost(
     tenant_id: str,
     days: int = Query(7, ge=1, le=90),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Get day-by-day cost breakdown for a tenant. Admin only."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     from services.cost_tracker import get_cost_tracker
     return get_cost_tracker().get_daily_usage(tenant_id, days=days)
 
@@ -707,11 +646,9 @@ async def get_daily_cost(
 
 @admin_router.get("/prompt-store/names")
 async def list_prompt_names(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[str]:
     """List all prompt names in the prompt store. Admin only."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     from services.prompt_store import get_prompt_store
     return get_prompt_store().list_prompt_names()
 
@@ -719,11 +656,9 @@ async def list_prompt_names(
 @admin_router.get("/prompt-store/{name}/versions")
 async def list_prompt_versions(
     name: str,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List all versions of a prompt. Admin only."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     from services.prompt_store import get_prompt_store
     store = get_prompt_store()
     versions = store.list_versions(name)
@@ -742,11 +677,9 @@ async def list_prompt_versions(
 async def rollback_prompt(
     name: str,
     version: str,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Rollback a prompt to a specific version. Admin only."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     from services.prompt_store import get_prompt_store
     result = get_prompt_store().rollback(name, version)
     if result is None:
@@ -758,11 +691,9 @@ async def rollback_prompt(
 
 @admin_router.get("/ab-tests")
 async def list_ab_experiments(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List all registered A/B experiments. Admin only."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     from services.ab_testing import get_ab_router
     return get_ab_router().list_experiments()
 
@@ -771,11 +702,9 @@ async def list_ab_experiments(
 async def preview_ab_assignment(
     experiment: str,
     user_id: str = Query(..., description="User UUID to preview assignment for"),
-    caller: dict = Depends(get_current_user_from_supabase),
+    caller: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Preview A/B variant assignment for a user. Admin only."""
-    if not caller.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     from services.ab_testing import get_ab_router
     result = get_ab_router().assign(user_id, experiment)
     return {
@@ -790,12 +719,10 @@ async def preview_ab_assignment(
 @admin_router.get("/queue")
 async def list_queue_jobs(
     limit: int = Query(100, ge=1, le=500),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
     container: ServiceContainer = Depends(get_container),
 ):
     """List all active/queued jobs for admin queue monitor."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
     if not container.job_queue:
         return {"jobs": [], "queue_enabled": False}
     jobs = await container.job_queue.list_jobs(limit=limit)
@@ -803,18 +730,12 @@ async def list_queue_jobs(
 
 
 # ---- OKF management (Phase 5) ----
-def _require_admin(user: dict) -> None:
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-
 @admin_router.get("/okf")
 async def list_okf_entries(
     type_filter: Optional[str] = Query(None),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ):
     """List OKF knowledge entries (optionally filtered by type). Admin only."""
-    _require_admin(user)
     from services.memory.okf_store import OKFStore
     store = OKFStore()
     entries = store.by_type(type_filter) if type_filter else store.list_entries()
@@ -834,9 +755,8 @@ async def list_okf_entries(
 
 
 @admin_router.post("/okf/compile")
-async def compile_okf_index(user: dict = Depends(get_current_user_from_supabase)):
+async def compile_okf_index(user: dict = Depends(_require_admin)):
     """Rebuild the OKF compiled index. Admin only."""
-    _require_admin(user)
     from services.memory.compiler import compile_okf
     path = compile_okf()
     return {"status": "ok", "path": str(path)}
@@ -853,10 +773,9 @@ class OkfExtractRequest(BaseModel):
 @admin_router.post("/okf/extract")
 async def extract_okf_entries(
     body: OkfExtractRequest,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ):
     """Extract OKF entries from Qdrant/Neo4j/LightRAG via LLM synthesis. Admin only."""
-    _require_admin(user)
 
     if body.mode == "celery":
         from tasks.okf_extract_tasks import extract_okf_entries as celery_extract
@@ -892,10 +811,9 @@ class AppSettingsUpdate(BaseModel):
 
 @admin_router.get("/settings")
 async def get_admin_settings(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Fetch global application settings (Admin only)."""
-    _require_admin(user)
     
     from app.telemetry_db import _get_client
     client = _get_client()
@@ -923,10 +841,9 @@ async def get_admin_settings(
 @admin_router.post("/settings")
 async def update_admin_settings(
     payload: AppSettingsUpdate,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Update global application settings (Admin only)."""
-    _require_admin(user)
         
     from app.telemetry_db import _get_client
     client = _get_client()
@@ -968,10 +885,9 @@ class OkfReviewItem(BaseModel):
 @admin_router.get("/okf/review")
 async def list_okf_review_queue(
     status: str = "pending",
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List items in the OKF review queue (Admin only)."""
-    _require_admin(user)
     from app.telemetry_db import _get_client
     client = _get_client()
     if not client:
@@ -988,10 +904,9 @@ async def list_okf_review_queue(
 @admin_router.post("/okf/review/{review_id}/approve")
 async def approve_okf_entry(
     review_id: str,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Approve a draft OKF entry, save it as a markdown file, and recompile index (Admin only)."""
-    _require_admin(user)
     from app.telemetry_db import _get_client
     client = _get_client()
     if not client:
@@ -1052,10 +967,9 @@ async def approve_okf_entry(
 async def reject_okf_entry(
     review_id: str,
     reviewer_notes: Optional[str] = None,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Reject a draft OKF entry (Admin only)."""
-    _require_admin(user)
     from app.telemetry_db import _get_client
     client = _get_client()
     if not client:
@@ -1081,10 +995,9 @@ async def reject_okf_entry(
 async def admin_ingest_url(
     url: str = Body(..., embed=True),
     mode: str = Body("auto", embed=True),
-    user=Depends(get_current_user_from_supabase),
+    user=Depends(_require_admin),
 ):
     """Admin-only: trigger web ingestion for a URL."""
-    _require_admin(user)
     valid_modes = {"auto", "static", "dynamic", "stealth"}
     if mode not in valid_modes:
         raise HTTPException(
@@ -1119,10 +1032,9 @@ class ContextualReingestDryRunRequest(BaseModel):
 @admin_router.post("/contextual-reingest/dry-run")
 async def admin_contextual_reingest_dry_run(
     body: ContextualReingestDryRunRequest,
-    user=Depends(get_current_user_from_supabase),
+    user=Depends(_require_admin),
 ):
     """Admin-only preview of contextual re-ingestion."""
-    _require_admin(user)
     from tasks.contextual_reingest_task import contextual_reingest_dry_run
 
     task = contextual_reingest_dry_run.delay(
@@ -1183,14 +1095,13 @@ async def _release_reingest_lock(container: ServiceContainer) -> None:
 @admin_router.post("/contextual-reingest")
 async def admin_contextual_reingest(
     body: ContextualReingestRequest,
-    user=Depends(get_current_user_from_supabase),
+    user=Depends(_require_admin),
     container: ServiceContainer = Depends(get_container),
 ):
     """Admin-only: trigger contextual re-ingestion from spiritual_wisdom.
 
     Singleton Redis lock prevents overlapping full-corpus rebuilds.
     """
-    _require_admin(user)
     from celery_config import celery_app
     from tasks.contextual_reingest_task import contextual_reingest
 

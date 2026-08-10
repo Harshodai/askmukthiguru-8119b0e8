@@ -23,7 +23,29 @@ from datetime import datetime, timedelta
 # Ensure project root is on path
 sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..")))
 
+# Module-level imports kept re-patchable for tests.
+from qdrant_client import QdrantClient
+from supabase import create_client
+
+from app.config import settings
+
 QDRANT_COLLECTION = "spiritual_wisdom"
+
+#: Default retention window for transient telemetry tables (days).
+TELEMETRY_RETENTION_DAYS = 90
+
+#: Postgres telemetry tables purged on each run when rows exceed retention days.
+TELEMETRY_TABLES = (
+    "chat_queries",
+    "chat_responses",
+    "retrieval_events",
+    "trace_spans",
+    "trigger_events",
+    "safety_events",
+    "app_logs",
+    "token_usage",
+    "router_decisions",
+)
 
 
 def cleanup_redis_keys(dry_run: bool = False) -> int:
@@ -49,25 +71,32 @@ def cleanup_redis_keys(dry_run: bool = False) -> int:
 
 def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = False) -> int:
     try:
-        from app.config import settings
-        from qdrant_client import QdrantClient
-        from supabase import create_client
-
         qdrant_api_key = os.environ.get("QDRANT_API_KEY", "")
-        client = QdrantClient(url=settings.qdrant_url, api_key=qdrant_api_key or None, timeout=30)
+        client = QdrantClient(
+            url=settings.qdrant_url, api_key=qdrant_api_key or None, timeout=30
+        )
         supabase = create_client(settings.supabase_url, settings.supabase_key)
         collections = [c.name for c in client.get_collections().collections if "memory" in c.name]
 
         purged = 0
         cutoff = (datetime.utcnow() - timedelta(days=days_inactivity)).isoformat()
 
-        # Resolve inactive user IDs from Supabase (paginated to handle large user tables)
+        # Resolve inactive user IDs from Supabase profiles (paginated to handle large user tables).
+        # A memory point is purged only when BOTH the user is inactive AND the point itself
+        # has not been updated within the retention window.
         try:
             inactive_user_ids = set()
             page_size = 1000
             start = 0
             while True:
-                user_res = supabase.table("users").select("id").lt("last_active_at", cutoff).order("id").range(start, start + page_size - 1).execute()
+                user_res = (
+                    supabase.table("profiles")
+                    .select("id")
+                    .lt("last_active_at", cutoff)
+                    .order("id")
+                    .range(start, start + page_size - 1)
+                    .execute()
+                )
                 if not user_res.data:
                     break
                 for row in user_res.data:
@@ -77,7 +106,7 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
                 if len(user_res.data) < page_size:
                     break
                 start += page_size
-            print(f"  Found {len(inactive_user_ids)} inactive users (last active before {cutoff[:10]})")
+            print(f"  Found {len(inactive_user_ids)} inactive users (profiles.last_active_at before {cutoff[:10]})")
         except Exception as ue:
             print(f"  WARN: Could not query inactive users from Supabase ({ue}); falling back to point-level cleanup")
             inactive_user_ids = None
@@ -88,32 +117,26 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
 
             offset = None
             while True:
-                results, next_offset = client.scroll(
+                from qdrant_client.models import DatetimeRange, FieldCondition, Filter
+
+                stale_results, next_offset = client.scroll(
                     collection_name=col,
+                    scroll_filter=Filter(
+                        must=[FieldCondition(key="updated_at", range=DatetimeRange(lt=cutoff))]
+                    ),
                     limit=100,
                     offset=offset,
                     with_payload=True,
                     with_vectors=False,
                 )
-                if not results:
+                stale_results = stale_results or []
+                if not stale_results:
                     break
 
                 if inactive_user_ids is not None:
-                    filtered = [p for p in results if p.payload.get("user_id") in inactive_user_ids]
+                    filtered = [p for p in stale_results if p.payload.get("user_id") in inactive_user_ids]
                 else:
-                    from qdrant_client.models import DatetimeRange, FieldCondition, Filter
-                    cutoff_dt = cutoff
-                    results, next_offset = client.scroll(
-                        collection_name=col,
-                        scroll_filter=Filter(
-                            must=[FieldCondition(key="updated_at", range=DatetimeRange(lt=cutoff_dt))]
-                        ),
-                        limit=100,
-                        offset=offset,
-                        with_payload=True,
-                        with_vectors=False,
-                    )
-                    filtered = results or []
+                    filtered = stale_results
 
                 if not filtered:
                     if inactive_user_ids is not None:
@@ -138,24 +161,58 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
         return 0
 
 
-def cleanup_telemetry_logs(days_retention: int = 90, dry_run: bool = False) -> int:
+def cleanup_telemetry_logs(days_retention: int = TELEMETRY_RETENTION_DAYS, dry_run: bool = False) -> int:
     """Purge telemetry logs older than days_retention from Supabase."""
     try:
-        from app.config import settings
-        from supabase import create_client
         supabase = create_client(settings.supabase_url, settings.supabase_key)
         cutoff = (datetime.utcnow() - timedelta(days=days_retention)).isoformat()
-        query = supabase.table("chat_responses").delete(count="exact").lt("created_at", cutoff)
-        if dry_run:
-            count_result = supabase.table("chat_responses").select("id", count="exact").lt("created_at", cutoff).execute()
-            purged = getattr(count_result, 'count', 0) or (len(count_result.data) if count_result.data else 0)
-        else:
-            result = query.execute()
-            purged = result.count if hasattr(result, 'count') else 0
-        print(f"✓ Telemetry cleanup: purged {purged} logs older than {days_retention} days.")
-        return purged
+        total = 0
+        for table in TELEMETRY_TABLES:
+            try:
+                if dry_run:
+                    count_result = supabase.table(table).select("id", count="exact").lt("created_at", cutoff).execute()
+                    purged = getattr(count_result, "count", 0) or (len(count_result.data) if count_result.data else 0)
+                else:
+                    result = supabase.table(table).delete(count="exact").lt("created_at", cutoff).execute()
+                    purged = result.count if hasattr(result, "count") else 0
+                total += purged
+                print(f"  Table '{table}': purged {purged} rows older than {days_retention} days.")
+            except Exception as te:
+                print(f"  WARN: Telemetry cleanup skipped for table {table}: {te}")
+        print(f"✓ Telemetry cleanup: purged {total} rows across {len(TELEMETRY_TABLES)} tables.")
+        return total
     except Exception as e:
         print(f"WARN: Telemetry cleanup skipped ({e})")
+        return 0
+
+
+def cleanup_anonymous_session_summaries(days_retention: int = 30, dry_run: bool = False) -> int:
+    """Purge anonymous guru_session_summaries rows older than days_retention days."""
+    try:
+        supabase = create_client(settings.supabase_url, settings.supabase_key)
+        cutoff = (datetime.utcnow() - timedelta(days=days_retention)).isoformat()
+        if dry_run:
+            count_result = (
+                supabase.table("guru_session_summaries")
+                .select("id", count="exact")
+                .is_("user_id", "null")
+                .lt("created_at", cutoff)
+                .execute()
+            )
+            purged = getattr(count_result, "count", 0) or (len(count_result.data) if count_result.data else 0)
+        else:
+            result = (
+                supabase.table("guru_session_summaries")
+                .delete(count="exact")
+                .is_("user_id", "null")
+                .lt("created_at", cutoff)
+                .execute()
+            )
+            purged = result.count if hasattr(result, "count") else 0
+        print(f"✓ Anonymous session summaries: purged {purged} orphan rows older than {days_retention} days.")
+        return purged
+    except Exception as e:
+        print(f"WARN: Anonymous session summary cleanup skipped ({e})")
         return 0
 
 
@@ -174,9 +231,13 @@ def main() -> None:
     r_count = cleanup_redis_keys(dry_run=args.dry_run)
     q_count = cleanup_stale_qdrant_memories(days_inactivity=args.days_inactivity, dry_run=args.dry_run)
     t_count = cleanup_telemetry_logs(days_retention=args.days_telemetry, dry_run=args.dry_run)
+    a_count = cleanup_anonymous_session_summaries(dry_run=args.dry_run)
 
     elapsed = time.time() - start
-    print(f"\nCleanup complete in {elapsed:.2f}s. Total purged: Redis={r_count}, Qdrant={q_count}, Telemetry={t_count}")
+    print(
+        f"\nCleanup complete in {elapsed:.2f}s. Total purged: "
+        f"Redis={r_count}, Qdrant={q_count}, Telemetry={t_count}, AnonymousSummaries={a_count}"
+    )
 
 
 if __name__ == "__main__":

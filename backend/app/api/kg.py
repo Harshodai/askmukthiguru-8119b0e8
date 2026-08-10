@@ -32,7 +32,8 @@ from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.dependencies import get_container
-from services.auth_service import get_current_user_from_supabase  # auth guard
+from app.language_utils import guardrail_text_for
+from services.auth_service import get_current_user_from_supabase, require_aal2  # auth guard
 from services.ontology_exporter import OntologyExporter
 from domain.spiritual_ontology import ONTOLOGY_VERSION, SEED_CONCEPTS, SEED_RELATIONS
 
@@ -171,7 +172,7 @@ def _require_admin(user: Any) -> None:
 
 
 @router.post("/kg/sparql", response_model=SparqlResponse)
-async def kg_sparql(req: SparqlRequest, user=Depends(get_current_user_from_supabase)) -> SparqlResponse:
+async def kg_sparql(req: SparqlRequest, user=Depends(require_aal2)) -> SparqlResponse:
     """Forward a (read-only) graph query to Neo4j via n10s.
 
     n10s 5.x has no SPARQL engine; the query is executed as read-only Cypher.
@@ -189,7 +190,15 @@ async def kg_sparql(req: SparqlRequest, user=Depends(get_current_user_from_supab
 
     guardrails = getattr(get_container(), "guardrails", None)
     if guardrails is not None:
-        gr_result = await guardrails.check_input(raw_query)
+        # CRIT-5: an admin is still a user; a Devanagari/Tamil SPARQL/Cypher
+        # query would silently bypass the EN injection regexes without this.
+        # Flag-gated: multilingual_guardrails=False restores the old raw-text scan.
+        translation = getattr(get_container(), "translation", None)
+        if settings.multilingual_guardrails:
+            gr_text = await guardrail_text_for(raw_query, translation, preferred_lang="en")
+        else:
+            gr_text = raw_query
+        gr_result = await guardrails.check_input(gr_text)
         if gr_result.get("blocked"):
             raise HTTPException(
                 status_code=400,
@@ -382,7 +391,7 @@ async def kg_subgraph(
 @router.get("/ontology/export")
 async def export_ontology(
     format: str = Query("jsonld", pattern="^(turtle|jsonld)$"),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(require_aal2),
 ) -> Any:
     """Export the live Neo4j ontology to Turtle or JSON-LD.
 
@@ -436,7 +445,7 @@ class OntologyVersionResponse(BaseModel):
 
 @router.get("/ontology/version", response_model=OntologyVersionResponse)
 async def ontology_version(
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(require_aal2),
 ) -> OntologyVersionResponse:
     """Return the current ontology version + live concept/relation counts.
 

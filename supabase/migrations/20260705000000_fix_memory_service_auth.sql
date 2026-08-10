@@ -1,3 +1,16 @@
+-- ============================================================================
+-- REVERT: Drop match_user_memories_by_user(). NOTE: later dropped by 20260714071022 —
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- idempotent. The backend memory service calls this RPC; only revert together
+-- with the app-side caller.
+-- DROP FUNCTION IF EXISTS public.match_user_memories_by_user(uuid, vector, integer, double precision);
+-- ============================================================================
+
 -- Fix: match_user_memories_by_user — service-role safe variant
 -- The existing match_user_memories uses auth.uid() which requires a user JWT.
 -- The backend uses the service role key and cannot set auth.uid().

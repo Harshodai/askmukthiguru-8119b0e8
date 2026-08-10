@@ -54,4 +54,18 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD wget --quiet --tries=1 --spider http://127.0.0.1/health || exit 1
 
+# Drop privileges: nginx master would otherwise run as root (container
+# escape = root on host). Make its writable paths (cache, pid, logs) owned
+# by the image's `nginx` system user (uid 101) before switching users.
+# nginx.conf (conf.d/default.conf) sets no pid/temp directives, so the image
+# defaults apply: pid /run/nginx.pid (via /var/run -> ../run symlink), logs
+# under /var/log/nginx, and client_body/proxy temp dirs under /var/cache/nginx
+# (proxying /api with buffering on writes proxy temp files). Note: busybox
+# chown lchowns a symlink operand, so chown the real /run target, not
+# /var/run, or the pid dir stays root-owned and nginx exits with
+# 'open() "/run/nginx.pid" failed (13: Permission denied)'.
+RUN chown -R nginx:nginx /var/cache/nginx /run /var/log/nginx
+
+USER nginx
+
 CMD ["nginx", "-g", "daemon off;"]

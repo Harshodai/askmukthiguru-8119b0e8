@@ -6,6 +6,8 @@ and accepts connections quickly. The real FastAPI app's lifespan runs as a
 background task. Health checks (/api/healthz) respond fast:
 
   - /api/healthz → 200 within a 180s grace period, then reflects real readiness
+    (healthy while the real app's lifespan heartbeat is fresh; 503 when it goes
+    stale >30s or the lifespan never completed — Railway restarts on 503)
   - All other paths → proxied to the real app once loaded, else 503
 
 On shutdown, signals the real lifespan to exit, then waits for cleanup.
@@ -28,7 +30,17 @@ _lifespan_startup_done = False
 _shutdown_event = asyncio.Event()
 _process_start = time.monotonic()
 
+# P1-OPS-5: heartbeat for post-grace liveness depth. Pumped by a background
+# task while the real app's lifespan is running; healthz reads it. If the
+# lifespan exits or its event loop wedges, the pump stops, the heartbeat goes
+# stale (> _HEARTBEAT_STALE_S), and healthz returns 503 so Railway restarts
+# the replica. Driven from the lifespan task (not the healthz handler) so a
+# dead lifespan is detectable even while the wrapper loop still serves 200s.
+_last_heartbeat = _process_start
+
 _GRACE_SECONDS = 180
+_HEARTBEAT_INTERVAL_S = 5
+_HEARTBEAT_STALE_S = 30
 
 _OK_BODY = b'{"ok":true,"status":"alive"}'
 _OK_HEADERS = [
@@ -40,6 +52,16 @@ _NOT_READY_HEADERS = [
     (b"content-type", b"application/json"),
     (b"content-length", str(len(_NOT_READY_BODY)).encode()),
 ]
+
+
+async def _run_heartbeat_pump():
+    global _last_heartbeat
+    try:
+        while True:
+            await asyncio.sleep(_HEARTBEAT_INTERVAL_S)
+            _last_heartbeat = time.monotonic()
+    except asyncio.CancelledError:
+        pass
 
 
 async def _run_real_lifespan():
@@ -54,6 +76,11 @@ async def _run_real_lifespan():
         _real_app = real_app
         logger.info("Real app imported, starting lifespan...")
 
+        # P1-OPS-5: pump the heartbeat while the real lifespan is up. If this
+        # task is cancelled (shutdown) or the event loop wedges, the pump
+        # stops and healthz eventually reports 503 post-grace.
+        pump = asyncio.create_task(_run_heartbeat_pump())
+
         async with real_lifespan(real_app):
             _lifespan_startup_done = True
             logger.info("Real app lifespan yielded — fully initialized")
@@ -64,6 +91,11 @@ async def _run_real_lifespan():
     except BaseException:
         logger.exception("Fatal error in real lifespan")
         raise
+    finally:
+        # P1-OPS-5: stop the pump and force the heartbeat stale so post-grace
+        # healthz returns 503 once the lifespan is down.
+        pump.cancel()
+        _last_heartbeat = 0.0
 
 
 async def _send_http(send, status, headers, body):
@@ -106,7 +138,18 @@ async def app(scope, receive, send):
 
     if path == "/api/healthz":
         within_grace = (time.monotonic() - _process_start) < _GRACE_SECONDS
-        healthy = _lifespan_startup_done or within_grace
+        if within_grace:
+            # During the grace window, 200 unconditionally — Railway must not
+            # kill the replica while the real app is still initializing.
+            healthy = True
+        else:
+            # Post-grace: healthy only if the real lifespan completed AND its
+            # heartbeat pump is fresh. Stale heartbeat means the app degraded
+            # (Qdrant/Redis/LLM down, lifespan exited, event loop wedged) —
+            # surface 503 so Railway restarts the replica instead of serving
+            # dead traffic.
+            heartbeat_stale = (time.monotonic() - _last_heartbeat) > _HEARTBEAT_STALE_S
+            healthy = _lifespan_startup_done and not heartbeat_stale
         if healthy:
             await _send_http(send, 200, _OK_HEADERS, _OK_BODY)
         else:

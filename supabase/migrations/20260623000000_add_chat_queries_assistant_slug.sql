@@ -1,3 +1,17 @@
+-- ============================================================================
+-- REVERT: Drop the view, index and column. NOTE: assistant_slug telemetry values are
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- lost with the column.
+-- DROP VIEW IF EXISTS public.v_chat_queries_by_assistant;
+-- DROP INDEX IF EXISTS idx_chat_queries_assistant_slug;
+-- ALTER TABLE public.chat_queries DROP COLUMN IF EXISTS assistant_slug;
+-- ============================================================================
+
 -- Migration: add assistant_slug to chat_queries telemetry
 -- Run this in your Supabase SQL Editor or via supabase migration new
 -- The backend already writes this field in backend/app/telemetry_sink.py

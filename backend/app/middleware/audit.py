@@ -7,6 +7,8 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
+from app.metrics import REQUEST_COUNT
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,6 +46,8 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
 
         if any(path.startswith(p) for p in self.SKIP_PATHS):
             return response
+
+        REQUEST_COUNT.labels(status=f"{response.status_code // 100}xx").inc()
 
         logger.info(
             "AUDIT %s %s -> %s (%.3fs)",

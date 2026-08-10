@@ -16,8 +16,8 @@ mapping lives in Postgres (user_brain_nodes); this index only answers
 "which of this user's item ids are semantically closest to this vector".
 
 # ponytail: connect + create-if-missing + upsert + filtered-search +
-# filtered-delete only — no re-ranking, no extra payload indexes beyond
-# user_id. Add if semantic recall quality/scale demands it.
+# filtered-delete only — no re-ranking. Two payload indexes: user_id and
+# kind (the latter enables faceted recall if needed).
 """
 
 from __future__ import annotations
@@ -29,8 +29,12 @@ from qdrant_client.http.models import (
     FieldCondition,
     Filter,
     HasIdCondition,
+    HnswConfigDiff,
     MatchValue,
     PointStruct,
+    ScalarQuantization,
+    ScalarQuantizationConfig,
+    ScalarType,
     VectorParams,
 )
 
@@ -39,6 +43,21 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 DEFAULT_COLLECTION = "second_brain_vault"
+
+
+def _build_scalar_int8() -> ScalarQuantization:
+    """Return the doctrine-matching scalar_int8 quantization config.
+
+    Mirrors `services.qdrant.client.QdrantClientManager._build_quantization_config`
+    for the default `scalar_int8` setting. Quantized index lives in RAM for
+    low-latency search; dense vectors stay on disk.
+    """
+    return ScalarQuantization(
+        scalar=ScalarQuantizationConfig(
+            type=ScalarType.INT8,
+            always_ram=True,
+        )
+    )
 
 
 class VaultIndex:
@@ -67,20 +86,40 @@ class VaultIndex:
         self._dimension = settings.embedding_dimension
 
     def ensure_collection(self) -> None:
-        """Create the shared vault collection if missing. Call once at startup
-        (mirrors ServiceContainer._build_infrastructure's self.qdrant.init_collection())."""
+        """Create the shared vault collection if missing.
+
+        Mirrors the doctrine collection's HNSW + scalar_int8 quantization:
+        m=32, ef_construct=200, full_scan_threshold=10000. On-disk payload and
+        vectors. Keyword indexes on user_id and kind.
+        """
         existing = [c.name for c in self._client.get_collections().collections]
         if self._collection in existing:
             return
         try:
             self._client.create_collection(
                 collection_name=self._collection,
-                vectors_config=VectorParams(size=self._dimension, distance=Distance.COSINE, on_disk=True),
+                vectors_config=VectorParams(
+                    size=self._dimension,
+                    distance=Distance.COSINE,
+                    on_disk=True,
+                ),
+                hnsw_config=HnswConfigDiff(
+                    m=32,
+                    ef_construct=200,
+                    full_scan_threshold=10000,
+                ),
+                quantization_config=_build_scalar_int8(),
                 on_disk_payload=True,
             )
-            self._client.create_payload_index(self._collection, "user_id", "keyword")
+            for field_name in ("user_id", "kind"):
+                self._client.create_payload_index(
+                    collection_name=self._collection,
+                    field_name=field_name,
+                    field_schema="keyword",
+                )
         except Exception as exc:
-            if "already exists" not in str(exc).lower() and "conflict" not in str(exc).lower():
+            err_msg = str(exc).lower()
+            if "already exists" not in err_msg and "conflict" not in err_msg:
                 raise
 
     async def upsert(self, user_id: str, item_id: str, vector: list[float], kind: str) -> None:

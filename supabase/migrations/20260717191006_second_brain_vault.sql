@@ -1,4 +1,24 @@
 -- ============================================================================
+-- REVERT: DESTRUCTIVE — drops ALL vault data (encrypted user notes + keys). Only run
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- with a confirmed backup. FK order matters; composite FK constraints are
+-- dropped before their tables.
+-- DROP FUNCTION IF EXISTS public.brain_touch(text);
+-- ALTER TABLE public.user_brain_edges DROP CONSTRAINT IF EXISTS user_brain_edges_src_fkey;
+-- ALTER TABLE public.user_brain_edges DROP CONSTRAINT IF EXISTS user_brain_edges_dst_fkey;
+-- DROP TABLE IF EXISTS public.user_brain_edges;
+-- DROP TABLE IF EXISTS public.user_brain_nodes;
+-- DROP TABLE IF EXISTS public.user_brain_keys;
+-- NOTE: user_brain_keys is touched again by 20260718120001 (different shape) —
+-- reverting the full vault requires reverting that migration too.
+-- ============================================================================
+
+-- ============================================================================
 -- Mukthi Vault — Second Brain schema (Supabase/Postgres)
 -- Apply via the Supabase CLI (this project is CLI-linked, see supabase/config.toml):
 --   supabase db push

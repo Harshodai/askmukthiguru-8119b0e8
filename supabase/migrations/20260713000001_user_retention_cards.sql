@@ -1,3 +1,16 @@
+-- ============================================================================
+-- REVERT: Drop user_retention_cards + trigger. DESTRUCTIVE: all spaced-repetition card
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- state is lost.
+-- DROP TRIGGER IF EXISTS trg_user_retention_cards_touch ON public.user_retention_cards;
+-- DROP TABLE IF EXISTS public.user_retention_cards;
+-- ============================================================================
+
 -- Add public.user_retention_cards table for SM-2 spaced repetition active recall cards
 
 CREATE TABLE IF NOT EXISTS public.user_retention_cards (

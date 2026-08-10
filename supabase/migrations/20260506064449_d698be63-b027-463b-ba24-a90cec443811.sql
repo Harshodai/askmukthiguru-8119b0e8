@@ -1,3 +1,25 @@
+-- ============================================================================
+-- REVERT: Drop conversations + chat_messages and their triggers/functions/indexes
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- DESTRUCTIVE: all conversation and message data is lost.
+-- DROP TRIGGER IF EXISTS update_conversations_updated_at ON public.conversations;
+-- DROP FUNCTION IF EXISTS public.update_conversation_updated_at();
+-- DROP INDEX IF EXISTS idx_chat_messages_conversation;
+-- DROP INDEX IF EXISTS idx_conversations_user;
+-- DROP TABLE IF EXISTS public.chat_messages;
+-- DROP TABLE IF EXISTS public.conversations;
+-- NOTE: profiles.last_conversation_id / last_message_id (added later by
+-- 20260615120000 / 20260616050717) reference conversations.id — drop those FK
+-- columns first if applied:
+-- -- ALTER TABLE public.profiles DROP COLUMN IF EXISTS last_message_id;
+-- -- ALTER TABLE public.profiles DROP COLUMN IF EXISTS last_conversation_id;
+-- ============================================================================
+
 -- Create conversations table
 CREATE TABLE public.conversations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

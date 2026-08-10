@@ -1,3 +1,17 @@
+-- ============================================================================
+-- REVERT: Drop record_practice() + streak/retention tables. DESTRUCTIVE: all streak
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- state and retention events are lost.
+-- DROP FUNCTION IF EXISTS public.record_practice(uuid, date);
+-- DROP TABLE IF EXISTS public.retention_events;
+-- DROP TABLE IF EXISTS public.user_streaks;
+-- ============================================================================
+
 -- Streak state + retention events for compassionate habit tracking
 
 CREATE TABLE IF NOT EXISTS public.user_streaks (

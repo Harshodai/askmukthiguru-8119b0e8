@@ -36,6 +36,31 @@ _SAFE_PATH_RE = re.compile(r"^[a-zA-Z0-9_./-]+$")
 _EMAIL_RE = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
 
+def is_benchmark_request(request) -> bool:
+    """
+    Detect a benchmark/test request via the X-Test-Key header.
+
+    The header only grants benchmark bypass when ALL of these hold:
+    - ENABLE_TEST_AUTH is on (settings.enable_test_auth)
+    - NOT production (settings.is_production is False)
+    - BENCHMARK_SECRET is configured and non-empty
+    - the X-Test-Key value matches BENCHMARK_SECRET (constant-time compare)
+
+    JWT_SECRET is never accepted here — leaking it must not unlock benchmark
+    bypass. This is the single guard shared by the rate limiter, the chat
+    handlers, and the sync/stream orchestrators.
+    """
+    from app.config import settings
+
+    benchmark_secret = getattr(settings, "benchmark_secret", "") or os.environ.get("BENCHMARK_SECRET", "")
+    test_key = request.headers.get("X-Test-Key", "")
+    if not (settings.enable_test_auth and not settings.is_production):
+        return False
+    if not benchmark_secret or not test_key:
+        return False
+    return hmac.compare_digest(test_key, benchmark_secret)
+
+
 def validate_video_id(video_id: str) -> str:
     """
     Validate a YouTube video ID.

@@ -1,3 +1,19 @@
+-- ============================================================================
+-- REVERT: Drop gurus + assistant_configurations + assistant_doctrines. DESTRUCTIVE:
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- seeded rows go with the tables (re-seed from this file for partial rollback).
+-- NOTE: RLS policies from 20260711000000 reference these tables — drop those
+-- first if applied.
+-- DROP TABLE IF EXISTS public.assistant_doctrines;
+-- DROP TABLE IF EXISTS public.assistant_configurations;
+-- DROP TABLE IF EXISTS public.gurus;
+-- ============================================================================
+
 -- Create Gurus Table
 CREATE TABLE IF NOT EXISTS gurus (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

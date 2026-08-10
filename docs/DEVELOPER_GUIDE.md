@@ -139,6 +139,19 @@ npm run dev
 > for fully offline dev, but is not used in production. Cloud providers
 > (Sarvam, OpenRouter, NIM) are the defaults.
 
+## 4c. Package manager policy (single lockfile, P1-OPS-4)
+
+- **Python**: `backend/requirements.txt` is the **only** dependency source — Docker
+  (`uv pip install --system -r requirements.txt`), `pip-audit` CI, and `cache-warm`
+  all install from it. `backend/uv.lock` was removed 2026-08-10 (nothing consumed
+  it). Local dev may use `uv pip install -e ".[dev]"` (pyproject ranges) or
+  `uv pip install -r requirements.txt` for prod parity — never reintroduce a
+  second lockfile.
+- **JS**: `package-lock.json` + npm are the **only** dependency track (declared via
+  `"packageManager": "npm@10.9.8"` in `package.json`). All CI uses `npm ci`.
+  Do not add `bun.lock`/`pnpm-lock.yaml` — `bun` is used only by the Claude-Mem
+  background worker outside this repo.
+
 OpenTelemetry traces are exported to Jaeger when `OTEL_ENABLED=true`:
 
 ```bash

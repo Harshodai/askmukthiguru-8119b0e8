@@ -1,3 +1,21 @@
+-- ============================================================================
+-- REVERT: Drop the memory-layer tables, HNSW index and match_user_memories(). DESTRUCTIVE:
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- all user memory data is lost — restore from backup first. NOTE: pgvector
+-- extension is shared — do not drop. Later migrations (20260618044620) recreate
+-- these tables IF NOT EXISTS; dropping here is only correct when rolling the
+-- whole memory layer back.
+-- DROP FUNCTION IF EXISTS public.match_user_memories(vector, integer, double precision);
+-- DROP TABLE IF EXISTS public.guru_session_summaries;
+-- DROP TABLE IF EXISTS public.guru_memories;
+-- DROP TABLE IF EXISTS public.guru_core_memory;
+-- ============================================================================
+
 -- Migration to create memory layer tables for seekers
 -- Supports core memory, episodic memories, and session summaries
 

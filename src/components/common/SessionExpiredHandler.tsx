@@ -4,13 +4,16 @@ import { supabase, isEmailAllowed } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import type { User } from '@supabase/supabase-js';
+import { clearMeditationResume } from '@/lib/meditationResume';
 
 const PROTECTED_PREFIXES = ['/chat', '/profile', '/admin'];
 
-// Monkey-patch signOut to track explicit signout events across the app
+// Monkey-patch signOut to track explicit signout events across the app and
+// purge per-user local state (meditation resume payload — P1-FE-15).
 const originalSignOut = supabase.auth.signOut;
 supabase.auth.signOut = async function (...args) {
   sessionStorage.setItem('auth_explicit_signout', 'true');
+  clearMeditationResume();
   return originalSignOut.apply(this, args);
 };
 

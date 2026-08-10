@@ -17,6 +17,7 @@ from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
 from app.schemas import ChatRequest, ChatResponse, MessagePayload
 from app.sanitization import sanitize_user_input
+from app.security_utils import is_benchmark_request
 from rag.memory import build_memory_context
 from services.auth_service import (
     get_current_user_from_supabase,
@@ -31,6 +32,65 @@ from services.tenant_context import TenantContext, set_tenant_from_request
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Chat"])
+
+# P1-OPS-8: upstream backpressure for chat. A single replica can be
+# overwhelmed by concurrent chat requests; the LLM circuit breaker only
+# protects downstream. When MAX_CONCURRENT_CHAT requests are in flight we
+# reject immediately with 503 + Retry-After instead of queueing (the Redis
+# job queue already provides the queued path). The semaphore is created
+# lazily because asyncio primitives bind to the running event loop at
+# construction, so module-import time is not safe. The loop is tracked so
+# a semaphore from a dead/different loop (e.g. across TestClient instances)
+# is transparently rebuilt instead of raising "bound to a different event loop".
+_chat_semaphore: Optional[asyncio.Semaphore] = None
+_chat_semaphore_loop: Optional[asyncio.AbstractEventLoop] = None
+
+
+def _get_chat_semaphore() -> asyncio.Semaphore:
+    global _chat_semaphore, _chat_semaphore_loop
+    loop = asyncio.get_running_loop()
+    if _chat_semaphore is None or _chat_semaphore_loop is not loop:
+        _chat_semaphore = asyncio.Semaphore(settings.max_concurrent_chat)
+        _chat_semaphore_loop = loop
+    return _chat_semaphore
+
+
+def backpressure_semaphore(func):
+    """Reject with 503 + Retry-After when the chat concurrency cap is hit.
+
+    Uses try-acquire: an exhausted semaphore rejects the request almost
+    immediately rather than waiting, so a thundering herd fails fast.
+    """
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        sem = _get_chat_semaphore()
+        try:
+            await asyncio.wait_for(sem.acquire(), timeout=0.01)
+        except asyncio.TimeoutError:
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "Server busy, try again shortly"},
+                headers={"Retry-After": "5"},
+            )
+        try:
+            return await func(*args, **kwargs)
+        finally:
+            sem.release()
+
+    return wrapper
+
+
+def get_chat_backpressure() -> dict:
+    """Current chat admission-control state, surfaced in /api/health."""
+    sem = _chat_semaphore
+    if sem is None:
+        return {"max_concurrent": settings.max_concurrent_chat, "in_flight": 0, "admission_limited": False}
+    return {
+        "max_concurrent": settings.max_concurrent_chat,
+        "in_flight": max(0, settings.max_concurrent_chat - sem._value),
+        "admission_limited": sem.locked(),
+    }
 
 
 async def populate_server_side_history(chat_body: ChatRequest, user: dict, container: ServiceContainer, is_benchmark: bool) -> None:
@@ -187,6 +247,7 @@ async def generate_title_endpoint(
 @router.post("/chat")
 @limiter.limit(settings.chat_rate_limit)
 @record_token_usage(endpoint="/api/chat")
+@backpressure_semaphore
 async def chat_endpoint(
     request: Request,
     chat_body: ChatRequest,
@@ -204,9 +265,7 @@ async def chat_endpoint(
     """
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
 
-    test_key = request.headers.get("X-Test-Key")
-    jwt_sec = getattr(settings, "jwt_secret", None)
-    is_benchmark = bool(test_key and jwt_sec and test_key == jwt_sec)
+    is_benchmark = is_benchmark_request(request)
 
     user = resolve_anon_identity(user, chat_body.session_id)
 
@@ -259,6 +318,7 @@ async def chat_endpoint(
 @router.post("/chat/v2")
 @limiter.limit(settings.chat_rate_limit)
 @record_token_usage(endpoint="/api/chat/v2")
+@backpressure_semaphore
 async def chat_v2_endpoint(
     request: Request,
     chat_body: ChatRequest,
@@ -275,9 +335,7 @@ async def chat_v2_endpoint(
     legacy route stays untouched; this exists purely for low-risk rollout.
     """
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
-    test_key = request.headers.get("X-Test-Key")
-    jwt_sec = getattr(settings, "jwt_secret", None)
-    is_benchmark = bool(test_key and jwt_sec and test_key == jwt_sec)
+    is_benchmark = is_benchmark_request(request)
     user = resolve_anon_identity(user, chat_body.session_id)
     await populate_server_side_history(chat_body, user, container, is_benchmark)
 
@@ -316,6 +374,7 @@ async def chat_v2_endpoint(
 
 @router.post("/chat/stream")
 @limiter.limit(settings.chat_rate_limit)
+@backpressure_semaphore
 async def chat_stream_endpoint(
     request: Request,
     chat_body: ChatRequest,
@@ -333,9 +392,7 @@ async def chat_stream_endpoint(
     """
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
 
-    test_key = request.headers.get("X-Test-Key")
-    jwt_sec = getattr(settings, "jwt_secret", None)
-    is_benchmark = bool(test_key and jwt_sec and test_key == jwt_sec)
+    is_benchmark = is_benchmark_request(request)
 
     user = resolve_anon_identity(user, chat_body.session_id)
 

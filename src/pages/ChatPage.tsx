@@ -63,7 +63,9 @@ const ChatPage = () => {
   // Auto-show tour for new / returning users who haven't completed it
   useEffect(() => {
     if (loading) return;
-    if (import.meta.env.DEV && (window.location.search.includes('demo=true') || localStorage.getItem('demo_mode') === 'true')) {
+    // Demo mode only when explicitly enabled at build time — never via
+    // query string or localStorage (was an auth-bypass vector in dev).
+    if (import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true' && (window.location.search.includes('demo=true') || localStorage.getItem('demo_mode') === 'true')) {
       setTourOpen(false);
       return;
     }

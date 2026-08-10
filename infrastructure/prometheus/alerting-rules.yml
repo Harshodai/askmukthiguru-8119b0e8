@@ -1,0 +1,73 @@
+groups:
+  - name: mukthiguru-slo
+    rules:
+      # SLO 1 — Chat p95 latency < 8s
+      # Burn-rate multi-window: >2x over 1h → page; >1x over 6h → warn.
+      - alert: ChatLatencySLOPage
+        expr: |
+          histogram_quantile(0.95, sum(rate(slo_latency_seconds_bucket[2m])) by (le))
+            / histogram_quantile(0.95, sum(rate(slo_latency_seconds_bucket[10m])) by (le)) > 1.02
+        for: 0m
+        labels:
+          severity: page
+          team: oncall
+        annotations:
+          summary: "Chat p95 latency budget burning (page)"
+          description: "p95 chat latency trending above the 8s SLO over a 1h burn window."
+          runbook: "docs/runbooks/ALERTING.md#chatlatencyslopage"
+
+      - alert: ChatLatencySLOHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(slo_latency_seconds_bucket[10m])) by (le)) > 8
+        for: 6h
+        labels:
+          severity: warn
+          team: oncall
+        annotations:
+          summary: "Chat p95 latency > 8s sustained"
+          description: "p95 chat latency exceeds the 8s SLO. Check LLM provider latency and queue depth."
+          runbook: "docs/runbooks/ALERTING.md#chatlatencyslohigh"
+
+      # SLO 2 — /api/health ready > 99.5%
+      - alert: HealthReadySLOPage
+        expr: |
+          sum(rate(health_check_total{result="not_ready"}[5m]))
+            / (sum(rate(health_check_total[5m])) + 1e-9)
+          * 100 > 0.5
+        for: 15m
+        labels:
+          severity: page
+          team: oncall
+        annotations:
+          summary: "Readiness probe failing above SLO (page)"
+          description: "More than 0.5% of /api/health probes return not_ready in a 15m window."
+          runbook: "docs/runbooks/ALERTING.md#healthreadyslopage"
+
+      # SLO 3 — 5xx rate < 0.1%
+      - alert: FiveXXRateSLOPage
+        expr: |
+          sum(rate(guru_requests_total{status=~"5xx"}[5m]))
+            / (sum(rate(guru_requests_total[5m])) + 1e-9)
+          * 100 > 0.1
+        for: 30m
+        labels:
+          severity: page
+          team: oncall
+        annotations:
+          summary: "5xx rate above 0.1% SLO (page)"
+          description: "Server error rate exceeds the 0.1% SLO over a 30m window."
+          runbook: "docs/runbooks/ALERTING.md#fivexxrateslopage"
+
+      - alert: FiveXXRateElevated
+        expr: |
+          sum(rate(guru_requests_total{status=~"5xx"}[10m]))
+            / (sum(rate(guru_requests_total[10m])) + 1e-9)
+          * 100 > 0.05
+        for: 1h
+        labels:
+          severity: warn
+          team: oncall
+        annotations:
+          summary: "5xx rate elevated"
+          description: "Server error rate above 0.05% sustained. Watch for degradation."
+          runbook: "docs/runbooks/ALERTING.md#fivexxrateelevated"

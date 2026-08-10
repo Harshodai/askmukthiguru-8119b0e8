@@ -1,3 +1,15 @@
+-- ============================================================================
+-- REVERT: Drop okf_review_queue. DESTRUCTIVE: all queued OKF entries are lost. NOTE:
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- the admin policy was recreated by 20260714000000 — drops with the table.
+-- DROP TABLE IF EXISTS public.okf_review_queue;
+-- ============================================================================
+
 -- Create OKF Review Queue Table
 CREATE TABLE IF NOT EXISTS okf_review_queue (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

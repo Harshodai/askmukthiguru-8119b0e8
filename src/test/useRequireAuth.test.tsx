@@ -38,10 +38,38 @@ describe('useRequireAuth', () => {
     signOutMock.mockReset();
     signOutMock.mockResolvedValue({});
     sessionStorage.clear();
+    localStorage.clear();
     Object.defineProperty(window, 'location', {
       writable: true,
       value: { pathname: '/chat', search: '' },
     });
+  });
+
+  it('does not bypass auth when ?demo=true is in the query string', async () => {
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { pathname: '/chat', search: '?demo=true' },
+    });
+    getSessionMock.mockResolvedValue({ data: { session: null } });
+
+    renderHook(() => useRequireAuth());
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith('/auth', { replace: true });
+    });
+    expect(sessionStorage.getItem('auth_redirect_path')).toBe('/chat?demo=true');
+  });
+
+  it('does not bypass auth when localStorage demo_mode is set', async () => {
+    localStorage.setItem('demo_mode', 'true');
+    getSessionMock.mockResolvedValue({ data: { session: null } });
+
+    renderHook(() => useRequireAuth());
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith('/auth', { replace: true });
+    });
+    expect(sessionStorage.getItem('auth_redirect_path')).toBe('/chat');
   });
 
   it('redirects unauthenticated users to /auth and saves redirect path', async () => {

@@ -10,6 +10,7 @@ class PIIScanner:
     AADHAAR_REGEX = re.compile(r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b")
     SSN_REGEX = re.compile(r"\b(?!000|666|9\d{2})\d{3}-(?!00)\d{2}-(?!0000)\d{4}\b")
     IP_REGEX = re.compile(r"\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b")
+    URL_QUERY_PARAM_REGEX = re.compile(r"([?&][A-Za-z0-9_.-]+=)[^&#\s]+")
 
     @classmethod
     def scan(cls, text: str) -> dict:
@@ -17,6 +18,7 @@ class PIIScanner:
             return {"has_pii": False, "types": [], "locations": []}
         findings = []
         for name, pattern in [
+            ("url_query_param", cls.URL_QUERY_PARAM_REGEX),
             ("email", cls.EMAIL_REGEX),
             ("phone", cls.PHONE_REGEX),
             ("aadhaar", cls.AADHAAR_REGEX),
@@ -38,6 +40,7 @@ class PIIScanner:
 
     @classmethod
     def redact(cls, text: str) -> str:
+        text = cls.URL_QUERY_PARAM_REGEX.sub(r"\1[REDACTED_QUERY_PARAM]", text)
         text = cls.EMAIL_REGEX.sub("[REDACTED_EMAIL]", text)
         text = cls.PHONE_REGEX.sub("[REDACTED_PHONE]", text)
         text = cls.AADHAAR_REGEX.sub("[REDACTED_ID]", text)

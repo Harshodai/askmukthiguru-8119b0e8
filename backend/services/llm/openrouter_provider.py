@@ -69,3 +69,8 @@ class OpenRouterProvider(LLMProvider):
 
     async def health_check(self) -> bool:
         return await self._service.health_check()
+
+    def is_circuit_open(self) -> bool:
+        """Public probe — the OpenRouterService owns ``_circuit``."""
+        breaker = getattr(self._service, "_circuit", None)
+        return breaker is not None and not breaker.can_execute()

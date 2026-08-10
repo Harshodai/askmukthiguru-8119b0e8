@@ -64,10 +64,10 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     loadVoices();
 
     // Voices may load asynchronously
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
 
     return () => {
-      window.speechSynthesis.onvoiceschanged = null;
+      window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
     };
   }, [isSupported]);
 
@@ -262,9 +262,10 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
         sarvamAudioRef.current.pause();
         sarvamAudioRef.current = null;
       }
-      if (isSupported) {
+      if (isSupported && utteranceRef.current != null && window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
       }
+      utteranceRef.current = null;
     };
   }, [isSupported]);
 

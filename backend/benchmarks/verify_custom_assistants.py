@@ -16,14 +16,12 @@ from pathlib import Path
 # Add backend directory to path so app.config is importable when run standalone.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.config import settings
-
 
 def build_config(args: argparse.Namespace) -> dict:
     """Return runtime configuration from CLI args and environment."""
     return {
         "base_url": args.backend_url or os.getenv("BACKEND_URL", "http://localhost:8000"),
-        "jwt_secret": args.jwt_secret or os.getenv("BENCHMARK_SECRET") or os.getenv("JWT_SECRET", settings.jwt_secret),
+        "benchmark_secret": args.benchmark_secret or os.getenv("BENCHMARK_SECRET", ""),
         "db_container": args.db_container or os.getenv("SUPABASE_DB_CONTAINER", "supabase_db"),
         "wait_telemetry": args.wait_telemetry,
     }
@@ -31,7 +29,7 @@ def build_config(args: argparse.Namespace) -> dict:
 
 async def query_chat_api(config: dict, payload: dict) -> httpx.Response:
     async with httpx.AsyncClient(timeout=400.0) as client:
-        headers = {"X-Test-Key": config["jwt_secret"]}
+        headers = {"X-Test-Key": config["benchmark_secret"]}
         response = await client.post(
             f"{config['base_url']}/api/chat",
             json=payload,
@@ -75,7 +73,7 @@ async def main():
     parser = argparse.ArgumentParser(description="E2E validation for Custom Assistants.")
     parser.add_argument("--backend-url", default=None, help="Backend base URL (default: $BACKEND_URL or http://localhost:8000)")
     parser.add_argument("--db-container", default=None, help="Docker container name for Supabase Postgres (default: $SUPABASE_DB_CONTAINER or supabase_db)")
-    parser.add_argument("--jwt-secret", default=None, help="JWT/test secret (default: $BENCHMARK_SECRET or $JWT_SECRET or settings.jwt_secret)")
+    parser.add_argument("--benchmark-secret", default=None, help="Benchmark test key (default: $BENCHMARK_SECRET)")
     parser.add_argument("--wait-telemetry", type=float, default=2.0, help="Seconds to wait for telemetry sink (default: 2)")
     args = parser.parse_args()
 

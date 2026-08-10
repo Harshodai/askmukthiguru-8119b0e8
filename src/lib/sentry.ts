@@ -2,11 +2,15 @@ import * as Sentry from "@sentry/react";
 
 const DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 
-const isProdHost = typeof window !== "undefined"
-  && /askmukthiguru\.lovable\.app$|\.lovable\.app$/.test(window.location.hostname);
+/** Sentry is enabled only when a DSN is configured AND this is a production
+ *  build. No hostname gating: Railway-served SPAs and native WebViews
+ *  (localhost inside Capacitor) must report too. */
+export function sentryEnabled(): boolean {
+  return Boolean(DSN && DSN.trim()) && Boolean(import.meta.env.PROD);
+}
 
 export function initSentry() {
-  if (!DSN || !isProdHost) return;
+  if (!sentryEnabled()) return;
 
   Sentry.init({
     dsn: DSN,
@@ -14,7 +18,17 @@ export function initSentry() {
     tracesSampleRate: 0.1,
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 0.5,
-    integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
+    // P1-FE-14: the error-replay DOM capture includes the chat UI, which holds
+    // personal/spiritual questions. Mask all text, block media, and mask input
+    // fields so replay frames never expose chat content.
+    integrations: [
+      Sentry.browserTracingIntegration(),
+      Sentry.replayIntegration({
+        maskAllText: true,
+        blockAllMedia: true,
+        maskAllInputs: true,
+      }),
+    ],
     // Filter noisy/expected errors
     ignoreErrors: [
       "ResizeObserver loop limit exceeded",
@@ -28,7 +42,7 @@ export function initSentry() {
 
 /** Add a pageview breadcrumb for session timeline visibility. */
 export function trackPageview(path: string) {
-  if (!DSN || !isProdHost) return;
+  if (!sentryEnabled()) return;
   Sentry.addBreadcrumb({
     category: "navigation",
     message: path,
@@ -42,8 +56,7 @@ export function captureFeatureError(
   feature: "chat" | "translation" | "language" | "meditation" | "auth",
   extra?: Record<string, unknown>,
 ) {
-  if (!DSN || !isProdHost) {
-    // eslint-disable-next-line no-console
+  if (!sentryEnabled()) {
     console.error(`[${feature}]`, err, extra);
     return;
   }

@@ -1,3 +1,39 @@
+-- ============================================================================
+-- REVERT: Base schema — DESTRUCTIVE. Only run to fully reset a fresh/dev DB
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- Drops every object this migration created (FK-cascade order; indexes and
+-- per-table RLS policies drop with their tables).
+-- DROP TABLE IF EXISTS public.annotations;
+-- DROP TABLE IF EXISTS public.alert_events;
+-- DROP TABLE IF EXISTS public.alert_rules;
+-- DROP TABLE IF EXISTS public.query_clusters;
+-- DROP TABLE IF EXISTS public.model_pricing;
+-- DROP TABLE IF EXISTS public.app_logs;
+-- DROP TABLE IF EXISTS public.ingestion_runs;
+-- DROP TABLE IF EXISTS public.eval_results;
+-- DROP TABLE IF EXISTS public.eval_runs;
+-- DROP TABLE IF EXISTS public.golden_questions;
+-- DROP TABLE IF EXISTS public.safety_events;
+-- DROP TABLE IF EXISTS public.trace_spans;
+-- DROP TABLE IF EXISTS public.user_feedback;
+-- DROP TABLE IF EXISTS public.trigger_events;
+-- DROP TABLE IF EXISTS public.chat_responses;
+-- DROP TABLE IF EXISTS public.retrieval_events;
+-- DROP TABLE IF EXISTS public.chat_queries;
+-- DROP TABLE IF EXISTS public.prompt_versions;
+-- DROP TABLE IF EXISTS public.chat_sessions;
+-- DROP TABLE IF EXISTS public.user_roles;
+-- DROP FUNCTION IF EXISTS public.has_role(uuid, public.app_role);
+-- DROP TYPE IF EXISTS public.app_role;
+-- NOTE: pgvector extension and supabase_realtime publication changes are shared
+-- infra — do NOT drop them here.
+-- ============================================================================
+
 -- AskMukthiGuru Admin Observability — full schema.
 -- Run this once when Lovable Cloud is enabled.
 -- Designed for graceful degradation: pgvector and pg_cron are optional upgrades.

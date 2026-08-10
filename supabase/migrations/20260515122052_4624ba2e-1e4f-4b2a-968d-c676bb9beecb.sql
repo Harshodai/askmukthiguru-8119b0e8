@@ -1,3 +1,24 @@
+-- ============================================================================
+-- REVERT: Drop whoami_diagnostics() and restore handle_new_user() to the profiles-only
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- body. NOTE: the user_roles backfill INSERT is data-altering — backfilled
+-- 'user' role rows for pre-existing accounts remain after this revert.
+-- DROP FUNCTION IF EXISTS public.whoami_diagnostics();
+-- CREATE OR REPLACE FUNCTION public.handle_new_user()
+-- RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+-- BEGIN
+--   INSERT INTO public.profiles (id, display_name, avatar_url)
+--   VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'avatar_url');
+--   RETURN NEW;
+-- END;
+-- $$;
+-- ============================================================================
+
 -- 1) Extend handle_new_user to also seed a 'user' role row.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger

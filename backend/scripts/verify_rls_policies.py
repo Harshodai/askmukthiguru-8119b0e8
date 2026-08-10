@@ -26,7 +26,7 @@ DEFAULT_SUPABASE_URL = "http://localhost:54321"
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", DEFAULT_SUPABASE_URL).rstrip("/")
 SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", SERVICE_KEY)
+ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
 
 
 def _fail(error: str, details: Dict[str, Any] | None = None) -> None:
@@ -283,6 +283,9 @@ def main() -> int:
 
     if not SERVICE_KEY:
         _fail("missing env", {"hint": "SUPABASE_SERVICE_ROLE_KEY is required"})
+
+    if not ANON_KEY:
+        _fail("SUPABASE_ANON_KEY required for anon probes (service_role bypasses RLS; never use it as a fallback)")
 
     report = run_verification()
     print(json.dumps(report, indent=2, default=str))

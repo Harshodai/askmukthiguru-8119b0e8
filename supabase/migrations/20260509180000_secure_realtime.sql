@@ -1,3 +1,19 @@
+-- ============================================================================
+-- REVERT: Drop the realtime.messages policy + RLS and the daily_teachings policy
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- NOTE: daily_teachings RLS itself was enabled by 20260506061859; disabling it
+-- here would re-expose the table to anon — leave RLS enabled unless rolling back
+-- past that migration too.
+-- DROP POLICY IF EXISTS "Authenticated users can subscribe" ON realtime.messages;
+-- ALTER TABLE realtime.messages DISABLE ROW LEVEL SECURITY;
+-- DROP POLICY IF EXISTS "Public can read teachings" ON public.daily_teachings;
+-- ============================================================================
+
 -- Security Hardening: Restrict Supabase Realtime Subscriptions
 -- This policy ensures that users can only subscribe to channels they are authorized for.
 

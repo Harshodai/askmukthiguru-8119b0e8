@@ -77,6 +77,14 @@ class Settings(BaseSettings):
     pipeline_timeout: int = 120  # reduced from 180
     llm_max_retries: int = 2  # Max retry attempts per LLM call (exponential backoff starts at 0.5s)
 
+    # P1-AI-1: hard output-token ceilings applied by the LLM gateway on EVERY
+    # generation call. The gateway passes these as max_tokens (OpenAI-style)
+    # and never forwards a bare unbounded call to a provider. A caller-supplied
+    # max_tokens is capped down to the matching route ceiling (min), so a deep
+    # call can never exceed its route budget even if a caller requests more.
+    llm_max_tokens_fast: int = 800   # casual/standard/fast-route generation ceiling
+    llm_max_tokens_deep: int = 1500  # deep/tier3_complex generation ceiling
+
     # --- Timeout Budget ---
     # pipeline_timeout_budget removed — dead config, never read. Use pipeline_timeout instead.
     node_timeout_fast: int = 15  # reduced from 20
@@ -111,6 +119,13 @@ class Settings(BaseSettings):
     # Provider: "nemo" (NeMo Guardrails), "lightweight" (regex-based), "llama_guard" (Llama Guard 3 1B + Rejection Classifier), "rejection_classifier", "disabled"
     guardrails_provider: str = "nemo"  # Falls back to lightweight if provider unavailable
     guardrails_audit_enabled: bool = True  # Structured audit logging for blocked requests
+    # CRIT-5: message-level language detection + translate-to-EN before EN
+    # guardrail regexes, so an EN-preferred user typing in a non-EN script
+    # gets the same injection/crisis protection. Gates three call sites:
+    # InputGuardrailStage (pipeline), kg.py (admin KG query), srs_service.py
+    # (flashcard content). Rollback = set False (restores raw-text scan at all
+    # three sites; srs guardrail reverts to its prior latent-dead-code state).
+    multilingual_guardrails: bool = True
 
     # --- Ollama (local mode / cloud tag) ---
     ollama_base_url: str = "http://localhost:11434"
@@ -351,6 +366,9 @@ class Settings(BaseSettings):
     ingestion_concurrency: int = 5
     queue_job_ttl: int = 1800
     queue_default_timeout: int = 300
+    # Max concurrent in-flight /api/chat (and /api/chat/v2, /api/chat/stream)
+    # requests per replica. Exhausted → immediate 503 + Retry-After (no queueing).
+    max_concurrent_chat: int = 20
 
     # --- Request Queue (Phase 1A — horizontal scaling) ---
     # When True, incoming requests are enqueued to Redis Streams and
@@ -387,6 +405,13 @@ class Settings(BaseSettings):
     jwt_public_key: Optional[str] = None   # Public key PEM for RS256 token verification
     supabase_jwt_audience: str = "authenticated"
     benchmark_secret: Optional[str] = None
+    # P1-SEC-1 (T4): Defense-in-depth admin allowlist. Comma-separated admin
+    # user UUIDs. When non-empty, an AAL2 superuser MUST also be in this list
+    # to reach admin/ingest/kg admin endpoints. Empty (default) = not enforced
+    # (dev convenience; in prod set to the real admin UUIDs). The service_role
+    # sentinel UUID is never in this list, so it is blocked even if aal2 were
+    # somehow attached to its token.
+    admin_user_ids: str = ""
     # Default to disabled: the frontend uses Supabase auth, so the FastAPI
     # /api/auth/register endpoint has no legitimate public use case and would
     # otherwise expose an email-enumeration surface. Override with the
@@ -784,7 +809,10 @@ class Settings(BaseSettings):
     rag_citation_cosine_enabled: bool = False  # default Jaccard (faster, no embedder dependency)
     # Citation similarity thresholds — adaptive by query type
     # Higher = stricter (fewer false positive citations)
-    citation_jaccard_threshold: float = 0.18      # default Jaccard threshold
+    # P1-AI-12: base raised 0.18 → 0.30 (and the CASUAL override 0.12 → 0.20)
+    # because loosely-related sentences were clearing the old floor and
+    # producing false grounding signals. Keep the cosine path unchanged.
+    citation_jaccard_threshold: float = 0.30      # default Jaccard threshold
     citation_cosine_threshold: float = 0.65       # used only when rag_citation_cosine_enabled=True
     # Per-intent overrides (merge with defaults)
     citation_thresholds_by_intent: dict[str, dict[str, float]] = Field(
@@ -792,7 +820,7 @@ class Settings(BaseSettings):
             "FACTUAL":   {"jaccard": 0.20, "cosine": 0.70},
             "RELATIONAL": {"jaccard": 0.18, "cosine": 0.65},
             "QUERY":     {"jaccard": 0.18, "cosine": 0.65},
-            "CASUAL":    {"jaccard": 0.12, "cosine": 0.55},
+            "CASUAL":    {"jaccard": 0.20, "cosine": 0.55},
             "GREETING":  {"jaccard": 0.10, "cosine": 0.50},
             "DISTRESS":  {"jaccard": 0.15, "cosine": 0.60},
             "GUIDED_TOUR": {"jaccard": 0.12, "cosine": 0.55},
@@ -901,6 +929,13 @@ class Settings(BaseSettings):
         if not self.web_search_allowed_domains or not self.web_search_allowed_domains.strip():
             return []
         return [d.strip().lower() for d in self.web_search_allowed_domains.split(",") if d.strip()]
+
+    @property
+    def admin_user_ids_list(self) -> list[str]:
+        """Parse comma-separated admin user UUIDs into a list (P1-SEC-1 T4)."""
+        if not self.admin_user_ids or not self.admin_user_ids.strip():
+            return []
+        return [u.strip() for u in self.admin_user_ids.split(",") if u.strip()]
 
     @property
     def transcript_languages_list(self) -> list[str]:

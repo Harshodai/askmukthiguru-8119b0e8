@@ -448,39 +448,18 @@ class MemoryService:
     async def regenerate_summary(self, user_id: str) -> int:
         """Populate guru_memories.summary where NULL.
 
-        Selects the user's episodic memories with NULL summary and fills each
-        non-empty content value with its first 280 characters as the fallback.
+        One bulk UPDATE via the regenerate_summaries RPC fills every NULL
+        summary with the first 280 characters of its content in a single
+        round-trip (previously one UPDATE per row: ~1000 rows = 20-50s of
+        sequential round-trips).
         """
         if not self._supabase or self._is_anonymous(user_id):
             return 0
         try:
-            needs = await asyncio.to_thread(
-                self._supabase.table("guru_memories")
-                .select("id, content")
-                .eq("user_id", user_id)
-                .is_("summary", "null")
-                .execute
+            res = await asyncio.to_thread(
+                self._supabase.rpc("regenerate_summaries", {"p_user_id": user_id}).execute
             )
-            rows = needs.data if needs and hasattr(needs, "data") else []
-            if not rows:
-                return 0
-            updated = 0
-            for r in rows:
-                content = (r.get("content") or "").strip()
-                if not content:
-                    continue
-                fallback = content[:280]
-                try:
-                    await asyncio.to_thread(
-                        self._supabase.table("guru_memories")
-                        .update({"summary": fallback})
-                        .eq("id", r["id"])
-                        .eq("user_id", user_id)
-                        .execute
-                    )
-                    updated += 1
-                except Exception as upd_err:
-                    logger.warning(f"summary update failed for memory {r.get('id')}: {upd_err}")
+            updated = int(res.data) if res and hasattr(res, "data") else 0
             logger.info(f"regenerate_summary user={user_id} updated={updated}")
             return updated
         except Exception as e:

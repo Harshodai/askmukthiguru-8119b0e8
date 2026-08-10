@@ -208,9 +208,11 @@ export const useSpeechRecognition = (
     recognitionRef.current = recognition;
 
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.abort();
-      }
+      // Clear the auto-restart flag first so an onend fired by abort() never
+      // restarts recognition during/after cleanup.
+      isListeningRef.current = false;
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
     };
   }, [useSarvam, continuous]);
 
@@ -252,10 +254,8 @@ export const useSpeechRecognition = (
         };
 
         mediaRecorder.onstop = async () => {
-          console.log("[STT] mediaRecorder.onstop triggered");
           const mimeType = mediaRecorder.mimeType || 'audio/webm';
           const audioBlob = new Blob(chunksRef.current, { type: mimeType });
-          console.log("[STT] audioBlob size:", audioBlob.size, "mimeType:", mimeType);
           chunksRef.current = [];
 
           // Upload audio blob to Sarvam STT edge function
@@ -267,7 +267,6 @@ export const useSpeechRecognition = (
             const targetLang = languageCodeMap[langRef.current] || 'en-IN';
             formData.append('language_code', targetLang);
 
-            console.log('[STT] Invoking sarvam-stt edge function with lang:', targetLang);
             const { data, error: fnError } = await supabase.functions.invoke('sarvam-stt', {
               body: formData,
             });
@@ -276,7 +275,6 @@ export const useSpeechRecognition = (
               throw new Error(fnError.message || 'STT edge function failed');
             }
 
-            console.log('[STT] Response data:', JSON.stringify(data));
             const text = data?.transcript || '';
             const detectedLang = data?.language_code || targetLang;
 
@@ -288,7 +286,6 @@ export const useSpeechRecognition = (
             onTranscriptRef.current?.(text, true);
 
             if (onLanguageDetectedRef.current && detectedLang) {
-              console.log('[STT] Triggering onLanguageDetected with:', detectedLang);
               onLanguageDetectedRef.current(detectedLang);
             }
           } catch (err) {

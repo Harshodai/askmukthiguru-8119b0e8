@@ -1,4 +1,56 @@
-## Aug 2, 2026 — The Corrector Ate The Doctrine: Silent Truncation Past Every Gate
+## Aug 10, 2026 — Test Isolation: Mock Targets, sys.modules Eviction, Env DNS
+
+Four backend test-isolation bugs that each caused order-dependent failures passing standalone but failing in the full suite. Each is a general class.
+
+### L-TEST-1. mock.patch must target the ACTUAL module-level singleton, not a sibling
+- **What**: `test_edge_cases.py`'s `mock_coalescer` fixture patched `app.main.coalescer.get_or_run`, but the orchestrator uses `app.orchestrator._coalescer` (a SEPARATE module-level singleton built at import time, orchestrator.py:33). The mock missed → real `RedisCoalescer` bound connections to TestClient portal loops → "Event loop is closed" / "attached to a different loop" across tests with different loops. Standalone tests passed (one portal loop); full suite failed (multiple portal loops).
+- **Why**: When a module builds a singleton at import time (`_coalescer = build_coalescer(...)`), patching `build_coalescer` only affects FUTURE builds — the existing instance is untouched. And patching a DIFFERENT module's attribute (`app.main.coalescer` vs `app.orchestrator._coalescer`) never intercepts the call.
+- **How to prevent**: Before patching a singleton, trace the actual call site: `grep "await.*coalescer\|coalescer\." app/` — patch the EXACT attribute the code reads. For module-level singletons, patch `app.module._singleton.method` directly, not `build_singleton`.
+
+### L-TEST-2. Blanket `sys.modules` eviction of a namespace package corrupts sibling tests
+- **What**: `test_anonymous_session_purge.py` and `test_cleanup_inactive.py` both did `for key in list(sys.modules): if key.startswith("scripts.ops"): del sys.modules[key]` to reimport `cleanup_inactive_user_data` with patched `create_client`. But this evicted ALL `scripts.ops.*` including `hallucination_anomaly`, which `test_hallucination_anomaly.py` had imported at collection time. The hallucination test held a reference to the OLD (deleted) `run_anomaly_check`; `mock.patch("scripts.ops.hallucination_anomaly._fetch_responses")` targeted a NEW re-imported instance → real `_fetch_responses` ran → DNS error.
+- **Why**: `from module import func` captures the function object at import time. If the module is evicted from `sys.modules` and reimported, the old function and the new patch live on different module objects. `mock.patch` by string name targets `sys.modules[name]` — the NEW one — while the test's captured function still references the OLD one.
+- **How to prevent**: Never blanket-evict `sys.modules` by prefix. Evict ONLY the specific module (`sys.modules.pop("scripts.ops.cleanup_inactive_user_data", None)`) + its parent namespace package (`scripts.ops`) so the reimport gets a fresh module. Other submodules stay cached and their references remain valid.
+
+### L-TEST-3. Test-only `sys.modules` stubs at import time permanently poison the process
+- **What**: `test_meditation_routing.py` called `_bootstrap_stubs()` at module import time, inserting stub `qdrant_client`, `qdrant_client.http` (a non-package), `qdrant_client.models` into `sys.modules`. This permanently replaced the real `qdrant_client` for ALL subsequent test modules — `test_qdrant_embedded_mode`'s `QdrantClient(path=":memory:")` resolved to the stub class → `AttributeError: 'QdrantClient' has no attribute 'create_collection'`. Stubs were redundant (deps installed in venv, layers 1–3 need none, layer 4 skips cleanly on `ModuleNotFoundError`).
+- **Why**: `sys.modules` mutations at import time are process-global and permanent. A test module that stubs a third-party package corrupts every later test that imports it — not just its own tests.
+- **How to prevent**: Don't stub installed dependencies. If stubs are truly needed (deps NOT installed), scope them to a fixture that saves/restores `sys.modules` state — never mutate at module import time. Verify stubs are necessary: `python -c "import qdrant_client"` — if it succeeds, don't stub.
+
+### L-TEST-4. conftest env overrides must cover ALL docker-hostname URLs, not just REDIS_URL
+- **What**: `conftest.py` overrode `REDIS_URL` to `127.0.0.1` (line 33) but NOT `QDRANT_URL`. `backend/.env` (symlinked) carries docker hostnames (`qdrant:6333`, `supabase:54321`) that don't resolve on the host. Tests that reached qdrant got `ConnectError: [Errno 8] nodename nor servname provided` — but ONLY in the full suite (standalone tests that didn't hit qdrant passed). The env override was half-complete.
+- **Why**: pydantic-settings loads `.env` at first `from app.config import settings`. conftest sets `os.environ` before that import, so env overrides win — but only for vars that ARE overridden. Missing overrides fall through to `.env` docker hostnames.
+- **How to prevent**: When overriding one docker-hostname URL in conftest, override ALL (`REDIS_URL`, `QDRANT_URL`, `NEO4J_URI`, `SUPABASE_URL`). Audit `backend/.env` for every `*_URL` / `*_URI` var and add a conftest override for each.
+
+
+During P1-SEC-1 (AAL2 on admin/ingest/kg + service_role ≠ superuser for HTTP), the test suite surfaced four pre-existing defects that no code review had caught. Each is a general class.
+
+### L-AUTHZ-1. FastAPI dependency ORDER can silently swallow authz
+- **What**: `cache_metrics.py` declared `container` (a `Depends(get_container)` resource) BEFORE `user` (`Depends(require_aal2)`). FastAPI resolves `Depends` in declaration order. `get_container` → `ContainerBuilder._build_infrastructure` (app/container.py:123) eagerly pings Qdrant → `ConnectError` on `qdrant:6333` host when running outside docker → the request died with a 500 before `require_aal2` could raise its 403. The authz check was unreachable — a "protected" endpoint that 500s for everyone (authz by outage).
+- **Why**: DI container construction is not side-effect-free; ordering dependencies = ordering side effects.
+- **How to prevent**: **Auth dependencies first** (`Depends(require_aal2)` before any resource dep). When wiring authz, run the endpoint test path against an environment where infra is DOWN — authz must short-circuit before any infra connection attempt.
+
+### L-AUTHZ-2. Structural authz tests can't see nested `Depends`
+- **What**: `compliance._require_admin` was refactored to depend on `require_aal2` internally — but `inspect.signature(endpoint)` (the structural test) only sees top-level parameters, so the AAL2 gate was invisible to the test and the endpoint looked ungated.
+- **How to prevent**: If a structural test asserts `Depends(X)` is on an endpoint signature, put the dependency at the endpoint level too (or test behavior, not signature). Nested deps are a blind spot for every signature-based check.
+
+### L-AUTHZ-3. Router imported but never mounted = silent 404
+- **What**: `compliance_router` was imported in `app/main.py` but never passed to `app.include_router` — the GDPR `/api/compliance/audit/stats` endpoint was dead code returning 404, while the import kept the linter quiet. Probably broken by the decomposition commit `6ae3f613`.
+- **How to prevent**: For every `from app.api.X import router` in main.py, assert the router is mounted. A test that GETs every mounted+imported path catches this instantly.
+
+### L-AUTHZ-4. Router prefix double-prefix: `/api/api/...`
+- **What**: `cache_metrics` router declared `@router.get("/api/metrics/cache")` while mounted with `prefix="/api"` → real path `/api/api/metrics/cache`. Frontend (`src/admin/lib/api.ts`) called `/api/metrics/cache` → 404. The bug existed since the router was added; only wiring authz + a 404 test surfaced it.
+- **How to prevent**: Routers mounted with a prefix declare path WITHOUT the prefix. Test the FINAL path with the frontend's own API call (grep the frontend for the URL, assert `url in app.routes`).
+
+### L-AUTHZ-5. `service_role` token ≠ human admin — but the code said it was
+- **What**: `SupabaseAuthStrategy.authenticate` mapped ANY `service_role` JWT (role claim) to `is_superuser=True` for inbound HTTP. A leaked `SUPABASE_SERVICE_ROLE_KEY` was a full admin bypass for every admin/ingest/kg endpoint, including RAG ingestion (poisoning). Fixed: inbound HTTP service_role → `is_superuser=False, role="service_role", aal="aal1"` + warning log. Internal sinks (telemetry) read the key directly, not via the auth bridge — verify that boundary when restricting (P1-SEC-11).
+- **How to prevent**: Map roles to privileges per ingress path, not globally. Never grant `is_superuser` from a role claim without AAL2 + identity allowlist (`ADMIN_USER_IDS`) in front.
+
+### L-AUTHZ-6. Parallel subagents: disjoint files only
+- **What**: Subagent parallelization on one branch conflicts when two agents edit the same file (both `git add -A && git commit`). Wave 1 must partition by FILE: e.g. OCR (services/ocr_service.py), CORS (app/main.py CORS block + nginx.conf), frontend (src/...). Same-file tasks go in later waves.
+- **How to prevent**: Before dispatching wave N, list each task's touched files; reject overlaps within a wave. Keep briefs short (<150 lines) — long briefs get truncated and the agent loses the constraints.
+
+
 
 Forensic audit of `spiritual_wisdom_contextual`. Five defects, one systemic. Every
 number below was measured against the live stack, not estimated.

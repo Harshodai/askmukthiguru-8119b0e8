@@ -21,14 +21,45 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Distress keyword pre-screen — only triggers full analysis when present.
+# CRIT-5: `suffering`/`pain` removed (verified false positives on doctrinal
+# queries — "What is the relationship between suffering and consciousness?"
+# — and medical queries — "I feel a sharp pain in my chest").
+# Indic acute crisis keywords added; sources:
+#   - ICHI Mental Health Glossary (hi/ta/te/mr)
+#   - AIIMS suicide-prevention resources (hi/te/mr)
+#   - Bangladesh suicide-prevention helplines (bn)
+#   - IndicNLP suicide/self-harm corpus keywords (hi/ta/mr/bn)
+# Devanagari/Bengali/Tamil/Telugu marks (virama, nukta, matras) are not \w,
+# so \b boundaries FAIL on Indic scripts — matched as plain substrings.
 _DISTRESS_KEYWORD_RE = re.compile(
     r"\b(suicid|kill\s*my|want\s*to\s*die|end\s*my\s*life|hurt\s*my|self[-\s]*harm|"
     r"hopeless|crying|panic|anxiety|depress|grief|alone|miserable|worthless|"
     r"helpless|nobody\s*cares|no\s*point|give\s*up|can'?t\s*go\s*on|overwhelm|"
-    r"suffering|pain|afraid|scared|terrif|agony|desper|broken|tut\s*chuk|"
+    r"afraid|scared|terrif|agony|desper|broken|tut\s*chuk|"
     r"akela|kashtam|dukh|takleef|udas)\b",
     re.IGNORECASE,
 )
+
+# Acute Indic self-harm / suicide keywords — deliberately narrow (suicide /
+# self-harm intent), NOT vague pain/grief words. See _DISTRESS_KEYWORD_RE
+# docstring for the keyword sources.
+_INDIC_CRISIS_KEYWORDS = (
+    # Hindi (Devanagari)
+    "आत्महत्या",  # suicide (also Marathi — shared Devanagari script)
+    "खुदकुशी",  # suicide (colloquial)
+    "खुद को मार",  # kill myself
+    # Bengali (Bengali script)
+    "আত্মহত্যা",  # suicide
+    "নিজেকে মেরে",  # kill myself
+    # Tamil (Tamil script)
+    "தற்கொலை",  # suicide
+    "தற்கொலை செய்து",  # commit suicide
+    # Telugu (Telugu script)
+    "ఆత్మహత్య",  # suicide
+    "ఆత్మహత్య చేసుకో",  # commit suicide
+)
+
+_INDIC_CRISIS_KEYWORD_RE = re.compile("|".join(_INDIC_CRISIS_KEYWORDS))
 
 
 class DistressStage(Stage):
@@ -41,9 +72,17 @@ class DistressStage(Stage):
         user_msg_en = ctx.state["user_msg_en"]
         state = ctx.state
 
-        # ponytail: distress-keyword pre-screen from execute() verbatim
-        ctx.has_distress_keywords = bool(_DISTRESS_KEYWORD_RE.search(user_msg_en))
+        # CRIT-5: pre-screen BOTH the translated EN text and the raw original
+        # message, so an acute Indic crisis keyword is never missed because
+        # translation softened it. raw falls back to user_msg_en (which is
+        # already English for Indic-preferred users) when ctx.user_msg is
+        # unavailable (e.g. direct stage tests use SimpleNamespace).
+        raw = getattr(ctx, "user_msg", None) or user_msg_en
+        has_en_keyword = bool(_DISTRESS_KEYWORD_RE.search(user_msg_en))
+        has_indic_keyword = bool(_INDIC_CRISIS_KEYWORD_RE.search(raw))
+        ctx.has_distress_keywords = has_en_keyword or has_indic_keyword
 
+        # ponytail: distress-keyword pre-screen from execute() verbatim
         if ctx.has_distress_keywords:
             assessment = await self._detect_distress(ctx, user_msg_en, state)
         else:

@@ -1,3 +1,15 @@
+-- ============================================================================
+-- REVERT: Drop the unique constraint. NOTE: the dedup DELETE removed duplicate rows
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- (kept the newest) — that data is lost; restore from backup if it mattered.
+-- ALTER TABLE public.guru_session_summaries DROP CONSTRAINT IF EXISTS guru_session_summaries_user_session_unique;
+-- ============================================================================
+
 -- Add unique constraint for session summary upsert
 -- Required for ON CONFLICT(user_id, session_id) in memory_service.py
 --

@@ -37,6 +37,19 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      - name: Check metrics schema parity (P1-AI-24)
+        # backend/app/schemas/metrics.py (pydantic UserMetrics) and
+        # src/lib/metricsSchema.ts (zod) must stay 1:1 in field keys.
+        # Fails on any drift so a backend metrics addition can never
+        # silently desync the frontend consumer.
+        run: node scripts/check_metrics_schema_parity.mjs
+
+      - name: Check i18n locale coverage (P1-FE-11)
+        # Every real locale file must expose the same top-level namespaces
+        # as en.json (source of truth). A missing namespace renders raw key
+        # strings to users; this gate prevents silent scope creep.
+        run: node scripts/check_i18n_coverage.mjs
+
       - name: Run Vitest tests
         run: npm test
 
@@ -77,6 +90,25 @@ jobs:
         # Exclude venv/.venv to avoid scanning third-party packages.
         run: bandit -r . -x tests/,benchmarks/,venv/,.venv/ --severity-level medium --confidence-level medium --quiet --configfile .bandit
 
+      - name: Forbid JWT_SECRET benchmark backdoor (CRIT-1)
+        # A leaked JWT_SECRET (the HS256 token-signing secret) must never unlock
+        # the benchmark X-Test-Key bypass. Runs from the repo root (this job's
+        # working-directory is backend/) so root-level benchmark scripts such as
+        # scripts/benchmarks/load_test.py are scanned too.
+        # AST-based scanner (scripts/security/check_benchmark_backdoor.py):
+        #   - catches the historical MULTI-LINE backdoor form where X-Test-Key
+        #     and jwt_secret sit on separate lines (a same-line grep cannot see
+        #     it) by flagging any function that references both tokens
+        #   - ignores comments/docstrings, so the guard's own docstring and the
+        #     regression-test file (test_no_jwt_secret_backdoor.py, which
+        #     intentionally sends JWT_SECRET as X-Test-Key to ASSERT rejection)
+        #     do not false-positive
+        # Fail-closed: the scanner exits 1 on any coupling or scan error;
+        # GitHub's default bash (-e) turns a non-zero exit into a step failure,
+        # so a broken scan can never silently pass.
+        working-directory: .
+        run: python3 scripts/security/check_benchmark_backdoor.py
+
       - name: Run pytest
         run: pytest tests/ -v --tb=short
         env:
@@ -107,6 +139,17 @@ jobs:
 
       - name: Install pre-commit
         run: pip install pre-commit
+
+      - name: INV-6 — no PII dumps in working tree (CRIT-6)
+        # Belt-and-suspenders alongside the pre-commit local hook: even if a
+        # contributor bypasses local hooks (--no-verify), CI still fails if a
+        # known PII dump filename (neo4j.dump / supabase_dump.sql /
+        # redis_dump.rdb / cookies.txt / public_schema_dump.sql) is present
+        # in the checkout. Detector: scripts/security/check_no_pii_dumps.sh
+        # (never deletes; only detects). Cleanup runbook:
+        # docs/runbooks/SECRET_ROTATION.md.
+        working-directory: .
+        run: bash scripts/security/verify_no_pii_dumps.sh .
 
       - name: Install backend deps (for hooks)
         run: |

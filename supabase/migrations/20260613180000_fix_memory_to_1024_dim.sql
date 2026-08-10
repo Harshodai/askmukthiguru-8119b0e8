@@ -1,3 +1,20 @@
+-- ============================================================================
+-- REVERT: DESTRUCTIVE: this migration TRUNCATEs guru_memories — rows are already lost;
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- restore from backup if data mattered. Best-effort schema revert to the
+-- pre-migration 768-dim shape:
+-- DROP INDEX IF EXISTS public.guru_memories_hnsw_idx;
+-- ALTER TABLE public.guru_memories DROP COLUMN IF EXISTS embedding;
+-- ALTER TABLE public.guru_memories ADD COLUMN embedding vector(768);
+-- NOTE: 1024-dim is the live embedding contract (BAAI/bge-m3, Qdrant
+-- spiritual_wisdom) — reverting requires a coordinated app rollback.
+-- ============================================================================
+
 -- Fix guru_memories embedding dimensions: 768 → 1024
 -- Reason: the system uses BAAI/bge-m3 (dense dim=1024) for ALL embeddings.
 -- The previous migration to 768 was incorrect (google/gemini-embedding-001 was never

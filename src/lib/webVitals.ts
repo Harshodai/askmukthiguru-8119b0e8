@@ -7,6 +7,7 @@
  */
 import { onCLS, onFCP, onINP, onLCP, onTTFB, type Metric } from "web-vitals";
 import * as Sentry from "@sentry/react";
+import { sentryEnabled } from "./sentry";
 
 type NetInfo = { effectiveType?: string; downlink?: number; rtt?: number; saveData?: boolean };
 
@@ -62,7 +63,7 @@ function report(metric: Metric) {
 }
 
 export function initWebVitals() {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !sentryEnabled()) return;
   try {
     onLCP(report);
     onINP(report);

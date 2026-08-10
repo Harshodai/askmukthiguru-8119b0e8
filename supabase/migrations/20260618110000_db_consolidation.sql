@@ -1,4 +1,29 @@
 -- ============================================================================
+-- REVERT: Drop token_usage + policies/indexes, reverse the prompt_versions changes and
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- conversation_memories policy additions. CAUTION: the version INTEGER→TEXT cast
+-- fails on non-numeric values (verify first); guru_session_summaries.user_id
+-- SET NOT NULL fails while NULL (anonymous) rows exist.
+-- DROP TABLE IF EXISTS public.token_usage;
+-- ALTER TABLE public.prompt_versions DROP COLUMN IF EXISTS description;
+-- ALTER TABLE public.prompt_versions DROP COLUMN IF EXISTS author;
+-- ALTER TABLE public.prompt_versions ALTER COLUMN version TYPE integer USING version::integer;
+-- DROP POLICY IF EXISTS "service_role manage conversation_memories" ON public.conversation_memories;
+-- DROP POLICY IF EXISTS "users read own conversation_memories" ON public.conversation_memories;
+-- DROP POLICY IF EXISTS "users insert own conversation_memories" ON public.conversation_memories;
+-- ALTER TABLE public.guru_session_summaries ALTER COLUMN user_id SET NOT NULL;
+-- ALTER TABLE public.feedback_events DROP COLUMN IF EXISTS query_text;
+-- ALTER TABLE public.feedback_events DROP COLUMN IF EXISTS answer_text;
+-- ALTER TABLE public.feedback_events DROP COLUMN IF EXISTS feedback_text;
+-- ALTER TABLE public.feedback_events DROP COLUMN IF EXISTS metadata_json;
+-- ============================================================================
+
+-- ============================================================================
 -- DB Consolidation: consolidate cost_tracking + prompt_store into Supabase
 -- ============================================================================
 

@@ -14,11 +14,13 @@
     "startCommand": "python start_railway.py",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5,
-    "drainingSeconds": 30,
-    "overlapSeconds": 10,
+    "drainingSeconds": 60,
+    "overlapSeconds": 120,
     "limits": {
       "cpu": 4000,
-      "memory": "16Gi"
-    }
+      "memory": "6Gi"
+    },
+    "_memory_note": "P1-OPS-9: keep deploy.limits.memory in sync with docs/OOM_RAILWAY_INCIDENT.md. Container cap 6Gi matches PYTHON_MEMORY_LIMIT_MB=5632 (headroom under cap).",
+    "_cold_start_note": "P1-OPS-6: overlapSeconds 120 keeps old replica serving while the new one boots (embedding model is lazy-loaded on first chat request; ONNX encoder/reranker keep the footprint small). Revisit avgRegions/replicas only after P1-OPS-7 load test."
   }
 }

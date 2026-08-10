@@ -1,3 +1,15 @@
+-- ============================================================================
+-- REVERT: Drop telemetry_events (policies + indexes drop with the table). DESTRUCTIVE:
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- all telemetry rows are lost.
+-- DROP TABLE IF EXISTS public.telemetry_events;
+-- ============================================================================
+
 CREATE TABLE IF NOT EXISTS public.telemetry_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,

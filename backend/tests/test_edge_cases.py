@@ -34,12 +34,20 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def mock_coalescer():
-    """Patch the request coalescer so all tests run synchronously."""
+    """Patch the request coalescer so all tests run synchronously.
+
+    The orchestrator uses the module-level _coalescer built at import time
+    (app/orchestrator.py:33), not app.main.coalescer. Patching
+    build_coalescer only affects future builds; the existing instance must be
+    patched directly to prevent real Redis calls (which bind connections to
+    the TestClient portal loop and fail across tests with different loops).
+    """
 
     async def dummy_get_or_run(key, callback):
         return await callback()
 
-    with patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run), \
+    with patch("app.orchestrator._coalescer.get_or_run", side_effect=dummy_get_or_run), \
+         patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run), \
          patch("app.coalescer.build_coalescer", return_value=MagicMock(get_or_run=AsyncMock(side_effect=dummy_get_or_run))):
         yield
 

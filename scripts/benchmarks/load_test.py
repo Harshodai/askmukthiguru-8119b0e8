@@ -30,10 +30,10 @@ TEST_QUESTIONS = [
 async def run_single_query(client: httpx.AsyncClient, url: str, question: str, stream: bool = True) -> dict:
     """Run a single request and return detailed latency metrics."""
     import os
-    jwt_secret = os.getenv("JWT_SECRET")
+    benchmark_secret = os.getenv("BENCHMARK_SECRET")
     headers = {"Content-Type": "application/json"}
-    if jwt_secret:
-        headers["X-Test-Key"] = jwt_secret
+    if benchmark_secret:
+        headers["X-Test-Key"] = benchmark_secret
         
     payload = {
         "user_message": question,

@@ -15,6 +15,7 @@ import {
   generateSessionId,
   completeMeditationSession,
 } from '@/lib/meditationStorage';
+import { clearMeditationResume, MEDITATION_RESUME_KEY } from '@/lib/meditationResume';
 
 interface GuidedMeditationFlowProps {
   isOpen: boolean;
@@ -29,7 +30,8 @@ interface GuidedMeditationFlowProps {
 type BreathPhase = 'inhale' | 'hold' | 'exhale';
 
 // Persistence key — survives reload / accidental close.
-const RESUME_KEY = 'serene_mind_resume_v1';
+// Shared with the sign-out purge via src/lib/meditationResume.ts (P1-FE-15).
+const RESUME_KEY = MEDITATION_RESUME_KEY;
 const RESUME_TTL_MS = 24 * 60 * 60 * 1000; // 24 h
 
 interface ResumePayload {
@@ -60,7 +62,7 @@ const writeResume = (p: ResumePayload) => {
 };
 
 const clearResume = () => {
-  try { localStorage.removeItem(RESUME_KEY); } catch { /* noop */ }
+  clearMeditationResume();
 };
 
 export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeaching, onComplete }: GuidedMeditationFlowProps) => {

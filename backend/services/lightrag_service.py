@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import threading
 from typing import Optional
 
 from cachetools import TTLCache
@@ -37,12 +38,19 @@ class LightRAGService:
     """
 
     _instance = None
+    _instance_lock = threading.Lock()
 
     def __new__(cls):
+        # P1-BE-2: the module-level singleton can be created concurrently from
+        # several coroutines/threads on first touch. Guard creation with a
+        # class-level lock (double-checked pattern) so __init__-side state
+        # (the query cache) can never be split across two instances.
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-            cls._instance.rag = None
+            with cls._instance_lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialized = False
+                    cls._instance.rag = None
         return cls._instance
 
     def __init__(self):
@@ -57,7 +65,6 @@ class LightRAGService:
             return
 
         logger.info("Initializing LightRAG Service (Neo4j Graph + Qdrant Vector)...")
-
         # Working directory for LightRAG internal states (e.g., pipeline completion files).
         # LightRAG's doc-id dedup cache lives here — it must be distinct per Neo4j/Qdrant
         # target, otherwise a doc already processed against one target is silently marked
@@ -453,7 +460,12 @@ class LightRAGService:
         try:
             await asyncio.wait_for(self.rag.ainsert(text, file_paths=file_paths), timeout=timeout)
             # Cached query results may now be missing this newly-written content.
-            self._query_cache.clear()
+            # P1-BE-2: scoped invalidation instead of a full cache flush — the
+            # cache is keyed by query text only, so evict entries whose text
+            # mentions a source file affected by this insertion (provenance
+            # overlap); a bulk ingestion tick then no longer drops every
+            # unrelated cached query (cold queries on each tick).
+            self._invalidate_cache_for(text, file_paths=file_paths)
         except TimeoutError:
             logger.warning(
                 f"LightRAG ainsert timed out after {timeout:.0f}s for text ({len(text)} chars). "
@@ -468,7 +480,7 @@ class LightRAGService:
                     await asyncio.wait_for(
                         self.rag.ainsert(text, file_paths=file_paths), timeout=timeout
                     )
-                    self._query_cache.clear()
+                    self._invalidate_cache_for(text, file_paths=file_paths)
                 except TimeoutError:
                     logger.warning(
                         f"LightRAG ainsert timed out after retry ({timeout:.0f}s). Skipping."
@@ -490,6 +502,34 @@ class LightRAGService:
         except Exception as e:
             logger.error(f"LightRAG safe_ainsert failed (non-fatal): {e}")
             return False
+
+    def _invalidate_cache_for(self, text: str, file_paths=None) -> None:
+        """Scoped query-cache invalidation after an insertion.
+
+        The query cache is keyed by (query, mode, only_need_context) only, so
+        exact per-entity targeting is impossible; instead we evict entries
+        whose cached result mentions any source file affected by this
+        insertion. Bulk ingestion ticks therefore only invalidate queries
+        that actually overlap the newly written content, instead of dropping
+        the whole cache (cold queries on every tick — P1-BE-2).
+        """
+        try:
+            source_tokens = set()
+            if file_paths:
+                for fp in file_paths if isinstance(file_paths, list) else [file_paths]:
+                    if isinstance(fp, str):
+                        source_tokens.add(fp.strip().lower())
+                        source_tokens.add(str(fp).split("/")[-1].lower())
+            if not source_tokens:
+                return
+            for key, value in list(self._query_cache.items()):
+                if not isinstance(value, str):
+                    continue
+                value_lower = value.lower()
+                if any(token and token in value_lower for token in source_tokens):
+                    self._query_cache.pop(key, None)
+        except Exception as e:  # invalidation is best-effort, never fatal
+            logger.warning(f"LightRAG scoped cache invalidation failed (non-fatal): {e}")
 
     async def ainsert_chunked(
         self,

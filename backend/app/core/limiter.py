@@ -1,3 +1,4 @@
+import hmac
 import logging
 import os
 import uuid
@@ -5,6 +6,8 @@ import uuid
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.requests import Request
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +23,11 @@ _HEALTH_EXEMPT_PATHS = frozenset({
 def _rate_limit_key_func(request: Request) -> str:
     """Custom key function that exempts benchmark + health-check requests from rate limiting.
 
-    Benchmark requests carry X-Test-Key == JWT_SECRET. When this header matches,
-    we return a special key that is whitelisted, effectively bypassing the rate
-    limiter. This prevents 429 cascades during benchmark runs while still
-    protecting production traffic from abuse.
+    Benchmark requests must match BENCHMARK_SECRET — never JWT_SECRET. When the
+    header matches (with hmac.compare_digest), we return a special key that is
+    whitelisted, effectively bypassing the rate limiter. This prevents 429
+    cascades during benchmark runs while still protecting production traffic
+    from abuse.
 
     Health/readiness probes are exempt unconditionally — Railway health checks
     must never 429 or the deployment is marked unhealthy (cascading failure).
@@ -31,10 +35,18 @@ def _rate_limit_key_func(request: Request) -> str:
     if request.url.path in _HEALTH_EXEMPT_PATHS:
         return f"health_exempt_{uuid.uuid4().hex}"
 
-    jwt_secret = os.environ.get("JWT_SECRET", "")
+    benchmark_secret = getattr(settings, "benchmark_secret", "") or os.environ.get(
+        "BENCHMARK_SECRET", ""
+    )
     test_key = request.headers.get("X-Test-Key", "")
 
-    if jwt_secret and test_key == jwt_secret:
+    if (
+        settings.enable_test_auth
+        and not settings.is_production
+        and benchmark_secret
+        and test_key
+        and hmac.compare_digest(test_key, benchmark_secret)
+    ):
         # Return a unique per-request key so it never accumulates
         return f"benchmark_exempt_{uuid.uuid4().hex}"
 

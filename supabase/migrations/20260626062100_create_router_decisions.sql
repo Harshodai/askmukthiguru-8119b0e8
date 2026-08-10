@@ -1,3 +1,16 @@
+-- ============================================================================
+-- REVERT: Drop router_decisions (policies drop with the table). DESTRUCTIVE: all router
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- telemetry is lost. NOTE: the anon/authenticated GRANT ALL was revoked by
+-- 20260804000002; nothing to re-grant on rollback.
+-- DROP TABLE IF EXISTS public.router_decisions;
+-- ============================================================================
+
 -- Create public.router_decisions table for telemetry log
 CREATE TABLE IF NOT EXISTS public.router_decisions (
     id UUID PRIMARY KEY,

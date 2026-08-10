@@ -153,10 +153,15 @@ def _to_source(item: Any, pos: int) -> Source:
 def _check_grounding(answer: str, context_items: list[Any]) -> bool:
     """Heuristic: an answer is 'grounded' if every substantive paragraph
     (exceeding 25 words) has at least one citation marker. Short answers
-    (single paragraph <= 25 words) also require a citation. Empty context
-    is considered grounded (no claims to verify)."""
-    if not context_items:
+    (single paragraph <= 25 words) also require a citation. An answer with
+    NO retrieved context cannot be grounded (nothing to verify against)
+    — this closes the P1-AI-12 vacuous-truth gap where empty context
+    reported "grounded" and hid ungrounded answers. An empty answer is
+    trivially grounded (nothing to verify)."""
+    if not answer.strip():
         return True
+    if not context_items:
+        return False
     paragraphs = [p for p in re.split(r"\n{2,}", answer) if p.strip()]
     if not paragraphs:
         return True

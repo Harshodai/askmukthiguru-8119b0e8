@@ -20,7 +20,7 @@ client = TestClient(app)
 
 
 def _admin_user():
-    return {"id": "admin-1", "email": "admin@example.com", "is_superuser": True}
+    return {"id": "admin-1", "email": "admin@example.com", "is_superuser": True, "aal": "aal2"}
 
 
 def _regular_user():

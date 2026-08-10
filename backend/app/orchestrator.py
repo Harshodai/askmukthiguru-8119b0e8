@@ -21,6 +21,7 @@ from app.config import settings
 from app.dependencies import ServiceContainer
 from app.pipeline import PipelineCoordinator
 from app.schemas import ChatRequest, ChatResponse
+from app.security_utils import is_benchmark_request
 from app.telemetry_sink import SupabaseTelemetrySink
 from rag.memory import normalize_session_id
 
@@ -65,7 +66,7 @@ class ChatRequestOrchestrator:
                 detail=f"Message too long. Please keep it under {settings.max_input_length} characters.",
             )
 
-        is_benchmark = request.headers.get("X-Test-Key") == settings.jwt_secret
+        is_benchmark = is_benchmark_request(request)
 
         # Coalesce identical concurrent RAG pipelines (e.g. double-submit) to avoid
         # redundant LLM calls. Scoped to user+session so two different users never

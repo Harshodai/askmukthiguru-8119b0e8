@@ -236,7 +236,18 @@ class LocalAuthStrategy(AuthStrategy):
 
 
 class TestAuthStrategy(AuthStrategy):
-    """Strategy for local automated benchmarks and tests (X-Test-Key header)."""
+    """Strategy for local automated benchmarks and tests (X-Test-Key header).
+
+    LOCAL BENCHMARKING ONLY — never registered in production builds (see the
+    gate below: requires ENABLE_TEST_AUTH=true AND IS_PRODUCTION=false AND a
+    non-empty BENCHMARK_SECRET, plus a request X-Test-Key matching it).
+
+    The returned id/tenant_id is the NIL UUID (00000000-0000-0000-0000-000000000000)
+    — a sentinel that Supabase GoTrue never assigns to a real user, so it
+    cannot collide with a genuine account. It is a synthetic benchmark
+    identity (is_superuser=True) for exercising admin/ingest routes locally,
+    never a real Supabase user.
+    """
 
     async def authenticate(
         self, request: Request, credentials: HTTPAuthorizationCredentials | None
@@ -291,6 +302,26 @@ async def _get_jwks_client() -> PyJWKClient:
     return _jwks_client
 
 
+def _cache_admin_lookup(
+    cache: dict[str, tuple],
+    user_id: str,
+    is_admin: bool,
+    now: float,
+    maxsize: int,
+) -> None:
+    """Store an admin-role lookup in a bounded cache, evicting the oldest on overflow.
+
+    ``cache`` is a plain dict (insertion-ordered), so the oldest entry is
+    ``next(iter(cache))``. The dict is shared class-level state: every
+    SupabaseAuthStrategy instance in the process sees the same entries.
+    P1-SEC-9: without the size cap, distinct user_id lookups grew the cache
+    without bound.
+    """
+    if len(cache) >= maxsize:
+        cache.pop(next(iter(cache)), None)
+    cache[user_id] = (is_admin, now)
+
+
 class SupabaseAuthStrategy(AuthStrategy):
     """
     Strategy for Supabase JWTs (Production Seeker Flow).
@@ -320,16 +351,23 @@ class SupabaseAuthStrategy(AuthStrategy):
 
         alg = unverified_header.get("alg", "")
 
-        # Accept both local (browser) and docker-internal issuers for Supabase JWTs.
-        # Frontend gets tokens from http://127.0.0.1:54321, backend validates against host.docker.internal.
+        # Accept the configured Supabase issuer plus (dev-only) the local
+        # docker/browser issuers. Frontend gets tokens from
+        # http://127.0.0.1:54321, backend validates against host.docker.internal.
         # PyJWT accepts a list for `issuer` and validates against any match.
+        # P1-SEC-10: the local issuers are honoured ONLY outside production —
+        # a forged token claiming a local issuer would otherwise be trusted
+        # by the HS256 shared-secret path in prod.
         def _valid_issuers() -> list[str]:
             base = settings.supabase_url.rstrip("/")
             issuers = [
                 f"{base}/auth/v1",              # e.g., http://host.docker.internal:54321/auth/v1
-                "http://127.0.0.1:54321/auth/v1",
-                "http://localhost:54321/auth/v1",
             ]
+            if not getattr(settings, "is_production", False):
+                issuers += [
+                    "http://127.0.0.1:54321/auth/v1",
+                    "http://localhost:54321/auth/v1",
+                ]
             if getattr(settings, "supabase_jwt_issuer", None):
                 issuers.append(settings.supabase_jwt_issuer)
             return issuers
@@ -377,13 +415,24 @@ class SupabaseAuthStrategy(AuthStrategy):
             # absent so MFA-gated routes deny by default.
             aal = payload.get("aal") or "aal1"
 
-            # service_role tokens are always superuser
+            # P1-SEC-1 (T2): service_role tokens presented over HTTP must NOT
+            # be treated as superuser. service_role is for backend-internal
+            # Supabase calls (the telemetry sink reads SUPABASE_SERVICE_ROLE_KEY
+            # directly from env, NOT via this bridge), never for human/admin
+            # HTTP. Setting is_superuser=False closes the "leaked
+            # service_role key -> admin bypass" hole; admin/ingest/kg endpoints
+            # additionally require aal2 (T1) which service_role tokens lack.
             if jwt_role == "service_role":
+                logger.warning(
+                    "service_role token presented over HTTP (sub=%s); "
+                    "denying superuser (P1-SEC-1 T2)",
+                    user_id,
+                )
                 return {
                     "id": user_id,
                     "email": user_email,
                     "role": jwt_role,
-                    "is_superuser": True,
+                    "is_superuser": False,
                     "provider": "supabase",
                     "tenant_id": tenant_id,
                     "aal": aal,
@@ -412,9 +461,15 @@ class SupabaseAuthStrategy(AuthStrategy):
             logger.error(f"Supabase auth bridge error: {type(e).__name__}")
             return None
 
-    # Simple TTL cache for admin role lookups
+    # Bounded TTL cache for admin role lookups (P1-SEC-9): this was an
+    # unbounded per-user dict — every distinct user_id check inserted a key
+    # that lived forever, growing memory with each new admin lookup. It is
+    # now capped at _CACHE_MAXSIZE entries; on overflow the oldest entry is
+    # evicted (dicts preserve insertion order, so pop(next(iter(...))) is
+    # FIFO). TTL semantics unchanged.
     _admin_cache: dict[str, tuple] = {}
     _CACHE_TTL = 300  # 5 minutes
+    _CACHE_MAXSIZE = 256
 
     async def _check_admin_role(self, user_id: str, jwt_token: str | None = None) -> bool:
         """Check if user has admin role via Supabase user_roles table.
@@ -438,7 +493,7 @@ class SupabaseAuthStrategy(AuthStrategy):
                     sc.table("user_roles").select("id").eq("user_id", user_id).eq("role", "admin").execute
                 )
                 is_admin = bool(resp.data)
-                self._admin_cache[user_id] = (is_admin, now)
+                _cache_admin_lookup(self._admin_cache, user_id, is_admin, now, self._CACHE_MAXSIZE)
                 if is_admin:
                     logger.info(f"User {user_id} confirmed as admin via authenticated query")
                 return is_admin
@@ -463,7 +518,7 @@ class SupabaseAuthStrategy(AuthStrategy):
                     timeout=5.0,
                 )
                 is_admin = resp.status_code == 200 and len(resp.json()) > 0
-                self._admin_cache[user_id] = (is_admin, now)
+                _cache_admin_lookup(self._admin_cache, user_id, is_admin, now, self._CACHE_MAXSIZE)
                 if is_admin:
                     logger.info(f"User {user_id} confirmed as admin via user_roles")
                 return is_admin
@@ -497,10 +552,10 @@ _strategies = [LocalAuthStrategy(), SupabaseAuthStrategy()]
 # Require BOTH explicit opt-in flag AND a configured benchmark secret; refuse in prod.
 if getattr(settings, "enable_test_auth", False) and not settings.is_production and getattr(settings, "benchmark_secret", None):
     _strategies.insert(0, TestAuthStrategy())
-if settings.is_production:
-    assert not any(isinstance(s, TestAuthStrategy) for s in _strategies), (
-        "TestAuthStrategy must never be enabled in production"
-    )
+if settings.is_production and any(isinstance(s, TestAuthStrategy) for s in _strategies):
+    # P1-SEC-8 Rule 9: fail-closed gate must survive `python -O`, so this is
+    # an explicit RuntimeError rather than a bare boolean check.
+    raise RuntimeError("TestAuthStrategy must never be enabled in production")
 auth_bridge = AuthBridge(_strategies)
 
 

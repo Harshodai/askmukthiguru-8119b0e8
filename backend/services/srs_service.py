@@ -11,13 +11,20 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
+from fastapi import HTTPException
+
+from app.language_utils import guardrail_text_for
+from app.config import settings
+from services.injection_scanner import InjectionScanner
+
 logger = logging.getLogger(__name__)
 
 class SRSService:
-    def __init__(self, supabase_client: Optional[Any] = None, ollama_service: Optional[Any] = None, guardrails_service: Optional[Any] = None) -> None:
+    def __init__(self, supabase_client: Optional[Any] = None, ollama_service: Optional[Any] = None, guardrails_service: Optional[Any] = None, translation_service: Optional[Any] = None) -> None:
         self._supabase = supabase_client
         self._ollama = ollama_service
         self._guardrails = guardrails_service
+        self._translation = translation_service
 
     @property
     def available(self) -> bool:
@@ -157,8 +164,41 @@ class SRSService:
         if not self._ollama:
             logger.warning("Ollama service not available for flashcard generation.")
             return []
-        
-        prompt = f"""Generate exactly 2 high-quality active recall study flashcards (Question & Answer pairs) 
+
+        # P1-AI-7: screen user notebook content BEFORE it reaches the LLM prompt.
+        # The InjectionScanner catches instruction-override/jailbreak phrasing;
+        # the guardrails chain additionally catches "system prompt" style leaks.
+        for field_name, field_value in (("query", query), ("answer", answer)):
+            scan = InjectionScanner.scan_chunk(field_value)
+            if scan["injection_detected"]:
+                logger.warning(
+                    f"SRS generation blocked: injection patterns in {field_name}: {scan['patterns']}"
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail="Notebook content contains prompt-injection patterns and cannot be used for flashcard generation.",
+                )
+            if self._guardrails and getattr(settings, "multilingual_guardrails", True):
+                gr_text = await guardrail_text_for(
+                    field_value, self._translation, preferred_lang="en"
+                )
+                pre_check = await self._guardrails.check_input(gr_text)
+                if pre_check.get("blocked"):
+                    logger.warning(
+                        f"SRS generation blocked: guardrails flagged {field_name}: {pre_check.get('reason')}"
+                    )
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Notebook content was blocked by content guardrails ({pre_check.get('reason')}).",
+                    )
+
+        # P1-AI-7: escape braces in user content before interpolation so a user's
+        # "{...}" cannot break out of the template (or crash it). Escaped braces
+        # survive format() as literal characters.
+        safe_query = query.replace("{", "{{").replace("}", "}}")
+        safe_answer = answer.replace("{", "{{").replace("}", "}}")
+
+        prompt = """Generate exactly 2 high-quality active recall study flashcards (Question & Answer pairs) 
 based on the following spiritual dialogue. Keep the questions focused on critical spiritual insights, practices, or wisdom.
 
 Dialogue:
@@ -169,13 +209,17 @@ Format your output exactly as a JSON list of objects:
 [
   {{"question": "Question text here?", "answer": "Answer text here"}},
   ...
-]"""
+]""".format(query=safe_query, answer=safe_answer)
 
         try:
             response = await self._ollama.generate(
                 system_prompt="You are a wise spiritual teacher helper. Output only raw JSON lists.",
                 user_prompt=prompt,
-                temperature=0.4
+                temperature=0.4,
+                # P1-AI-1: flashcards are short JSON — bound the call so a
+                # runaway model cannot emit unbounded tokens before the JSON
+                # parse fails downstream.
+                max_tokens=400,
             )
             import json
             # Handle markdown fence wrappers if any
@@ -201,8 +245,15 @@ Format your output exactly as a JSON list of objects:
                     continue
                 q = q.strip()
                 a = a.strip()
-                if self._guardrails:
-                    input_check = await self._guardrails.check_input(q + " " + a)
+                if self._guardrails and getattr(settings, "multilingual_guardrails", True):
+                    # CRIT-5: translate non-EN flashcard text so EN injection
+                    # regexes fire; falls back to the raw text on failure.
+                    # Flag-gated: multilingual_guardrails=False restores the old
+                    # latent-dead-code behavior (no flashcard guardrail check).
+                    gr_text = await guardrail_text_for(
+                        q + " " + a, self._translation, preferred_lang="en"
+                    )
+                    input_check = await self._guardrails.check_input(gr_text)
                     if input_check.get("blocked"):
                         logger.warning(f"Flashcard content blocked by guardrails: {input_check.get('reason')}")
                         continue

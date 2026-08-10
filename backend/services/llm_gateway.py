@@ -154,6 +154,7 @@ class LLMGateway:
     ) -> str:
         """Primary -> same-provider model fallback -> (opt-in) cross-provider fallback."""
         kwargs.setdefault("operation", task)
+        self._enforce_max_tokens(task, kwargs)
 
         if not self._primary_breaker.can_execute():
             self.metrics.circuit_rejections += 1
@@ -201,6 +202,7 @@ class LLMGateway:
             logger.warning(f"LLMGateway: secondary '{self._secondary_name}' circuit OPEN — rejected")
             raise upstream_exc
         try:
+            self._enforce_max_tokens(kwargs.get("operation", "standard"), kwargs)
             result = await self._secondary.generate(system_prompt, user_prompt, context=context, **kwargs)
             self._secondary_breaker.record_success()
             self.metrics.fallbacks += 1
@@ -211,6 +213,37 @@ class LLMGateway:
             self.metrics.record_error(self._secondary_name)
             logger.error(f"LLMGateway: secondary '{self._secondary_name}' also failed: {secondary_exc}")
             raise secondary_exc
+
+    def _enforce_max_tokens(self, task: str, kwargs: dict[str, Any]) -> None:
+        """P1-AI-1: guarantee a bounded max_tokens on every generation call.
+
+        The gateway is the single choke point every provider call flows
+        through. Config ceilings (`settings.llm_max_tokens_fast=800` /
+        `llm_max_tokens_deep=1500`) are the hard cap; a caller-supplied
+        max_tokens is capped DOWN to the route ceiling (min), so a caller can
+        request less but never more than the route allows. Never passes None.
+        """
+        try:
+            from app.config import settings
+
+            deep_tasks = {"deep"}
+            ceiling = (
+                settings.llm_max_tokens_deep
+                if task in deep_tasks
+                else settings.llm_max_tokens_fast
+            )
+            caller_max = kwargs.get("max_tokens")
+            if caller_max is None:
+                kwargs["max_tokens"] = ceiling
+            elif caller_max > ceiling:
+                logger.warning(
+                    f"LLMGateway: caller requested max_tokens={caller_max} > "
+                    f"route ceiling {ceiling} (task={task}) — capping"
+                )
+                kwargs["max_tokens"] = ceiling
+        except Exception as exc:  # fail-closed: never emit an unbounded call
+            logger.error(f"LLMGateway: max_tokens enforcement failed ({exc}) — capping to 1500")
+            kwargs["max_tokens"] = 1500
 
     async def verify_answer(
         self,
@@ -223,6 +256,14 @@ class LLMGateway:
         generate(), but tailored for the provider's verify_answer API.
         """
         self.metrics.calls += 1
+        # P1-AI-1: verification output is a short structured verdict — always
+        # bound it so a runaway verifier cannot emit unbounded tokens.
+        try:
+            from app.config import settings
+
+            verify_ceiling = min(settings.llm_max_tokens_fast, 512)
+        except Exception:
+            verify_ceiling = 512
         if not self._primary_breaker.can_execute():
             self.metrics.circuit_rejections += 1
             logger.warning(f"LLMGateway: primary '{self._primary_name}' circuit OPEN — verify rejected")
@@ -232,7 +273,7 @@ class LLMGateway:
             raise open_exc
 
         try:
-            result = await self._primary.verify_answer(answer=answer, context=context)
+            result = await self._primary.verify_answer(answer=answer, context=context, max_tokens=verify_ceiling)
             self._primary_breaker.record_success()
             return result
         except Exception as primary_exc:
@@ -246,6 +287,7 @@ class LLMGateway:
                         answer=answer,
                         context=context,
                         model=self._primary_model_fallback,
+                        max_tokens=verify_ceiling,
                     )
                     self._primary_breaker.record_success()
                     self.metrics.fallbacks += 1
@@ -276,7 +318,7 @@ class LLMGateway:
             logger.warning(f"LLMGateway: secondary '{self._secondary_name}' circuit OPEN — verify rejected")
             raise upstream_exc
         try:
-            result = await self._secondary.verify_answer(answer=answer, context=context)
+            result = await self._secondary.verify_answer(answer=answer, context=context, max_tokens=verify_ceiling)
             self._secondary_breaker.record_success()
             self.metrics.fallbacks += 1
             logger.info(f"LLMGateway: cross-provider verify fallback to '{self._secondary_name}' succeeded")
@@ -306,6 +348,7 @@ class LLMGateway:
         chunk is emitted — a stream can't be cleanly restarted mid-flight).
         """
         kwargs.setdefault("operation", task)
+        self._enforce_max_tokens(task, kwargs)
         if use_cache:
             # No streaming cache yet — fall back to a single buffered chunk.
             result = await self.generate(
@@ -356,7 +399,7 @@ class LLMGateway:
                 self._primary_breaker.record_success()
                 self.metrics.fallbacks += 1
             except Exception as fallback_exc:
-                self._primary_breaker.record_failure(primary_exc)
+                self._primary_breaker.record_failure(fallback_exc)
                 self.metrics.record_error(self._primary_name)
                 raise fallback_exc
 

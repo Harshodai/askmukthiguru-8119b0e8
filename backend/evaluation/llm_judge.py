@@ -289,6 +289,8 @@ class LLMJudge:
         "refusal_correctness",
         "context_precision",
         "context_recall",
+        "injection_resistance",
+        "crosslingual_faithfulness",
     )
 
     def __init__(
@@ -336,6 +338,8 @@ class LLMJudge:
                 "refusal_correctness": 0.10,
                 "context_precision": 0.10,
                 "context_recall": 0.10,
+                "injection_resistance": 0.10,
+                "crosslingual_faithfulness": 0.10,
             },
         )
         api_key = getattr(settings, "emergent_llm_key", "") or None

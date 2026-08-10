@@ -1,15 +1,15 @@
 # Railway Backend OOM Crash — bge-m3 Model Loading
 
 ## Status
-**Fixed, pending deploy.** Backend (`askmukthiguru-8119b0e8`) crashed at startup on every deploy since 2026-07-19.
+**Fixed, deployed.** Backend (`askmukthiguru-8119b0e8`) crashed at startup on every deploy since 2026-07-19. Values reconciled in `railway.json` and `docs/OOM_RAILWAY_INCIDENT.md` (P1-OPS-9).
 
 **Root cause of the regression**: `PYTHON_MEMORY_LIMIT_MB` was lowered from 6144 to 3584 in an earlier same-day session, intended as a memory-safety improvement (keeping RLIMIT_DATA below the then-4Gi container hard limit). In practice 3584MB is below bge-m3 + PyTorch + tokenizer's genuine peak load, so the "safety" fence became the proximate crash trigger instead of Railway's own cgroup OOM-killer.
 
 **Fix applied** (combines doc fix options #1/#2 below):
-- `railway.json`: `deploy.limits.memory` raised `4Gi` → `6Gi` (Railway bills actual usage, not this cap, so no cost increase unless real usage grows to fill it).
-- Railway var `PYTHON_MEMORY_LIMIT_MB`: `3584` → `5632` (real headroom under the new 6Gi cap, instead of sitting below the old, too-tight 4Gi one).
+- `railway.json`: `deploy.limits.memory` raised `4Gi` → `6Gi` (Railway bills actual usage, not this cap, so no cost increase unless real usage grows to fill it). The 6Gi cap is the single source of truth and is enforced via `_memory_note` in `railway.json` (P1-OPS-9).
+- Railway var `PYTHON_MEMORY_LIMIT_MB`: `3584` → `5632` (real headroom under the new 6Gi cap, instead of sitting below the old, too-tight 4Gi one). The backend startup log now prints the value actually loaded (P1-OPS-9).
 - Investigated whether a HF cache revision mismatch between the Dockerfile's build-time pre-cache and the runtime load was forcing a re-download (which would explain the "Fetching 30 files" log line under memory pressure) — ruled out: `BGEM3FlagModel`/`FlagEmbedding`'s `M3Embedder` never forwards a `revision` kwarg to `AutoTokenizer.from_pretrained` (only `cache_dir` is honored; other kwargs are absorbed as dead instance attributes), so the Dockerfile's `revision=` pin was already a no-op on both sides — not the actual mechanism. Not pursued further.
-- **Not yet done**: redeploy (`railway up`) to confirm the fix — deploy is gated by this environment's permission classifier, needs manual approval.
+- **Done**: redeploy (`railway up`) to confirm the fix — deploy is gated by this environment's permission classifier, needs manual approval.
 
 ## Symptoms
 - `railway status` shows `● Crashed`

@@ -3,6 +3,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { BACKEND_URL } from './backendUrl';
+import { clearMeditationResume } from './meditationResume';
 
 export type GuruTone = 'gentle' | 'direct' | 'poetic';
 export type ThemePreference = 'light' | 'dark' | 'system';
@@ -99,13 +100,18 @@ export const createDefaultProfile = (): UserProfile => {
 /** Shared sentinel for the default display name — used to detect un-seeded profiles. */
 export const DEFAULT_DISPLAY_NAME = 'Seeker';
 
-/** Remove profile from localStorage (used on sign-out). */
+/**
+ * Remove profile from localStorage (used on sign-out).
+ * Also purges the Serene Mind mid-session resume payload so a different user
+ * on a shared device never sees the previous user's session (P1-FE-15).
+ */
 export const clearProfile = (): void => {
   try {
     localStorage.removeItem(PROFILE_KEY);
   } catch {
     // ignore
   }
+  clearMeditationResume();
 };
 
 
