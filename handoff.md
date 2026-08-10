@@ -1,4 +1,83 @@
-# CURRENT STATE — 2026-08-03 (read this first; sections below are older)
+# ⚠️ REMAINING ITEMS — DO NOT REMOVE UNTIL PROD TESTED ⚠️
+
+> **This section must remain at the top of handoff.md until ALL items are verified in production.**
+> Do not delete, edit, or remove these items until prod testing confirms each is done.
+> Last updated: 2026-08-10 (wave 9 squash commit `2b2d3470` on main).
+
+## Pre-Prod Verification Required
+
+### Backend (local suite: 4 failed → 1516 passed, 4 are integration-only)
+
+1. **`test_qdrant_search_quality` ×3** (`test_qdrant_search_quality_dense`, `test_qdrant_search_quality_hybrid`, `test_qdrant_search_quality_hybrid_reranked`)
+   - **Status**: FAILING locally (NDCG=0.0). NOT in original 24-failure audit ledger — exposed by Fix 2 (conftest QDRANT_URL override made qdrant reachable).
+   - **Root cause**: Local qdrant container has `spiritual_wisdom` collection with 89,061 points, but search returns NDCG=0.0 on golden queries. Likely embedding/config mismatch (ONNX encoder produces 1024d vectors but search may use wrong vector name or the golden queries don't match the ingested corpus).
+   - **Action**: Run on a fully configured stack (Docker compose with populated qdrant + matching embeddings). If NDCG still 0.0, investigate `services/qdrant/searcher.py` vector name config vs collection config. These are `@pytest.mark.integration` tests — skip by default with `addopts = "-m 'not integration'"` OR fix the search quality issue.
+   - **Mark done when**: Tests pass on full Docker stack OR are confirmed skipped in CI via marker filter.
+
+2. **`test_retrieve_documents_contract`** (`test_retrieve_documents_contract::test_retrieve_documents_contract`)
+   - **Status**: FAILING locally. NOT in original 24-failure audit ledger.
+   - **Root cause**: Test mocks `_qdrant`, `_embedder`, `_lightrag`, `_ollama` via `monkeypatch.setattr(nodes, ...)` but does NOT mock KG expansion (calls real neo4j → DNS fail `neo4j:7687`) or LLM retrieval expansion (calls real OpenRouter → 401 Unauthorized). The unmocked calls degrade but the test's document contract assertion fails (`assert any(doc["text"] == "Found document teaching")` — document not in output).
+   - **Action**: Either (a) fully mock `rag.kg_expansion` and LLM retrieval expansion in the test, OR (b) mark `@pytest.mark.integration` and skip when neo4j/openrouter unavailable, OR (c) fix the test's mock setup to match `retrieve_documents`'s actual call chain.
+   - **Mark done when**: Test passes locally with all external deps mocked OR is marked integration and skipped.
+
+### Production Environment Tasks (from plan STATUS, wave 8)
+
+3. **P1-OPS-6 T4/T5 — cold-start <60s verification + prod load test (2 replicas)**
+   - **Status**: Gated on prod. `railway.json` set to 1 replica (2 replicas caused second replica to fail init timeout). T4/T5 need cold-start verification with 2 replicas + prod load test.
+   - **Action**: Deploy to Railway staging, scale to 2 replicas, verify cold-start <60s, run load test (`benchmarks/locustfile.py`), confirm no init timeout.
+   - **Mark done when**: 2-replica cold-start <60s verified on Railway staging/prod.
+
+4. **P1-OPS-1 T5 — synthetic alert on staging**
+   - **Status**: Synthetic alerting configured but not verified on staging.
+   - **Action**: Deploy synthetic alert to Railway staging, trigger alert, verify on-call notification fires.
+   - **Mark done when**: Synthetic alert fires on-call notification on staging.
+
+### Deployment Readiness (from AGENTS.md checklist, Jul 31)
+
+5. **Language coverage audit** — `t()` usage vs translation keys. 8 of 14 languages fall back to English (bn, gu, ml, ur, or, pa, as, sa). Hardcoded English strings still exist. 6 real locales (en, hi, te, kn, ta, mr) need missing keys added.
+6. **Full responsive stress-test** at every breakpoint (especially 768–1024 tablet).
+7. **Google login E2E test** using dedicated OAuth test identities or isolated provider test app with CI-injected secrets (verify single redirect in staging).
+8. **Forgot password E2E test** with real Supabase email (verify email sent + link works).
+9. **Audio E2E on production** (CDN-accessible Lovable asset, not `:8080`).
+10. **Live-LLM guru-voice benchmark** → flip `langhanam_voice_enabled` at ≥4.0/5.0.
+11. **Set nightly-RLS repo secrets** and confirm ephemeral-user cleanup before first prod run.
+
+### Security / Ops
+
+12. **Rotate the OpenRouter key** exposed 2026-08-02 (https://openrouter.ai/keys). Still open from prior handoff.
+13. **Neo4j + LightRAG rebuild** — 41.4% contaminated; rebuild only after green is stable (decision in plan §6.3.2). `spiritual_wisdom_contextual` still rebuilding.
+14. **34 unread config fields** (`csrf_secret`, `auth_rate_limit_*` need a wire-or-remove decision). Open from prior handoff.
+
+---
+
+# CURRENT STATE — 2026-08-10 (wave 9: test-isolation fixes + tsc errors)
+
+## Wave 9 — squash commit `2b2d3470` on main (2026-08-10)
+
+All 97 commits from `ruthless-audit-remediation` branch squashed into one commit on main.
+This session's work (11 files, the last 1 of those 97 commits):
+
+### Backend (15→4 failed, 1516 passed)
+- **Fix 1 (Bucket C)**: Removed `sys.modules` stub pollution from `test_meditation_routing.py` — `_bootstrap_stubs()` permanently replaced `qdrant_client` with non-package stub, breaking `test_qdrant_embedded_mode` ×4.
+- **Fix 2 (Bucket A)**: Added `QDRANT_URL=127.0.0.1:6333` override in `conftest.py` — docker hostname didn't resolve on host.
+- **Fix 3 (Bucket B)**: Fixed `mock_coalescer` target in `test_edge_cases.py` + `test_chat_endpoint.py` — patched `app.main.coalescer` but orchestrator uses `app.orchestrator._coalescer`; fixed edge ×3, circuit ×2, chat ×1.
+- **Fix D**: Narrowed `sys.modules` eviction in `test_anonymous_session_purge.py` + `test_cleanup_inactive.py` — blanket eviction corrupted hallucination test's module reference; fixed hallucination ×6.
+- Added collection+point-count skip guard to `test_qdrant_search_quality.py`.
+
+### Frontend (10 tsc errors → 0)
+- `lazyWithRetry.ts`: `ComponentType<unknown>` → `ComponentType<any>` (prop types propagate to lazy components).
+- `sentry.ts`: `maskInputs` → `maskAllInputs` (ReplayConfiguration has no `maskInputs`).
+- `sentry-init.test.ts`: `stubEnv('PROD', 'true')` → `stubEnv('PROD', true)` (boolean type).
+
+### Docs
+- `lessons.md`: L-TEST-1 through L-TEST-4 prepended (mock targets, sys.modules eviction, import-time stubs, env DNS overrides).
+- Plan STATUS updated. SDD ledger wave-9 rows appended.
+
+### Remaining (see ⚠️ section above — DO NOT REMOVE until prod tested)
+4 integration test failures (items 1-2) + 2 prod tasks (items 3-4) + 7 deployment readiness items (5-11) + 3 security/ops items (12-14).
+
+---
+
 
 ## Round 3 — the corrector was replaced, not patched
 
