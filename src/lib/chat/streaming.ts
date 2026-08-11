@@ -7,6 +7,9 @@ import { fetchWithRetry } from './fetchWithRetry';
 import { recordMetric } from './telemetry';
 import type { MessagePayload, StreamChunk } from './types';
 
+/** Error augmented with HTTP/transport metadata for caller telemetry. */
+type RichError = Error & { status?: number; errorCode?: string };
+
 /**
  * Split an SSE text buffer into complete lines, handling both LF and CRLF
  * line endings. The final (possibly partial) line is the remainder to carry
@@ -44,7 +47,7 @@ export async function* sendMessageStreaming(
   // Streaming only works for the custom backend with SSE support
   if (provider !== 'custom' || !endpoint) {
     const err = new Error('Streaming not available for this provider');
-    (err as any).errorCode = 'unknown';
+    (err as RichError).errorCode = 'unknown';
     throw err;
   }
 
@@ -104,7 +107,7 @@ export async function* sendMessageStreaming(
     const jobId = jobData.job_id;
     if (!jobId) {
       const err = new Error('Queue returned 202 but no job_id');
-      (err as any).errorCode = 'unknown';
+      (err as RichError).errorCode = 'unknown';
       throw err;
     }
     const pos = jobData.queue_position;
@@ -142,8 +145,8 @@ export async function* sendMessageStreaming(
         // Ignore JSON parse errors
       }
       const err = new Error(errorDetail);
-      (err as any).status = response.status;
-      (err as any).errorCode = httpStatusToErrorCode(response.status);
+      (err as RichError).status = response.status;
+      (err as RichError).errorCode = httpStatusToErrorCode(response.status);
       throw err;
     }
   }
@@ -159,8 +162,8 @@ export async function* sendMessageStreaming(
       // Ignore JSON parse errors
     }
     const error = new Error(errorDetail);
-    (error as any).status = response.status;
-    (error as any).errorCode = httpStatusToErrorCode(response.status);
+    (error as RichError).status = response.status;
+    (error as RichError).errorCode = httpStatusToErrorCode(response.status);
     throw error;
   }
 
@@ -173,7 +176,7 @@ export async function* sendMessageStreaming(
       `Backend not reachable at ${streamEndpoint} (got content-type: ${contentType}). ` +
       `Set VITE_BACKEND_URL to your FastAPI URL.`,
     );
-    (err as any).errorCode = 'network';
+    (err as RichError).errorCode = 'network';
     throw err;
   }
 

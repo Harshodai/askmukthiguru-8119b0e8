@@ -226,10 +226,11 @@ export const sendMessage = async (
         followUpSuggestions: data.follow_up_suggestions ?? [],
         recommendedCourse: data.recommended_course ?? null,
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
       let code: AIErrorCode = 'network';
-      let message = err?.message || 'Connection failed';
-      if (err?.name === 'AbortError') {
+      const error = err as Error;
+      let message = error?.message || 'Connection failed';
+      if (error?.name === 'AbortError') {
         code = 'timeout';
         message = 'The request timed out before the Guru could respond.';
       } else if (err instanceof TypeError && /fetch|network/i.test(message)) {
@@ -329,7 +330,7 @@ export const generateConversationTitle = async (
       const data = await response.json();
       const title = (data.title || fallback)
         .split('\n')[0]
-        .replace(/^[\"'`]+|[\"'`.]+$/g, '')
+        .replace(/^["'`]+|["'`.]+$/g, '')
         .trim();
       return title.length > 60 ? `${title.slice(0, 57)}...` : title || fallback;
     } catch (err) {
