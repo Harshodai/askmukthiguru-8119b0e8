@@ -1,6 +1,8 @@
 # Railway Backend Rewire — Point FastAPI at Lovable Cloud Supabase
 
-The frontend now uses **Lovable Cloud Supabase** (`fynkjimvuimakgtidvuq.supabase.co`). Your Railway-hosted FastAPI backend still points at the old `ozmjeuqbholoxypfxixb`. Both must use the same DB or auth/telemetry breaks.
+> NOTE: Project reference and anon JWT redacted per audit item C8 — retrieve current values from the Supabase dashboard.
+
+The frontend now uses **Lovable Cloud Supabase** (`fynkjimvuimakgtidvuq.supabase.co`). Your Railway-hosted FastAPI backend still points at the old `<redacted-project-ref>.supabase.co`. Both must use the same DB or auth/telemetry breaks.
 
 ## What to change on Railway
 

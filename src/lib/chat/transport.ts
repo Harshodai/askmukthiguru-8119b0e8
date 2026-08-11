@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentConfig } from './config';
 import { getAccessToken, refreshAccessToken } from './auth';
+import { getAnonSessionToken } from './anonSession';
 import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
 import { recordMetric } from './telemetry';
@@ -78,13 +79,16 @@ export const sendMessage = async (
 
   if (provider === 'custom' && endpoint) {
     const token = await getAccessToken();
+    // M5: anonymous users must echo a server-signed token, not a
+    // client-asserted conversation id (backend rejects unsigned ids).
+    const effectiveSessionId = (await getAnonSessionToken()) ?? sessionId;
 
     const buildBody = () => buildRequestBody(
       systemPrompt,
       messages,
       userMessage,
       meditationStep,
-      sessionId,
+      effectiveSessionId,
       summary,
       lastSereneMindAt,
       seekerContext,
@@ -128,14 +132,14 @@ export const sendMessage = async (
             const pollResp = await fetch(pollUrl, {
               headers: {
                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                ...(sessionId ? { 'X-Session-Id': sessionId } : {}),
+                ...(effectiveSessionId ? { 'X-Session-Id': effectiveSessionId } : {}),
               },
             });
             if (pollResp.ok) {
               const job = await pollResp.json();
               if (job.status === 'completed') {
                 const result = job.result;
-                await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId, tags: { provider: 'custom', endpoint: 'non-stream-queue' } });
+                await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId: effectiveSessionId, tags: { provider: 'custom', endpoint: 'non-stream-queue' } });
                 return {
                   content: result.response || result.content || '',
                   intent: result.intent,
@@ -210,7 +214,7 @@ export const sendMessage = async (
       }
 
       const data = await response.json();
-      await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId, tags: { provider: 'custom', endpoint: 'non-stream' } });
+      await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId: effectiveSessionId, tags: { provider: 'custom', endpoint: 'non-stream' } });
       return {
         content: data.response || data.choices?.[0]?.message?.content || data.content,
         intent: data.intent,

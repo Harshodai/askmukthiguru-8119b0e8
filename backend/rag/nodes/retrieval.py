@@ -8,11 +8,11 @@ from typing import Any, Optional
 
 from app.metrics import (
     COVERAGE_GAP_TOTAL,
+    GUARDRAILS_BLOCKED,
     LIGHTRAG_TIMEOUT_TOTAL,
     RETRIEVAL_SCORE_HISTOGRAM,
-    WEB_SEARCH_HIT_TOTAL,
-    WEB_SEARCH_MISS_TOTAL,
 )
+from guardrails.lightweight_handler import contains_prompt_injection
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import navigate_tree
@@ -840,6 +840,37 @@ async def _compress_rag_context_impl(query: str, docs: list[dict], embedder) -> 
         return docs
 
 
+def _screen_prompt_injection(docs: list[dict]) -> list[dict]:
+    """Retrieval rail (S10): drop chunks whose text carries indirect-prompt-
+    injection markers before they reach the generation context. Arbitrary web
+    content is ingested into the same Qdrant collection as the teachings, so a
+    poisoned chunk ("ignore previous instructions", role-override, "system:")
+    is defense-in-depth against indirect prompt injection. Screens the chunk,
+    not the request — one bad chunk is dropped, the request continues.
+    """
+    kept: list[dict] = []
+    for doc in docs:
+        # Curated OKF doctrine is human-reviewed and cannot be poisoned, so exempt
+        # it — the injection pattern list includes phrases ("act as", "you are now")
+        # that occur in legitimate teaching ("act as a witness"), and dropping a
+        # genuine teaching is the worse failure for a doctrine product.
+        if (doc.get("metadata") or {}).get("type") == "okf":
+            kept.append(doc)
+            continue
+        if contains_prompt_injection(doc.get("text", "")):
+            logger.warning(
+                "Retrieval rail dropped injected chunk (source=%s)",
+                doc.get("source_url") or doc.get("source_id") or doc.get("channel") or "unknown",
+            )
+            try:
+                GUARDRAILS_BLOCKED.labels(rail="retrieval").inc()
+            except Exception:  # noqa: BLE001 — metric must never break retrieval
+                pass
+            continue
+        kept.append(doc)
+    return kept
+
+
 @trace_rag_node("retrieve_documents")
 @log_metrics
 async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
@@ -1162,66 +1193,31 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             lambda_param=mmr_lambda,
         )
 
-    # Coverage-gap check: docs exist but all score below quality threshold → treat as no coverage
+    # Coverage-gap check: docs exist but all score below quality threshold → treat as no coverage.
+    # S4: web-search substitution removed. Injecting external web results here answered non-doctrine
+    # text as the teachers' teachings and violated the zero-external-call-at-inference constraint.
+    # On a gap we now let the empty/thin set flow to generate_answer's honest content-gap refusal.
     _coverage_threshold = getattr(settings, "web_search_coverage_threshold", 0.08)
+    _gap_intent = state.get("intent", "unknown")
     if all_docs and all(doc.get("score", 0.0) < _coverage_threshold for doc in all_docs):
         max_score = max(doc.get("score", 0.0) for doc in all_docs)
-        _gap_intent = state.get("intent", "unknown")
         logger.warning(
-            f"Coverage gap detected: {len(all_docs)} docs retrieved but all scored below "
-            f"threshold {_coverage_threshold} (max_score={max_score:.4f}). "
-            "Triggering web-search fallback."
+            f"Coverage gap: {len(all_docs)} docs retrieved but all scored below "
+            f"threshold {_coverage_threshold} (max_score={max_score:.4f}); no web fallback."
         )
         try:
             COVERAGE_GAP_TOTAL.labels(intent=_gap_intent).inc()
         except Exception as _e:
             logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
-        web_search_service = getattr(_services, "_web_search", None)
-        if web_search_service is not None:
-            try:
-                question = state.get("rewritten_query") or state["question"]
-                user_id = state.get("user_id")
-                web_results = await web_search_service.search(question, user_id=user_id)
-                if web_results:
-                    logger.info(f"Coverage-gap web search found {len(web_results)} results.")
-                    all_docs = web_results
-                    try:
-                        WEB_SEARCH_HIT_TOTAL.labels(trigger="coverage_gap").inc()
-                    except Exception as _e:
-                        logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
-                else:
-                    try:
-                        WEB_SEARCH_MISS_TOTAL.labels(reason="empty").inc()
-                    except Exception as _e:
-                        logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
-            except Exception as exc:
-                logger.warning(f"Coverage-gap web search failed: {exc}")
-                try:
-                    WEB_SEARCH_MISS_TOTAL.labels(reason="error").inc()
-                except Exception as _e:
-                    logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
 
     if not all_docs:
-        logger.info("RAG retrieval yielded zero chunks. Triggering web-search fallback.")
-        web_search_service = getattr(_services, "_web_search", None)
-        if web_search_service is not None:
-            try:
-                question = state.get("rewritten_query") or state["question"]
-                user_id = state.get("user_id")
-                web_results = await web_search_service.search(question, user_id=user_id)
-                if web_results:
-                    logger.info(f"Web-search fallback found {len(web_results)} results.")
-                    all_docs = web_results
-                    try:
-                        WEB_SEARCH_HIT_TOTAL.labels(trigger="zero_docs").inc()
-                    except Exception as _e:
-                        logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
-            except Exception as exc:
-                logger.warning(f"Web-search fallback failed: {exc}")
-                try:
-                    WEB_SEARCH_MISS_TOTAL.labels(reason="error").inc()
-                except Exception as _e:
-                    logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
+        # M6: zero-document retrieval is itself a coverage gap — count it (the old
+        # `all_docs and ...` guard above could never fire on an empty list).
+        logger.info("RAG retrieval yielded zero chunks; no web fallback (S4).")
+        try:
+            COVERAGE_GAP_TOTAL.labels(intent=_gap_intent).inc()
+        except Exception as _e:
+            logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
 
     raw_docs_copy = [dict(d) for d in all_docs]
 
@@ -1286,21 +1282,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         except Exception as e:
             logger.warning("Low-confidence deep research failed (non-fatal): %s", e)
 
-        if len(all_docs) < 3:
-            web_search_service = getattr(_services, "_web_search", None)
-            if web_search_service is not None:
-                try:
-                    question = state.get("rewritten_query") or state["question"]
-                    user_id = state.get("user_id")
-                    web_results = await web_search_service.search(question, user_id=user_id)
-                    if web_results:
-                        all_docs = web_results + all_docs
-                        try:
-                            WEB_SEARCH_HIT_TOTAL.labels(trigger="low_confidence").inc()
-                        except Exception as _e:
-                            logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
-                except Exception as exc:
-                    logger.warning("Low-confidence web search failed: %s", exc)
+        # S4: low-confidence web-search substitution removed (external text as
+        # doctrine + zero-external-call violation). Deep research above already
+        # exhausted the local corpus; a thin set flows to the honest refusal.
 
     if getattr(settings, "rag_context_compression_enabled", False):
         question = state.get("rewritten_query") or state["question"]
@@ -1323,6 +1307,12 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             allowlisted_ids = {id(d) for d in allowlisted}
             compressed = await _compress_rag_context_impl(question, allowlisted, embedder)
             all_docs = compressed + [d for d in all_docs if id(d) not in allowlisted_ids]
+
+    # Retrieval rail (S10): screen assembled chunks for indirect prompt injection
+    # just before handoff to context_engineer/generation. Applied here (the single
+    # finalization point) so OKF, web, deep-research and compressed docs are all covered.
+    all_docs = _screen_prompt_injection(all_docs)
+    raw_docs_copy = _screen_prompt_injection(raw_docs_copy)
 
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
     return {

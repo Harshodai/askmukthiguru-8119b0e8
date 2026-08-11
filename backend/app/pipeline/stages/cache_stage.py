@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _is_personalization_eligible(state) -> bool:
+def _is_personalization_eligible(ctx: "PipelineContext") -> bool:
     """Single source of truth for the personalization-eligibility predicate.
 
     A query is personalization-eligible when the request carries this user's
@@ -34,8 +34,32 @@ def _is_personalization_eligible(state) -> bool:
     (language, message) only, so an eligible query must never read from or
     write to them. Used by both CacheCheckStage (read guard) and
     CacheUpdateStage (write guard) so the two sides can never drift.
+
+    Primary signal is the request-level ``personalization_eligible`` flag on
+    the PipelineContext, populated by PipelineCoordinator.execute() BEFORE the
+    stage chain (CacheCheckStage runs before RequestStateStage, so
+    ``state.memory_context`` is empty at lookup time). The state-based check is
+    kept as a fallback so direct-stage callers (unit tests) and the write
+    guard's later-in-chain view agree with the same source of truth.
     """
-    return bool(state and state.get("memory_context"))
+    return bool(
+        ctx.personalization_eligible
+        or (ctx.state and ctx.state.get("memory_context"))
+    )
+
+
+def _is_assistant_config_present(ctx: "PipelineContext") -> bool:
+    """Single source of truth for the assistant-configuration bypass predicate.
+
+    True when the request carries client-supplied assistant configuration
+    (slug / system_prompt / knowledge_tags). There is no server-side persona
+    registry to validate it against, so the shared caches must neither read
+    nor write for these requests: a stale answer generated under one
+    effective configuration must never be replayed for a different one.
+    Populated by PipelineCoordinator.execute() BEFORE the stage chain, same
+    as ``personalization_eligible``.
+    """
+    return bool(ctx.assistant_config_present)
 
 
 async def _invalidate_shared_entries(container, cache_key: str) -> None:
@@ -85,15 +109,27 @@ class CacheCheckStage(Stage):
         # personalized with this user's memory_context must never be served a generic
         # cached answer. The shared caches key on (language, message) only, so without
         # this guard a memory-context query could replay another seeker's generic answer.
-        # Defense-in-depth — in the current stage order memory_context is populated by
-        # RequestStateStage after this stage, so this also pins the invariant for any
-        # future reordering that computes memory earlier.
+        # The eligibility flag is populated by PipelineCoordinator.execute() BEFORE the
+        # stage chain: CacheCheckStage runs ahead of RequestStateStage, so
+        # state.memory_context would otherwise still be empty here — this guard was
+        # dead code at lookup time and a personalized query could be served a generic
+        # shared-cache answer written by another user. The predicate's state fallback
+        # keeps direct-stage callers and the write guard consistent with the same flag.
         # INVARIANT: the eligibility guard MUST run before any shared-cache read; never
         # return a shared entry for a personalization-eligible query. It sits above every
         # lookup tier below (hot / vector / exact / semantic) on purpose — moving it
         # below any of them would reintroduce the cross-user replay.
-        if _is_personalization_eligible(ctx.state):
+        if _is_personalization_eligible(ctx):
             logger.debug("cache hit skipped: memory_context present")
+            return None
+
+        # Read-side guard for client-supplied assistant configuration: without a
+        # server-side persona registry the effective system prompt / retrieval
+        # scope cannot be validated, so a shared-cache entry written under one
+        # configuration must never be replayed for another. Sits above every
+        # lookup tier below (hot / vector / exact / semantic) on purpose.
+        if _is_assistant_config_present(ctx):
+            logger.debug("cache hit skipped: client-supplied assistant configuration present")
             return None
 
         # Out-of-corpus logistics queries must bypass the cache entirely. "upcoming programs
@@ -276,8 +312,9 @@ class CacheUpdateStage(Stage):
         # facts + recent turns). Caching such an answer would replay one seeker's
         # private context to the next person who asks the same question.
         # Mirror of CacheCheckStage's read guard above — both sides share the
-        # _is_personalization_eligible predicate (single source of truth).
-        if _is_personalization_eligible(ctx.state):
+        # _is_personalization_eligible predicate (single source of truth), driven by
+        # the request-level personalization_eligible flag populated before the chain.
+        if _is_personalization_eligible(ctx):
             logger.info("Skipping cache update: response was personalized with user memory_context.")
             # A stale SHARED entry for this key (written earlier by a non-personalized
             # answer) must not survive the personalized response: it would be served to
@@ -285,6 +322,15 @@ class CacheUpdateStage(Stage):
             # personalization. Purge it on the skip path so a later shared lookup can
             # never serve a stale cross-user answer.
             await _invalidate_shared_entries(container, cache_key)
+            return None
+
+        # Mirror of CacheCheckStage's read guard: a response generated under a
+        # client-supplied assistant configuration must never enter the shared
+        # tiers — it could be replayed for a request with a different effective
+        # configuration. The config fingerprint in cache_key means no stale
+        # shared entry shares this key, so no invalidation is needed.
+        if _is_assistant_config_present(ctx):
+            logger.info("Skipping cache update: response used client-supplied assistant configuration.")
             return None
 
         if not isinstance(final_answer, str):

@@ -2,6 +2,8 @@
 
 Folder-level guidance for the FastAPI backend. The root `CLAUDE.md` documents the full RAG graph node-by-node; this file covers what you need while editing backend code. Python 3.12 (`.python-version`), venv at `backend/.venv/`.
 
+- Full subsystem/route inventory: ../docs/engineering-notes/subsystem-inventory.md
+
 ## Commands (run from backend/)
 
 ```bash
@@ -23,7 +25,7 @@ Benchmarks: `benchmarks/RUN_ME.sh` (needs the live Docker stack; normally run by
 ```
 CacheCheck → CircuitBreaker → RequestState → InputGuardrail → DoctrineCache
 → CasualShortCircuit → Distress → Graph → MeditationGen → Translation
-→ Memory → OutputGuardrail → CacheUpdate → ResultAssembly
+→ ToneAdapter → OutputGuardrail → Memory → CacheUpdate → ResultAssembly
 ```
 
 - Stages are pure functions over a `PipelineContext` (`app/pipeline/stages/context.py`), unit-testable in isolation; they reach services via `ctx.container` and coordinator helpers via `ctx.coordinator`.

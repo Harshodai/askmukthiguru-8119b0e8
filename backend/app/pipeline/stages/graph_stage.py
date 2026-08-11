@@ -14,7 +14,7 @@ import logging
 import random
 import time
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app.config import settings
 from app.context import correlation_id_var
@@ -32,22 +32,55 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _assistant_config_fingerprint(assistant: Any, *, is_authed: bool) -> str:
+    """Bounded SHA-256 digest of the effective assistant configuration.
+
+    Covers slug, the effective system prompt (M3 gate: dropped for
+    unauthenticated requests AND when the slug is not on the server-side
+    allowlist — InputGuardrailStage clears assistant.system_prompt in both
+    cases before this runs), and knowledge_tags. Raw prompt text never enters
+    the key — only the first 16 hex chars of the digest. Two requests with
+    different effective configurations can never coalesce onto the same key.
+    Non-str attrs (e.g. mocks in tests) degrade to "" and never raise.
+    """
+    slug = getattr(assistant, "slug", None)
+    system_prompt = getattr(assistant, "system_prompt", None) if is_authed else None
+    tags = getattr(assistant, "knowledge_tags", None)
+    if not isinstance(tags, (list, tuple, set)):
+        tags = []
+    config_text = "|".join(
+        [
+            slug if isinstance(slug, str) else "",
+            system_prompt if isinstance(system_prompt, str) else "",
+            ",".join(sorted(t for t in tags if isinstance(t, str))),
+        ]
+    )
+    return hashlib.sha256(config_text.encode("utf-8")).hexdigest()[:16]
+
+
 def _coalesce_key(
     user_id: str,
     session_id: str,
     lang_code: str,
     user_msg_en: str,
     history_hash: str,
+    config_fingerprint: str = "",
+    meditation_step: int = 0,
 ) -> str:
     """Build the coalescer key for a graph run.
 
     P1-BE-7: the raw user message is never embedded — it is unbounded, may
     carry PII, and varies across locales. A bounded, deterministic SHA-256
     digest (first 16 hex chars) keeps coalescing semantics identical while
-    keeping user text out of cache keys.
+    keeping user text out of cache keys. The assistant-config fingerprint
+    (also bounded) and meditation_step scope the key so runs under different
+    effective assistant configurations or meditation steps never coalesce.
     """
     digest = hashlib.sha256(user_msg_en.encode("utf-8")).hexdigest()[:16]
-    return f"{user_id}:{session_id}:{lang_code}:{digest}:{history_hash}"
+    return (
+        f"{user_id}:{session_id}:{lang_code}:{digest}:{history_hash}:"
+        f"{config_fingerprint}:{meditation_step}"
+    )
 
 
 class GraphStage(Stage):
@@ -70,6 +103,20 @@ class GraphStage(Stage):
 
         async def run():
             assistant = getattr(chat_body, "assistant", None)
+            # M3: a custom persona is honored only for an authenticated user.
+            # assistant.system_prompt is client-supplied, reaches generation as
+            # the system instruction, AND disables the empty-docs honesty guard
+            # (generation.py) — so an anonymous request must not be able to set
+            # it. There is no server-side persona registry to validate against,
+            # so authentication is the trust boundary. slug/knowledge_tags only
+            # scope retrieval and stay. Drop this gate once a server-side slug
+            # allowlist exists.
+            _user = ctx.user or {}
+            _is_authed = bool(_user.get("id")) and _user.get("id") != "anonymous" \
+                and not str(_user.get("id")).startswith("anon:") and not _user.get("is_anonymous")
+            _persona = getattr(assistant, "system_prompt", None) if _is_authed else None
+            if getattr(assistant, "system_prompt", None) and not _is_authed:
+                logger.warning("Dropping client-supplied assistant.system_prompt for unauthenticated request (M3).")
             initial_state = create_initial_state(
                 question=user_msg_en,
                 chat_history=chat_history_en,
@@ -77,7 +124,7 @@ class GraphStage(Stage):
                 request_id=correlation_id_var.get(),
                 assistant_slug=getattr(assistant, "slug", None),
                 knowledge_tags=list(getattr(assistant, "knowledge_tags", []) or []),
-                assistant_system_prompt=getattr(assistant, "system_prompt", None),
+                assistant_system_prompt=_persona,
             )
             initial_state["detected_language"] = lang_detection.primary.value if lang_detection else "en"
             initial_state["memory_context"] = memory_context
@@ -167,13 +214,26 @@ class GraphStage(Stage):
         user_id = ctx.user_id or str(uuid.uuid4())
         session_id = getattr(chat_body, "session_id", None) or str(uuid.uuid4())
         history_hash = hashlib.md5(str([m["content"] for m in chat_history_en[-4:]]).encode(), usedforsecurity=False).hexdigest()[:8]
+        # Coalesce identity: bounded fingerprint of the effective assistant
+        # configuration (M3 gate: system_prompt only for authenticated users)
+        # plus meditation_step, so runs under different effective configurations
+        # or steps never coalesce onto the same key. Raw prompt text never
+        # enters the key — the fingerprint is a bounded digest.
+        assistant = getattr(chat_body, "assistant", None)
+        _user = ctx.user or {}
+        _is_authed = bool(_user.get("id")) and _user.get("id") != "anonymous" \
+            and not str(_user.get("id")).startswith("anon:") and not _user.get("is_anonymous")
+        config_fp = _assistant_config_fingerprint(assistant, is_authed=_is_authed)
         start_lat = time.time()
         try:
             # P1-BE-7: coalesce key carries a bounded digest, never raw user text.
             lang_code = lang_detection.primary.value if lang_detection else "en"
             result = await asyncio.wait_for(
                 coalescer.get_or_run(
-                    _coalesce_key(user_id, session_id, lang_code, user_msg_en, history_hash),
+                    _coalesce_key(
+                        user_id, session_id, lang_code, user_msg_en, history_hash,
+                        config_fp, meditation_step,
+                    ),
                     run,
                 ),
                 timeout=settings.pipeline_timeout,

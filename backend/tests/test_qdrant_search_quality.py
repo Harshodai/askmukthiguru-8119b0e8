@@ -34,11 +34,13 @@ def _extract_source_filename(r: dict) -> str:
         r.get("source_url")
         or r.get("source")
         or r.get("url")
-        or r.get("payload", {}).get("source_url")
-        or r.get("payload", {}).get("source")
-        or r.get("payload", {}).get("url")
+        or (r.get("payload") or {}).get("source_url")
+        or (r.get("payload") or {}).get("source")
+        or (r.get("payload") or {}).get("url")
         or ""
     )
+    if not isinstance(raw, str):
+        raw = str(raw)
     return raw.split("/")[-1]
 
 
@@ -168,13 +170,16 @@ class QdrantSearchQualityTester:
         """
         import math
 
-        # Deduplicate both lists (preserve order) so duplicate source filenames
-        # cannot contribute multiple relevant hits and push DCG above IDCG.
-        ranked_sources = list(dict.fromkeys(ranked_sources))
+        # NDCG@K measures the top-k retrieved items: apply the cutoff to the
+        # raw ranking FIRST, then deduplicate the top-k slice (preserve
+        # order). Deduplicating before the cutoff would shrink the measured
+        # list below k and distort DCG vs IDCG. Dedup after cutoff also keeps
+        # duplicates from contributing multiple relevant hits.
+        ranked_sources = list(dict.fromkeys(ranked_sources[:k]))
         relevant_sources = list(dict.fromkeys(relevant_sources))
 
         # Relevance: 1.0 if in relevant_sources, 0.0 otherwise
-        relevances = [1.0 if src in relevant_sources else 0.0 for src in ranked_sources[:k]]
+        relevances = [1.0 if src in relevant_sources else 0.0 for src in ranked_sources]
 
         # DCG: standard log2(rank+1) formulation (rank is 1-indexed)
         dcg = sum(rel / math.log2(i + 2) for i, rel in enumerate(relevances))
@@ -242,12 +247,15 @@ class QdrantSearchQualityTester:
             # Log a diagnostic sample so future failures are debuggable
             n_empty = sum(1 for s in ranked_sources if not s)
             if n_empty > 0:
+                sample = results[0] if results else {}
+                payload_keys = list((sample.get("payload") or {}).keys()) if isinstance(sample, dict) else []
                 logger.warning(
                     "NDCG: %d/%d source filenames are empty — source extraction "
-                    "incomplete; check Qdrant payload field names. Sample result keys: %s",
+                    "incomplete; check Qdrant payload field names. Sample result keys: %s; payload keys: %s",
                     n_empty,
                     len(ranked_sources),
-                    list(results[0].keys()) if results else "(no results)",
+                    list(sample.keys()) if results else "(no results)",
+                    payload_keys,
                 )
 
             # Compute NDCG@10

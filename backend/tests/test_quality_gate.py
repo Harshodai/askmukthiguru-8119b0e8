@@ -171,3 +171,40 @@ def test_playlist_complete(mock_supabase):
             chunks_indexed=20,
             error_message=None
         )
+
+
+class _WordOverlapScorer:
+    """Stand-in faithfulness scorer: score = answer-word overlap with context.
+
+    Mirrors LettuceDetectService.score_faithfulness's contract without needing
+    the real embedder in a unit test.
+    """
+
+    def score_faithfulness(self, query, context, answer):
+        import re
+        ctx = set(re.findall(r"\w+", context.lower()))
+        ans = set(re.findall(r"\w+", answer.lower()))
+        return {"score": len(ans & ctx) / max(1, len(ans))}
+
+
+def test_gate_summary_faithfulness_drops_unsupported_summary():
+    from ingest.quality_gate import gate_summary_faithfulness
+
+    sources = [
+        "Surrender is the path to the beautiful state taught at Ekam.",
+        "In the beautiful state the mind is calm, connected, and free of suffering.",
+    ]
+    scorer = _WordOverlapScorer()
+
+    supported, s_ok = gate_summary_faithfulness(
+        "Surrender leads to the calm, connected beautiful state.", sources, scorer
+    )
+    fabricated, s_bad = gate_summary_faithfulness(
+        "Krishnaji guarantees followers wealth, fame, and eternal youth.",
+        sources,
+        scorer,
+    )
+
+    assert supported is True, f"supported summary should pass (score={s_ok})"
+    assert fabricated is False, f"fabrication should be gated out (score={s_bad})"
+    assert s_bad < s_ok

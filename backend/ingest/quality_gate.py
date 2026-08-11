@@ -208,15 +208,45 @@ def detect_bias(text: str, extra_blocklist: str = "") -> list[str]:
     return [t for t in terms if t in lower]
 
 
-def fact_check_stub(chunk: str, known_true: list[str] | None = None) -> bool:
+# ponytail: faithfulness floor for gating LLM-authored cluster summaries against
+# their own source chunks. Tunable — promote to settings if it needs env control.
+SUMMARY_FAITHFULNESS_FLOOR = 0.35
+
+
+def gate_summary_faithfulness(
+    summary: str,
+    source_chunks: list[str],
+    scorer: Any,
+    floor: float = SUMMARY_FAITHFULNESS_FLOOR,
+) -> tuple[bool, float]:
     """
-    Stub fact-checker. Always returns True (pass) for now.
-    TODO: replace with LLM-based contradiction check against `known_true` statements
-    and a vetted doctrinal corpus. Kept as a no-op so ingestion is never blocked
-    by an incomplete gate.
+    Faithfulness gate for a generated summary against its own source chunks.
+
+    RAPTOR has an LLM summarise each cluster and writes that text straight into
+    the retrieval index as ground truth, later quoted to a seeker as doctrine.
+    Every other ingest filter is a FORMAT check, so a fluent fabrication in
+    devotional register sails through. This is the missing content check: score
+    the summary (the "answer") against the source chunks (the "context") with the
+    already-loaded embedder, and reject a summary the sources don't support.
+
+    scorer: LettuceDetectService, or anything exposing
+        score_faithfulness(query, context, answer) -> {"score": float}.
+    Returns (passed, score). Fails closed (False, 0.0) on empty input or scorer
+    error — re-opening the hole this closes is the worse failure for a doctrine
+    index, and the leaf chunks survive regardless.
     """
-    # Intentional passthrough — graceful, never rejects.
-    return True
+    if not summary.strip() or not source_chunks:
+        return False, 0.0
+    context = "\n\n".join(c for c in source_chunks if c and c.strip())
+    if not context:
+        return False, 0.0
+    try:
+        result = scorer.score_faithfulness("", context, summary)
+        score = float(result.get("score", 0.0))
+    except Exception as e:  # noqa: BLE001 — fail closed, summary is dropped not crashed
+        logger.warning("Summary faithfulness scoring failed, gating out: %s", e)
+        return False, 0.0
+    return score >= floor, score
 
 
 # ── Tier 2: LLM quality scoring ───────────────────────────────────────────────
@@ -513,6 +543,22 @@ if __name__ == "__main__":
     assert detect_bias("this is a heretic teaching") == ["heretic"]
     assert detect_bias("a peaceful meditation") == []
 
-    # Fact-check stub always passes
-    assert fact_check_stub("any chunk", ["known true statement"]) is True
+    # Summary faithfulness gate: supported summary passes, fabrication is gated out
+    class _FakeScorer:
+        def score_faithfulness(self, q, context, answer):
+            # crude stand-in: score = word overlap of answer with context
+            ctx = set(re.findall(r"\w+", context.lower()))
+            ans = set(re.findall(r"\w+", answer.lower()))
+            return {"score": len(ans & ctx) / max(1, len(ans))}
+
+    sources = ["Surrender is the path to the beautiful state taught at Ekam."]
+    supported, s1 = gate_summary_faithfulness(
+        "Surrender leads to the beautiful state.", sources, _FakeScorer()
+    )
+    fabricated, s2 = gate_summary_faithfulness(
+        "Krishnaji promises followers guaranteed wealth and eternal youth.",
+        sources, _FakeScorer(),
+    )
+    assert supported is True, f"supported summary should pass (score={s1})"
+    assert fabricated is False, f"fabrication should be gated out (score={s2})"
     print("✅ Self-check passed")

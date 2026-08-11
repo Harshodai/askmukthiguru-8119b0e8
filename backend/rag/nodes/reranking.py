@@ -61,7 +61,9 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
         is_complex = state.get("is_complex", False)
         query_tier = state.get("query_tier", "")
         base_threshold = getattr(settings, "rerank_min_score", 0.2)
-        threshold = settings.rerank_threshold_complex if is_complex else max(settings.rerank_threshold_simple, base_threshold - 0.1)
+        # Floor must not decrease as complexity rises: complex >= simple (harder query, stricter gate).
+        simple_floor = max(settings.rerank_threshold_simple, base_threshold - 0.1)
+        threshold = max(settings.rerank_threshold_complex, simple_floor) if is_complex else simple_floor
 
         # Dynamic top-k by query tier — fewer chunks for simpler queries reduces
         # LLM context window usage and lowers TTFT without hurting answer quality.

@@ -851,36 +851,50 @@ class AdaptiveConcurrencyThrottle:
     def release(self):
         self._semaphore.release()
 
-    async def record_outcome(self, success: bool):
+    async def record_outcome(self, success: bool, holds_permit: bool = True) -> bool:
+        """Record an outcome; returns retain_permit — True only when THIS
+        caller performed the shrink and must keep its permit (skip release).
+
+        The shrink never awaits while holding `_lock`: the retained permit
+        comes from the calling worker (it simply does not release), so no
+        semaphore acquire is needed and no deadlock is possible. A caller
+        without a permit (`holds_permit=False`) can never retain one, so it
+        never performs a shrink — a later permit-holding worker will.
+        """
+        shrink = False
         async with self._lock:
             self._outcomes.append(success)
             if len(self._outcomes) > self._window_size:
                 self._outcomes.pop(0)
 
             if len(self._outcomes) < self._window_size:
-                return
+                return False
 
             failure_rate = 1 - (sum(self._outcomes) / len(self._outcomes))
             if failure_rate < self._failure_threshold:
                 # Window cooled / recovery observed — a new failure episode may
                 # shrink concurrency once more.
                 self._shrunken_this_episode = False
-                return
+                return False
 
-            if self._shrunken_this_episode or self._current_permits <= 1:
+            if self._shrunken_this_episode or self._current_permits <= 1 or not holds_permit:
                 # Already shrank during this hot episode: no further draining
-                # while the window stays at/above the threshold.
-                return
+                # while the window stays at/above the threshold. Or the caller
+                # holds no permit to retain — defer the shrink to a caller
+                # that does.
+                return False
 
-            # Shrink by one permit: acquire it now so it stays held for the
-            # rest of the run (no separate release path for a "removed" permit).
+            # Shrink by one permit: the caller keeps its permit for the rest
+            # of the run, removing it from circulation without touching the
+            # semaphore (no separate release path for a "removed" permit).
             self._shrunken_this_episode = True
-            await self._semaphore.acquire()
             self._current_permits -= 1
+            shrink = True
             logger.warning(
                 f"AdaptiveConcurrencyThrottle: failure_rate={failure_rate:.2f} "
                 f"over last {self._window_size} — reducing concurrency to {self._current_permits}"
             )
+        return shrink
 
 
 async def fetch_transcripts_concurrent(
@@ -915,7 +929,7 @@ async def fetch_transcripts_concurrent(
 
         if not video_id:
             res = {"text": "", "method": "failed", "error": "No video ID"}
-            await throttle.record_outcome(False)
+            await throttle.record_outcome(False, holds_permit=False)
         else:
             await throttle.acquire()
             try:
@@ -930,9 +944,16 @@ async def fetch_transcripts_concurrent(
             except Exception as e:
                 logger.error(f"Error fetching transcript for {video_id}: {e}", exc_info=True)
                 res = {"text": "", "method": "failed", "error": str(e)}
+            retain_permit = False
+            try:
+                retain_permit = await throttle.record_outcome(
+                    bool(res and res.get("method") != "failed")
+                )
             finally:
-                throttle.release()
-            await throttle.record_outcome(bool(res and res.get("method") != "failed"))
+                # Release unless this call performed the shrink — the retained
+                # permit stays held, keeping the pool at the reduced level.
+                if not retain_permit:
+                    throttle.release()
         results[index] = res
         if on_progress:
             try:

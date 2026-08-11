@@ -65,12 +65,15 @@ async def _run_heartbeat_pump():
 
 
 async def _run_real_lifespan():
-    global _real_app, _lifespan_startup_done
+    global _real_app, _lifespan_startup_done, _last_heartbeat
 
     def _import_real_app():
         from app.main import app, lifespan
         return app, lifespan
 
+    # Initialized BEFORE any await/task creation so the cleanup path can never
+    # hit an unbound pump (e.g. when the import above raises).
+    pump = None
     try:
         real_app, real_lifespan = await asyncio.to_thread(_import_real_app)
         _real_app = real_app
@@ -94,7 +97,8 @@ async def _run_real_lifespan():
     finally:
         # P1-OPS-5: stop the pump and force the heartbeat stale so post-grace
         # healthz returns 503 once the lifespan is down.
-        pump.cancel()
+        if pump is not None:
+            pump.cancel()
         _last_heartbeat = 0.0
 
 
@@ -187,10 +191,32 @@ if __name__ == "__main__":
 
     import uvicorn
 
+    # Trust the platform edge's X-Forwarded-For so rate-limit client IPs are the
+    # real seeker, not Railway's single edge IP (otherwise every user shares one
+    # bucket and five failed logins lock out everyone). This entrypoint only runs
+    # behind Railway's proxy, so trusting the forwarded header here is the gate —
+    # local dev runs `uvicorn app.main:app` directly and keeps the socket peer.
+    # The allowlist comes from app.config (FORWARDED_ALLOW_IPS) and must be an
+    # explicit non-wildcard value: "*" would let any peer spoof a client IP past
+    # rate limiting, so startup fails instead of running with a wildcard.
+    from app.config import settings
+
+    forwarded_allow_ips = settings.forwarded_allow_ips
+    if not forwarded_allow_ips or forwarded_allow_ips.strip() == "*":
+        logger.error(
+            "FORWARDED_ALLOW_IPS must be set to an explicit non-wildcard proxy "
+            "allowlist (e.g. '10.0.0.0/8' on Railway); refusing to start with "
+            "forwarded-header trust missing or set to '*'. Set FORWARDED_ALLOW_IPS "
+            "in the service environment and redeploy."
+        )
+        raise SystemExit(1)
+
     uvicorn.run(
         "start_railway:app",
         host="0.0.0.0",
         port=port,
         workers=1,
         log_level="info",
+        proxy_headers=True,
+        forwarded_allow_ips=forwarded_allow_ips,
     )

@@ -43,9 +43,43 @@ describe('aiService session continuity', () => {
     const fetchMock = globalThis.fetch as unknown as {
       mock: { calls: Array<[string, RequestInit]> };
     };
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    const chatCall = fetchMock.mock.calls.find(([url]) => url === '/api/chat');
+    expect(chatCall).toBeDefined();
+    const body = JSON.parse(chatCall![1].body as string);
 
     expect(body.session_id).toBe('conversation-123');
     expect(body.messages[1].content).toContain('Prior summary');
+  });
+
+  it('echoes the signed anon-session token instead of the raw id for anonymous users', async () => {
+    const fetchMock = globalThis.fetch as unknown as {
+      mock: { calls: Array<[string, RequestInit]> };
+    };
+    fetchMock.mock.calls.length = 0;
+    // First call: anon-session mint returns a signed token.
+    fetchMock.mockImplementationOnce(async (url: string) => {
+      if (url.includes('anon-session')) {
+        return {
+          ok: true,
+          json: async () => ({ token: 'signed.payload.signature', session_id: 'anon:payload' }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ response: 'A remembered answer', citations: [], meditation_step: 0 }),
+      };
+    });
+
+    await sendMessage(
+      [{ role: 'user', content: 'What is awareness?' }],
+      'Continue from there',
+      0,
+      undefined,
+      'conversation-123',
+    );
+
+    const chatCall = fetchMock.mock.calls.find(([url]) => url === '/api/chat');
+    const body = JSON.parse(chatCall![1].body as string);
+    expect(body.session_id).toBe('signed.payload.signature');
   });
 });

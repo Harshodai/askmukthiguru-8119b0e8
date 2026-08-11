@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from app.config import settings
+from app.metrics import GUARDRAILS_PROVIDER_DEGRADED
 from guardrails.base import BaseGuardrailHandler
 from guardrails.disabled_handler import DisabledGuardrailHandler
 from guardrails.lightweight_handler import LightweightGuardrailHandler
@@ -24,6 +25,7 @@ class GuardrailsChain:
     def __init__(self) -> None:
         self._audit_logger = logging.getLogger("guardrails.audit")
         provider = settings.guardrails_provider.lower()
+        self._configured_provider = provider
         self._provider_name = provider
         self._head: BaseGuardrailHandler
 
@@ -97,6 +99,22 @@ class GuardrailsChain:
             self._head = LightweightGuardrailHandler()
             logger.info("Guardrails Chain: [Lightweight] active")
 
+        # Silent-degradation guard: if the configured provider could not be
+        # constructed and the chain fell back to a weaker active provider, the
+        # runtime posture no longer matches config. Escalate to WARNING and emit
+        # a Prometheus counter so the drift is observable, not buried in INFO.
+        if self._provider_name != self._configured_provider:
+            logger.warning(
+                "Guardrails DEGRADED: configured '%s' but running '%s' "
+                "(provider failed to construct — running a weaker chain)",
+                self._configured_provider,
+                self._provider_name,
+            )
+            GUARDRAILS_PROVIDER_DEGRADED.labels(
+                configured=self._configured_provider,
+                active=self._provider_name,
+            ).inc()
+
     async def check_input(self, message: str, **kwargs: Any) -> dict[str, Any]:
         """Check input against the chain of guardrails."""
         if self._provider_name == "disabled":
@@ -128,5 +146,15 @@ class GuardrailsChain:
 
     @property
     def provider_name(self) -> str:
-        """Human-readable provider name (e.g. 'nemo', 'lightweight', 'disabled')."""
+        """Active provider name (e.g. 'nemo', 'lightweight', 'disabled')."""
         return self._provider_name
+
+    @property
+    def configured_provider(self) -> str:
+        """Provider requested via config, regardless of what actually loaded."""
+        return self._configured_provider
+
+    @property
+    def is_degraded(self) -> bool:
+        """True when the active provider is weaker than the configured one."""
+        return self._provider_name != self._configured_provider

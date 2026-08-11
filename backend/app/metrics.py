@@ -88,6 +88,16 @@ GUARDRAILS_BLOCKED = Counter(
     ["rail"],  # input / output
 )
 
+# Fires when the configured guardrails provider (e.g. nemo) fails to construct
+# and the chain silently drops to a weaker active provider. Config advertises
+# one posture; runtime delivers another. Without this counter the degradation
+# is invisible — INFO logs get lost and health only reports the active provider.
+GUARDRAILS_PROVIDER_DEGRADED = Counter(
+    "guardrails_provider_degraded_total",
+    "Guardrails ran a weaker provider than configured (construction fallback)",
+    ["configured", "active"],
+)
+
 # MemoryServiceV2 falls back to a bounded in-memory LRU when Redis is down. Without
 # this counter there is no way to tell thrashing (hot entries evicted before they are
 # read) from a healthy cache, so _LRU_MAX_SIZE can never be tuned on evidence.

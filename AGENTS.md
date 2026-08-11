@@ -87,7 +87,7 @@
 - **`.dockerignore` hardened**: added named guards + `*.pdf` catch-all to prevent re-introduction
 
 **Measurement (P0-NDCG):**
-- **Fixed NDCG=0.0 baseline bug** (`tests/test_qdrant_search_quality.py:209`): `r.get("source_url")` silently returned `""` — fixed to multi-key fallback (`source_url` → `source` → `url`). Also corrected DCG formula from `2^(rank+1)` to standard `log2(rank+2)`.
+- **Fixed NDCG=0.0 baseline bug** (`backend/tests/test_qdrant_search_quality.py:24` — `_extract_source_filename()`): `r.get("source_url")` silently returned `""` — fixed to multi-key fallback (`source_url` → `source` → `url`) across both top-level and nested `payload` fields. Also corrected DCG formula from `2^(rank+1)` to standard `log2(rank+2)`.
 
 **Safety (P1-Crisis):**
 - **Extended crisis keyword coverage** (`distress_stage.py`): Added Kannada (`ಆತ್ಮಹತ್ಯೆ`), Malayalam (`ആത്മഹത്യ`), and Marathi-specific idioms (`जीव देणे`). 6 scripts now covered (was 4).
@@ -166,7 +166,10 @@ All 10 verified findings from the K3 Ultra Audit corrected edition addressed. 17
 - **git-filter-repo**: Answer `N` to "treat as continuation" prompt for a fresh rewrite. Re-add `origin` remote manually after run.
 - **HF model pins**: Every `from_pretrained`/`snapshot_download`/`SentenceTransformer`/`CrossEncoder`/`BGEM3FlagModel` load MUST pass a pinned commit SHA (resolved from the HF API; comment "resolved 2026-08-01; do not bump to a repo head"). Registry: `backend/scripts/download_models.py::_MODEL_REVISIONS`. `BGEM3FlagModel` has no `revision=` kwarg — load from a pinned local `snapshot_download` dir. Any new model added to the repo gets a SHA in `_MODEL_REVISIONS` first. Never add a mutable repo-head load.
 - **ONNX model pins (encoder + reranker)**: ONNX snapshot loads (`embedding_service.py::_load_onnx_encoder`, `services/onnx_reranker.py::_load`) MUST pass `snapshot_download(revision=<pinned SHA>)`. `HF_REVISION` (the env override for the ONNX encoder) MUST be a full 40-hex commit SHA (`^[0-9a-f]{40}$`) — reject missing or non-40-hex/mutable values before loading (fail-closed, never a repo head); `_load_onnx_encoder` validates and raises. Code constants `_ONNX_ENCODER_REVISION`/`_ONNX_RERANKER_REVISION` are themselves full SHAs. ONNX artifacts are pre-baked into offline images by `backend/scripts/download_models.py` (temsa reranker pinned in `_MODEL_REVISIONS` at `59d3305e...`; snapshot lands under `HF_HOME/hub/models--<org>--<model>` so the runtime cache lookup hits without network).
-- **Credentialed HTTP clients**: Any urllib/httpx client sending a key must validate scheme (`https`) + expected hostname, and refuse to follow 3xx redirects (`HTTPRedirectHandler` override) — see `backend/scripts/verify_sarvam.py`.
+ - **Credentialed HTTP clients**: Any urllib/httpx client sending a key must validate scheme (`https`) + expected hostname, and refuse to follow 3xx redirects (`HTTPRedirectHandler` override) — see `backend/scripts/verify_sarvam.py`.
+ - **Sarvam gateway keyed traffic** (Aug 11, 2026): `sarvam_http.py::_validate_base_url` sends `api-subscription-key` ONLY to https + `_SARVAM_ALLOWED_HOSTS = {api.sarvam.ai}`; an unallowlisted host (self-hosted E2E 30b endpoint) is accepted only when NO key is set; client uses `follow_redirects=False`. Key rotation takes an excluded-index set and returns None only when ALL keys are exhausted.
+ - **Client-supplied assistant config vs shared caches** (Aug 11, 2026): `PipelineContext.assistant_config_present` bypasses shared cache read/write; coalesce key carries a bounded SHA-256 fingerprint (`_assistant_config_fingerprint`, M3 auth gate: system_prompt only for authenticated users); raw prompt text NEVER enters keys.
+ - **`FORWARDED_ALLOW_IPS` gate**: `start_railway.py` requires an explicit non-wildcard allowlist (`app.config.settings.forwarded_allow_ips`) and exits at startup when missing or `"*"`. Docker compose runs plain uvicorn (`backend/Dockerfile` CMD) — unaffected. Railway is currently **paused**; set `FORWARDED_ALLOW_IPS` (e.g. `10.0.0.0/8`) before the next Railway deploy.
 
 This file serves as a knowledge base for AI agents interacting with this workspace.
 
@@ -510,6 +513,7 @@ Full 5-phase emergent security audit. 93% pass rate. 30+ fixes across rate limit
 
 ## Railway Deployment (Production)
 - **Project**: `resilient-embrace` | **Service**: `askmukthiguru-8119b0e8` | **Environment**: `production`
+- **Status (Aug 11, 2026)**: Railway is **paused** (stopped for a while). Before the next deploy, set `FORWARDED_ALLOW_IPS` (e.g. `10.0.0.0/8`) — `start_railway.py` now exits at startup without an explicit non-wildcard value (fail-closed; see Security Invariants). Until then, dev continues on the docker compose stack, which runs plain uvicorn and needs no such var.
 - **Deploy method**: Use `railway up` (tarball upload) — **NOT** `railway redeploy --from-source`
   - `railway up` uploads a tarball and deploys reliably
   - `railway redeploy --from-source` gets stuck at INITIALIZING on this repo

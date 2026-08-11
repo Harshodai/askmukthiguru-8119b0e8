@@ -57,8 +57,30 @@ COLLECTION: str = os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom")
 BACKUP_DIR: Path = Path(os.environ.get("BACKUP_DIR", "backups/qdrant"))
 S3_BUCKET: str = os.environ.get("S3_BACKUP_BUCKET", "")
 S3_PREFIX: str = os.environ.get("S3_BACKUP_PREFIX", "qdrant-snapshots")
-RETAIN_LOCAL_DAYS: int = int(os.environ.get("RETAIN_LOCAL_DAYS", "7"))
-RETAIN_S3_DAYS: int = int(os.environ.get("RETAIN_S3_DAYS", "30"))
+def _parse_retention_days(env_name: str, default: int) -> int:
+    """Parse a retention-days env var, requiring an int >= 1.
+
+    Fail-closed: 0/negative would prune ALL backups on first run, and a
+    non-integer cannot be trusted — both exit(1) before any deletion logic.
+    """
+    raw = os.environ.get(env_name, str(default))
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.error("%s must be an integer, got %r", env_name, raw)
+        sys.exit(1)
+    if value < 1:
+        logger.error(
+            "%s must be >= 1 (0 or negative would prune all backups), got %r",
+            env_name,
+            raw,
+        )
+        sys.exit(1)
+    return value
+
+
+RETAIN_LOCAL_DAYS: int = _parse_retention_days("RETAIN_LOCAL_DAYS", 7)
+RETAIN_S3_DAYS: int = _parse_retention_days("RETAIN_S3_DAYS", 30)
 
 
 def _headers() -> dict[str, str]:
@@ -150,7 +172,12 @@ def create_snapshot() -> str:
     return name
 
 
-def download_snapshot(snapshot_name: str, dest_dir: Path) -> Path:
+def _validate_snapshot_name(snapshot_name: str) -> None:
+    """Reject snapshot names that are not a bare filename.
+
+    Shared by download and delete paths so a name containing path separators
+    can never traverse the Qdrant snapshot REST path.
+    """
     if (
         not snapshot_name
         or snapshot_name.startswith("/")
@@ -163,6 +190,10 @@ def download_snapshot(snapshot_name: str, dest_dir: Path) -> Path:
             "Snapshot name must be a bare filename without path separators "
             f"(no '/', no '\\\\', not absolute); got {snapshot_name!r}"
         )
+
+
+def download_snapshot(snapshot_name: str, dest_dir: Path) -> Path:
+    _validate_snapshot_name(snapshot_name)
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / snapshot_name
     if dest.exists():
@@ -180,7 +211,9 @@ def download_snapshot(snapshot_name: str, dest_dir: Path) -> Path:
 
 def delete_remote_snapshot(snapshot_name: str) -> None:
     try:
-        _delete_req(f"/collections/{COLLECTION}/snapshots/{snapshot_name}")
+        _validate_snapshot_name(snapshot_name)
+        encoded_name = urllib.parse.quote(snapshot_name, safe="")
+        _delete_req(f"/collections/{COLLECTION}/snapshots/{encoded_name}")
         logger.info("Deleted remote snapshot: %s", snapshot_name)
     except Exception as exc:
         logger.warning("Could not delete remote snapshot '%s': %s", snapshot_name, exc)

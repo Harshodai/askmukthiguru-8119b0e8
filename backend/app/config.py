@@ -78,6 +78,12 @@ class Settings(BaseSettings):
     pipeline_timeout: int = 120  # reduced from 180
     llm_max_retries: int = 2  # Max retry attempts per LLM call (exponential backoff starts at 0.5s)
 
+    # Explicit allowlist of proxy addresses whose X-Forwarded-For is trusted
+    # (uvicorn forwarded_allow_ips). Required by start_railway.py: startup fails
+    # when missing or "*". Set to the platform edge's private ranges, e.g.
+    # "10.0.0.0/8" on Railway. Local dev runs uvicorn directly and is unaffected.
+    forwarded_allow_ips: str = ""
+
     # P1-AI-1: hard output-token ceilings applied by the LLM gateway on EVERY
     # generation call. The gateway passes these as max_tokens (OpenAI-style)
     # and never forwards a bare unbounded call to a provider. A caller-supplied
@@ -119,7 +125,6 @@ class Settings(BaseSettings):
     # --- Guardrails ---
     # Provider: "nemo" (NeMo Guardrails), "lightweight" (regex-based), "llama_guard" (Llama Guard 3 1B + Rejection Classifier), "rejection_classifier", "disabled"
     guardrails_provider: str = "nemo"  # Falls back to lightweight if provider unavailable
-    guardrails_audit_enabled: bool = True  # Structured audit logging for blocked requests
     # CRIT-5: message-level language detection + translate-to-EN before EN
     # guardrail regexes, so an EN-preferred user typing in a non-EN script
     # gets the same injection/crisis protection. Gates three call sites:
@@ -388,10 +393,14 @@ class Settings(BaseSettings):
     port: int = 8000
     cors_origins: str = "http://localhost:5173,http://localhost:8080,http://localhost:3000"
     # --- Security ---
+    # csrf_secret is kept as a general-purpose signing secret (used by
+    # _rate_limit_key_digest in security_utils.py via getattr); there is no
+    # dedicated rate-limit HMAC key. csrf_token_ttl was removed 2026-08-11:
+    # the generate_csrf_token/validate_csrf_token helpers in security_utils.py
+    # had zero callers, so the TTL setting was dead weight.
     csrf_secret: Optional[str] = (
         None  # Secret for CSRF token signing (generate with secrets.token_hex(32))
     )
-    csrf_token_ttl: int = 3600  # CSRF token lifetime in seconds
     correlation_id_max_length: int = 64  # Max length for X-Correlation-ID header
     allowed_hosts: str = "localhost,127.0.0.1"  # Trusted hosts for Origin/Referer validation
 
@@ -405,6 +414,11 @@ class Settings(BaseSettings):
     jwt_secret: Optional[str] = None  # Shared with Supabase for token validation
     jwt_private_key: Optional[str] = None  # Private key PEM for RS256 token signing
     jwt_public_key: Optional[str] = None   # Public key PEM for RS256 token verification
+    # M5: HMAC secret for server-side signed anonymous session tokens
+    # (POST /api/auth/anon-session). REQUIRED in production — the app refuses to
+    # start if empty when IS_PRODUCTION=true. In dev/test it falls back to a
+    # value derived from jwt_secret so existing tests pass without config.
+    anon_session_hmac_secret: Optional[str] = None
     supabase_jwt_audience: str = "authenticated"
     benchmark_secret: Optional[str] = None
     # P1-SEC-1 (T4): Defense-in-depth admin allowlist. Comma-separated admin
@@ -414,6 +428,13 @@ class Settings(BaseSettings):
     # sentinel UUID is never in this list, so it is blocked even if aal2 were
     # somehow attached to its token.
     admin_user_ids: str = ""
+    # M3: server-side persona allowlist. Comma-separated assistant slugs the
+    # backend will honour as client-supplied personas. A request carrying a
+    # slug NOT in this list keeps its slug for retrieval/telemetry but its
+    # client-supplied system_prompt is cleared so the honesty guard stays ON
+    # and no attacker persona replaces the guru. Default seeds the four
+    # personas the frontend ships today.
+    allowed_assistant_slugs: str = "guru,preethaji,krishnaji,serene_mind"
     # Default to disabled: the frontend uses Supabase auth, so the FastAPI
     # /api/auth/register endpoint has no legitimate public use case and would
     # otherwise expose an email-enumeration surface. Override with the
@@ -422,14 +443,8 @@ class Settings(BaseSettings):
     chat_rate_limit: str = "20/minute"
     registration_rate_limit: str = "5/minute"
     admin_rate_limit: str = "5/minute"
-    auth_rate_limit_per_ip: str = "5/minute"
-    auth_rate_limit_per_account: str = "3/minute"
-    auth_rate_limit_burst: int = 10
     auth_backoff_base_seconds: float = 2.0
     auth_backoff_multiplier: float = 2.0
-    notebook_rate_limit: str = "20/minute"
-    memory_write_rate_limit: str = "10/minute"
-    profile_rate_limit: str = "10/minute"
     # --- Support / Contact (SMTP) ---
     smtp_host: Optional[str] = None
     smtp_port: int = 587
@@ -783,6 +798,10 @@ class Settings(BaseSettings):
 
     # --- Thresholds (P1 — de-hardcoded magic numbers) ---
     lettuce_detect_threshold: float = 0.25
+    # S3: when True, use the real LettuceDetect span-level detector
+    # (RAGTruth-trained, 14 langs). When False, fall back to the heuristic.
+    # Default False until eval against RAGTruth/FaithBench passes — see audit S3.
+    lettucedetect_enabled: bool = False
     cove_supported_threshold: float = 0.8
     cove_partial_threshold: float = 0.5
     # WHY 0.60: measured LettuceDetect scores for GOOD grounded answers on this
@@ -998,6 +1017,31 @@ class Settings(BaseSettings):
         if self.raptor_summary_model:  # Explicit override
             return self.raptor_summary_model
         return self.model_for_generation  # Default to generation model
+
+    @model_validator(mode="after")
+    def validate_anon_session_secret(self):
+        """M5: anonymous session HMAC secret must be set in production.
+
+        In dev/test (IS_PRODUCTION=false), derive a stable value from
+        jwt_secret so existing tests pass without explicit config. In
+        production, fail-closed — an empty secret would let any client
+        forge anonymous identities and hijack incognito sessions.
+        """
+        if not self.anon_session_hmac_secret:
+            if self.is_production:
+                raise ValueError(
+                    "anon_session_hmac_secret is required in production. "
+                    "Set it to a high-entropy random string (>= 32 bytes)."
+                )
+            # Dev/test fallback: derive a stable key from jwt_secret. Tests
+            # set JWT_SECRET in conftest.py, so this always has a value.
+            base = self.jwt_secret or "dev-anon-session-fallback-key"
+            import hashlib
+
+            self.anon_session_hmac_secret = "anon_hmac_" + hashlib.sha256(
+                (base + "::anon_session").encode()
+            ).hexdigest()
+        return self
 
     @model_validator(mode="after")
     def validate_api_keys(self):

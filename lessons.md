@@ -1,3 +1,50 @@
+## Aug 11, 2026 — 13-Fix Audit Remediation Batch (docs + backend)
+
+### L-AUD-1. Client-supplied assistant configuration must be excluded from shared caches and coalesce identity
+- **What**: A client could send `assistant.system_prompt`/`knowledge_tags`; shared response caches (hot/vector/exact) and the graph coalescer would read/write and coalesce runs across different effective configurations.
+- **Fix applied**: `PipelineContext.assistant_config_present` flag + read/write guards in `cache_stage.py` bypass shared caching when set; `_coalesce_key` now carries a bounded SHA-256 fingerprint (first 16 hex) of `slug|system_prompt|sorted knowledge_tags`, mirroring the M3 gate (system_prompt honored only for authenticated users — `_assistant_config_fingerprint(is_authed=...)`). Raw prompt text never enters a key.
+- **How to prevent**: Any key/flag that scopes a shared cache by effective model configuration must be a bounded digest and mirror the exact auth gate of the generation path.
+
+### L-AUD-2. Any credentialed HTTP client must validate scheme + allowlist host AND refuse 3xx redirects
+- **What**: `sarvam_http.py` built a client and sent `api-subscription-key` to whatever `sarvam_30b_endpoint`/`sarvam_base_url` said, following redirects.
+- **Fix applied**: `_validate_base_url()` (https + `_SARVAM_ALLOWED_HOSTS={api.sarvam.ai}`, unallowlisted host allowed only when NO key is set) + `follow_redirects=False` on the httpx client. Mirrors `backend/scripts/verify_sarvam.py`.
+- **How to prevent**: A keyed client's base URL is validated once at construction against a documented allowlist; redirects are never followed.
+
+### L-AUD-3. API-key rotation must skip already-tried indices and only give up when ALL keys are exhausted
+- **What**: `_rotate_api_key()` returned None whenever there was a single key, even if the current key was already tried this attempt — and the caller re-checked the returned index, a TOCTOU smell.
+- **Fix applied**: `_rotate_api_key(excluded)` searches the key ring under `_key_lock` for the next index NOT in the exclusion set; returns `(index, key)` (bookkeeping atomic) or None only when every configured key is excluded. Caller passes `_tried_key_indices`.
+- **How to prevent**: Rotation loops track tried indices explicitly; "exhausted" means all keys excluded, never a count of one.
+
+### L-AUD-4. Heuristic auto-passes in faithfulness evaluation are false confidence
+- **What**: `lettuce_detect_service.py` auto-passed any answer >200 chars containing "📚" — bypassed sentence-level similarity, so a grounded-format hallucination scored 1.0.
+- **Fix applied**: Removed the auto-pass. The citation-section strip (`re.sub(r"📚 \*Sources & Teachings:\*.*")`) stays so remaining sentences are scored honestly against `lettuce_detect_threshold` + `max_sim`.
+- **How to prevent**: Eval/labels never shortcut on formatting signals; strip decoration, score the substance.
+
+### L-AUD-5. Forwarded-header trust is a startup gate, not a runtime default
+- **What**: `start_railway.py` defaulted `forwarded_allow_ips="*"` — any peer could spoof X-Forwarded-For past per-IP rate limiting.
+- **Fix applied**: `FORWARDED_ALLOW_IPS` (new `app.config.settings.forwarded_allow_ips`) must be an explicit non-wildcard allowlist; startup fails (`SystemExit(1)`) when missing or `"*"`. Docker compose runs plain uvicorn (`backend/Dockerfile` CMD) and is unaffected.
+- **How to prevent**: Trust of the forwarded header is an allowlist gate at startup; never a `"*"` default behind any edge.
+
+### L-AUD-6. Initialize coroutine-local handles before any await; declare globals before writing them
+- **What**: `_run_real_lifespan()` created `pump` after `await asyncio.to_thread(...)` and reset the module-level `_last_heartbeat` in `finally` without a `global` declaration.
+- **Fix applied**: `pump = None` before any await/task creation; cleanup guards `if pump is not None: pump.cancel()`; `global _last_heartbeat` declared before the cleanup write.
+- **How to prevent**: Any variable cancelled/written in `finally` of a coroutine is initialized at the top and declared global if module-level.
+
+### L-AUD-7. Mocked async stage methods need explicit return values to exercise the intended code path
+- **What**: `stage._detect_distress = AsyncMock()` returned a bare MagicMock, so the no-distress trend path in `test_persistent_distress_checks_trend_without_a_new_keyword` never truly ran.
+- **Fix applied**: `AsyncMock(return_value=DistressAssessment(level=DistressLevel.NONE, confidence=0.0, detected_signals=[], recommended_response_type="normal"))` — level.value (0) is below the 2 trigger threshold.
+- **How to prevent**: When mocking a method the test claims to exercise, return a typed, in-domain value; bare MagicMocks hide path bugs.
+
+### L-AUD-8. Key-builder helpers must be mock-proof
+- **What**: `_assistant_config_fingerprint` joined raw attrs — a MagicMock `assistant` (unit tests) raised `TypeError: expected str instance, MagicMock found`.
+- **Fix applied**: isinstance guards — non-str slug/prompt/`knowledge_tags` entries degrade to `""`; never raise.
+- **How to prevent**: Helpers that digest untrusted/typed attributes use isinstance coercion, not truthiness (`MagicMock()` is truthy).
+
+### L-AUD-9. Portable tool paths and doc wording: `$HYPERRESEARCH_BIN`, Self-RAG margin, local-only speech inventory
+- **What**: CLAUDE.md hardcoded a machine-specific absolute hyperresearch path (34 occurrences); SPEC_DEV.md said the 2× margin "cannot absorb a leg going to zero" (ambiguous); subsystem-inventory.md presented Sarvam Cloud STT/TTS/translate as the default despite the root local-inference policy.
+- **Fix applied**: `$HYPERRESEARCH_BIN` env var (repository-relative resolution documented); SPEC_DEV.md now names "Self-RAG detection effectiveness going to zero"; the inventory documents local Whisper STT as approved and flags Sarvam Cloud TTS/translate as unapproved (no granted exception) with the gap called out.
+- **How to prevent**: Docs reference portable env vars, name the exact failure mode, and never present unapproved external calls as the default.
+
 ## Aug 10, 2026 — Parallel Fix Sprint: Atomic Rate Limiting, Transient Retries, NDCG Robustness, Ops Script Hardening
 
 ### L-PAR-1. Distributed rate-limit decisions must be ONE Redis Lua script, not pipeline + re-reads
@@ -90,6 +137,61 @@
 - **Fix applied**: Teardown loop iterates `(_ADMIN_RATE_LIMITER, getattr(_, "_fallback", None))` and clears BOTH `_store` (TTL shape) and `_attempts` (backoff shape), then flushes `rl:*` Redis keys. 92 passed in BOTH no-Redis and Redis modes.
 - **How to prevent**: When resetting a limiter fixture, enumerate the in-memory state attr per class: `TTLRateLimiter._store`, `ExponentialBackoffRateLimiter._attempts`, `RedisBackedRateLimiter._fallback.<shape>`. Assert on the limiter's mode first, then clear the right dict.
 - **Pre-existing (NOT from this fix)**: `test_testauth_not_registered_in_prod.py::test_benchmark_identity_uses_nil_uuid_sentinel` fails regardless of Redis mode — `.env` `BENCHMARK_SECRET` shadows the test's `patch.dict(os.environ)` because `app.config.settings` is a singleton loaded once at import; the patched env never reaches it. File untouched by this work; documented only.
+
+### L-PAR-19. Coalescers must round-trip result TYPES, not JSON shapes — followers need the same object the leader got
+- **What**: `RedisCoalescer._run_as_leader` stored `json.dumps(result, default=str)` — for a frozen dataclass (`PipelineResult`) that wrote the dataclass's `__repr__` STRING, so a follower's `json.loads` returned a string and `chat_engine` attribute access (`final_answer`, `citations`…) crashed with AttributeError. The in-memory coalescer shared the real object, so the leader path worked and the Redis path was silently broken in multi-worker deployments.
+- **Fix applied**: Type-marked envelope `{"__coalescer_type__": "PipelineResult", "data": dataclasses.asdict(result)}`; follower reconstructs `PipelineResult(**data)` with a lazy import (avoids import cycles). Marker is mandatory — `graph_stage` feeds GraphState DICTS with the same key names through the same coalescer; a naive `PipelineResult(**dict)` would corrupt them. All 33 PipelineResult fields verified JSON-safe (str/int/float/bool/list/dict/None).
+- **How to prevent**: When serializing shared-state results for a cache/coalescer, the follower must reconstruct the SAME Python type, not a JSON-equivalent; add an explicit type marker whenever the payload key-names could collide with another type's fields.
+
+### L-PAR-20. Stream failure ≠ completion: drain writers must write a distinct ERROR marker end-to-end (drain → queue → SSE)
+- **What**: When the pipeline task failed mid-stream, `_drain_stream_to_redis` wrote the same `__COMPLETE__` marker it writes on success — the queue worker then marked the job COMPLETE and the SSE consumer emitted a normal end-of-stream; users saw a truncated answer with no error. One marker for two meanings erased the failure.
+- **Fix applied**: Drain writes `__ERROR__` when `pipeline_task.done() and not cancelled and exception()`; worker logs, drains, and RE-RAISES so `_process_job` marks the job FAILED; SSE consumer yields `event: error` on `__ERROR__`. Success path byte-identical.
+- **How to prevent**: Any sentinel that ends a stream/channel must encode its outcome, not just its terminality; assert the terminal marker distinguishes success/error in every consumer.
+
+### L-PAR-21. Warm-up canaries must set the health/readiness signal on failure, not just log
+- **What**: The embedding-dimension warm-up canary logged ERROR on mismatch but left `startup_complete=True` — `/api/health` reported ready while Qdrant dense search was guaranteed to fail (the Jul 16 dimension-drift incident, recurring).
+- **Fix applied**: On mismatch, `main.py` also sets `_app_deps.startup_error = "Embedding dimension mismatch: …"`; `health.py:58` already surfaces `startup_error`. Success path unchanged.
+- **How to prevent**: Startup validation failures must write the shared readiness signal (`startup_error`/`startup_complete`), never only a log line; the health endpoint is the only consumer ops watches.
+
+### L-PAR-22. Per-request personalization probes must not block the stage chain — compute the flag before stages run, with a bounded timeout
+- **What**: `CacheCheckStage` needed to know whether the request is personalization-eligible before deciding shared-cache reuse, but the old approach gated it on `ctx.state.memory_context` — populated only AFTER the memory stage ran, so cache checks ran before the flag existed and the CacheUpdate guard could strand stale shared entries.
+- **Fix applied**: `PipelineContext.personalization_eligible: bool = False` (mutable dataclass) populated in `PipelineCoordinator.execute()` BEFORE stage execution via `_compute_personalization_eligible`: anonymous/non-persistable → False fast path; otherwise a bounded probe `asyncio.wait_for(_probe_has_memory(...), 0.200)` reusing `user_profile.get_recent_memories(limit=1)` + `memory_service.get_core`. Exception/timeout → True (conservative: never serve a shared answer to someone with memories). State-based `memory_context` check kept as a fallback so `test_cache_tenant_isolation.py` stays green.
+- **How to prevent**: Request-scoped flags that stages need must be computed in the coordinator before the stage chain, never lazily inside the stage that first needs them; probes carry a hard timeout and fail OPEN to the conservative branch.
+
+### L-PAR-23. Key-rotation on 429 must capture (index, key) atomically — header and bookkeeping must always agree
+- **What**: `sarvam_http` rotated `_key_index`/`_api_key` under `_key_lock` but read them for the `api-subscription-key` header and `_tried_key_indices` bookkeeping OUTSIDE the lock — a concurrent caller's rotation between capture and use desynced the header from the recorded index: keys skipped, double-tried, or a 429 storm spinning.
+- **Fix applied**: Attempt start captures `(index, key)` under the lock and seeds BOTH header and `_tried_key_indices` from the capture; `_rotate_api_key` now returns the `(new_index, new_key)` pair and the 429 branch uses only the returned values. Header value and recorded index are self-consistent for every request.
+- **How to prevent**: When a lock protects a rotation, everything derived from the rotated state (headers, bookkeeping, exhaustion checks) must come from values captured under the same lock acquisition — never re-read the mutable fields after release.
+
+### L-PAR-24. Throttle shrink via a RETAINED permit, never a semaphore acquire inside the lock
+- **What**: `AdaptiveConcurrencyThrottle.record_outcome` held `_lock` and `await self._semaphore.acquire()` on the shrink path — if all permits were held by failing workers, the acquire blocked while holding `_lock`; every finishing worker blocked on `_lock`; permits never released; deadlock. It also consumed a NEW permit instead of retiring the caller's own.
+- **Fix applied**: `record_outcome(success, holds_permit=True) -> bool` never awaits; the shrink is realized by the CALLER keeping its own permit (`retain_permit=True` → skip `release()`), so the pool stays pinned at the reduced level with zero semaphore interaction. Permitless callers (`holds_permit=False`, the no-video branch) never shrink — the flag guards against leaking a permit they don't hold.
+- **How to prevent**: Never await inside a lock; pool reduction = retire the calling worker's own permit, not acquire a new one; a permitless caller can never "retain".
+
+### L-PAR-25. Test teardown sweeps on shared datastores need a test-target guard
+- **What**: `test_p1_sec1_admin_aal2.py` teardown `scan_iter("rl:*")`-deleted keys on whatever Redis the limiter pointed at, with a comment claiming it could only touch "keys that exist in the test process" — false: SCAN matches keys from ANY process on that Redis (a running dev backend, another suite).
+- **Fix applied**: Sweep only when the connection is a test target — `connection_kwargs` db index >= 1 OR host ∈ {localhost, 127.0.0.1, ::1}; otherwise skip with a debug log. Comment rewritten to state the real bound: namespace-only, window-only, may touch other processes on a shared test Redis.
+- **How to prevent**: Any fixture that deletes from a datastore must inspect the connection config first and refuse non-test targets; comments must describe the ACTUAL blast radius, not the hoped-for one.
+
+### L-PAR-26. Integration-style auth tests must patch the settings singleton in the SAME way as their success-twin
+- **What**: `test_auth_bridge_rejects_wrong_key_when_registered` patched env + reloaded the auth module but never patched `settings` — the success test did (`saved = (settings.is_production, settings.enable_test_auth, settings.benchmark_secret)`; restore in finally). Without it, `is_benchmark_request` read stale singleton state (e.g. no secret), so the 401 could come from "not registered" instead of "wrong key" — the test asserted the wrong thing.
+- **Fix applied**: Wrong-key test now mirrors the success test exactly: env patch + module reload + settings save/restore around the assertion.
+- **How to prevent**: When a test family patches a singleton config object, every member of the family must patch it identically — a rejection test that can pass for the wrong reason is worse than no test.
+
+### L-PAR-27. NDCG@k: apply the k cutoff BEFORE dedup
+- **What**: `ndcg_at_k` deduped `ranked_sources` first, then sliced `[:k]` — duplicates in the raw ranking shrank the measured list below k, distorting DCG-vs-IDCG comparison.
+- **Fix applied**: Slice first (`ranked_sources[:k]`), then dedup the top-k slice. Same for `relevant_sources` dedup. DCG formula unchanged.
+- **How to prevent**: Eval cutoffs describe the retrieved list; apply the cutoff to the raw ranking, then clean the slice — never the reverse.
+
+### L-PAR-28. Ops scripts fail CLOSED on config and validate remote-derived names on EVERY path that uses them
+- **What**: `qdrant_backup.py`: `RETAIN_LOCAL_DAYS`/`RETAIN_S3_DAYS` parsed with no lower bound — 0/negative would delete all backups on first run; `delete_remote_snapshot` interpolated the snapshot name into the REST path unvalidated while `download_snapshot` had full validation (a name with `/` could traverse).
+- **Fix applied**: Retention parsed at the config boundary, `int >= 1` else error + `exit(1)` (fail-closed, no silent default); `_validate_snapshot_name()` extracted and reused by download AND delete; delete path URL-encodes with `quote(name, safe="")`.
+- **How to prevent**: Deletion configs validate lower bounds before any delete; name validation extracted to one helper and applied at EVERY remote-name touchpoint, not just the first one discovered.
+
+### L-PAR-29. Bearer credentials must never ride plaintext HTTP — key-bearing paths need scheme+host gating
+- **What**: `run_ragas_eval.py` sent `Authorization: Bearer <SUPABASE_JWT>` whenever the test key wasn't allowed — including `http://` non-local hosts, leaking a JWT over cleartext.
+- **Fix applied**: Bearer header only when `scheme == "https"` OR host ∈ LOCAL_HOSTS; plaintext non-local with no valid test key → error + exit(1) (matches the file's existing auth-failure pattern).
+- **How to prevent**: Any client that can attach credentials must gate them on scheme+host (https-or-loopback), the same rule L-PAR-6 codifies for urllib clients.
 
 ## Aug 10, 2026 — K3 Audit Phase 2: CODE-1 Bulk Elimination + Security Utils Testability
 

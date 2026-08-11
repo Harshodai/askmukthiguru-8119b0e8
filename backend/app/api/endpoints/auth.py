@@ -2,9 +2,22 @@ from fastapi import APIRouter, HTTPException
 
 from app.config import settings
 from schemas.user import UserCreate, UserRead, UserUpdate
-from services.auth_service import auth_backend, fastapi_users
+from services.auth_service import auth_backend, fastapi_users, issue_anon_session_token
 
 router = APIRouter()
+
+
+@router.post("/anon-session", tags=["auth"])
+async def anon_session():
+    """M5: Issue a server-side signed anonymous session token.
+
+    Returns ``{"session_id": "anon:<id>", "token": "<payload>.<sig>"}``. The
+    client echoes ``token`` back as the ``X-Session-Id`` header (or
+    ``session_id`` body field on POST) so resolve_anon_identity() can verify
+    the HMAC and derive a per-session identity. Unsigned/tampered tokens are
+    rejected with 400 at the resolve step.
+    """
+    return issue_anon_session_token()
 
 router.include_router(
     fastapi_users.get_auth_router(auth_backend),

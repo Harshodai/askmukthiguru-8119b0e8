@@ -15,15 +15,36 @@ the auth dependency in the endpoint instead.
 from __future__ import annotations
 
 import inspect
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 
 from services.auth_service import (
     get_current_user_from_supabase,
     get_optional_user,
     require_aal2,
 )
+
+
+def _mock_request(session_id: str | None = None):
+    """Minimal Request stand-in exposing only headers.get('X-Session-Id')."""
+    req = MagicMock()
+    req.headers.get.side_effect = lambda key, default=None: (
+        session_id if key == "X-Session-Id" else default
+    )
+    return req
+
+
+def _mock_container(job_owner: str | None):
+    """Container whose job_queue.get_job returns a job owned by ``job_owner``
+    (or None to simulate a missing job). cancel_job always succeeds."""
+    container = MagicMock()
+    container.job_queue = MagicMock()
+    job = {"user_id": job_owner, "id": "job1"} if job_owner is not None else None
+    container.job_queue.get_job = AsyncMock(return_value=job)
+    container.job_queue.cancel_job = AsyncMock(return_value=True)
+    return container
 
 
 def _dependency_names(func) -> set[str]:
@@ -67,40 +88,95 @@ def _requires_identity(func) -> bool:
 # --- Individual endpoint guards ---------------------------------------------
 
 
-def test_chat_stream_poll_requires_auth():
+@pytest.mark.asyncio
+async def test_chat_stream_poll_enforces_ownership():
+    """Behavioral IDOR guard for GET /api/chat/stream/{job_id}: a non-owner gets
+    404 (no existence disclosure), an unscoped anonymous caller gets 400, and two
+    anonymous sessions are isolated. All denial branches raise before any Redis
+    I/O, so no live infra is needed to assert them.
+
+    Replaces the old inspect.getsource() substring checks, which passed for any
+    handler that merely mentioned "user_id"/"resolve_anon_identity" in its source
+    without actually enforcing ownership.
+    """
     from app.api.chat import chat_stream_poll
-    assert _requires_identity(chat_stream_poll), (
-        "REGRESSION: chat_stream_poll must Depend on get_current_user_from_supabase "
-        "or get_optional_user, and verify job.user_id == user.id (IDOR fix)."
-    )
-    src = inspect.getsource(chat_stream_poll)
-    assert "user_id" in src and "get_job" in src, (
-        "chat_stream_poll must fetch job metadata and compare user_id before streaming."
-    )
-    if get_current_user_from_supabase.__name__ not in _dependency_names(chat_stream_poll):
-        assert "resolve_anon_identity" in src, (
-            "chat_stream_poll uses get_optional_user (anonymous allowed) but doesn't call "
-            "resolve_anon_identity() — every anonymous caller would share user_id='anonymous', "
-            "reopening the IDOR (any incognito user could poll any other's job)."
+
+    # Cheap wiring guard (signature inspection, not source-grep).
+    assert _requires_identity(chat_stream_poll)
+
+    container = _mock_container(job_owner="usr_A")
+
+    # Authenticated non-owner -> 404.
+    with pytest.raises(HTTPException) as exc:
+        await chat_stream_poll("job1", _mock_request(), container=container, user={"id": "usr_B"})
+    assert exc.value.status_code == 404
+
+    # Anonymous with no session id -> 400 (unscoped identity rejected).
+    with pytest.raises(HTTPException) as exc:
+        await chat_stream_poll(
+            "job1", _mock_request(session_id=None), container=container,
+            user={"id": "anonymous", "is_anonymous": True},
         )
+    assert exc.value.status_code == 400
+
+    # Anonymous session isolation: caller in session anon:s2 cannot read anon:s1's job.
+    # Uses the bare "anon:<id>" form — the dev/test escape hatch (IS_PRODUCTION=false).
+    # In production the only sanctioned path is the signed token from
+    # POST /api/auth/anon-session; see test_anon_session_signed.py.
+    anon_container = _mock_container(job_owner="anon:s1")
+    with pytest.raises(HTTPException) as exc:
+        await chat_stream_poll(
+            "job1", _mock_request(session_id="anon:s2"), container=anon_container,
+            user={"id": "anonymous", "is_anonymous": True},
+        )
+    assert exc.value.status_code == 404
+    # TODO: the owner-match success path streams from Redis (aioredis.from_url) and
+    # needs a live Redis to assert the 200/SSE branch — only denials covered here.
 
 
-def test_job_routes_require_auth_and_ownership():
+@pytest.mark.asyncio
+async def test_job_routes_enforce_ownership():
+    """Behavioral IDOR guard for GET/DELETE /api/jobs/{job_id}: the owner succeeds,
+    a non-owner gets 404, an unscoped anonymous caller gets 400, and anonymous
+    sessions are isolated. get_job/cancel_job are fully driveable with mocks (no
+    external infra), so both allow and deny branches are asserted directly.
+
+    Replaces the old inspect.getsource() substring checks."""
     from app.api.job_routes import cancel_job, get_job
+
     for fn in (get_job, cancel_job):
-        assert _requires_identity(fn), (
-            f"REGRESSION: {fn.__name__} must Depend on get_current_user_from_supabase "
-            f"or get_optional_user (IDOR fix)."
-        )
-        src = inspect.getsource(fn)
-        assert "user_id" in src, (
-            f"{fn.__name__} must compare job.user_id to authenticated user."
-        )
-        if get_current_user_from_supabase.__name__ not in _dependency_names(fn):
-            assert "resolve_anon_identity" in src, (
-                f"{fn.__name__} uses get_optional_user but doesn't call resolve_anon_identity() "
-                f"— reopens the anonymous-id-collision IDOR."
+        assert _requires_identity(fn)
+
+        container = _mock_container(job_owner="usr_A")
+
+        # Owner -> success (get_job returns the job; cancel_job returns a status dict).
+        result = await fn("job1", _mock_request(), container=container, user={"id": "usr_A"})
+        assert result is not None
+
+        # Authenticated non-owner -> 404.
+        with pytest.raises(HTTPException) as exc:
+            await fn("job1", _mock_request(), container=container, user={"id": "usr_B"})
+        assert exc.value.status_code == 404, fn.__name__
+
+        # Unscoped anonymous -> 400.
+        with pytest.raises(HTTPException) as exc:
+            await fn(
+                "job1", _mock_request(session_id=None), container=container,
+                user={"id": "anonymous", "is_anonymous": True},
             )
+        assert exc.value.status_code == 400, fn.__name__
+
+        # Anonymous session isolation: session anon:s2 cannot touch anon:s1's job.
+        # Uses the bare "anon:<id>" form — the dev/test escape hatch
+        # (IS_PRODUCTION=false). In production the sanctioned path is the
+        # signed token; see test_anon_session_signed.py.
+        anon_container = _mock_container(job_owner="anon:s1")
+        with pytest.raises(HTTPException) as exc:
+            await fn(
+                "job1", _mock_request(session_id="anon:s2"), container=anon_container,
+                user={"id": "anonymous", "is_anonymous": True},
+            )
+        assert exc.value.status_code == 404, fn.__name__
 
 
 def test_concept_graph_requires_admin():

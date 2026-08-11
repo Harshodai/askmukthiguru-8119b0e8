@@ -11,7 +11,7 @@ from rag.nodes.verification import reflect_on_answer, verify_answer
 async def test_reflect_on_answer_caches_lettuce_detect(monkeypatch):
     # Mock LettuceDetect
     mock_ld = MagicMock()
-    mock_ld.score_faithfulness = MagicMock(return_value={"score": 0.9, "sentences": []})
+    mock_ld.score_faithfulness = MagicMock(return_value={"is_faithful": True, "score": 0.9, "sentences": []})
     
     with patch("rag.nodes._services._lettuce_detect", mock_ld):
         state = {

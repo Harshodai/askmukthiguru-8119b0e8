@@ -504,6 +504,9 @@ async def chat_stream_poll(
                         if data == "__COMPLETE__":
                             yield "event: done\ndata: {}\n\n"
                             return
+                        if data == "__ERROR__":
+                            yield "event: error\ndata: Pipeline failed\n\n"
+                            return
                         try:
                             parsed = json.loads(data)
                             if isinstance(parsed, dict):

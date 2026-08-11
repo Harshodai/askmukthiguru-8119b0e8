@@ -12,10 +12,10 @@ A **privacy-first, zero-hallucination AI spiritual guide** grounded exclusively 
 |------------|-------|
 | Budget | $0 — Free tier only (Colab, Qdrant local, Ollama) |
 | Hardware | Google Colab T4 (16GB VRAM) / Local HP Victus (4GB VRAM fallback) |
-| Privacy | All processing local or user-controlled. Zero external API calls at inference. |
-| Accuracy | Near-zero hallucination target (< 1%) via multi-layer verification (CRAG + Self-RAG + CoVe). When unsure → "I don't know" (see Hallucination Measurement below) |
+| Privacy | All processing local or user-controlled. Zero external API calls at inference. (Ingestion is the one exception: the web-article scrape tier calls the external Jina Reader service `r.jina.ai` as its primary fetcher, with BeautifulSoup as the local fallback — see `backend/ingest/web_scraper.py`.) |
+| Accuracy | Hallucination target **aspirational, unverified** — see the CORRECTED Result under Hallucination Measurement (the Self-RAG leg is disabled; compounded rate is 1.5–6.0%, not <1%). When unsure → "I don't know" |
 | License | Every dependency must be open source (Apache 2.0, MIT, or Meta Community) |
-| Latency | < 3 seconds per response (happy path) |
+| Latency | < 3s is **not the real ceiling** (`generate_answer` has a 90s min timeout). Publish TTFT p90 + end-to-end p90 per path — see Hallucination Measurement correction |
 | Data Source | Only Sri Preethaji & Sri Krishnaji's YouTube videos + approved images (see Content Permissions below) |
 
 ## What We Are Building (v1)
@@ -59,8 +59,8 @@ A **privacy-first, zero-hallucination AI spiritual guide** grounded exclusively 
 ## Success Criteria
 | Metric | Target |
 |--------|--------|
-| Hallucination rate | < 1% (with "I don't know" fallback — see below) |
-| Response time | < 3 seconds |
+| Hallucination rate | Target < 1% — **unverified/unmeasured**; corrected estimate 1.5–6.0% (see below) |
+| Response time | < 3s aspirational; measure TTFT p90 + end-to-end p90 per path (see below) |
 | Distress detection accuracy | > 90% |
 | Meditation completion rate | > 70% |
 | Video indexing time | < 15 minutes |
@@ -99,7 +99,38 @@ P(hallucination reaches user) = P(CRAG miss) × P(Self-RAG miss) × P(CoVe miss)
 P(hallucination) = 0.10 × 0.05 × 0.15 = 0.000750 = 0.075%
 ```
 
-**Result**: With the above per-component thresholds, the theoretical compounded hallucination rate is **~0.075%**, well under the < 1% target. Even with 2× worse real-world performance on each layer (20%, 10%, 30%), the compound rate is `0.20 × 0.10 × 0.30 = 0.60%` — still under 1%.
+**Result (CORRECTED 2026-08-10 — the original claim below does not hold):**
+
+The derivation assumed a 5% Self-RAG miss rate, but the Self-RAG (LLM
+self-consistency) layer is disabled in code — `consistency_check_passed` is
+hardcoded `True` (`rag/nodes/verification.py`), so its real miss rate is
+**1.0, not 0.05**. With one leg at 1.0 the product cannot beat its other two
+legs:
+
+```
+optimistic:  0.10 × 1.00 × 0.15 = 1.5%
+pessimistic: 0.20 × 1.00 × 0.30 = 6.0%   (2× degradation margin)
+```
+
+Both exceed the < 1% target. The 2× margin cannot absorb Self-RAG detection
+effectiveness going to zero (a 1.0 miss rate means the layer never catches a
+hallucination, so the product collapses to the other two layers).
+Faithfulness verification today rests on LettuceDetect + CoVe (tier-gated), not
+the three-layer product this math assumed.
+
+**Status of the two headline numbers:**
+- **Hallucination < 1%** — NOT substantiated. It has never been measured against
+  human labels (the weekly Wilson-interval sampling below has no evidence of
+  running), and the only automated signal is computed by the component under test.
+  Treat as an aspiration, not a claim, until measured.
+- **Latency < 3s** — NOT the real ceiling. `generate_answer` alone carries a 90s
+  minimum timeout under the default provider (`rag/timeout_utils.py`). Publish
+  **TTFT p90** and **end-to-end p90 per path** (fast / standard / deep) instead of
+  one blended figure.
+
+*Original (unsubstantiated) claim, kept for provenance:* with per-component
+thresholds 10%/5%/15% the compounded rate would be ~0.075%, and at 2× degradation
+0.60% — but this depends on the Self-RAG leg that is disabled.
 
 ## Tech Stack (Locked)
 | Layer | Tool | Reason |

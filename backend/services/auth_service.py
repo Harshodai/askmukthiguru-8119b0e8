@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
+import hmac
 import logging
+import secrets
 import time
 import uuid
 from abc import ABC, abstractmethod
@@ -614,22 +618,113 @@ async def get_optional_user(
         return {"id": "anonymous", "email": None, "is_anonymous": True}
 
 
+# --- M5: Server-side signed anonymous session tokens -------------------------
+#
+# Anonymous identity is no longer client-asserted. The server issues a signed
+# token at POST /api/auth/anon-session; the client echoes it back via
+# X-Session-Id (header) or session_id (POST body). resolve_anon_identity()
+# verifies the HMAC and rejects unsigned/tampered tokens in production.
+#
+# Token format:  <base64url(payload16)>.<base64url(hmac_sha256(payload))>
+# Storage identity: anon:<base64url(payload)>   (the existing "anon:" prefix)
+#
+# Invariant L-K3-1: all secret comparisons use hmac.compare_digest — never ==.
+
+
+def _anon_hmac_key() -> bytes:
+    """Return the HMAC key bytes for anonymous session tokens.
+
+    settings.anon_session_hmac_secret is guaranteed non-empty by the config
+    validator (validate_anon_session_secret): in production it must be set
+    explicitly; in dev it falls back to a value derived from jwt_secret.
+    """
+    secret = getattr(settings, "anon_session_hmac_secret", None) or ""
+    if not secret:
+        # Defensive: should never trigger because the config validator
+        # populates the value, but fail-closed rather than silently use "".
+        raise RuntimeError("anon_session_hmac_secret is not configured")
+    return secret.encode("utf-8")
+
+
+def issue_anon_session_token() -> dict:
+    """Mint a fresh anonymous session token (server-side issuance).
+
+    Returns ``{"session_id": "anon:<id>", "token": "<id>.<sig>"}`` where
+    ``<id>`` is base64url(16 random bytes) from secrets.token_urlsafe.
+    """
+    payload = secrets.token_urlsafe(16)  # ~128 bits of entropy
+    sig = hmac.new(_anon_hmac_key(), payload.encode("utf-8"), hashlib.sha256).digest()
+    sig_b64 = base64.urlsafe_b64encode(sig).rstrip(b"=").decode("ascii")
+    token = f"{payload}.{sig_b64}"
+    return {"session_id": f"anon:{payload}", "token": token}
+
+
+def verify_anon_session_token(token: str) -> str:
+    """Verify a signed anonymous session token and return the ``anon:<id>`` identity.
+
+    Raises HTTPException(400) on any malformation or signature mismatch.
+    Constant-time compare via hmac.compare_digest (invariant L-K3-1).
+    """
+    if not token or "." not in token:
+        raise HTTPException(status_code=400, detail="Invalid anonymous session token")
+    payload, _, sig_b64 = token.partition(".")
+    if not payload or not sig_b64:
+        raise HTTPException(status_code=400, detail="Invalid anonymous session token")
+    expected = hmac.new(_anon_hmac_key(), payload.encode("utf-8"), hashlib.sha256).digest()
+    # sig_b64 is base64url WITHOUT padding (we strip it at issue time), so
+    # re-pad before decoding to recover the raw 32 bytes.
+    pad = "=" * (-len(sig_b64) % 4)
+    try:
+        provided = base64.urlsafe_b64decode(sig_b64 + pad)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid anonymous session token")
+    if not hmac.compare_digest(expected, provided):
+        raise HTTPException(status_code=400, detail="Invalid anonymous session token")
+    return f"anon:{payload}"
+
+
 def resolve_anon_identity(user: dict, session_id: str | None) -> dict:
     """Derive a per-session identity for anonymous (incognito) users.
 
     Without this, every incognito user shares user_id="anonymous", which breaks
-    job ownership isolation and telemetry granularity. The frontend already
-    generates a crypto.randomUUID() per conversation (chatStorage.ts) and sends
-    it as session_id in the request body (POST) or X-Session-Id header (GET),
-    so we use it to namespace the anonymous identity. Authenticated users are
-    returned unchanged.
+    job ownership isolation and telemetry granularity. The frontend obtains a
+    server-signed token from POST /api/auth/anon-session and echoes it back as
+    session_id in the request body (POST) or X-Session-Id header (GET).
+
+    M5: ``session_id`` is now the signed token form ``<payload>.<sig>``. We
+    verify the HMAC and rewrite the user id to ``anon:<payload>``. Tampered or
+    unsigned tokens are rejected with 400. In non-production (dev/test), the
+    bare ``anon:<id>`` form is still accepted as an escape hatch so legacy
+    tests that fabricate identities directly keep working.
+
+    Authenticated users are returned unchanged.
     """
     if not user or not user.get("is_anonymous"):
         return user
     sid = (session_id or "").strip()
     if not sid:
         return user
-    return {**user, "id": f"anon:{sid}"}
+
+    # Signed token path: "<payload>.<sig>".
+    if "." in sid:
+        anon_id = verify_anon_session_token(sid)
+        return {**user, "id": anon_id}
+
+    # Bare "anon:<id>" path — dev/test escape hatch ONLY. In production a
+    # caller supplying an unsigned id is rejected: anyone could otherwise
+    # claim a victim's identity by asserting their session id verbatim.
+    if sid.startswith("anon:"):
+        if getattr(settings, "is_production", True):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid anonymous session token",
+            )
+        return {**user, "id": sid}
+
+    # Anything else (legacy raw session ids without the anon: prefix) —
+    # reject in production, also reject in dev to avoid silently widening
+    # the accepted shape. The signed-token flow is the only sanctioned path.
+    raise HTTPException(status_code=400, detail="Invalid anonymous session token")
 
 
 def require_scoped_identity(user: dict) -> None:

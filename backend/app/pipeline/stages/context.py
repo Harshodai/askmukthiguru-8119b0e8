@@ -44,6 +44,18 @@ class PipelineContext:
     stable_session_id: str = "anonymous"
     chat_body_messages: list = field(default_factory=list)
 
+    # Set by coordinator.execute() BEFORE the stage chain runs — CacheCheckStage
+    # is stage #1 while state.memory_context is only built later by
+    # RequestStateStage, so the cache guards must read this flag, not ctx.state.
+    personalization_eligible: bool = False
+
+    # Set by coordinator.execute() BEFORE the stage chain runs: True when the
+    # request carries client-supplied assistant configuration (slug /
+    # system_prompt / knowledge_tags). There is no server-side persona registry
+    # to validate it against, so the shared caches must not read or write for
+    # these requests — a stale cross-config answer must never be replayed.
+    assistant_config_present: bool = False
+
     # --- Working state (mutated by stages) ---
     state: dict = field(default_factory=dict)
     cached_result: PipelineResult | None = None

@@ -392,14 +392,33 @@ class EmbeddingService:
                         self._load_encoder(model_name, device)
                         logger.info(f"Recovered '{model_name}' after clearing HF cache")
 
-                    model_dim = (
-                        required_dim
-                        if model_name == settings.embedding_model
-                        else FALLBACK_DIMS.get(model_name)
-                    )
-                    if model_dim != required_dim:
+                    # S7: ask the LOADED encoder its real output dimension rather
+                    # than trusting config for the primary. The old check set
+                    # model_dim = required_dim for the primary — comparing a value
+                    # to itself — so a primary that loaded at the wrong size (bad
+                    # revision, partial cache, swapped artifact) passed cleanly
+                    # while every dense search 400s. That is the 2026-07-16 residual.
+                    actual_dim = None
+                    enc = self._encoder
+                    if enc is not None and hasattr(enc, "get_sentence_embedding_dimension"):
+                        try:
+                            _d = enc.get_sentence_embedding_dimension()
+                            # Only trust a concrete int (a real encoder). A mock or
+                            # odd return falls back to the declared-dim behavior.
+                            actual_dim = int(_d) if isinstance(_d, int) else None
+                        except Exception:
+                            actual_dim = None
+                    if actual_dim is None:
+                        # Encoders that don't expose the accessor (ONNX/other) keep
+                        # the declared-dimension behavior.
+                        actual_dim = (
+                            required_dim
+                            if model_name == settings.embedding_model
+                            else FALLBACK_DIMS.get(model_name)
+                        )
+                    if actual_dim != required_dim:
                         raise ValueError(
-                            f"'{model_name}' is {model_dim}-dim, Qdrant collection is "
+                            f"'{model_name}' loaded at {actual_dim}-dim, Qdrant collection is "
                             f"{required_dim}-dim — refusing silent dimension swap"
                         )
 

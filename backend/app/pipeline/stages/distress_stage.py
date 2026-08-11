@@ -98,19 +98,20 @@ class DistressStage(Stage):
         has_indic_keyword = bool(_INDIC_CRISIS_KEYWORD_RE.search(raw))
         ctx.has_distress_keywords = has_en_keyword or has_indic_keyword
 
-        # ponytail: distress-keyword pre-screen from execute() verbatim
-        if ctx.has_distress_keywords:
-            assessment = await self._detect_distress(ctx, user_msg_en, state)
-        else:
-            assessment = None
+        # Assess unconditionally. Keyword-gating this let question-framed
+        # ideation ("how do i stop wanting to die") skip detection entirely —
+        # the pre-screen regex misses it exactly as the crisis phrasings did.
+        # assess_distress is pure regex (<1ms), so running it every turn is cheap.
+        assessment = await self._detect_distress(ctx, user_msg_en, state)
         ctx.assessment = assessment
 
-        # ponytail: proactive Serene Mind block from execute() verbatim
-        # Check an already-distressed conversation even when its latest turn
-        # uses no keyword. This avoids dropping a persistent trend while
-        # keeping expensive semantic detection keyword-gated.
+        # ponytail: proactive Serene Mind block from execute() verbatim.
+        # Trigger on a keyword hit, a persistent distress trend, OR a positive
+        # assessment this turn — so a crisis with no listed keyword still routes.
         proactive_data = None
-        if ctx.has_distress_keywords or state.get("distress_history"):
+        if ctx.has_distress_keywords or state.get("distress_history") or (
+            assessment and assessment.level.value >= 2
+        ):
             proactive_data = await self._maybe_trigger_proactive_serene_mind(
                 ctx, assessment, ctx.user_id, ctx.request, state
             )

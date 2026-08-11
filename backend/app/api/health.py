@@ -81,10 +81,27 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     # LLM
     await check("llm", container.ollama.health_check(), critical=True)
 
-    # Embedding
+    # Embedding — S7: functional probe. The old check (`_encoder is not None`)
+    # was presence, not function: a primary loaded at the wrong dimension passed
+    # it while every dense search 400s. Encode one token and verify the vector
+    # width equals the configured dimension (also warms a cold encoder).
     try:
-        embed_ok = container.embedding._encoder is not None
-        results["embedding"] = {"ok": embed_ok, "latency_ms": 0, "critical": True}
+        emb_svc = container.embedding
+
+        def _probe():
+            if hasattr(emb_svc, "encode_single_full"):
+                return emb_svc.encode_single_full("ok").get("dense")
+            r = emb_svc.encode("ok")
+            return r.get("dense") if isinstance(r, dict) else r
+
+        vec = await asyncio.wait_for(asyncio.to_thread(_probe), timeout=5.0)
+        dim = len(vec) if vec is not None else None
+        embed_ok = dim == settings.embedding_dimension
+        results["embedding"] = {
+            "ok": bool(embed_ok), "latency_ms": 0, "critical": True, "dim": dim,
+        }
+        if not embed_ok:
+            results["embedding"]["error"] = f"dim {dim} != configured {settings.embedding_dimension}"
     except Exception as exc:
         results["embedding"] = {"ok": False, "latency_ms": 0, "critical": True, "error": str(exc)[:200]}
 

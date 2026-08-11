@@ -73,31 +73,44 @@ def _clear_overrides():
             _lim._attempts.clear()
     _redis = getattr(_ADMIN_RATE_LIMITER, "_redis", None)
     if _redis is not None:
-        try:
-            # Scope teardown to keys written by this test's rate-limiter calls.
-            # The rate-limiter hashes keys via _rate_limit_key_digest; we cannot
-            # predict their exact digest, but we can bound deletion to the 'rl:*'
-            # namespace AND limit it to the keys that exist in the test process
-            # only by using SCAN with COUNT=100 and a strict match. In production
-            # the admin limiter uses a different Redis URL / db; in the test
-            # environment (or when the same Redis is shared) we accept that we
-            # might clear other tests' rl: keys — but we never touch non-rl: keys.
-            # A future improvement: configure _ADMIN_RATE_LIMITER to use
-            # db=15 (test-only db) so teardown can FLUSHDB safely.
-            keys_deleted = 0
-            for key in _redis.scan_iter("rl:*", count=100):
-                _redis.delete(key)
-                keys_deleted += 1
-            if keys_deleted:
-                import logging as _logging
-                _logging.getLogger(__name__).debug(
-                    "admin rate-limit teardown: removed %d rl:* key(s) from Redis", keys_deleted
-                )
-        except Exception as _e:
+        # Only sweep rl:* keys when Redis is clearly a test target. The
+        # limiter keys are shared state on whatever Redis the limiter points
+        # at; sweeping a remote/shared Redis would delete other processes'
+        # live rate-limit windows. Local dev and CI run against loopback
+        # (localhost/127.0.0.1/::1) or a non-default db index (>= 1); any
+        # other target (remote host on db 0, e.g. a prod Redis) is skipped.
+        _kwargs = getattr(getattr(_redis, "connection_pool", None), "connection_kwargs", {}) or {}
+        _host = str(_kwargs.get("host", "")).lower()
+        _db = int(_kwargs.get("db", 0) or 0)
+        if not (_db >= 1 or _host in ("localhost", "127.0.0.1", "::1")):
             import logging as _logging
             _logging.getLogger(__name__).debug(
-                "admin rate-limit Redis flush failed during teardown: %s", _e
+                "admin rate-limit teardown: skipped rl:* sweep (Redis not a test target: host=%r db=%d)",
+                _host,
+                _db,
             )
+        else:
+            try:
+                # Even on a test Redis the sweep is only bounded to the 'rl:*'
+                # namespace and to keys present during this window — keys from
+                # other processes sharing the same test Redis may also match.
+                # The rate-limiter hashes keys via _rate_limit_key_digest, so
+                # their exact digests cannot be predicted; SCAN over the
+                # namespace is the practical bound.
+                keys_deleted = 0
+                for key in _redis.scan_iter("rl:*", count=100):
+                    _redis.delete(key)
+                    keys_deleted += 1
+                if keys_deleted:
+                    import logging as _logging
+                    _logging.getLogger(__name__).debug(
+                        "admin rate-limit teardown: removed %d rl:* key(s) from Redis", keys_deleted
+                    )
+            except Exception as _e:
+                import logging as _logging
+                _logging.getLogger(__name__).debug(
+                    "admin rate-limit Redis flush failed during teardown: %s", _e
+                )
 
 
 # --- T2: service_role is not superuser for HTTP -----------------------------

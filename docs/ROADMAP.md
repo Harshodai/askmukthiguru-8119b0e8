@@ -163,6 +163,17 @@ requirements.txt (no deps)
 3. **Start work**: Move from Backlog to "In Progress", create branch
 4. **Ship**: Move from "In Progress" to "Completed" with ship date and branch/commit
 5. **Defer**: If blocked on infra, resources, or external decisions, move to "Deferred / Needs Planning" with reason and path forward
+## Completed (Aug 11, 2026) — 13-Fix Audit Remediation Batch
+
+- `$HYPERRESEARCH_BIN` replaces 34 machine-specific absolute paths in root CLAUDE.md (portable, repository-relative).
+- Cache + coalescer isolation for client-supplied assistant config (`assistant_config_present` guards; bounded SHA-256 fingerprint incl. M3 auth gate; raw prompt never in keys).
+- Sarvam gateway: base-URL validation (https + documented allowlist, keyed traffic only to `api.sarvam.ai`), `follow_redirects=False`, rotation skips already-tried indices (exhausted only when all keys excluded).
+- Removed 📚 long-answer auto-pass in `lettuce_detect_service.py` (faithfulness never short-circuits on formatting).
+- `start_railway.py` fail-fast on missing/wildcard `FORWARDED_ALLOW_IPS`; lifespan cleanup hardened (`pump=None` init, `global _last_heartbeat`).
+- Personalization-probe failures now DEBUG-log (user_id + exception) with conservative behavior preserved.
+- SPEC_DEV.md margin wording names Self-RAG detection; subsystem-inventory.md Speech section now reflects the local-only policy (Sarvam Cloud TTS/translate flagged unapproved, no granted exception).
+- Validation: 1565 backend tests pass; 2 pre-existing infra-dependent failures (Redis/Supabase not running locally).
+
 ## Completed (Jul 31, 2026) — Security + RLS + Metrics + Release Readiness Epic
 
 - AAL2/MFA regression E2E extended (`security-aal2.spec.ts`, `serviceWorkers: 'block'` fix) — 251 E2E green.
@@ -184,3 +195,6 @@ requirements.txt (no deps)
 - Evaluate late chunking (candidate B, §8.5) on the ONNX INT8 encoder, not the PyTorch fp32 baseline — quantization must not degrade the pooling behaviour late chunking depends on (`docs/engineering-notes/corpus-remediation-and-migration-plan.md`).
 - 3 pre-existing env-dependent test failures (all files unmodified): `test_graphrag_fusion::test_self_test` (execs `backend` — fails unless run from repo root), `test_quality_gate::test_playlist_complete` (needs live Celery broker), `test_ruthless_phase2::test_feedback_lessons_mining` (needs live Qdrant). Fix: run pytest from repo root and start infra, or mark them `@pytest.mark.integration`.
 - **Fixed 2026-08-01**: `tests/test_persona_store.py` (7 tests) — feature now implemented: `get_persona` returns `(content, updated_at)`, `save_persona` writes a real `updated_at`, `_is_persona_fresh` staleness gate (fail-open) wired into `prepare_user_memory` via new `persona_max_age_days` setting (default 30).
+- Set `FORWARDED_ALLOW_IPS` (e.g. `10.0.0.0/8`) on the Railway service before the next deploy — `start_railway.py` exits at startup without it (Railway currently paused). Docker compose (plain uvicorn) is unaffected.
+- No local TTS or local translation exist — unapproved Sarvam Cloud paths remain in `backend/app/api/speech.py` until either ships or an explicit exception is documented.
+- `test_quality_gate::test_playlist_complete` and `test_testauth_not_registered_in_prod` fail without live Redis + local Supabase — infra-dependent, pre-existing.

@@ -16,6 +16,7 @@ import os
 import re
 import time
 from typing import Optional
+from urllib.parse import urlparse
 
 from anyio import Lock as AsyncLock
 import httpx
@@ -24,6 +25,10 @@ from app.config import settings
 from services.sarvam_exceptions import CircuitOpenException, NonRetryableError, QuotaExceededError
 
 logger = logging.getLogger(__name__)
+
+# Documented Sarvam Cloud hosts allowed to receive the API subscription key.
+# Mirrors backend/scripts/verify_sarvam.py (SARVAM_EXPECTED_HOST).
+_SARVAM_ALLOWED_HOSTS = frozenset({"api.sarvam.ai"})
 
 try:
     from opentelemetry import trace
@@ -65,7 +70,14 @@ class SarvamHTTPGateway:
         self._key_index = 0
         self._key_lock = AsyncLock()
 
-        self._base_url = settings.sarvam_30b_endpoint or getattr(settings, "sarvam_base_url", "https://api.sarvam.ai/v1")
+        # Validate the endpoint BEFORE any credentialed client or header is
+        # constructed: the api-subscription-key must never leave for an
+        # unvalidated URL (scheme/https + documented allowlist host).
+        self._base_url = self._validate_base_url(
+            settings.sarvam_30b_endpoint
+            or getattr(settings, "sarvam_base_url", "https://api.sarvam.ai/v1"),
+            has_api_key=bool(self._api_key),
+        )
         self._timeout = getattr(settings, "llm_timeout", 60)
         self._max_retries = getattr(settings, "llm_max_retries", 3)
 
@@ -95,17 +107,55 @@ class SarvamHTTPGateway:
         else:
             logger.info(f"SarvamHTTPGateway ready — base_url={self._base_url}")
 
-    async def _rotate_api_key(self) -> bool:
-        """Rotate to the next API key in the comma-separated list.
-        Returns True if rotation succeeded, False if only one key available."""
+    @staticmethod
+    def _validate_base_url(base_url: str, *, has_api_key: bool) -> str:
+        """Validate the Sarvam endpoint before any credentialed client is built.
+
+        Keyed traffic is only ever sent to the documented Sarvam allowlist over
+        https (``_SARVAM_ALLOWED_HOSTS``, mirroring ``verify_sarvam.py``). An
+        unallowlisted host (documented self-hosted E2E endpoint) is accepted
+        ONLY when no API key is configured, so a credential can never be sent
+        to an unvalidated URL. Raises ValueError otherwise.
+        """
+        parsed = urlparse(base_url)
+        if not parsed.scheme or not parsed.hostname:
+            raise ValueError(f"Invalid Sarvam base URL (missing scheme/host): {base_url!r}")
+        if parsed.hostname in _SARVAM_ALLOWED_HOSTS:
+            if parsed.scheme != "https":
+                raise ValueError(
+                    f"Sarvam base URL must use https for allowlisted host {parsed.hostname!r}: {base_url!r}"
+                )
+            return base_url
+        if has_api_key:
+            raise ValueError(
+                f"Sarvam base URL host {parsed.hostname!r} is not in the allowlist "
+                f"{sorted(_SARVAM_ALLOWED_HOSTS)}; refusing to send the API key to an "
+                f"unvalidated endpoint: {base_url!r}"
+            )
+        return base_url
+
+    async def _rotate_api_key(self, excluded: Optional[set[int]] = None) -> Optional[tuple[int, str]]:
+        """Rotate to the next untried API key in the comma-separated list.
+
+        While holding ``_key_lock``, searches the key ring for the next index
+        NOT present in ``excluded`` (the indices already tried this attempt).
+        Returns (new_index, new_key) — captured under the lock so the caller's
+        header and bookkeeping always agree — or None when every configured
+        key is excluded.
+        """
+        excluded = excluded or set()
         async with self._key_lock:
-            if len(self._api_keys) <= 1:
-                return False
-            self._key_index = (self._key_index + 1) % len(self._api_keys)
-            self._api_key = self._api_keys[self._key_index]
-            os.environ["SARVAM_API_KEY"] = self._api_key
-            logger.info(f"Rotated Sarvam API key to key {self._key_index + 1}/{len(self._api_keys)}")
-            return True
+            if not self._api_keys:
+                return None
+            for _ in range(len(self._api_keys)):
+                self._key_index = (self._key_index + 1) % len(self._api_keys)
+                if self._key_index in excluded:
+                    continue
+                self._api_key = self._api_keys[self._key_index]
+                os.environ["SARVAM_API_KEY"] = self._api_key
+                logger.info(f"Rotated Sarvam API key to key {self._key_index + 1}/{len(self._api_keys)}")
+                return (self._key_index, self._api_key)
+            return None
 
     async def close(self) -> None:
         async with self._http_client_lock:
@@ -122,7 +172,11 @@ class SarvamHTTPGateway:
                     max_keepalive_connections=getattr(settings, "http_max_keepalive_connections", 20),
                     keepalive_expiry=getattr(settings, "http_keepalive_expiry", 30.0),
                 )
-                self._http_client = httpx.AsyncClient(timeout=self._timeout, limits=limits)
+                self._http_client = httpx.AsyncClient(
+                    timeout=self._timeout,
+                    limits=limits,
+                    follow_redirects=False,  # never let a 3xx redirect move a credentialed request
+                )
                 logger.info(f"HTTP client initialised with pool {limits}")
             return self._http_client
 
@@ -164,12 +218,11 @@ class SarvamHTTPGateway:
             self._record_span_exception(span, exc)
             raise exc
 
-        # 2. Build headers
+        # 2. Build headers (api-subscription-key is set per attempt from a
+        #    lock-captured key pair so it matches rotation bookkeeping)
         headers = {
             "Content-Type": "application/json",
         }
-        if self._api_key:
-            headers["api-subscription-key"] = self._api_key
 
         # 3. Validate/sanitize messages
         validated: list[dict] = []
@@ -256,9 +309,17 @@ class SarvamHTTPGateway:
         ):
             with attempt:
                 attempt_num = attempt.retry_state.attempt_number
+                # Capture the current key pair under the lock so the header
+                # and 429 bookkeeping always agree, even if another call
+                # rotates between attempts.
+                async with self._key_lock:
+                    _current_index = self._key_index
+                    _current_key = self._api_key
                 # Track which key indices have already returned 429 in this
                 # tenacity attempt so we never cycle through them infinitely.
-                _tried_key_indices: set[int] = {self._key_index}
+                _tried_key_indices: set[int] = {_current_index}
+                if _current_key:
+                    headers["api-subscription-key"] = _current_key
                 while True:
                     span_ctx = None
                     if tracer is not None:
@@ -346,10 +407,13 @@ class SarvamHTTPGateway:
 
                         # API key rotation on 429 (rate limit / quota exceeded)
                         if resp.status_code == 429:
-                            rotated = await self._rotate_api_key()
-                            if rotated and self._key_index not in _tried_key_indices:
-                                _tried_key_indices.add(self._key_index)
-                                headers["api-subscription-key"] = self._api_key
+                            # The exclusion set guarantees the returned index was
+                            # not tried yet this attempt, so no re-check needed.
+                            rotated = await self._rotate_api_key(excluded=_tried_key_indices)
+                            if rotated:
+                                new_index, new_key = rotated
+                                _tried_key_indices.add(new_index)
+                                headers["api-subscription-key"] = new_key
                                 logger.warning("Sarvam 429 — rotated API key, retrying immediately")
                                 if span_ctx is not None:
                                     span_ctx.__exit__(None, None, None)

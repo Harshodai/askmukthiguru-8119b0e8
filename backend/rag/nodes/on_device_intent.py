@@ -167,6 +167,11 @@ def classify(text: str, *, threshold: float = 0.45) -> str | None:
     max_score = max(scores.values())
     best_intents = [label for label, score in scores.items() if score == max_score]
     if len(best_intents) > 1:
+        # DISTRESS wins every tie: routing a crisis to FACTUAL (its seeds
+        # include "how do i", "why") is the failure being fixed. A false
+        # positive costs a hotline prepend; a false negative costs a person.
+        if "DISTRESS" in best_intents:
+            return "DISTRESS"
         if "ADVERSARIAL" in best_intents:
             return "ADVERSARIAL"
         if "SAFETY_VIOLATION" in best_intents:

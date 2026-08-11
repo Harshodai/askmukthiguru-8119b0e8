@@ -596,6 +596,10 @@ async def _background_startup_body(container, fastapi_app) -> None:
                     "Qdrant dense search will fail. Check HF_REVISION and ONNX model pin.",
                     _dim, settings.embedding_dimension,
                 )
+                _app_deps.startup_error = (
+                    f"Embedding dimension mismatch: got {_dim}, expected "
+                    f"{settings.embedding_dimension} — Qdrant dense search will fail"
+                )
             else:
                 logger.info(
                     "Embedding warm-up OK: dim=%d, latency=%dms", _dim, _latency_ms

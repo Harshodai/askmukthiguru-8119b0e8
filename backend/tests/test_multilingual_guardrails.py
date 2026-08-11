@@ -138,7 +138,13 @@ async def test_bengali_crisis_detected():
 
 @pytest.mark.asyncio
 async def test_doctrinal_query_not_flagged_as_distress():
-    """T4 regression: 'suffering' removed from the keyword regex (doctrinal FPs)."""
+    """T4 regression: 'suffering' removed from the keyword regex (doctrinal FPs).
+
+    Assessment now runs unconditionally (M1 fix — keyword-gating let
+    question-framed ideation bypass detection), so the guarantee is no longer
+    "the engine isn't called" but "a doctrinal query yields no distress": the
+    keyword pre-screen still finds nothing and the assessment returns None.
+    """
     settings.multilingual_guardrails = True
     container = _mock_container()
     ctx = _build_ctx(container, user_msg=DOCTRINAL_QUERY, preferred_lang="en")
@@ -146,7 +152,8 @@ async def test_doctrinal_query_not_flagged_as_distress():
     stage._detect_distress = AsyncMock(return_value=None)
     await stage.run(ctx)
     assert ctx.has_distress_keywords is False
-    stage._detect_distress.assert_not_awaited()
+    stage._detect_distress.assert_awaited_once()
+    assert ctx.assessment is None
 
 
 @pytest.mark.asyncio

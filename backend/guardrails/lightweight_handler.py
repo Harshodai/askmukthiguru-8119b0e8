@@ -133,6 +133,25 @@ _BLOCKED_TOPICS = {
     ],
 }
 
+# Precompiled prompt-injection screen (S10). Reuses the SAME pattern list the
+# input rail uses (_BLOCKED_TOPICS["prompt_injection"]) so retrieved chunks are
+# screened by the same rules as user input — no duplicated regex list.
+_PROMPT_INJECTION_SCREEN = [
+    re.compile(p, re.IGNORECASE) for p in _BLOCKED_TOPICS["prompt_injection"]
+]
+
+
+def contains_prompt_injection(text: str) -> bool:
+    """Cheap synchronous check: does `text` carry indirect-prompt-injection
+    markers (role-override, "ignore previous instructions", "system:" overrides,
+    jailbreak/DAN)? Used by the retrieval rail to drop poisoned ingested chunks
+    before they reach the generation context.
+    """
+    if not text:
+        return False
+    return any(rx.search(text) for rx in _PROMPT_INJECTION_SCREEN)
+
+
 # Response templates for blocked topics
 _BLOCK_RESPONSES = {
     "cryptocurrency": "I'm focused on spiritual guidance rooted in the teachings of Sri Preethaji and Sri Krishnaji. I'm not able to help with cryptocurrency or financial topics. 🙏",

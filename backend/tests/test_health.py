@@ -22,7 +22,13 @@ def test_health_check(monkeypatch):
     mock_container.qdrant.health_check.return_value = True
     mock_container.ollama.health_check = _async_true
     mock_container.ocr.health_check.return_value = True
+    # S7: the health probe now encodes a token and checks the vector width, so
+    # the mock must return a correctly-dimensioned dense vector.
+    from app.config import settings as _settings
     mock_container.embedding._encoder = MagicMock()
+    mock_container.embedding.encode_single_full.return_value = {
+        "dense": [0.0] * _settings.embedding_dimension
+    }
     mock_container.guardrails.is_available = True
     mock_container.guardrails.provider_name = "mock"
     mock_container.exact_cache = MagicMock()

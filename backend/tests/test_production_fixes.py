@@ -39,9 +39,19 @@ async def test_persistent_distress_checks_trend_without_a_new_keyword():
     from types import SimpleNamespace
 
     from app.pipeline.stages.distress_stage import DistressStage
+    from services.serene_mind_engine import DistressAssessment, DistressLevel
 
     stage = DistressStage()
-    stage._detect_distress = AsyncMock()
+    # Explicit no-distress assessment: level.value (0) is below the 2 trigger
+    # threshold, so run() reaches the trend check via distress_history only.
+    stage._detect_distress = AsyncMock(
+        return_value=DistressAssessment(
+            level=DistressLevel.NONE,
+            confidence=0.0,
+            detected_signals=[],
+            recommended_response_type="normal",
+        )
+    )
     stage._maybe_trigger_proactive_serene_mind = AsyncMock(return_value={"triggered": False})
     ctx = SimpleNamespace(
         state={"user_msg_en": "I had tea", "distress_history": [{"score": 2}]},
@@ -51,7 +61,10 @@ async def test_persistent_distress_checks_trend_without_a_new_keyword():
 
     await stage.run(ctx)
 
-    stage._detect_distress.assert_not_awaited()
+    # M1 fix: assessment now runs every turn (was keyword-gated). The point of
+    # this test — the trend check fires without a new keyword — still holds via
+    # the proactive assertion below.
+    stage._detect_distress.assert_awaited_once()
     stage._maybe_trigger_proactive_serene_mind.assert_awaited_once()
 
 @pytest.mark.asyncio

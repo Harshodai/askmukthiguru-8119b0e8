@@ -186,6 +186,7 @@ Populate key environment variables in `backend/.env`:
 | `LLM_PROVIDER` | Active LLM provider (`sarvam_cloud`, `openrouter`, `nim`, `ollama`) | `nim` / `sarvam_cloud` |
 | `OPENROUTER_API_KEY` | Key for OpenRouter inference & LightRAG graph extraction | `sk-or-v1-...` |
 | `SARVAM_API_KEY` | Key for Sarvam 30B Indian multilingual LLM & STT | `sarvam-...` |
+| `FORWARDED_ALLOW_IPS` | Non-wildcard proxy allowlist for Railway's `start_railway.py` (uvicorn `forwarded_allow_ips`; startup fails when missing or `*`). Not needed for docker compose (plain uvicorn). | `10.0.0.0/8` (Railway) |
 | `NIM_API_KEY` | Key for Nvidia NIM API catalog (low latency) | `nvapi-...` |
 | `SUPABASE_URL` | Supabase project URL | `https://your-project.supabase.co` |
 | `SUPABASE_KEY` | Supabase service-role key | `eyJ...` |

@@ -59,11 +59,15 @@ class DistressAssessment:
 # English distress patterns
 _EN_PATTERNS = {
     DistressLevel.CRISIS: [
-        r"\b(suicid|kill\s*my\s*self|end\s*(my|it)\s*all|want\s*to\s*die|self[\s-]*harm)\b",
+        r"\b(suicid|kill\s*my\s*self|kill\s*myself|end\s*(my|it)\s*all|want\w*\s*to\s*die|self[\s-]*harm)\b",
         r"\b(hurt\s*myself|cut\s*myself|overdose|no\s*reason\s*to\s*live)\b",
+        # Question/gerund-framed ideation ("how do i stop wanting to die",
+        # "planning how to leave this world") — evades the fixed phrasings above.
+        r"(leave\s*this\s*world|plan\w*\s*(to\s*die|how\s*to\s*(die|leave|end\s*it))|"
+        r"not\s*want\w*\s*to\s*(live|be\s*here|wake\s*up))",
     ],
     DistressLevel.SEVERE: [
-        r"\b(hopeless|worthless|can'?t\s*go\s*on|give\s*up|no\s*point)\b",
+        r"\b(hopeless|worthless|can'?t\s*go\s*on|give\s*up|no\s*point|nothing\s*matters?)\b",
         r"\b(don'?t\s*know\s*if\s*i\s*can\s*go\s*on)\b",
         r"\b(deeply?\s*(depressed|sad|lonely)|unbearable\s*pain)\b",
         r"\b(meaningless|empty\s*inside|broken)\b",

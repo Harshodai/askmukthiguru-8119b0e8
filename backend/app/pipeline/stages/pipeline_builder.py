@@ -2,8 +2,9 @@
 
 Order mirrors the original PipelineCoordinator.execute() flow:
   cache_check → circuit_breaker → request_state → input_guardrails →
-  casual_short_circuit → distress → graph → translation → memory_save →
-  output_guardrails → cache_update → result_assembly
+  doctrine_cache → casual_short_circuit → distress → graph →
+  meditation_gen → translation → tone_adapter → output_guardrails →
+  memory_save → cache_update → result_assembly
 """
 
 from __future__ import annotations

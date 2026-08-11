@@ -149,7 +149,17 @@ async def query_backend(question: str) -> dict:
     if test_key_allowed and TEST_KEY:
         headers["X-Test-Key"] = TEST_KEY
     elif SUPABASE_JWT:
-        headers["Authorization"] = f"Bearer {SUPABASE_JWT}"
+        # Never send a JWT over plaintext HTTP to a remote host — it would be
+        # readable in transit. https or a loopback host only.
+        if parsed.scheme == "https" or host in LOCAL_HOSTS:
+            headers["Authorization"] = f"Bearer {SUPABASE_JWT}"
+        else:
+            logger.error(
+                "Refusing to send SUPABASE_JWT over plaintext HTTP to %r — "
+                "use https, a local host, or set TEST_KEY",
+                f"{parsed.scheme}://{host}",
+            )
+            sys.exit(1)
     else:
         logger.warning("No auth configured — request may be rejected. Set TEST_KEY or SUPABASE_JWT.")
 
@@ -196,7 +206,14 @@ def evaluate_with_ragas(samples: list[dict]) -> dict:
         llm=llm,
         embeddings=embeddings,
     )
-    return result.to_pandas().mean().to_dict()
+    df = result.to_pandas()
+    # RAGAS result frames can carry non-numeric columns (e.g. string ids) —
+    # aggregate only numeric columns so .mean() never raises or yields garbage.
+    numeric = df.select_dtypes(include="number")
+    if numeric.shape[1] == 0:
+        logger.error("RAGAS result contains no numeric metric columns — cannot aggregate.")
+        return {}
+    return numeric.mean().to_dict()
 
 
 async def main(args: argparse.Namespace) -> int:

@@ -23,6 +23,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend")))
+from app.config import settings  # noqa: E402
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger("audit")
 
@@ -34,7 +37,7 @@ MIN_LIGHTRAG_ENTITIES  = int(os.getenv("AUDIT_MIN_ENTITIES", "1"))
 MIN_LIGHTRAG_RELATIONS = int(os.getenv("AUDIT_MIN_RELATIONS", "1"))
 
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
-COLLECTION = os.getenv("QDRANT_COLLECTION", "spiritual_wisdom")
+COLLECTION = os.getenv("QDRANT_COLLECTION", settings.qdrant_collection)
 NEO4J_URI  = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASS = os.getenv("NEO4J_PASSWORD", "")

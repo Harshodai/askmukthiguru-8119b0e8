@@ -93,6 +93,23 @@ class RaptorIndexer:
         # Step 4: Summarize each cluster (with source provenance)
         summaries = await self._summarize_clusters(chunks, clusters)
 
+        # Step 4b: Faithfulness gate — an LLM summary that its own source chunks
+        # don't support is a fabrication being written into the index as doctrine.
+        # Drop it (leaf chunks are untouched); every other filter is format-only.
+        kept = [s for s in summaries if s.get("faithful", True)]
+        dropped = len(summaries) - len(kept)
+        if dropped:
+            logger.warning(
+                "RAPTOR: gated out %d/%d unfaithful cluster summaries "
+                "(faithfulness floor not met)",
+                dropped,
+                len(summaries),
+            )
+        summaries = kept
+        if not summaries:
+            logger.info("RAPTOR: no summaries survived the faithfulness gate")
+            return 0
+
         # Step 5: Index summaries as level-1 nodes (with sparse vectors for hybrid search)
         summary_texts = []
         for s in summaries:
@@ -232,8 +249,24 @@ class RaptorIndexer:
         Each summary captures the thematic essence of its cluster members
         and preserves source_url/title from the originating chunks.
         Uses asyncio.gather() to parallelize cluster summarizations (max 4 concurrent).
+        Each summary is scored for faithfulness against its own source chunks so
+        build_tree can drop fabrications before they are indexed.
         """
         semaphore = asyncio.Semaphore(4)
+
+        # ponytail: reuse the already-loaded embedder via LettuceDetect — no new
+        # dependency, no model download. Runs at ingest (offline) so the modest
+        # per-summary embedding cost is acceptable. None embedder => gate is
+        # skipped (score_faithfulness has no embedder to score with).
+        from ingest.quality_gate import gate_summary_faithfulness
+        from services.lettuce_detect_service import LettuceDetectService
+
+        scorer = LettuceDetectService(embedder=self._embedder) if self._embedder else None
+
+        def _score(summary_text: str, cluster_texts: list[str]) -> tuple[bool, float]:
+            if scorer is None:
+                return True, 1.0  # no embedder in unit tests — don't gate
+            return gate_summary_faithfulness(summary_text, cluster_texts, scorer)
 
         async def _summarize_one(cluster_id: int, indices: list[int]) -> dict:
             cluster_chunks = [chunks[i] for i in indices]
@@ -272,6 +305,14 @@ class RaptorIndexer:
                     except Exception as te:
                         logger.debug(f"Topic label generation failed: {te}")
 
+                    faithful, fscore = _score(summary_text, cluster_texts)
+                    if not faithful:
+                        logger.warning(
+                            "RAPTOR: cluster %d summary failed faithfulness "
+                            "(score=%.2f) — will be gated out",
+                            cluster_id,
+                            fscore,
+                        )
                     return {
                         "text": summary_text,
                         "cluster_id": cluster_id,
@@ -279,9 +320,12 @@ class RaptorIndexer:
                         "source_urls": source_urls,
                         "titles": titles,
                         "topic_label": topic_label,
+                        "faithful": faithful,
+                        "faithfulness_score": fscore,
                     }
                 except Exception as e:
                     logger.error(f"RAPTOR: Failed to summarize cluster {cluster_id}: {e}")
+                    # Fallback is verbatim source excerpts, faithful by construction.
                     fallback = f"{cluster_texts[0][:200]} ... {cluster_texts[-1][:200]}"
                     return {
                         "text": fallback,
@@ -290,6 +334,8 @@ class RaptorIndexer:
                         "source_urls": source_urls,
                         "titles": titles,
                         "topic_label": "",
+                        "faithful": True,
+                        "faithfulness_score": 1.0,
                     }
 
         summaries = await asyncio.gather(

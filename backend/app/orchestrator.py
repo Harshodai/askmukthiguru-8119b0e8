@@ -222,7 +222,9 @@ async def queue_worker_factory(
         try:
             await pipeline_task
         except Exception as _e:
-            logger.debug("[orchestrator cleanup] suppressed non-critical error: %s", _e)
+            logger.error(f"Queue worker: job {job_id} stream pipeline failed: {_e}")
+            await drain_task
+            raise
         await drain_task
         return {"job_id": job_id, "status": "streamed"}
 
@@ -293,7 +295,14 @@ async def _drain_stream_to_redis(
                 except Exception as _e:
                     logger.debug("[orchestrator cleanup] suppressed non-critical error: %s", _e)
         if r:
-            await r.xadd(stream_key, {"data": "__COMPLETE__"}, maxlen=1000)
+            # Report pipeline failure to the SSE consumer via an error marker.
+            failed = (
+                pipeline_task.done()
+                and not pipeline_task.cancelled()
+                and pipeline_task.exception() is not None
+            )
+            marker = "__ERROR__" if failed else "__COMPLETE__"
+            await r.xadd(stream_key, {"data": marker}, maxlen=1000)
             await r.expire(stream_key, 600)
             await r.close()
     except Exception as exc:

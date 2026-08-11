@@ -63,6 +63,35 @@ class InputGuardrailStage(Stage):
         with REQUEST_LATENCY.labels(stage="guardrails").time():
             input_check = await container.guardrails.check_input(guardrail_text)
 
+        # A client may supply assistant.system_prompt (AssistantContext) — it is
+        # instruction text that reaches generation as the system persona, so it
+        # must clear the same rail as the user message. Without this it was the
+        # one instruction channel that met no guardrail at all.
+        assistant = getattr(ctx.request, "assistant", None)
+        persona = getattr(assistant, "system_prompt", None) if assistant else None
+        if isinstance(persona, str) and persona.strip() and not input_check["blocked"]:
+            persona_check = await container.guardrails.check_input(persona)
+            if persona_check["blocked"]:
+                input_check = persona_check
+
+        # M3: server-side persona allowlist. The slug is client-supplied; if it
+        # is not in the registry, the client-supplied system_prompt is dropped so
+        # the honesty guard in rag/nodes/generation stays ON and no attacker
+        # persona replaces the guru. slug/knowledge_tags only scope retrieval and
+        # stay. The anonymous-user gate in GraphStage still runs after this and
+        # would drop the prompt regardless; this gate covers an authenticated
+        # user carrying an injected slug.
+        if assistant is not None:
+            from app.assistant_registry import validate_assistant_slug
+            if validate_assistant_slug(getattr(assistant, "slug", None)) is None:
+                if getattr(assistant, "system_prompt", None) is not None:
+                    logger.info(
+                        "Clearing client-supplied assistant.system_prompt for "
+                        "non-allowlisted slug %r (M3).",
+                        getattr(assistant, "slug", None),
+                    )
+                    assistant.system_prompt = None
+
         ctx.input_check = input_check
         if input_check["blocked"]:
             ctx.last_stage_status = "error"
@@ -103,12 +132,31 @@ class OutputGuardrailStage(Stage):
 
     async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
         container = ctx.container
-        output_check = await container.guardrails.check_output(ctx.final_answer)
+        # The output rail (guardrails/lightweight_handler._handle_output) is an
+        # English literal-phrase regex list, but TranslationStage runs BEFORE this
+        # stage — so for an Indic seeker ctx.final_answer is already translated and
+        # the English patterns never match (a live no-op). Moderate the
+        # pre-translation English answer instead: the graph generates in English and
+        # TranslationStage never touches ctx.graph_result, so graph_result[
+        # "final_answer"] is that English text. English seekers keep moderating the
+        # served (tone-adapted) answer exactly as before.
+        text_to_moderate = ctx.final_answer
+        if ctx.is_indic and ctx.graph_result:
+            text_to_moderate = ctx.graph_result.get("final_answer") or ctx.final_answer
+        output_check = await container.guardrails.check_output(text_to_moderate)
         ctx.output_check = output_check
         is_blocked = output_check["blocked"]
         if is_blocked:
             logger.info(f"Output moderated: {output_check['reason']}")
-            ctx.final_answer = output_check["moderated_response"]
+            moderated = output_check["moderated_response"]
+            # moderated_response is English; the seeker's answer was already
+            # translated, so translate the replacement too or an Indic user gets an
+            # untranslated block message.
+            if ctx.is_indic:
+                moderated = await container.translation.translate_text(
+                    text=moderated, source_lang="en", target_lang=ctx.preferred_lang
+                )
+            ctx.final_answer = moderated
             # "moderated" distinguishes deliberate safety intervention from system failure.
             # Using "error" here caused false-positive error rate inflation in telemetry.
             ctx.last_stage_status = "moderated"

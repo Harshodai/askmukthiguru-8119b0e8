@@ -6,6 +6,7 @@ Uses Redis SETNX for distributed locking and key TTL for auto-cleanup.
 """
 
 import asyncio
+import dataclasses
 import json
 import logging
 import time
@@ -108,7 +109,7 @@ class RedisCoalescer:
         try:
             result = await coro_func()
             try:
-                serialized = json.dumps(result, default=str)
+                serialized = self._serialize_result(result)
                 await self._redis.set(result_key, serialized, ex=self._ttl)
                 await self._redis.rpush(list_key, "done")
                 await self._redis.expire(list_key, self._ttl)
@@ -126,6 +127,41 @@ class RedisCoalescer:
             except Exception as e:  # noqa: BLE001
                 logger.debug("Coalescer: failed to delete lock key %s: %s", lock_key, e)
 
+    @staticmethod
+    def _serialize_result(result: typing.Any) -> str:
+        """Serialize a coalescer result for Redis storage.
+
+        PipelineResult (a frozen dataclass) round-trips via
+        dataclasses.asdict plus a type marker so followers can
+        reconstruct the original object. Other result types keep the
+        plain JSON behavior.
+        """
+        if dataclasses.is_dataclass(result) and not isinstance(result, type):
+            from app.pipeline.result import PipelineResult
+
+            if isinstance(result, PipelineResult):
+                return json.dumps(
+                    {
+                        "__coalescer_type__": "PipelineResult",
+                        "data": dataclasses.asdict(result),
+                    },
+                    default=str,
+                )
+        return json.dumps(result, default=str)
+
+    @staticmethod
+    def _deserialize_result(data: typing.Any) -> typing.Any:
+        """Reconstruct the original result type from a stored JSON payload."""
+        if isinstance(data, dict) and data.get("__coalescer_type__") == "PipelineResult":
+            try:
+                from app.pipeline.result import PipelineResult
+
+                return PipelineResult(**data["data"])
+            except TypeError as e:
+                logger.warning(f"Could not reconstruct PipelineResult from coalescer payload: {e}")
+                return data["data"]
+        return data
+
     async def _wait_for_result(
         self,
         result_key: str,
@@ -141,7 +177,7 @@ class RedisCoalescer:
             data = await self._redis.get(result_key)
             if data:
                 try:
-                    return json.loads(data)
+                    return self._deserialize_result(json.loads(data))
                 except (TypeError, ValueError):
                     pass
 
@@ -159,7 +195,7 @@ class RedisCoalescer:
                     await self._redis.rpush(list_key, "done")
                     data = await self._redis.get(result_key)
                     if data:
-                        return json.loads(data)
+                        return self._deserialize_result(json.loads(data))
             except Exception as e:
                 logger.warning(f"Error during blpop blocking wait: {e}")
                 await asyncio.sleep(0.1)

@@ -1,5 +1,6 @@
 import { getCurrentConfig } from './config';
 import { getAccessToken, refreshAccessToken } from './auth';
+import { getAnonSessionToken } from './anonSession';
 import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
 import { fetchWithRetry } from './fetchWithRetry';
@@ -50,6 +51,10 @@ export async function* sendMessageStreaming(
   const streamEndpoint = endpoint.replace(/\/?$/, '/stream');
   const trimmedMessages = messages.slice(-20);
 
+  // M5: anonymous users must echo a server-signed token, not a
+  // client-asserted conversation id (backend rejects unsigned ids).
+  const effectiveSessionId = (await getAnonSessionToken()) ?? sessionId;
+
   const buildBody = () => JSON.stringify({
     messages: [
       { role: 'system', content: systemPrompt },
@@ -58,7 +63,7 @@ export async function* sendMessageStreaming(
     ],
     user_message: userMessage,
     meditation_step: meditationStep,
-    session_id: sessionId,
+    session_id: effectiveSessionId,
     language: getCurrentConfig().language || 'en',
     stream: true,
     ...(lastSereneMindAt != null
@@ -122,7 +127,7 @@ export async function* sendMessageStreaming(
       headers: {
         Accept: 'text/event-stream',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(sessionId ? { 'X-Session-Id': sessionId } : {}),
+        ...(effectiveSessionId ? { 'X-Session-Id': effectiveSessionId } : {}),
       },
       signal,
     });
@@ -194,7 +199,7 @@ export async function* sendMessageStreaming(
         if (!line.startsWith('data: ')) continue;
         const payload = line.slice(6);
         if (payload.trim() === '[DONE]') {
-          await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId, tags: { provider: 'custom', endpoint: 'stream' } });
+          await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId: effectiveSessionId, tags: { provider: 'custom', endpoint: 'stream' } });
           return;
         }
 
@@ -248,7 +253,7 @@ export async function* sendMessageStreaming(
         }
       }
     }
-    await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId, tags: { provider: 'custom', endpoint: 'stream' } });
+    await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId: effectiveSessionId, tags: { provider: 'custom', endpoint: 'stream' } });
   } finally {
     reader.releaseLock();
   }

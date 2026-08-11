@@ -1,4 +1,3 @@
-import hmac
 import logging
 import os
 import uuid
@@ -7,7 +6,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.requests import Request
 
-from app.config import settings
+from app.security_utils import is_benchmark_request
 
 logger = logging.getLogger(__name__)
 
@@ -23,30 +22,25 @@ _HEALTH_EXEMPT_PATHS = frozenset({
 def _rate_limit_key_func(request: Request) -> str:
     """Custom key function that exempts benchmark + health-check requests from rate limiting.
 
-    Benchmark requests must match BENCHMARK_SECRET — never JWT_SECRET. When the
-    header matches (with hmac.compare_digest), we return a special key that is
-    whitelisted, effectively bypassing the rate limiter. This prevents 429
-    cascades during benchmark runs while still protecting production traffic
-    from abuse.
+    Benchmark exemption is delegated to the shared ``is_benchmark_request``
+    guard (constant-time BENCHMARK_SECRET compare, config-only, gated to
+    ENABLE_TEST_AUTH=true AND non-production) — never JWT_SECRET, never a raw
+    os.environ read. On a match we return a unique per-request key so it is
+    effectively whitelisted, preventing 429 cascades during benchmark runs
+    while production traffic stays protected.
 
     Health/readiness probes are exempt unconditionally — Railway health checks
     must never 429 or the deployment is marked unhealthy (cascading failure).
+
+    Behind Railway's edge, ``get_remote_address`` reads the per-request client
+    IP that uvicorn's ``--proxy-headers`` populates from X-Forwarded-For (see
+    start_railway.py), so each seeker gets their own bucket instead of all
+    traffic collapsing onto the edge IP.
     """
     if request.url.path in _HEALTH_EXEMPT_PATHS:
         return f"health_exempt_{uuid.uuid4().hex}"
 
-    benchmark_secret = getattr(settings, "benchmark_secret", "") or os.environ.get(
-        "BENCHMARK_SECRET", ""
-    )
-    test_key = request.headers.get("X-Test-Key", "")
-
-    if (
-        settings.enable_test_auth
-        and not settings.is_production
-        and benchmark_secret
-        and test_key
-        and hmac.compare_digest(test_key, benchmark_secret)
-    ):
+    if is_benchmark_request(request):
         # Return a unique per-request key so it never accumulates
         return f"benchmark_exempt_{uuid.uuid4().hex}"
 

@@ -45,6 +45,7 @@ class TestTestAuthStrategyRegistration:
         with patch.dict(os.environ, {
             "ENABLE_TEST_AUTH": "false",
             "IS_PRODUCTION": "true",
+            "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
             "BENCHMARK_SECRET": "",
         }, clear=False):
             from app.config import Settings
@@ -87,6 +88,7 @@ class TestTestAuthStrategyRegistration:
         """IS_PRODUCTION=true → strategy NOT registered even with secret."""
         with patch.dict(os.environ, {
             "IS_PRODUCTION": "true",
+            "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
             "ENABLE_TEST_AUTH": "true",
             "BENCHMARK_SECRET": "my-secret",
         }, clear=False):
@@ -233,6 +235,7 @@ class TestAuthBridgeIntegration:
         """When strategy not registered, X-Test-Key should result in 401."""
         with patch.dict(os.environ, {
             "IS_PRODUCTION": "true",
+            "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
             "ENABLE_TEST_AUTH": "false",
         }, clear=False):
             import importlib
@@ -286,6 +289,8 @@ class TestAuthBridgeIntegration:
     @pytest.mark.asyncio
     async def test_auth_bridge_rejects_wrong_key_when_registered(self):
         """When strategy registered, wrong key → 401."""
+        from app.config import settings
+
         with patch.dict(os.environ, {
             "IS_PRODUCTION": "false",
             "ENABLE_TEST_AUTH": "true",
@@ -298,11 +303,22 @@ class TestAuthBridgeIntegration:
 
             from services.auth_service import auth_bridge
 
-            request = _make_request({"X-Test-Key": "wrong-secret"})
+            # Also patch settings so is_benchmark_request (settings-based)
+            # agrees — otherwise the 401 could come from a stale settings
+            # singleton (e.g. no secret registered) rather than the wrong key.
+            saved = (settings.is_production, settings.enable_test_auth, settings.benchmark_secret)
+            try:
+                settings.is_production = False
+                settings.enable_test_auth = True
+                settings.benchmark_secret = "correct-secret"
 
-            with pytest.raises(Exception) as exc_info:
-                await auth_bridge.get_user(request, None)
-            assert exc_info.value.status_code == 401
+                request = _make_request({"X-Test-Key": "wrong-secret"})
+
+                with pytest.raises(Exception) as exc_info:
+                    await auth_bridge.get_user(request, None)
+                assert exc_info.value.status_code == 401
+            finally:
+                settings.is_production, settings.enable_test_auth, settings.benchmark_secret = saved
 
 
 if __name__ == "__main__":

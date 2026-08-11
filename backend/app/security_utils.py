@@ -323,6 +323,24 @@ class ExponentialBackoffRateLimiter:
                 del self._attempts[key]
 
 
+_unkeyed_digest_warned = False
+
+
+def _warn_unkeyed_digest() -> None:
+    """Log (once per process) that rate-limit key digests are unkeyed."""
+    global _unkeyed_digest_warned
+    if _unkeyed_digest_warned:
+        return
+    import logging
+
+    logging.getLogger(__name__).warning(
+        "No signing secret configured (csrf_secret/jwt_secret/benchmark_secret) — "
+        "rate-limit key digests are unkeyed SHA-256; identifiers are enumerable. "
+        "Set at least one of these secrets."
+    )
+    _unkeyed_digest_warned = True
+
+
 def _rate_limit_key_digest(key: str) -> str:
     """HMAC-SHA256 digest of a rate-limit key, truncated to 32 hex chars.
 
@@ -332,17 +350,27 @@ def _rate_limit_key_digest(key: str) -> str:
     enumeration) harvest identifiers. HMAC-normalize instead so Redis only
     ever sees an opaque digest. Same truncation as ``generate_csrf_token``.
 
-    Uses ``settings.csrf_secret`` (a general-purpose signing secret; no
-    dedicated rate-limit HMAC secret exists in config). If unset, falls back
-    to a plain SHA-256 of the key — still opaque and deterministic across
-    processes, so multi-worker rate limiting keeps working.
+    Uses the first configured signing secret: ``settings.csrf_secret`` (a
+    general-purpose signing secret; no dedicated rate-limit HMAC secret
+    exists in config), else ``settings.jwt_secret``, else
+    ``settings.benchmark_secret``. If none is set, falls back to a plain
+    SHA-256 of the key — still opaque and deterministic across processes,
+    so multi-worker rate limiting keeps working, but an unkeyed hash lets
+    anyone with the key format precompute digests (offline dictionary
+    checks). A WARNING is logged once; running unkeyed is preferred to
+    crashing in environments with no secrets configured.
     """
     from app.config import settings
 
-    secret = getattr(settings, "csrf_secret", None)
+    secret = (
+        getattr(settings, "csrf_secret", None)
+        or getattr(settings, "jwt_secret", None)
+        or getattr(settings, "benchmark_secret", None)
+    )
     if secret:
         digest = hmac.new(secret.encode(), key.encode(), hashlib.sha256).hexdigest()
     else:
+        _warn_unkeyed_digest()
         digest = hashlib.sha256(key.encode()).hexdigest()
     return digest[:32]
 
@@ -398,10 +426,35 @@ class RedisBackedRateLimiter:
             backoff_multiplier=backoff_multiplier,
         )
         self._fallback_active = False
+        # Wall-clock timestamp of the last Redis reconnect attempt while in
+        # fallback mode (0.0 = never attempted; see _maybe_reconnect).
+        self._last_reconnect_attempt = 0.0
 
         # Lazy-init Redis connection — imports are deferred so this module
         # stays importable even if redis-py is not installed.
         self._redis_url = redis_url
+        self._connect()
+
+    # Minimum wall-clock gap between Redis reconnect attempts while in
+    # fallback mode (seconds). Redis outage at boot would otherwise leave
+    # _fallback_active True forever with no recovery path.
+    _RECONNECT_INTERVAL = 30.0
+
+    def _maybe_reconnect(self) -> None:
+        """Retry Redis periodically while in fallback mode.
+
+        _connect() runs only at construction time, so an outage at boot
+        would otherwise leave the limiter on the process-local fallback
+        forever. Throttled to one attempt per _RECONNECT_INTERVAL; on a
+        successful ping _connect() resets _fallback_active and the Redis
+        path resumes. If Redis is still down, _fallback_active stays True
+        and the fallback limiter keeps being used (fail-open unchanged).
+        """
+        if not self._fallback_active:
+            return
+        if time.time() - self._last_reconnect_attempt < self._RECONNECT_INTERVAL:
+            return
+        self._last_reconnect_attempt = time.time()
         self._connect()
 
     def _connect(self) -> None:
@@ -436,14 +489,29 @@ class RedisBackedRateLimiter:
             (allowed, retry_after_seconds)
         """
         now = now or time.time()
+        self._maybe_reconnect()
         if self._fallback_active or self._redis is None:
             allowed, retry_after = self._fallback.is_allowed(key, now)
             if allowed:
                 # Mirror the Lua path: the Redis script ZADDs the allowed
                 # event atomically on allow. ExponentialBackoffRateLimiter
-                # is_allowed is read-only, so record the success here —
-                # fallback window counting stays consistent for callers
-                # (e.g. admin middleware) that never call record_attempt.
+                # is_allowed is read-only, so record the success here.
+                #
+                # Kept despite the risk of double counting with callers
+                # that also call record_attempt on success (the auth
+                # middleware, main.py auth_rate_limit_middleware:917/919):
+                # in fallback mode a success is then counted twice, versus
+                # once in Redis mode (the Lua ZADD — a success
+                # record_attempt only clears fail counters there). This is
+                # deliberate: the admin middleware (main.py
+                # admin_rate_limit_middleware:928-943) never calls
+                # record_attempt, so is_allowed's synthetic record is its
+                # ONLY counting hook. Removing it would silently disable
+                # window enforcement for admin-style callers while Redis
+                # is down — a regression pinned by
+                # tests/test_redis_rate_limiter.py::TestRedisDownFallback
+                # ::test_fallback_window_counts_allowed_events. The extra
+                # count is fail-safe (limits earlier, never later).
                 self._fallback.record_attempt(key, True, now)
             return allowed, retry_after
 
@@ -461,6 +529,7 @@ class RedisBackedRateLimiter:
     def record_attempt(self, key: str, success: bool, now: Optional[float] = None) -> None:
         """Record an attempt outcome for exponential-backoff tracking."""
         now = now or time.time()
+        self._maybe_reconnect()
         if self._fallback_active or self._redis is None:
             # ExponentialBackoffRateLimiter.is_allowed is read-only; record the
             # outcome here so fallback backoff tracking works while Redis is down.
@@ -473,6 +542,10 @@ class RedisBackedRateLimiter:
             import logging
 
             logging.getLogger(__name__).debug("RedisBackedRateLimiter: record_attempt error: %s", exc)
+            # Don't drop the outcome during a Redis hiccup — record it on the
+            # fallback limiter so backoff tracking keeps working. Fail-safe,
+            # not fail-open, for attempt outcomes.
+            self._fallback.record_attempt(key, success, now)
 
     # ── Redis implementation ─────────────────────────────────────────────────
 

@@ -66,6 +66,7 @@ class TestTestAuthRegistrationGates:
         ENABLE_TEST_AUTH=true and a benchmark secret configured."""
         with patch.dict(os.environ, {
             "IS_PRODUCTION": "true",
+            "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
             "ENABLE_TEST_AUTH": "true",
             "BENCHMARK_SECRET": "my-secret",
         }, clear=False):
@@ -122,6 +123,12 @@ class TestTestAuthRegistrationGates:
             "ENABLE_TEST_AUTH": "true",
             "BENCHMARK_SECRET": "benchmark-sentinel-check",
         }, clear=False):
+            from app.config import settings
+
+            settings.enable_test_auth = True
+            settings.is_production = False
+            settings.benchmark_secret = "benchmark-sentinel-check"
+
             auth_module = _reload_auth_module()
             strategy = auth_module.TestAuthStrategy()
 

@@ -26,6 +26,26 @@ Current runtime defaults (updated 2026-08-01; see `AGENTS.md` for invariants):
 > ⚠️ `docs/SPEC_DEV.md` describes the original v1 zero-budget / local-Ollama
 > architecture. It is **historical only** — not the current production constraints.
 
+### Guardrail providers (`backend/guardrails/`)
+
+`GUARDRAILS_PROVIDER` selects the input-rail implementation (`chain.py`):
+
+- **`lightweight`** (default) — 13 regex-based topic categories + prompt
+  injection detection + emotional wellness redirects. No model downloads.
+- **`llama_guard`** — `LlamaGuardHandler` (`llama_guard_handler.py`) wraps
+  `meta-llama/Llama-Guard-3-1B` (gated repo, pinned commit
+  `acf7aafa60f0410f8f42b1fa35e077d705892029`, resolved via the HF API
+  2026-08-01; do not bump to a repo head), mapped across its 14 safety
+  categories S1–S14; a `RejectionClassifierHandler` runs alongside it.
+- **`rejection_classifier`** — `RejectionClassifierHandler`
+  (`rejection_handler.py`) wraps `protectai/distilroberta-base-rejection-v1`
+  (pinned commit `86520b5f35829cf9209a449e1716b56c70ddd802`) with
+  `REJECTION_THRESHOLD = 0.85`, auto-selecting cuda/mps/cpu. Model weights are
+  pre-baked into offline images by `scripts/download_models.py`.
+
+Neither model-backed provider is the active default; they exist for evaluation
+and self-hosted deployments where the ML rail is acceptable.
+
 ---
 
 ## 2. Architecture at a glance
@@ -319,6 +339,8 @@ Add a test next to the file you change. Match `src/**/*.{test,spec}.{ts,tsx}`.
   docker compose -f docker-compose.prod.yml up -d --build
   ```
   Reverse-proxy `/api/*` to FastAPI and serve the Vite build at root.
+
+Railway deploys run `python start_railway.py`, which REQUIRES `FORWARDED_ALLOW_IPS` set to an explicit non-wildcard proxy allowlist (e.g. `10.0.0.0/8`) — startup fails by design when it is missing or `*`, because trusting a wildcard forwarded header would let any peer spoof a client IP past per-IP rate limiting. Docker compose runs plain uvicorn (`backend/Dockerfile`) and does not need it.
 
 ---
 

@@ -131,7 +131,10 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     await emit_status(config, "Reviewing the response for clarity...")
     context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
     ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
-    is_faithful_strict = ld_result["score"] >= settings.faithfulness_floor
+    # Strict per-sentence verdict, not mean-vs-threshold: one hallucinated
+    # sentence in ten averages into invisibility under `score`, but LettuceDetect
+    # already computed the correct all-sentences-grounded boolean — consume it.
+    is_faithful_strict = ld_result["is_faithful"]
 
     # --- Self-consistency check DISABLED (performance) ---
     # This LLM-based self-consistency block generates an alternative answer
@@ -186,9 +189,14 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
 
     # Fast-path for empty context (can't verify anything meaningfully)
     if not answer or not relevant_docs:
-        logger.info("Combined verify: no answer/docs — fast-pass")
+        logger.info("Combined verify: no answer/docs — fast-pass (no_context)")
+        # no_context marks "nothing to be faithful to" (retrieval returned
+        # zero docs, or empty answer). Downstream telemetry must NOT record
+        # this as faithfulness 1.0 — a retrieval failure would otherwise land
+        # in the quality histogram as a perfect answer. See _build_response_data.
         return {
             "is_faithful": True,
+            "no_context": True,
             "verification": {"passed": True, "details": "No content to verify"},
             "confidence_score": 8.0,
             "faithfulness_score": 1.0,
@@ -233,7 +241,8 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         if ld_result is None:
             ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
         faithfulness_score = ld_result["score"]
-        is_faithful_ld = faithfulness_score >= settings.faithfulness_floor
+        # Strict per-sentence verdict decides pass/fail; score stays for logging only.
+        is_faithful_ld = ld_result["is_faithful"]
 
         # Only fast-exit when the faithfulness score meets the compulsory CoVe
         # threshold.  Below that threshold the answer is suspect enough to
@@ -282,7 +291,8 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     else:
         logger.info("Combined verify: reusing cached lettuce_detect_result from self-reflection")
     faithfulness_score = ld_result["score"]
-    is_faithful_ld = faithfulness_score >= settings.faithfulness_floor
+    # Strict per-sentence verdict decides pass/fail; score stays for logging only.
+    is_faithful_ld = ld_result["is_faithful"]
 
     # Compulsory CoVe: if faithfulness is low enough, fire regardless of tier.
     cove_compulsory_threshold = getattr(settings, "cove_compulsory_threshold", 0.6)

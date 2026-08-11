@@ -43,6 +43,7 @@ from services.health_monitor import HealthMonitor
 from services.hot_cache import hot_cache
 from services.tenant_context import TenantContext
 from services.turboquant_cache import TurboQuantCache, get_shared_vector_cache
+from services.user_profile_service import _is_persistable_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,21 @@ class PipelineCoordinator:
         chat_body_messages = (
             [m.model_dump() for m in chat_body.messages] if hasattr(chat_body, "messages") else []
         )
-        cache_key = self._build_context_aware_cache_key(user_msg, preferred_lang, chat_body_messages)
+        assistant = getattr(chat_body, "assistant", None)
+        assistant_slug = getattr(assistant, "slug", None)
+        assistant_system_prompt = getattr(assistant, "system_prompt", None)
+        assistant_knowledge_tags = list(getattr(assistant, "knowledge_tags", []) or [])
+        assistant_config_present = bool(assistant_slug) or bool(assistant_system_prompt) or bool(
+            assistant_knowledge_tags
+        )
+        cache_key = self._build_context_aware_cache_key(
+            user_msg,
+            preferred_lang,
+            chat_body_messages,
+            assistant_slug,
+            assistant_system_prompt,
+            assistant_knowledge_tags,
+        )
         is_indic = bool(preferred_lang) and not preferred_lang.startswith("en")
         user_id = user.get("id", "anonymous") if user else "anonymous"
         stable_session_id = normalize_session_id(session_id, user_id)
@@ -112,7 +127,15 @@ class PipelineCoordinator:
             user_id=user_id,
             stable_session_id=stable_session_id,
             chat_body_messages=chat_body_messages,
+            assistant_config_present=assistant_config_present,
         )
+
+        # Pre-stage personalization probe: CacheCheckStage is stage #1 while
+        # RequestStateStage (which builds state.memory_context via
+        # prepare_user_memory) runs later in the chain, so ctx.state is empty at
+        # cache-lookup time. The flag must be computed here, BEFORE the chain,
+        # or the cache read guard would silently degrade to dead code again.
+        ctx.personalization_eligible = await self._compute_personalization_eligible(user_id)
 
         try:
             result = await asyncio.wait_for(
@@ -160,6 +183,73 @@ class PipelineCoordinator:
             return result.with_latency(int((time.time() - start_time) * 1000))
         SLO_CHAT_LATENCY.labels(tier=(result.route_decision or "standard")).observe(time.time() - start_time)
         return result
+
+    # ------------------------------------------------------------------
+    # Pre-stage personalization probe (consumed by the cache stage guards)
+    # ------------------------------------------------------------------
+
+    async def _compute_personalization_eligible(self, user_id: str) -> bool:
+        """Request-level personalization probe, run BEFORE the stage chain.
+
+        CacheCheckStage is stage #1; RequestStateStage (which builds
+        state.memory_context via prepare_user_memory) runs later, so ctx.state
+        is empty at cache-lookup time. The cache guards therefore key off this
+        flag. The signal mirrors prepare_user_memory's own guards: anonymous /
+        non-persistable user ids never receive memory_context (early returns),
+        while a persistable user is eligible when any memory source holds data.
+        Conservative on error/timeout: a failed probe returns True so a
+        personalized query can never be replayed from the shared cache.
+        """
+        if not _is_persistable_user_id(user_id):
+            return False
+        try:
+            return await asyncio.wait_for(self._probe_has_memory(user_id), timeout=0.200)
+        except Exception as exc:
+            # Conservative: a failed probe returns True so a personalized query
+            # can never be replayed from the shared cache — but the swallowed
+            # failure must stay visible in logs.
+            logger.debug(
+                "Personalization probe failed for user %s, returning conservative True: %s",
+                user_id, exc,
+            )
+            return True
+
+    async def _probe_has_memory(self, user_id: str) -> bool:
+        """True if any probed memory source holds data for ``user_id``.
+
+        user_profile.get_recent_memories and memory_service.get_core are the
+        two side-effect-free, bounded probes. SecondBrainService.unlock() is
+        deliberately NOT probed: it provisions a vault for vaultless users as a
+        side effect, which a cache fast path must not trigger. A
+        second-brain-only user is a theoretical residual gap (MemoryStage
+        writes conversation memories alongside brain notes); the write guard's
+        state-based fallback still covers that case.
+        """
+        profile_service = getattr(self.container, "user_profile", None)
+        if profile_service is not None:
+            try:
+                if await profile_service.get_recent_memories(user_id, limit=1):
+                    return True
+            except Exception as exc:
+                # a failed probe cannot prove absence
+                logger.debug(
+                    "user_profile.get_recent_memories probe failed for user %s, "
+                    "treating as has-memory: %s", user_id, exc,
+                )
+                return True
+        memory_service = getattr(self.container, "memory_service", None)
+        if memory_service is not None:
+            try:
+                if await memory_service.get_core(user_id):
+                    return True
+            except Exception as exc:
+                # a failed probe cannot prove absence
+                logger.debug(
+                    "memory_service.get_core probe failed for user %s, "
+                    "treating as has-memory: %s", user_id, exc,
+                )
+                return True
+        return False
 
     # ------------------------------------------------------------------
     # Telemetry helper (used by StageRunner)
@@ -227,6 +317,9 @@ class PipelineCoordinator:
         user_msg: str,
         preferred_lang: str,
         chat_history: list[dict] | None = None,
+        assistant_slug: str | None = None,
+        assistant_system_prompt: str | None = None,
+        assistant_knowledge_tags: list[str] | None = None,
     ) -> str:
         """Build cache key that handles follow-up questions.
 
@@ -235,9 +328,31 @@ class PipelineCoordinator:
         process- or Redis-wide, and without a tenant scope one tenant's
         generic answer would be served to every other tenant. TenantContext
         defaults to "default" (legacy single-tenant) for anonymous requests.
+
+        A custom assistant persona changes the answer to the same question, so
+        its configuration is part of the key. There is no server-side persona
+        registry to validate a client-supplied ``assistant`` against, so the
+        cache stages bypass the shared tiers entirely for such requests (see
+        ``assistant_config_present`` on PipelineContext). The key still carries
+        a bounded SHA-256 fingerprint of the effective assistant configuration
+        (slug + system_prompt + knowledge_tags — never the raw prompt text) so
+        any non-guarded cache use can never reuse results across different
+        effective configurations. Absent assistant config keeps the legacy key
+        unchanged.
         """
         tenant = TenantContext.get() or "default"
-        base_key = f"tenant:{tenant}:{cache_language_key(user_msg, preferred_lang)}"
+        persona = ""
+        if assistant_slug or assistant_system_prompt or assistant_knowledge_tags:
+            config_text = "|".join(
+                [
+                    assistant_slug or "",
+                    assistant_system_prompt or "",
+                    ",".join(sorted(assistant_knowledge_tags or [])),
+                ]
+            )
+            config_fp = hashlib.sha256(config_text.encode("utf-8")).hexdigest()[:16]
+            persona = f":asst:{config_fp}"
+        base_key = f"tenant:{tenant}{persona}:{cache_language_key(user_msg, preferred_lang)}"
 
         is_standalone = self._is_standalone_question(user_msg)
         if is_standalone:
@@ -417,8 +532,13 @@ class PipelineCoordinator:
             }
             confidence = calculate_confidence(conf_state)
 
+        # A retrieval failure (no_context) is not a faithful answer and not a
+        # hallucination — there was nothing to be faithful to. Emit NULL so it
+        # is excluded from the faithfulness percentile instead of recorded as
+        # 1.0, which had a retrieval outage reading as a perfect answer.
+        no_context = is_rag and bool(result.get("no_context"))
         return {
-            "faithfulness": result.get("faithfulness_score", 0.0) if is_rag else 1.0,
+            "faithfulness": None if no_context else (result.get("faithfulness_score", 0.0) if is_rag else 1.0),
             "hallucination_flag": not result.get("is_faithful") if (is_rag and result.get("is_faithful") is not None) else False,
             "judge_reasoning": result.get("verification_reason", "") if is_rag else "",
             "confidence_score": confidence,
