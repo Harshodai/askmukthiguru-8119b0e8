@@ -64,7 +64,39 @@ maybe_seed_user() {
     return 0
   fi
   step "Seeding test user ${TEST_USER_EMAIL}"
-  local password="${TEST_USER_PASSWORD:-Preflight123!@#XY}"
+  # The hardcoded fallback password below is a disposable LOCAL-DEV credential.
+  # It may only be used against the local Supabase CLI instance — loopback hosts,
+  # non-HTTPS scheme, Supabase API port 54321:
+  #   http://127.0.0.1:54321  — PUBLIC_SUPABASE_URL in backend/.env (npx supabase status)
+  #   http://localhost:54321  — VITE_SUPABASE_URL default in backend/docker-compose.yml
+  # (http://host.docker.internal:54321 is a Docker-only alias that does not resolve
+  # from the host shell where this script runs, so it is intentionally not allowlisted.)
+  # The test account is created via the Supabase Admin API and is disposable — it is
+  # NOT a real user credential. Always override via TEST_USER_PASSWORD in CI to use a
+  # secret injected from your secret store.
+  local -r LOCAL_SUPABASE_URLS=(
+    "http://127.0.0.1:54321"
+    "http://localhost:54321"
+  )
+  local url="${SUPABASE_URL%/}"
+  local allowlisted=0
+  local allowed
+  for allowed in "${LOCAL_SUPABASE_URLS[@]}"; do
+    if [[ "$url" == "$allowed" ]]; then
+      allowlisted=1
+      break
+    fi
+  done
+  local password
+  if [[ "$allowlisted" -eq 1 ]]; then
+    password="${TEST_USER_PASSWORD:-Preflight123!@#XY}" # gitleaks:allow
+  else
+    if [[ -z "${TEST_USER_PASSWORD:-}" ]]; then
+      red "✗ TEST_USER_PASSWORD is required for SUPABASE_URL=${url} (hardcoded fallback is local-dev only)"
+      return 1
+    fi
+    password="$TEST_USER_PASSWORD"
+  fi
   local code
   code=$(curl -sS -o /tmp/prelaunch-user.json -w "%{http_code}" \
     -X POST "${SUPABASE_URL}/auth/v1/admin/users" \

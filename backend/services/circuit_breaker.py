@@ -221,8 +221,8 @@ class DefaultCircuitBreaker(BaseCircuitBreaker):
                     if not is_healthy:
                         self._transition_to_open(f"phi={phi:.2f} > threshold")
                         return False
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[circuit breaker] suppressed non-critical error: %s", _e)
             return True
 
         if self._state == CircuitState.OPEN:
@@ -254,8 +254,8 @@ class DefaultCircuitBreaker(BaseCircuitBreaker):
                 from services.health_monitor import HealthMonitor as _HM
                 monitor = _HM()
                 monitor.record_heartbeat(self.config.provider, success=False)
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[circuit breaker] suppressed non-critical error: %s", _e)
 
         if self._state == CircuitState.HALF_OPEN:
             self._transition_to_open("(failed during half-open test)")

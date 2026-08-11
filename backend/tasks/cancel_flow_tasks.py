@@ -108,8 +108,8 @@ def _user_email_and_name(client: Any, user_id: str) -> tuple[str, str]:
             if user and getattr(user, "user", None):
                 email = user.user.email or ""
                 name = (user.user.user_metadata or {}).get("full_name") or name
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[cancel flow tasks] suppressed non-critical error: %s", _e)
     except Exception as e:
         logger.debug(f"admin.get_user_by_id failed for {user_id}: {e}")
     return email, name

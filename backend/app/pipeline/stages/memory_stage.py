@@ -78,8 +78,8 @@ class MemoryStage(Stage):
                     signal = suffering_signal_from_text(
                         user_msg, ctx.assessment.detected_signals
                     )
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[memory stage] suppressed non-critical error: %s", _e)
 
             memory = ConversationMemory(
                 session_id=stable_session_id,

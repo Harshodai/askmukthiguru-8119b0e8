@@ -65,8 +65,8 @@ async def run_louvain(
                 # Project (idempotent-ish: drop first)
                 try:
                     session.run(f"CALL gds.graph.drop('{graph_name}', false)").consume()
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[kg algorithms] suppressed non-critical error: %s", _e)
                 session.run(
                     "CALL gds.graph.project($name, $node, $rel)",
                     name=graph_name, node=node_label, rel=relationship_type,
@@ -105,8 +105,8 @@ async def run_pagerank(
             with neo4j_driver.session() as session:
                 try:
                     session.run(f"CALL gds.graph.drop('{graph_name}', false)").consume()
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[kg algorithms] suppressed non-critical error: %s", _e)
                 session.run(
                     "CALL gds.graph.project($name, $node, $rel)",
                     name=graph_name, node=node_label, rel=relationship_type,

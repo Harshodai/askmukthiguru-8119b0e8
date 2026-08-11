@@ -12,7 +12,9 @@ const ANON_KEY = (process.env.VITE_SUPABASE_ANON_KEY || "");
 
 async function createSession() {
   const email = `agent-ui-${Date.now()}@example.com`;
-  const password = 'AgentPass123!';
+  // Ephemeral local-Supabase test account. Override via UI_EXPLORE_PASSWORD in CI.
+  // The fallback value is only valid against a local ephemeral Supabase instance.
+  const password = process.env.UI_EXPLORE_PASSWORD ?? 'AgentPass123!'; // gitleaks:allow
   const res = await fetch('http://127.0.0.1:54321/auth/v1/signup', {
     method: 'POST',
     headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' },

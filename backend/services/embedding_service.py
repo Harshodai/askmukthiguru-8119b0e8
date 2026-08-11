@@ -634,6 +634,9 @@ class EmbeddingService:
                     import gc
 
                     gc.collect()
+                    # time.sleep is intentionally used here: encode() is a sync
+                    # method, always called via encode_async() -> asyncio.to_thread().
+                    # The sleep runs in a worker thread, NOT the event loop.
                     time.sleep(2)
 
             logger.error(
@@ -811,6 +814,9 @@ class EmbeddingService:
                     import gc
 
                     gc.collect()
+                    # time.sleep is intentionally used here: encode_batch() is a sync
+                    # method, always called via encode_batch_async() -> asyncio.to_thread().
+                    # The sleep runs in a worker thread, NOT the event loop.
                     time.sleep(2)
 
             logger.error(
@@ -933,6 +939,9 @@ class EmbeddingService:
                     import gc
 
                     gc.collect()
+                    # time.sleep is intentionally used here: encode_with_colbert() is a
+                    # sync method, always called via an asyncio.to_thread() wrapper.
+                    # The sleep runs in a worker thread, NOT the event loop.
                     time.sleep(2)
 
             logger.error(

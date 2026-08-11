@@ -187,8 +187,8 @@ class SarvamCloudService:
                 try:
                     json.loads(block_strip)
                     return block_strip
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[sarvam service] suppressed non-critical error: %s", _e)
             else:
                 # For non-JSON operations, check if the block is appropriate
                 if operation == "extraction":
@@ -211,8 +211,8 @@ class SarvamCloudService:
             try:
                 json.loads(potential_json)
                 return potential_json
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[sarvam service] suppressed non-critical error: %s", _e)
 
         first_bracket = text.find("[")
         last_bracket = text.rfind("]")
@@ -221,8 +221,8 @@ class SarvamCloudService:
             try:
                 json.loads(potential_json)
                 return potential_json
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[sarvam service] suppressed non-critical error: %s", _e)
 
         # 3. For LightRAG extraction, search for lines that look like entity or relationship records
         if operation == "extraction":
@@ -295,8 +295,8 @@ class SarvamCloudService:
         if span is not None and value is not None:
             try:
                 span.set_attribute(key, value)
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[sarvam service] suppressed non-critical error: %s", _e)
 
     def _record_usage(self, span, usage: dict) -> None:
         if not usage:
@@ -329,8 +329,8 @@ class SarvamCloudService:
             span.record_exception(exc)
             if Status is not None and StatusCode is not None:
                 span.set_status(Status(StatusCode.ERROR, str(exc)))
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[sarvam service] suppressed non-critical error: %s", _e)
 
     # -----------------------------------------------------------------------
     # Public generation methods (unchanged interface)

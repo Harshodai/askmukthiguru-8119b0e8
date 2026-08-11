@@ -9,7 +9,7 @@ Open your Railway project → `askmukthiguru-8119b0e8` service → **Variables**
 | Variable | New value |
 |---|---|
 | `SUPABASE_URL` | `https://fynkjimvuimakgtidvuq.supabase.co` |
-| `SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5bmtqaW12dWltYWtndGlkdnVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwNDQyMDIsImV4cCI6MjA5MzYyMDIwMn0.l0mmx5BJ_AWEWq7d6IAeOz4inWuvm139EVeushiecto` |
+| `SUPABASE_ANON_KEY` | `<redacted — retrieve from Lovable Cloud Supabase dashboard: Settings → API → Project API keys>` |
 | `SUPABASE_PUBLISHABLE_KEY` | same as anon key above |
 | `SUPABASE_KEY` | **(problem — see below)** |
 | `SUPABASE_SERVICE_ROLE_KEY` | **(problem — see below)** |

@@ -95,3 +95,14 @@ __pycache__/
 .opencode/
 .windsurf/
 .worktrees/
+
+# Sensitive files — never ship in Docker image (audit 2026-08-10)
+# These were deleted from the repo. These guards prevent re-introduction.
+The_Four_Sacred_Secrets.pdf
+**/*_Sacred_Secrets*.pdf
+backend/app/sarvam_debug.json
+**/sarvam_debug*.json
+cookies.txt
+**/cookies.txt
+# Catch-all: any *.pdf at repo root (likely copyrighted content)
+*.pdf

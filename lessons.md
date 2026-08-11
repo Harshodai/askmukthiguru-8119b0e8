@@ -1,11 +1,176 @@
+## Aug 10, 2026 — Parallel Fix Sprint: Atomic Rate Limiting, Transient Retries, NDCG Robustness, Ops Script Hardening
+
+### L-PAR-1. Distributed rate-limit decisions must be ONE Redis Lua script, not pipeline + re-reads
+- **What**: `RedisBackedRateLimiter._redis_is_allowed` ran a transaction pipeline (zremrangebyscore/zcard/get), then re-read counts OUTSIDE the transaction, then zadd/expire — a TOCTOU race: concurrent requests could overshoot `max_requests`.
+- **Fix applied**: Single `r.eval(SCRIPT, 3, zkey, fail_key, last_fail_key, now, cutoff, ...)` doing cleanup → backoff check → count check → zadd+expire atomically, returning `{1,0}` / `{0,retry_after}`. Concurrency regression test: 25 threads behind a barrier, max_requests=5 → exactly 5 successes.
+- **How to prevent**: Any read-decide-write rate-limit sequence must be one Lua script; pipeline transactions only give atomicity for the pipelined commands, not the decision that depends on the latest state.
+
+### L-PAR-2. Never embed raw account/IP identifiers in Redis key names — HMAC-normalize first
+- **What**: Rate-limit keys like `rl:auth_rl:ip:/api/auth/login:1.2.3.4` embedded account UUIDs/IPs verbatim; anyone with Redis access (KEYS *, MONITOR) could harvest identifiers.
+- **Fix applied**: `_rate_limit_key_digest(key)` — HMAC-SHA256 (truncated 32 hex, same as `generate_csrf_token`) with `settings.csrf_secret` (SHA-256 fallback if unset, still deterministic cross-process). All three key names (`rl:`, `rl:fail:`, `rl:lastfail:`) use the SAME digest.
+- **How to prevent**: Identifiers in datastore key names get digested with a signing secret before embedding. Keep prefixes readable, digest the identifier.
+
+### L-PAR-3. Redis-down fallback must preserve exponential backoff — delegate record_attempt
+- **What**: The Redis fallback was `TTLRateLimiter` (no backoff) AND `record_attempt` returned without doing anything on the fallback path — backoff tracking silently disappeared when Redis was down.
+- **Fix applied**: Fallback is `ExponentialBackoffRateLimiter` (same ttl/max_requests/backoff params); `is_allowed` returns its tuple directly; `record_attempt` delegates to `fallback.record_attempt`.
+- **How to prevent**: When swapping a fallback limiter, check the FULL public API (is_allowed AND record_attempt) and constructor params for parity.
+
+### L-PAR-4. Retry only transient LLM failures — permanent errors must reach the fallback immediately
+- **What**: LightRAG's OpenRouter tenacity retry used `retry_if_exception_type(Exception)` — 401/422 burned 3 attempts before the Sarvam/Ollama fallback ran.
+- **Fix applied**: `_is_transient_openrouter_error()` — `httpx.HTTPStatusError` with status ∈ {408,429,500,502,503,504} plus network/timeout classes. Tests prove permanent errors call `generate()` exactly once.
+- **How to prevent**: Retry predicates classify by exception TYPE + HTTP status, never by blanket `Exception`.
+
+### L-PAR-5. NDCG can exceed 1.0 when sources repeat — dedupe before DCG AND IDCG
+- **What**: `ndcg_at_k` scored each occurrence of a duplicated relevant filename as a separate hit, so DCG could beat IDCG. Also the all-empty diagnostic missed partial extraction (one empty filename of ten).
+- **Fix applied**: Order-preserving dedupe (`dict.fromkeys`) of both `ranked_sources` and `relevant_sources` before computing DCG/IDCG; diagnostic counts ANY empty filenames (`n_empty/len` warning), not just all-empty.
+- **How to prevent**: Eval metrics on document IDs dedupe first; diagnostics warn on partial missing data, not only total failure.
+
+### L-PAR-6. Credentialed urllib clients: https-or-loopback + reject 3xx redirects
+- **What**: `scripts/ops/qdrant_backup.py` sent the Qdrant api-key over plain HTTP and followed 3xx redirects that could re-send the key elsewhere.
+- **Fix applied**: Shared `_urlopen()` validates scheme (https unless loopback host) when a key is set, and uses a redirect handler that raises on any 3xx (mirrors `backend/scripts/verify_sarvam.py`).
+- **How to prevent**: Any client that sends a key must (1) validate scheme+host, (2) refuse redirects. The verify_sarvam.py pattern is the repo reference implementation.
+
+### L-PAR-7. S3 prefix anchoring: normalize ONCE with trailing slash, reuse for upload AND prune
+- **What**: `upload_to_s3` stripped the trailing slash for object keys while `prune_s3` listed with the raw prefix — a non-slash-terminated prefix can match sibling prefixes (`qdrant-snapshots-other`) or, if empty, the whole bucket.
+- **Fix applied**: `_normalized_prefix()` → `strip().rstrip('/') + '/'`, computed once in `main()`, passed to both; empty prefix → hard error, S3 skipped, never prune.
+- **How to prevent**: S3 list/delete filters must use the exact slash-terminated prefix that object keys are built under; empty prefix = whole bucket, reject it.
+
+### L-PAR-8. Snapshot/backup filenames from remote APIs must be validated before touching the filesystem or URL
+- **What**: `download_snapshot` joined `dest_dir / snapshot_name` and interpolated the name into the URL unvalidated — `..`/separators could write outside the backup dir.
+- **Fix applied**: Reject empty, absolute, `.`/`..`, and any name containing `/` or `\` before constructing dest; URL-encode with `quote(name, safe="")`.
+- **How to prevent**: Validate any filename derived from a remote response BEFORE path join or URL interpolation; explicit-is-denied lists for `.`/`..` on top of separator checks.
+
+### L-PAR-9. Verify findings against CURRENT code before fixing — stale findings skip with a reason
+- **What**: Audit finding 1 (missing `add_done_callback` on background tasks) was already fixed — all 9 `asyncio.create_task` sites in `orchestrator_utils.py` have `_observe_background_task_error` done-callbacks. A subagent falsely reported an IndentationError at lines 170-171; `py_compile` exit=0 disproved it.
+- **Fix applied**: Marked stale, no edit. Rule: every audit finding gets a verification read of the CURRENT file first; subagents must run `py_compile` to back up claims about syntax errors.
+- **How to prevent**: Never trust a subagent's "this line is broken" claim without a compile check; diffs of HEAD vs current attribute provenance of lint findings.
+
+### L-PAR-10. Streaming safety filters need a ROLLING WINDOW, not per-chunk matching
+- **What**: The streaming filter lowercased and matched each chunk individually — a harmful phrase split across a chunk boundary (e.g. by whitespace/tokenization) slipped through. Also the `tokens_streamed == 0` fallback could re-emit the unfiltered final answer after a safety hit.
+- **Fix applied**: Module-level precompiled IGNORECASE patterns + `_chunk_matches_harmful` over a rolling 200-char window (`_STREAM_FILTER_WINDOW_CHARS`), reset after a hit. Filtered chunks now count toward `tokens_streamed` so the fallback re-emit is blocked.
+- **How to prevent**: Boundary-crossing text filters maintain a rolling context window; sentinel emissions must update the same accounting the fallback paths read.
+
+### L-PAR-11. Adaptive concurrency throttles shrink ONCE per failure episode (hysteresis)
+- **What**: `youtube_loader` shrank its concurrency on EVERY failure — a sustained failure episode ratcheted down to floor after repeated already-failing attempts.
+- **Fix applied**: `_shrunken_this_episode` flag — reset when failure rate drops below threshold; shrink at most once per episode; docstring documents the policy.
+- **How to prevent**: Rate/throttle adaptations use hysteresis: a flag per episode, reset on recovery, not a per-failure decrement.
+
+### L-PAR-12. Cache write-sides must invalidate SHARED entries when the answer is personalized
+- **What**: `CacheUpdateStage` skipped storing personalized answers (memory-context present), but old SHARED cache entries for the same query were left in place — a later cold request could receive a stale non-personalized answer, or worse a prior personalized answer's residue.
+- **Fix applied**: Shared-eligibility extracted to one helper (`_is_personalization_eligible`); personalized writes now call `_invalidate_shared_entries` (hot cache exact-key + semantic per-query invalidation; Redis exact/vector tiers skipped — no per-key API, TTL bounds the window).
+- **How to prevent**: Any cache tier that filters by tenant/personalization must invalidate (not just skip-writing) the shared entries it can no longer serve; document which tiers are TTL-bounded by design.
+
+### L-PAR-13. Erasure flows fail CLOSED: vector deletion must complete before plaintext row delete
+- **What**: `second_brain` `forget_item`/`crypto_shred` deleted the Postgres row first, then the Qdrant vector — a vector-delete failure left the vector orphaned while the plaintext (and its delete signal) was gone. Qdrant client exceptions were swallowed (`except Exception: pass`).
+- **Fix applied**: `_delete_embedding`/`_drop_collection` log warning + re-raise; both flows reordered vector-first; no route-level swallowing (FastAPI surfaces 500). New test `test_vector_delete_failure_fails_erasure_closed`.
+- **How to prevent**: Data-erasure order = delete the copy that SIGNALS the erasure last (or first per law), never the plaintext first while the vector delete can silently fail; propagation must be an explicit 500, not a log.
+
+### L-PAR-14. Tenacity retries need `reraise=True` to surface the LAST exception, not RetryError
+- **What**: `sarvam_http` `AsyncRetrying` omitted `reraise=True` — after exhausting retries the caller got `tenacity.RetryError` wrapping the HTTPStatusError, breaking callers that catch `HTTPStatusError` (and the 429-rotation regression test). Every other provider (base_llm_service, openrouter, ollama, nim, lightrag) already used `reraise=True`; Sarvam was the outlier.
+- **Fix applied**: Added `reraise=True`; 429 key-rotation stays bounded per attempt (`_tried_key_indices`), all keys exhausted → fall through to `raise_for_status()` → tenacity backoff → raw HTTPStatusError after exhaustion.
+- **How to prevent**: When adding/auditing tenacity usage, check `reraise=True` parity across providers; test rotation boundedness with a MockTransport that always returns 429 and count requests.
+
+### L-PAR-15. Test fixtures must not commit credentials — env-driven URLs with passwordless fallback
+- **What**: Beyond the fixed `test_redis_rate_limiter.py`, `conftest.py` and `test_coalescer.py` hardcoded `mukthiguru_redis_pass` in REDIS URLs.
+- **Fix applied**: All three now `os.environ.get("REDIS_URL", "redis://localhost:6379/0")`-style with a passwordless localhost default and a comment stating the docker-compose instance needs the env exported. Scan: `rg -rn "mukthiguru_redis_pass" tests/` → 0.
+- **How to prevent**: Run a credential-literal scan over tests/ after any fixture edit; keep test datastore URLs env-driven with a passwordless default, never the docker password.
+
+### L-PAR-16. Mocking httpx.AsyncClient on a shared module recurses — capture the real class first
+- **What**: A test monkeypatched `sarvam_http.httpx.AsyncClient` with a factory, but the factory itself called `httpx.AsyncClient(...)` — `sarvam_http.httpx` IS the same module object, so the patch was visible to the factory → recursion → "multiple values for keyword argument 'transport'".
+- **Fix applied**: Capture `real_async_client = httpx.AsyncClient` BEFORE `monkeypatch.setattr`, factory builds `real_async_client(transport=MockTransport(handler), **kwargs)`.
+- **How to prevent**: When monkeypatching an attribute of a module you also import directly, capture the original binding first; never build mocks through the patched name.
+
+### L-PAR-17. Teardown fixtures must reset BOTH limiter backends (in-memory fallback + Redis keys)
+- **What**: `test_p1_sec1_admin_aal2.py` teardown called `_ADMIN_RATE_LIMITER._store.clear()` — the Aug 10 sprint switched `_ADMIN_RATE_LIMITER` to `RedisBackedRateLimiter` (no `_store`), so the fixture AttributeError'd (92 errors) and, once fixed, the live Redis window still 429'd later tests.
+- **Fix applied**: Teardown clears the fallback `_store` AND `scan_iter("rl:*")` deletes; exceptions logged at debug (L-K3-4). 92 errors → 92 passed.
+- **How to prevent**: When a rate limiter swaps backend, audit every teardown/reset path; in-memory-only resets silently miss the Redis window. Test-backed limiters need a reset that covers all active backends.
+
+### L-PAR-18. Rate-limiter teardown must cover THREE shapes — `_store` is not the only in-memory dict
+- **What**: After L-PAR-17, `test_p1_sec1_admin_aal2.py` still failed (429) in fallback mode (pytest without `REDIS_URL`). `RedisBackedRateLimiter` constructed when the URL is present but Redis is unreachable/AUTH-failed internally falls back to `ExponentialBackoffRateLimiter`, whose state lives in `_attempts` — NOT `_store` (that's `TTLRateLimiter`'s attr). Clearing `_store` alone left the sliding window hot across tests.
+- **Fix applied**: Teardown loop iterates `(_ADMIN_RATE_LIMITER, getattr(_, "_fallback", None))` and clears BOTH `_store` (TTL shape) and `_attempts` (backoff shape), then flushes `rl:*` Redis keys. 92 passed in BOTH no-Redis and Redis modes.
+- **How to prevent**: When resetting a limiter fixture, enumerate the in-memory state attr per class: `TTLRateLimiter._store`, `ExponentialBackoffRateLimiter._attempts`, `RedisBackedRateLimiter._fallback.<shape>`. Assert on the limiter's mode first, then clear the right dict.
+- **Pre-existing (NOT from this fix)**: `test_testauth_not_registered_in_prod.py::test_benchmark_identity_uses_nil_uuid_sentinel` fails regardless of Redis mode — `.env` `BENCHMARK_SECRET` shadows the test's `patch.dict(os.environ)` because `app.config.settings` is a singleton loaded once at import; the patched env never reaches it. File untouched by this work; documented only.
+
+## Aug 10, 2026 — K3 Audit Phase 2: CODE-1 Bulk Elimination + Security Utils Testability
+
+### L-K3-6. Bulk elimination of `except Exception: pass` — scope is 74 in production (not 2)
+- **What**: The initial fix only addressed 2 instances in `coalescer.py`. The real scope after scanning 675 Python files (excluding tests/benchmarks/venv): **74 bare `except Exception: pass` blocks** in production code across `orchestrator_utils.py` (9), `rag/nodes/retrieval.py` (10), `services/sarvam_service.py` (5), `services/second_brain/` (3), `services/whisperx_pipeline.py` (3), and more.
+- **Fix applied**: Bulk Python script replaced all 74 with `except Exception as _e: logger.debug("[context] suppressed non-critical error: %s", _e)`. Zero remaining in production as of this commit.
+- **How to scan**: `python3 -c "import re, ast; [...]"` with EXCLUDE sets for tests/benchmarks/scripts/.venv. The grep approach counts 3,891 total (including third-party) — always scan with an EXCLUDE filter.
+
+### L-K3-7. `is_benchmark_request` reads from `settings` — tests must patch settings, not `os.environ`
+- **What**: `is_benchmark_request()` reads `settings.enable_test_auth`, `settings.is_production`, `settings.benchmark_secret` from the Pydantic Settings object. Tests that used `patch.dict(os.environ)` + `importlib.reload(auth_module)` worked for controlling `_strategies` list (module-level), but `is_benchmark_request` still saw the cached/old settings because `security_utils` was NOT reloaded.
+- **Fix applied**: Updated `TestTestAuthStrategyAuthentication` and `TestAuthBridgeIntegration` tests to patch `settings.*` directly (with try/finally restore), same pattern as the `_pin_settings` fixture in `test_no_jwt_secret_backdoor.py`.
+- **Rule**: Functions reading from a singleton `settings` object require `settings.attr = value` patching in tests. Functions reading `os.environ.get(...)` require `patch.dict(os.environ)`. Using the wrong approach silently passes wrong config to the code under test.
+
+## Aug 10, 2026 — K3 Ultra Audit Remediation: Security, Performance, Code Quality
+
+
+### L-K3-1. Never use `==` for secret comparison in auth code — always `hmac.compare_digest`
+- **What**: `TestAuthStrategy.authenticate()` used `test_key == benchmark_secret` — a timing-attack vulnerability. An attacker can enumerate the secret character-by-character because `==` short-circuits on first mismatch.
+- **Fix applied**: Delegated to `security_utils.is_benchmark_request(request)` which already uses `hmac.compare_digest`. One canonical, constant-time implementation.
+- **How to prevent**: Every secret comparison in auth code must use `hmac.compare_digest`. If a correct helper already exists, CALL IT — do not reimplement with `==`.
+
+### L-K3-2. Singleton objects holding connection pools must NOT be created per-request
+- **What**: `ChatEngine._execute_batch()` called `build_coalescer()` on every request. `RedisCoalescer.__init__` calls `Redis.from_url()` which allocates a new connection pool. Under load, this exhausts Redis `maxclients`.
+- **Fix applied**: Added `self._coalescer` attribute to `ChatEngine.__init__`, lazily initialized in `_get_coalescer()`. Added `close()` for graceful pool teardown.
+- **How to prevent**: Objects holding connection pools (Redis, httpx, Qdrant client) must be singletons — module-level, container-level, or instance-level. Never construct inside a per-request handler.
+
+### L-K3-3. `time.sleep()` in sync methods called via `asyncio.to_thread()` is NOT a blocking-sleep bug
+- **What**: `embedding_service.py` uses `time.sleep(2)` in retry loops inside `encode()`, `encode_batch()`, `encode_with_colbert()`. These are sync methods ALWAYS called through `*_async()` wrappers that use `asyncio.to_thread()`.
+- **Fix applied**: Added clarifying comments at each `time.sleep(2)` call. `time.sleep` is correct here; `await asyncio.sleep()` would be a syntax error (can't await inside a sync function).
+- **How to prevent**: Before flagging `time.sleep` as a bug, verify: Is the method called through `asyncio.to_thread()`? Check for an `_async()` sibling. The sleep runs in a worker thread — the event loop is free.
+
+### L-K3-4. Bare `except Exception: pass` is a silent error-swallowing anti-pattern — always log
+- **What**: `coalescer.py` had `except Exception: pass` blocks suppressing Redis lock cleanup and connection close errors, making post-mortem debugging impossible.
+- **Fix applied**: Replaced with `except Exception as e: logger.debug(...)`. DEBUG level is correct for best-effort cleanup.
+- **How to prevent**: Zero `except Exception: pass` in the codebase. Minimum acceptable: `except Exception as e: logger.debug(...)`. Never suppress without a log.
+
+### L-K3-5. Test fixture secrets need `# gitleaks:allow` + explanatory comments
+- **What**: `test_no_jwt_secret_backdoor.py` contains `JWT_SECRET = "leaked-token-signing-secret"` — intentionally fake values to prove the bypass check rejects them. Secret scanners flag these.
+- **Fix applied**: Added `# gitleaks:allow` inline + a multi-line comment explaining these are synthetic fixtures that have never been in production config.
+- **How to prevent**: Any hardcoded secret-shaped value in a test file needs `# gitleaks:allow` + intent comment. Prefer `os.environ.get("TEST_SECRET", "fallback")` for CI portability.
+
+## Aug 10, 2026 — Audit Learnings: NDCG Bug, Coalescer Audit, Crisis Keywords, Telemetry Status
+
+
+### L-AUDIT-1. NDCG=0.0 in baseline is almost always a field-name mismatch, not a retrieval failure
+- **What**: `memory/qdrant_quality_baseline.json` showed `mean_ndcg: 0.0, min_ndcg: 0.0` as of 2026-08-03. Investigation confirmed this was a measurement bug: `test_qdrant_search_quality.py` extracted source filenames with `r.get("source_url", "")` but Qdrant payloads store the field as `"source"`. Every document returned `""`, causing all NDCG scores to be 0.0.
+- **Why**: The evaluation harness and the ingestion pipeline independently chose different field names for the source URL. The evaluation never failed loudly — it silently produced 0.0, which happened to pass the regression check (`current_ndcg >= baseline_ndcg - 0.02` always True when baseline=0.0).
+- **Fix applied**: Multi-key fallback (`"source_url" or "source" or "url"`) + diagnostic log when all sources are empty. Also corrected DCG formula from `2^(rank+1)` to `log2(rank+2)` (the standard Järvelin & Kekäläinen 2002 formulation).
+- **How to prevent**: When writing evaluation harnesses, add an assertion that `any(src for src in ranked_sources)` is True — if it's False, the measurement is meaningless. Always cross-reference field names against the actual ingestion schema.
+
+### L-AUDIT-2. Coalescer ownership map — FOUR instances, three live production paths; flag duplicates per call site, never per `build_coalescer` call
+- **What**: Pass 1 audit flagged "dual coalescer instances". Tracing proves four intentional instantiations with distinct owners:
+  1. `app.orchestrator._coalescer` (orchestrator.py:33, single-flight at :91) — module-level singleton on the PRODUCTION sync-chat path: `POST /api/chat` → `ChatRequestOrchestrator.orchestrate()` (chat.py:316-319); the queue-worker path reuses the same module singleton (`queue_worker_factory`, orchestrator.py:188-237).
+  2. `container.coalescer` (container.py:296-298) — composition-root singleton, PRODUCTION inner-pipeline layer: `PipelineCoordinator.coalescer = container.coalescer` (pipeline_coordinator.py:61) → `GraphStage` (`ctx.coordinator.coalescer.get_or_run`, graph_stage.py:69,175); `LLMGateway` single-flights identical LLM calls (llm_gateway.py:306 → services/llm_gateway.py:131). Serves BOTH sync and stream paths (stream_orchestrator.py has no coalescer of its own). The container.py:296 comment "shared across pipeline and orchestrator" is STALE — the sync orchestrator does NOT read `container.coalescer`; it uses its own module singleton (1).
+  3. `ChatEngine._coalescer` (chat_engine.py:182-194, used at :244-259) — lazily-built per-engine singleton for the `/api/chat/v2` A/B surface (chat.py:346-348). Not built at import time.
+  4. `app.main.coalescer` (main.py:74-77) — TEST-ALIAS ONLY: the comment says "Backward-compatible module-level coalescer (tests patch app.main.coalescer)". Zero production call sites; the only references are tests (test_chat_endpoint.py:22, test_edge_cases.py:50), and per L-TEST-1 patching it does NOT intercept the orchestrator. Genuinely dead in production — kept solely as a legacy patch target.
+- **Why**: "coalescer" is ambiguous — each layer (request orchestrator, graph pipeline, LLM gateway) legitimately single-flights at its own granularity, and each `build_coalescer` with Redis allocates its own connection pool. Pass 1 was right that multiple instances exist, wrong that it was a bug: none is built per-request (the /api/chat/v2 path does construct a ChatEngine per request at chat.py:348, but its coalescer is lazy per-engine). The instances are bounded and intentional; the only true anomaly is `main.coalescer`, which is production-dead by design.
+- **How to prevent**: When auditing singleton usage, enumerate ALL owned instances (module: orchestrator.py:33, main.py:77; container: container.py:298; instance: chat_engine.py:191) and grep EACH call site (`_coalescer.get_or_run`, `coordinator.coalescer`, `container.coalescer`, `engine._get_coalescer`). Never assume two `build_coalescer` calls are duplicates, and never treat `app.main.coalescer` as a live path just because it is patched by tests. Tests must patch `app.orchestrator._coalescer` (sync path) or `container.coalescer` (inner path) — see L-TEST-1.
+
+### L-AUDIT-3. Indic crisis keyword coverage must be verified per-script, not per-language-family
+- **What**: `distress_stage.py` covered Hindi/Marathi (Devanagari), Bengali, Tamil, Telugu but was missing Kannada and Malayalam — two major South Indian scripts with distinct Unicode code points. A Hindi Devanagari keyword does NOT match Kannada even though both are Indian scripts.
+- **Why**: Kannada (`ಆತ್ಮಹತ್ಯೆ`) and Malayalam (`ആത്മഹത്യ`) use entirely different Unicode blocks (U+0C80-U+0CFF and U+0D00-U+0D7F respectively). Substring matching against Hindi terms provides zero coverage.
+- **Fix applied**: Added Kannada + Malayalam + Marathi-specific keywords (Marathi idiom `जीव देणे` distinct from Hindi), sourced from NIMHANS glossary and iCall/Vandrevala crisis materials.
+- **How to prevent**: For any Indic script coverage work, enumerate each script family separately: Devanagari (Hindi/Marathi/Sanskrit), Bengali, Gurmukhi (Punjabi), Gujarati, Odia, Tamil, Telugu, Kannada, Malayalam, Sinhala. Never assume "Indic" is monolithic.
+
+### L-AUDIT-4. Safety system activations should not use "error" as their telemetry status
+- **What**: `OutputGuardrailStage` set `ctx.last_stage_status = "error"` when it correctly blocked harmful output. This caused telemetry to report safety interventions as system failures, inflating error rates and potentially triggering false-positive alerts.
+- **Why**: "error" is conventionally reserved for unexpected system failures. A safety guardrail blocking output is a CORRECT behavior — it should be tagged as "moderated" or "blocked" to distinguish it from crashes.
+- **Fix applied**: Changed to `ctx.last_stage_status = "moderated"` in `guardrail_stage.py`.
+- **How to prevent**: Define a status taxonomy at the start of any pipeline implementation: `success | cached | moderated | timeout | error`. Use each status only for its semantic meaning.
+
 ## Aug 10, 2026 — Test Isolation: Mock Targets, sys.modules Eviction, Env DNS
+
+
 
 Four backend test-isolation bugs that each caused order-dependent failures passing standalone but failing in the full suite. Each is a general class.
 
 ### L-TEST-1. mock.patch must target the ACTUAL module-level singleton, not a sibling
 - **What**: `test_edge_cases.py`'s `mock_coalescer` fixture patched `app.main.coalescer.get_or_run`, but the orchestrator uses `app.orchestrator._coalescer` (a SEPARATE module-level singleton built at import time, orchestrator.py:33). The mock missed → real `RedisCoalescer` bound connections to TestClient portal loops → "Event loop is closed" / "attached to a different loop" across tests with different loops. Standalone tests passed (one portal loop); full suite failed (multiple portal loops).
 - **Why**: When a module builds a singleton at import time (`_coalescer = build_coalescer(...)`), patching `build_coalescer` only affects FUTURE builds — the existing instance is untouched. And patching a DIFFERENT module's attribute (`app.main.coalescer` vs `app.orchestrator._coalescer`) never intercepts the call.
-- **How to prevent**: Before patching a singleton, trace the actual call site: `grep "await.*coalescer\|coalescer\." app/` — patch the EXACT attribute the code reads. For module-level singletons, patch `app.module._singleton.method` directly, not `build_singleton`.
+- **How to prevent**: Before patching a singleton, trace the actual call site: `grep "await.*coalescer\|coalescer\." app/` — patch the EXACT attribute the code reads. For module-level singletons, patch `app.module._singleton.method` directly, not `build_singleton`. (Full instance/ownership map: L-AUDIT-2.)
 
 ### L-TEST-2. Blanket `sys.modules` eviction of a namespace package corrupts sibling tests
 - **What**: `test_anonymous_session_purge.py` and `test_cleanup_inactive.py` both did `for key in list(sys.modules): if key.startswith("scripts.ops"): del sys.modules[key]` to reimport `cleanup_inactive_user_data` with patched `create_client`. But this evicted ALL `scripts.ops.*` including `hallucination_anomaly`, which `test_hallucination_anomaly.py` had imported at collection time. The hallucination test held a reference to the OLD (deleted) `run_anomaly_check`; `mock.patch("scripts.ops.hallucination_anomaly._fetch_responses")` targeted a NEW re-imported instance → real `_fetch_responses` ran → DNS error.

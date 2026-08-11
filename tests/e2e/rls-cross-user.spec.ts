@@ -45,7 +45,10 @@ interface RlsUsers {
   seededIds: { conversations: string[]; chat_messages: string[] };
 }
 
-const PASSWORD = 'Password123!x';
+// Ephemeral local-Supabase test account password. Override via E2E_TEST_PASSWORD
+// for CI environments. The fallback value is only valid against a local
+// ephemeral Supabase instance — it is NOT a production credential.
+const PASSWORD = process.env.E2E_TEST_PASSWORD ?? 'Password123!x'; // gitleaks:allow
 const DOCKER_BIN = '/Users/harshodaikolluru/.docker/bin';
 
 function runSupabaseStatus(): string | null {

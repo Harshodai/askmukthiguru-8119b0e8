@@ -26,6 +26,46 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _is_personalization_eligible(state) -> bool:
+    """Single source of truth for the personalization-eligibility predicate.
+
+    A query is personalization-eligible when the request carries this user's
+    ``memory_context`` (core facts + recent turns). The shared caches key on
+    (language, message) only, so an eligible query must never read from or
+    write to them. Used by both CacheCheckStage (read guard) and
+    CacheUpdateStage (write guard) so the two sides can never drift.
+    """
+    return bool(state and state.get("memory_context"))
+
+
+async def _invalidate_shared_entries(container, cache_key: str) -> None:
+    """Purge previously-cached SHARED entries for ``cache_key``.
+
+    Called when a response was personalization-sensitive (write guard's
+    skipped path): a stale entry written earlier by a non-personalized answer
+    would otherwise keep shadowing personalization — the next seeker with
+    memory would be served it straight from the shared cache. Delete every
+    tier that exposes a per-key API: hot (exact-key invalidate) and semantic
+    (per-query invalidate). The Redis exact tier and the vector tier expose
+    no per-key delete from this module (only nuclear ``invalidate_all`` /
+    ``clear``), so they are intentionally skipped rather than nuked; their
+    TTLs bound the staleness window.
+    """
+    try:
+        hot_cache.invalidate(cache_key)
+    except Exception as e:
+        logger.debug("[cache stage] hot-cache invalidation failed: %s", e)
+
+    semantic = getattr(container, "semantic_cache", None)
+    if semantic is not None and getattr(semantic, "is_available", False):
+        invalidate = getattr(semantic, "invalidate_by_query", None)
+        if callable(invalidate):
+            try:
+                await asyncio.to_thread(invalidate, cache_key)
+            except Exception as e:
+                logger.debug("[cache stage] semantic-cache invalidation failed: %s", e)
+
+
 class CacheCheckStage(Stage):
     """Cache lookup across hot / vector / exact / semantic tiers.
 
@@ -48,7 +88,11 @@ class CacheCheckStage(Stage):
         # Defense-in-depth — in the current stage order memory_context is populated by
         # RequestStateStage after this stage, so this also pins the invariant for any
         # future reordering that computes memory earlier.
-        if ctx.state.get("memory_context"):
+        # INVARIANT: the eligibility guard MUST run before any shared-cache read; never
+        # return a shared entry for a personalization-eligible query. It sits above every
+        # lookup tier below (hot / vector / exact / semantic) on purpose — moving it
+        # below any of them would reintroduce the cross-user replay.
+        if _is_personalization_eligible(ctx.state):
             logger.debug("cache hit skipped: memory_context present")
             return None
 
@@ -62,8 +106,8 @@ class CacheCheckStage(Stage):
             if query_text and _is_logistics_query(query_text):
                 logger.info("CacheCheck: logistics query — bypassing cache for the honest short-circuit.")
                 return None
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[cache stage] suppressed non-critical error: %s", _e)
 
         # Determine query tier and dynamic cache threshold.
         # Store result on ctx so GraphStage can reuse it — avoids redundant LLM classification.
@@ -231,8 +275,16 @@ class CacheUpdateStage(Stage):
         # context_engineer conditions the answer on this user's memory_context (core
         # facts + recent turns). Caching such an answer would replay one seeker's
         # private context to the next person who asks the same question.
-        if ctx.state.get("memory_context"):
+        # Mirror of CacheCheckStage's read guard above — both sides share the
+        # _is_personalization_eligible predicate (single source of truth).
+        if _is_personalization_eligible(ctx.state):
             logger.info("Skipping cache update: response was personalized with user memory_context.")
+            # A stale SHARED entry for this key (written earlier by a non-personalized
+            # answer) must not survive the personalized response: it would be served to
+            # the next memory-bearing seeker straight from the cache, shadowing their
+            # personalization. Purge it on the skip path so a later shared lookup can
+            # never serve a stale cross-user answer.
+            await _invalidate_shared_entries(container, cache_key)
             return None
 
         if not isinstance(final_answer, str):

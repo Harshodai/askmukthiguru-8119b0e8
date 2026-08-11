@@ -61,7 +61,7 @@ from app.context import correlation_id_var
 from app.dependencies import ServiceContainer, get_container, shutdown, startup
 from app.metrics import REQUEST_COUNT
 from app.observability import init_observability
-from app.security_utils import TTLRateLimiter, ExponentialBackoffRateLimiter, validate_correlation_id, build_csp
+from app.security_utils import TTLRateLimiter, ExponentialBackoffRateLimiter, RedisBackedRateLimiter, validate_correlation_id, build_csp
 from app.telemetry_db import init_telemetry_db
 from app.telemetry_sink import SupabaseTelemetrySink, TelemetryWorker
 from services.auth_service import get_current_user_from_supabase
@@ -139,8 +139,8 @@ class JSONFormatter(logging.Formatter):
             cid = correlation_id_var.get()
             if cid != "-":
                 log_obj["correlation_id"] = cid
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
         if record.exc_info:
             log_obj["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_obj)
@@ -156,8 +156,8 @@ class PIIScrubber(logging.Filter):
             redacted = PIIScanner.redact(record.getMessage())
             record.msg = redacted
             record.args = ()
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
         return True
 
 
@@ -262,7 +262,10 @@ async def _background_startup_body(container, fastapi_app) -> None:
     try:
         import redis as _redis_lock_lib
         _rl = _redis_lock_lib.Redis.from_url(settings.redis_url, socket_timeout=3, socket_connect_timeout=3)
-        _qdrant_lock_acquired = _rl.set("startup:qdrant_maintenance_lock", "1", nx=True, ex=120) is True
+        # 300s TTL: provides safe headroom for the full maintenance block
+        # (HNSW patch + payload indexes + stale cleanup + entity merge ≤ 120s under load,
+        # but cold Railway instances with network variance can exceed 120s — P0-NEW-9).
+        _qdrant_lock_acquired = _rl.set("startup:qdrant_maintenance_lock", "1", nx=True, ex=300) is True
         if _qdrant_lock_acquired:
             logger.info("Lifespan: acquired distributed Qdrant maintenance lock")
         else:
@@ -475,8 +478,8 @@ async def _background_startup_body(container, fastapi_app) -> None:
                     with open(_fp_path) as _f:
                         _stored = _json.load(_f)
                         _stored_fp = _stored.get("fingerprint")
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
 
         if _stored_fp is not None:
             if _stored_fp != _fingerprint:
@@ -498,8 +501,8 @@ async def _background_startup_body(container, fastapi_app) -> None:
                 try:
                     with open(_fp_path, "w") as _f:
                         _json.dump({"model": _embed_model_name, "dim": _embed_dim, "fingerprint": _fingerprint}, _f)
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
             logger.info("Lifespan: embedding model fingerprint stored (%s)", _fingerprint[:8])
     except Exception as e:
         logger.warning(f"Lifespan: embedding model drift check error (non-critical): {e}")
@@ -576,6 +579,31 @@ async def _background_startup_body(container, fastapi_app) -> None:
             logger.info("RequestQueue started")
         except Exception as e:
             logger.warning(f"Failed to start RequestQueue: {e}")
+
+    # Embedding warm-up canary — fires the ONNX model cold-start cost at deploy time,
+    # not on the first user request. Also validates the dimension contract before traffic.
+    try:
+        if getattr(container, "embedding", None):
+            _t0 = time.time()
+            _test_vec = await asyncio.to_thread(
+                container.embedding.encode_single, "consciousness stillness awareness"
+            )
+            _latency_ms = int((time.time() - _t0) * 1000)
+            _dim = len(_test_vec) if hasattr(_test_vec, "__len__") else -1
+            if _dim != settings.embedding_dimension:
+                logger.error(
+                    "EMBEDDING DIMENSION MISMATCH: got %d, expected %d — "
+                    "Qdrant dense search will fail. Check HF_REVISION and ONNX model pin.",
+                    _dim, settings.embedding_dimension,
+                )
+            else:
+                logger.info(
+                    "Embedding warm-up OK: dim=%d, latency=%dms", _dim, _latency_ms
+                )
+        else:
+            logger.warning("Embedding service not available for warm-up canary")
+    except Exception as _warmup_err:
+        logger.warning("Embedding warm-up canary failed (non-fatal): %s", _warmup_err)
 
     _app_deps.startup_complete = True
     logger.info("=== Mukthi Guru Backend Ready ===")
@@ -805,14 +833,38 @@ class SecurityHeadersMiddleware:
 
 app.add_middleware(SecurityHeadersMiddleware)
 
-# ── TTL-based in-memory rate limiter ──
-_AUTH_RATE_LIMITER = ExponentialBackoffRateLimiter(
-    ttl=60.0,
-    max_requests=5,
-    backoff_base=settings.auth_backoff_base_seconds,
-    backoff_multiplier=settings.auth_backoff_multiplier,
-)
-_ADMIN_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=int(settings.admin_rate_limit.split('/')[0]))
+# ── Distributed rate limiters (Redis-backed sliding window) ──
+# Falls back to process-local TTLRateLimiter automatically if Redis is unavailable.
+# Replaces former ExponentialBackoffRateLimiter + TTLRateLimiter (process-local, audit P0-6).
+_redis_url_for_rl = settings.redis_url if (
+    settings.redis_url
+    and settings.redis_url.startswith(("redis://", "rediss://", "unix://"))
+) else None
+
+if _redis_url_for_rl:
+    _AUTH_RATE_LIMITER = RedisBackedRateLimiter(
+        redis_url=_redis_url_for_rl,
+        ttl=60.0,
+        max_requests=5,
+        backoff_base=settings.auth_backoff_base_seconds,
+        backoff_multiplier=settings.auth_backoff_multiplier,
+    )
+    _ADMIN_RATE_LIMITER = RedisBackedRateLimiter(
+        redis_url=_redis_url_for_rl,
+        ttl=60.0,
+        max_requests=int(settings.admin_rate_limit.split('/')[0]),
+    )
+    logger.info("Auth/Admin rate limiters: Redis-backed distributed sliding window")
+else:
+    # No Redis configured — fall back to process-local limiters (acceptable for single-worker dev)
+    _AUTH_RATE_LIMITER = ExponentialBackoffRateLimiter(
+        ttl=60.0,
+        max_requests=5,
+        backoff_base=settings.auth_backoff_base_seconds,
+        backoff_multiplier=settings.auth_backoff_multiplier,
+    )
+    _ADMIN_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=int(settings.admin_rate_limit.split('/')[0]))
+    logger.warning("Auth/Admin rate limiters: process-local (Redis not configured) — not safe for multi-worker deploy")
 
 
 # Auth endpoint rate limiter middleware — tight limits on login/reset/register
@@ -874,10 +926,15 @@ async def admin_rate_limit_middleware(request: Request, call_next):
     if request.url.path.startswith(_ADMIN_LIMIT_PATH):
         client_ip = request.client.host if request.client else "unknown"
         key = f"admin_rl:{client_ip}"
-        if not _ADMIN_RATE_LIMITER.is_allowed(key):
+        result = _ADMIN_RATE_LIMITER.is_allowed(key)
+        # RedisBackedRateLimiter returns (allowed, retry_after); TTLRateLimiter returns bool.
+        allowed = result[0] if isinstance(result, tuple) else result
+        retry_after = result[1] if isinstance(result, tuple) else 60
+        if not allowed:
             return JSONResponse(
                 status_code=429,
                 content={"error": "Too Many Requests", "message": "Admin rate limit exceeded. Try again later."},
+                headers={"Retry-After": str(int(retry_after))},
             )
     return await call_next(request)
 

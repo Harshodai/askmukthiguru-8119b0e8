@@ -63,6 +63,24 @@ Output:"""
 from app.telemetry_db import log_router_decision
 
 
+def _observe_background_task_error(task: asyncio.Task) -> None:
+    """Observe background-task failures so exceptions are logged, not swallowed.
+
+    Background task errors must be observed, not swallowed: scheduling-time
+    try/except cannot see exceptions raised later inside the task, and an
+    unobserved exception is silently dropped (or surfaced as an unhandled-task
+    error when the task object is garbage-collected). This done-callback reads
+    the task result and logs any failure at DEBUG level, matching the
+    suppression style of the scheduling guards below.
+    """
+    try:
+        exc = task.exception()
+    except asyncio.CancelledError:
+        return
+    if exc is not None:
+        logger.debug("[telemetry task] suppressed non-critical error: %s", exc)
+
+
 async def select_graph_for_query(
     query: str,
     container: Optional[ServiceContainer] = None,
@@ -94,7 +112,7 @@ async def select_graph_for_query(
     # fast graph instead of being overridden by the embedding router.
     if query_tier in ("tier2_simple", "fast"):
         try:
-            asyncio.create_task(
+            _t = asyncio.create_task(
                 log_router_decision(
                     query=query,
                     tier="fast",
@@ -102,8 +120,9 @@ async def select_graph_for_query(
                     method="tier_respect",
                 )
             )
-        except Exception:
-            pass
+            _t.add_done_callback(_observe_background_task_error)
+        except Exception as _e:
+            logger.debug("[telemetry task] suppressed non-critical error: %s", _e)
         return "fast"
 
     # 1. Heuristic routing FIRST (no LLM, deterministic, prevents simple queries
@@ -115,7 +134,7 @@ async def select_graph_for_query(
     for pattern in _DEEP_QUERY_PATTERNS:
         if re.search(pattern, q):
             try:
-                asyncio.create_task(
+                _t = asyncio.create_task(
                     log_router_decision(
                         query=query,
                         tier="deep",
@@ -123,8 +142,9 @@ async def select_graph_for_query(
                         method="heuristic_deep",
                     )
                 )
-            except Exception:
-                pass
+                _t.add_done_callback(_observe_background_task_error)
+            except Exception as _e:
+                logger.debug("[telemetry task] suppressed non-critical error: %s", _e)
             return "deep"
 
     # Multi-part guard: if query contains conjunctions/comparatives, don't fast-path
@@ -135,7 +155,7 @@ async def select_graph_for_query(
         if any(kw in q for kw in _DOCTRINE_FAST_PATH_KEYWORDS) and not is_multi_part:
             if len(tokens) <= 25:
                 try:
-                    asyncio.create_task(
+                    _t = asyncio.create_task(
                         log_router_decision(
                             query=query,
                             tier="fast",
@@ -143,12 +163,13 @@ async def select_graph_for_query(
                             method="heuristic_doctrine",
                         )
                     )
-                except Exception:
-                    pass
+                    _t.add_done_callback(_observe_background_task_error)
+                except Exception as _e:
+                    logger.debug("[telemetry task] suppressed non-critical error: %s", _e)
                 return "fast"
         elif len(tokens) <= 20 and not is_multi_part:
             try:
-                asyncio.create_task(
+                _t = asyncio.create_task(
                     log_router_decision(
                         query=query,
                         tier="fast",
@@ -156,15 +177,16 @@ async def select_graph_for_query(
                         method="heuristic_short",
                     )
                 )
-            except Exception:
-                pass
+                _t.add_done_callback(_observe_background_task_error)
+            except Exception as _e:
+                logger.debug("[telemetry task] suppressed non-critical error: %s", _e)
             return "fast"
 
     # Regex-based simple query detection
     for pattern in _SIMPLE_QUERY_PATTERNS:
         if re.search(pattern, q) and len(tokens) <= 15 and not is_multi_part:
             try:
-                asyncio.create_task(
+                _t = asyncio.create_task(
                     log_router_decision(
                         query=query,
                         tier="fast",
@@ -172,15 +194,16 @@ async def select_graph_for_query(
                         method="heuristic_pattern",
                     )
                 )
-            except Exception:
-                pass
+                _t.add_done_callback(_observe_background_task_error)
+            except Exception as _e:
+                logger.debug("[telemetry task] suppressed non-critical error: %s", _e)
             return "fast"
 
     # Broader regex-based simple query detection
     for pattern in HEURISTIC_BROAD_SIMPLE_PATTERNS:
         if re.search(pattern, q) and len(tokens) <= 15 and not is_multi_part:
             try:
-                asyncio.create_task(
+                _t = asyncio.create_task(
                     log_router_decision(
                         query=query,
                         tier="fast",
@@ -188,14 +211,15 @@ async def select_graph_for_query(
                         method="heuristic_broad",
                     )
                 )
-            except Exception:
-                pass
+                _t.add_done_callback(_observe_background_task_error)
+            except Exception as _e:
+                logger.debug("[telemetry task] suppressed non-critical error: %s", _e)
             return "fast"
 
     # Final catch-all: short greetings and statements
     if len(tokens) <= 4 and detected_intent in ("CASUAL", "GREETING"):
         try:
-            asyncio.create_task(
+            _t = asyncio.create_task(
                 log_router_decision(
                     query=query,
                     tier="fast",
@@ -203,8 +227,9 @@ async def select_graph_for_query(
                     method="heuristic_greeting",
                 )
             )
-        except Exception:
-            pass
+            _t.add_done_callback(_observe_background_task_error)
+        except Exception as _e:
+            logger.debug("[telemetry task] suppressed non-critical error: %s", _e)
         return "fast"
 
     # 2. Semantic router (embedding-based, sub-100 ms, zero LLM call)
@@ -221,7 +246,7 @@ async def select_graph_for_query(
                 )
                 if semantic_confidence >= threshold and not shadow_mode:
                     try:
-                        asyncio.create_task(
+                        _t = asyncio.create_task(
                             log_router_decision(
                                 query=query,
                                 tier=semantic_tier,
@@ -229,8 +254,9 @@ async def select_graph_for_query(
                                 method="semantic",
                             )
                         )
-                    except Exception:
-                        pass
+                        _t.add_done_callback(_observe_background_task_error)
+                    except Exception as _e:
+                        logger.debug("[telemetry task] suppressed non-critical error: %s", _e)
                     return semantic_tier
                 if shadow_mode:
                     logger.info(
@@ -247,7 +273,7 @@ async def select_graph_for_query(
 
     # 3. Default fallback
     try:
-        asyncio.create_task(
+        _t = asyncio.create_task(
             log_router_decision(
                 query=query,
                 tier="standard",
@@ -256,8 +282,9 @@ async def select_graph_for_query(
                 shadow_tier=semantic_tier if shadow_mode else None,
             )
         )
-    except Exception:
-        pass
+        _t.add_done_callback(_observe_background_task_error)
+    except Exception as _e:
+        logger.debug("[telemetry task] suppressed non-critical error: %s", _e)
     return "standard"
 
 

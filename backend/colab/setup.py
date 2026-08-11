@@ -266,8 +266,9 @@ def start_backend():
             if result.returncode == 0:
                 print("✅ Backend is running!")
                 return proc
-        except Exception:
-            pass
+        except Exception as _e:
+            import logging as _logging
+            _logging.getLogger(__name__).debug("[colab setup] health-check curl error: %s", _e)
 
     # If we get here, server didn't start — show logs
     print("⚠️  Backend may not be ready yet. Checking logs...")

@@ -65,18 +65,15 @@ def parse_prometheus(text: str) -> MetricsSnapshot:
 def format_table(metrics: MetricsSnapshot) -> str:
     """Return a human-readable metrics table."""
     lines = [
-        "+--------------------------------+-----------+
-",
+        "+--------------------------------+-----------+",
         f"| {'Metric':<30} | {'Value':<9} |",
-        "+--------------------------------+-----------+
-",
-        f"| {'Latency p50':<30} | {metrics.latency_p50_ms or 'N/A':<9} |",
-        f"| {'Latency p95':<30} | {metrics.latency_p95_ms or 'N/A':<9} |",
-        f"| {'Cache Hit Rate':<30} | {metrics.cache_hit_rate or 'N/A':<9} |",
-        f"| {'Tokens / Request':<30} | {metrics.tokens_per_request or 'N/A':<9} |",
-        f"| {'Error Rate':<30} | {metrics.error_rate or 'N/A':<9} |",
-        "+--------------------------------+-----------+
-",
+        "+--------------------------------+-----------+",
+        f"| {'Latency p50':<30} | {('N/A' if metrics.latency_p50_ms is None else metrics.latency_p50_ms):<9} |",
+        f"| {'Latency p95':<30} | {('N/A' if metrics.latency_p95_ms is None else metrics.latency_p95_ms):<9} |",
+        f"| {'Cache Hit Rate':<30} | {('N/A' if metrics.cache_hit_rate is None else metrics.cache_hit_rate):<9} |",
+        f"| {'Tokens / Request':<30} | {('N/A' if metrics.tokens_per_request is None else metrics.tokens_per_request):<9} |",
+        f"| {'Error Rate':<30} | {('N/A' if metrics.error_rate is None else metrics.error_rate):<9} |",
+        "+--------------------------------+-----------+",
     ]
     return "\n".join(lines)
 

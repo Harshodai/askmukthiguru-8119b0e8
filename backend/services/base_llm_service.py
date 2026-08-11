@@ -16,6 +16,7 @@ import abc
 import logging
 import re
 from collections.abc import AsyncIterator
+from typing import TypeVar
 
 from tenacity import (
     AsyncRetrying,
@@ -32,6 +33,9 @@ from services.circuit_breaker import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Generic return-type variable used by template methods.
+_T = TypeVar("_T")
 
 
 class AbstractLLMService(abc.ABC):
@@ -90,9 +94,7 @@ class AbstractLLMService(abc.ABC):
     # Template Methods (orchestration only)
     # ------------------------------------------------------------------
 
-    async def _execute_with_circuit_breaker[
-        T
-    ](self, operation: str, coro) -> T:
+    async def _execute_with_circuit_breaker(self, operation: str, coro) -> _T:
         """
         Template Method: execute a coroutine guarded by the circuit breaker.
 
@@ -117,14 +119,12 @@ class AbstractLLMService(abc.ABC):
             self._circuit.record_failure()
             raise
 
-    async def _retry_with_backoff[
-        T
-    ](
+    async def _retry_with_backoff(
         self,
         coro_fn,
         retryable_exceptions: tuple = (Exception,),
         max_retries: int | None = None,
-    ) -> T:
+    ) -> _T:
         """
         Template Method: retry a coroutine with exponential backoff.
         """

@@ -119,11 +119,12 @@ class RedisCoalescer:
             logger.exception("Coalescer pipeline failed")
             raise
         finally:
-            # Remove lock; keep result for TTL so followers can read it
+            # Remove lock; keep result for TTL so followers can read it.
+            # Suppress Redis errors here — lock expiry is the safety net.
             try:
                 await self._redis.delete(lock_key)
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001
+                logger.debug("Coalescer: failed to delete lock key %s: %s", lock_key, e)
 
     async def _wait_for_result(
         self,
@@ -177,8 +178,8 @@ class RedisCoalescer:
                 await self._redis.aclose()
             else:
                 await self._redis.close()
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001
+            logger.debug("RedisCoalescer.close(): error closing Redis connection: %s", e)
 
 
 def build_coalescer(redis_url: Optional[str] = None, ttl: float = 60.0):

@@ -329,8 +329,8 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
         try:
             from app.metrics import RETRIEVAL_RELEVANCE_RATIO
             RETRIEVAL_RELEVANCE_RATIO.set(len(relevant) / len(reranked_docs))
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[reranking node] suppressed non-critical error: %s", _e)
 
     logger.info(
         f"CRAG batch: {len(relevant)}/{len(reranked_docs)} docs passed relevance check "

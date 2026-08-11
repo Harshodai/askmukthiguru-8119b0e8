@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     sarvam_reasoning_effort: str = "medium"  # Default reasoning effort for main generation (low | medium | high)
     sarvam_reasoning_effort_fast: str = "low"   # Effort for fast/classification calls (intent routing, grading)
     sarvam_reasoning_effort_complex: str = "high"  # Effort for complex multi-hop, CoVe, and deep-reasoning queries
+    sarvam_max_tokens: int = 4096  # Hard output-token ceiling applied by SarvamHTTPGateway to every generation call
     # Per-call HTTP timeout. NIM/OpenRouter have low server-side limits; 45s provides
     # adequate headroom while keeping total pipeline latency acceptable.
     # Must be smaller than pipeline_timeout.
@@ -368,7 +369,8 @@ class Settings(BaseSettings):
     queue_default_timeout: int = 300
     # Max concurrent in-flight /api/chat (and /api/chat/v2, /api/chat/stream)
     # requests per replica. Exhausted → immediate 503 + Retry-After (no queueing).
-    max_concurrent_chat: int = 20
+    # Must be ≥1; zero or negative is rejected at startup by Pydantic validation.
+    max_concurrent_chat: int = Field(default=20, ge=1)
 
     # --- Request Queue (Phase 1A — horizontal scaling) ---
     # When True, incoming requests are enqueued to Redis Streams and

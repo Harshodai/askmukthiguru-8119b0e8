@@ -146,8 +146,8 @@ async def resolve_followup(state: GraphState, config: dict = None) -> dict:
     try:
         from rag.nodes.utils import emit_status
         await emit_status(config, "Connecting this to your previous question...")
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[followup resolution] suppressed non-critical error: %s", _e)
 
     # Build history string from last 10 messages (5 turns) so benchmark follow-ups
     # retain the doctrine anchors from earlier answers.

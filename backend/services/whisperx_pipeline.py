@@ -203,8 +203,8 @@ def transcribe_with_alignment(
             import torch
 
             torch.cuda.empty_cache()
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[whisperx pipeline] suppressed non-critical error: %s", _e)
 
     # --- Stage 2: Align (word-level timestamps) -----------------------------
     align_model = None
@@ -234,8 +234,8 @@ def transcribe_with_alignment(
                 import torch
 
                 torch.cuda.empty_cache()
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[whisperx pipeline] suppressed non-critical error: %s", _e)
 
     # --- Stage 3: Diarize (speaker labels) ----------------------------------
     method = "whisperx_aligned"
@@ -284,8 +284,8 @@ def transcribe_with_alignment(
                     import torch
 
                     torch.cuda.empty_cache()
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[whisperx pipeline] suppressed non-critical error: %s", _e)
 
     # --- Format output ------------------------------------------------------
     segments_out: list[dict] = []

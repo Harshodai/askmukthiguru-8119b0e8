@@ -45,6 +45,37 @@ async def test_throttle_waits_for_full_window_before_acting():
 
 
 @pytest.mark.asyncio
+async def test_throttle_shrinks_once_per_failure_episode():
+    """Hysteresis: one permit per hot episode; reset only when the rate cools below threshold."""
+    throttle = AdaptiveConcurrencyThrottle(max_permits=5, window_size=10, failure_threshold=0.4)
+
+    # Non-full window never shrinks
+    for _ in range(3):
+        await throttle.record_outcome(False)
+    assert throttle._current_permits == 5
+
+    # 10 failures fill the window at 100% failure -> exactly one shrink (5 -> 4)
+    for _ in range(10):
+        await throttle.record_outcome(False)
+    assert throttle._current_permits == 4
+
+    # Window still hot (100% failure) -> no further shrinking within this episode
+    for _ in range(5):
+        await throttle.record_outcome(False)
+    assert throttle._current_permits == 4
+
+    # 10 successes cool the window below the threshold -> episode resets
+    for _ in range(10):
+        await throttle.record_outcome(True)
+    assert throttle._current_permits == 4
+
+    # A new hot episode may shrink once more (4 -> 3)
+    for _ in range(10):
+        await throttle.record_outcome(False)
+    assert throttle._current_permits == 3
+
+
+@pytest.mark.asyncio
 async def test_throttle_acquire_release_bounds_concurrency():
     throttle = AdaptiveConcurrencyThrottle(max_permits=2, window_size=100, failure_threshold=0.4)
     concurrent_count = 0

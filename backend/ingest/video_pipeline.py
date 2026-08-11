@@ -154,8 +154,8 @@ class VideoPipeline:
                         return raw["text"]
                     if isinstance(raw, str):
                         return raw
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[video ingest] suppressed non-critical error: %s", _e)
                 raise
 
         loop = asyncio.get_running_loop()

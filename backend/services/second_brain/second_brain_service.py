@@ -400,7 +400,14 @@ class SecondBrainService:
     # ------------------------------------------------------------------
 
     async def forget_item(self, user_id: str, item_id: str) -> bool:
-        """Delete one item + its vector. User-scoped; idempotent."""
+        """Delete one item + its vector. User-scoped; idempotent.
+
+        Vector deletion runs BEFORE the Postgres row deletes: if it fails,
+        the exception aborts the flow and the plaintext row survives
+        (retry-safe). Residual window: a DB-delete failure after a successful
+        vector delete leaves the row without its embedding — safe to retry.
+        """
+        await self._delete_embedding(user_id, item_id)
         await asyncio.to_thread(
             self._db.table("user_brain_nodes").delete().eq("user_id", user_id).eq("id", item_id).execute
         )
@@ -408,24 +415,25 @@ class SecondBrainService:
             self._db.table("user_brain_edges").delete().eq("user_id", user_id)
             .or_(f"src.eq.{item_id},dst.eq.{item_id}").execute
         )
-        await self._delete_embedding(user_id, item_id)
         self._audit(user_id, "item_forgotten", {"item_id": item_id})
         return True
 
     async def crypto_shred(self, user_id: str) -> dict:
-        """Irreversible full erasure: delete all rows, delete this user's
-        vectors from the shared vault collection, and destroy the wrapped
-        DEK. Even with backups of the ciphertext, nothing can ever be
-        decrypted again."""
+        """Irreversible full erasure: delete this user's vectors from the
+        shared vault collection, then all rows and the wrapped DEK. Even
+        with backups of the ciphertext, nothing can ever be decrypted again.
+
+        Vector wipe runs BEFORE the row/DEK deletes: a vector failure aborts
+        the wipe before any plaintext-carrying state is destroyed (fail
+        closed — otherwise the vectors would survive and remain semantically
+        retrievable, a GDPR right-to-forget failure). Residual window: a
+        DB-delete failure after a successful wipe leaves the rows without
+        their vectors — safe to retry.
+        """
+        await self._drop_collection(user_id)  # early-returns if no vault index configured
         await asyncio.to_thread(self._db.table("user_brain_nodes").delete().eq("user_id", user_id).execute)
         await asyncio.to_thread(self._db.table("user_brain_edges").delete().eq("user_id", user_id).execute)
         await asyncio.to_thread(self._db.table("user_brain_keys").delete().eq("user_id", user_id).execute)
-        if self._qdrant:
-            try:
-                await self._drop_collection(user_id)
-            except Exception as exc:
-                logger.error(f"crypto_shred: vector deletion failed for {user_id}: {exc}")
-                raise
         self._audit(user_id, "vault_crypto_shredded", {})
         return {"user_id": user_id, "shredded": True}
 
@@ -498,8 +506,8 @@ class SecondBrainService:
         for i in ids:
             try:
                 await asyncio.to_thread(self._db.rpc("brain_touch", {"p_id": i}).execute)
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[second brain] suppressed non-critical error: %s", _e)
 
     # ---- vectors (shared vault collection, user_id-filtered — see vault_index.py) ----
 
@@ -522,8 +530,11 @@ class SecondBrainService:
             return
         try:
             await self._qdrant.delete_item(user_id, item_id)
-        except Exception:
-            pass
+        except Exception as _e:
+            # Re-raise: callers (forget_item, crypto_shred) must not report
+            # success unless Qdrant confirms the vector is gone.
+            logger.warning("second-brain vector delete failed (user=%s item=%s): %s", user_id, item_id, _e)
+            raise
 
     async def _drop_collection(self, user_id: str) -> None:
         """Despite the name (kept for parity with the erasure call site),
@@ -533,8 +544,11 @@ class SecondBrainService:
             return
         try:
             await self._qdrant.delete_all(user_id)
-        except Exception:
-            pass
+        except Exception as _e:
+            # Re-raise: callers (crypto_shred) must not report success unless
+            # Qdrant confirms all user vectors are gone (GDPR right-to-erasure).
+            logger.warning("second-brain vector drop-all failed (user=%s): %s", user_id, _e)
+            raise
 
     def _audit(self, user_id: str, event: str, meta: dict) -> None:
         """Security audit trail — who unlocked/exported/shredded, never WHAT.

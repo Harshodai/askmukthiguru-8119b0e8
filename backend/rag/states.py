@@ -175,6 +175,7 @@ class GraphState(TypedDict):
 
     # Context Engineering
     context_layers: Optional[dict]  # {persona, knowledge, instructions, user_state}
+    selected_docs: Optional[list]  # post-budget survivors from context_engineer (read by generate_answer)
 
     # Explainable Retrieval
     citation_reasoning: Annotated[dict, add_dicts]  # {url: reasoning}

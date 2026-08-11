@@ -122,8 +122,8 @@ class AccrualFailureDetector:
         try:
             DEPENDENCY_PHI.labels(name=self.name).set(self._phi)
             DEPENDENCY_HEALTH.labels(name=self.name).set(1.0 if self._healthy else 0.0)
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[health monitor] suppressed non-critical error: %s", _e)
 
     @property
     def is_healthy(self) -> bool:

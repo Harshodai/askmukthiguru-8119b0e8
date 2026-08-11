@@ -247,28 +247,34 @@ class TestAuthStrategy(AuthStrategy):
     cannot collide with a genuine account. It is a synthetic benchmark
     identity (is_superuser=True) for exercising admin/ingest routes locally,
     never a real Supabase user.
+
+    SEC-4 (2026-08-10): Secret comparison delegated to `security_utils.is_benchmark_request`
+    which uses `hmac.compare_digest` to prevent timing-based secret enumeration.
     """
 
     async def authenticate(
         self, request: Request, credentials: HTTPAuthorizationCredentials | None
     ) -> Optional[dict]:
-        test_key = request.headers.get("X-Test-Key")
-        benchmark_secret = getattr(settings, "benchmark_secret", None)
-        if test_key and benchmark_secret and test_key == benchmark_secret:
-            # Optional X-Test-Aal header lets probes mint aal1/aal2 identities
-            # for MFA step-up verification without a real Supabase MFA setup.
-            aal = request.headers.get("X-Test-Aal", "aal1")
-            if aal not in ("aal1", "aal2"):
-                aal = "aal1"
-            return {
-                "id": "00000000-0000-0000-0000-000000000000",
-                "email": "benchmark-admin@mukthi.guru",
-                "is_superuser": True,
-                "provider": "test",
-                "tenant_id": "00000000-0000-0000-0000-000000000000",
-                "aal": aal,
-            }
-        return None
+        from app.security_utils import is_benchmark_request
+
+        # Constant-time comparison via hmac.compare_digest (in is_benchmark_request).
+        # DO NOT reimplement this check inline with ==  — timing attacks are real.
+        if not is_benchmark_request(request):
+            return None
+
+        # Optional X-Test-Aal header lets probes mint aal1/aal2 identities
+        # for MFA step-up verification without a real Supabase MFA setup.
+        aal = request.headers.get("X-Test-Aal", "aal1")
+        if aal not in ("aal1", "aal2"):
+            aal = "aal1"
+        return {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "email": "benchmark-admin@mukthi.guru",
+            "is_superuser": True,
+            "provider": "test",
+            "tenant_id": "00000000-0000-0000-0000-000000000000",
+            "aal": aal,
+        }
 
 
 # ---- JWKS Client (cached, lazy-initialised) ----
@@ -548,8 +554,17 @@ class AuthBridge:
 
 security = HTTPBearer(auto_error=False)
 _strategies = [LocalAuthStrategy(), SupabaseAuthStrategy()]
-# TestAuthStrategy is a backdoor (X-Test-Key == benchmark_secret -> superuser admin).
-# Require BOTH explicit opt-in flag AND a configured benchmark secret; refuse in prod.
+# SEC-6: TestAuthStrategy benchmark backdoor.
+# Grants synthetic superuser identity (NIL UUID, is_superuser=True) when ALL of:
+#   1. ENABLE_TEST_AUTH=true
+#   2. IS_PRODUCTION=false (or unset)
+#   3. BENCHMARK_SECRET is non-empty
+#   4. X-Test-Key header matches BENCHMARK_SECRET (constant-time via hmac.compare_digest)
+# The superuser identity is intentional — benchmarks exercise admin/ingest routes.
+# The NIL UUID (00000000...) is a sentinel never issued by Supabase GoTrue.
+# RISK: BENCHMARK_SECRET exposure grants superuser access in non-prod environments.
+# Mitigation: secret is gated by ENABLE_TEST_AUTH + IS_PRODUCTION=false AND is
+#             compared with hmac.compare_digest (no timing-attack amplification).
 if getattr(settings, "enable_test_auth", False) and not settings.is_production and getattr(settings, "benchmark_secret", None):
     _strategies.insert(0, TestAuthStrategy())
 if settings.is_production and any(isinstance(s, TestAuthStrategy) for s in _strategies):

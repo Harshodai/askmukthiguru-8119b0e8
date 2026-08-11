@@ -48,6 +48,19 @@ logger = logging.getLogger(__name__)
 _PERSONA_TOKEN_BUDGET = 2048
 
 
+def _build_stop_sequences() -> list[str]:
+    """Stop sequences sent to every non-streaming generation call.
+
+    P1-AI-8: MUST NOT include "[RETRIEVE:" — as a stop token the provider
+    halts on (and often excludes) the tag, so the post-generation CCR
+    interceptor would never see it. CCR acts on the full generated text
+    (headroom CCR interception in generate_answer) and leftover tags are
+    stripped unconditionally before the answer reaches the user. Only the
+    blank-line soft cap on runaway paragraphs remains.
+    """
+    return ["\n\n\n"]
+
+
 def _maybe_apply_langhanam_voice(
     state: GraphState, system_prompt: str, answer: str
 ) -> tuple[str, str]:
@@ -305,6 +318,12 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
         selection = budget_mgr.compress(wrapped)
         knowledge_docs = [w["_orig"] for w in selection["selected_chunks"]]
 
+    # Audit P1: carry the docs that actually survived budget-aware selection —
+    # the same set quoted in ``knowledge`` (sort_docs_canonically below only
+    # reorders them). generate_answer consumes this pool instead of
+    # re-deriving its own list from relevant_docs.
+    selected_docs = list(knowledge_docs)
+
     knowledge = "\n\n".join(
         f"[Source: {doc.get('title', 'Unknown')} | URL: {doc.get('source_url', 'N/A')}]\n{doc_text(doc)}"
         for doc in sort_docs_canonically(knowledge_docs)
@@ -458,6 +477,10 @@ async def context_engineer(state: GraphState, config: dict = None) -> dict:
     ret_dict = {"context_layers": context_layers}
     if cost_steered_brevity:
         ret_dict["query_tier"] = "tier2_simple"
+    # Contract: record the docs that actually survived budget-aware selection —
+    # the exact set quoted in ``knowledge``. generate_answer consumes this
+    # field instead of re-deriving its own list from pre-budget relevant_docs.
+    ret_dict["selected_docs"] = selected_docs
 
     return ret_dict
 
@@ -644,7 +667,11 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     """Generate the final answer with inline hint extraction."""
     _cs = state.get("complexity_score", 0.5)
     question = state.get("rewritten_query") or state["question"]
-    relevant_docs = state["relevant_docs"]
+    # context_engineer's post-budget selection is authoritative when present
+    # (key exists => that node ran). An empty list stays empty so the
+    # content-gap path below fires; absent key keeps the legacy derivation.
+    _selected = state.get("selected_docs")
+    relevant_docs = _selected if _selected is not None else state["relevant_docs"]
     chat_history = state.get("chat_history", [])
     lang = state.get("detected_language", "en")
     ollama = _services._ollama
@@ -1231,17 +1258,12 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                     kwargs.get("max_tokens") or max_tokens_ceiling,
                     max_tokens_ceiling,
                 )
-                # P1-AI-1: CCR stop sequence — when the model decides context
-                # is compressed and emits '[RETRIEVE: <url>]', generation stops
-                # immediately instead of continuing past the tag. Only wired
-                # when reversible context compression is enabled (the same flag
-                # that lets retrieved docs arrive compressed).
-                # P1-AI-8: always treat [RETRIEVE: as a stop sequence so the
-                # CCR interceptor can act on it; this is safe because any
-                # remaining tag is unconditionally stripped before the user
-                # sees the answer. When context compression is disabled the
-                # interceptor still uses the tag to fall back once.
-                kwargs.setdefault("stop", []).append("[RETRIEVE:")
+                # P1-AI-1: CCR stop sequence removed — '[RETRIEVE:' as a stop was
+                # truncating the tag at the opening marker, preventing the interceptor
+                # from matching the full '[RETRIEVE: url]' directive (the closing ']'
+                # was never emitted). The interceptor still strips any residual tag
+                # before the user sees the answer. Only the runaway-generation guard
+                # is kept.
                 kwargs.setdefault("stop", []).append("\n\n\n")
                 if _services._llm_gateway is not None:
                     return await _services._llm_gateway.generate(
@@ -1738,8 +1760,8 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             from app.metrics import ANSWER_ACCEPTED_UNVERIFIED
 
             ANSWER_ACCEPTED_UNVERIFIED.inc()
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[generation node] suppressed non-critical error: %s", _e)
     else:
         logger.warning(
             f"Final: Answer rejected (faithful={is_faithful}, "

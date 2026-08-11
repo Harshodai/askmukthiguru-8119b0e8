@@ -510,8 +510,8 @@ def _generation_kwargs(state: GraphState) -> dict:
         tier_label = "fast" if query_tier in ("fast", "tier2_simple") else "deep" if query_tier in ("deep", "tier3_complex") else "standard"
         GENERATION_TEMPERATURE.labels(strategy=tier_label).set(base.get("temperature", 0.7))
         GENERATION_TOP_K.labels(strategy=tier_label).set(base.get("num_predict", 1024))
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[rag utils] suppressed non-critical error: %s", _e)
 
     return base
 
@@ -775,8 +775,8 @@ def log_metrics(func):
             try:
                 NODE_ERROR_TOTAL.labels(node=node_name).inc()
                 NODE_FALLBACK_TOTAL.labels(node=node_name).inc()
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[rag utils] suppressed non-critical error: %s", _e)
             # Unit 9: guarantee downstream nodes (e.g. verify_answer,
             # format_final_answer) do not KeyError when the previous node failed.
             #
@@ -820,8 +820,8 @@ def log_metrics(func):
 
         try:
             PIPELINE_STAGE_LATENCY.labels(stage=node_name).observe(duration)
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[rag utils] suppressed non-critical error: %s", _e)
 
         metrics = state.get("metrics") or {}
         metrics[node_name] = duration

@@ -6,6 +6,7 @@ Unit 13 — moved from `routers/admin.py` into `app.api`.
 
 import asyncio
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -521,10 +522,10 @@ async def ask_admin_question(
     container = get_container()
     llm_service = container.ollama
 
-    # Fetch rich context dynamically to support complex queries
-    from app.telemetry_db import get_kpis, get_node_latencies
+    # Fetch rich context dynamically to support complex queries.
+    # Note: get_kpis/get_node_latencies are already imported at module top.
+    # get_cost_tracker is intentionally lazy-loaded to avoid circular imports.
     from services.cost_tracker import get_cost_tracker
-    from datetime import datetime, timedelta, UTC
 
     dynamic_context = []
     

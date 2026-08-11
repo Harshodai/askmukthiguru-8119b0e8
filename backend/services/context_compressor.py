@@ -156,8 +156,8 @@ class ContextBudgetManager:
             CONTEXT_CHUNKS_BEFORE.set(chunks_before)
             CONTEXT_CHUNKS_AFTER.set(len(packed))
             CONTEXT_TOKENS_SAVED.set(tokens_before - total_tokens)
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[context compressor] suppressed non-critical error: %s", _e)
 
         return {
             "compressed_context": compressed,

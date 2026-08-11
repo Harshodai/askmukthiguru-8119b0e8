@@ -21,6 +21,27 @@ logger = logging.getLogger(__name__)
 pytestmark = pytest.mark.integration
 
 
+def _extract_source_filename(r: dict) -> str:
+    """Extract a source filename from a search result dict.
+
+    Qdrant payload field precedence: "source_url" → "source" → "url"
+    → payload.source_url → payload.source → payload.url → "".
+    Multi-key fallback fixes the NDCG=0.0 measurement bug (2026-08-03) where
+    all documents returned "" because some payloads use "source"/"url"
+    instead of "source_url".
+    """
+    raw = (
+        r.get("source_url")
+        or r.get("source")
+        or r.get("url")
+        or r.get("payload", {}).get("source_url")
+        or r.get("payload", {}).get("source")
+        or r.get("payload", {}).get("url")
+        or ""
+    )
+    return raw.split("/")[-1]
+
+
 @pytest.fixture
 def qdrant_searcher():
     """Real QdrantSearcher against the configured collection. Skips if
@@ -132,25 +153,35 @@ class QdrantSearchQualityTester:
         self._reranker = reranker_service
 
     def ndcg_at_k(self, ranked_sources: list[str], relevant_sources: list[str], k: int = 10) -> float:
-        """Compute NDCG@K.
+        """Compute NDCG@K using standard log2(rank+1) formulation.
+
+        Reference: Järvelin & Kekäläinen (2002), "Cumulated gain-based evaluation
+        of IR techniques", ACM TOIS 20(4).
 
         Args:
-            ranked_sources: Ordered list of source titles from search
-            relevant_sources: Ground truth relevant sources
+            ranked_sources: Ordered list of source filenames from search results
+            relevant_sources: Ground truth relevant source filenames
             k: Cutoff rank
 
         Returns:
             NDCG@K score in [0.0, 1.0]
         """
+        import math
+
+        # Deduplicate both lists (preserve order) so duplicate source filenames
+        # cannot contribute multiple relevant hits and push DCG above IDCG.
+        ranked_sources = list(dict.fromkeys(ranked_sources))
+        relevant_sources = list(dict.fromkeys(relevant_sources))
+
         # Relevance: 1.0 if in relevant_sources, 0.0 otherwise
         relevances = [1.0 if src in relevant_sources else 0.0 for src in ranked_sources[:k]]
 
-        # DCG: sum of relevances / log2(rank+1)
-        dcg = sum(rel / (2 ** (i + 1)) for i, rel in enumerate(relevances))
+        # DCG: standard log2(rank+1) formulation (rank is 1-indexed)
+        dcg = sum(rel / math.log2(i + 2) for i, rel in enumerate(relevances))
 
-        # IDCG: best-case DCG (all relevant sources ranked first)
+        # IDCG: best-case DCG (all relevant docs at top ranks)
         ideal_relevances = [1.0] * min(len(relevant_sources), k)
-        idcg = sum(1.0 / (2 ** (i + 1)) for i in range(len(ideal_relevances)))
+        idcg = sum(1.0 / math.log2(i + 2) for i in range(len(ideal_relevances)))
 
         return dcg / idcg if idcg > 0 else 0.0
 
@@ -205,10 +236,21 @@ class QdrantSearchQualityTester:
             else:
                 raise ValueError(f"Unknown strategy: {strategy}")
 
-            # Extract source titles from results
-            ranked_sources = [r.get("source_url", "").split("/")[-1] for r in results]
+            # Extract source filenames from results.
+            ranked_sources = [_extract_source_filename(r) for r in results]
 
-            # Compute NDCG
+            # Log a diagnostic sample so future failures are debuggable
+            n_empty = sum(1 for s in ranked_sources if not s)
+            if n_empty > 0:
+                logger.warning(
+                    "NDCG: %d/%d source filenames are empty — source extraction "
+                    "incomplete; check Qdrant payload field names. Sample result keys: %s",
+                    n_empty,
+                    len(ranked_sources),
+                    list(results[0].keys()) if results else "(no results)",
+                )
+
+            # Compute NDCG@10
             ndcg = self.ndcg_at_k(ranked_sources, relevant_sources, k=10)
             scores.append(ndcg)
 
@@ -308,6 +350,47 @@ def test_qdrant_search_quality_baseline_regression(qdrant_searcher, embedding_se
         json.dump(baselines, f, indent=2)
 
     logger.info(f"Baseline updated: {baseline_path}")
+
+
+def test_ndcg_duplicate_sources_cannot_exceed_one():
+    """Unit regression: duplicate relevant filenames in the ranked list must
+    not let DCG exceed IDCG (score in [0.0, 1.0])."""
+    tester = QdrantSearchQualityTester(None, None)
+
+    assert tester.ndcg_at_k(["a.md", "a.md", "b.md"], ["a.md"]) == 1.0
+
+    score = tester.ndcg_at_k(["a.md", "a.md", "a.md!", "b.md"], ["a.md"])
+    assert score <= 1.0
+
+
+def test_ndcg_duplicate_relevant_sources_do_not_inflate_idcg():
+    """Unit regression: duplicate entries in relevant_sources must not inflate the IDCG denominator."""
+    tester = QdrantSearchQualityTester(None, None)
+    assert tester.ndcg_at_k(["a.md", "b.md"], ["a.md", "a.md"]) == 1.0
+
+
+def test_ndcg_perfect_match_and_no_match_bounds():
+    """Unit: perfect top-rank match scores exactly 1.0; no relevant hits score 0.0."""
+    tester = QdrantSearchQualityTester(None, None)
+
+    assert tester.ndcg_at_k(["a.md"], ["a.md"]) == 1.0
+    assert tester.ndcg_at_k(["a.md", "b.md", "c.md"], ["a.md"]) == 1.0
+    assert tester.ndcg_at_k(["x.md", "y.md"], ["a.md"]) == 0.0
+
+
+def test_extract_source_filename_payload_url():
+    """Unit regression: URL nested only under payload["url"] is extracted."""
+    assert (
+        _extract_source_filename({"payload": {"url": "https://x/y/meditation.md"}})
+        == "meditation.md"
+    )
+
+
+def test_extract_source_filename_precedence():
+    """Unit: top-level and payload.source_url keep precedence over payload.url."""
+    assert _extract_source_filename({"source_url": "a.md", "payload": {"url": "b.md"}}) == "a.md"
+    assert _extract_source_filename({"payload": {"source_url": "a.md", "url": "b.md"}}) == "a.md"
+    assert _extract_source_filename({"payload": {"source": "c.md", "url": "b.md"}}) == "c.md"
 
 
 if __name__ == "__main__":

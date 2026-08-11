@@ -172,8 +172,8 @@ try:
     def _inc_stage(stage: str) -> None:
         try:
             CANCEL_FLOW_STAGE_REACHED.labels(stage=stage).inc()
-        except Exception:  # no-op fallback
-            pass
+        except Exception as _e:  # no-op fallback
+            logger.debug("[cancel flow cleanup] suppressed non-critical error: %s", _e)
 except Exception:  # pragma: no cover - prometheus unavailable
     CANCEL_FLOW_STAGE_REACHED = None  # type: ignore[assignment]
 

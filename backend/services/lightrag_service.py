@@ -7,6 +7,7 @@ import os
 import threading
 from typing import Optional
 
+import httpx
 from cachetools import TTLCache
 from lightrag.lightrag import LightRAG
 from lightrag.utils import EmbeddingFunc
@@ -29,6 +30,29 @@ SPIRITUAL_ENTITY_TYPES = [
 ]
 
 logger = logging.getLogger(__name__)
+
+_TRANSIENT_OPENROUTER_STATUSES = frozenset({408, 429, 500, 502, 503, 504})
+
+
+def _is_transient_openrouter_error(exc: BaseException) -> bool:
+    """Return True only for OpenRouter failures worth a retry: network/timeout
+    errors, rate limits (429), and retryable 5xx. Permanent failures (401 auth,
+    400/422 validation, malformed responses) fall through immediately so the
+    caller's default-LLM fallback runs without burning retry attempts."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        response = getattr(exc, "response", None)
+        return response is not None and response.status_code in _TRANSIENT_OPENROUTER_STATUSES
+    return isinstance(
+        exc,
+        (
+            httpx.TimeoutException,
+            httpx.ConnectError,
+            httpx.RemoteProtocolError,
+            ConnectionError,
+            OSError,
+            asyncio.TimeoutError,
+        ),
+    )
 
 
 class LightRAGService:
@@ -59,6 +83,10 @@ class LightRAGService:
         # entries (only skipped them on read), so it grew by one entry per
         # unique query for the life of the process. maxsize caps worst case.
         self._query_cache: TTLCache = TTLCache(maxsize=2000, ttl=self._cache_ttl_seconds)
+        # TTLCache is NOT thread-safe — concurrent asyncio tasks running in the
+        # thread pool can race on read/write. An RLock serialises all cache
+        # operations without deadlocking (RLock is reentrant).
+        self._cache_lock = threading.RLock()
 
     async def initialize(self):
         if self._initialized:
@@ -215,14 +243,32 @@ class LightRAGService:
                     )
 
                 try:
-                    response = await openrouter.generate(
-                        system_prompt=system_prompt or "You are a helpful assistant.",
-                        user_prompt=prompt,
-                        context=context,
-                        **kwargs,
+                    from tenacity import (
+                        before_sleep_log,
+                        retry,
+                        retry_if_exception,
+                        stop_after_attempt,
+                        wait_exponential,
                     )
+
+                    @retry(
+                        stop=stop_after_attempt(3),
+                        wait=wait_exponential(multiplier=1, min=2, max=30),
+                        retry=retry_if_exception(_is_transient_openrouter_error),
+                        before_sleep=before_sleep_log(logger, logging.WARNING),
+                        reraise=True,
+                    )
+                    async def _openrouter_with_retry():
+                        return await openrouter.generate(
+                            system_prompt=system_prompt or "You are a helpful assistant.",
+                            user_prompt=prompt,
+                            context=context,
+                            **kwargs,
+                        )
+
+                    response = await _openrouter_with_retry()
                 except Exception as e:
-                    logger.warning(f"LightRAG: OpenRouter task failed ({e}), falling back to default LLM")
+                    logger.warning(f"LightRAG: OpenRouter task failed after retries ({e}), falling back to default LLM")
                     response = ""
 
             if not response:
@@ -401,7 +447,8 @@ class LightRAGService:
         """
         # ponytail: 5min TTL cache for identical queries
         cache_key = hashlib.md5(f"{query}:{mode}:{only_need_context}".encode(), usedforsecurity=False).hexdigest()
-        cached = self._query_cache.get(cache_key)
+        with self._cache_lock:
+            cached = self._query_cache.get(cache_key)
         if cached is not None:
             logger.info("LightRAG cache hit for query")
             return cached
@@ -422,8 +469,8 @@ class LightRAGService:
             result = await self.rag.aquery(
                 query, param=QueryParam(mode=mode, only_need_context=only_need_context)
             )
-            # Cache result
-            self._query_cache[cache_key] = result
+            with self._cache_lock:
+                self._query_cache[cache_key] = result
             return result
         except Exception as e:
             # Check for common initialization error and retry once
@@ -433,7 +480,8 @@ class LightRAGService:
                 result = await self.rag.aquery(
                     query, param=QueryParam(mode=mode, only_need_context=only_need_context)
                 )
-                self._query_cache[cache_key] = result
+                with self._cache_lock:
+                    self._query_cache[cache_key] = result
                 return result
             logger.error(f"LightRAG query failed: {e}")
             return ""
@@ -522,12 +570,13 @@ class LightRAGService:
                         source_tokens.add(str(fp).split("/")[-1].lower())
             if not source_tokens:
                 return
-            for key, value in list(self._query_cache.items()):
-                if not isinstance(value, str):
-                    continue
-                value_lower = value.lower()
-                if any(token and token in value_lower for token in source_tokens):
-                    self._query_cache.pop(key, None)
+            with self._cache_lock:
+                for key, value in list(self._query_cache.items()):
+                    if not isinstance(value, str):
+                        continue
+                    value_lower = value.lower()
+                    if any(token and token in value_lower for token in source_tokens):
+                        self._query_cache.pop(key, None)
         except Exception as e:  # invalidation is best-effort, never fatal
             logger.warning(f"LightRAG scoped cache invalidation failed (non-fatal): {e}")
 

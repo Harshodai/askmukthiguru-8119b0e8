@@ -118,7 +118,10 @@ async def populate_server_side_history(chat_body: ChatRequest, user: dict, conta
         return
 
     try:
-        # Check if conversation exists and belongs to the user
+        # Check if conversation exists and belongs to the user.
+        # PERF-2 TODO: Migrate to an async Postgres client (e.g. asyncpg or
+        # supabase-py v2 async mode) to eliminate thread pool pressure.
+        # asyncio.to_thread() is correct but consumes a thread per call.
         resp = await asyncio.to_thread(
             sc.table("conversations")
             .select("user_id")
@@ -132,7 +135,8 @@ async def populate_server_side_history(chat_body: ChatRequest, user: dict, conta
         if str(owner_id) != str(user_id):
             raise HTTPException(status_code=403, detail="Unauthorized access to conversation history")
 
-        # Fetch actual messages for the session
+        # Fetch actual messages for the session.
+        # PERF-2 TODO: Same async migration applies here.
         msg_resp = await asyncio.to_thread(
             sc.table("chat_messages")
             .select("role", "content")

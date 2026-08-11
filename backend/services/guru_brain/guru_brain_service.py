@@ -292,7 +292,7 @@ def get_guru_brain_service(
         container = get_container()
         if container and getattr(container, "guru_brain_service", None):
             return container.guru_brain_service
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[guru brain] suppressed non-critical error: %s", _e)
     return GuruBrainService(qdrant_service=qdrant_service, embedding_service=embedding_service)
 

@@ -221,8 +221,8 @@ async def queue_worker_factory(
         )
         try:
             await pipeline_task
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[orchestrator cleanup] suppressed non-critical error: %s", _e)
         await drain_task
         return {"job_id": job_id, "status": "streamed"}
 
@@ -290,8 +290,8 @@ async def _drain_stream_to_redis(
                 payload = json.dumps(item, default=str) if isinstance(item, dict) else item
                 try:
                     await r.xadd(stream_key, {"data": payload}, maxlen=1000)
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[orchestrator cleanup] suppressed non-critical error: %s", _e)
         if r:
             await r.xadd(stream_key, {"data": "__COMPLETE__"}, maxlen=1000)
             await r.expire(stream_key, 600)

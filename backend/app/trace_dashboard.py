@@ -95,8 +95,8 @@ def _store_trace_redis(request_id: str, trace_data: dict):
         r = redis.from_url(settings.redis_url, decode_responses=True)
         key = f"mukthiguru:trace:{request_id}"
         r.setex(key, 86400, json.dumps(trace_data, default=str))
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[trace dashboard] suppressed non-critical error: %s", _e)
 
 
 def _get_trace_redis(request_id: str) -> Optional[dict]:

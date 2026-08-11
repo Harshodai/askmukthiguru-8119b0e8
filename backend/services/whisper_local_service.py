@@ -204,6 +204,33 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
         return None
 
 
+def _apply_asr_gate(video_id: str, text: str) -> Optional[str]:
+    """ASR gate backstop (§6.1) — reject degenerate transcripts, FAIL-CLOSED.
+
+    Runs `reject_transcript` (5-gram loop detector) on the raw transcript
+    BEFORE the LLM corrector. A truthy rejection reason aborts ingestion. The
+    gate is deliberately fail-closed: ANY error importing or calling it also
+    returns None (aborts ingestion) — a malfunctioning gate must block a
+    degenerate transcript rather than let it reach the corrector, which would
+    write prose about it and pass it through to ingestion.
+
+    Returns the unchanged transcript when the gate passes; None otherwise.
+    """
+    try:
+        from services.asr_gate import reject_transcript
+
+        rejection = reject_transcript(text)
+        if rejection:
+            logger.warning(f"[{video_id}] ASR gate rejected transcript: {rejection}")
+            return None
+    except Exception as gate_err:
+        # Gate check failed — fail closed: returning None aborts ingestion.
+        # A broken ASR gate must not allow degenerate transcripts through.
+        logger.warning(f"[{video_id}] ASR gate check failed (aborting ingest): {gate_err}")
+        return None
+    return text
+
+
 def transcribe_with_whisper(
     video_id: str,
     audio_path: str,
@@ -240,8 +267,8 @@ def transcribe_with_whisper(
         from services.asr_gate import asr_decode_kwargs
 
         decode_kwargs = asr_decode_kwargs(backend="mlx")
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[whisper local] suppressed non-critical error: %s", _e)
     try:
         result = mlx_whisper.transcribe(
             audio_path, path_or_hf_repo=model, verbose=False,
@@ -267,16 +294,15 @@ def transcribe_with_whisper(
 
         # ASR gate backstop (§6.1): reject degenerate transcripts (decoder loops)
         # BEFORE the LLM corrector. The corrector writes prose about a loop; the
-        # gate refuses it at the transcript stage. Fail-closed: None aborts ingest.
-        try:
-            from services.asr_gate import reject_transcript
-
-            rejection = reject_transcript(text)
-            if rejection:
-                logger.warning(f"[{video_id}] ASR gate rejected transcript: {rejection}")
-                return None
-        except Exception as gate_err:
-            logger.debug(f"[{video_id}] ASR gate check skipped (non-fatal): {gate_err}")
+        # gate refuses it at the transcript stage. Fail-closed by design: a gate
+        # malfunction (import failure, internal bug) must also block ingestion —
+        # a degenerate transcript must never reach the corrector. None aborts
+        # ingest either way. Errors are logged as "failed closed (error)" so
+        # operators can distinguish gate malfunction from gate rejection.
+        gated = _apply_asr_gate(video_id, text)
+        if gated is None:
+            return None
+        text = gated
 
         # Filter out common Whisper hallucinations (e.g., repeated "Thank you" loops)
         import re

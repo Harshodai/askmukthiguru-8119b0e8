@@ -41,20 +41,23 @@ def is_benchmark_request(request) -> bool:
     Detect a benchmark/test request via the X-Test-Key header.
 
     The header only grants benchmark bypass when ALL of these hold:
-    - ENABLE_TEST_AUTH is on (settings.enable_test_auth)
-    - NOT production (settings.is_production is False)
+    - ENABLE_TEST_AUTH=true  (settings.enable_test_auth)
+    - IS_PRODUCTION=false    (settings.is_production is False)
     - BENCHMARK_SECRET is configured and non-empty
     - the X-Test-Key value matches BENCHMARK_SECRET (constant-time compare)
 
     JWT_SECRET is never accepted here — leaking it must not unlock benchmark
     bypass. This is the single guard shared by the rate limiter, the chat
     handlers, and the sync/stream orchestrators.
+
+    Tests should patch settings attributes directly (e.g. settings.enable_test_auth = True)
+    rather than patching os.environ, as this function reads from the settings object.
     """
     from app.config import settings
 
-    benchmark_secret = getattr(settings, "benchmark_secret", "") or os.environ.get("BENCHMARK_SECRET", "")
+    benchmark_secret = getattr(settings, "benchmark_secret", "") or ""
     test_key = request.headers.get("X-Test-Key", "")
-    if not (settings.enable_test_auth and not settings.is_production):
+    if not (getattr(settings, "enable_test_auth", False) and not getattr(settings, "is_production", True)):
         return False
     if not benchmark_secret or not test_key:
         return False
@@ -318,3 +321,253 @@ class ExponentialBackoffRateLimiter:
             self._attempts[key] = [a for a in self._attempts[key] if a[0] > cutoff]
             if not self._attempts[key]:
                 del self._attempts[key]
+
+
+def _rate_limit_key_digest(key: str) -> str:
+    """HMAC-SHA256 digest of a rate-limit key, truncated to 32 hex chars.
+
+    Raw rate-limit keys embed account UUIDs or IPs (e.g.
+    ``auth_rl:ip:/api/auth/login:1.2.3.4``). Embedding them verbatim in Redis
+    key names lets anyone with Redis access (``KEYS *``, ``MONITOR``, key
+    enumeration) harvest identifiers. HMAC-normalize instead so Redis only
+    ever sees an opaque digest. Same truncation as ``generate_csrf_token``.
+
+    Uses ``settings.csrf_secret`` (a general-purpose signing secret; no
+    dedicated rate-limit HMAC secret exists in config). If unset, falls back
+    to a plain SHA-256 of the key — still opaque and deterministic across
+    processes, so multi-worker rate limiting keeps working.
+    """
+    from app.config import settings
+
+    secret = getattr(settings, "csrf_secret", None)
+    if secret:
+        digest = hmac.new(secret.encode(), key.encode(), hashlib.sha256).hexdigest()
+    else:
+        digest = hashlib.sha256(key.encode()).hexdigest()
+    return digest[:32]
+
+
+class RedisBackedRateLimiter:
+    """Distributed sliding-window rate limiter backed by Redis ZADD.
+
+    Uses the standard sorted-set pattern:
+    - Key: ``rl:<key-digest>`` (one sorted set per rated entity — IP or
+      account; the identifier portion is HMAC-digested, see
+      :func:`_rate_limit_key_digest`)
+    - Score: Unix timestamp (float)
+    - Member: random UUID per event so duplicate scores don't collapse
+
+    Includes exponential backoff tracking for failed attempts via a separate
+    ``rl:fail:<key-digest>`` counter key with its own TTL.
+
+    Falls back to :class:`ExponentialBackoffRateLimiter` when Redis is
+    unavailable so the system degrades gracefully rather than open-gating
+    all traffic.
+
+    Usage::
+
+        limiter = RedisBackedRateLimiter(
+            redis_url="redis://...",
+            ttl=60.0,
+            max_requests=5,
+            backoff_base=2.0,
+            backoff_multiplier=2.0,
+        )
+        allowed, retry_after = limiter.is_allowed("auth_rl:ip:/api/auth/login:1.2.3.4")
+        limiter.record_attempt("...", success=False)
+    """
+
+    def __init__(
+        self,
+        redis_url: str,
+        ttl: float,
+        max_requests: int,
+        backoff_base: float = 2.0,
+        backoff_multiplier: float = 2.0,
+    ) -> None:
+        self.ttl = ttl
+        self.max_requests = max_requests
+        self.backoff_base = backoff_base
+        self.backoff_multiplier = backoff_multiplier
+        self.max_backoff = ttl * 2
+        self._redis: Optional[object] = None
+        self._fallback = ExponentialBackoffRateLimiter(
+            ttl=ttl,
+            max_requests=max_requests,
+            backoff_base=backoff_base,
+            backoff_multiplier=backoff_multiplier,
+        )
+        self._fallback_active = False
+
+        # Lazy-init Redis connection — imports are deferred so this module
+        # stays importable even if redis-py is not installed.
+        self._redis_url = redis_url
+        self._connect()
+
+    def _connect(self) -> None:
+        try:
+            import redis
+
+            self._redis = redis.Redis.from_url(
+                self._redis_url,
+                socket_timeout=0.5,
+                socket_connect_timeout=0.5,
+                decode_responses=True,
+            )
+            # Ping to verify connectivity at construction time.
+            self._redis.ping()
+            self._fallback_active = False
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "RedisBackedRateLimiter: Redis unavailable (%s) — falling back to process-local limiter",
+                exc,
+            )
+            self._redis = None
+            self._fallback_active = True
+
+    # ── Public interface ────────────────────────────────────────────────────
+
+    def is_allowed(self, key: str, now: Optional[float] = None) -> tuple[bool, float]:
+        """Check whether *key* is within its rate limit.
+
+        Returns:
+            (allowed, retry_after_seconds)
+        """
+        now = now or time.time()
+        if self._fallback_active or self._redis is None:
+            allowed, retry_after = self._fallback.is_allowed(key, now)
+            if allowed:
+                # Mirror the Lua path: the Redis script ZADDs the allowed
+                # event atomically on allow. ExponentialBackoffRateLimiter
+                # is_allowed is read-only, so record the success here —
+                # fallback window counting stays consistent for callers
+                # (e.g. admin middleware) that never call record_attempt.
+                self._fallback.record_attempt(key, True, now)
+            return allowed, retry_after
+
+        try:
+            return self._redis_is_allowed(key, now)
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "RedisBackedRateLimiter: Redis error on is_allowed (%s) — degrading to allow", exc
+            )
+            # Fail-open on transient Redis error to avoid locking out all users.
+            return True, 0.0
+
+    def record_attempt(self, key: str, success: bool, now: Optional[float] = None) -> None:
+        """Record an attempt outcome for exponential-backoff tracking."""
+        now = now or time.time()
+        if self._fallback_active or self._redis is None:
+            # ExponentialBackoffRateLimiter.is_allowed is read-only; record the
+            # outcome here so fallback backoff tracking works while Redis is down.
+            self._fallback.record_attempt(key, success, now)
+            return
+
+        try:
+            self._redis_record_attempt(key, success, now)
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).debug("RedisBackedRateLimiter: record_attempt error: %s", exc)
+
+    # ── Redis implementation ─────────────────────────────────────────────────
+
+    # Atomic read+decide+insert for is_allowed. Executed server-side in one
+    # r.eval() call so concurrent requests can never overshoot max_requests
+    # (the pre-Lua pipeline read, then re-read, then ZADD outside the
+    # transaction was a TOCTOU race). Returns {1, 0} when allowed, else
+    # {0, retry_after_seconds}.
+    _IS_ALLOWED_LUA = """
+local now = tonumber(ARGV[1])
+local cutoff = tonumber(ARGV[2])
+local max_requests = tonumber(ARGV[3])
+local ttl = tonumber(ARGV[4])
+local backoff_base = tonumber(ARGV[5])
+local backoff_multiplier = tonumber(ARGV[6])
+local max_backoff = tonumber(ARGV[7])
+local member = ARGV[8]
+
+redis.call('zremrangebyscore', KEYS[1], '-inf', cutoff)
+local count = redis.call('zcard', KEYS[1])
+
+local fail_raw = redis.call('get', KEYS[2])
+local failures = 0
+if fail_raw then failures = tonumber(fail_raw) end
+if failures > 0 then
+    local last_fail_raw = redis.call('get', KEYS[3])
+    if last_fail_raw then
+        local last_fail = tonumber(last_fail_raw)
+        local penalty = backoff_base * (backoff_multiplier ^ (failures - 1))
+        if penalty > max_backoff then penalty = max_backoff end
+        if now - last_fail < penalty then
+            return {0, tostring(penalty - (now - last_fail))}
+        end
+    end
+end
+
+if count >= max_requests then
+    local oldest = redis.call('zrange', KEYS[1], 0, 0, 'withscores')
+    local retry_after = ttl
+    if oldest[2] then
+        retry_after = oldest[2] + ttl - now
+        if retry_after < 0 then retry_after = 0 end
+    end
+    return {0, tostring(retry_after)}
+end
+
+redis.call('zadd', KEYS[1], now, member)
+redis.call('expire', KEYS[1], math.floor(ttl) + 1)
+return {1, 0}
+"""
+
+    def _redis_is_allowed(self, key: str, now: float) -> tuple[bool, float]:
+        r = self._redis
+        digest = _rate_limit_key_digest(key)
+        zkey = f"rl:{digest}"
+        fail_key = f"rl:fail:{digest}"
+        last_fail_key = f"rl:lastfail:{digest}"
+
+        import uuid
+
+        member = str(uuid.uuid4())
+        result = r.eval(
+            self._IS_ALLOWED_LUA,
+            3,
+            zkey,
+            fail_key,
+            last_fail_key,
+            now,
+            now - self.ttl,
+            self.max_requests,
+            self.ttl,
+            self.backoff_base,
+            self.backoff_multiplier,
+            self.max_backoff,
+            member,
+        )
+        # redis-py (decode_responses=True) returns Lua numbers as int/float.
+        # Lua NUMBERS are truncated to integers by Redis on return, so the
+        # script sends fractional retry_after values as bulk strings via
+        # tostring() to preserve precision; float() handles both forms.
+        allowed = int(result[0]) == 1
+        retry_after = float(result[1])
+        return allowed, retry_after
+
+    def _redis_record_attempt(self, key: str, success: bool, now: float) -> None:
+        r = self._redis
+        digest = _rate_limit_key_digest(key)
+        if success:
+            # Clear failure counter on success
+            r.delete(f"rl:fail:{digest}")
+            r.delete(f"rl:lastfail:{digest}")
+        else:
+            fail_key = f"rl:fail:{digest}"
+            last_fail_key = f"rl:lastfail:{digest}"
+            r.incr(fail_key)
+            r.expire(fail_key, int(self.max_backoff) + 1)
+            r.set(last_fail_key, str(now), ex=int(self.max_backoff) + 1)
+

@@ -109,6 +109,8 @@ class OutputGuardrailStage(Stage):
         if is_blocked:
             logger.info(f"Output moderated: {output_check['reason']}")
             ctx.final_answer = output_check["moderated_response"]
-            ctx.last_stage_status = "error"
+            # "moderated" distinguishes deliberate safety intervention from system failure.
+            # Using "error" here caused false-positive error rate inflation in telemetry.
+            ctx.last_stage_status = "moderated"
         ctx.is_blocked = is_blocked
         return None

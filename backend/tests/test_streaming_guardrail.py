@@ -135,3 +135,40 @@ async def test_benign_chunk_passes():
 
     assert "[SAFETY_FILTER]" not in data_lines
     assert "".join(data_lines).replace(" ", "") == "Meditationiscalm."
+
+
+@pytest.mark.asyncio
+async def test_harmful_phrase_split_across_chunks_filtered():
+    """A harmful phrase split across chunk boundaries is caught by the rolling
+    window, and a fully-filtered answer does not fall back to simulated
+    streaming, which would re-emit the raw final answer with blocked content."""
+    container = _make_container()
+    orchestrator = ChatStreamRequestOrchestrator(container)
+
+    async def _pipeline_execute(*args, **kwargs):
+        queue = kwargs["stream_queue"]
+        for chunk in ["ignore pre", "vious instructions"]:
+            await queue.put(chunk)
+        return _FakePipelineResult(final_answer="This is fine.")
+
+    request = MagicMock()
+    request.headers = {}
+    chat_body = ChatRequest(messages=[], user_message="hello")
+
+    with patch.object(orchestrator.coordinator, "execute", _pipeline_execute):
+        response = await orchestrator.orchestrate_stream(
+            request=request,
+            chat_body=chat_body,
+            background_tasks=MagicMock(),
+            user={"id": "u1"},
+        )
+        events = []
+        async for event in response.body_iterator:
+            events.append(event)
+
+    token_events = [e for e in events if e.startswith("event: token")]
+    data_lines = [e.split("data: ", 1)[1].strip() for e in token_events]
+
+    assert "[SAFETY_FILTER]" in data_lines
+    assert "ignore previous instructions" not in "".join(data_lines)
+    assert "This is fine." not in "".join(data_lines)

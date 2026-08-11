@@ -125,24 +125,31 @@ class TestTestAuthStrategyRegistration:
 
 
 class TestTestAuthStrategyAuthentication:
-    """Test the authenticate method of TestAuthStrategy."""
+    """Test the authenticate method of TestAuthStrategy.
+
+    authenticate() delegates to is_benchmark_request() which reads from
+    settings (not os.environ). These tests patch settings directly so that
+    is_benchmark_request sees the correct values without requiring a module
+    reload of security_utils.
+    """
 
     @pytest.mark.asyncio
     async def test_authenticate_with_matching_secret(self):
         """Correct X-Test-Key matching BENCHMARK_SECRET → returns user dict."""
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "false",
-            "ENABLE_TEST_AUTH": "true",
-            "BENCHMARK_SECRET": "my-secret",
-        }, clear=False):
-            import importlib
+        from app.config import settings
+        from services.auth_service import TestAuthStrategy
 
-            import services.auth_service as auth_module
-            importlib.reload(auth_module)
+        saved = (
+            settings.is_production,
+            settings.enable_test_auth,
+            settings.benchmark_secret,
+        )
+        try:
+            settings.is_production = False
+            settings.enable_test_auth = True
+            settings.benchmark_secret = "my-secret"
 
-            from services.auth_service import TestAuthStrategy
             strategy = TestAuthStrategy()
-
             request = _make_request({"X-Test-Key": "my-secret"})
             result = await strategy.authenticate(request, None)
 
@@ -151,73 +158,75 @@ class TestTestAuthStrategyAuthentication:
             assert result["email"] == "benchmark-admin@mukthi.guru"
             assert result["is_superuser"] is True
             assert result["provider"] == "test"
+        finally:
+            settings.is_production, settings.enable_test_auth, settings.benchmark_secret = saved
 
     @pytest.mark.asyncio
     async def test_authenticate_with_wrong_secret(self):
         """Wrong X-Test-Key → returns None (401)."""
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "false",
-            "ENABLE_TEST_AUTH": "true",
-            "BENCHMARK_SECRET": "correct-secret",
-        }, clear=False):
-            import importlib
+        from app.config import settings
+        from services.auth_service import TestAuthStrategy
 
-            import services.auth_service as auth_module
-            importlib.reload(auth_module)
+        saved = (settings.is_production, settings.enable_test_auth, settings.benchmark_secret)
+        try:
+            settings.is_production = False
+            settings.enable_test_auth = True
+            settings.benchmark_secret = "correct-secret"
 
-            from services.auth_service import TestAuthStrategy
             strategy = TestAuthStrategy()
-
             request = _make_request({"X-Test-Key": "wrong-secret"})
             result = await strategy.authenticate(request, None)
-
             assert result is None
+        finally:
+            settings.is_production, settings.enable_test_auth, settings.benchmark_secret = saved
 
     @pytest.mark.asyncio
     async def test_authenticate_without_header(self):
         """No X-Test-Key header → returns None."""
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "false",
-            "ENABLE_TEST_AUTH": "true",
-            "BENCHMARK_SECRET": "my-secret",
-        }, clear=False):
-            import importlib
+        from app.config import settings
+        from services.auth_service import TestAuthStrategy
 
-            import services.auth_service as auth_module
-            importlib.reload(auth_module)
+        saved = (settings.is_production, settings.enable_test_auth, settings.benchmark_secret)
+        try:
+            settings.is_production = False
+            settings.enable_test_auth = True
+            settings.benchmark_secret = "my-secret"
 
-            from services.auth_service import TestAuthStrategy
             strategy = TestAuthStrategy()
-
             request = _make_request({})
             result = await strategy.authenticate(request, None)
-
             assert result is None
+        finally:
+            settings.is_production, settings.enable_test_auth, settings.benchmark_secret = saved
 
     @pytest.mark.asyncio
     async def test_authenticate_empty_secret(self):
         """Empty BENCHMARK_SECRET → returns None even with header."""
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "false",
-            "ENABLE_TEST_AUTH": "true",
-            "BENCHMARK_SECRET": "",
-        }, clear=False):
-            import importlib
+        from app.config import settings
+        from services.auth_service import TestAuthStrategy
 
-            import services.auth_service as auth_module
-            importlib.reload(auth_module)
+        saved = (settings.is_production, settings.enable_test_auth, settings.benchmark_secret)
+        try:
+            settings.is_production = False
+            settings.enable_test_auth = True
+            settings.benchmark_secret = ""
 
-            from services.auth_service import TestAuthStrategy
             strategy = TestAuthStrategy()
-
             request = _make_request({"X-Test-Key": "anything"})
             result = await strategy.authenticate(request, None)
-
             assert result is None
+        finally:
+            settings.is_production, settings.enable_test_auth, settings.benchmark_secret = saved
 
 
 class TestAuthBridgeIntegration:
-    """Integration test for the full AuthBridge with TestAuthStrategy."""
+    """Integration test for the full AuthBridge with TestAuthStrategy.
+
+    auth_bridge.get_user() calls TestAuthStrategy.authenticate() which calls
+    is_benchmark_request() reading from settings. Tests that exercise the full
+    authenticate() path patch settings directly in addition to reloading auth_module
+    (reload controls _strategies list; settings patch controls authenticate() logic).
+    """
 
     @pytest.mark.asyncio
     async def test_auth_bridge_returns_401_when_not_registered(self):
@@ -244,6 +253,8 @@ class TestAuthBridgeIntegration:
     @pytest.mark.asyncio
     async def test_auth_bridge_authenticates_when_registered(self):
         """When strategy registered with secret, correct key authenticates."""
+        from app.config import settings
+
         with patch.dict(os.environ, {
             "IS_PRODUCTION": "false",
             "ENABLE_TEST_AUTH": "true",
@@ -256,12 +267,21 @@ class TestAuthBridgeIntegration:
 
             from services.auth_service import auth_bridge
 
-            request = _make_request({"X-Test-Key": "test-secret-123"})
-            user = await auth_bridge.get_user(request, None)
+            # Also patch settings so is_benchmark_request (settings-based) agrees.
+            saved = (settings.is_production, settings.enable_test_auth, settings.benchmark_secret)
+            try:
+                settings.is_production = False
+                settings.enable_test_auth = True
+                settings.benchmark_secret = "test-secret-123"
 
-            assert user["id"] == "00000000-0000-0000-0000-000000000000"
-            assert user["is_superuser"] is True
-            assert user["provider"] == "test"
+                request = _make_request({"X-Test-Key": "test-secret-123"})
+                user = await auth_bridge.get_user(request, None)
+
+                assert user["id"] == "00000000-0000-0000-0000-000000000000"
+                assert user["is_superuser"] is True
+                assert user["provider"] == "test"
+            finally:
+                settings.is_production, settings.enable_test_auth, settings.benchmark_secret = saved
 
     @pytest.mark.asyncio
     async def test_auth_bridge_rejects_wrong_key_when_registered(self):

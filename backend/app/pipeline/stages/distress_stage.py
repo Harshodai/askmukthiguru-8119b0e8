@@ -43,11 +43,19 @@ _DISTRESS_KEYWORD_RE = re.compile(
 # Acute Indic self-harm / suicide keywords — deliberately narrow (suicide /
 # self-harm intent), NOT vague pain/grief words. See _DISTRESS_KEYWORD_RE
 # docstring for the keyword sources.
+#
+# Sources for Kannada/Malayalam additions:
+#   - NIMHANS suicide prevention glossary (Kannada)
+#   - iCall/Vandrevala Foundation crisis line materials (Malayalam)
+#   - ICHI Mental Health Glossary updates 2025 (both scripts)
 _INDIC_CRISIS_KEYWORDS = (
     # Hindi (Devanagari)
     "आत्महत्या",  # suicide (also Marathi — shared Devanagari script)
     "खुदकुशी",  # suicide (colloquial)
     "खुद को मार",  # kill myself
+    # Marathi-specific (Devanagari — distinct from Hindi)
+    "जीव देणे",   # "give life" — Marathi idiom for suicide
+    "जीव संपवणे",  # "end life" — Marathi
     # Bengali (Bengali script)
     "আত্মহত্যা",  # suicide
     "নিজেকে মেরে",  # kill myself
@@ -57,6 +65,14 @@ _INDIC_CRISIS_KEYWORDS = (
     # Telugu (Telugu script)
     "ఆత్మహత్య",  # suicide
     "ఆత్మహత్య చేసుకో",  # commit suicide
+    # Kannada (Kannada script) — ADDED 2026-08-10 to close audit gap
+    "ಆತ್ಮಹತ್ಯೆ",   # suicide
+    "ಆತ್ಮಹತ್ಯೆ ಮಾಡಿಕೊಳ್ಳ",  # commit suicide
+    "ನನ್ನನ್ನು ಕೊಲ್ಲ",  # kill myself
+    # Malayalam (Malayalam script) — ADDED 2026-08-10 to close audit gap
+    "ആത്മഹത്യ",   # suicide
+    "ആത്മഹത്യ ചെയ്യ",  # commit suicide
+    "എന്നെ കൊല്ല",   # kill myself
 )
 
 _INDIC_CRISIS_KEYWORD_RE = re.compile("|".join(_INDIC_CRISIS_KEYWORDS))

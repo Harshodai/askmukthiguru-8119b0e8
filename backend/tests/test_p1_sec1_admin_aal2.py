@@ -56,11 +56,48 @@ def _clear_overrides():
     app.dependency_overrides.pop(get_current_user_from_supabase, None)
     from app.dependencies import get_container
     app.dependency_overrides.pop(get_container, None)
-    # The admin rate limiter is module-level in-memory state shared across
-    # tests in this process; without a reset, the 5/min cap 429s the later
-    # tests that also hit /api/admin/* endpoints.
+    # The admin rate limiter is module-level state shared across tests in
+    # this process; without a reset, the 5/min cap 429s the later tests that
+    # also hit /api/admin/* endpoints.
+    # Three shapes exist: TTLRateLimiter (process-local `_store`),
+    # ExponentialBackoffRateLimiter (process-local `_attempts`), and
+    # RedisBackedRateLimiter (Redis `rl:*` window + `_fallback` in-memory
+    # `_attempts` when Redis is down). Clear whichever backend is active.
     from app.main import _ADMIN_RATE_LIMITER
-    _ADMIN_RATE_LIMITER._store.clear()
+    for _lim in (_ADMIN_RATE_LIMITER, getattr(_ADMIN_RATE_LIMITER, "_fallback", None)):
+        if _lim is None:
+            continue
+        if hasattr(_lim, "_store"):
+            _lim._store.clear()
+        if hasattr(_lim, "_attempts"):
+            _lim._attempts.clear()
+    _redis = getattr(_ADMIN_RATE_LIMITER, "_redis", None)
+    if _redis is not None:
+        try:
+            # Scope teardown to keys written by this test's rate-limiter calls.
+            # The rate-limiter hashes keys via _rate_limit_key_digest; we cannot
+            # predict their exact digest, but we can bound deletion to the 'rl:*'
+            # namespace AND limit it to the keys that exist in the test process
+            # only by using SCAN with COUNT=100 and a strict match. In production
+            # the admin limiter uses a different Redis URL / db; in the test
+            # environment (or when the same Redis is shared) we accept that we
+            # might clear other tests' rl: keys — but we never touch non-rl: keys.
+            # A future improvement: configure _ADMIN_RATE_LIMITER to use
+            # db=15 (test-only db) so teardown can FLUSHDB safely.
+            keys_deleted = 0
+            for key in _redis.scan_iter("rl:*", count=100):
+                _redis.delete(key)
+                keys_deleted += 1
+            if keys_deleted:
+                import logging as _logging
+                _logging.getLogger(__name__).debug(
+                    "admin rate-limit teardown: removed %d rl:* key(s) from Redis", keys_deleted
+                )
+        except Exception as _e:
+            import logging as _logging
+            _logging.getLogger(__name__).debug(
+                "admin rate-limit Redis flush failed during teardown: %s", _e
+            )
 
 
 # --- T2: service_role is not superuser for HTTP -----------------------------

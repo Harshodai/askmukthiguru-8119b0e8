@@ -344,8 +344,8 @@ class QdrantClientManager:
         """Close the Qdrant client connection."""
         try:
             self._client.close()
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[qdrant client] suppressed non-critical error: %s", _e)
 
 
 if __name__ == "__main__":

@@ -30,6 +30,24 @@ from rag.nodes.generation import _clean_inline_citations
 logger = logging.getLogger(__name__)
 
 
+# P1-AI-8: compile harmful patterns once with IGNORECASE. The streaming
+# filter matches them against a rolling window of recent streamed text
+# (see _sse below) so phrases split across chunk boundaries are caught.
+_HARMFUL_PATTERNS_COMPILED = [
+    re.compile(p, re.IGNORECASE) for p in _HARMFUL_PATTERNS
+]
+
+# Keep this many chars of recent streamed text for the rolling filter window.
+_STREAM_FILTER_WINDOW_CHARS = 200
+
+
+def _chunk_matches_harmful(window_text: str, patterns=None) -> bool:
+    """Return True if any harmful pattern appears within the rolling window."""
+    if patterns is None:
+        patterns = _HARMFUL_PATTERNS_COMPILED
+    return any(p.search(window_text) for p in patterns)
+
+
 class ChatStreamRequestOrchestrator:
     """Thin orchestrator that delegates pipeline work to PipelineCoordinator."""
 
@@ -86,6 +104,7 @@ class ChatStreamRequestOrchestrator:
         # Stream result as SSE
         async def _sse():
             tokens_streamed = 0
+            _pending: str = ""  # buffered text not yet emitted to client
             _ttft_recorded = False
             _t0 = asyncio.get_event_loop().time()
             try:
@@ -143,8 +162,8 @@ class ChatStreamRequestOrchestrator:
                                 TTFT_SECONDS.labels(provider="stream").observe(
                                     asyncio.get_event_loop().time() - _t0
                                 )
-                            except Exception:
-                                pass
+                            except Exception as _e:
+                                logger.debug("[stream cleanup] suppressed non-critical error: %s", _e)
                             _ttft_recorded = True
                         # Emit raw token as-is: whitespace and newlines are
                         # significant for readability during streaming.
@@ -152,17 +171,40 @@ class ChatStreamRequestOrchestrator:
                         # in generation.py (_clean_inline_citations there).
                         if not item:
                             continue
-                        # P1-AI-8: lightweight streaming safety filter. Drop
-                        # individual chunks matching prompt-injection / harmful
-                        # patterns and emit a sentinel. The full guardrail still
-                        # runs post-stream on the assembled answer.
-                        lowered = item.lower()
-                        if any(re.search(p, lowered) for p in _HARMFUL_PATTERNS):
-                            yield "event: token\ndata: [SAFETY_FILTER]\n\n"
-                            continue
+                        # P1-AI-8: streaming safety filter with pending buffer.
+                        # Chunks are accumulated in _pending before emission.
+                        # Only the safe prefix (everything before the last
+                        # _STREAM_FILTER_WINDOW_CHARS chars) is flushed each
+                        # turn; the tail is kept buffered so a pattern spanning
+                        # a chunk boundary is always caught before any of its
+                        # text reaches the client.
+                        # Count ALL text (including discarded) in tokens_streamed
+                        # so the tokens_streamed==0 fallback cannot re-emit the
+                        # unfiltered final answer after a safety hit.
                         tokens_streamed += len(item)
-                        escaped = item.replace("\n", "\\n")
-                        yield f"event: token\ndata: {escaped}\n\n"
+                        _pending += item
+                        # Scan the buffer for a harmful pattern.
+                        match = None
+                        for _pat in _HARMFUL_PATTERNS_COMPILED:
+                            m = _pat.search(_pending)
+                            if m and (match is None or m.start() < match.start()):
+                                match = m
+                        if match is not None:
+                            # Flush the safe text that appeared before the match.
+                            safe_prefix = _pending[: match.start()]
+                            if safe_prefix:
+                                yield f"event: token\ndata: {safe_prefix.replace(chr(10), chr(92) + 'n')}\n\n"
+                            yield "event: token\ndata: [SAFETY_FILTER]\n\n"
+                            # Keep anything after the match in the buffer so
+                            # subsequent chunks can still be safety-checked.
+                            _pending = _pending[match.end():]
+                            continue
+                        # Flush the safe prefix; keep the tail buffered.
+                        if len(_pending) > _STREAM_FILTER_WINDOW_CHARS:
+                            safe_prefix = _pending[:-_STREAM_FILTER_WINDOW_CHARS]
+                            _pending = _pending[-_STREAM_FILTER_WINDOW_CHARS:]
+                            escaped = safe_prefix.replace("\n", "\\n")
+                            yield f"event: token\ndata: {escaped}\n\n"
 
                 # Pipeline task completed
                 result = await pipeline_task
@@ -181,8 +223,8 @@ class ChatStreamRequestOrchestrator:
                         await pipeline_task
                     except asyncio.CancelledError:
                         pass
-                    except Exception:
-                        pass
+                    except Exception as _e:
+                        logger.debug("[stream cleanup] suppressed non-critical error: %s", _e)
 
             # If blocked, emit only done
             if result.blocked:
@@ -194,6 +236,14 @@ class ChatStreamRequestOrchestrator:
                 })
                 yield f"event: done\ndata: {meta}\n\n"
                 return
+
+            # Flush any buffered text held back by the pending safety buffer.
+            # End-of-stream means no more chunks can complete a harmful pattern,
+            # so the tail is safe to emit.
+            if _pending:
+                escaped = _pending.replace("\n", "\\n")
+                yield f"event: token\ndata: {escaped}\n\n"
+                _pending = ""
 
             # Simulate streaming if no real-time tokens were received (e.g. cache hit)
             if tokens_streamed == 0:

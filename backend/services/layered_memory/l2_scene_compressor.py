@@ -154,8 +154,8 @@ async def _enforce_max_scenes(supabase_client: Any, user_id: str, tenant_id: str
             excess_ids = [r["id"] for r in res.data[_MAX_SCENES_PER_SESSION:]]
             for eid in excess_ids:
                 await supabase_client.table("user_scene_blocks").delete().eq("id", eid).execute()
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[l2 compressor] suppressed non-critical error: %s", _e)
 
 def _build_compression_prompt(turns: list[dict[str, Any]]) -> str:
     lines = []

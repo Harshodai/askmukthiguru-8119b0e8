@@ -40,7 +40,7 @@ def _make_coordinator() -> PipelineCoordinator:
     return coordinator
 
 
-def _ctx(memory_context: str) -> PipelineContext:
+def _ctx(memory_context: str, user_id: str = "user-alice") -> PipelineContext:
     container = MagicMock()
     container.exact_cache = MagicMock()
     container.semantic_cache = MagicMock()
@@ -56,7 +56,7 @@ def _ctx(memory_context: str) -> PipelineContext:
         preferred_lang="en",
         cache_key=CACHE_KEY,
         query_for_embedding=QUESTION,
-        user_id="user-alice",
+        user_id=user_id,
         final_answer=ANSWER,
         intent="QUERY",
         citations=["Peace"],
@@ -124,3 +124,28 @@ async def test_non_personalized_answer_cached_across_users_in_same_tenant():
     assert result is not None, "same-tenant generic answers must still hit the shared cache"
     assert result.cache_hit is True
     assert result.final_answer == ANSWER
+
+
+@pytest.mark.asyncio
+async def test_personalized_answer_purges_stale_shared_entry():
+    """User A (no memory) writes a generic answer to the shared cache; user B
+    (with memory) then gets a personalized answer for the same query. The stale
+    shared entry must be purged so a later lookup can never serve A's generic
+    answer in place of B's personalization."""
+    # User A: generic write
+    await CacheUpdateStage().run(_ctx(memory_context="", user_id="user-alice"))
+
+    assert hot_cache.get(CACHE_KEY) is not None, "precondition: generic answer must be in the hot cache"
+
+    # User B: personalized write — must invalidate A's stale shared entry
+    await CacheUpdateStage().run(
+        _ctx(
+            memory_context="USER PROFILE & CORE FACTS:\n- Seeker is recovering from alcoholism",
+            user_id="user-bob",
+        )
+    )
+
+    assert hot_cache.get(CACHE_KEY) is None, (
+        "stale shared entry survived: a memory-personalized answer must purge the "
+        "previously cached generic answer for the same key"
+    )

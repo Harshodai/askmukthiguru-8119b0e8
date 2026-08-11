@@ -411,8 +411,8 @@ def _reset_turn_counter(user_id: str) -> None:
         r = sync_redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
         key = f"turn_counter:{user_id}"
         r.set(key, json.dumps({"count": 0, "last_ts": __import__("time").time()}), ex=7200)
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[memory api] suppressed non-critical error: %s", _e)
 
 
 @router.get("/memory/skills")

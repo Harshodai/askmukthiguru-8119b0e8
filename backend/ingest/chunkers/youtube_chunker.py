@@ -79,16 +79,16 @@ def _fetch_segments(video_id: str, languages: list[str]) -> Optional[list[dict]]
             manual = transcript_list.find_manually_created_transcript(languages)
             fetched = manual.fetch()
             logger.info(f"[{video_id}] Chunker using manual captions")
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[youtube chunker] suppressed non-critical error: %s", _e)
 
         if fetched is None:
             try:
                 auto = transcript_list.find_generated_transcript(languages)
                 fetched = auto.fetch()
                 logger.info(f"[{video_id}] Chunker using auto captions")
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[youtube chunker] suppressed non-critical error: %s", _e)
 
         if fetched:
             return [

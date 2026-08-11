@@ -79,7 +79,7 @@ class SarvamHTTPGateway:
         # Rate limiting
         self._last_request_time = 0.0
         self._rate_limit_lock = AsyncLock()
-        self._max_tokens_limit = 4096
+        self._max_tokens_limit = getattr(settings, "sarvam_max_tokens", 4096)
 
         # Connection pooling
         self._http_client: httpx.AsyncClient | None = None
@@ -135,7 +135,7 @@ class SarvamHTTPGateway:
         *,
         messages: list[dict],
         model: str,
-        max_tokens: int = 8192,
+        max_tokens: int = 0,  # 0 = use _max_tokens_limit (updated by self-healing 400 responses)
         temperature: float = 0.1,
         stream: bool = False,
         operation: str = "generate",
@@ -145,7 +145,15 @@ class SarvamHTTPGateway:
 
         Includes retry logic, circuit breaker, rate limiting, and
         self-healing parameter adjustments.
+
+        max_tokens=0 (default) uses the current _max_tokens_limit which
+        is dynamically lowered on 400 tier-exceeded responses. Callers may
+        pass an explicit value but it is silently clamped to _max_tokens_limit
+        so requests always stay within the subscription tier.
         """
+        # Resolve and clamp max_tokens against the subscription tier limit.
+        effective_max = max_tokens if max_tokens > 0 else self._max_tokens_limit
+        effective_max = min(effective_max, self._max_tokens_limit)
         # 1. Circuit breaker check
         if not self._circuit.can_execute():
             exc = CircuitOpenException(
@@ -181,8 +189,8 @@ class SarvamHTTPGateway:
             return ""
 
         # 4. Dynamic max_tokens / model adjustments
-        if "sarvam-m" in model and max_tokens > 2048:
-            max_tokens = 2048
+        if "sarvam-m" in model and effective_max > 2048:
+            effective_max = 2048
 
         # 5. Reasoning effort selection
         reasoning_effort: str | None = kwargs.pop("reasoning_effort", None)
@@ -205,7 +213,7 @@ class SarvamHTTPGateway:
             "model": model,
             "messages": validated,
             "temperature": temperature,
-            "max_tokens": max_tokens,
+            "max_tokens": effective_max,
             "stream": stream,
         }
         if reasoning_effort and reasoning_effort in ("low", "medium", "high"):
@@ -243,10 +251,14 @@ class SarvamHTTPGateway:
             stop=stop_after_attempt(kwargs.pop("max_retries", self._max_retries)),
             wait=wait_exponential(multiplier=1, min=1, max=8),
             retry=retry_if_not_exception_type((NonRetryableError, QuotaExceededError)),
+            reraise=True,  # surface the last HTTPStatusError, not tenacity.RetryError (parity with other providers)
             before_sleep=lambda rs: logger.warning(f"Sarvam call failed attempt {rs.attempt_number}. Retrying..."),
         ):
             with attempt:
                 attempt_num = attempt.retry_state.attempt_number
+                # Track which key indices have already returned 429 in this
+                # tenacity attempt so we never cycle through them infinitely.
+                _tried_key_indices: set[int] = {self._key_index}
                 while True:
                     span_ctx = None
                     if tracer is not None:
@@ -335,12 +347,20 @@ class SarvamHTTPGateway:
                         # API key rotation on 429 (rate limit / quota exceeded)
                         if resp.status_code == 429:
                             rotated = await self._rotate_api_key()
-                            if rotated:
+                            if rotated and self._key_index not in _tried_key_indices:
+                                _tried_key_indices.add(self._key_index)
                                 headers["api-subscription-key"] = self._api_key
                                 logger.warning("Sarvam 429 — rotated API key, retrying immediately")
                                 if span_ctx is not None:
                                     span_ctx.__exit__(None, None, None)
                                 continue
+                            # All available keys exhausted for this attempt —
+                            # fall through to resp.raise_for_status() so tenacity
+                            # handles the 429 via its exponential backoff.
+                            logger.warning(
+                                "Sarvam 429 — all %d API key(s) exhausted for this attempt; "
+                                "yielding to tenacity retry", len(self._api_keys)
+                            )
 
                         resp.raise_for_status()
 
@@ -420,8 +440,8 @@ class SarvamHTTPGateway:
                         import json_repair
                         if json_repair.loads(block_strip):
                             return block_strip
-                    except Exception:
-                        pass
+                    except Exception as _e:
+                        logger.debug("[sarvam gateway] suppressed non-critical error: %s", _e)
             else:
                 if operation == "extraction":
                     block_lower = block_strip.lower()
@@ -443,8 +463,8 @@ class SarvamHTTPGateway:
                     repaired = json_repair.repair(potential)
                     if repaired:
                         return repaired
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[sarvam gateway] suppressed non-critical error: %s", _e)
                 return potential
 
         first_bracket, last_bracket = text.find("["), text.rfind("]")
@@ -459,8 +479,8 @@ class SarvamHTTPGateway:
                     repaired = json_repair.repair(potential)
                     if repaired:
                         return repaired
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[sarvam gateway] suppressed non-critical error: %s", _e)
                 return potential
 
         if operation == "extraction":

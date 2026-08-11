@@ -672,8 +672,8 @@ class MemoryServiceV2(MemoryService):
             try:
                 emb_dict = await asyncio.to_thread(self._embedding_service.encode_single_full, query)
                 embedding = emb_dict.get("dense")
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[memory service] suppressed non-critical error: %s", _e)
 
         async def _tier1():
             start = time.monotonic()
@@ -1024,8 +1024,8 @@ class MemoryServiceV2(MemoryService):
             all_concepts = await asyncio.to_thread(_get_all_concepts)
             for cid in all_concepts:
                 concept_keywords[cid.lower()] = cid
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[memory service] suppressed non-critical error: %s", _e)
 
         for m in supabase_mems:
             mid = str(m.get("id", ""))

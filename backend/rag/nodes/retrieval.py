@@ -150,8 +150,8 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
                     },
                 })
             return docs
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
 
     # Keyword fallback — naive word overlap when EmbeddingService unavailable.
     # Requires a meaningful share of the query's content words to match, not a
@@ -712,8 +712,8 @@ async def retrieve_for_single_query(
     if lightrag_index != -1 and isinstance(results[lightrag_index], Exception):
         try:
             LIGHTRAG_TIMEOUT_TOTAL.inc()
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
 
     lightrag_results = []
     if lightrag_index != -1 and results[lightrag_index]:
@@ -772,8 +772,8 @@ async def retrieve_for_single_query(
         _src = _doc.get("content_type", "qdrant")
         try:
             RETRIEVAL_SCORE_HISTOGRAM.labels(source=_src).observe(_score)
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
 
     return deduped
 
@@ -1174,8 +1174,8 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         )
         try:
             COVERAGE_GAP_TOTAL.labels(intent=_gap_intent).inc()
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
         web_search_service = getattr(_services, "_web_search", None)
         if web_search_service is not None:
             try:
@@ -1187,19 +1187,19 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     all_docs = web_results
                     try:
                         WEB_SEARCH_HIT_TOTAL.labels(trigger="coverage_gap").inc()
-                    except Exception:
-                        pass
+                    except Exception as _e:
+                        logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
                 else:
                     try:
                         WEB_SEARCH_MISS_TOTAL.labels(reason="empty").inc()
-                    except Exception:
-                        pass
+                    except Exception as _e:
+                        logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
             except Exception as exc:
                 logger.warning(f"Coverage-gap web search failed: {exc}")
                 try:
                     WEB_SEARCH_MISS_TOTAL.labels(reason="error").inc()
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
 
     if not all_docs:
         logger.info("RAG retrieval yielded zero chunks. Triggering web-search fallback.")
@@ -1214,14 +1214,14 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     all_docs = web_results
                     try:
                         WEB_SEARCH_HIT_TOTAL.labels(trigger="zero_docs").inc()
-                    except Exception:
-                        pass
+                    except Exception as _e:
+                        logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
             except Exception as exc:
                 logger.warning(f"Web-search fallback failed: {exc}")
                 try:
                     WEB_SEARCH_MISS_TOTAL.labels(reason="error").inc()
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
 
     raw_docs_copy = [dict(d) for d in all_docs]
 
@@ -1297,8 +1297,8 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                         all_docs = web_results + all_docs
                         try:
                             WEB_SEARCH_HIT_TOTAL.labels(trigger="low_confidence").inc()
-                        except Exception:
-                            pass
+                        except Exception as _e:
+                            logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
                 except Exception as exc:
                     logger.warning("Low-confidence web search failed: %s", exc)
 

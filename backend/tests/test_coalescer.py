@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 
 import pytest
@@ -6,8 +7,9 @@ import redis
 
 from app.coalescer import RedisCoalescer, _InMemoryCoalescer, build_coalescer
 
-# Use the Redis container running on localhost for testing
-REDIS_TEST_URL = "redis://:mukthiguru_redis_pass@localhost:6379/0"
+# Use the Redis container running on localhost for testing. Env-driven with a
+# passwordless localhost fallback — never commit a Redis password.
+REDIS_TEST_URL = os.environ.get("REDIS_TEST_URL", "redis://localhost:6379/0")
 
 
 def _redis_available() -> bool:

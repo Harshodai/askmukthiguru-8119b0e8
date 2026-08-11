@@ -90,6 +90,12 @@ class FakeLLM:
         return '{"items":[{"kind":"reflection","text":"User is preparing for a job interview and feels anxious.","confidence":0.9}]}'
 
 
+class BrokenVaultIndex(FakeVaultIndex):
+    """delete_item raises — simulates a Qdrant failure on the erasure path."""
+    async def delete_item(self, user_id, item_id):
+        raise RuntimeError("qdrant delete failed")
+
+
 def make_svc():
     return SecondBrainService(FakeDB(), FakeEmbed(), FakeLLM(), FakeVaultIndex())
 
@@ -194,6 +200,26 @@ def test_vault_zeroizes_on_close():
     v = UnlockedVault.from_dek(dek)
     v.close()
     assert bytes(v._dek) == b"\x00" * 32
+
+
+def test_vector_delete_failure_fails_erasure_closed():
+    """A Qdrant delete failure must propagate, and forget_item must abort
+    BEFORE the plaintext row is deleted — never report a successful forget
+    while the vector survives in the shared vault collection."""
+    svc = SecondBrainService(FakeDB(), FakeEmbed(), FakeLLM(), BrokenVaultIndex())
+    uid = "user-erase"
+    asyncio.run(svc.provision_vault(uid))
+
+    async def go():
+        with await svc.unlock(uid) as vault:
+            iid = await svc.add_item(uid, "reflection", "sensitive memory", vault=vault)
+        with pytest.raises(RuntimeError):
+            await svc._delete_embedding(uid, iid)
+        with pytest.raises(RuntimeError):
+            await svc.forget_item(uid, iid)
+        # plaintext row survives the aborted erase -> retry-safe, no orphan vector
+        assert [r for r in svc._db.store["user_brain_nodes"] if r["id"] == iid]
+    asyncio.run(go())
 
 
 if __name__ == "__main__":

@@ -21,8 +21,12 @@ from slowapi.errors import RateLimitExceeded
 from app.core.limiter import _rate_limit_key_func
 from app.security_utils import is_benchmark_request
 
-JWT_SECRET = "leaked-token-signing-secret"
-BENCHMARK_SECRET = "benchmark-secret-for-tests"
+# These are SYNTHETIC test-fixture values, NOT real credentials.
+# They exist to prove that a leaked JWT_SECRET cannot unlock the benchmark
+# bypass — only a matching BENCHMARK_SECRET can. The names are intentionally
+# fake to make that clear; they have never appeared in any production config.
+JWT_SECRET = "leaked-token-signing-secret"  # gitleaks:allow
+BENCHMARK_SECRET = "benchmark-secret-for-tests"  # gitleaks:allow
 
 
 def _make_request(headers: dict | None = None) -> Request:

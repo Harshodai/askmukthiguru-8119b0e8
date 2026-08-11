@@ -160,6 +160,10 @@ class ChatEngine:
         self._container = container
         self._coordinator: Any = None
         self._stream_coordinator: Any = None
+        # PERF-1 (2026-08-10): Coalescer is a singleton — built once per ChatEngine
+        # instance, NOT on every request. RedisCoalescer opens a connection pool;
+        # rebuilding it per-request exhausts Redis connections under load.
+        self._coalescer: Any = None
 
     def _get_coordinator(self):
         """Lazy init of PipelineCoordinator (batch path)."""
@@ -174,6 +178,28 @@ class ChatEngine:
             from app.stream_orchestrator import ChatStreamRequestOrchestrator
             self._stream_coordinator = ChatStreamRequestOrchestrator(self._container)
         return self._stream_coordinator
+
+    def _get_coalescer(self):
+        """Lazy init of request coalescer — singleton per ChatEngine instance.
+
+        The coalescer (Redis-backed or in-memory) must NOT be rebuilt per
+        request: RedisCoalescer allocates a connection pool on construction,
+        and rebuilding it on each call exhausts Redis connections under load.
+        """
+        if self._coalescer is None:
+            from app.coalescer import build_coalescer
+            self._coalescer = build_coalescer(
+                redis_url=getattr(settings, "redis_url", None), ttl=60.0
+            )
+        return self._coalescer
+
+    async def close(self) -> None:
+        """Gracefully release coalescer resources (e.g. Redis connection pool)."""
+        if self._coalescer is not None and hasattr(self._coalescer, "close"):
+            try:
+                await self._coalescer.close()
+            except Exception:
+                logger.debug("ChatEngine.close(): coalescer cleanup error (non-critical)")
 
     def _validate(self, message: str) -> None:
         if not message or not message.strip():
@@ -215,10 +241,7 @@ class ChatEngine:
             message, user_id, session_id, assistant_slug, language
         )
 
-        from app.coalescer import build_coalescer
-        coalescer = build_coalescer(
-            redis_url=getattr(settings, "redis_url", None), ttl=60.0
-        )
+        coalescer = self._get_coalescer()
 
         async def _run():
             coordinator = self._get_coordinator()

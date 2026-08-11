@@ -59,3 +59,20 @@ def test_http_pool_limits_normalization():
     assert s4.http_pool_max_connections == 10
     assert s4.http_pool_max_keepalive == 10
 
+
+def test_max_concurrent_chat_rejects_zero_and_negative():
+    """max_concurrent_chat=0 or negative must raise ValidationError at startup."""
+    from pydantic import ValidationError
+
+    for bad_value in (0, -1, -100):
+        with pytest.raises(ValidationError, match="max_concurrent_chat"):
+            Settings(max_concurrent_chat=bad_value)
+
+
+def test_max_concurrent_chat_accepts_positive():
+    """max_concurrent_chat accepts any positive integer."""
+    s = Settings(max_concurrent_chat=1)
+    assert s.max_concurrent_chat == 1
+
+    s = Settings(max_concurrent_chat=20)
+    assert s.max_concurrent_chat == 20

@@ -363,8 +363,8 @@ def _fetch_youtube_captions_api(
                 if text.strip():
                     logger.info(f"[{video_id}] ✅ Manual captions: {len(text)} chars")
                     return text.strip()
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[youtube loader] suppressed non-critical error: %s", _e)
 
             # Try auto-generated captions
             if allow_auto:
@@ -375,8 +375,8 @@ def _fetch_youtube_captions_api(
                     if text.strip():
                         logger.info(f"[{video_id}] ✅ Auto captions: {len(text)} chars")
                         return text.strip()
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logger.debug("[youtube loader] suppressed non-critical error: %s", _e)
 
             # No transcripts found for requested languages
             logger.debug(f"[{video_id}] No captions for languages: {languages}")
@@ -824,9 +824,15 @@ class AdaptiveConcurrencyThrottle:
     A static semaphore bound only caps peak concurrency — it does nothing once
     YouTube starts 429ing mid-run. This tracks a sliding window of outcomes and
     lowers the number of held permits when the failure rate in that window
-    crosses a threshold, then holds there for the rest of the run. Bounded
-    above by the original `max_permits` — this only ever throttles down, never
-    above the operator-configured concurrency.
+    crosses a threshold. Bounded above by the original `max_permits` — this
+    only ever throttles down, never above the operator-configured concurrency.
+
+    Shrink behavior is hysteresis-gated: at most ONE permit is removed per
+    "failure episode" (a stretch where the window's failure rate stays at or
+    above the threshold). The episode flag resets only when the rate drops
+    back below the threshold (window cools / recovery observed), so a later
+    hot episode may shrink once more — but a sustained burst never drains
+    permits one-by-one within a single episode.
     """
 
     def __init__(self, max_permits: int, window_size: int = 10, failure_threshold: float = 0.4):
@@ -837,6 +843,7 @@ class AdaptiveConcurrencyThrottle:
         self._current_permits = self._max_permits
         self._semaphore = asyncio.Semaphore(self._current_permits)
         self._lock = asyncio.Lock()
+        self._shrunken_this_episode = False
 
     async def acquire(self):
         await self._semaphore.acquire()
@@ -854,15 +861,26 @@ class AdaptiveConcurrencyThrottle:
                 return
 
             failure_rate = 1 - (sum(self._outcomes) / len(self._outcomes))
-            if failure_rate >= self._failure_threshold and self._current_permits > 1:
-                # Shrink by one permit: acquire it now so it stays held for the
-                # rest of the run (no separate release path for a "removed" permit).
-                await self._semaphore.acquire()
-                self._current_permits -= 1
-                logger.warning(
-                    f"AdaptiveConcurrencyThrottle: failure_rate={failure_rate:.2f} "
-                    f"over last {self._window_size} — reducing concurrency to {self._current_permits}"
-                )
+            if failure_rate < self._failure_threshold:
+                # Window cooled / recovery observed — a new failure episode may
+                # shrink concurrency once more.
+                self._shrunken_this_episode = False
+                return
+
+            if self._shrunken_this_episode or self._current_permits <= 1:
+                # Already shrank during this hot episode: no further draining
+                # while the window stays at/above the threshold.
+                return
+
+            # Shrink by one permit: acquire it now so it stays held for the
+            # rest of the run (no separate release path for a "removed" permit).
+            self._shrunken_this_episode = True
+            await self._semaphore.acquire()
+            self._current_permits -= 1
+            logger.warning(
+                f"AdaptiveConcurrencyThrottle: failure_rate={failure_rate:.2f} "
+                f"over last {self._window_size} — reducing concurrency to {self._current_permits}"
+            )
 
 
 async def fetch_transcripts_concurrent(
@@ -919,8 +937,8 @@ async def fetch_transcripts_concurrent(
         if on_progress:
             try:
                 on_progress(index, total, res)
-            except Exception:
-                pass
+            except Exception as _e:
+                logger.debug("[youtube loader] suppressed non-critical error: %s", _e)
 
     tasks = [fetch_single_video(i, video) for i, video in enumerate(video_list)]
     await asyncio.gather(*tasks)

@@ -31,8 +31,8 @@ def _kek() -> bytes:
         raw = _b64d(env_value)
         if len(raw) == _KEY_LEN:
             return raw
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.debug("[persona store] suppressed non-critical error: %s", _e)
     # Deterministic derivation from a plain secret string
     return hashlib.sha256(env_value.encode("utf-8")).digest()
 

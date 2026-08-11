@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import warnings
@@ -29,8 +30,10 @@ from app.core.threading_config import configure_threading
 
 configure_threading()
 
-# Point REDIS_URL to local host-mapped Redis for testing
-os.environ["REDIS_URL"] = "redis://:mukthiguru_redis_pass@127.0.0.1:6379/0"
+# Point REDIS_URL to local host-mapped Redis for testing. Env-driven with a
+# passwordless localhost fallback — never commit a Redis password. Authenticated
+# instances (docker compose) need REDIS_URL exported by the runner/CI.
+os.environ["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 # backend/.env carries docker hostnames (qdrant:6333) that do not resolve on
 # the host; point QDRANT_URL at the host-mapped port instead.
 os.environ["QDRANT_URL"] = "http://127.0.0.1:6333"
@@ -40,7 +43,9 @@ os.environ["IS_PRODUCTION"] = "false"
 # IS_PRODUCTION=false above). Set before any app.config import so
 # services.auth_service registers TestAuthStrategy at import time.
 os.environ["ENABLE_TEST_AUTH"] = "true"
-os.environ["BENCHMARK_SECRET"] = os.environ.get("BENCHMARK_SECRET", "test-benchmark-secret-for-aal2-tests")
+# Non-production fixture value — only active under IS_PRODUCTION=false +
+# ENABLE_TEST_AUTH=true. Override via BENCHMARK_SECRET env var in CI.
+os.environ["BENCHMARK_SECRET"] = os.environ.get("BENCHMARK_SECRET", "test-benchmark-secret-for-aal2-tests")  # gitleaks:allow
 
 
 
@@ -128,10 +133,12 @@ def _close_global_redis_pool():
     directly. The pool lazily creates fresh connections on the next test's
     loop.
     """
+    _log = logging.getLogger(__name__)
     for module_name, attr in (("app.main", "coalescer"), ("app.orchestrator", "_coalescer")):
         try:
             module = __import__(module_name, fromlist=[attr])
-        except Exception:
+        except Exception as _ie:
+            _log.debug("_close_global_redis_pool: could not import %s: %s", module_name, _ie)
             continue
         redis_client = getattr(getattr(module, attr, None), "_redis", None)
         pool = getattr(redis_client, "connection_pool", None)
@@ -141,8 +148,11 @@ def _close_global_redis_pool():
             conns = getattr(pool, list_attr, ())
             try:
                 conns.clear()
-            except Exception:
-                pass
+            except Exception as _ce:
+                _log.debug(
+                    "_close_global_redis_pool: could not clear %s.%s: %s",
+                    module_name, list_attr, _ce,
+                )
 
 
 @pytest.fixture(autouse=True)
