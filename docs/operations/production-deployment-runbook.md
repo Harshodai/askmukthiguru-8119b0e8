@@ -36,3 +36,28 @@ Monitor health, memory, latency, time to first token, errors, rate limits, and l
 ## Rollback
 
 If readiness fails, errors rise, attribution is wrong, or a safety gate is unexpectedly enabled, stop rollout and restore the last verified deployments. Preserve redacted logs, reset the relevant flag to its safe default, record the exception in the hardening backlog, and deploy the prior verified Git commit rather than editing production files.
+
+## Durable Memory Outbox Rollout
+
+Apply `20260805000001_memory_outbox.sql` before enabling `FEATURE_MEMORY_WRITE`.
+Keep this flag `false` until the user-facing consent control calls
+`PUT /api/memory/consent` with `{"granted": true}`. A successful chat then writes
+one scoped outbox row before asynchronous memory work is dispatched; no receipt
+means that no new memory is persisted.
+
+Run Celery Beat and a `celery-worker` that consumes the `memory` queue in addition
+to the existing ingestion queues. The task `tasks.memory_outbox_tasks.drain_memory_outbox`
+is dispatched immediately and is also scheduled every minute to recover rows from
+process crashes or disconnects. The PostgreSQL claim function uses `SKIP LOCKED`;
+multiple worker replicas therefore do not process the same claimed row.
+
+| Verification | Expected evidence |
+|---|---|
+| Consent | A `memory_consent_receipts` row for the authenticated user and tenant with `granted=true` and no `revoked_at`. |
+| Durability | A `memory_outbox` row is recorded before the worker begins; it transitions from `pending` to `processing` to `done`. |
+| Recovery | Stop a worker after enqueueing a test row, restart it, and confirm the scheduled task completes the row within two minutes. |
+| Erasure | `DELETE /api/memory/all` returns `completed` and a `memory_deletion_receipts` record listing all store counts. A `partial_failure` response must be retried. |
+
+To roll back new memory writes, set `FEATURE_MEMORY_WRITE=false`. Existing outbox
+rows remain visible for controlled replay or account-wide deletion; do not drop the
+outbox tables as a rollback shortcut.

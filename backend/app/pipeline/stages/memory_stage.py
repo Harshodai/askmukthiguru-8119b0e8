@@ -64,154 +64,46 @@ class MemoryStage(Stage):
             logger.debug("Memory persistence disabled by feature_memory_write")
             return None
 
-        second_brain = getattr(container, "second_brain", None)
-        if second_brain is not None and _is_persistable_user_id(user_id):
+        from services.tenant_context import TenantContext
 
-            async def _second_brain_extract():
-                from services.second_brain.crypto import VaultLockedError
-
-                try:
-                    vault = await second_brain.unlock(user_id)
-                except VaultLockedError:
-                    return
-                except Exception as e:
-                    logger.warning(f"Second Brain unlock failed (non-fatal): {e}")
-                    return
-                with vault:
-                    try:
-                        await second_brain.extract_and_write(
-                            user_id, user_msg, final_answer, vault=vault
-                        )
-                    except Exception as e:
-                        logger.warning(f"Second Brain extraction failed (non-fatal): {e}")
-
-            _schedule_memory_task(_second_brain_extract(), "second-brain extraction")
-
-        if not container.user_profile:
+        outbox = getattr(container, "memory_outbox", None)
+        if outbox is None or not _is_persistable_user_id(user_id):
+            logger.warning("Memory persistence requires durable outbox and authenticated user")
             return None
+        tenant_id = TenantContext.get()
         try:
-            from services.user_profile_service import ConversationMemory
-
-            signal = "general"
-            if ctx.assessment and ctx.assessment.detected_signals:
-                try:
-                    from services.healing_course_service import suffering_signal_from_text
-
-                    signal = suffering_signal_from_text(
-                        user_msg, ctx.assessment.detected_signals
-                    )
-                except Exception as _e:
-                    logger.debug("[memory stage] suppressed non-critical error: %s", _e)
-
-            memory = ConversationMemory(
-                session_id=stable_session_id,
+            consent = await outbox.active_consent(
+                user_id=user_id, tenant_id=tenant_id
+            )
+            if not consent:
+                logger.debug("Memory persistence skipped: no active consent receipt")
+                return None
+            outbox_entry = await outbox.enqueue(
                 user_id=user_id,
-                started_at=time.time(),
-                messages=[
-                    {"role": "user", "content": user_msg},
-                    {"role": "assistant", "content": final_answer},
-                ],
-                key_insights=[c if isinstance(c, str) else c.get("title", "") for c in citations],
-                emotional_arc=[
-                    {
-                        "timestamp": time.time(),
-                        "distress_level": distress_level,
-                        "provoked": False,
-                        "topic": intent,
-                        "signal": signal,
-                    }
-                ],
-                follow_up_suggestions=[],
+                tenant_id=tenant_id,
+                session_id=stable_session_id,
+                consent_receipt_id=consent.get("id"),
+                payload={
+                    "user_message": user_msg,
+                    "assistant_answer": final_answer,
+                    "prior_messages": chat_body_messages,
+                    "citations": citations,
+                    "intent": intent or "GENERAL",
+                    "med_step": med_step,
+                    "distress_level": distress_level,
+                },
             )
-            await container.user_profile.save_conversation_memory(memory)
-        except Exception as e:
-            logger.warning(f"Memory save failed (non-fatal): {e}")
+        except Exception as exc:
+            logger.error("Durable memory enqueue failed; persistence skipped: %s", exc)
+            return None
 
-        if settings.feature_memory_write and getattr(container, "memory_service", None):
-            full_msgs = chat_body_messages + [
-                {"role": "user", "content": user_msg},
-                {"role": "assistant", "content": final_answer},
-            ]
 
-            async def _extract_with_retry():
-                max_attempts = 3
-                base_delay = 1.0
-                for attempt in range(1, max_attempts + 1):
-                    try:
-                        await container.memory_service.extract_and_write(
-                            user_id, stable_session_id, full_msgs
-                        )
-                        logger.debug(f"Memory extraction succeeded on attempt {attempt}")
-                        return
-                    except Exception as e:
-                        if attempt == max_attempts:
-                            logger.error(
-                                f"Memory extraction failed after {max_attempts} attempts "
-                                f"for user {user_id} session {stable_session_id}: {e}"
-                            )
-                            return
-                        delay = base_delay * (2 ** (attempt - 1))
-                        logger.warning(
-                            f"Memory extraction attempt {attempt}/{max_attempts} failed: {e}. "
-                            f"Retrying in {delay}s..."
-                        )
-                        await asyncio.sleep(delay)
+        try:
+            from tasks.memory_outbox_tasks import drain_memory_outbox
 
-            _schedule_memory_task(_extract_with_retry(), "semantic memory extraction")
-
-            # L1 atomic memory extraction — Tencent-style layer-1 atoms.
-            async def _l1_extract():
-                try:
-                    from services.layered_memory.l1_extractor import extract_atoms
-
-                    atoms = await extract_atoms(
-                        user_msg=user_msg,
-                        assistant_msg=final_answer,
-                        prior_messages=chat_body_messages,
-                        previous_scene_name=intent or "General",
-                    )
-                    if atoms:
-                        await container.memory_service.add_atoms(user_id, stable_session_id, atoms)
-                except Exception as e:
-                    logger.warning(f"L1 atom extraction failed (non-fatal): {e}")
-
-            _schedule_memory_task(_l1_extract(), "L1 atom extraction")
-
-            # L2 scene compression — symbolic short-term offload.
-            async def _l2_compress():
-                try:
-                    from services.layered_memory.l2_scene_compressor import compress_turns_to_scene, save_scene_block
-                    from services.tenant_context import TenantContext
-
-                    turns = [
-                        {"role": "user", "content": user_msg},
-                        {"role": "assistant", "content": final_answer},
-                    ]
-                    block = await compress_turns_to_scene(turns)
-                    if block and getattr(container, "supabase_client", None):
-                        tenant_id = TenantContext.get()
-                        await save_scene_block(
-                            container.supabase_client,
-                            user_id, tenant_id,
-                            stable_session_id, block,
-                        )
-                except Exception as e:
-                    logger.warning(f"L2 scene compression failed (non-fatal): {e}")
-
-            _schedule_memory_task(_l2_compress(), "L2 scene compression")
-
-        # Wave 3 — episodic memory: log the raw turn (query + answer + citations).
-        # ponytail: fire-and-forget; anonymous users skipped inside log_episode.
-        episodic = getattr(container, "episodic_memory_service", None)
-        if episodic is not None and final_answer:
-            _schedule_memory_task(
-                episodic.log_episode(
-                    user_id=user_id,
-                    query=user_msg,
-                    answer=final_answer,
-                    citations=citations,
-                    intent=intent,
-                ),
-                "episodic memory logging",
-            )
+            drain_memory_outbox.apply_async()
+        except Exception as exc:
+            # The periodic Celery Beat task will recover this pending row.
+            logger.warning("Memory outbox dispatch deferred to scheduled worker: %s", exc)
+        logger.debug("Durable memory outbox row queued: %s", outbox_entry.get("id"))
         return None

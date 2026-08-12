@@ -463,6 +463,13 @@ class ServiceContainer:
     def _build_profiles(self) -> None:
         """Layer 6: Emotional intelligence and user profiles."""
         from services.memory_service_v2 import MemoryServiceV2
+        self.memory_outbox = None
+        if self.supabase_client is not None:
+            try:
+                from services.memory_outbox import MemoryOutbox
+                self.memory_outbox = MemoryOutbox(supabase_client=self.supabase_client)
+            except Exception as exc:
+                logger.warning(f"MemoryOutbox init failed (non-fatal): {exc}")
 
         if settings.serene_mind_enabled:
             self.serene_mind = SereneMindEngine(embedding_service=self.embedding)

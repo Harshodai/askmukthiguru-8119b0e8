@@ -2,7 +2,7 @@
 
 ## Environment Variables
 
-Set these in Railway dashboard for **both** `askmukthiguru-8119b0e8` and `celery-worker`:
+Set these in Railway dashboard for **the web service, `celery-worker`, and `celery-beat`**:
 
 | Variable | Required | Source |
 |----------|----------|--------|
@@ -20,7 +20,8 @@ Set these in Railway dashboard for **both** `askmukthiguru-8119b0e8` and `celery
 | Service | Image | Port | Health |
 |---------|-------|------|--------|
 | `askmukthiguru-8119b0e8` | Dockerfile.railway | 8000 | `/api/healthz` |
-| `celery-worker` | Dockerfile.railway (SERVICE_TYPE=celery) | — | Celery ping |
+| `celery-worker` | Dockerfile.railway (`SERVICE_TYPE=celery`) | — | Celery ping; consumes `memory` queue |
+| `celery-beat` | Dockerfile.railway (`SERVICE_TYPE=celery-beat`) | — | Schedules one-minute durable-memory recovery |
 | Redis | railway/internal | 6379 | — |
 | Qdrant | railway/internal | 6333 | — |
 | Neo4j | Template | 7687 | — |
@@ -28,7 +29,7 @@ Set these in Railway dashboard for **both** `askmukthiguru-8119b0e8` and `celery
 ## Worker Config
 
 - Concurrency: 2 (CPU-bound Whisper tasks)
-- Queues: `embedding,indexing,ingestion,okf`
+- Queues: `embedding,indexing,ingestion,okf,memory`
 - Max tasks per child: 50 (prevents memory leak)
 - Visibility timeout: 3600s (set in `celery_config.py`)
 

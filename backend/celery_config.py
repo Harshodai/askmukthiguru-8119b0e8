@@ -42,6 +42,7 @@ celery_app = Celery(
     include=[
         "tasks.ingest_tasks",
         "tasks.layered_memory_tasks",
+        "tasks.memory_outbox_tasks",
         "tasks.okf_extract_tasks",
         "tasks.okf_compile_tasks",
         "tasks.cancel_flow_tasks",
@@ -78,6 +79,10 @@ celery_app.conf.update(
             "task": "tasks.layered_memory_tasks.process_batched_memories",
             "schedule": 300.0,  # every 5 minutes
         },
+        "drain-memory-outbox": {
+            "task": "tasks.memory_outbox_tasks.drain_memory_outbox",
+            "schedule": 60.0,
+        },
     },
 )
 
@@ -87,6 +92,7 @@ task_queues = (
     Queue("indexing", Exchange("ingestion"), routing_key="indexing"),
     Queue("ingestion", Exchange("ingestion"), routing_key="ingestion"),
     Queue("okf", Exchange("ingestion"), routing_key="okf"),
+    Queue("memory", Exchange("memory"), routing_key="memory"),
 )
 
 celery_app.conf.task_queues = task_queues
@@ -99,6 +105,7 @@ celery_app.conf.task_routes = {
     "tasks.ingest_tasks.playlist_complete": {"queue": "ingestion"},
     "tasks.okf_compile_tasks.compile_okf_index": {"queue": "okf"},
     "tasks.okf_extract_tasks.extract_okf_entries": {"queue": "okf"},
+    "tasks.memory_outbox_tasks.drain_memory_outbox": {"queue": "memory"},
 }
 
 

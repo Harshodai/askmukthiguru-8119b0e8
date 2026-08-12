@@ -168,6 +168,17 @@ async def app(scope, receive, send):
 
 
 if __name__ == "__main__":
+    # A dedicated Beat service schedules durable-memory recovery.
+    if os.environ.get("SERVICE_TYPE") == "celery-beat":
+        logger.info("Starting Mukthi Guru Celery Beat scheduler")
+        import subprocess
+        import sys
+        proc = subprocess.run([
+            sys.executable, "-m", "celery", "-A", "celery_config",
+            "beat", "--loglevel=INFO",
+        ])
+        sys.exit(proc.returncode)
+
     # When SERVICE_TYPE=celery, start the Celery worker instead of the ASGI server.
     if os.environ.get("SERVICE_TYPE") == "celery":
         logger.info("Starting Mukthi Guru Celery worker")
@@ -177,7 +188,7 @@ if __name__ == "__main__":
             sys.executable, "-m", "celery",
             "-A", "celery_config",
             "worker",
-            "-Q", "ingestion,embedding,indexing,okf",
+            "-Q", "ingestion,embedding,indexing,okf,memory",
             "--concurrency=1",
             "--without-gossip",
             "--without-mingle",

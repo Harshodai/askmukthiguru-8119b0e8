@@ -645,3 +645,199 @@ async def export_knowledge_graph_endpoint(
         media_type="text/html",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+class MemoryConsentRequest(BaseModel):
+    granted: bool
+    consent_version: str = "memory-v1"
+
+
+@router.put("/memory/consent")
+async def set_memory_consent_endpoint(
+    body: MemoryConsentRequest,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Record a revocable, versioned consent receipt for future memory writes."""
+    from services.tenant_context import get_tenant_id_from_user
+
+    outbox = getattr(container, "memory_outbox", None)
+    if outbox is None:
+        raise HTTPException(status_code=503, detail="Durable memory storage is unavailable")
+    tenant_id = get_tenant_id_from_user(user)
+    receipt = await outbox.record_consent(
+        user_id=user["id"],
+        tenant_id=tenant_id,
+        granted=body.granted,
+        consent_version=body.consent_version,
+    )
+    pending_deleted = 0
+    if not body.granted:
+        pending_deleted = await outbox.delete_user_rows(
+            user_id=user["id"], tenant_id=tenant_id
+        )
+    return {
+        "status": "granted" if body.granted else "revoked",
+        "receipt_id": receipt.get("id"),
+        "consent_version": body.consent_version,
+        "pending_outbox_rows_deleted": pending_deleted,
+    }
+
+
+async def _delete_supabase_memory_rows(
+    client: Any, table: str, user_id: str
+) -> int:
+    def _delete() -> Any:
+        return client.table(table).delete().eq("user_id", user_id).execute()
+
+    result = await asyncio.to_thread(_delete)
+    rows = getattr(result, "data", None) or []
+    return len(rows)
+
+
+@router.delete("/memory/all")
+async def delete_all_memory_endpoint(
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Irreversibly erase every durable memory plane owned by this user.
+
+    Failures are retained in the deletion receipt so the caller can retry. The
+    endpoint never reports a full erasure when any known store could not be
+    reached.
+    """
+    from services.tenant_context import TenantContext, get_tenant_id_from_user
+
+    user_id = user["id"]
+    tenant_id = get_tenant_id_from_user(user)
+    TenantContext.set(tenant_id, user_id=user_id)
+    counts: dict[str, int] = {}
+    failures: list[str] = []
+    outbox = getattr(container, "memory_outbox", None)
+
+    async def _attempt(name: str, operation: Any) -> None:
+        try:
+            result = operation()
+            if hasattr(result, "__await__"):
+                result = await result
+            if isinstance(result, dict):
+                counts[name] = int(result.get("deleted", result.get("count", 1)))
+            elif isinstance(result, bool):
+                counts[name] = int(result)
+            else:
+                counts[name] = int(result)
+        except Exception as exc:
+            counts[name] = 0
+            failures.append(f"{name}: {str(exc)[:240]}")
+            logger.exception("Memory erasure failed for %s", name)
+
+    if outbox is not None:
+        await _attempt(
+            "memory_outbox",
+            lambda: outbox.delete_user_rows(user_id=user_id, tenant_id=tenant_id),
+        )
+
+    client = getattr(container, "supabase_client", None)
+    if client is not None:
+        for table in (
+            "guru_core_memory",
+            "guru_memories",
+            "user_episodes",
+            "guru_session_summaries",
+            "user_scene_blocks",
+            "user_skills",
+        ):
+            await _attempt(
+                table,
+                lambda table=table: _delete_supabase_memory_rows(client, table, user_id),
+            )
+
+    memory_service = getattr(container, "memory_service", None)
+    if memory_service is not None:
+        await _attempt("ephemeral_memory", lambda: memory_service.clear_ephemeral(user_id))
+
+        async def _delete_qdrant() -> int:
+            from qdrant_client.http import models
+
+            qdrant = await asyncio.to_thread(memory_service._get_qdrant_v2)
+            if qdrant is None:
+                return 0
+            collection = memory_service._get_memory_collection()
+            selector = models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="user_id", match=models.MatchValue(value=user_id)
+                    ),
+                    models.FieldCondition(
+                        key="tenant_id", match=models.MatchValue(value=tenant_id)
+                    ),
+                ]
+            )
+            points, _ = await asyncio.to_thread(
+                qdrant.scroll,
+                collection_name=collection,
+                scroll_filter=selector,
+                limit=10000,
+                with_payload=False,
+                with_vectors=False,
+            )
+            if points:
+                await asyncio.to_thread(
+                    qdrant.delete,
+                    collection_name=collection,
+                    points_selector=selector,
+                )
+            return len(points)
+
+        await _attempt("qdrant_global_memory", _delete_qdrant)
+
+        async def _delete_neo4j() -> int:
+            driver = await asyncio.to_thread(memory_service._get_neo4j)
+            if driver is None:
+                return 0
+
+            def _delete() -> int:
+                with driver.session() as session:
+                    result = session.run(
+                        """
+                        MATCH (u:User {tenant_id: $tenant_id, id: $user_id})
+                        OPTIONAL MATCH (u)-[:HAS_MEMORY]->(m:GlobalMemory)
+                        WITH u, collect(m) AS memories
+                        FOREACH (memory IN memories | DETACH DELETE memory)
+                        DETACH DELETE u
+                        RETURN size(memories) AS deleted
+                        """,
+                        tenant_id=tenant_id,
+                        user_id=user_id,
+                    )
+                    row = result.single()
+                    return int(row["deleted"]) if row else 0
+
+            return await asyncio.to_thread(_delete)
+
+        await _attempt("neo4j_global_memory", _delete_neo4j)
+
+    second_brain = getattr(container, "second_brain", None)
+    if second_brain is not None:
+        await _attempt("second_brain", lambda: second_brain.crypto_shred(user_id))
+
+    status = "completed" if not failures else "partial_failure"
+    receipt: dict[str, Any] = {
+        "user_id": user_id,
+        "tenant_id": tenant_id,
+        "store_counts": counts,
+        "status": status,
+    }
+    if outbox is not None:
+        receipt = await outbox.write_deletion_receipt(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            store_counts=counts,
+            status=status,
+            error="; ".join(failures) if failures else None,
+        )
+    return {
+        "status": status,
+        "receipt_id": receipt.get("id"),
+        "deleted": counts,
+        "failures": failures,
+    }
