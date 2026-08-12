@@ -345,7 +345,9 @@ class TestDeduplication:
 @pytest.mark.asyncio
 class TestWebSearchNode:
     @patch("rag.nodes._services")
-    async def test_web_search_node_calls_service(self, mock_services):
+    async def test_web_search_node_calls_service(self, mock_services, monkeypatch):
+        from app.config import settings
+        monkeypatch.setattr(settings, "live_logistics_enabled", True)
         mock_web_search = AsyncMock()
         mock_web_search.search.return_value = [
             {
@@ -358,7 +360,7 @@ class TestWebSearchNode:
         ]
         mock_services._web_search = mock_web_search
 
-        state = {"question": "What events are at Ekam this month?"}
+        state = {"intent": "LIVE_LOGISTICS", "question": "What events are at Ekam this month?"}
         result = await web_search_node(state)
 
         assert "web_search_results" in result
@@ -375,12 +377,14 @@ class TestWebSearchNode:
         assert result == {"web_search_results": []}
 
     @patch("rag.nodes._services")
-    async def test_web_search_node_uses_rewritten_query(self, mock_services):
+    async def test_web_search_node_uses_rewritten_query(self, mock_services, monkeypatch):
+        from app.config import settings
+        monkeypatch.setattr(settings, "live_logistics_enabled", True)
         mock_web_search = AsyncMock()
         mock_web_search.search.return_value = []
         mock_services._web_search = mock_web_search
 
-        state = {"question": "original", "rewritten_query": "rewritten"}
+        state = {"intent": "LIVE_LOGISTICS", "question": "original", "rewritten_query": "rewritten"}
         await web_search_node(state)
 
         mock_web_search.search.assert_called_once_with("rewritten", user_id=None)

@@ -132,6 +132,7 @@ class ChatRequestOrchestrator:
             audio_url=result.audio_url,
             kg_concept_nodes=result.kg_concept_nodes,
             daily_practice_card=result.daily_practice_card,
+            live_logistics_events=result.live_logistics_events,
         )
 
 

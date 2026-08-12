@@ -279,6 +279,7 @@ class ChatStreamRequestOrchestrator:
                 "confidence_score": result.confidence_score,
                 "citations_verified": result.citations_verified,
                 "orphan_citations_stripped": result.orphan_citations_stripped,
+                "live_logistics_events": getattr(result, "live_logistics_events", []),
             })
             yield f"event: done\ndata: {meta}\n\n"
 

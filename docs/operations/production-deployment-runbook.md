@@ -77,3 +77,20 @@ Do not enable the flag until a staging deployment demonstrates producer routing,
 consumer-group recovery (`XAUTOCLAIM`), cancellation semantics, and ownership
 checks under a process restart. The existing Redis-backed `JobQueueService` with
 its NX lease remains the active queued-chat path.
+
+## Trusted Live Logistics Rollout
+
+`LIVE_LOGISTICS` is disabled by default. It is the only intent allowed to call the
+live search node. It covers event, Manifest, Guru Darshan, schedule, venue, and
+booking questions only when an event/program noun and logistics cue are both
+present. General temporal questions continue through the teaching corpus without
+live search.
+
+Enable `WEB_SEARCH_ENABLED=true` and `LIVE_LOGISTICS_ENABLED=true` only after
+checking that `WEB_SEARCH_ALLOWED_DOMAINS` contains exclusively the approved
+official domains. Every returned event card includes `official_source_url`,
+`booking_url`, `verified_at`, and `expires_at`; the expiry is controlled by
+`LIVE_LOGISTICS_TTL_SECONDS` (default 900 seconds). The UI must show the source
+link and verification time rather than treating the generated prose as the
+booking authority. If the feature or live service is unavailable, the response
+contains no event card and directs the seeker to `ekam.org` instead of guessing.

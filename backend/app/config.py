@@ -614,6 +614,8 @@ class Settings(BaseSettings):
 
     # --- Web Search (Real-Time Temporal Queries) ---
     web_search_enabled: bool = False  # Enable temporal web search for real-time queries
+    live_logistics_enabled: bool = False  # Official-source event and booking lookup only.
+    live_logistics_ttl_seconds: int = 900
     web_search_provider: str = "duckduckgo"  # "duckduckgo" | "searxng"
     web_search_allowed_domains: str = "ekam.org,theonenessmovement.org"
     web_search_allow_db_domain_override: bool = False  # DB may narrow, never widen the source-controlled official allowlist.

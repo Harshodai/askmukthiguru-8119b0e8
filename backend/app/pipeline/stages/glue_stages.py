@@ -120,6 +120,11 @@ class ResultAssemblyStage(Stage):
         safety_events = coordinator._build_safety_events(ctx.input_check or {}, ctx.output_check or {})
         spans = coordinator._build_spans(graph_result)
         response_data = coordinator._build_response_data(graph_result, ctx.intent)
+        live_logistics_events = [
+            doc["live_event"]
+            for doc in graph_result.get("web_search_results", [])
+            if isinstance(doc, dict) and isinstance(doc.get("live_event"), dict)
+        ]
 
         ctx.result = PipelineResult(
             final_answer=ctx.final_answer,
@@ -162,5 +167,6 @@ class ResultAssemblyStage(Stage):
             audio_url=graph_result.get("audio_url"),
             kg_concept_nodes=list(graph_result.get("kg_concept_nodes", []) or []),
             daily_practice_card=graph_result.get("daily_practice_card"),
+            live_logistics_events=live_logistics_events,
         )
         return ctx.result

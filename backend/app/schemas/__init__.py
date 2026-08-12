@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import datetime as _dt
+from urllib.parse import urlparse
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -174,3 +176,22 @@ class ChatResponse(BaseModel):
         description="Actionable daily inner growth practice card recommendation",
     )
 
+
+class LiveLogisticsEvent(BaseModel):
+    """Verified metadata for an official event, booking, or schedule result."""
+
+    event_name: str = Field(..., min_length=1, max_length=300)
+    official_source_url: str = Field(..., min_length=8, max_length=2000)
+    booking_url: Optional[str] = Field(default=None, max_length=2000)
+    verified_at: _dt.datetime
+    expires_at: _dt.datetime
+
+    @field_validator("official_source_url", "booking_url")
+    @classmethod
+    def validate_official_url(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        parsed = urlparse(value)
+        if parsed.scheme != "https" or not parsed.netloc:
+            raise ValueError("live logistics URLs must be absolute HTTPS URLs")
+        return value

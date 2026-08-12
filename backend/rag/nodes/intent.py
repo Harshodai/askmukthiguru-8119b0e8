@@ -142,19 +142,18 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
 # to qualify, so teaching questions ("what is the beautiful state", "how do I practice soul
 # sync") are never misrouted.
 _LOGISTICS_EVENT_RE = re.compile(
-    r"\b(programs?|events?|retreats?|workshops?|courses?|seminars?|webinars?|sessions?|classes|class)\b",
+    r"\b(programs?|events?|retreats?|workshops?|courses?|seminars?|webinars?|sessions?|classes|class|manifest(?:ation)?|guru\s*darshan|darshan|ekam)\b",
     re.I,
 )
 _LOGISTICS_CUE_RE = re.compile(
     r"\b(upcoming|schedules?|dates?|register|registration|signup|tickets?|price|pricing|cost|fees?|enrol|enroll|calendar)\b"
-    r"|sign\s*up|when\s+(is|are|will)|how\s+much|book\s+a|next\s+\w",
+    r"|sign\s*up|book(?:ing)?|when\s+(is|are|will)|how\s+much|where\s+(is|are)|book\s+a|next\s+\w",
     re.I,
 )
-_LOGISTICS_ANSWER = (
-    "🙏 I don't have current schedules, dates, or prices for Ekam's programs and events — "
-    "these change often, so I'd rather point you to the official source than guess. You'll "
-    "find the latest on ekam.org. If it helps, I'm happy to share a teaching or practice to "
-    "explore in the meantime."
+
+_LOGISTICS_UNAVAILABLE_ANSWER = (
+    "Live schedules and booking details are not available right now. Please check ekam.org "
+    "for the official current information."
 )
 
 
@@ -217,6 +216,30 @@ def _early_filter(
                         routing_reason="fallback_of_fallback_keyword_distress",
                     ),
                 }
+
+    # ---- Official live logistics check ----
+    if _is_logistics_query(question):
+        if not settings.live_logistics_enabled:
+            return {
+                "intent": "CASUAL",
+                "query_tier": "tier2_simple",
+                "confidence_tier": "high",
+                "final_answer": _LOGISTICS_UNAVAILABLE_ANSWER,
+                "evaluation_trace": _trace_update(
+                    state, intent="CASUAL", query_tier="tier2_simple",
+                    routing_reason="live_logistics_disabled",
+                ),
+            }
+        return {
+            "intent": "LIVE_LOGISTICS",
+            "query_tier": "tier2_simple",
+            "confidence_tier": "high",
+            "needs_web_search": True,
+            "evaluation_trace": _trace_update(
+                state, intent="LIVE_LOGISTICS", query_tier="tier2_simple",
+                routing_reason="official_live_logistics", needs_web_search=True,
+            ),
+        }
 
     # ---- Temporal / Real-Time Query Check ----
     if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):
@@ -341,19 +364,33 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     # them into RAG and returns filler (the "upcoming programs from Ekam" failure). Return a
     # deterministic honest pointer to ekam.org instead.
     if _is_logistics_query(question):
+        if not settings.live_logistics_enabled:
+            return {
+                "intent": "CASUAL",
+                "query_tier": "tier2_simple",
+                "confidence_tier": "high",
+                "complexity_score": complexity_score,
+                "final_answer": _LOGISTICS_UNAVAILABLE_ANSWER,
+                "evaluation_trace": _trace_update(
+                    state, intent="CASUAL", query_tier="tier2_simple",
+                    routing_reason="live_logistics_disabled",
+                    complexity_score=complexity_score,
+                ),
+            }
         logger.info(
             "Intent Router: logistics/out-of-corpus query — honest pointer to ekam.org: %s",
             question[:60],
         )
         return {
-            "intent": "CASUAL",
+            "intent": "LIVE_LOGISTICS",
             "query_tier": "tier2_simple",
             "confidence_tier": "high",
             "complexity_score": complexity_score,
-            "final_answer": _LOGISTICS_ANSWER,
+            "needs_web_search": True,
             "evaluation_trace": _trace_update(
-                state, intent="CASUAL", query_tier="tier2_simple",
-                routing_reason="logistics_out_of_corpus", complexity_score=complexity_score,
+                state, intent="LIVE_LOGISTICS", query_tier="tier2_simple",
+                routing_reason="official_live_logistics", complexity_score=complexity_score,
+                needs_web_search=True,
             ),
         }
 

@@ -136,7 +136,7 @@ class CacheCheckStage(Stage):
         # from Ekam" and "what is Ekam" embed close, so the semantic cache would otherwise
         # serve a teaching answer for a logistics question (and vice-versa). Skipping the
         # cache forces the query to intent_router's deterministic honest short-circuit
-        # (intent.py:_is_logistics_query → _LOGISTICS_ANSWER).
+        # (intent.py:_is_logistics_query → LIVE_LOGISTICS).
         try:
             from rag.nodes.intent import _is_logistics_query
             if query_text and _is_logistics_query(query_text):
@@ -344,7 +344,7 @@ class CacheUpdateStage(Stage):
             "do not have that specific teaching",
             "the guru is unable",
             "sorry, something went wrong",
-            # Deterministic out-of-corpus logistics answer (intent.py:_LOGISTICS_ANSWER).
+            # Live logistics response (intent.py:LIVE_LOGISTICS).
             # It is cheap to regenerate and MUST NOT be cached: the semantic cache would
             # otherwise replay it for teaching queries about Ekam (e.g. "what is Ekam?").
             "i don't have current schedules",

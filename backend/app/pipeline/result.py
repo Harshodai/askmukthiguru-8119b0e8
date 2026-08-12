@@ -95,6 +95,7 @@ class PipelineResult:
     audio_url: str | None = None
     kg_concept_nodes: list[str] = field(default_factory=list)
     daily_practice_card: dict | None = None
+    live_logistics_events: list[dict] = field(default_factory=list)
 
 
     def with_latency(self, latency_ms: int) -> "PipelineResult":
@@ -133,6 +134,7 @@ class PipelineResult:
             audio_url=self.audio_url,
             kg_concept_nodes=self.kg_concept_nodes,
             daily_practice_card=self.daily_practice_card,
+            live_logistics_events=self.live_logistics_events,
         )
 
     def to_chat_response(self) -> dict[str, Any]:
@@ -158,4 +160,5 @@ class PipelineResult:
             "follow_up_suggestions": self.follow_up_suggestions,
             "citations_verified": self.citations_verified,
             "orphan_citations_stripped": self.orphan_citations_stripped,
+            "live_logistics_events": self.live_logistics_events,
         }
