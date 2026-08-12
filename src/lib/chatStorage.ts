@@ -46,6 +46,8 @@ export interface Message {
   confidenceScore?: number;
   /** E3.2 one-line explainable reason for the confidence score (optional, forward-compat). */
   confidenceReason?: string;
+  /** Requested language of this message’s rendered content (BCP-47 or base code). */
+  language?: string;
   feedback?: MessageFeedback;
   /** Memory facts the backend retrieved and used to ground this guru reply. */
   memoriesUsed?: string[];
@@ -76,6 +78,7 @@ const MessageSchema = z.object({
   content: z.string(),
   timestamp: z.coerce.date(),
   citations: z.array(z.string()).optional(),
+  language: z.string().optional(),
   confidenceScore: z.number().optional(),
   confidenceReason: z.string().optional(),
   feedback: z.object({

@@ -288,6 +288,8 @@ class WebSearchService:
                     "raptor_level": 0,
                     "score": sanitized_result["score"],
                     "safety_flags": flags,
+                    "source_trust": "official_domain",
+                    "live_information": True,
                 }
             )
 

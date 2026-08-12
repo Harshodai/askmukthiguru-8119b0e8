@@ -7,6 +7,7 @@ to PipelineCoordinator. Keeps SSE streaming logic for real-time tokens.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import re
@@ -113,6 +114,10 @@ class ChatStreamRequestOrchestrator:
 
                 HEARTBEAT_INTERVAL = 5.0
                 while True:
+                    disconnect_check = request.is_disconnected()
+                    if inspect.isawaitable(disconnect_check) and await disconnect_check:
+                        logger.info("SSE client disconnected; cancelling pipeline for user %s", user_id)
+                        return
                     if pipeline_task.done() and stream_queue.empty():
                         break
 

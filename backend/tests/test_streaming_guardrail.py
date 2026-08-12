@@ -172,3 +172,49 @@ async def test_harmful_phrase_split_across_chunks_filtered():
     assert "[SAFETY_FILTER]" in data_lines
     assert "ignore previous instructions" not in "".join(data_lines)
     assert "This is fine." not in "".join(data_lines)
+
+
+class _DisconnectedRequest:
+    headers: dict[str, str] = {}
+
+    def __init__(self) -> None:
+        self.disconnected = False
+
+    async def is_disconnected(self) -> bool:
+        return self.disconnected
+
+
+@pytest.mark.asyncio
+async def test_stream_disconnect_cancels_pipeline_task() -> None:
+    """A disconnected SSE client must not leave the active pipeline running."""
+    import asyncio
+
+    container = _make_container()
+    orchestrator = ChatStreamRequestOrchestrator(container)
+    pipeline_started = asyncio.Event()
+    pipeline_cancelled = asyncio.Event()
+
+    async def _blocking_pipeline(*args, **kwargs):
+        try:
+            pipeline_started.set()
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            pipeline_cancelled.set()
+            raise
+
+    request = _DisconnectedRequest()
+    with patch.object(orchestrator.coordinator, "execute", _blocking_pipeline):
+        response = await orchestrator.orchestrate_stream(
+            request=request,
+            chat_body=ChatRequest(messages=[], user_message="hello"),
+            background_tasks=MagicMock(),
+            user={"id": "u1"},
+        )
+        stream = response.body_iterator
+        await stream.__anext__()
+        await asyncio.wait_for(pipeline_started.wait(), timeout=1)
+        request.disconnected = True
+        with pytest.raises(StopAsyncIteration):
+            await stream.__anext__()
+
+    await asyncio.wait_for(pipeline_cancelled.wait(), timeout=1)

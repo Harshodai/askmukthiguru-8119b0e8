@@ -102,7 +102,7 @@ aiosqlite>=0.20.0
 passlib[bcrypt]>=1.7.4
 
 # --- Infrastructure ---
-redis>=4.5.0,<5.0  # Pinned <5 to avoid MemoryError from redis/commands/core.py on low-memory Docker VM
+redis>=5.2.0,<8.0  # Align with pyproject and the supported redis-py runtime.
 celery>=5.4.0
 apscheduler>=3.10.0
 gunicorn>=23.0.0

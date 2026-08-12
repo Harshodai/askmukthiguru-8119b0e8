@@ -34,6 +34,9 @@ configure_threading()
 # passwordless localhost fallback — never commit a Redis password. Authenticated
 # instances (docker compose) need REDIS_URL exported by the runner/CI.
 os.environ["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+# Unit tests exercise limiter behaviour separately; collection must not require
+# a Redis client merely because integration services use REDIS_URL.
+os.environ["RATE_LIMIT_STORAGE_URI"] = "memory://"
 # backend/.env carries docker hostnames (qdrant:6333) that do not resolve on
 # the host; point QDRANT_URL at the host-mapped port instead.
 os.environ["QDRANT_URL"] = "http://127.0.0.1:6333"

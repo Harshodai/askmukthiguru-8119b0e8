@@ -151,8 +151,11 @@ class LanguageRouter:
         # Code-mixed detection for Roman text
         text_lower = text.lower()
 
-        hinglish_score = sum(1 for p in self.HINGLISH_PATTERNS if re.search(p, text_lower))
-        tanglish_score = sum(1 for p in self.TANGLISH_PATTERNS if re.search(p, text_lower))
+        # Count matched vernacular tokens, not regex-list entries. Each list holds
+        # one alternation pattern, so summing matching patterns made the >=2
+        # threshold unreachable for every Roman-script code-mixed message.
+        hinglish_score = len(re.findall(self.HINGLISH_PATTERNS[0], text_lower))
+        tanglish_score = len(re.findall(self.TANGLISH_PATTERNS[0], text_lower))
 
         if hinglish_score >= 2:
             return LanguageDetection(

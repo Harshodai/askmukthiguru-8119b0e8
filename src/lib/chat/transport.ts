@@ -414,6 +414,8 @@ export const translateText = async (
   }
 };
 
+
+const memoryExtractionEnabled = import.meta.env.VITE_MEMORY_EXTRACTION_ENABLED === 'true';
 /**
  * Fire-and-forget: insert a memory-extraction job into pending_extractions
  * for the Supabase Edge Function to drain.  Runs silently, never blocks
@@ -425,6 +427,7 @@ export const queueMemoryExtraction = async (payload: {
   conversationId?: string;
 }): Promise<void> => {
   try {
+  if (!memoryExtractionEnabled) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
     await supabase.from('pending_extractions').insert({

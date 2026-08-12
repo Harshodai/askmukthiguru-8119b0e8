@@ -7,7 +7,7 @@ import hmac
 import hashlib
 import threading
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, abort, request, jsonify
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.request_validator import RequestValidator
 
@@ -17,6 +17,12 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+
+@app.before_request
+def reject_when_broker_is_disabled():
+    if not WHATSAPP_WEBHOOK_ENABLED:
+        abort(404)
+
 # Configuration (loaded from environment or defaults)
 BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
 BACKEND_TOKEN = os.getenv('BACKEND_TOKEN', '')
@@ -24,6 +30,10 @@ VERIFY_TOKEN = os.getenv('VERIFY_TOKEN', '')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
 META_APP_SECRET = os.getenv('META_APP_SECRET', '')
 PORT = int(os.getenv('PORT', 5000))
+# This legacy broker is intentionally frozen until its identity, consent,
+# replay/idempotency, deletion, redaction, and production-runtime controls have
+# passed the release gate. Accidental deployments return 404 for every route.
+WHATSAPP_WEBHOOK_ENABLED = os.getenv('WHATSAPP_WEBHOOK_ENABLED', '').lower() == 'true'
 
 def validate_twilio_signature(req) -> bool:
     """Validates X-Twilio-Signature against TWILIO_AUTH_TOKEN."""
@@ -358,5 +368,8 @@ def meta_webhook():
         return '🙏 Something went unexpectedly quiet on my end. Could you try again?', 200
 
 if __name__ == '__main__':
+    if not WHATSAPP_WEBHOOK_ENABLED:
+        logger.error('WhatsApp webhook broker is disabled; set WHATSAPP_WEBHOOK_ENABLED=true only after release approval.')
+        raise SystemExit(1)
     logger.info(f"Starting WhatsApp Webhook broker on port {PORT}...")
     app.run(host='0.0.0.0', port=PORT)

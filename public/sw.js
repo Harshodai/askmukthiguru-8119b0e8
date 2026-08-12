@@ -1,157 +1,64 @@
-const CACHE_NAME = 'mukthiguru-core-v1';
-const MEDITATION_CACHE = 'mukthiguru-meditation-v1';
+/*
+ * Privacy-safe service worker.
+ *
+ * This worker caches only immutable public application assets. It never caches
+ * API, authenticated, personalised, safety, logistics or conversation requests,
+ * and it never simulates an answer while offline. Those responses must always
+ * come from the live, capability-aware backend.
+ */
+const CACHE_NAME = 'askmukthiguru-static-v2';
 
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
+const PRE_CACHE_ASSETS = [
   '/favicon.svg',
   '/placeholder.svg',
-  '/robots.txt',
-  '/sitemap.xml',
   '/icon-192.png',
   '/icon-512.png',
 ];
 
-// Install Event: pre-cache static core assets
+const STATIC_ASSET_PATTERN = /\.(?:css|js|mjs|map|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|eot)$/i;
+
+function isCacheableStaticAsset(request, url) {
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return false;
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/functions/')) return false;
+  return url.pathname.startsWith('/assets/') || PRE_CACHE_ASSETS.includes(url.pathname) || STATIC_ASSET_PATTERN.test(url.pathname);
+}
+
+function mayStore(response) {
+  if (!response || !response.ok || response.type !== 'basic') return false;
+  const cacheControl = response.headers.get('Cache-Control') || '';
+  return !/no-store|private/i.test(cacheControl);
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      loggerLog('Pre-caching core app shell assets');
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRE_CACHE_ASSETS)),
   );
   self.skipWaiting();
 });
 
-// Activate Event: clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME && key !== MEDITATION_CACHE) {
-            loggerLog(`Deleting obsolete cache: ${key}`);
-            return caches.delete(key);
-          }
-        })
-      );
-    })
+    caches.keys().then((keys) => Promise.all(
+      keys
+        .filter((key) => key !== CACHE_NAME && /^(askmukthiguru|mukthiguru)-/.test(key))
+        .map((key) => caches.delete(key)),
+    )),
   );
   self.clients.claim();
 });
 
-// Fetch Event: handle offline caching policies
 self.addEventListener('fetch', (event) => {
-  // Only intercept GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
-
   const url = new URL(event.request.url);
+  if (!isCacheableStaticAsset(event.request, url)) return;
 
-  // Only intercept http/https schemes (bypass chrome-extension, etc.)
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    return;
-  }
-
-  // 1. Caching Policy for Meditation Audio and Media Assets (Cache-First)
-  if (
-    url.pathname.includes('/meditation/') || 
-    url.pathname.includes('/assets/meditation') ||
-    url.pathname.endsWith('.mp3') ||
-    url.pathname.endsWith('.wav')
-  ) {
-    event.respondWith(
-      caches.open(MEDITATION_CACHE).then((cache) => {
-        return cache.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            loggerLog(`Serving cached meditation asset: ${url.pathname}`);
-            return cachedResponse;
-          }
-          return fetch(event.request).then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              cache.put(event.request, networkResponse.clone());
-            }
-            return networkResponse;
-          });
-        });
-      })
-    );
-    return;
-  }
-
-  // 2. Caching Policy for Crisis Support and Breathing Pages (Stale-While-Revalidate)
-  if (
-    url.pathname.includes('/crisis') || 
-    url.pathname.includes('/breathing') || 
-    url.pathname.includes('/practices')
-  ) {
-    event.respondWith(
-      caches.open(CACHE_NAME).then((cache) => {
-        return cache.match(event.request).then((cachedResponse) => {
-          const fetchPromise = fetch(event.request).then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              cache.put(event.request, networkResponse.clone());
-            }
-            return networkResponse;
-          });
-          return cachedResponse || fetchPromise;
-        }).catch((err) => {
-          loggerLog(`Stale-while-revalidate error: ${err}`);
-          return new Response('Service Offline', { status: 503 });
-        });
-      })
-    );
-    return;
-  }
-
-  // 3. General App Shell Cache Policy (Network-First with Cache Fallback)
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Cache successful GET requests for same origin
-        if (url.origin === self.location.origin && response.status === 200) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch((err) => {
-        loggerLog(`Network-first fetch failed, trying cache: ${err}`);
-        // Serve from cache if offline
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // If offline and request is for page, return index.html (SPA routing)
-          const acceptHeader = event.request.headers.get('accept') || '';
-          if (acceptHeader.includes('text/html')) {
-            return caches.match('/index.html');
-          }
-          // Offline fallback for API calls
-          if (event.request.url.includes('/api/chat')) {
-            return new Response(
-              JSON.stringify({
-                content: "Namaste. I am currently offline, but you can still access guided meditations. Tap the Serene Mind button below.",
-                intent: "CASUAL",
-                offline: true,
-              }),
-              { headers: { 'Content-Type': 'application/json' } }
-            );
-          }
-          // Default offline response for other assets
-          return new Response('Offline / Resource Unavailable', {
-            status: 503,
-            statusText: 'Service Offline',
-            headers: new Headers({ 'Content-Type': 'text/plain' })
-          });
-        });
-      })
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(event.request);
+      if (cached) return cached;
+
+      const response = await fetch(event.request);
+      if (mayStore(response)) await cache.put(event.request, response.clone());
+      return response;
+    }),
   );
 });
-
-function loggerLog(message) {
-  console.log(`[MukthiGuru SW] ${message}`);
-}

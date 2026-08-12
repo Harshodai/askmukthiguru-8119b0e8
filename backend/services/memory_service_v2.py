@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import time
+import uuid
 from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -268,7 +269,7 @@ class MemoryServiceV2(MemoryService):
                                 # 2. Create the new memory node, and link to User + old memory node
                                 session.run(
                                     """
-                                    MERGE (u:User {id: $user_id})
+                                    MERGE (u:User {tenant_id: $tenant_id, id: $user_id})
                                     SET u.tenant_id = $tenant_id
                                     MERGE (m:GlobalMemory {id: $memory_id})
                                     SET m.content = $content,
@@ -294,7 +295,7 @@ class MemoryServiceV2(MemoryService):
                                 # Standard insert flow
                                 session.run(
                                     """
-                                    MERGE (u:User {id: $user_id})
+                                    MERGE (u:User {tenant_id: $tenant_id, id: $user_id})
                                     SET u.tenant_id = $tenant_id
                                     MERGE (m:GlobalMemory {id: $memory_id})
                                     SET m.content = $content,
@@ -514,13 +515,21 @@ class MemoryServiceV2(MemoryService):
         use_global_memory: Optional[bool] = None,
     ) -> bool:
         """Store in global Qdrant collection + Neo4j graph."""
+        tenant_id = TenantContext.get() or "default"
+        normalized_content = " ".join(content.split())
+        memory_id = str(
+            uuid.uuid5(
+                uuid.NAMESPACE_URL,
+                f"askmukthiguru:global-memory:{tenant_id}:{user_id}:{normalized_content}",
+            )
+        )
         success = False
 
         try:
             client = await asyncio.to_thread(self._get_qdrant_v2)
             if client:
                 from qdrant_client.http import models
-                point_id = f"global:{user_id}:{hash(content) % 10**15}"
+                point_id = memory_id
                 await asyncio.to_thread(
                     client.upsert,
                     collection_name=self._get_memory_collection(guru_slug, use_global_memory),
@@ -529,6 +538,7 @@ class MemoryServiceV2(MemoryService):
                         vector=embedding,
                         payload={
                             "user_id": user_id,
+                            "tenant_id": tenant_id,
                             "content": content,
                             "metadata": metadata or {},
                             "created_at": time.time(),
@@ -542,22 +552,20 @@ class MemoryServiceV2(MemoryService):
         try:
             driver = await asyncio.to_thread(self._get_neo4j)
             if driver:
-                from services.tenant_context import TenantContext
-                tenant_id = TenantContext.get()
 
                 # ponytail: to_thread wraps sync neo4j driver; migrate to AsyncGraphDatabase past 100 concurrent users
                 def _write():
                     with driver.session() as session:
                         session.run(
                             """
-                            MERGE (u:User {id: $user_id})
+                            MERGE (u:User {tenant_id: $tenant_id, id: $user_id})
                             SET u.tenant_id = $tenant_id
                             MERGE (m:GlobalMemory {id: $memory_id})
                             SET m.content = $content, m.created_at = timestamp(), m.tenant_id = $tenant_id
                             MERGE (u)-[:HAS_MEMORY]->(m)
                             """,
                             user_id=user_id,
-                            memory_id=f"global:{user_id}:{hash(content) % 10**15}",
+                            memory_id=memory_id,
                             content=content,
                             tenant_id=tenant_id,
                         )
@@ -579,16 +587,26 @@ class MemoryServiceV2(MemoryService):
         guru_slug: Optional[str] = None,
         use_global_memory: Optional[bool] = None,
     ) -> list[dict[str, Any]]:
-        """Search global memory across all users (or filter by user_id)."""
+        """Search only the current tenant's memories for one explicit user."""
         try:
+            if not user_id:
+                logger.warning("Global memory search rejected without user scope")
+                return []
             client = await asyncio.to_thread(self._get_qdrant_v2)
             if not client:
                 return []
 
             from qdrant_client.http import models
+            if not user_id:
+                logger.warning("Global memory search rejected without user scope")
+                return []
+            tenant_id = TenantContext.get() or "default"
             filter_cond = models.Filter(
-                must=[models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id))]
-            ) if user_id else None
+                must=[
+                    models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
+                    models.FieldCondition(key="tenant_id", match=models.MatchValue(value=tenant_id)),
+                ]
+            )
 
             results = await asyncio.to_thread(
                 client.search,
@@ -630,7 +648,7 @@ class MemoryServiceV2(MemoryService):
                 with driver.session() as session:
                     result = session.run(
                         """
-                        MATCH (u:User {id: $user_id})-[:HAS_MEMORY]->(m:GlobalMemory)
+                        MATCH (u:User {tenant_id: $tenant_id, id: $user_id})-[:HAS_MEMORY]->(m:GlobalMemory)
                         WHERE m.tenant_id = $tenant_id
                         OPTIONAL MATCH (m)-[:RELATED_TO]->(related:GlobalMemory)
                         WHERE related.tenant_id = $tenant_id

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import hashlib
+import json
 import logging
 import re
 import time
@@ -548,23 +550,56 @@ def select_llm_model(query: str, context_len: int) -> str:
     return getattr(settings, "sarvam_cloud_model", "sarvam-30b")
 
 
+def stable_document_key(doc: dict[str, Any]) -> str:
+    """Return a process-independent identity for fusion and deduplication.
+
+    Retrieval adapters create fresh dictionaries for the same point, so object
+    identity is not a valid cross-channel key. Prefer immutable source/chunk
+    identifiers when available and otherwise hash a canonical source/text tuple.
+    Scores and transient transport fields are intentionally excluded.
+    """
+    metadata = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
+    payload = doc.get("payload") if isinstance(doc.get("payload"), dict) else {}
+
+    def _first(*names: str) -> Any:
+        for name in names:
+            value = doc.get(name)
+            if value not in (None, ""):
+                return value
+            value = metadata.get(name)
+            if value not in (None, ""):
+                return value
+            value = payload.get(name)
+            if value not in (None, ""):
+                return value
+        return None
+
+    identity = {
+        "point_id": _first("point_id", "id", "chunk_id", "document_id"),
+        "source_id": _first("source_id", "video_id", "source", "source_url", "url"),
+        "source_version": _first("source_version", "release_id", "version"),
+        "chunk_index": _first("chunk_index", "chunk_number", "offset"),
+        "text": str(doc.get("text") or doc.get("content") or ""),
+    }
+    canonical = json.dumps(identity, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _rrf_docs(ranked_lists: list[list[dict]], k: int = 60) -> list[dict]:
-    """Apply Reciprocal Rank Fusion to lists of document dicts."""
-    id_to_doc: dict[int, dict] = {}
-    id_rankings: list[list[int]] = []
+    """Apply Reciprocal Rank Fusion using deterministic document identities."""
+    id_to_doc: dict[str, dict] = {}
+    id_rankings: list[list[str]] = []
 
     for ranked_list in ranked_lists:
-        id_list = []
+        id_list: list[str] = []
         for doc in ranked_list:
-            key = id(doc)
-            id_to_doc[key] = doc
+            key = stable_document_key(doc)
+            id_to_doc.setdefault(key, doc)
             id_list.append(key)
         id_rankings.append(id_list)
 
     sorted_ids = _reciprocal_rank_fusion(id_rankings, k=k)
     return [id_to_doc[key] for key in sorted_ids]
-
-
 def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
     """Select generation model via config, not benchmark-answer hardcoding.
     

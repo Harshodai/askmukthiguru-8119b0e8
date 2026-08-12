@@ -138,23 +138,24 @@ SET n:{label},
     n.extracted_at = $extracted_at
 """
 
-# Cypher: MERGE typed relationship with provenance + confidence.
-# Uses ON CREATE SET so first write stamps all original metadata; subsequent
-# writes (re-ingestion of the same source) update timestamp+confidence but
-# do NOT clear older provenance fields that a prior run may have set.
+# Cypher: MERGE typed relationships inside a corpus scope. Relationship scope is
+# part of the merge key so a future teacher/corpus cannot overwrite a relation
+# authored by the current corpus.
 _REL_MERGE_CYPHER_TEMPLATE = """
 MATCH (s:base {{entity_id: $subject_id}})
 MATCH (o:base {{entity_id: $object_id}})
-MERGE (s)-[r:{rel_type}]->(o)
+MERGE (s)-[r:{rel_type} {{corpus_id: $corpus_id}}]->(o)
 ON CREATE SET
     r.source = $source,
     r.source_doc_id = $source_doc_id,
     r.source_chunk_id = $source_chunk_id,
+    r.teacher_id = $teacher_id,
     r.confidence = $confidence,
     r.extracted_at = $extracted_at
 ON MATCH SET
     r.extracted_at = $extracted_at,
-    r.confidence = CASE WHEN $confidence > r.confidence THEN $confidence ELSE r.confidence END
+    r.confidence = CASE WHEN $confidence > r.confidence THEN $confidence ELSE r.confidence END,
+    r.teacher_id = coalesce(r.teacher_id, $teacher_id)
 """
 
 
@@ -167,6 +168,8 @@ async def write_extraction_to_neo4j(
     confidence: float = 0.7,
     *,
     triples: Optional[Iterable[dict[str, str]]] = None,
+    corpus_id: str = "askmukthiguru",
+    teacher_id: Optional[str] = None,
 ) -> int:
     """Materialize entities + relationships (+ optional LLM triples) into Neo4j.
 
@@ -243,6 +246,8 @@ async def write_extraction_to_neo4j(
                         source="hyper_extract",
                         source_doc_id=source_doc_id,
                         source_chunk_id=source_chunk_id,
+                        corpus_id=corpus_id,
+                        teacher_id=teacher_id,
                         confidence=confidence,
                         extracted_at=now,
                     )
@@ -268,6 +273,8 @@ async def write_extraction_to_neo4j(
                             source="triple_extractor",
                             source_doc_id=source_doc_id,
                             source_chunk_id=source_chunk_id,
+                            corpus_id=corpus_id,
+                            teacher_id=teacher_id,
                             confidence=confidence,
                             extracted_at=now,
                         )

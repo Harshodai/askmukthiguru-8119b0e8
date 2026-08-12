@@ -102,7 +102,8 @@ class Settings(BaseSettings):
 
     # --- Feature Flags & Memory Layer ---
     feature_memory_enabled: bool = True
-    feature_memory_write: bool = True
+    feature_memory_write: bool = False  # Explicit opt-in until single-memory-plane consent proof exists.
+    memory_background_task_timeout_seconds: int = 30
     feature_regex_prerouter: bool = True
 
     # --- Semantic Model Router (embedding-based classification, zero-LLM) ---
@@ -613,6 +614,7 @@ class Settings(BaseSettings):
     web_search_enabled: bool = False  # Enable temporal web search for real-time queries
     web_search_provider: str = "duckduckgo"  # "duckduckgo" | "searxng"
     web_search_allowed_domains: str = "ekam.org,theonenessmovement.org"
+    web_search_allow_db_domain_override: bool = False  # DB may narrow, never widen the source-controlled official allowlist.
     web_search_max_results: int = 5
     searxng_url: str = "http://searxng:8080"  # Self-hosted SearXNG instance URL
     # Coverage-gap: if ALL retrieved docs score below this, treat as zero-coverage → fire web search

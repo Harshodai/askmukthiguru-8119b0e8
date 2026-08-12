@@ -47,13 +47,22 @@ def _rate_limit_key_func(request: Request) -> str:
     return get_remote_address(request)
 
 
-# Use Redis-backed storage only when REDIS_URL is explicitly configured and valid.
-# Empty strings or invalid URIs must fall back to in-memory to keep tests and
-# single-node local dev running without a Redis dependency.
+# Tests can request a dedicated in-memory limiter while still supplying
+# REDIS_URL to application services that require a real integration dependency.
+# Production never sets this override: it must use the configured Redis-backed
+# limiter rather than silently creating a per-pod budget.
+_rate_limit_storage_uri = os.environ.get("RATE_LIMIT_STORAGE_URI", "").strip()
 _redis_url = os.environ.get("REDIS_URL", "").strip()
 _redis_schemes = ("redis://", "rediss://", "unix://")
 
-if _redis_url and _redis_url.lower().startswith(_redis_schemes):
+if _rate_limit_storage_uri:
+    logger.info("Rate limiting uses explicit storage override")
+    limiter = Limiter(
+        key_func=_rate_limit_key_func,
+        storage_uri=_rate_limit_storage_uri,
+        default_limits=["200/minute"],
+    )
+elif _redis_url and _redis_url.lower().startswith(_redis_schemes):
     logger.info("Rate limiting backed by Redis")
     limiter = Limiter(
         key_func=_rate_limit_key_func,

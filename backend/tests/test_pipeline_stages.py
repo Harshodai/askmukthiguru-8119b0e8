@@ -373,3 +373,20 @@ def test_build_default_pipeline_order():
 if __name__ == "__main__":
     # ponytail: one runnable self-check — run pytest on this module.
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+@pytest.mark.asyncio
+async def test_memory_stage_skips_all_persistence_when_memory_writes_are_disabled(coordinator, monkeypatch):
+    """Memory storage must be explicit opt-in, not a side effect of every chat turn."""
+    container = _mock_container()
+    container.user_profile = AsyncMock()
+    container.user_profile.save_conversation_memory = AsyncMock()
+    container.memory_service = AsyncMock()
+    container.second_brain = MagicMock()
+    coordinator.container = container
+    ctx = _build_ctx(container, coordinator)
+    monkeypatch.setattr(settings, "feature_memory_write", False)
+
+    assert await MemoryStage().run(ctx) is None
+    container.user_profile.save_conversation_memory.assert_not_called()
+    container.memory_service.extract_and_write.assert_not_called()
+    container.second_brain.unlock.assert_not_called()

@@ -29,6 +29,7 @@ from .utils import (
     _grounded_citation_urls,
     _llm_retrieval_expansions,
     _rrf_docs,
+    stable_document_key,
     _trace_update,
     emit_status,
     expand_query_with_synonyms,
@@ -185,7 +186,7 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
     return docs
 
 
-async def query_neo4j_subgraph(query: str) -> str:
+async def query_neo4j_subgraph(query: str, corpus_id: str = "askmukthiguru") -> str:
     """
     Directly query Neo4j for connected subgraphs of spiritual concepts found in the user's query.
     """
@@ -207,20 +208,17 @@ async def query_neo4j_subgraph(query: str) -> str:
             subgraph_context = []
             candidates = set()
             with driver.session() as session:
-                # Fix: LightRAG's Neo4JStorage writes entity_id (not entity_name),
-                # and the shared knowledge-graph nodes it authors are never tagged
-                # with tenant_id (tenant scoping only applies to per-user memory
-                # nodes written by memory_service_v2.py) — the old WHERE clause
-                # matched a nonexistent property twice over and always returned 0
-                # rows, silently disabling relational subgraph context on every
-                # RELATIONAL-intent query.
+                # Ontology relationships are now written with a corpus_id. Legacy
+                # current-corpus edges have no property and remain visible only
+                # through the explicit default-corpus coalesce during migration.
                 cypher = """
                 MATCH (n1 {entity_id: $concept})-[r]->(n2)
+                WHERE coalesce(r.corpus_id, "askmukthiguru") = $corpus_id
                 RETURN n1.entity_id AS source, type(r) AS rel, r.description AS desc, n2.entity_id AS target
                 LIMIT 15
                 """
                 for concept in matched_concepts:
-                    result = session.run(cypher, concept=concept)
+                    result = session.run(cypher, concept=concept, corpus_id=corpus_id)
                     for record in result:
                         desc_str = f" - {record['desc']}" if record.get("desc") else ""
                         subgraph_context.append(
@@ -758,10 +756,10 @@ async def retrieve_for_single_query(
     rrf_ranked = _rrf_docs([summary_results, chunk_results], k=60)
     merged = lightrag_results + rrf_ranked
 
-    seen: set[int] = set()
+    seen: set[str] = set()
     deduped: list[dict] = []
     for doc in merged:
-        th = hash(doc["text"][:100])
+        th = stable_document_key(doc)
         if th not in seen:
             seen.add(th)
             deduped.append(doc)
@@ -1098,19 +1096,19 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         all_results.append(bm25_results)
 
     _RRF_K2 = 60
-    rrf2_scores: dict[int, float] = {}
-    id_to_doc2: dict[int, dict] = {}
+    rrf2_scores: dict[str, float] = {}
+    id_to_doc2: dict[str, dict] = {}
 
     for results in all_results:
         for rank, doc in enumerate(results):
-            key = id(doc)
+            key = stable_document_key(doc)
             id_to_doc2[key] = doc
             rrf2_scores[key] = rrf2_scores.get(key, 0.0) + 1.0 / (_RRF_K2 + rank + 1)
 
-    seen_texts: set[int] = set()
+    seen_texts: set[str] = set()
     all_docs: list[dict] = []
-    for doc in sorted(id_to_doc2.values(), key=lambda d: rrf2_scores[id(d)], reverse=True):
-        th = hash(doc["text"][:100])
+    for doc in sorted(id_to_doc2.values(), key=lambda d: rrf2_scores[stable_document_key(d)], reverse=True):
+        th = stable_document_key(doc)
         if th not in seen_texts:
             seen_texts.add(th)
             all_docs.append(doc)
@@ -1131,7 +1129,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         )
 
         for doc in fallback_results:
-            text_hash = hash(doc["text"][:100])
+            text_hash = stable_document_key(doc)
             if text_hash not in seen_texts:
                 seen_texts.add(text_hash)
                 all_docs.append(doc)

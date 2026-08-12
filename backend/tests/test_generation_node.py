@@ -101,6 +101,7 @@ async def test_generate_answer_short_circuits_on_empty_relevant_docs(mock_servic
     assert result["citations"] == []
     assert result["is_faithful"] is True
     assert result["verification"]["method"] == "no_context_short_circuit"
+    assert result["confidence_score"] == 2.0
     mock_ollama.generate.assert_not_awaited()
 
 

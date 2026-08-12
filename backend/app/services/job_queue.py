@@ -45,6 +45,8 @@ class JobQueueService:
         self._redis_url = redis_url
         self._max_queue = max_queue
         self._job_ttl = job_ttl
+        self._lease_ttl = 300
+        self._worker_instance_id = uuid.uuid4().hex
         self._semaphore = AsyncSemaphore(max_concurrency)
         self._queue: asyncio.Queue[str] | None = None
         self._redis: Any = None
@@ -211,18 +213,50 @@ class JobQueueService:
             async with self._semaphore:
                 await self._process_job(job_id, worker_factory, worker_id)
             self._queue.task_done()
+    async def _release_lease(self, redis_client: Any, lease_key: str, owner: str) -> None:
+        """Release only this worker's lease; never delete a newer owner's lock."""
+        if await redis_client.get(lease_key) == owner:
+            await redis_client.delete(lease_key)
 
     async def _process_job(self, job_id: str, worker_factory: Callable, worker_id: int) -> None:
         r = await self._get_redis()
         meta = await r.hgetall(f"job:{job_id}:meta")
-        if not meta or meta.get("status") == JobStatus.CANCELLED.value:
+        if not meta or meta.get("status") in {
+            JobStatus.CANCELLED.value,
+            JobStatus.COMPLETED.value,
+            JobStatus.FAILED.value,
+        }:
             return
-        is_stream = meta.get("is_stream", "0") == "1"
-        await r.hset(f"job:{job_id}:meta", mapping={
-            "status": JobStatus.PROCESSING.value,
-            "started_at": str(time.time()),
-        })
+
+        lease_key = f"job:{job_id}:lease"
+        lease_owner = f"{self._worker_instance_id}:{worker_id}"
+        lease_acquired = await r.set(
+            lease_key,
+            lease_owner,
+            nx=True,
+            ex=self._lease_ttl,
+        )
+        if not lease_acquired:
+            logger.debug("JobQueue worker %s skipped leased job %s", worker_id, job_id)
+            return
+
+        remove_from_pending = True
         try:
+            # Re-read after acquiring the lease so a cancelled or terminal job is
+            # never resurrected by a competing worker that observed stale metadata.
+            meta = await r.hgetall(f"job:{job_id}:meta")
+            if not meta or meta.get("status") in {
+                JobStatus.CANCELLED.value,
+                JobStatus.COMPLETED.value,
+                JobStatus.FAILED.value,
+            }:
+                return
+
+            is_stream = meta.get("is_stream", "0") == "1"
+            await r.hset(f"job:{job_id}:meta", mapping={
+                "status": JobStatus.PROCESSING.value,
+                "started_at": str(time.time()),
+            })
             request_data = json.loads(meta.get("request_data", "{}"))
             result = await worker_factory(request_data, is_stream, job_id)
             if not is_stream:
@@ -235,6 +269,14 @@ class JobQueueService:
                 await r.expire(f"job:{job_id}:result", self._job_ttl)
             logger.info(f"JobQueue worker {worker_id}: completed {job_id}")
         except asyncio.CancelledError:
+            # Shutdown must leave the job recoverable; start() re-enqueues IDs
+            # that remain in the durable pending list on the next process.
+            remove_from_pending = False
+            await r.hset(f"job:{job_id}:meta", mapping={
+                "status": JobStatus.QUEUED.value,
+                "started_at": "",
+            })
+            logger.info("JobQueue worker %s returned %s to queued on shutdown", worker_id, job_id)
             raise
         except Exception as e:
             logger.error(f"JobQueue worker {worker_id}: {job_id} failed: {e}")
@@ -245,7 +287,9 @@ class JobQueueService:
             })
             await r.expire(f"job:{job_id}:error", self._job_ttl)
         finally:
-            await r.lrem("job_queue:pending", 1, job_id)
+            await self._release_lease(r, lease_key, lease_owner)
+            if remove_from_pending:
+                await r.lrem("job_queue:pending", 1, job_id)
 
     @staticmethod
     def _safe_float(val: Optional[str]) -> Optional[float]:

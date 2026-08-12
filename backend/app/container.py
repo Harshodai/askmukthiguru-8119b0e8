@@ -433,9 +433,20 @@ class ServiceContainer:
                     res = self.supabase_client.table("app_settings").select("value").eq("key", "global").execute()
                     if res.data and len(res.data) > 0:
                         db_val = res.data[0]["value"]
-                        if "web_search_allowed_domains" in db_val:
-                            allowed_domains = db_val["web_search_allowed_domains"]
-                            logger.info(f"Loaded allowed web search domains from DB: {allowed_domains}")
+                        candidate_domains = db_val["web_search_allowed_domains"]
+                        if not isinstance(candidate_domains, list) or not all(isinstance(domain, str) for domain in candidate_domains):
+                            logger.error("Ignoring malformed DB web-search domain configuration")
+                        elif settings.web_search_allow_db_domain_override:
+                            allowed_domains = candidate_domains
+                            logger.warning("Loaded DB web-search domain override: %s", allowed_domains)
+                        else:
+                            base_domains = set(settings.web_search_allowed_domains_list)
+                            requested_domains = {domain.strip().lower() for domain in candidate_domains if domain.strip()}
+                            if requested_domains.issubset(base_domains):
+                                allowed_domains = sorted(requested_domains)
+                                logger.info("Loaded DB web-search domain narrowing: %s", allowed_domains)
+                            else:
+                                logger.error("Ignoring DB web-search domains outside the source-controlled allowlist")
                 except Exception as e:
                     logger.error(f"Failed to load allowed web search domains from database at startup: {e}")
 

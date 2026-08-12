@@ -189,7 +189,7 @@ describe('ChatMessage (regression)', () => {
     render(<ChatMessage message={message} />, { wrapper });
     const provenance = screen.getByTestId("response-provenance");
     expect(provenance).toHaveTextContent("2 source links provided");
-    expect(provenance).toHaveTextContent("8.4/10");
+    expect(provenance).toHaveTextContent("Teaching-supported");
     expect(screen.getByRole("button", { name: "Open response sources" })).toBeInTheDocument();
   });
 });

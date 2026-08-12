@@ -50,8 +50,8 @@ createRoot(document.getElementById("root")!).render(
 );
 
 // Register service worker for offline asset caching and crisis pages availability.
-// Skip on the Lovable preview origin and inside iframes — there /sw.js is served
-// behind a redirect, which browsers reject for SW registration.
+// Register a privacy-safe worker that caches immutable public assets only.
+// API, personalised, safety and live-information requests always use the network.
 const canRegisterSW = (() => {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return false;
   try {

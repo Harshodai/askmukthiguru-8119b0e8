@@ -176,6 +176,8 @@ class TestWebSearchService:
         assert results[0]["title"] == "Ekam"
         assert results[1]["title"] == "Oneness"
         assert all(r["content_type"] == "web_search" for r in results)
+        assert all(r["source_trust"] == "official_domain" for r in results)
+        assert all(r["live_information"] is True for r in results)
         assert all(r["score"] == 1.0 for r in results)
 
     @patch.object(DuckDuckGoProvider, "search", new_callable=AsyncMock)

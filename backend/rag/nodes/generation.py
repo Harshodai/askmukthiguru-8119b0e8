@@ -41,6 +41,10 @@ from .utils import (
 
 logger = logging.getLogger(__name__)
 
+# An abstention has no supporting teaching or personal-memory evidence. Keep its
+# internal telemetry deliberately low; the UI presents this as a support label.
+NO_EVIDENCE_CONFIDENCE = 2.0
+
 # Must exceed len(GURU_SYSTEM_PROMPT.split()) * 1.3 plus the appended
 # [USER CLASSIFICATION] style block. Pinned by
 # tests/test_answer_path_regressions.py — if the constitution grows past this,
@@ -701,7 +705,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "citations": [],
             "citation_reasoning": {},
             "is_faithful": True,
-            "confidence_score": 8.0,
+            "confidence_score": NO_EVIDENCE_CONFIDENCE,
             "faithfulness_score": 1.0,
             "verification": {"passed": True, "method": "no_context_short_circuit"},
             "evaluation_trace": _trace_update(
@@ -826,7 +830,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "citations": [],
             "citation_reasoning": {},
             "is_faithful": True,
-            "confidence_score": 8.0,
+            "confidence_score": NO_EVIDENCE_CONFIDENCE,
             "faithfulness_score": 1.0,
             "verification": {"passed": True, "method": "no_context_short_circuit"},
             "evaluation_trace": _trace_update(
@@ -936,7 +940,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 "citations": [],
                 "citation_reasoning": {},
                 "is_faithful": True,
-                "confidence_score": 8.0,
+                "confidence_score": NO_EVIDENCE_CONFIDENCE,
                 "faithfulness_score": 1.0,
                 "verification": {"passed": True, "method": "empty_context_abstention"},
                 "evaluation_trace": {"abstention_reason": "no retrieved context or memory"},
@@ -973,7 +977,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 "citations": [],
                 "citation_reasoning": {},
                 "is_faithful": True,
-                "confidence_score": 8.0,
+                "confidence_score": NO_EVIDENCE_CONFIDENCE,
                 "faithfulness_score": 1.0,
                 "verification": {"passed": True, "method": "empty_context_abstention"},
                 "evaluation_trace": {"abstention_reason": "no retrieved context or memory"},

@@ -1,1 +1,8 @@
 project_id = "hqhcunyifwofyfjtuphl"
+
+# Edge Functions require a valid JWT by default. Keep privileged, experimental,
+# cron and user-data functions on that default until each has a versioned auth
+# contract and a tested invocation path. The public health probe is the sole
+# intentional exception and exposes no user data.
+[functions.healthz]
+verify_jwt = false

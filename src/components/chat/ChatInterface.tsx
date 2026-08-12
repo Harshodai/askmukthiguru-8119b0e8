@@ -806,6 +806,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
       role: 'user',
       content: textToSend.trim(), // always show original language in chat bubble
       timestamp: new Date(),
+      language: currentLanguage,
     };
 
     if (appendUser) {
@@ -970,6 +971,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
           id: streamingGuruId,
           role: 'guru',
           content: '',
+          language: currentLanguage,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, emptyGuru]);
@@ -1099,6 +1101,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
                     intent: finalIntent,
                     citations: streamedCitations.length > 0 ? streamedCitations : undefined,
                     followUpSuggestions: streamedFollowUpSuggestions.length > 0 ? streamedFollowUpSuggestions : undefined,
+                    language: currentLanguage,
                     confidenceScore: streamedConfidenceScore ?? undefined,
                     confidenceReason: streamedConfidenceReason ?? undefined,
                   }
@@ -1317,6 +1320,7 @@ openSereneMind('audio');
           content: response.content || (response.errorCode
             ? 'The Guru is resting. Please try again in a moment.'
             : ''),
+          language: currentLanguage,
           timestamp: new Date(),
           citations: response.citations && response.citations.length > 0 ? response.citations : undefined,
           error: responseError,

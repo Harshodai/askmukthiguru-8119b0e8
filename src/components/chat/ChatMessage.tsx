@@ -973,11 +973,11 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 </div>
                 {typeof message.confidenceScore === 'number' && Number.isFinite(message.confidenceScore) && (
                   <span
-                    className="shrink-0 rounded-full bg-card px-2 py-1 font-medium tabular-nums text-foreground/80"
-                    title={message.confidenceReason || 'Verifier confidence on a 1–10 scale'}
-                    aria-label={`Verifier confidence ${Math.max(0, Math.min(10, message.confidenceScore)).toFixed(1)} out of 10`}
+                    className="shrink-0 rounded-full bg-card px-2 py-1 font-medium text-foreground/80"
+                    title={message.confidenceReason || (message.confidenceScore >= 8 ? 'Strong retrieved and verified support' : message.confidenceScore >= 5 ? 'Some supporting context was available' : 'No or limited supporting context was available')}
+                    aria-label={`Response support: ${message.confidenceScore >= 8 ? 'Teaching-supported' : message.confidenceScore >= 5 ? 'Partially supported' : 'Limited support'}`}
                   >
-                    {Math.max(0, Math.min(10, message.confidenceScore)).toFixed(1)}/10
+                    {message.confidenceScore >= 8 ? 'Teaching-supported' : message.confidenceScore >= 5 ? 'Partially supported' : 'Limited support'}
                   </span>
                 )}
                 {citations.length > 0 && (
@@ -1197,6 +1197,7 @@ export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     prev.isStreaming === next.isStreaming &&
     prev.index === next.index &&
     prev.isLastGuru === next.isLastGuru &&
+    prev.message.language === next.message.language &&
     prev.queryText === next.queryText &&
     prev.onAction === next.onAction &&
     prev.onRegenerate === next.onRegenerate &&
@@ -1207,18 +1208,23 @@ export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
 }) as typeof ChatMessageInner;
 (ChatMessage as { displayName?: string }).displayName = 'ChatMessage';
 
+const toBcp47LanguageTag = (language: string | undefined): string => {
+  const normalized = (language || 'en').trim();
+  if (normalized.includes('-')) return normalized;
+  return normalized === 'en' ? 'en-IN' : `${normalized}-IN`;
+};
+
+
 export const LanguageTranslateButton = ({ message }: { message: Message }) => {
   const { t } = useTranslation();
-  // ALL hooks run unconditionally, before any early return — a conditional
-  // return between hook calls crashes React ("rendered fewer hooks") when the
-  // preferred language flips from non-English to English mid-session.
   const { profile } = useProfile();
   const [translated, setTranslated] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const lang = profile?.preferredLanguage;
-  const isEnglish = !lang || lang === 'en';
-  if (isEnglish) return <></>;
+  const sourceLanguage = toBcp47LanguageTag(message.language);
+  const preferredTarget = toBcp47LanguageTag(profile?.preferredLanguage);
+  const targetLanguage = sourceLanguage === preferredTarget ? 'en-IN' : preferredTarget;
+  if (targetLanguage === sourceLanguage) return <></>;
 
   const handleTranslate = async () => {
     if (translated) {
@@ -1226,7 +1232,7 @@ export const LanguageTranslateButton = ({ message }: { message: Message }) => {
       return;
     }
     setLoading(true);
-    const result = await translateText(message.content, lang, 'en-IN');
+    const result = await translateText(message.content, targetLanguage, sourceLanguage);
     setTranslated(result || t('chat.translationUnavailable'));
     setLoading(false);
   };
@@ -1237,7 +1243,7 @@ export const LanguageTranslateButton = ({ message }: { message: Message }) => {
         onClick={handleTranslate}
         disabled={loading}
         className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-        title={translated ? t('chat.showOriginal') : t('chat.translateTo', { lang })}
+        title={translated ? t('chat.showOriginal') : t('chat.translateTo', { lang: targetLanguage.split('-')[0] })}
       >
         {loading ? (
           <span className="w-3 h-3 block rounded-full border border-ojas border-t-transparent animate-spin" />
@@ -1260,7 +1266,6 @@ export const LanguageTranslateButton = ({ message }: { message: Message }) => {
     </div>
   );
 };
-
 const formatTime = (date: Date): string => {
   return new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',

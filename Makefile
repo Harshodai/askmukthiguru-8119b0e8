@@ -1,9 +1,12 @@
 .PHONY: help install dev lint format test eval docker-up docker-rebuild-web docker-down clean logs shell backup restore flush-cache minikube-up minikube-down minikube-rebuild minikube-test minikube-logs dev-up dev-down dev-reset test-backend test-frontend benchmark
 
-# Resolve virtual environment paths
+# Resolve Python tooling deterministically. Backend tests run inside backend/,
+# so prefer its managed virtual environment over an unrelated root environment.
 ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-PYTHON := $(shell if [ -d "$(ROOT_DIR)/.venv" ]; then echo "$(ROOT_DIR)/.venv/bin/python3"; else echo "python3"; fi)
-PYTEST := $(shell if [ -d "$(ROOT_DIR)/.venv" ]; then echo "$(ROOT_DIR)/.venv/bin/pytest"; else echo "pytest"; fi)
+BACKEND_VENV := $(ROOT_DIR)/backend/.venv
+ROOT_VENV := $(ROOT_DIR)/.venv
+PYTHON := $(shell if [ -x "$(BACKEND_VENV)/bin/python3" ]; then echo "$(BACKEND_VENV)/bin/python3"; elif [ -x "$(ROOT_VENV)/bin/python3" ]; then echo "$(ROOT_VENV)/bin/python3"; else echo "python3"; fi)
+PYTEST := $(shell if [ -x "$(BACKEND_VENV)/bin/pytest" ]; then echo "$(BACKEND_VENV)/bin/pytest"; elif [ -x "$(ROOT_VENV)/bin/pytest" ]; then echo "$(ROOT_VENV)/bin/pytest"; else echo "pytest"; fi)
 
 # Colors for terminal output
 YELLOW=\033[1;33m

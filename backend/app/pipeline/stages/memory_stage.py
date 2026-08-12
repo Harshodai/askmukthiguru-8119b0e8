@@ -24,6 +24,25 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _schedule_memory_task(coro, task_name: str) -> None:
+    """Run non-blocking consented memory work with a hard lifetime bound."""
+
+    async def _run() -> None:
+        try:
+            await asyncio.wait_for(
+                coro,
+                timeout=settings.memory_background_task_timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("%s timed out and was cancelled", task_name)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.warning("%s failed (non-fatal): %s", task_name, exc)
+
+    asyncio.create_task(_run(), name=f"memory:{task_name}")
+
+
 class MemoryStage(Stage):
     """Persist conversation memory (user_profile + memory_service). Never short-circuits."""
 
@@ -41,6 +60,9 @@ class MemoryStage(Stage):
         med_step = ctx.med_step
         citations = ctx.citations
         distress_level = ctx.assessment.level.value if ctx.assessment else 0
+        if not settings.feature_memory_write:
+            logger.debug("Memory persistence disabled by feature_memory_write")
+            return None
 
         second_brain = getattr(container, "second_brain", None)
         if second_brain is not None and _is_persistable_user_id(user_id):
@@ -63,7 +85,7 @@ class MemoryStage(Stage):
                     except Exception as e:
                         logger.warning(f"Second Brain extraction failed (non-fatal): {e}")
 
-            asyncio.create_task(_second_brain_extract())
+            _schedule_memory_task(_second_brain_extract(), "second-brain extraction")
 
         if not container.user_profile:
             return None
@@ -135,7 +157,7 @@ class MemoryStage(Stage):
                         )
                         await asyncio.sleep(delay)
 
-            asyncio.create_task(_extract_with_retry())
+            _schedule_memory_task(_extract_with_retry(), "semantic memory extraction")
 
             # L1 atomic memory extraction — Tencent-style layer-1 atoms.
             async def _l1_extract():
@@ -153,7 +175,7 @@ class MemoryStage(Stage):
                 except Exception as e:
                     logger.warning(f"L1 atom extraction failed (non-fatal): {e}")
 
-            asyncio.create_task(_l1_extract())
+            _schedule_memory_task(_l1_extract(), "L1 atom extraction")
 
             # L2 scene compression — symbolic short-term offload.
             async def _l2_compress():
@@ -176,19 +198,20 @@ class MemoryStage(Stage):
                 except Exception as e:
                     logger.warning(f"L2 scene compression failed (non-fatal): {e}")
 
-            asyncio.create_task(_l2_compress())
+            _schedule_memory_task(_l2_compress(), "L2 scene compression")
 
         # Wave 3 — episodic memory: log the raw turn (query + answer + citations).
         # ponytail: fire-and-forget; anonymous users skipped inside log_episode.
         episodic = getattr(container, "episodic_memory_service", None)
         if episodic is not None and final_answer:
-            asyncio.create_task(
+            _schedule_memory_task(
                 episodic.log_episode(
                     user_id=user_id,
                     query=user_msg,
                     answer=final_answer,
                     citations=citations,
                     intent=intent,
-                )
+                ),
+                "episodic memory logging",
             )
         return None

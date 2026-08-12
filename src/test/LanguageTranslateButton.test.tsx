@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LanguageTranslateButton } from '@/components/chat/ChatMessage';
 import type { Message } from '@/lib/chatStorage';
+import { translateText } from '@/lib/aiService';
 
 const langMock = vi.hoisted(() => vi.fn());
 
@@ -38,9 +39,10 @@ const makeMessage = (): Message => ({
   timestamp: new Date(),
 });
 
-describe('LanguageTranslateButton (Rules of Hooks)', () => {
+describe('LanguageTranslateButton', () => {
   beforeEach(() => {
     langMock.mockReset();
+    vi.mocked(translateText).mockReset();
   });
 
   it('renders a translate button when preferred language is not English', () => {
@@ -54,12 +56,21 @@ describe('LanguageTranslateButton (Rules of Hooks)', () => {
     const { rerender } = render(<LanguageTranslateButton message={makeMessage()} />);
     expect(screen.getByTitle('Translate to hi')).toBeInTheDocument();
 
-    // Flip to English — the component must not throw "Rendered fewer hooks
-    // than expected" and must stay mounted (as an empty fragment).
     langMock.mockReturnValue('en');
     rerender(<LanguageTranslateButton message={makeMessage()} />);
-
     expect(screen.queryByTitle('Translate to hi')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Show original')).not.toBeInTheDocument();
+  });
+
+  it('translates from the answer language to the preferred target language', async () => {
+    langMock.mockReturnValue('hi');
+    vi.mocked(translateText).mockResolvedValue('नमस्ते');
+    render(<LanguageTranslateButton message={makeMessage()} />);
+
+    fireEvent.click(screen.getByTitle('Translate to hi'));
+
+    await waitFor(() => {
+      expect(translateText).toHaveBeenCalledWith('Namaste', 'hi-IN', 'en-IN');
+    });
   });
 });
