@@ -260,3 +260,7 @@ playwright-screenshots/
 work-*/
 brag-demo*.mp4
 .qoder/*.bak
+
+# Reproducible evaluation and data-quality output (do not commit generated reports)
+artifacts/evaluations/
+artifacts/db_data_quality_report.json

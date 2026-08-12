@@ -751,11 +751,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--strict", action="store_true", help="Exit non-zero on any regression.")
     parser.add_argument(
         "--out-json",
-        default=os.environ.get("EVAL_OUT_JSON", "results/eval_report.json"),
+        default=os.environ.get("EVAL_OUT_JSON", "artifacts/evaluations/eval_report.json"),
     )
     parser.add_argument(
         "--out-md",
-        default=os.environ.get("EVAL_OUT_MD", "results/eval_report.md"),
+        default=os.environ.get("EVAL_OUT_MD", "artifacts/evaluations/eval_report.md"),
     )
     parser.add_argument(
         "--use-batch",

@@ -41,7 +41,7 @@ const mockProfile = {
 
 test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', () => {
   
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'serviceWorker', {
         get: () => ({
@@ -369,11 +369,11 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
     await expect(logsConsole).toContainText('Automated Verification Complete', { timeout: 10000 });
 
     // Take screenshot to document verification page excellence
-    await page.screenshot({ path: 'chat_ui_screenshot.png', fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath('chat_ui_screenshot.png'), fullPage: true });
     console.log('✅ Captured E2E verification screenshot: chat_ui_screenshot.png');
   });
 
-  test('Chat Interface Auto-Scrolling and Thinking Pill Positioning during streaming', async ({ page }) => {
+  test('Chat Interface Auto-Scrolling and Thinking Pill Positioning during streaming', async ({ page }, testInfo) => {
     // Mock user session with all 3 storage keys and clean state
     await page.addInitScript(() => {
       localStorage.clear();
@@ -506,7 +506,7 @@ test.describe('E2E Verification of Scrolling Behavior and TTS Voice Switching', 
     }
 
     // Save chat UI screenshot for confirmation
-    await page.screenshot({ path: 'chat_ui_screenshot_chat.png', fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath('chat_ui_screenshot_chat.png'), fullPage: true });
     console.log('✅ Captured chat streaming auto-scroll verification screenshot: chat_ui_screenshot_chat.png');
   });
 });

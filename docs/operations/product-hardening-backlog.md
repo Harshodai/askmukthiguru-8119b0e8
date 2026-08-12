@@ -52,3 +52,19 @@ The following rules are permanent release criteria. A model may not claim to be 
 ## Repository cleanliness register — 2026-08-12
 
 The repository-cleanliness audit is recorded in [`repository-cleanliness-audit-2026-08-12.md`](./repository-cleanliness-audit-2026-08-12.md). The completed safe removals eliminated reproducible test output, an unreferenced temporary video-work directory, three unreferenced legacy demo renders, and a byte-identical editor backup. The following items remain explicit backlog work: **P0** resolve the undeclared `book-to-skill` gitlink; **P1** make an archival-or-retirement decision for the active legacy launch-demo/video-composition pipeline; **P1** add provenance and retention manifests for tracked results, quality-report, and screenshot evidence; **P1** archive the complete legacy composition source outside Git if the pipeline is retired; and **P2** periodically clear ignored local dependency environments and generated reports rather than committing them.
+
+**Resolved on 2026-08-12:** The undeclared `book-to-skill` gitlink and its sole unused generator integration were removed after a full tracked-reference, workflow, and configuration check. The prior P0 clean-checkout risk is closed.
+
+**Resolved on 2026-08-12:** Generated evaluation reports, the duplicate query-results export, the stale data-quality snapshot, and a root-level E2E screenshot were removed from tracked content. Evaluation output is now isolated under an ignored `artifacts/evaluations/` directory and E2E screenshots use the Playwright-managed test output path.
+
+## P1 — Repository-wide documentation governance and freshness review
+
+Refresh every maintained Markdown instruction and reference document before the next release. The scope includes the root `README.md`, all `CLAUDE.md` and `AGENTS.md` files, architecture and operations documents, contributor and deployment guides, active evaluation documentation, and links from the root documentation entry points. Build a document ownership map with a purpose, authoritative source, owner, review cadence, and last-verified revision for each file. Consolidate duplicate or contradictory guidance, mark historical material as archived with context, remove obsolete commands and environment assumptions, validate internal links and paths, and add a lightweight CI check for broken Markdown links and stale generated references. Do not rewrite content-rights records or historical incident reports without preserving their provenance.
+
+## P1 — Calibrated-trust and wellbeing-safety UX research
+
+Before adding engagement or memory features, run moderated usability and safety review with representative seekers. Evaluate whether the persistent AI and limits disclosure is understandable, whether the source and provenance panel changes trust calibration, and whether language or interaction patterns could encourage unhealthy dependency. Include sparse-evidence, disagreement, distress, privacy, and do-not-replace-human-support scenarios. Use findings to define acceptance criteria for a future plain-language guidance-boundary notice, low-evidence fallback language, break nudges, and real-world support reminders. Do not optimise conversation duration as a primary success metric.
+
+## P1 — Evaluation and observability adoption decision
+
+Run a time-boxed, offline comparison between the existing evaluation suite and Ragas or DeepEval using grounded-response, founder-voice, distress, sparse-evidence, and provenance fixtures. Adopt an evaluation framework only if it adds measurable coverage without sending sensitive conversation content to an unapproved third party. Assess Phoenix and Langfuse only after documented self-hosting, trace-redaction, consent, retention, access-control, licence, and operating-cost reviews.

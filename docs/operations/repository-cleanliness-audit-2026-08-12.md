@@ -28,3 +28,11 @@
 ## Definition of clean
 
 A clean checkout has no tracked disposable test output, compiled work directories, duplicate editor backups, or superseded rendered demos. Generated output is ignored and reproducible. Retained large assets have an explicit source or pipeline relationship. Any removal that affects an active workflow, a release asset, or research evidence must be carried out in a separate reviewed change with archival confirmation.
+
+## Follow-up completed — book-to-skill removal
+
+The undeclared `book-to-skill` gitlink was removed after verifying that the only tracked dependency was the unreferenced `scripts/generate_all_skills.py` helper. That helper, its Docker exclusion, and the nested external worktree were removed together. No application module, test, CI workflow, deployment configuration, or active documentation path referenced the integration.
+
+## Follow-up completed — generated report separation
+
+Reproducible evaluation reports now default to `artifacts/evaluations/`, which is ignored. The stale tracked evaluation reports, duplicate query-results export, data-quality report, and root-level E2E screenshot were removed. The E2E screenshot test now writes into the Playwright-managed per-test output directory. Retained `results/query_results.json` and `results/The_Four_Sacred_Secrets_structure.json` remain because active tests, documentation, or ingestion scripts reference them.

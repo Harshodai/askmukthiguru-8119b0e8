@@ -42,7 +42,6 @@ venv/
 .venv_host/
 
 # Ignore cloned repos and PDF generators
-book-to-skill/
 backend/repos/
 external_repos/
 
