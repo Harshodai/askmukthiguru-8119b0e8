@@ -885,14 +885,16 @@ class IngestionPipeline:
                     source_chunk_id=content_hash,
                 )
             except Exception as e:
-                logger.error(f"ontology write failed for {source_url}, checkpoint NOT saved: {e}")
-                return {
-                    "status": "error",
-                    "message": f"Ontology materialization failed: {e}",
-                    "source_url": source_url,
-                    "chunks_indexed": 0,
-                    "summaries_created": 0,
-                }
+                if settings.ontology_write_required:
+                    logger.error(f"required ontology write failed for {source_url}; checkpoint NOT saved: {e}")
+                    return {
+                        "status": "error",
+                        "message": f"Ontology materialization failed: {e}",
+                        "source_url": source_url,
+                        "chunks_indexed": 0,
+                        "summaries_created": 0,
+                    }
+                logger.warning(f"optional ontology write unavailable for {source_url}: {e}")
 
         checkpoint.save(content_hash)
         self._notify(on_progress, "Complete!", 1.0)
@@ -1127,14 +1129,16 @@ class IngestionPipeline:
                     source_chunk_id=video_id,
                 )
             except Exception as e:
-                logger.error(f"ontology write failed for {url}, checkpoint NOT saved: {e}")
-                return {
-                    "status": "error",
-                    "message": f"Ontology materialization failed: {e}",
-                    "source_url": url,
-                    "chunks_indexed": 0,
-                    "summaries_created": 0,
-                }
+                if settings.ontology_write_required:
+                    logger.error(f"required ontology write failed for {url}; checkpoint NOT saved: {e}")
+                    return {
+                        "status": "error",
+                        "message": f"Ontology materialization failed: {e}",
+                        "source_url": url,
+                        "chunks_indexed": 0,
+                        "summaries_created": 0,
+                    }
+                logger.warning(f"optional ontology write unavailable for {url}: {e}")
 
         checkpoint.save(content_hash)
 
@@ -1700,12 +1704,14 @@ class IngestionPipeline:
                 total_summaries += summaries_count
 
                 content_hash_pl = hashlib.sha256(clean_text.strip().encode("utf-8")).hexdigest()
-                checkpoint.save(content_hash_pl)
 
-                # KG Phase 6: materialize extracted entities/relationships into Neo4j.
+                # Keep the source URL as the playlist checkpoint key so the
+                # initial URL lookup and the final saved checkpoint agree.
+                # The content hash remains available for provenance and audits.
                 if pl_hyper_extract and getattr(settings, "write_ontology_to_neo4j", True):
                     try:
                         from ingest.ontology_writer import write_extraction_to_neo4j
+
                         driver = self._get_neo4j_driver()
                         await write_extraction_to_neo4j(
                             driver,
@@ -1715,8 +1721,14 @@ class IngestionPipeline:
                             source_chunk_id=content_hash_pl,
                         )
                     except Exception as e:
-                        logger.warning(f"ontology write skipped (post-success): {e}")
+                        if settings.ontology_write_required:
+                            logger.error(f"required ontology write failed for {video['url']}; rolling back: {e}")
+                            self._rollback_reindex(video["url"], backup_collection)
+                            errors.append({"url": video["url"], "error": f"Ontology materialization failed: {e}"})
+                            continue
+                        logger.warning(f"optional ontology write unavailable for {video['url']}: {e}")
 
+                checkpoint.save(video["url"], {"content_hash": content_hash_pl})
                 processed += 1
 
                 # OKF auto-extraction: fire-and-forget per video. Fix: playlist path

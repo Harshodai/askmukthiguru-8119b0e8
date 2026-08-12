@@ -1,11 +1,12 @@
 """
+
 KG Phase 6 — Ontology Writer: auto-extraction from ingestion.
 
 Thin adapter that materializes hyper_extract entities + relationships
 (deterministic) into Neo4j using the spiritual ontology schema
 (`domain/spiritual_ontology.py`). Optional: also accepts LLM-extracted
 triples (`ingest/triple_extractor.py`) for callers that want to merge
-both sources.
+of seed scripts. Raises an explicit exception when a write cannot commit.
 
 Ponytail: one async function, one Cypher, no new LLM calls, no imports
 of seed scripts. Non-fatal on any failure (logs + returns 0).
@@ -25,6 +26,10 @@ from domain.spiritual_ontology import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class OntologyWriteError(RuntimeError):
+    """Raised when required ontology materialization cannot be committed."""
 
 # =============================================================================
 # Domain name lists — sourced from app/db/seed_ontology.py
@@ -184,9 +189,9 @@ async def write_extraction_to_neo4j(
         triples: optional iterable of {"subject","relation","object"} dicts
             (from triple_extractor.extract_triples) merged in the same pass.
 
-    Returns:
-        Count of writes performed (nodes MERGEd + relationships MERGEd).
-        Non-fatal: on any exception logs a warning and returns 0.
+    Raises:
+        OntologyWriteError: if a Neo4j transaction cannot be committed. Callers
+            must decide whether to roll back or explicitly mark graph output unavailable.
     """
     if driver is None:
         return 0
@@ -282,8 +287,8 @@ async def write_extraction_to_neo4j(
 
                 tx.commit()
     except Exception as e:
-        logger.warning(f"write_extraction_to_neo4j failed (non-fatal): {e}")
-        return 0
+        logger.exception("write_extraction_to_neo4j failed: %s", e)
+        raise OntologyWriteError("Neo4j ontology materialization failed") from e
     return written
 
 

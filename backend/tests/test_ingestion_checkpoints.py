@@ -68,3 +68,11 @@ def test_checkpoint_json_fallback(tmp_path):
         
         processed_not_existing = checkpoint.is_processed("chunk_missing")
         assert processed_not_existing is False
+
+
+def test_playlist_checkpoint_uses_the_same_source_key_for_read_and_write():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "ingest" / "pipeline.py").read_text(encoding="utf-8")
+    assert 'checkpoint.is_processed(video["url"])' in source
+    assert 'checkpoint.save(video["url"], {"content_hash": content_hash_pl})' in source

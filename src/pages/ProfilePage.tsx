@@ -23,8 +23,6 @@ import {
   Mail,
   ExternalLink,
   Bug,
-  Upload,
-  Paperclip,
   Clock,
   CheckCircle2,
   XCircle,
@@ -152,7 +150,6 @@ const ProfilePage = () => {
 
   // Support form state
   const [supportForm, setSupportForm] = useState({ name: '', email: '', subject: '', message: '', category: 'Feedback' });
-  const [supportFiles, setSupportFiles] = useState<File[]>([]);
   const [supportLoading, setSupportLoading] = useState(false);
   const [supportSent, setSupportSent] = useState(false);
 
@@ -333,7 +330,6 @@ const ProfilePage = () => {
         subject: supportForm.subject,
         message: supportForm.message,
         category: supportForm.category,
-        attachments: supportFiles,
       });
       setSupportSent(true);
       setSupportForm({
@@ -352,15 +348,6 @@ const ProfilePage = () => {
     }
   };
 
-  const handleSupportFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files || []);
-    setSupportFiles(prev => [...prev, ...picked].slice(0, 5));
-    e.target.value = '';
-  };
-
-  const removeSupportFile = (idx: number) => {
-    setSupportFiles(prev => prev.filter((_, i) => i !== idx));
-  };
 
   const supportCategories = ['Feedback', 'Bug Report', 'Feature Request', 'Other'];
 
@@ -1237,29 +1224,6 @@ const ProfilePage = () => {
                         <Textarea id="s-message" value={supportForm.message} onChange={e => setSupportForm(p => ({ ...p, message: e.target.value }))} placeholder="Describe your issue, feedback, or request in detail. Include what you were doing, what you expected, and what happened." className="min-h-[140px] resize-none" required />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <Label>Attachments <span className="text-muted-foreground">(screenshots, recordings, logs &mdash; max 5, 10MB each)</span></Label>
-                        <div className="flex items-center gap-2">
-                          <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('s-file-input')?.click()}>
-                            <Upload className="h-4 w-4 mr-1" /> Attach files
-                          </Button>
-                          <input id="s-file-input" type="file" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.mp4,.mov,.pdf,.txt,.log,.zip" onChange={handleSupportFilePick} className="hidden" />
-                        </div>
-                        {supportFiles.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {supportFiles.map((f, i) => (
-                              <div key={i} className="flex items-center gap-1.5 bg-muted rounded-md px-2.5 py-1.5 text-xs">
-                                <Paperclip className="h-3 w-3 text-muted-foreground" />
-                                <span className="max-w-[140px] truncate">{f.name}</span>
-                                <span className="text-muted-foreground">({(f.size / 1024).toFixed(0)}KB)</span>
-                                <button type="button" onClick={() => removeSupportFile(i)} className="text-muted-foreground hover:text-destructive ml-1">
-                                  <XCircle className="h-3 w-3" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
 
                       <div className="bg-muted/40 rounded-lg p-4 space-y-2">
                         <h4 className="text-sm font-medium flex items-center gap-2">

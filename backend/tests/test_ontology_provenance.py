@@ -29,3 +29,23 @@ async def test_ontology_relationships_are_merged_with_corpus_provenance():
     assert "{corpus_id: $corpus_id}" in cypher
     assert params["corpus_id"] == "teacher-a-corpus"
     assert params["teacher_id"] == "teacher-a"
+
+@pytest.mark.asyncio
+async def test_ontology_write_failure_is_explicit():
+    from unittest.mock import MagicMock
+    from ingest.ontology_writer import OntologyWriteError
+
+    driver = MagicMock()
+    session = driver.session.return_value.__enter__.return_value
+    tx = session.begin_transaction.return_value
+    tx.__enter__.return_value = tx
+    tx.run.side_effect = RuntimeError("Neo4j unavailable")
+
+    with pytest.raises(OntologyWriteError, match="materialization failed"):
+        await write_extraction_to_neo4j(
+            driver,
+            entities=["Meditation"],
+            relationships=[],
+            source_doc_id="source-1",
+            source_chunk_id="chunk-1",
+        )

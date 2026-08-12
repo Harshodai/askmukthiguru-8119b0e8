@@ -1,0 +1,41 @@
+"""Regression tests for the text-only public support boundary."""
+from __future__ import annotations
+
+from io import BytesIO
+
+import pytest
+from fastapi import HTTPException, UploadFile
+
+from app.api import support
+
+
+@pytest.mark.asyncio
+async def test_support_attachments_are_rejected_by_default() -> None:
+    attachment = UploadFile(filename="untrusted.txt", file=BytesIO(b"untrusted content"))
+
+    with pytest.raises(HTTPException) as exc_info:
+        await support.contact_support(
+            name="Seeker",
+            email="seeker@example.com",
+            subject="Question",
+            message="Please help.",
+            attachments=[attachment],
+        )
+
+    assert exc_info.value.status_code == 403
+    assert "text-only" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_text_only_support_request_is_still_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(support, "send_support_email", lambda **_: True)
+
+    response = await support.contact_support(
+        name="Seeker",
+        email="seeker@example.com",
+        subject="Question",
+        message="Please help.",
+        attachments=[],
+    )
+
+    assert response["ok"] is True

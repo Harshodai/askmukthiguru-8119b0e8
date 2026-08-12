@@ -83,6 +83,7 @@ from app.api.compliance import router as compliance_router
 from app.api.endpoints.auth import router as auth_router
 from app.api.feedback import router as feedback_router
 from app.api.health import router as health_router
+from app.api.capabilities import router as capabilities_router
 from app.core.limiter import limiter
 
 from app.api.support import router as support_router
@@ -1045,6 +1046,7 @@ app.include_router(auth_router, prefix="/api/auth")
 app.include_router(admin_router, prefix="/api/admin")
 app.include_router(feedback_router, prefix="/api")
 app.include_router(health_router, prefix="")
+app.include_router(capabilities_router, prefix="/api")
 app.include_router(cache_metrics_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(ingest_router, prefix="/api")

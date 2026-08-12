@@ -537,6 +537,7 @@ class Settings(BaseSettings):
 
     # --- KG Phase 6: Auto-extraction from ingestion ---
     write_ontology_to_neo4j: bool = True  # Materialize hyper_extract entities/relationships into Neo4j during ingestion
+    ontology_write_required: bool = False  # Only block and roll back ingestion when graph materialization is explicitly mandatory.
 
     # --- Semantic Cache ---
     semantic_cache_enabled: bool = True  # Embedding-based semantic caching

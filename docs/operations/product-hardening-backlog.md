@@ -89,3 +89,11 @@
 | The standalone legacy WhatsApp broker is fail-closed: every route returns 404 and direct startup exits unless `WHATSAPP_WEBHOOK_ENABLED=true`. No active backend compose or Railway configuration starts the broker. | Implemented and regression-tested. | A separate production design must pass identity, consent, replay/idempotency, durable state, deletion, redaction, budget, and provider-webhook verification before the flag is set. | WhatsApp remains frozen for the initial release. |
 
 > **Operational rule:** Do not set `WHATSAPP_WEBHOOK_ENABLED=true`, `WEB_SEARCH_ENABLED=true`, `USE_REQUEST_QUEUE=true`, or `FEATURE_MEMORY_WRITE=true` in production until the corresponding release evidence in this backlog has been attached and approved.
+
+## Batch 6 — reconciliation safeguards
+
+| Item | Status | Evidence required before release | Release effect |
+|---|---|---|---|
+| Playlist checkpoints use the same source URL for the pre-ingestion lookup and final save. The content hash is retained as metadata. Ontology write failures now raise explicitly; playlist ingestion rolls back its indexed source and leaves it uncheckpointed. | Implemented and regression-tested. | Controlled re-ingestion of a changed and unchanged playlist source with Qdrant, LightRAG, Neo4j, and checkpoint stores. | Prevents a known duplicate-work loop and false successful playlist checkpoint when required graph materialization fails. |
+| Public support is text-only. The profile UI no longer offers files and the API rejects every attachment before it is stored or emailed. | Implemented and regression-tested. | Separate approved design and tests for quarantine, scanner, MIME/size validation, safe preview, retention/deletion, and operator access before adding any file route. | Public attachment upload remains unavailable. |
+| `GET /api/capabilities` emits a non-secret manifest that separates policy-disabled, available, and unavailable feature states. | Implemented and unit-tested. | Staging dependency-outage tests and UI consumption that change answer support state for the affected capability. | Capability reporting exists but does not yet replace per-answer degradation evidence. |

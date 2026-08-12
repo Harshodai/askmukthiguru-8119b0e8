@@ -47,6 +47,11 @@ async def contact_support(
         raise HTTPException(status_code=422, detail="Message is required")
 
     saved_paths: list[str] = []
+    if attachments:
+        raise HTTPException(
+            status_code=403,
+            detail="Support attachments are not available. Please send a text-only request.",
+        )
     tmp_dir = f"/tmp/support_attachments/{uuid.uuid4().hex}"
     try:
         os.makedirs(tmp_dir, exist_ok=True)

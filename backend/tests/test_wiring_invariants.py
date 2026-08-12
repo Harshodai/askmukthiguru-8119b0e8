@@ -183,6 +183,7 @@ PUBLIC_ROUTES: dict[str, str] = {
     "/api/teachings/tips": "Docstring: 'Public: current wisdom tips'",
     "/api/support/contact": "Public support contact form (no user context needed)",
     "/api/waitlist/": "Placeholder — returns 501 Not Implemented",
+    "/api/capabilities": "Public non-secret capability manifest for clients and operational checks",
     "/.well-known/jwks.json": "JWKS must be public for JWT signature verification",
 }
 
