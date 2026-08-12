@@ -699,7 +699,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
   const currentConversationRef = useRef(currentConversation);
   currentConversationRef.current = currentConversation;
 
-  const lastSavePromiseRef = useRef<Promise<any>>(Promise.resolve());
+  const lastSavePromiseRef = useRef<Promise<void>>(Promise.resolve());
   const latestSaveIdRef = useRef<number>(0);
   const isSavingRef = useRef<boolean>(false);
 
@@ -1713,7 +1713,7 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
   }
   // Ctrl/Cmd+Enter sends; plain Enter still sends (legacy); Shift+Enter = newline.
   // IME composition guard: ignore Enter while composing characters (e.g. CJK, Devanagari)
-  if (e.nativeEvent.isComposing || (e.nativeEvent as any).keyCode === 229) return;
+  if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     handleSubmit(e);

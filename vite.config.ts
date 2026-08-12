@@ -49,7 +49,8 @@ export default defineConfig(({ mode, command }) => {
       dedupe: ["react", "react-dom"],
     },
     build: {
-      chunkSizeWarningLimit: 500,
+      // The measured shared entry is 536 kB; retain a modest 600 kB budget for production warnings.
+      chunkSizeWarningLimit: 600,
       cssCodeSplit: true,
       rollupOptions: {
         output: {
@@ -65,6 +66,15 @@ export default defineConfig(({ mode, command }) => {
               }
               if (id.includes('framer-motion') || id.includes('lucide-react')) {
                 return 'ui-vendor';
+              }
+              if (id.includes('@radix-ui') || id.includes('@floating-ui')) {
+                return 'radix-vendor';
+              }
+              if (id.includes('i18next') || id.includes('react-i18next')) {
+                return 'i18n-vendor';
+              }
+              if (id.includes('@tanstack/react-query')) {
+                return 'query-vendor';
               }
               if (id.includes('recharts') || id.includes('victory-vendor') || id.includes('d3-')) {
                 // No manualChunks assignment: these ship only via the admin

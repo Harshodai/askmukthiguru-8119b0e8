@@ -1,5 +1,7 @@
 # Agentic Lessons & Environment Context
 
+> **Active operating status — reviewed 2026-08-12.** This file contains binding repository invariants alongside dated lessons and handoffs. For a conflict, current source configuration, scoped instructions, and approved runbooks prevail; preserve historical notes as provenance rather than treating their dated measurements as live state.
+
 ## Deployment Readiness Checklist (Jul 19, 2026)
 
 ### Language Selection

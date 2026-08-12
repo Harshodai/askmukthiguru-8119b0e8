@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+> **Active guidance status — reviewed 2026-08-12.** This document combines current repository constraints with dated incident context. Confirm behaviour against executable configuration and the scoped `AGENTS.md`/`CLAUDE.md` files before acting; the release checklist and privileged-mutation contract live in [docs/operations/release-evidence-pack.md](docs/operations/release-evidence-pack.md).
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, request-pipeline stages) and `src/CLAUDE.md` (frontend workflow, testing, storage contracts) — and is loaded automatically when working in those trees.

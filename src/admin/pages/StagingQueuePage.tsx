@@ -19,16 +19,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { listStagingQueue, reviewStagingItem } from "@/admin/lib/api";
+import { listStagingQueue, reviewStagingItem, type StagingQueueItem } from "@/admin/lib/api";
 import { fmtDateTime } from "@/admin/lib/formatters";
 import { toast } from "sonner";
 import { ClipboardCheck, Loader2, Check, X, AlertTriangle, HelpCircle } from "lucide-react";
 
 export default function StagingQueuePage() {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<StagingQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("pending");
-  const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [selectedItem, setSelectedItem] = useState<StagingQueueItem | null>(null);
   const [notes, setNotes] = useState("");
   const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
   const [submitting, setSubmitting] = useState(false);

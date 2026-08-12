@@ -17,6 +17,12 @@ import { toast as sonnerToast, type ExternalToast } from 'sonner';
 
 type Variant = 'default' | 'destructive' | 'success' | 'warning' | 'info';
 
+interface ToastActionProps {
+  onClick?: () => void;
+  children?: React.ReactNode;
+  altText?: string;
+}
+
 interface LegacyToastArgs {
   id?: string | number;
   title?: React.ReactNode;
@@ -35,8 +41,8 @@ function toast(args: LegacyToastArgs) {
   const { title, description, variant = 'default', duration, id, action } = args;
 
   let sonnerAction: { label: string; onClick: () => void } | undefined = undefined;
-  if (action && React.isValidElement(action)) {
-    const props = action.props as any;
+  if (action && React.isValidElement<ToastActionProps>(action)) {
+    const props = action.props;
     if (props && (props.onClick || props.children)) {
       let actionLabel = 'Action';
       if (typeof props.children === 'string') {

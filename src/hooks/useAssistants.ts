@@ -16,6 +16,13 @@ export interface Assistant {
 }
 
 const SELECTED_KEY = "askmukthi.assistant.slug";
+type AssistantRow = Omit<Assistant, 'starter_questions' | 'knowledge_tags'> & {
+  starter_questions: unknown;
+  knowledge_tags: unknown;
+};
+const stringList = (value: unknown): string[] => (
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+);
 
 /**
  * useAssistants — fetches assistants the current user is allowed to see
@@ -43,13 +50,14 @@ export function useAssistants() {
         setAssistants([]);
       } else {
         setAssistants(
-          (data ?? []).map((a: any) => ({
-            ...a,
-            starter_questions: Array.isArray(a.starter_questions)
-              ? a.starter_questions
-              : [],
-            knowledge_tags: a.knowledge_tags ?? [],
-          })) as Assistant[],
+          (data ?? []).map((a) => {
+            const row = a as AssistantRow;
+            return {
+              ...row,
+              starter_questions: stringList(row.starter_questions),
+              knowledge_tags: stringList(row.knowledge_tags),
+            };
+          }),
         );
       }
       setLoading(false);

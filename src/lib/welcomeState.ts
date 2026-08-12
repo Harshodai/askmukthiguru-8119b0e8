@@ -48,6 +48,7 @@ export function dismissWelcome(): void {
   try {
     localStorage.setItem(WELCOME_DISMISS_KEY, JSON.stringify(getTodaySeed()));
   } catch {
+    /* local storage is unavailable; this preference is optional */
   }
 }
 
@@ -55,5 +56,6 @@ export function resetWelcome(): void {
   try {
     localStorage.removeItem(WELCOME_DISMISS_KEY);
   } catch {
+    /* local storage is unavailable; this preference is optional */
   }
 }

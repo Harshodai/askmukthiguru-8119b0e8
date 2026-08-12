@@ -480,7 +480,7 @@ export async function getDataStores(): Promise<DataStoreInfo> {
     async () => ({
       qdrant: { error: 'No mock data available' },
       neo4j: { error: 'No mock data available', nodes_by_label: {}, total_nodes: 0, relationships_by_type: {}, total_relationships: 0 },
-      lightrag: { error: 'No mock data available', initialized: false, embedding_dim: null, max_embed_tokens: null, chunk_token_size: 1500, cache_size: 0 } as any,
+      lightrag: { error: 'No mock data available' },
     }),
   );
 }
@@ -639,7 +639,24 @@ export async function listQueueJobs(limit = 100): Promise<QueueResponse> {
   );
 }
 
-export async function getRagFlowGraph(strategy: string): Promise<any> {
+export interface RagFlowGraphNode {
+  id: string;
+  label: string;
+  avg_latency_ms: number;
+  invocation_count: number;
+}
+export interface RagFlowGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  animated?: boolean;
+}
+export interface RagFlowGraph {
+  strategy: string;
+  nodes: RagFlowGraphNode[];
+  edges: RagFlowGraphEdge[];
+}
+export async function getRagFlowGraph(strategy: string): Promise<RagFlowGraph> {
   return withDevFallback(
     'getRagFlowGraph',
     () => fetchWithAuth(`/api/admin/rag-flow-graph?strategy=${strategy}`),
@@ -680,7 +697,7 @@ export async function compileOkfIndex(): Promise<{ status: string; path: string 
 /* ── OKF Review Queue ──────────────────────────────────────────────────────── */
 export interface OkfReviewItem {
   id: string;
-  entry_json: Record<string, any>;
+  entry_json: Record<string, unknown>;
   source_video_id?: string;
   source_video_title?: string;
   guru_slug?: string;
@@ -725,7 +742,15 @@ export async function updateGlobalSettings(settings: GlobalSettings): Promise<{ 
 }
 
 // ── Staging queue (iceberg-style quality review) ────────────────────
-export async function listStagingQueue(status = 'pending'): Promise<any[]> {
+export interface StagingQueueItem {
+  id: string;
+  created_at: string;
+  source_url: string;
+  quality_score: number;
+  fail_reasons?: string[];
+  content_preview?: string;
+}
+export async function listStagingQueue(status = 'pending'): Promise<StagingQueueItem[]> {
   const params = new URLSearchParams({ status });
   return fetchWithAuth(`/api/admin/staging?${params.toString()}`);
 }

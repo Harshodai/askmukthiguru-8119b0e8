@@ -59,4 +59,12 @@ export default tseslint.config(
       "@typescript-eslint/no-empty-object-type": "off",
     },
   },
+  {
+    files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "tests/**/*.{ts,tsx}"],
+    rules: {
+      // Test doubles mirror browser and SDK globals whose runtime shapes are intentionally dynamic.
+      "@typescript-eslint/no-explicit-any": "off",
+      "no-empty-pattern": "off",
+    },
+  },
 );

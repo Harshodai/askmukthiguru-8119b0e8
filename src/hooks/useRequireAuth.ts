@@ -46,7 +46,7 @@ export function useRequireAuth() {
       }
     };
 
-    const validateAndSetSession = async (session: any) => {
+    const validateAndSetSession = async (session: Session | null) => {
       if (!session?.user) {
         handleNoSession();
         return;

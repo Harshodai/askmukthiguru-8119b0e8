@@ -8,7 +8,7 @@ const RELOAD_FLAG = 'chunk_reload_attempted';
  * already-open tab can request an old chunk the server no longer has —
  * that's a signal to refresh, not a bug worth surfacing as a crash.
  */
-export function lazyWithRetry<T extends ComponentType<any>>(
+export function lazyWithRetry<T extends ComponentType>(
   factory: () => Promise<{ default: T }>
 ) {
   return lazy(async () => {
@@ -31,11 +31,11 @@ export function lazyWithRetry<T extends ComponentType<any>>(
  * Preload a lazy component's chunk in the background.
  * Call this when you anticipate the user will navigate to a route.
  */
-export function preloadLazy<T extends ComponentType<any>>(
+export function preloadLazy<T extends ComponentType>(
   factory: () => Promise<{ default: T }>
 ) {
   // Trigger the dynamic import without waiting
-  factory().catch(() => {}); // Silently fail if already cached or error
+  factory().catch(() => { /* preload is best-effort */ }); // Silently fail if already cached or error
 }
 
 /**
@@ -45,8 +45,8 @@ export function preloadLazy<T extends ComponentType<any>>(
 export function preloadCriticalRoutes() {
   // Preload chat route (highest probability next navigation)
   requestIdleCallback?.(() => {
-    import('@/pages/ChatPage').catch(() => {});
-    import('@/pages/ProfilePage').catch(() => {});
-    import('@/pages/PracticesPage').catch(() => {});
+    import('@/pages/ChatPage').catch(() => { /* preload is best-effort */ });
+    import('@/pages/ProfilePage').catch(() => { /* preload is best-effort */ });
+    import('@/pages/PracticesPage').catch(() => { /* preload is best-effort */ });
   }, { timeout: 2000 });
 }

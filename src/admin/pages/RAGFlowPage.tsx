@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type ReactNode, type MouseEvent as ReactMouseEvent } from "react";
 import {
   ReactFlow,
   MiniMap,
@@ -8,6 +8,7 @@ import {
   useEdgesState,
   Position,
   MarkerType,
+  type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -30,6 +31,13 @@ import {
   MessageSquare
 } from "lucide-react";
 import { fmtMs } from "@/admin/lib/formatters";
+import type { RagFlowGraphNode } from "@/admin/lib/api";
+type RagStrategy = "standard" | "fast" | "deep";
+type FlowNodeData = { label: ReactNode; raw: RagFlowGraphNode };
+type FlowNode = Node<FlowNodeData>;
+const isRagStrategy = (value: string): value is RagStrategy => (
+  value === "standard" || value === "fast" || value === "deep"
+);
 
 // Node description library for detailed admin inspect panel
 const NODE_DESCRIPTIONS: Record<string, { title: string; desc: string; category: string }> = {
@@ -221,11 +229,11 @@ const NODE_COLUMNS: Record<string, number> = {
 };
 
 export default function RAGFlowPage() {
-  const [strategy, setStrategy] = useState<"standard" | "fast" | "deep">("standard");
+  const [strategy, setStrategy] = useState<RagStrategy>("standard");
   const { data: graphData, isLoading, refetch, isFetching } = useRagFlowGraph(strategy);
-  const [selectedNode, setSelectedNode] = useState<any>(null);
+  const [selectedNode, setSelectedNode] = useState<RagFlowGraphNode | null>(null);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   // Compute Layout when graphData changes
@@ -234,7 +242,7 @@ export default function RAGFlowPage() {
 
     // Group nodes by their column index
     const colGroups: Record<number, string[]> = {};
-    graphData.nodes.forEach((node: any) => {
+    graphData.nodes.forEach((node) => {
       const col = NODE_COLUMNS[node.id] !== undefined ? NODE_COLUMNS[node.id] : 2;
       if (!colGroups[col]) colGroups[col] = [];
       colGroups[col].push(node.id);
@@ -246,7 +254,7 @@ export default function RAGFlowPage() {
     const yOffset = 60;
 
     // Generate react-flow nodes
-    const flowNodes = graphData.nodes.map((node: any) => {
+    const flowNodes = graphData.nodes.map((node) => {
       const col = NODE_COLUMNS[node.id] !== undefined ? NODE_COLUMNS[node.id] : 2;
       const indexInCol = colGroups[col].indexOf(node.id);
       const colSize = colGroups[col].length;
@@ -299,9 +307,9 @@ export default function RAGFlowPage() {
     });
 
     // Generate react-flow edges
-    const flowEdges = graphData.edges.map((edge: any) => {
+    const flowEdges = graphData.edges.map((edge) => {
       // Find latency if edge source matches any node's avg latency
-      const srcNode = graphData.nodes.find((n: any) => n.id === edge.source);
+      const srcNode = graphData.nodes.find((n) => n.id === edge.source);
       const isSlowPath = srcNode && srcNode.avg_latency_ms > 1500;
       
       return {
@@ -327,14 +335,14 @@ export default function RAGFlowPage() {
 
     // Keep active selection in sync if it exists
     if (selectedNode) {
-      const updatedNode = graphData.nodes.find((n: any) => n.id === selectedNode.id);
+      const updatedNode = graphData.nodes.find((n) => n.id === selectedNode.id);
       if (updatedNode) {
         setSelectedNode(updatedNode);
       }
     }
   }, [graphData]);
 
-  const onNodeClick = (_: any, node: any) => {
+  const onNodeClick = (_: ReactMouseEvent, node: FlowNode) => {
     setSelectedNode(node.data.raw);
   };
 
@@ -365,7 +373,7 @@ export default function RAGFlowPage() {
           <Tabs
             value={strategy}
             onValueChange={(val) => {
-              setStrategy(val as any);
+              if (isRagStrategy(val)) setStrategy(val);
               setSelectedNode(null);
             }}
           >

@@ -10,7 +10,7 @@ import en from './locales/en.json';
 // never read. `import.meta.glob` without `eager` makes Vite emit one lazy
 // chunk per locale, fetched only when that language is actually selected.
 const localeLoaders = import.meta.glob<{ default: Record<string, unknown> }>(
-  './locales/*.json',
+  ['./locales/*.json', '!./locales/en.json'],
 );
 
 const SUPPORTED = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'ur', 'pa', 'or', 'as', 'sa'] as const;

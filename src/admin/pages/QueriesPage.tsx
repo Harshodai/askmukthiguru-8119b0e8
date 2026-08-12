@@ -35,7 +35,7 @@ interface QueryItem {
   prompt_version_id?: string;
   latency_ms?: number;
   status: string;
-  spans?: any[];
+  spans?: Array<{ name?: string; duration_ms?: number }>;
 }
 
 export default function QueriesPage() {
@@ -286,9 +286,9 @@ export default function QueriesPage() {
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-1">
                         <span className="tabular-nums text-xs font-mono">{fmtMs(q.latency_ms)}</span>
-                        {(q as any).spans && (q as any).spans.length > 0 && (
+                        {q.spans && q.spans.length > 0 && (
                           <div className="flex h-1.5 w-24 rounded-full overflow-hidden bg-muted">
-                            {(q as any).spans.map((span: any) => {
+                            {q.spans.map((span) => {
                               const colors: Record<string, string> = {
                                 guardrails_in: "bg-slate-400",
                                 embed: "bg-sky-400",

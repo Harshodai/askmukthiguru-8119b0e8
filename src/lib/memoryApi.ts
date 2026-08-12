@@ -11,16 +11,11 @@
 
 import { supabase as supabaseTyped } from '@/integrations/supabase/client';
 import { BACKEND_URL } from './backendUrl';
+import type { SupabaseClient } from '@supabase/supabase-js';
+// Generated Supabase types do not yet include the guru_* memory tables.
+// Keep the dynamic table boundary contained while retaining the official client API.
+const supabase = supabaseTyped as unknown as SupabaseClient;
 
-/** Minimal supabase-js client for endpoints that accept one. */
-type SupabaseClient = {
-  from: (table: string) => any;
-};
-
-// Generated Supabase types don't yet include the guru_* memory tables.
-// Cast to `any` for those queries — RLS still enforces auth/row scoping.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const supabase = supabaseTyped as any;
 
 // ── Types ─────────────────────────────────────────────────────────────────
 

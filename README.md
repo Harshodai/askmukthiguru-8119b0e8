@@ -1,5 +1,7 @@
 # AskMukthiGuru — AI Spiritual Guide & Knowledge Platform
 
+> **Active release baseline — verified 2026-08-12.** The supported frontend gate is `npm run build`; source lint is expected to have zero errors; `npm audit --omit=dev` must be clean. See the [release evidence pack](docs/operations/release-evidence-pack.md) for the complete safety, documentation, and privileged-integration checklist. Historical counts elsewhere in this document are architectural context, not live service assertions.
+
 [![Backend Health](https://img.shields.io/endpoint?url=https%3A%2F%2Ffynkjimvuimakgtidvuq.supabase.co%2Ffunctions%2Fv1%2Fhealthz%3Fformat%3Dshield)](http://localhost:8000/api/healthz)
 
 An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri Krishnaji**. Built with a 12-layer RAG pipeline, dual-level LightRAG knowledge graph, second-brain memory vault, real-time guardrails, and cross-platform native mobile & web UI.

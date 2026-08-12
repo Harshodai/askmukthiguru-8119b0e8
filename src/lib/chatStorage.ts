@@ -152,7 +152,7 @@ export const getMaxConversations = (): number => {
     const raw = localStorage.getItem(MAX_CONVERSATIONS_KEY);
     const parsed = raw ? parseInt(raw, 10) : NaN;
     if (!isNaN(parsed) && parsed > 0) return parsed;
-  } catch {}
+  } catch { /* storage is unavailable; use the documented safe default */ }
   return 10;
 };
 
@@ -162,7 +162,7 @@ export const getRetentionDays = (): number => {
     const raw = localStorage.getItem(RETENTION_DAYS_KEY);
     const parsed = raw ? parseInt(raw, 10) : NaN;
     if (!isNaN(parsed) && parsed > 0) return parsed;
-  } catch {}
+  } catch { /* storage is unavailable; use the documented safe default */ }
   return 90;
 };
 
@@ -183,7 +183,7 @@ export const setRetentionDays = (days: number): void => {
     if (keep.length < all.length) {
       localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(keep));
     }
-  } catch {}
+  } catch { /* storage is unavailable; use the documented safe default */ }
 };
 
 // Backwards compatible constant for internal use (now derived at runtime)
@@ -213,7 +213,7 @@ export const loadChatHistory = (): Message[] => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored);
+      const parsed = JSON.parse(stored) as StoredConversationRecord[];
       const result = z.array(MessageSchema).safeParse(parsed);
       if (!result.success) {
         console.error('Corrupted chat history — clearing:', result.error.message);
@@ -309,6 +309,9 @@ async function writeCurrentIdRaw(value: string): Promise<void> {
   await storage.setItem(CURRENT_CONVERSATION_KEY, value);
 }
 
+type StoredMessageRecord = Record<string, unknown> & { id?: string };
+type StoredConversationRecord = Record<string, unknown> & { id?: string; messages?: StoredMessageRecord[] };
+
 export const loadConversations = async (): Promise<Conversation[]> => {
   let stored: string | null = null;
   let currentId: string | null = null;
@@ -322,7 +325,7 @@ export const loadConversations = async (): Promise<Conversation[]> => {
   }
 
   if (stored) {
-    let parsed: any;
+    let parsed: StoredConversationRecord[];
     try {
       parsed = JSON.parse(stored);
     } catch (parseError) {
@@ -341,25 +344,25 @@ export const loadConversations = async (): Promise<Conversation[]> => {
     let replacementCurrentId: string | null = null;
 
     try {
-      parsed = parsed.map((conv: any) => {
+      parsed = parsed.map((conv: StoredConversationRecord) => {
         let convChanged = false;
-        let newConvId = conv.id;
+        let newConvId = conv.id ?? '';
 
-        if (!isUuid(conv.id)) {
+        if (!isUuid(conv.id ?? '')) {
           newConvId = generateId();
           convChanged = true;
           migrated = true;
         }
 
-        if (currentId === conv.id && convChanged) {
+        if (currentId === (conv.id ?? '') && convChanged) {
           replacementCurrentId = newConvId;
         }
 
-        const messages = (conv.messages || []).map((msg: any) => {
+        const messages = (Array.isArray(conv.messages) ? conv.messages : []).map((msg: StoredMessageRecord) => {
           let msgChanged = false;
-          let newMsgId = msg.id;
+          let newMsgId = msg.id ?? '';
 
-          if (!isUuid(msg.id)) {
+          if (!isUuid(msg.id ?? '')) {
             newMsgId = generateId();
             msgChanged = true;
             migrated = true;

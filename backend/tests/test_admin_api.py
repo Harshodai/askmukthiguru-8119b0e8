@@ -166,28 +166,39 @@ def test_promote_admin_requires_aal2(admin_user_aal1):
 @patch("app.telemetry_db._get_client")
 def test_promote_admin_success(mock_get_client, admin_user):
     _set_user(admin_user)
-    mock_client = _mock_supabase_client()
+    mock_client = MagicMock()
+    auth_table = MagicMock()
+    roles_table = MagicMock()
+    mock_client.table.side_effect = lambda name: auth_table if name == "auth_users" else roles_table
     mock_get_client.return_value = mock_client
 
-    # auth_users lookup returns the target user id
     auth_resp = MagicMock()
     auth_resp.data = [{"id": "target-user-id"}]
-    mock_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = auth_resp
+    auth_table.select.return_value.eq.return_value.limit.return_value.execute.return_value = auth_resp
 
-    # user_roles existing check returns empty
     existing_resp = MagicMock()
     existing_resp.data = []
-    mock_client.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = existing_resp
+    roles_table.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = existing_resp
+    roles_table.insert.return_value.execute.return_value.data = [{"id": "role-id"}]
 
-    insert_resp = MagicMock()
-    insert_resp.data = [{"id": "role-id"}]
-    mock_client.table.return_value.insert.return_value.execute.return_value = insert_resp
-
-    res = client.post("/api/admin/admins/promote", json={"email": "target@example.com"})
+    res = client.post("/api/admin/admins/promote", json={"email": "target.com"})
     assert res.status_code == 200
     data = res.json()
     assert data["ok"] is True
     assert data["user_id"] == "target-user-id"
+
+@patch("app.telemetry_db._get_client")
+def test_promote_admin_missing_user(mock_get_client, admin_user):
+    _set_user(admin_user)
+    mock_client = _mock_supabase_client()
+    mock_get_client.return_value = mock_client
+
+    auth_resp = MagicMock()
+    auth_resp.data = []
+    mock_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = auth_resp
+
+    res = client.post("/api/admin/admins/promote", json={"email": "missing@example.com"})
+    assert res.status_code == 404
 
 
 @patch("app.telemetry_db._get_client")
@@ -280,7 +291,7 @@ def test_upsert_alert_rule_create(mock_get_client, admin_user):
         "/api/admin/alert-rules",
         json={"name": "rule", "metric": "error_rate", "comparator": ">", "threshold": 0.5},
     )
-    assert res.status_code == 201
+    assert res.status_code == 200
     data = res.json()
     assert data["ok"] is True
     assert data["id"] == "new-rule-id"
@@ -378,7 +389,7 @@ def test_upsert_golden_question_create(mock_get_client, admin_user):
         "/api/admin/golden-questions",
         json={"question": "What is meditation?", "tags": ["intro"], "active": True},
     )
-    assert res.status_code == 201
+    assert res.status_code == 200
     data = res.json()
     assert data["ok"] is True
     assert data["id"] == "new-gq-id"
@@ -420,18 +431,24 @@ def test_reingest_requires_aal2(admin_user_aal1):
     assert res.status_code == 403
 
 
-@patch("app.api.admin._validate_and_normalize")
-@patch("app.api.admin.ingest_url_task")
-def test_reingest_url_success(mock_task, mock_validate, admin_user):
+@patch("ingestion.web_ingest_pipeline._validate_and_normalize")
+def test_reingest_url_success(mock_validate, admin_user):
     _set_user(admin_user)
     from app.dependencies import get_container
     from types import SimpleNamespace
     app.dependency_overrides[get_container] = lambda: SimpleNamespace(redis_client=None)
 
     mock_validate.return_value = "https://example.com/normalized"
-    mock_task.delay.return_value.id = "task-123"
 
-    res = client.post("/api/admin/reingest", json={"source": "https://example.com", "mode": "url"})
+    class _FakeTask:
+        id = "task-123"
+
+    mock_task = MagicMock()
+    mock_task.delay.return_value = _FakeTask()
+    # The route imports tasks.web_ingest_tasks.ingest_url_task at runtime; patch
+    # the import source so `ingest_url_task.delay()` returns our mock.
+    with patch("tasks.web_ingest_tasks.ingest_url_task", mock_task):
+        res = client.post("/api/admin/reingest", json={"source": "https://example.com", "mode": "url"})
     assert res.status_code == 200
     data = res.json()
     assert data["mode"] == "url"

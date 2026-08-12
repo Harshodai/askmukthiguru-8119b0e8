@@ -421,6 +421,7 @@ export const useSidebarCollapsed = () => {
       try {
         localStorage.setItem(SIDEBAR_PREF_KEY, JSON.stringify(next));
       } catch {
+        /* local storage persistence is optional */
       }
       return next;
     });

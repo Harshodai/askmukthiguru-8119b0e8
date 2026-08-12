@@ -138,7 +138,7 @@ const AuthPage = () => {
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const googleInitializedRef = useRef(false);
   const nonceRef = useRef<string | null>(null);
-  const handleCallbackRef = useRef<any>(null);
+  const handleCallbackRef = useRef<((response: GoogleOneTapResponse) => void) | null>(null);
   const oneTapInFlightRef = useRef(false);
 
   useEffect(() => {

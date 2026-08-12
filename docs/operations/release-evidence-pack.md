@@ -28,6 +28,23 @@ Every production release must preserve this boundary in product copy, generation
 | Dependency-risk language | Avoid exclusivity, human impersonation, pressure to continue, or discouraging real-world support. | Curated red-team fixtures. | Review new engagement features before release. |
 | Privacy request | Explain available data controls accurately and link to the applicable policy and deletion path. | Export/deletion integration tests where supported. | Confirm wording matches implementation. |
 
+
+## Privileged admin write-path contract
+
+**Status: required before a release that exposes or changes an admin mutation. Owner: operations owner and engineering lead. Last reviewed: 2026-08-12.**
+
+Automated frontend and backend tests establish request construction, authorization handling, and failure-path behaviour. They do **not** prove that a configured Supabase, queue, retrieval index, or external service accepts a privileged mutation. A release must therefore retain the following controlled non-production evidence; never exercise these flows against production merely to satisfy this checklist.
+
+| Write-path group | Representative UI/API operations | Non-production acceptance evidence |
+|---|---|---|
+| Teaching and ingestion | Regenerate teaching tips; submit ingestion; trigger re-ingestion | Use a disposable source and confirm the request is authorized, the task identifier/status is returned, background work is observable, and only the designated non-production corpus changes. |
+| Access administration | Promote and demote an administrator | Use two disposable identities. Confirm least-privilege authorization, the expected role change, audit/event capture where configured, and a successful demotion rollback. |
+| Quality configuration | Upsert/delete alert rules; activate a prompt version; upsert/delete golden questions; run an evaluation | Confirm schema validation, idempotent re-run or explicit conflict response, auditability, and rollback to the previous prompt/rule/dataset state. Do not use user conversations as fixtures. |
+| Cache and settings | Clear cache; update global settings | Confirm confirmation UX, authorization, expected response payload, service recovery after cache clear, persisted allow-list values, and restoration of the captured pre-test configuration. |
+| Knowledge-review workflow | Compile the OKF index; approve/reject OKF review items; approve/reject staging items | Seed uniquely tagged test records. Verify only the nominated record changes state, reviewer notes persist, index output is confined to non-production storage, and rejected items do not reach the serving corpus. |
+
+The operator records the target environment name (never a credential), UTC execution time, commit SHA, identities/roles used, request IDs or redacted logs, before/after state, rollback result, and any exception in the release sign-off. A missing credentialed integration run is a **known release exception**, not a passing check; it must have a named owner, due date, and explicit decision to keep the affected UI hidden or block the release.
+
 ## Release sign-off
 
 The release owner records the commit, changed risk areas, test commands and results, known exceptions, rollback path, and approving owners. Exceptions must have a time-bound owner and appear in `docs/operations/product-hardening-backlog.md`; a passing build alone is not sufficient evidence for release.

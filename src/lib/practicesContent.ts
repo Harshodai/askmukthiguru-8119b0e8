@@ -178,9 +178,8 @@ export const getPracticeBySlug = (slug: string): Practice | undefined =>
  */
 export const getLocalizedPractice = (
   practice: Practice,
-  // Accept i18next TFunction or any compatible callable — signature varies
-  // by generic instantiation, so widen here to keep call sites clean.
-  t: (key: string, opts?: any) => any,
+  // Translation implementations may return text or structured values for lists.
+  t: (key: string, opts?: { returnObjects?: boolean }) => unknown,
   lang: string = 'en',
 ): Practice => {
   if (!practice.i18nKey) return practice;
@@ -190,7 +189,7 @@ export const getLocalizedPractice = (
   // translation is found — we use that signal to detect missing keys).
   const pick = (key: string, fallback: string): string => {
     const value = t(key);
-    if (!value || value === key) return fallback;
+    if (typeof value !== 'string' || value === key) return fallback;
     return value;
   };
 
