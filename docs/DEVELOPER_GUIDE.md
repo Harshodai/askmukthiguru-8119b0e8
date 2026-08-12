@@ -448,18 +448,6 @@ await loop.run_in_executor(None, do_inserts)
 ```
 The sink reads `SUPABASE_SERVICE_ROLE_KEY` from the environment to perform safe, authenticated inserts.
 
-### Technical Agent Skills Compilation
-The workspace includes a generation script [generate_all_skills.py](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/scripts/generate_all_skills.py) that compiles large technical books into structured agent skills. These are installed in two locations:
-1. Local skills: `.agents/skills/<slug>/`
-2. Global user skills: `~/.config/agents/skills/<slug>/`
-
-Each compiled skill folder contains:
-- `skill.md`: Definition schema and entrypoints.
-- `chapters/`: Structured chapter-by-chapter summaries.
-- `glossary.md`: Key terms with definitions.
-- `patterns.md`: Concrete design patterns.
-- `cheatsheet.md`: Decision matrices and compare tables.
-
 ## 18. Local Codebase Intelligence & Memory MCP Layer
 
 To enable maximum agent productivity and completely offline codebase analysis, three custom Model Context Protocol (MCP) servers reside in the `mcp-servers/` directory.

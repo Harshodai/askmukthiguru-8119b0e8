@@ -40,7 +40,7 @@ graph LR
 | 8 | Verification: hallucination <1%, response <3s, distress >90%, safety, citations, E2E | Phase 8 | Pre-2026 |
 | 9 | `bulk_ingest_async.py` — sequential queue stages (retries/backfills + new), circuit breaker, DLQ, ETA, dual-DB tracking | Phase 3 | 2026 |
 | 10 | `extract_transcripts.py` — batch Apify extraction (359 videos), `transcripts/_state.json` | Phase 3 | 2026 |
-| 11 | `generate_all_skills.py` — compile 15 technical books into local + global agent skills (`.agents/skills`, `~/.config/agents/skills`) | Phase 3 | 2026 |
+| 11 | Retired 2026-08-12: book-to-skill integration and generator were removed after dependency verification. | Phase 3 (retired) | 2026 |
 | 12 | `telemetry_sink.py` — async Supabase telemetry sink for queries, responses, events | Phase 3 | 2026 |
 | 13 | Heal 220 poisoned Neo4j entity descriptions via `scripts/ops/heal_neo4j_poison.py` | `main` | May 2026 |
 | 14 | Benchmark cache bypass (`is_benchmark` guard in `main.py`) to prevent score inflation | `main` | May 2026 |

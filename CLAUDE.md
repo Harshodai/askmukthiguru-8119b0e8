@@ -368,7 +368,6 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 │   │   └── snapshot_manager.py
 │   ├── check_docker_health.py
 │   ├── db_rectify.py
-│   ├── generate_all_skills.py
 │   ├── load_test.py
 │   ├── migrate_tenant_collections.py
 │   ├── monitoring_dashboard.py
@@ -834,7 +833,6 @@ Frontend tests are in `src/test/` and `src/tests/` using Vitest.
 ### Other Scripts
 - `check_docker_health.py` — Docker health checks
 - `db_rectify.py` — Database schema fixes
-- `generate_all_skills.py` — Skill generation utility
 - `load_test.py` — Performance load testing
 - `migrate_tenant_collections.py` — Tenant data migration
 - `monitoring_dashboard.py` — Metrics dashboard
