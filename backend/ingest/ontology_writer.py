@@ -149,7 +149,7 @@ SET n:{label},
 _REL_MERGE_CYPHER_TEMPLATE = """
 MATCH (s:base {{entity_id: $subject_id}})
 MATCH (o:base {{entity_id: $object_id}})
-MERGE (s)-[r:{rel_type} {{corpus_id: $corpus_id}}]->(o)
+MERGE (s)-[r:{rel_type} {{tenant_id: $tenant_id, corpus_id: $corpus_id}}]->(o)
 ON CREATE SET
     r.source = $source,
     r.source_doc_id = $source_doc_id,
@@ -175,6 +175,7 @@ async def write_extraction_to_neo4j(
     triples: Optional[Iterable[dict[str, str]]] = None,
     corpus_id: str = "askmukthiguru",
     teacher_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
 ) -> int:
     """Materialize entities + relationships (+ optional LLM triples) into Neo4j.
 
@@ -196,6 +197,8 @@ async def write_extraction_to_neo4j(
     if driver is None:
         return 0
     written = 0
+    from services.tenant_context import TenantContext
+    tenant_id = tenant_id or TenantContext.get() or "default"
     now = datetime.now(timezone.utc).isoformat()
 
     # Collect all entity names from both sources so we MERGE nodes first.
@@ -253,6 +256,7 @@ async def write_extraction_to_neo4j(
                         source_chunk_id=source_chunk_id,
                         corpus_id=corpus_id,
                         teacher_id=teacher_id,
+                        tenant_id=tenant_id,
                         confidence=confidence,
                         extracted_at=now,
                     )

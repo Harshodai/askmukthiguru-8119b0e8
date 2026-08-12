@@ -43,5 +43,7 @@ async def test_targeted_subgraph_query_binds_corpus_scope(monkeypatch):
 
     assert "Targeted Subgraph Context" in context
     cypher, params = driver.session_instance.calls[0]
+    assert "coalesce(r.tenant_id, \"default\") = $tenant_id" in cypher
     assert "coalesce(r.corpus_id, \"askmukthiguru\") = $corpus_id" in cypher
     assert params["corpus_id"] == "teacher-a-corpus"
+    assert params["tenant_id"] == "default"

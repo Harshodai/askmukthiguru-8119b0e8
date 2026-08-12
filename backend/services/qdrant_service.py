@@ -230,10 +230,10 @@ class QdrantService:
         return self._neighbor.get_neighbor_chunks(source_url, chunk_index, window)
 
     def get_summary_nodes(
-        self, query_vector: Optional[list[float]] = None, limit: int = 15
+        self, query_vector: Optional[list[float]] = None, limit: int = 15, scope=None
     ) -> list[dict]:
         """Retrieve RAPTOR level-1 summary nodes for tree navigation."""
-        return self._raptor.get_summary_nodes(query_vector, limit)
+        return self._raptor.get_summary_nodes(query_vector, limit, scope=scope)
 
     # === Static MMR / filter helpers ========================================
 

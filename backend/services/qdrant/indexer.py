@@ -211,10 +211,13 @@ class QdrantIndexer:
             # queried — 36% of blue and 100% of green. Restoring Indic
             # misspelling tolerance means re-adding BOTH the prefetch and this
             # write; services/phonetic.py:IndicPhoneticMatcher is still there for that.
+            payload = {"text": text, **meta}
+            payload.setdefault("tenant_id", TenantContext.get() or "default")
+            payload.setdefault("corpus_id", settings.default_corpus_id)
             point = PointStruct(
                 id=point_id,
                 vector=vector_dict,
-                payload={"text": text, **meta},
+                payload=payload,
             )
             points.append(point)
 

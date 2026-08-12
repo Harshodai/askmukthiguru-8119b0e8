@@ -21,9 +21,11 @@ from qdrant_client.http.models import (
 )
 
 from app.config import settings
+from rag.corpus_scope import CorpusScope
 from services.qdrant.filters import QdrantFilterBuilder
 from services.qdrant.metrics import track_search_latency
 from services.qdrant.utils import QdrantUtils
+from services.tenant_context import TenantContext
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +78,7 @@ class QdrantSearcher:
         sparse_vector: Optional[dict] = None,
         raptor_level: Optional[int] = None,
         teacher_id: Optional[str] = None,
+        scope: Optional[CorpusScope] = None,
         **kwargs,
     ) -> list[dict]:
         """
@@ -86,12 +89,20 @@ class QdrantSearcher:
         payload field is applied, enabling per-teacher content isolation
         (payload-based multitenancy).
         """
+        scope = scope or CorpusScope(
+            tenant_id=TenantContext.get() or "default",
+            corpus_id=settings.default_corpus_id,
+            teacher_id=teacher_id,
+        )
         # Keep internal over-fetch small — fewer prefetches means lower Qdrant latency
         # and less chance of cascading timeout/retry loops on simple FAQ queries.
         internal_limit = limit + 5
 
-        # Build filter conditions
-        filter_conditions = []
+        # Build filter conditions. Tenant and corpus scope are mandatory for every search.
+        filter_conditions = [
+            FieldCondition(key="tenant_id", match=MatchValue(value=scope.tenant_id)),
+            FieldCondition(key="corpus_id", match=MatchValue(value=scope.corpus_id)),
+        ]
         if content_type:
             filter_conditions.append(
                 FieldCondition(key="content_type", match=MatchValue(value=content_type))
@@ -100,9 +111,9 @@ class QdrantSearcher:
             filter_conditions.append(
                 FieldCondition(key="raptor_level", match=MatchValue(value=raptor_level))
             )
-        if teacher_id:
+        if scope.teacher_id:
             filter_conditions.append(
-                FieldCondition(key="teacher_id", match=MatchValue(value=teacher_id))
+                FieldCondition(key="teacher_id", match=MatchValue(value=scope.teacher_id))
             )
         if kwargs.get("cluster_ids"):
             filter_conditions.append(
@@ -232,6 +243,8 @@ class QdrantSearcher:
                 "speaker": hit.payload.get("speaker", "Unknown"),
                 "topic": hit.payload.get("topic", "Spiritual"),
                 "teacher_id": hit.payload.get("teacher_id", ""),
+                "tenant_id": hit.payload.get("tenant_id", ""),
+                "corpus_id": hit.payload.get("corpus_id", ""),
             }
             for hit in hits
         ]

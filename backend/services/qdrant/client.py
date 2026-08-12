@@ -58,6 +58,8 @@ class QdrantClientManager:
         ("content_type", "keyword"),
         ("title", "keyword"),
         ("teacher_id", "keyword"),
+        ("tenant_id", "keyword"),
+        ("corpus_id", "keyword"),
     ]
 
     def __init__(

@@ -14,12 +14,14 @@ from app.metrics import (
 )
 from guardrails.lightweight_handler import contains_prompt_injection
 from rag.states import GraphState
+from rag.corpus_scope import CorpusScope
 from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import navigate_tree
 from services.cache_service import InMemoryCacheAdapter
 from services.embedding_service import EmbeddingService, _apply_query_expansion
 from services.lightrag_service import LightRAGService
 from services.qdrant_service import QdrantService
+from services.tenant_context import TenantContext
 
 import re
 
@@ -186,10 +188,19 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
     return docs
 
 
-async def query_neo4j_subgraph(query: str, corpus_id: str = "askmukthiguru") -> str:
+async def query_neo4j_subgraph(
+    query: str,
+    corpus_id: str | None = None,
+    *,
+    scope: CorpusScope | None = None,
+) -> str:
     """
     Directly query Neo4j for connected subgraphs of spiritual concepts found in the user's query.
     """
+    scope = scope or CorpusScope(
+        tenant_id=TenantContext.get() or "default",
+        corpus_id=corpus_id or settings.default_corpus_id,
+    )
     from ingest.pipeline import extract_doctrine_tags
     matched_concepts = extract_doctrine_tags(query)
     if not matched_concepts:
@@ -213,12 +224,14 @@ async def query_neo4j_subgraph(query: str, corpus_id: str = "askmukthiguru") -> 
                 # through the explicit default-corpus coalesce during migration.
                 cypher = """
                 MATCH (n1 {entity_id: $concept})-[r]->(n2)
-                WHERE coalesce(r.corpus_id, "askmukthiguru") = $corpus_id
+                WHERE coalesce(r.tenant_id, "default") = $tenant_id
+                  AND coalesce(r.corpus_id, "askmukthiguru") = $corpus_id
+                  AND ($teacher_id IS NULL OR r.teacher_id = $teacher_id)
                 RETURN n1.entity_id AS source, type(r) AS rel, r.description AS desc, n2.entity_id AS target
                 LIMIT 15
                 """
                 for concept in matched_concepts:
-                    result = session.run(cypher, concept=concept, corpus_id=corpus_id)
+                    result = session.run(cypher, concept=concept, **scope.to_neo4j_params())
                     for record in result:
                         desc_str = f" - {record['desc']}" if record.get("desc") else ""
                         subgraph_context.append(
@@ -395,6 +408,7 @@ def _bm25_sparse_search(
     embedder: EmbeddingService,
     qdrant: QdrantService,
     limit: int = 10,
+    scope: CorpusScope | None = None,
 ) -> list[dict]:
     """Native BM25 sparse-vector search via Qdrant's sparse named vector.
 
@@ -412,6 +426,7 @@ def _bm25_sparse_search(
         limit=limit,
         sparse_vector=sparse_vector,
         raptor_level=0,
+        scope=scope,
     )
 
     for hit in hits:
@@ -563,7 +578,12 @@ async def navigate_knowledge_tree(state: GraphState, config: dict = None) -> dic
     await emit_status(config, "Walking the teaching graph...")
     try:
         query_enc = await asyncio.to_thread(embedder.encode_single_full, question)
-        summary_nodes = qdrant.get_summary_nodes(query_vector=query_enc["dense"], limit=10)
+        scope = CorpusScope(
+            tenant_id=state.get("tenant_id") or TenantContext.get() or "default",
+            corpus_id=state.get("corpus_id") or settings.default_corpus_id,
+            teacher_id=state.get("teacher_id"),
+        )
+        summary_nodes = qdrant.get_summary_nodes(query_vector=query_enc["dense"], limit=10, scope=scope)
 
         if not summary_nodes:
             logger.info("Tree navigation: No summary nodes in DB, skipping")
@@ -612,6 +632,7 @@ async def retrieve_for_single_query(
     embedder: EmbeddingService,
     qdrant: QdrantService,
     lightrag: Optional[LightRAGService],
+    scope: CorpusScope | None = None,
     knowledge_tags: Optional[list[str]] = None,
     query_tier: str = "standard",
     query_embedding: Optional[dict] = None,
@@ -623,6 +644,10 @@ async def retrieve_for_single_query(
     node batch-encode all primary sub-queries in one `encode_batch`
     call. When None, fall back to `encode_single_full` (backward compat).
     """
+    scope = scope or CorpusScope(
+        tenant_id=TenantContext.get() or "default",
+        corpus_id=settings.default_corpus_id,
+    )
     augmented_query = query
     if chat_history:
         last_user_msgs = [m["content"] for m in chat_history[-4:] if m.get("role") == "user"]
@@ -649,6 +674,7 @@ async def retrieve_for_single_query(
         raptor_level=1,
         query=query_for_embedding,
         knowledge_tags=knowledge_tags,
+        scope=scope,
     )
 
     chunk_task = asyncio.to_thread(
@@ -660,6 +686,7 @@ async def retrieve_for_single_query(
         cluster_ids=selected_clusters if selected_clusters else None,
         query=query_for_embedding,
         knowledge_tags=knowledge_tags,
+        scope=scope,
     )
 
     tasks = [summary_task, chunk_task]
@@ -668,6 +695,8 @@ async def retrieve_for_single_query(
     if (
         getattr(settings, "knowledge_graph_query_enabled", False)
         and lightrag
+        and scope.tenant_id == "default"
+        and scope.corpus_id == settings.default_corpus_id
         and intent in ["RELATIONAL", "FACTUAL", "QUERY"]
     ):
         lightrag_index = len(tasks)
@@ -734,7 +763,7 @@ async def retrieve_for_single_query(
             if len(lg_node_lines) > 50:
                 graph_answer = "\n".join(deduped_lines[:50]) + "\n[LightRAG context capped at 5 nodes]"
             if intent == "RELATIONAL":
-                subgraph_ctx = await query_neo4j_subgraph(query)
+                subgraph_ctx = await query_neo4j_subgraph(query, scope=scope)
                 if subgraph_ctx:
                     graph_answer += "\n" + subgraph_ctx
             # Normalise LightRAG score to Qdrant-comparable range (0.3-0.7)
@@ -880,7 +909,12 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     query_tier = state.get("query_tier", "standard")
     intent = state.get("intent", "FACTUAL")
-    if intent == "GUIDED_TOUR":
+    scope = CorpusScope(
+        tenant_id=state.get("tenant_id") or TenantContext.get() or "default",
+        corpus_id=state.get("corpus_id") or settings.default_corpus_id,
+        teacher_id=state.get("teacher_id"),
+    )
+    if intent == "GUIDED_TOUR" and scope.tenant_id == "default" and scope.corpus_id == settings.default_corpus_id:
         base_question = state.get("rewritten_query") or state["question"]
         tour_docs = await query_neo4j_guided_tour(base_question)
         return {
@@ -920,7 +954,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         from rag.kg_expansion import expand_query_with_ontology, augment_query
         from app.dependencies import get_container
         _neo4j = getattr(get_container(), "neo4j_driver", None)
-        if _neo4j is not None:
+        if _neo4j is not None and scope.tenant_id == "default" and scope.corpus_id == settings.default_corpus_id:
             neighbors = await expand_query_with_ontology(base_question, _neo4j)
             if neighbors:
                 base_question = augment_query(base_question, neighbors)
@@ -997,6 +1031,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                 embedder,
                 qdrant,
                 getattr(settings, "bm25_result_limit", 10),
+                scope,
             )
         except Exception as bm25_err:
             logger.warning(f"BM25 sparse search setup failed (non-fatal): {bm25_err}")
@@ -1016,6 +1051,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     knowledge_tags=knowledge_tags,
                     query_tier=query_tier,
                     query_embedding=precomputed_embeddings[i],
+                    scope=scope,
                 ),
                 timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
             )
@@ -1067,6 +1103,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                             qdrant,
                             None,  # LightRAG disabled in hot retrieval path (latency/circuit-breaker safety)
                             knowledge_tags=knowledge_tags,
+                            scope=scope,
                         ),
                         timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
                     )

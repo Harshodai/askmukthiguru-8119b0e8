@@ -10,9 +10,10 @@ import uuid
 from typing import Optional
 
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, PointIdsList, PointStruct, VectorParams
+from qdrant_client.http.models import Distance, FieldCondition, Filter, MatchValue, PointIdsList, PointStruct, VectorParams
 
 from app.config import settings
+from rag.corpus_scope import CorpusScope
 from domain.ports.cache_port import ICacheRepository
 from services.cache.constants import _CACHE_TTL
 from services.cache.exceptions import CacheInitializationError
@@ -112,9 +113,18 @@ class SemanticCacheAdapter(ICacheRepository):
         except Exception as e:
             logger.warning(f"Semantic cache collection init issue: {e}")
 
-    def _make_id(self, query: str) -> str:
-        """Deterministic ID based on query string."""
-        normalized = query.strip().lower()
+    def _scope(self) -> CorpusScope:
+        return CorpusScope(tenant_id=TenantContext.get() or "default", corpus_id=settings.default_corpus_id)
+
+
+    def _redis_key(scope: CorpusScope, point_id: str) -> str:
+        teacher = scope.teacher_id or "all"
+        return f"mukthiguru:semcache:{scope.tenant_id}:{scope.corpus_id}:{teacher}:{point_id}"
+
+    def _make_id(self, query: str, scope: CorpusScope | None = None) -> str:
+        """Deterministic identity bound to tenant, corpus, teacher, and query."""
+        scope = scope or self._scope()
+        normalized = "|".join([scope.tenant_id, scope.corpus_id, scope.teacher_id or "", query.strip().lower()])
         namespace = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
         return str(uuid.uuid5(namespace, normalized))
 
@@ -138,6 +148,7 @@ class SemanticCacheAdapter(ICacheRepository):
         else:
             lang, raw_query = "en", query
 
+        scope = self._scope()
         emb_dict = self._embedder.encode_single_full(raw_query)
         emb = emb_dict["dense"]
 
@@ -149,6 +160,10 @@ class SemanticCacheAdapter(ICacheRepository):
                 query=emb,
                 limit=1,
                 score_threshold=target_threshold,
+                query_filter=Filter(must=[
+                    FieldCondition(key="tenant_id", match=MatchValue(value=scope.tenant_id)),
+                    FieldCondition(key="corpus_id", match=MatchValue(value=scope.corpus_id)),
+                ]),
             ).points
 
             if results:
@@ -156,8 +171,7 @@ class SemanticCacheAdapter(ICacheRepository):
                 point_id = hit.id
 
                 # Fetch payload from Redis (using the point_id as key)
-                tenant_id = TenantContext.get()
-                redis_key = f"mukthiguru:semcache:{tenant_id}:{point_id}"
+                redis_key = self._redis_key(scope, str(point_id))
                 payload_str = self._redis.get(redis_key)
 
                 if payload_str:
@@ -186,7 +200,8 @@ class SemanticCacheAdapter(ICacheRepository):
         self, query: str, response: str, intent: str, citations: list[str], meditation_step: int = 0
     ) -> None:
         """Store a response semantically."""
-        point_id = self._make_id(query)
+        scope = self._scope()
+        point_id = self._make_id(query, scope)
 
         parts = query.split(":", 1)
         if len(parts) == 2 and len(parts[0]) <= 5:
@@ -210,12 +225,11 @@ class SemanticCacheAdapter(ICacheRepository):
             # Upsert vector to Qdrant (payload is minimal, just original query for debugging)
             self._qdrant.upsert(
                 collection_name=self._collection,
-                points=[PointStruct(id=point_id, vector=emb, payload={"query": query})],
+                points=[PointStruct(id=point_id, vector=emb, payload={"query": query, "tenant_id": scope.tenant_id, "corpus_id": scope.corpus_id, "teacher_id": scope.teacher_id})],
             )
 
             # Save actual response payload to Redis with TTL
-            tenant_id = TenantContext.get()
-            redis_key = f"mukthiguru:semcache:{tenant_id}:{point_id}"
+            redis_key = self._redis_key(scope, point_id)
             self._redis.setex(redis_key, self._ttl, json.dumps(payload))
         except Exception as e:
             logger.error(f"Semantic cache put error: {e}")
@@ -251,7 +265,8 @@ class SemanticCacheAdapter(ICacheRepository):
         if not self._available or self._qdrant is None:
             return False
         try:
-            point_id = self._make_id(query_text)
+            scope = self._scope()
+            point_id = self._make_id(query_text, scope)
             qdrant = self._qdrant
             if timeout is not None:
                 qdrant = QdrantClient(
@@ -264,8 +279,7 @@ class SemanticCacheAdapter(ICacheRepository):
                 collection_name=self._collection,
                 points_selector=self._point_ids(point_id),
             )
-            tenant_id = TenantContext.get()
-            redis_key = f"mukthiguru:semcache:{tenant_id}:{point_id}"
+            redis_key = self._redis_key(scope, point_id)
             self._redis.delete(redis_key)
             logger.info("Invalidated semantic cache entry for query (point_id=%s)", point_id)
             return True

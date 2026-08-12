@@ -19,6 +19,7 @@ async def test_ontology_relationships_are_merged_with_corpus_provenance():
         source_chunk_id="chunk-1",
         corpus_id="teacher-a-corpus",
         teacher_id="teacher-a",
+        tenant_id="tenant-a",
     )
 
     assert writes == 3
@@ -26,9 +27,10 @@ async def test_ontology_relationships_are_merged_with_corpus_provenance():
     relationship_calls = [(cypher, params) for cypher, params in calls if "MERGE (s)-[r:" in cypher]
     assert len(relationship_calls) == 1
     cypher, params = relationship_calls[0]
-    assert "{corpus_id: $corpus_id}" in cypher
+    assert "{tenant_id: $tenant_id, corpus_id: $corpus_id}" in cypher
     assert params["corpus_id"] == "teacher-a-corpus"
     assert params["teacher_id"] == "teacher-a"
+    assert params["tenant_id"] == "tenant-a"
 
 @pytest.mark.asyncio
 async def test_ontology_write_failure_is_explicit():
