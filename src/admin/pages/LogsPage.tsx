@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { listLogs } from "@/admin/lib/mockData";
+import { listLogs } from "@/admin/lib/api";
 import { fmtDateTime } from "@/admin/lib/formatters";
 import { useAdminFilters } from "@/admin/lib/filtersStore";
 import { ChevronDown, ChevronRight, X } from "lucide-react";

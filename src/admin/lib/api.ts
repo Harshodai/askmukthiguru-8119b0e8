@@ -20,6 +20,9 @@ import type {
   TelemetryResponse,
   QueueResponse,
   ChatQuery,
+  AlertRule,
+  GoldenQuestion,
+  AppLog,
 } from '@/admin/types';
 import * as db from './mockData';
 
@@ -27,6 +30,14 @@ import { BACKEND_URL } from '@/lib/backendUrl';
 
 /* ── Explicit NODE_ENV check for mock-data guard ─────────────────────────── */
 const ALLOW_MOCK = import.meta.env.DEV && import.meta.env.VITE_ALLOW_MOCK === 'true';
+
+/* ── Runtime invariant: mock fallback must never fire outside dev ─────────── */
+function guardMock(label: string): void {
+  if (!import.meta.env.DEV) {
+    console.error(`[api] CRITICAL: mock fallback attempted in production for ${label}`);
+    throw new Error(`Mock data is disabled in production (${label})`);
+  }
+}
 
 /* ── Auth helper ─────────────────────────────────────────────────────────── */
 async function fetchWithAuth(path: string, options: RequestInit = {}) {
@@ -87,6 +98,7 @@ function withDevFallback<T>(
       console.warn(`[api] ${label} backend failed, using DEV mock fallback`);
       return Promise.resolve(mockFn());
     }
+    guardMock(label);
     throw err;
   });
 }
@@ -150,7 +162,7 @@ export async function listModels(): Promise<string[]> {
   return withDevFallback(
     'listModels',
     () => fetchWithAuth('/api/admin/models'),
-    () => db.listModels(),
+    async () => (await db.listModelPricing()).map(({ model }) => model),
   );
 }
 
@@ -187,7 +199,7 @@ export async function listTriggers(filters: QueryFilters): Promise<TriggerEvent[
       });
       return await fetchWithAuth(`/api/admin/triggers?${params}`);
     },
-    () => db.listTriggers({ from: filters.from, to: filters.to }),
+    () => db.listTriggerEvents(),
   );
 }
 
@@ -354,7 +366,7 @@ export async function getTopFailures(filters: QueryFilters, limit: number) {
       });
       return await fetchWithAuth(`/api/admin/top-failures?${params}`);
     },
-    () => db.getTopFailures({ from: filters.from, to: filters.to }, limit),
+    () => Promise.resolve([]),
   );
 }
 
@@ -501,6 +513,63 @@ export async function submitIngestion(url: string, maxAccuracy: boolean = false)
 
 export async function getIngestionStatus() {
   return fetchWithAuth('/api/ingest/status');
+}
+
+// ── Admin write actions (real backend endpoints) ─────────────────────────────
+export async function promoteAdmin(email: string): Promise<{ ok: boolean; message?: string; user_id?: string }> {
+  return fetchWithAuth('/api/admin/admins/promote', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function demoteAdmin(userId: string): Promise<{ ok: boolean; message?: string; user_id?: string }> {
+  return fetchWithAuth('/api/admin/admins/demote', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId }),
+  });
+}
+
+export async function upsertAlertRule(rule: Partial<import('@/admin/types').AlertRule> & { id?: string }): Promise<{ ok: boolean; id?: string; message?: string }> {
+  return fetchWithAuth('/api/admin/alert-rules', {
+    method: 'POST',
+    body: JSON.stringify(rule),
+  });
+}
+
+export async function deleteAlertRule(id: string): Promise<{ ok: boolean; id: string; message?: string }> {
+  return fetchWithAuth(`/api/admin/alert-rules/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function activatePromptVersion(id: string): Promise<{ ok: boolean; id: string; message?: string }> {
+  return fetchWithAuth(`/api/admin/prompts/${encodeURIComponent(id)}/activate`, { method: 'POST' });
+}
+
+export async function upsertGoldenQuestion(q: Partial<import('@/admin/types').GoldenQuestion> & { id?: string }): Promise<{ ok: boolean; id?: string; message?: string }> {
+  return fetchWithAuth('/api/admin/golden-questions', {
+    method: 'POST',
+    body: JSON.stringify(q),
+  });
+}
+
+export async function deleteGoldenQuestion(id: string): Promise<{ ok: boolean; id: string; message?: string }> {
+  return fetchWithAuth(`/api/admin/golden-questions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function triggerReingest(source: string, mode = 'contextual'): Promise<{ task_id: string; source: string; mode: string; status: string }> {
+  return fetchWithAuth('/api/admin/reingest', {
+    method: 'POST',
+    body: JSON.stringify({ source, mode }),
+  });
+}
+
+export async function listLogs(filters?: { level?: string; search?: string; from?: Date; to?: Date }): Promise<import('@/admin/types').AppLog[]> {
+  const params = new URLSearchParams();
+  if (filters?.level) params.set('level', filters.level);
+  if (filters?.search) params.set('search', filters.search);
+  if (filters?.from) params.set('from_date', filters.from.toISOString());
+  if (filters?.to) params.set('to_date', filters.to.toISOString());
+  return fetchWithAuth(`/api/admin/logs?${params.toString()}`);
 }
 
 // ── Cache Management ──────────────────────────────────────────────────────

@@ -26,8 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { deleteGoldenQuestion } from "@/admin/lib/mockData";
-import { runEval } from "@/admin/lib/api";
+import { deleteGoldenQuestion, runEval } from "@/admin/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import type { GoldenQuestion } from "@/admin/types";
 import { toast } from "sonner";

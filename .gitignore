@@ -264,3 +264,9 @@ brag-demo*.mp4
 # Reproducible evaluation and data-quality output (do not commit generated reports)
 artifacts/evaluations/
 artifacts/db_data_quality_report.json
+
+# Reproducible media-review output; legacy composition project retired (2026-08-12)
+artifacts/video-review/
+
+# Local codebase-index artifacts
+.codebase-memory/

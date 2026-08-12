@@ -27,13 +27,14 @@ import re
 import time
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.dependencies import get_container
 from app.language_utils import guardrail_text_for
-from services.auth_service import get_current_user_from_supabase, require_aal2  # auth guard
+from app.security_utils import TTLRateLimiter
+from services.auth_service import get_current_user_from_supabase, get_optional_user, require_aal2  # auth guard
 from services.ontology_exporter import OntologyExporter
 from domain.spiritual_ontology import ONTOLOGY_VERSION, SEED_CONCEPTS, SEED_RELATIONS
 
@@ -53,6 +54,9 @@ router = APIRouter(tags=["kg"])
 # caps the total in-flight queries to settings.kg_max_concurrent_queries
 # (default 10) to bound resource consumption.
 _KG_QUERY_SEMAPHORE = asyncio.Semaphore(getattr(settings, "kg_max_concurrent_queries", 10))
+
+
+_KG_SUBGRAPH_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=30)
 
 
 _COMMENT_RE = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
@@ -304,7 +308,9 @@ def _teacher_from_labels(labels: list[str] | None) -> str | None:
     if not labels:
         return None
     joined = " ".join(labels).lower()
-    for key in ("preethaji", "krishnaji", "ekam", "buddha", "osho", "krishnamurti"):
+    if "krishnamurti" in joined:
+        return "Sri Krishnaji"
+    for key in ("preethaji", "krishnaji", "ekam", "buddha", "osho"):
         if key in joined:
             return key.capitalize()
     return labels[0] if labels else None
@@ -320,17 +326,27 @@ def _type_from_labels(labels: list[str] | None) -> str:
     return labels[0] if labels else "Concept"
 
 
+_KG_SUBGRAPH_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=30)
+
+
 @router.get("/kg/subgraph", response_model=SubgraphResponse)
 async def kg_subgraph(
+    request: Request,
     query: str = Query(..., min_length=1, description="Concept or keyword to center the subgraph on"),
     limit: int = Query(20, ge=1, le=100),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(get_optional_user),
 ) -> SubgraphResponse:
     """Return a concept subgraph around `query` for the KG visualizer.
 
-    Ponytail: one Cypher query, 1-2 hop neighborhood, graceful fallback to empty.
+    Public, read-only, and rate-limited. Anonymous users are allowed so the
+    public `/knowledge-graph` page can render without signing in.
     Output shape: {nodes:[{id,label,type,teacher}], edges:[{source,target,label}]}.
     """
+    remote_addr = request.client.host if request.client else None
+    limit_key = f"kg_subgraph:{user.get('id') or remote_addr or 'anon'}"
+    if not _KG_SUBGRAPH_RATE_LIMITER.is_allowed(limit_key):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Try again later.")
+
     container = get_container()
     driver = container.neo4j_driver
     if driver is None:
@@ -522,6 +538,7 @@ if __name__ == "__main__":
     assert SubgraphResponse(nodes=[], edges=[], query="x", count=0).count == 0
     assert _teacher_from_labels(["Ekam chunk"]) == "Ekam"
     assert _teacher_from_labels(["Misc"]) == "Misc"
+    assert _teacher_from_labels(["J. Krishnamurti"]) == "Sri Krishnaji"
 
     def _blocked(q: str) -> bool:
         try:

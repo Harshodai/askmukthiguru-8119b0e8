@@ -30,6 +30,17 @@ Object.defineProperty(window, "localStorage", {
   value: localStorageMock,
 });
 
+class ResizeObserverMock {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+Object.defineProperty(window, "ResizeObserver", {
+  configurable: true,
+  writable: true,
+  value: ResizeObserverMock,
+});
+
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: (query: string) => ({

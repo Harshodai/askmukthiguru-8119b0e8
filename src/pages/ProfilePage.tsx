@@ -250,6 +250,7 @@ const ProfilePage = () => {
       familiarityLevel: form.familiarityLevel || 'seeker',
       theme: form.theme,
       ttsEnabled: form.ttsEnabled,
+      voiceAutoplay: form.voiceAutoplay,
       ttsRate: form.ttsRate,
       preferredVoice: normalizeVoice(form.preferredVoice),
       meditationReminders: form.meditationReminders,
@@ -940,6 +941,17 @@ const ProfilePage = () => {
 
                   {form.ttsEnabled && (
                     <div className="space-y-4 pt-2">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-0.5">
+                          <Label>Auto-play Guru Responses</Label>
+                          <p className="text-xs text-muted-foreground">Read each teaching aloud as it arrives</p>
+                        </div>
+                        <Switch
+                          checked={form.voiceAutoplay ?? false}
+                          onCheckedChange={(v) => patch('voiceAutoplay', v)}
+                        />
+                      </div>
+
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <Label>Speech Rate</Label>
                         <span>{form.ttsRate}x</span>

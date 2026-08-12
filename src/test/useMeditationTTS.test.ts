@@ -13,7 +13,7 @@ describe('useMeditationTTS fallback for missing/broken clips', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
-    global.SpeechSynthesisUtterance = vi.fn().mockImplementation((text: string) => ({ text })) as unknown as typeof SpeechSynthesisUtterance;
+    global.SpeechSynthesisUtterance = vi.fn(function SpeechSynthesisUtteranceMock(text: string) { return { text }; }) as unknown as typeof SpeechSynthesisUtterance;
     Object.defineProperty(window, 'speechSynthesis', {
       value: {
         speak: mockSpeak,

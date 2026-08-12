@@ -40,7 +40,7 @@ async function captureCleanChat() {
 
   await page.waitForTimeout(2500);
 
-  const screenshotPath = path.join(__dirname, '../video-composition/assets/screens/screen_04_chat.png');
+  const screenshotPath = path.join(__dirname, '../artifacts/video-review/screens/screen_04_chat.png');
   await page.screenshot({ path: screenshotPath });
 
   const hasPopover = await page.evaluate("!!document.querySelector('.driver-popover')");

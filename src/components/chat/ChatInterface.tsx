@@ -508,6 +508,29 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileLoading]);
 
+  // Track whether the user has interacted with the page so autoplay policies allow audio.
+  const hasUserInteractedRef = useRef(false);
+  useEffect(() => {
+    const markInteracted = () => {
+      hasUserInteractedRef.current = true;
+    };
+    window.addEventListener('click', markInteracted, { once: true });
+    window.addEventListener('keydown', markInteracted, { once: true });
+    return () => {
+      window.removeEventListener('click', markInteracted);
+      window.removeEventListener('keydown', markInteracted);
+    };
+  }, []);
+
+  const stripPlainText = useCallback((content: string): string => {
+    return content
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, ' ')
+      .replace(/[#*_>`]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }, []);
+
   // Auto-speak ONLY for newly generated guru messages — never on initial mount
   // or when switching conversations (avoids unwanted speaker when entering /chat).
   const ttsInitializedRef = useRef(false);
@@ -536,9 +559,12 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
       lastMessage.content !== lastGuruMessageRef.current
     ) {
       lastGuruMessageRef.current = lastMessage.content;
-      speak(lastMessage.content);
+      // Honor the new opt-in autoplay flag; require user interaction for audio autoplay policy.
+      if (profile.voiceAutoplay && hasUserInteractedRef.current) {
+        speak(stripPlainText(lastMessage.content));
+      }
     }
-  }, [messages, ttsEnabled, speak, isStreaming]);
+  }, [messages, ttsEnabled, speak, isStreaming, profile.voiceAutoplay, stripPlainText]);
 
   // Reset TTS gate when switching conversations
   useEffect(() => {

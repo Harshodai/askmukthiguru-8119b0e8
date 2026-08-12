@@ -6,7 +6,7 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 
 > **Developer Navigation**:
 > - **Architecture & Developer Guide**: [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) & [docs/COMPLETE_BACKEND_ARCHITECTURE.md](docs/COMPLETE_BACKEND_ARCHITECTURE.md)
-> - **Prioritized Backlog & System Status**: [docs/ROADMAP.md](docs/ROADMAP.md)
+> - **Prioritized Backlog & System Status**: [docs/PRODUCT_OPPORTUNITIES.md](docs/PRODUCT_OPPORTUNITIES.md) (roadmap merged in as the "Roadmap — Execution Strategy" section)
 > - **Operational Runbooks**: [docs/runbooks/](docs/runbooks/) (`BENCHMARK_RUNBOOK.md`, `CREDENTIALS_GUIDE.md`, `STREAM_PROTOCOL.md`)
 > - **Lessons Learned & Invariants**: [lessons.md](lessons.md) & [AGENTS.md](AGENTS.md)
 
@@ -167,7 +167,7 @@ askmukthiguru/
 │   ├── archive/                   # Historical audit reports & completed plans
 │   ├── COMPLETE_BACKEND_ARCHITECTURE.md
 │   ├── DEVELOPER_GUIDE.md
-│   └── ROADMAP.md
+│   └── PRODUCT_OPPORTUNITIES.md   # UX/hardcoding audit + merged roadmap
 ├── scripts/                       # High-level data ingestion & eval scripts
 │   └── ingest_lightrag_data.py   # High-throughput LightRAG Qdrant scroll script
 ├── handoff.md                     # Latest session status & operational handoff

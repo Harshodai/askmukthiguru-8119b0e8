@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useIngestionRuns, useIngestionHealth } from "@/admin/hooks/useAdminData";
-import { triggerReingest } from "@/admin/lib/mockData";
-import { submitIngestion, getIngestionStatus, clearCache } from "@/admin/lib/api";
+import { triggerReingest, submitIngestion, getIngestionStatus, clearCache } from "@/admin/lib/api";
 import { KpiCard } from "@/admin/components/KpiCard";
 import {
   Table,

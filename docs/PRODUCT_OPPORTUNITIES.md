@@ -1,14 +1,97 @@
-# ROADMAP.md — Mukthi Guru: Execution Strategy
+# Product Opportunities — Ruthless UX & Hardcoding Audit
 
-> **If SPEC_DEV.md is the WHAT, this is the HOW.** This document tracks feature requests, priorities, and implementation progress.
+*Generated 2026-08-12 from a full read of user-facing source (`src/`) and the backend surfaces that feed it. Every row was confirmed against live code, not assumed. This is a tracked backlog: pick a row, do the "How to fix", check it off. Line refs drift — verify before editing.*
+
+**Scope:** everything shown to a user — chat, TTS/audio, Knowledge Graph, profile, landing, meditation, admin, i18n, accessibility, error states. Not scoped to a feature; ruthless across all of it.
+
+## Severity legend
+
+- 🔴 **P0** — user sees something fake, broken, or off-brand right now, OR a stated product promise (privacy, "the gurus' voice") is contradicted.
+- 🟠 **P1** — real gap that measurably weakens the experience for a large slice of users.
+- 🟡 **P2** — hygiene / hardcoding / tech-debt that will bite later; not user-visible today.
+- 💎 **OPP** — not broken, but a concrete move from "fine" to "best-in-class".
+
+Model-route column: which tier to hand the fix to — `haiku` mechanical, `sonnet` bounded implementation, `opus` design/architecture.
+
+---
+
+## 1. Things shown to the user that are FAKE or MOCK
+
+| ID | Area | Finding (verified) | Sev | How to fix | Route |
+|----|------|--------------------|:---:|-----------|:-----:|
+| F1 | Knowledge Graph | `src/components/kg/KGConceptMap.tsx:24` ships a hardcoded 10-node `DEMO_DATA` — and one node is **"J. Krishnamurti"**, not the product's *Sri Krishnaji*. Real Neo4j graph has **11,136 edges / 7,512 nodes** but users hit the mock on any fetch miss (`isDemo` flag). A marquee feature is faked and name-wrong. | 🔴 | Wire the UI to live `/api/kg/subgraph`; remove/clearly-label the demo; fix the off-brand node. Show a real (even small) subgraph rather than a fabricated one. | opus |
+| F2 | Admin dashboard | `src/admin/lib/api.ts` + 8 pages import from `src/admin/lib/mockData` — **write actions** (`promoteAdmin`, `demoteAdmin`, `upsertAlertRule`, `triggerReingest`, `activatePromptVersion`, `deleteGoldenQuestion`, `upsertGoldenQuestion`, `listLogs`) resolve to mock. `ALLOW_MOCK = DEV && VITE_ALLOW_MOCK`, but the imports mean these admin surfaces are mock-shaped and several may be no-ops against a real backend. | 🔴 | Audit each `mockData` import: confirm a real backend endpoint exists and is called in prod; delete the mock path or gate it hard. An admin who "promotes an admin" and it silently mocks is a trust bug. | opus |
+| F3 | Landing / social proof | `src/components/landing/SampleWisdomSection.tsx:89` renders "rated" + stars; verify whether ratings/testimonials/counts are hardcoded. Fake social proof is a legal + trust risk. | 🟠 | Confirm every number/testimonial on the landing page is real or clearly illustrative; wire to real metrics or remove. | sonnet |
+
+## 2. Stated promises the code contradicts
+
+| ID | Area | Finding | Sev | How to fix | Route |
+|----|------|---------|:---:|-----------|:-----:|
+| P-1 | Privacy / "all-local" | `src/hooks/useAutoTranslate.ts:15` calls **external `api.mymemory.translated.net`** — sends user text off-box. Contradicts the "privacy-first / zero-external-call / all-local" positioning. Backend already exposes `/api/translate` (Sarvam). | 🔴 | Route auto-translate through the backend `/api/translate`; drop the third-party call. | sonnet |
+| P-2 | "The gurus' voice" | TTS default is the robotic browser `speechSynthesis`; **Sarvam neural voice is only a fallback for Indic languages** (`useTextToSpeech.ts:120`). The warm neural voice — arguably the product's soul — is buried. | 🟠 | Make Sarvam neural the default guru voice for all languages; browser as fallback. See OPP-1. | sonnet |
+
+## 3. Incomplete / disabled / thin surfaces
+
+| ID | Area | Finding | Sev | How to fix | Route |
+|----|------|---------|:---:|-----------|:-----:|
+| I1 | i18n | Only **62 of 134** `.tsx` components use `t()` (~54%). Hardcoded English in user-facing components (`SampleWisdomSection`, `DailyTeaching`, `MeditationStats`, `SpiritualWelcomeBanner`, …). For an Indic-first multilingual product, ~half the UI doesn't translate. | 🟠 | Sweep the 72 non-`t()` components; extract strings to the i18n catalog. Batchable, mechanical. | haiku→sonnet |
+| I2 | Accessibility | Only **57 of 134** components carry any `aria-`/`role`. Screen-reader users hit large unlabeled regions (chat stream, KG canvas, meditation controls). | 🟠 | a11y pass: labels on icon buttons, live-region for streaming answers, KG keyboard nav + text alt, focus management in modals. | opus |
+| I3 | Error/empty/loading UX | Only **16** components reference `ErrorBoundary`/`EmptyState`/`Skeleton`/`offline`/`retry`. Thin failure states — most surfaces likely show a spinner or nothing on error. | 🟠 | Add empty/error/skeleton states to the high-traffic surfaces (chat, KG, profile, sources). Offline banner (PWA already present). | sonnet |
+| I4 | Admin jobs | `src/admin/pages/JobsPage.tsx:60` — "Queue is currently disabled. Set `queue_enabled=true`". A shipped feature shown as off. | 🟡 | Decide: enable the queue path or hide the surface until it's real. | sonnet |
+
+## 4. Hardcoded values that should be config/constants
+
+| ID | Where | Finding | Sev | How to fix | Route |
+|----|-------|---------|:---:|-----------|:-----:|
+| H1 | Backend safety/quality dials | Inline thresholds not in `settings`: `serene_mind_engine.py:403,407` distress `0.65/0.75`; `ontology_validator.py` `0.7`; `colbert_maxsim.py` `0.5/0.2`; `adaptive_chunking_service.py:242,256` `0.72`; `web_search_guardrails.py:474` `0.6`; RAPTOR gate `0.35`. Can't tune a **distress threshold** without a deploy. | 🟡 | Promote to `app/config.py` `settings` fields with the current values as defaults. Distress ones first (safety). | sonnet |
+| H2 | Reference URLs | `rag/nodes/utils.py:127-141` hardcodes ekam.org, an Amazon book link, breathingroom.com, theonenessmovement.org. Content baked into code. | 🟡 | Move to config or OKF metadata so links change without a code deploy. | haiku |
+| H3 | Frontend magic timeouts | Scattered literals: `ChatHelpers.tsx` slow-phase `6000/15000`; toast dismissals `1500/2000`; reload `600`; KG sim `repulsion 600 / linkDist 95 / gravity 0.008`. | 🟡 | Named constants in one module; expose the KG sim ones as UI controls (already partly stateful). | haiku |
+
+## 5. "Fine → best-in-class" opportunities
+
+| ID | Area | Opportunity | Impact | How | Route |
+|----|------|-------------|:------:|-----|:-----:|
+| OPP-1 | **Guru voice / audio** | Manual per-message speaker button today. Make the **Sarvam neural voice the default**, add **opt-in autoplay when an answer finishes streaming**, sentence-highlight-while-reading, and a distinct calm cadence. Turns a buried button into the emotional core of the product. | ★★★ | `useTextToSpeech` + `ChatMessage` + a profile toggle; backend Sarvam TTS path already exists (`/api/speech/tts`). | opus |
+| OPP-2 | **Knowledge Graph** | Once F1 wires real data: click-to-expand a node, **shortest-path between two concepts**, teacher filter, and **doctrine-sourced "why these connect" edge explanations**. A genuinely explorable teaching-graph over 11k real edges is a feature nobody in this space ships. | ★★★ | `KGConceptMap` + `/api/kg/*`; edge explanations from OKF/retrieval. | opus |
+| OPP-3 | **Resurface teachings (SRS)** | The **spaced-repetition backend exists** (`api/srs.py`) but is barely in the UI. Proactive "revisit this teaching" nudges + a review surface would build a real retention loop that's already half-built. | ★★★ | Wire `api/srs.py` to a review card + reminder; `FlashcardPractice.tsx` may already be a start. | opus |
+| OPP-4 | **Profile → journey** | Metrics, streaks, memory, persona already exist as scattered tiles (`ProfileStatTiles`, `MemoryManager`). Compose them into a **"your beautiful-state journey"** timeline + meditation-progress viz. | ★★ | Recompose existing `useMetrics`/`useProfile` data; no new backend. | opus |
+| OPP-5 | **Answer transparency** | Citations panel is solid. Add inline citation **hover-preview**, a per-answer **confidence badge** (backend already computes `confidence_score`), and a "grounded in N teachings" trust line. | ★★ | `ChatMessage` + `CitationPanel`; data already on the streamed result. | sonnet |
+| OPP-6 | **Wisdom cards** | Share works (`navigator.share` + PNG download). Level up with **server-rendered OG images** so a shared link unfurls with the actual card in social/WhatsApp, not a generic preview. | ★★ | Backend OG-image route; frontend already generates the canvas. | sonnet |
+
+---
+
+## Suggested order (impact ÷ effort)
+
+1. **P-1 external translation** — privacy hole, one hook. (sonnet)
+2. **F1 Knowledge Graph real data** — kills the fake marquee feature. (opus)
+3. **OPP-1 guru voice default + autoplay** — signature win, user-requested. (opus)
+4. **F2 admin mock audit** — trust bug in the ops surface. (opus)
+5. **H1 distress thresholds → config** — safety dial, cheap. (sonnet)
+6. **I1 i18n sweep** — batchable, half the UI. (haiku→sonnet)
+7. OPP-2/3/4 — the deep product bets, after the fakes are gone.
+
+## What's already good (don't "fix")
+
+- Auth is mature: MFA (`MFAChallengePage`, `TwoFactorSettings`), diagnostics, latency dashboard.
+- Onboarding `GuidedTour` is real and i18n-keyed.
+- Wisdom-card sharing uses native `navigator.share` with a PNG fallback.
+- Chat streaming has thinking-pills, citation click-through, distress indicator, error banner.
+- Mood check-in surfaces exist (`MoodCheckIn`, `MoodBanner`).
+
+*Verification: findings confirmed against `KGConceptMap.tsx`, `admin/lib/api.ts`, `useAutoTranslate.ts`, `useTextToSpeech.ts`, `serene_mind_engine.py`, `rag/nodes/utils.py`, and t()/aria/error-state file counts across `src/`. Counts are from grep sweeps 2026-08-12 and will drift.*
+
+---
+---
+
+# Roadmap — Execution Strategy
+
+*Migrated verbatim from the former `docs/ROADMAP.md` on 2026-08-12 (that file was removed; this section is now its home). Tracks feature requests, priorities, and shipped work — the HOW to SPEC_DEV.md's WHAT.*
 
 ## Execution Philosophy
 - **Radical simplicity**: The simplest robust solution for each phase
 - **Zero re-work**: Solve friction in markdown before it hits the compiler
 - **Atomic phases**: Each phase is independently testable and commit-worthy
 - **Dependency-first**: Build foundations before features
-
----
 
 ## Phase Map
 
@@ -23,8 +106,6 @@ graph LR
     P6 --> P7[7. Colab Notebook]
     P7 --> P8[8. Verification]
 ```
-
----
 
 ## Completed
 
@@ -70,8 +151,6 @@ graph LR
 | 38 | **3-Pass Generation & Guru Tone Refactoring**: Pass 1 (inline citation verification) + Pass 2 (factually grounded draft generation) + Pass 3 (Guru voice tone adapter), Reflexion prompt constants, `asyncio.to_thread` Neo4j traversal | `main` | Jul 21, 2026 |
 | 39 | **LightRAG Qdrant-Direct Ingestion**: `scripts/ingest_lightrag_data.py` scrolling 89,053 `spiritual_wisdom` points directly into Qdrant & Neo4j via OpenRouter `gemma-3-12b-it` | `main` | Jul 22, 2026 |
 
----
-
 ## In Progress
 
 | # | Feature | Branch | Status |
@@ -80,8 +159,6 @@ graph LR
 | 2 | LightRAG KG backfill sweep for 72 Qdrant-only videos (`--retry-lightrag-missing`) | `main` | Deferred per user direction, June 2026 |
 | 3 | Full-suite test isolation for `test_health_check` and `test_retrieve_documents_empty_results_is_safe` | `main` | Known order-dependence under full ~925-test run; not yet isolated |
 | 4 | Cross-provider LLM failover for OpenRouter 429s | `main` | NIM provider exists but wiring removed per security audit (external silent fallback); revisit if natively available local fallback is desired |
-
----
 
 ## Deferred / Needs Planning
 
@@ -99,8 +176,6 @@ graph LR
 | D10 | **Daily Wisdom Newsletter** | Medium | Scheduled email automation sending daily teaching excerpts. Requires content curation pipeline, email provider (Resend, SendGrid), unsubscribe management. Defer until ingestion complete and chat UX stable. Concept doc in `docs/marketing_strategy.md`. |
 | D11 | **Full learning paths** (Karma→Dharma→Moksha progression) | Large (pedagogy) | Requires pedagogical design + content curation — not an engineering task. Add as a specification document first; implement as a guided UI layer after Phase E6 chat UX is stable. |
 
----
-
 ## Backlog (Sorted by Complexity: Easy → Hard)
 
 | # | Feature | Effort | Notes |
@@ -110,8 +185,6 @@ graph LR
 | 3 | In-graph cache short-circuit in `retrieval.py:723` | Small | Pipeline-level cache (cache_stage.py) short-circuits correctly; in-graph cache doesn't short-circuit generation. Pipeline cache handles the common case. |
 | 4 | Security checklist items 13-22 (WAF, rate limiting, DDoS, audit logging, backup verification, incident response runbook) | Medium | 12/22 done. Items 13-22 require infra/platform decisions beyond code changes. |
 | 5 | Embedding cache invalidation after batch encode change | Medium | Phase B moved to `encode_batch` for primary queries but expansion queries still encode individually. Acceptable — expansion runs in parallel with LLM call, so encode time is hidden. |
-
----
 
 ## Dependency Graph
 
@@ -137,8 +210,6 @@ requirements.txt (no deps)
                           └→ AskMukthiGuru.ipynb (needs main.py)
 ```
 
----
-
 ## Timeline Estimate
 
 | Phase | Estimated Effort | Cumulative |
@@ -154,8 +225,6 @@ requirements.txt (no deps)
 
 > **3 months of engineering compressed into 1 day of high-leverage execution.**
 
----
-
 ## How to Use
 
 1. **New request**: Add a row to "User Requests (Unsorted)" (or directly to "Backlog" if clearly scoped)
@@ -163,6 +232,7 @@ requirements.txt (no deps)
 3. **Start work**: Move from Backlog to "In Progress", create branch
 4. **Ship**: Move from "In Progress" to "Completed" with ship date and branch/commit
 5. **Defer**: If blocked on infra, resources, or external decisions, move to "Deferred / Needs Planning" with reason and path forward
+
 ## Completed (Aug 11, 2026) — 13-Fix Audit Remediation Batch
 
 - `$HYPERRESEARCH_BIN` replaces 34 machine-specific absolute paths in root CLAUDE.md (portable, repository-relative).

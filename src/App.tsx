@@ -1,4 +1,4 @@
-import { useEffect, Suspense } from "react";
+import { useEffect, Suspense, type ComponentType, type ReactNode } from "react";
 import { lazyWithRetry, preloadCriticalRoutes } from "@/lib/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route, Outlet, useLocation } from "react-router-dom";
@@ -48,33 +48,39 @@ const SecondBrainPage = lazyWithRetry(() => import("./pages/SecondBrainPage"));
 // entire block below is dead code and gets tree-shaken (no admin route path
 // strings, no admin chunk imports).
 const ADMIN_ENABLED = import.meta.env.VITE_ADMIN_ENABLED !== 'false';
+const NoopPage: ComponentType = () => null;
+declare global {
+  interface Window {
+    retryRetentionPurge?: () => void;
+  }
+}
 
-let AdminLoginPage: any = null;
-let AdminShell: any = null;
-let OverviewPage: any = null;
-let QueriesPage: any = null;
-let QualityPage: any = null;
-let RetrievalPage: any = null;
-let DailyTeachingPage: any = null;
-let TeachingTipsPage: any = null;
-let TriggersPage: any = null;
-let TopicsPage: any = null;
-let PromptsPage: any = null;
-let EvalsPage: any = null;
-let IngestionPage: any = null;
-let DataSourcesPage: any = null;
-let LogsPage: any = null;
-let TelemetryPage: any = null;
-let MonitoringPage: any = null;
-let AlertsPage: any = null;
-let SettingsPage: any = null;
-let AdminsPage: any = null;
-let FeedbackPage: any = null;
-let OkfManagerPage: any = null;
-let JobsPage: any = null;
-let RAGFlowPage: any = null;
-let AdminSelfCheckPage: any = null;
-let CachePage: any = null;
+let AdminLoginPage: ComponentType = NoopPage;
+let AdminShell: ComponentType<{ children?: ReactNode }> = NoopPage;
+let OverviewPage: ComponentType = NoopPage;
+let QueriesPage: ComponentType = NoopPage;
+let QualityPage: ComponentType = NoopPage;
+let RetrievalPage: ComponentType = NoopPage;
+let DailyTeachingPage: ComponentType = NoopPage;
+let TeachingTipsPage: ComponentType = NoopPage;
+let TriggersPage: ComponentType = NoopPage;
+let TopicsPage: ComponentType = NoopPage;
+let PromptsPage: ComponentType = NoopPage;
+let EvalsPage: ComponentType = NoopPage;
+let IngestionPage: ComponentType = NoopPage;
+let DataSourcesPage: ComponentType = NoopPage;
+let LogsPage: ComponentType = NoopPage;
+let TelemetryPage: ComponentType = NoopPage;
+let MonitoringPage: ComponentType = NoopPage;
+let AlertsPage: ComponentType = NoopPage;
+let SettingsPage: ComponentType = NoopPage;
+let AdminsPage: ComponentType = NoopPage;
+let FeedbackPage: ComponentType = NoopPage;
+let OkfManagerPage: ComponentType = NoopPage;
+let JobsPage: ComponentType = NoopPage;
+let RAGFlowPage: ComponentType = NoopPage;
+let AdminSelfCheckPage: ComponentType = NoopPage;
+let CachePage: ComponentType = NoopPage;
 
 
 if (ADMIN_ENABLED) {
@@ -183,14 +189,14 @@ const App = () => {
     };
 
     window.addEventListener('retry-retention-purge', handleRetry);
-    (window as any).retryRetentionPurge = handleRetry;
+    window.retryRetentionPurge = handleRetry;
 
     // Preload critical route chunks after initial render
     preloadCriticalRoutes();
 
     return () => {
       window.removeEventListener('retry-retention-purge', handleRetry);
-      delete (window as any).retryRetentionPurge;
+      delete window.retryRetentionPurge;
     };
   }, []);
 

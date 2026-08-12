@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { usePromptVersions, usePromptMetrics } from "@/admin/hooks/useAdminData";
-import { activatePromptVersion } from "@/admin/lib/mockData";
+import { activatePromptVersion } from "@/admin/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Select,

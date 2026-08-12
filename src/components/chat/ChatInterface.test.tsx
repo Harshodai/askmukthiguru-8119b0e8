@@ -23,6 +23,10 @@ vi.mock('@/lib/auth', () => ({
   }),
 }));
 
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: { auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }) } },
+}));
+
 vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({
     toast: vi.fn(),
@@ -117,16 +121,50 @@ vi.mock('@/components/chat/ChatHeader', () => ({
   ChatHeader: () => <div data-testid="chat-header">Header</div>,
 }));
 
+vi.mock('@/hooks/useDailyTeaching', () => ({
+  useDailyTeaching: () => ({ teaching: null, loading: false, error: null, refetch: vi.fn() }),
+}));
+vi.mock('./HealingPathCard', () => ({
+  HealingPathCard: () => null,
+}));
+vi.mock('@/components/meditation/GuidedMeditationFlow', () => ({
+  GuidedMeditationFlow: () => null,
+}));
+
+vi.mock('./ChatComposer', () => ({
+  ChatComposer: ({ inputValue, onInputChange, onSubmit }: {
+    inputValue: string;
+    onInputChange: (event: { target: { value: string } }) => void;
+    onSubmit: (event: { preventDefault: () => void }) => void;
+  }) => (
+    <div>
+      <textarea aria-label="Your message" value={inputValue} onChange={onInputChange} />
+      <button aria-label="Send message" type="button" onClick={() => onSubmit({ preventDefault: () => {} })}>Send</button>
+    </div>
+  ),
+}));
+
+vi.mock('./DailyTeaching', () => ({
+  DailyTeaching: () => null,
+}));
+
 vi.mock('@/components/chat/MessageList', () => ({
   MessageList: () => <div data-testid="message-list">Messages</div>,
 }));
 
 import { fireEvent, waitFor } from '@testing-library/react';
 import { sendMessage, sendMessageStreaming } from '@/lib/aiService';
+import { setCurrentConversationId } from '@/lib/chatStorage';
 
 describe('ChatInterface', () => {
   beforeEach(() => {
-    // We need to mock scrollIntoView which doesn't exist in jsdom
+    // We need browser layout shims that remain constructible after other tests.
+    class TestResizeObserver {
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+    }
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
     vi.clearAllMocks();
   });
@@ -149,11 +187,16 @@ describe('ChatInterface', () => {
       </BrowserRouter>
     );
 
+    await waitFor(() => {
+      expect(setCurrentConversationId).toHaveBeenCalledWith('test-conv-id');
+    });
     const input = screen.getByLabelText('Your message');
-    const sendButton = screen.getByLabelText('Send message');
 
     fireEvent.change(input, { target: { value: 'How do I find peace?' } });
-    fireEvent.click(sendButton);
+    await waitFor(() => {
+      expect(input).toHaveValue('How do I find peace?');
+    });
+    fireEvent.click(screen.getByLabelText('Send message'));
 
     await waitFor(() => {
       expect(sendMessageStreaming).toHaveBeenCalledWith(

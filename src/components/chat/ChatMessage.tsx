@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense } from 'react';
+import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Youtube, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX } from 'lucide-react';
 import { useNotes } from '@/hooks/useNotes';
@@ -415,20 +415,45 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
 
     // Per-message read-aloud. speak() cancels any other message's speech, so
     // one utterance plays at a time across the conversation.
-    const { speak, stop: stopSpeaking, isSpeaking, isSupported: ttsSupported } = useTextToSpeech();
+    const { speak, stop: stopSpeaking, isSpeaking, isSupported: ttsSupported, currentSentence } = useTextToSpeech();
+    const plainText = useMemo(() =>
+      message.content
+        .replace(/```[\s\S]*?```/g, ' ')
+        .replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, ' ')
+        .replace(/[#*_>`]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim(),
+      [message.content]);
+    const sentences = useMemo(() => {
+      if (!plainText) return [];
+      return plainText.split(/(?<=[.!?।?\n])\s+/).map((s) => s.trim()).filter(Boolean);
+    }, [plainText]);
     const handleSpeak = useCallback(() => {
       if (isSpeaking) {
         stopSpeaking();
         return;
       }
-      const plainText = message.content
-        .replace(/```[\s\S]*?```/g, ' ')
-        .replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, ' ')
-        .replace(/[#*_>`]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
       if (plainText) speak(plainText);
-    }, [isSpeaking, stopSpeaking, speak, message.content]);
+    }, [isSpeaking, stopSpeaking, speak, plainText]);
+
+    const renderHighlightedText = () => {
+      if (sentences.length === 0 || !currentSentence) {
+        return <span>{plainText}</span>;
+      }
+      return (
+        <span>
+          {sentences.map((sentence, i) => (
+            <span
+              key={i}
+              className={sentence === currentSentence ? 'bg-ojas/20 rounded px-0.5 transition-colors' : ''}
+            >
+              {sentence}
+              {i < sentences.length - 1 ? ' ' : ''}
+            </span>
+          ))}
+        </span>
+      );
+    };
 
     const handleSaveToMemory = useCallback(async () => {
       if (saved || savingMemory) return;
@@ -729,6 +754,11 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   </div>
                 ) : (
                   <span className="font-medium">{message.content}</span>
+                )}
+                {isGuru && isSpeaking && plainText && (
+                  <span className="block mt-2 text-foreground/80" aria-live="polite">
+                    {renderHighlightedText()}
+                  </span>
                 )}
                 {isStreaming && (
                   <span className="inline-flex items-center gap-1 ml-0.5 align-text-bottom">

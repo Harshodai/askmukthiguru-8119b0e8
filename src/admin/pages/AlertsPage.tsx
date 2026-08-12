@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { fmtDateTime } from "@/admin/lib/formatters";
-import { upsertAlertRule } from "@/admin/lib/mockData";
+import { upsertAlertRule } from "@/admin/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertRuleBuilder } from "@/admin/components/AlertRuleBuilder";
 import { EmptyState } from "@/admin/components/EmptyState";

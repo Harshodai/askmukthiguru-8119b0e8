@@ -85,7 +85,7 @@ def _build_mock_container():
     mock_container.semantic_cache.get.return_value = None
     mock_container.semantic_cache.is_available = True
 
-    mock_container.ollama = AsyncMock()
+    mock_container.ollama = MagicMock()
     mock_container.ollama.health_check.return_value = True
     mock_container.ollama._circuit = MagicMock()
     mock_container.ollama._circuit.can_execute.return_value = True

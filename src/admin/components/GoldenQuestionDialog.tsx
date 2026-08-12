@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { upsertGoldenQuestion } from "@/admin/lib/mockData";
+import { upsertGoldenQuestion } from "@/admin/lib/api";
 import type { GoldenQuestion } from "@/admin/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";

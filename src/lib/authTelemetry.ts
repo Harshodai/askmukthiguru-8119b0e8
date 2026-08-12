@@ -109,7 +109,7 @@ const writeActive = (run: AuthRun | null): void => {
 
 const log = (msg: string, data?: unknown): void => {
   // Single, greppable prefix for browser devtools.
-  // eslint-disable-next-line no-console
+
   console.info(`[AuthTelemetry] ${msg}`, data ?? '');
 };
 

@@ -1,39 +1,47 @@
-import os
+"""Extract selected still frames from a supplied product-demo video.
+
+This utility deliberately writes only to an explicit artifact directory and never
+assumes a tracked demo render or composition project exists in the repository.
+"""
+from __future__ import annotations
+
+import argparse
 import subprocess
+from pathlib import Path
 
-def extract_keyframes():
-    video_path = "askmukthiguru-official-launch-demo.mp4"
-    output_dir = "video-composition/assets/keyframes"
-    os.makedirs(output_dir, exist_ok=True)
+DEFAULT_SCENES = [
+    ("scene_01", "00:00:04"),
+    ("scene_02", "00:00:11"),
+    ("scene_03", "00:00:18"),
+    ("scene_04", "00:00:26"),
+    ("scene_05", "00:00:35"),
+    ("scene_06", "00:00:50"),
+]
 
-    # Exact scene timestamps matching index.html GSAP timeline
-    scenes = [
-        ("Scene 1 (Problem)", "00:00:04", "frame_01_problem.png"),
-        ("Scene 2A (Hero)", "00:00:11", "frame_02a_hero.png"),
-        ("Scene 2B (How It Works)", "00:00:18", "frame_02b_how_it_works.png"),
-        ("Scene 2C (Wisdom)", "00:00:26", "frame_02c_wisdom.png"),
-        ("Scene 3 (Auth / Sign-In)", "00:00:35", "frame_03_auth.png"),
-        ("Scene 4 (Grounded Chat)", "00:00:50", "frame_04_chat.png"),
-        ("Scene 5 (Serene Mind)", "00:01:08", "frame_05_serene_mind.png"),
-        ("Scene 6A (Knowledge Graph)", "00:01:20", "frame_06a_kg.png"),
-        ("Scene 6B (Study Notebook)", "00:01:28", "frame_06b_notebook.png"),
-        ("Scene 7 (Privacy Vault)", "00:01:38", "frame_07_privacy.png"),
-        ("Scene 8 (Outro CTA)", "00:01:48", "frame_08_outro.png"),
-    ]
 
-    print("Extracting exact keyframes from rendered video...")
-    for name, timestamp, filename in scenes:
-        output_path = os.path.join(output_dir, filename)
-        cmd = [
-            "ffmpeg", "-y", "-ss", timestamp, "-i", video_path,
-            "-vframes", "1", "-q:v", "2", output_path
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Extract review keyframes from a supplied video.")
+    parser.add_argument("video", type=Path, help="Input video path; this file is not committed or modified.")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("artifacts/video-review/keyframes"),
+        help="Ignored output directory for generated PNG frames.",
+    )
+    args = parser.parse_args()
+    if not args.video.is_file():
+        parser.error(f"video does not exist: {args.video}")
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    for label, timestamp in DEFAULT_SCENES:
+        output = args.output_dir / f"{label}.png"
+        command = [
+            "ffmpeg", "-y", "-ss", timestamp, "-i", str(args.video),
+            "-vframes", "1", "-q:v", "2", str(output),
         ]
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if os.path.exists(output_path):
-            size_kb = os.path.getsize(output_path) // 1024
-            print(f"✓ {name} [{timestamp}] -> {filename} ({size_kb} KB)")
+        subprocess.run(command, check=True)
+        print(f"{label} [{timestamp}] -> {output}")
+    return 0
 
-    print("\nKeyframe extraction complete!")
 
 if __name__ == "__main__":
-    extract_keyframes()
+    raise SystemExit(main())

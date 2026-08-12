@@ -67,7 +67,7 @@ def mock_get_container():
     mock_container.coalescer = _InMemoryCoalescer()
 
     # Mock Ollama
-    mock_container.ollama = AsyncMock()
+    mock_container.ollama = MagicMock()
     mock_container.ollama.health_check.return_value = True
     mock_container.ollama._circuit = MagicMock()
     mock_container.ollama._circuit.can_execute.return_value = True
@@ -262,7 +262,7 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
     }
     mock_container.semantic_cache.is_available = True
 
-    mock_container.ollama = AsyncMock()
+    mock_container.ollama = MagicMock()
     mock_container.ollama.health_check.return_value = True
     mock_container.ollama._circuit = MagicMock()
     mock_container.ollama._circuit.can_execute.return_value = True

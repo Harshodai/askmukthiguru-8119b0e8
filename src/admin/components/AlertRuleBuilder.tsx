@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import type { AlertRule } from "@/admin/types";
-import { upsertAlertRule } from "@/admin/lib/mockData";
+import { upsertAlertRule } from "@/admin/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 

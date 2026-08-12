@@ -44,6 +44,8 @@ export interface UserProfile {
   familiarityLevel?: FamiliarityLevel;
   theme: ThemePreference;
   ttsEnabled: boolean;
+  /** Auto-play guru responses aloud after streaming completes. */
+  voiceAutoplay?: boolean;
   ttsRate: number; // 0.5–1.5
   /** Preferred Sarvam Mayura TTS voice */
   preferredVoice: string;
@@ -87,6 +89,7 @@ export const createDefaultProfile = (): UserProfile => {
     familiarityLevel: 'seeker',
     theme: 'system',
     ttsEnabled: false,
+    voiceAutoplay: false,
     ttsRate: 0.9,
     preferredVoice: 'priya',
     meditationReminders: false,

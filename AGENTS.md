@@ -271,7 +271,7 @@ cp -rf source dest          # NOT: cp -r source dest
 Agents MUST update the following documentation after completing a fix, feature, or architectural change:
 - [ ] **lessons.md**: Document the specific implementation pattern, architectural decision, or "lesson learned".
 - [ ] **README.md**: If a new service, route, or environment variable is added, update the README to reflect these changes.
-- [ ] **docs/ROADMAP.md**: Mark items as complete or add new technical debt discovered during the change.
+- [ ] **docs/PRODUCT_OPPORTUNITIES.md** (Roadmap section): Mark items as complete or add new technical debt discovered during the change.
 - [ ] **docs/DEVELOPER_GUIDE.md**: Update if the onboarding or development workflow has changed.
 - [ ] **CLAUDE.md**: Update structural directory map, commands, or URL matrix.
 - [ ] **AGENTS.md**: Update agent context, checklist, or guidelines if necessary.

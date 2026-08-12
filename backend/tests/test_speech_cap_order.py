@@ -48,7 +48,7 @@ async def test_oversized_upload_rejected_before_decode(mock_httpx, mock_whisper)
     mock_whisper.assert_not_called()
     mock_httpx.assert_not_called()
     assert upload.file.tell() == 0, "file must not be read before the cap rejects"
-    upload.close()
+    await upload.close()
 
 
 @pytest.mark.asyncio
@@ -72,4 +72,4 @@ async def test_oversized_body_with_unknown_size_rejected_before_decode(mock_whis
     assert exc_info.value.status_code == 413
 
     mock_whisper.assert_not_called()
-    upload.close()
+    await upload.close()

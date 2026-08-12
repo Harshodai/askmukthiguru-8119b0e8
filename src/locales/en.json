@@ -850,6 +850,8 @@
     "conceptRelationshipCount": "{{nodeCount}} concepts · {{edgeCount}} relationships",
     "subtitle": "Explore how the sacred concepts of the Ekam teachings connect.",
     "help": "Drag to pan · scroll to zoom · double-click node to pin",
+    "showingDemo": "Showing example map",
+    "showExampleMap": "Show example map",
     "settings": {
       "title": "Graph view settings",
       "repelForce": "Repel Force",

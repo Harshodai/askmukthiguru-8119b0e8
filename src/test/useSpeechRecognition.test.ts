@@ -17,7 +17,9 @@ const mockRecognition = {
   onstart: null as (() => void) | null,
 };
 
-const MockSpeechRecognition = vi.fn(() => mockRecognition);
+const MockSpeechRecognition = vi.fn(function MockSpeechRecognition() {
+  return mockRecognition;
+});
 
 describe('useSpeechRecognition', () => {
   beforeEach(() => {
@@ -91,7 +93,9 @@ describe('useSpeechRecognition native cleanup', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     // Re-stub the implementation (resetAllMocks may clear it).
-    MockSpeechRecognition.mockImplementation(() => mockRecognition);
+    MockSpeechRecognition.mockImplementation(function MockSpeechRecognition() {
+      return mockRecognition;
+    });
     mockRecognition.continuous = false;
     mockRecognition.interimResults = false;
     mockRecognition.lang = '';

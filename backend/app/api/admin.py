@@ -48,6 +48,11 @@ from app.telemetry_db import (
     get_node_latencies,
 )
 from services.auth_service import require_aal2
+
+
+class _AdminActionResult(BaseModel):
+    ok: bool = True
+    message: Optional[str] = None
 def _require_admin(user: dict = Depends(require_aal2)) -> dict:
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
@@ -373,6 +378,65 @@ async def list_golden_questions(
     return await get_golden_questions()
 
 
+class GoldenQuestionUpsert(BaseModel):
+    id: Optional[str] = None
+    question: str = Field(..., min_length=1)
+    expected_answer: Optional[str] = None
+    expected_sources: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    active: bool = Field(default=True)
+
+
+@admin_router.post("/golden-questions")
+async def upsert_golden_question(
+    body: GoldenQuestionUpsert,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Create or update a golden question. Requires admin authentication + AAL2."""
+    from app.telemetry_db import _get_client
+
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    try:
+        payload = {
+            "question": body.question.strip(),
+            "expected_answer": body.expected_answer,
+            "expected_sources": body.expected_sources,
+            "tags": body.tags,
+            "active": body.active,
+        }
+        if body.id:
+            client.table("golden_questions").update(payload).eq("id", body.id).execute()
+            return {"ok": True, "id": body.id, "message": "Golden question updated"}
+        else:
+            result = client.table("golden_questions").insert(payload).execute()
+            new_id = (getattr(result, "data", None) or [{}])[0].get("id")
+            return {"ok": True, "id": new_id, "message": "Golden question created"}
+    except Exception as e:
+        logger.error(f"Failed to upsert golden question: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save golden question")
+
+
+@admin_router.delete("/golden-questions/{question_id}")
+async def delete_golden_question(
+    question_id: str,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Delete a golden question. Requires admin authentication + AAL2."""
+    from app.telemetry_db import _get_client
+
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    try:
+        client.table("golden_questions").delete().eq("id", question_id).execute()
+        return {"ok": True, "message": "Golden question deleted", "id": question_id}
+    except Exception as e:
+        logger.error(f"Failed to delete golden question: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete golden question")
+
+
 @admin_router.get("/ingestion-runs")
 async def list_ingestion_runs(
     user: dict = Depends(_require_admin),
@@ -387,6 +451,71 @@ async def list_alert_rules(
 ) -> list[dict[str, Any]]:
     """List alert rules. Requires admin authentication."""
     return await get_alert_rules()
+
+
+class AlertRuleUpsert(BaseModel):
+    id: Optional[str] = None
+    name: str = Field(..., min_length=1)
+    metric: str = Field(..., min_length=1)
+    comparator: str = Field(..., pattern=r"^(>|>=|<|<=)$")
+    threshold: float
+    window_minutes: int = Field(default=15, ge=1)
+    channel: str = Field(default="email")
+    target: str = Field(default="")
+    active: bool = Field(default=True)
+
+
+@admin_router.post("/alert-rules")
+async def upsert_alert_rule(
+    body: AlertRuleUpsert,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Create or update an alert rule. Requires admin authentication + AAL2."""
+    from app.telemetry_db import _get_client
+
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    try:
+        payload = {
+            "name": body.name.strip(),
+            "metric": body.metric,
+            "comparator": body.comparator,
+            "threshold": body.threshold,
+            "window_minutes": body.window_minutes,
+            "channel": body.channel,
+            "target": body.target,
+            "active": body.active,
+        }
+        if body.id:
+            client.table("alert_rules").update(payload).eq("id", body.id).execute()
+            return {"ok": True, "id": body.id, "message": "Alert rule updated"}
+        else:
+            result = client.table("alert_rules").insert(payload).execute()
+            new_id = (getattr(result, "data", None) or [{}])[0].get("id")
+            return {"ok": True, "id": new_id, "message": "Alert rule created"}
+    except Exception as e:
+        logger.error(f"Failed to upsert alert rule: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save alert rule")
+
+
+@admin_router.delete("/alert-rules/{rule_id}")
+async def delete_alert_rule(
+    rule_id: str,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Delete an alert rule. Requires admin authentication + AAL2."""
+    from app.telemetry_db import _get_client
+
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    try:
+        client.table("alert_rules").delete().eq("id", rule_id).execute()
+        return {"ok": True, "message": "Alert rule deleted", "id": rule_id}
+    except Exception as e:
+        logger.error(f"Failed to delete alert rule: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete alert rule")
 
 
 @admin_router.get("/alert-events")
@@ -411,6 +540,77 @@ async def list_admins(
 ) -> list[dict[str, Any]]:
     """List admin users. Requires admin authentication."""
     return await get_admins()
+
+
+class PromoteAdminRequest(BaseModel):
+    email: str = Field(..., min_length=1)
+
+
+@admin_router.post("/admins/promote")
+async def promote_admin(
+    body: PromoteAdminRequest,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Promote a user to admin by email. Requires admin authentication + AAL2."""
+    from app.telemetry_db import _get_client
+
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    try:
+        auth_resp = client.table("auth_users").select("id").eq("email", body.email.strip().lower()).limit(1).execute()
+        auth_rows = getattr(auth_resp, "data", None) or []
+        if not auth_rows:
+            raise HTTPException(status_code=404, detail="User not found")
+        target_user_id = auth_rows[0]["id"]
+
+        existing = (
+            client.table("user_roles")
+            .select("id")
+            .eq("user_id", target_user_id)
+            .eq("role", "admin")
+            .limit(1)
+            .execute()
+        )
+        if getattr(existing, "data", None):
+            return {"ok": True, "message": "User is already an admin", "user_id": target_user_id}
+
+        client.table("user_roles").insert({"user_id": target_user_id, "role": "admin"}).execute()
+        return {"ok": True, "message": "User promoted to admin", "user_id": target_user_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to promote admin: {e}")
+        raise HTTPException(status_code=500, detail="Failed to promote admin")
+
+
+class DemoteAdminRequest(BaseModel):
+    user_id: str = Field(..., min_length=1)
+
+
+@admin_router.post("/admins/demote")
+async def demote_admin(
+    body: DemoteAdminRequest,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Revoke admin role from a user. Requires admin authentication + AAL2."""
+    from app.telemetry_db import _get_client
+
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    try:
+        result = (
+            client.table("user_roles")
+            .delete()
+            .eq("user_id", body.user_id)
+            .eq("role", "admin")
+            .execute()
+        )
+        return {"ok": True, "message": "Admin role revoked", "user_id": body.user_id, "deleted": bool(getattr(result, "data", None))}
+    except Exception as e:
+        logger.error(f"Failed to demote admin: {e}")
+        raise HTTPException(status_code=500, detail="Failed to demote admin")
 
 
 @admin_router.get("/model-pricing")
@@ -500,6 +700,36 @@ async def get_prompt_metrics_by_version_endpoint(
 ) -> Any:
     """Get prompt metrics by version. Requires admin authentication."""
     return await get_prompt_metrics_by_version()
+
+
+@admin_router.post("/prompts/{prompt_id}/activate")
+async def activate_prompt_version(
+    prompt_id: str,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Activate a single prompt version and deactivate all others with the same name.
+
+    Requires admin authentication + AAL2.
+    """
+    from app.telemetry_db import _get_client
+
+    client = _get_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Database service unavailable")
+    try:
+        # Deactivate every version in the same prompt family as the target.
+        target_rows = client.table("prompt_versions").select("name").eq("id", prompt_id).limit(1).execute().data or []
+        if not target_rows:
+            raise HTTPException(status_code=404, detail="Prompt version not found")
+        prompt_name = target_rows[0]["name"]
+        client.table("prompt_versions").update({"active": False}).eq("name", prompt_name).execute()
+        client.table("prompt_versions").update({"active": True}).eq("id", prompt_id).execute()
+        return {"ok": True, "message": "Prompt version activated", "id": prompt_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to activate prompt version: {e}")
+        raise HTTPException(status_code=500, detail="Failed to activate prompt version")
 
 
 @admin_router.get("/live-feed")
@@ -992,7 +1222,53 @@ async def reject_okf_entry(
         raise HTTPException(status_code=500, detail="Failed to reject entry. Please try again.")
 
 
+# ── Admin Logs ────────────────────────────────────────────────────
+
+
+class AdminLogsFilter(BaseModel):
+    level: Optional[str] = None
+    search: Optional[str] = None
+    from_date: Optional[str] = None
+    to_date: Optional[str] = None
+
+
+@admin_router.get("/logs")
+async def list_admin_logs(
+    level: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
+    user: dict = Depends(_require_admin),
+) -> list[dict[str, Any]]:
+    """Fetch structured app logs for the admin UI. Requires admin authentication + AAL2."""
+    from app.telemetry_db import _get_client
+
+    client = _get_client()
+    if not client:
+        # Fail gracefully when telemetry is not configured; return empty so the
+        # admin UI does not crash, but log the incident.
+        logger.warning("Supabase client unavailable; returning empty admin logs")
+        return []
+
+    try:
+        query = client.table("app_logs").select("*")
+        if from_date:
+            query = query.gte("created_at", from_date)
+        if to_date:
+            query = query.lte("created_at", to_date)
+        if level:
+            query = query.eq("level", level)
+        if search:
+            query = query.ilike("message", f"%{search}%")
+        response = query.order("created_at", desc=True).limit(200).execute()
+        return response.data or []
+    except Exception as e:
+        logger.error(f"Failed to fetch admin logs: {e}")
+        return []
+
+
 # ── Web Ingestion ─────────────────────────────────────────────────
+
 
 @admin_router.post("/admin/ingest-url")
 async def admin_ingest_url(
@@ -1017,6 +1293,11 @@ async def admin_ingest_url(
 
     task = ingest_url_task.delay(url, mode=mode)
     return {"task_id": task.id, "url": url, "status": "queued"}
+
+
+class ReingestRequest(BaseModel):
+    source: str = Field(..., min_length=1)
+    mode: str = Field(default="contextual", description="One of: contextual, url")
 
 
 # ── Contextual Re-ingestion ────────────────────────────────────────
@@ -1045,6 +1326,55 @@ async def admin_contextual_reingest_dry_run(
         limit=body.limit,
     )
     return {"task_id": task.id, "source_url": body.source_url, "status": "queued"}
+
+
+@admin_router.post("/reingest")
+async def admin_reingest(
+    body: ReingestRequest,
+    user: dict = Depends(_require_admin),
+    container: ServiceContainer = Depends(get_container),
+) -> dict[str, Any]:
+    """Admin-only generic re-ingestion endpoint.
+
+    Supports two modes:
+      - ``contextual``: queue the existing contextual re-ingest worker.
+      - ``url``: queue a fresh web ingestion for the provided source URL.
+
+    All require admin authentication + AAL2.
+    """
+    mode = body.mode.lower().strip()
+    if mode == "url":
+        from ingestion.web_ingest_pipeline import _validate_and_normalize
+        try:
+            normalized_url = await _validate_and_normalize(body.source)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=f"Invalid URL: {e}")
+        from tasks.web_ingest_tasks import ingest_url_task
+
+        task = ingest_url_task.delay(normalized_url, mode="auto")
+        return {"task_id": task.id, "source": normalized_url, "mode": "url", "status": "queued"}
+
+    if mode == "contextual":
+        from tasks.contextual_reingest_task import contextual_reingest
+
+        acquired, owner = await _acquire_reingest_lock(container)
+        if not acquired:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Another contextual re-ingest is already running (lock held by {owner}). "
+                "Wait for it to finish or expire.",
+            )
+        try:
+            task = contextual_reingest.delay(source_url=body.source)
+            return {"task_id": task.id, "source": body.source, "mode": "contextual", "status": "queued"}
+        except Exception:
+            await _release_reingest_lock(container)
+            raise
+
+    raise HTTPException(
+        status_code=422,
+        detail=f"Invalid mode '{body.mode}'. Must be one of: contextual, url",
+    )
 
 
 _REINGEST_LOCK_KEY: str = "contextual_reingest:running"

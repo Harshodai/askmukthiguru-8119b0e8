@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
-import { supabase } from '@/integrations/supabase/client';
+import { BACKEND_URL_OR_LOCAL } from '@/lib/backendUrl';
+import { getAccessToken } from '@/lib/chat/auth';
 
 interface UseTextToSpeechOptions {
   lang?: string;
@@ -21,6 +22,7 @@ interface UseTextToSpeechReturn {
   isSupported: boolean;
   voices: SpeechSynthesisVoice[];
   currentVoice: SpeechSynthesisVoice | null;
+  currentSentence: string | null;
   error: string | null;
 }
 
@@ -33,6 +35,28 @@ const languageMap: Record<string, string[]> = LANGUAGES.reduce(
   {} as Record<string, string[]>,
 );
 
+const splitIntoSentences = (text: string): string[] => {
+  if (!text.trim()) return [];
+  // Split on sentence terminators followed by space or end of string, preserving the delimiter.
+  return text
+    .split(/(?<=[.!?।?\n])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+};
+
+const findSentenceAtIndex = (text: string, charIndex: number): string | null => {
+  const sentences = splitIntoSentences(text);
+  let cursor = 0;
+  for (const sentence of sentences) {
+    const start = text.indexOf(sentence, cursor);
+    if (start === -1) continue;
+    const end = start + sentence.length;
+    if (charIndex >= start && charIndex <= end) return sentence;
+    cursor = end;
+  }
+  return sentences[0] ?? null;
+};
+
 export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextToSpeechReturn => {
   const { lang = 'en', rate = 0.9, pitch = 1, volume = 1, speaker, onError } = options;
 
@@ -40,10 +64,13 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
   const [isPaused, setIsPaused] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [currentVoice, setCurrentVoice] = useState<SpeechSynthesisVoice | null>(null);
+  const [currentSentence, setCurrentSentence] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const sarvamAudioRef = useRef<HTMLAudioElement | null>(null);
+  const currentTextRef = useRef<string>('');
+  const sentencesRef = useRef<string[]>([]);
 
   const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const onErrorRef = useRef(onError);
@@ -92,9 +119,69 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     setCurrentVoice(fallbackVoice || voices[0] || null);
   }, [lang, voices]);
 
+  const playNativeTTS = useCallback((text: string) => {
+    if (!isSupported) {
+      const errMsg = 'Speech synthesis not supported in this browser.';
+      setError(errMsg);
+      onErrorRef.current?.(errMsg);
+      return;
+    }
+
+    currentTextRef.current = text;
+    sentencesRef.current = splitIntoSentences(text);
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = rate;
+    utterance.pitch = pitch;
+    utterance.volume = volume;
+
+    if (currentVoice) {
+      utterance.voice = currentVoice;
+      utterance.lang = currentVoice.lang;
+    } else {
+      const langCode = languageMap[lang]?.[0] || 'en-US';
+      utterance.lang = langCode;
+    }
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setIsPaused(false);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+      setCurrentSentence(null);
+    };
+
+    utterance.onerror = (event) => {
+      console.error('Speech synthesis error:', event.error);
+      setIsSpeaking(false);
+      setIsPaused(false);
+      setCurrentSentence(null);
+    };
+
+    utterance.onpause = () => {
+      setIsPaused(true);
+    };
+
+    utterance.onresume = () => {
+      setIsPaused(false);
+    };
+
+    utterance.onboundary = (event) => {
+      const sentence = findSentenceAtIndex(text, event.charIndex);
+      setCurrentSentence(sentence);
+    };
+
+    utteranceRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  }, [isSupported, currentVoice, lang, rate, pitch, volume]);
+
   const speak = useCallback(
-    (text: string) => {
+    async (text: string) => {
       setError(null);
+      setCurrentSentence(null);
 
       // Stop any existing Sarvam audio
       if (sarvamAudioRef.current) {
@@ -109,118 +196,92 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
 
       if (!text.trim()) return;
 
-      // Determine if a native browser voice supports the selected language.
-      const preferredLangs = languageMap[lang] || [];
-      const hasLocalVoice = voices.some((voice) => {
-        return preferredLangs.some(
-          (pref) => voice.lang.startsWith(pref.split('-')[0]) || voice.lang === pref
-        );
-      });
-
-      // Fallback to Sarvam TTS edge function if no local voice for Indic languages
-      if (!hasLocalVoice && lang !== 'en') {
+      // Sarvam neural TTS is the default for all languages.
+      try {
         setIsSpeaking(true);
-        supabase.functions
-          .invoke('sarvam-tts', {
-            body: {
-              text,
-              target_language_code: lang,
-              ...(speaker ? { speaker } : {}),
-            },
-          })
-          .then(({ data, error }) => {
-            if (error) throw error;
-            if (!data?.audio) throw new Error('No audio payload in response');
-
-            const audioUrl = `data:audio/mp3;base64,${data.audio}`;
-            const audio = new Audio(audioUrl);
-            sarvamAudioRef.current = audio;
-
-            audio.onplay = () => {
-              setIsSpeaking(true);
-              setIsPaused(false);
-            };
-
-            audio.onended = () => {
-              setIsSpeaking(false);
-              setIsPaused(false);
-              sarvamAudioRef.current = null;
-            };
-
-            audio.onerror = () => {
-              const errMsg = `Failed to play generated voice output.`;
-              setError(errMsg);
-              onErrorRef.current?.(errMsg);
-              setIsSpeaking(false);
-              sarvamAudioRef.current = null;
-            };
-
-            audio.play().catch(() => {
-              const errMsg = `Audio playback blocked or failed.`;
-              setError(errMsg);
-              onErrorRef.current?.(errMsg);
-              setIsSpeaking(false);
-            });
-          })
-          .catch((err) => {
-            const langName = LANGUAGES.find((l) => l.code === lang)?.name ?? lang;
-            const errMsg = `Voice output isn't available for ${langName} right now. Showing text only.`;
-            setError(errMsg);
-            onErrorRef.current?.(errMsg);
-            setIsSpeaking(false);
-            console.warn('Sarvam TTS failed:', err);
-          });
-      } else {
-        // Native SpeechSynthesis fallback/flow
-        if (!isSupported) {
-          const errMsg = 'Speech synthesis not supported in this browser.';
-          setError(errMsg);
-          onErrorRef.current?.(errMsg);
-          return;
+        const backendUrl = BACKEND_URL_OR_LOCAL;
+        if (!backendUrl) {
+          throw new Error('Backend URL not configured');
         }
+        const token = await getAccessToken();
+        const res = await fetch(`${backendUrl}/api/speech/tts`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            text: text.slice(0, 5000),
+            target_language_code: lang,
+            speaker: speaker || 'shubh',
+          }),
+        });
 
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = rate;
-        utterance.pitch = pitch;
-        utterance.volume = volume;
+        if (!res.ok) throw new Error(`TTS ${res.status}`);
+        const data = await res.json();
+        if (!data?.audio) throw new Error('No audio payload in response');
 
-        if (currentVoice) {
-          utterance.voice = currentVoice;
-          utterance.lang = currentVoice.lang;
-        } else {
-          const langCode = languageMap[lang]?.[0] || 'en-US';
-          utterance.lang = langCode;
-        }
+        currentTextRef.current = text;
+        sentencesRef.current = splitIntoSentences(text);
 
-        utterance.onstart = () => {
+        const audioUrl = `data:audio/mp3;base64,${data.audio}`;
+        const audio = new Audio(audioUrl);
+        sarvamAudioRef.current = audio;
+
+        const updateSentenceFromTime = () => {
+          if (!audio.duration || !Number.isFinite(audio.duration) || sentencesRef.current.length === 0) {
+            return;
+          }
+          const progress = audio.currentTime / audio.duration;
+          const idx = Math.min(
+            Math.max(0, Math.floor(progress * sentencesRef.current.length)),
+            sentencesRef.current.length - 1,
+          );
+          setCurrentSentence(sentencesRef.current[idx]);
+        };
+
+        audio.addEventListener('timeupdate', updateSentenceFromTime);
+
+        audio.onplay = () => {
           setIsSpeaking(true);
           setIsPaused(false);
+          setCurrentSentence(sentencesRef.current[0] ?? null);
         };
 
-        utterance.onend = () => {
+        audio.onended = () => {
           setIsSpeaking(false);
           setIsPaused(false);
+          setCurrentSentence(null);
+          audio.removeEventListener('timeupdate', updateSentenceFromTime);
+          sarvamAudioRef.current = null;
         };
 
-        utterance.onerror = (event) => {
-          console.error('Speech synthesis error:', event.error);
+        audio.onerror = () => {
+          const errMsg = `Failed to play generated voice output.`;
+          setError(errMsg);
+          onErrorRef.current?.(errMsg);
           setIsSpeaking(false);
-          setIsPaused(false);
+          setCurrentSentence(null);
+          audio.removeEventListener('timeupdate', updateSentenceFromTime);
+          sarvamAudioRef.current = null;
         };
 
-        utterance.onpause = () => {
-          setIsPaused(true);
-        };
-
-        utterance.onresume = () => {
-          setIsPaused(false);
-        };
-
-        utteranceRef.current = utterance;
-        window.speechSynthesis.speak(utterance);
+        audio.play().catch(() => {
+          const errMsg = `Audio playback blocked or failed.`;
+          setError(errMsg);
+          onErrorRef.current?.(errMsg);
+          setIsSpeaking(false);
+          setCurrentSentence(null);
+        });
+      } catch (err) {
+        // Fall back to native speech synthesis on backend failure.
+        console.warn('Sarvam TTS failed, falling back to native TTS:', err);
+        setIsSpeaking(false);
+        setCurrentSentence(null);
+        playNativeTTS(text);
       }
     },
-    [isSupported, currentVoice, lang, rate, pitch, volume, voices, speaker]
+    [isSupported, playNativeTTS, lang, speaker]
   );
 
   const stop = useCallback(() => {
@@ -233,6 +294,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     }
     setIsSpeaking(false);
     setIsPaused(false);
+    setCurrentSentence(null);
   }, [isSupported]);
 
   const pause = useCallback(() => {
@@ -266,6 +328,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
         window.speechSynthesis.cancel();
       }
       utteranceRef.current = null;
+      setCurrentSentence(null);
     };
   }, [isSupported]);
 
@@ -279,6 +342,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     isSupported,
     voices,
     currentVoice,
+    currentSentence,
     error,
   };
 };

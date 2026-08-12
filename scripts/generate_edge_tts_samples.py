@@ -11,7 +11,7 @@ VOICES = [
     ("en-US-JennyNeural", "jenny_us_female"),
 ]
 
-output_dir = "video-composition/assets/audio/voice_samples"
+output_dir = "artifacts/video-review/audio/voice_samples"
 os.makedirs(output_dir, exist_ok=True)
 
 async def generate_all():

@@ -36,3 +36,7 @@ The undeclared `book-to-skill` gitlink was removed after verifying that the only
 ## Follow-up completed — generated report separation
 
 Reproducible evaluation reports now default to `artifacts/evaluations/`, which is ignored. The stale tracked evaluation reports, duplicate query-results export, data-quality report, and root-level E2E screenshot were removed. The E2E screenshot test now writes into the Playwright-managed per-test output directory. Retained `results/query_results.json` and `results/The_Four_Sacred_Secrets_structure.json` remain because active tests, documentation, or ingestion scripts reference them.
+
+## Follow-up completed — legacy video composition retirement
+
+The legacy HyperFrames video-composition project, its captured screens, keyframes, audio stems, and authoring instructions were retired. No CI workflow or application path invoked the project. The supporting capture and TTS utilities now write only to the ignored `artifacts/video-review/` tree, and the keyframe utility accepts an explicit operator-supplied video instead of assuming a deleted tracked demo render. The current product-demo handoff and instrumental score remain the authoritative inputs for any future video production.

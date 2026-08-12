@@ -48,7 +48,7 @@ async function captureAllCleanScreens() {
       if (overlay) overlay.remove();
     });
     await page.waitForTimeout(2500);
-    const savePath = path.join(__dirname, '../video-composition/assets/screens', s.name);
+    const savePath = path.join(__dirname, '../artifacts/video-review/screens', s.name);
     await page.screenshot({ path: savePath });
     console.log(`✓ Saved ${s.name}`);
   }

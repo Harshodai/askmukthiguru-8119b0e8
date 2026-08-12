@@ -3,7 +3,7 @@ import os
 import json
 from playwright.async_api import async_playwright
 
-screens_dir = os.path.abspath("video-composition/assets/screens")
+screens_dir = os.path.abspath("artifacts/video-review/screens")
 os.makedirs(screens_dir, exist_ok=True)
 
 async def capture_dark_mode_ruthless():

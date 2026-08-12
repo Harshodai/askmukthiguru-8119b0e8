@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAdmins } from "@/admin/hooks/useAdminData";
-import { promoteAdmin, demoteAdmin } from "@/admin/lib/mockData";
+import { promoteAdmin, demoteAdmin } from "@/admin/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { fmtDate } from "@/admin/lib/formatters";
 import { Trash2 } from "lucide-react";

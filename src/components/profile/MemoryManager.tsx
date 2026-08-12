@@ -460,7 +460,7 @@ export const MemoryManager = () => {
 
   useEffect(() => {
     refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   // Native wheel listener with passive:false so preventDefault() actually works
@@ -709,7 +709,7 @@ export const MemoryManager = () => {
                 <div className="mx-auto w-12 h-12 rounded-full bg-ojas/10 flex items-center justify-center border border-ojas/30">
                   <Brain className="w-6 h-6 text-ojas animate-pulse" />
                 </div>
-                
+
                 <div className="space-y-2">
                   <h4 className="text-xl font-serif italic text-white tracking-tight">Your Consciousness Map</h4>
                   <p className="text-xs font-sans text-muted-foreground leading-relaxed">
@@ -1154,15 +1154,15 @@ export const MemoryManager = () => {
                       {/* Grouped state counts */}
                       <div className="space-y-2">
                         <span className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider">States Identified</span>
-                        
+
                         {(() => {
                           const stateGroups = ['Beautiful State', 'Suffering State', 'Shrinking Self', 'Destructive Self', 'Inert Self'];
                           const memories = kgNodes.filter(n => n.type === 'Memory');
-                          
+
                           return stateGroups.map(state => {
                             const matchingNodes = memories.filter(n => n.state_category === state);
                             if (matchingNodes.length === 0) return null;
-                            
+
                             return (
                               <div key={state} className="space-y-1 bg-zinc-950/40 p-2 rounded-lg border border-zinc-900">
                                 <div className="flex items-center justify-between">

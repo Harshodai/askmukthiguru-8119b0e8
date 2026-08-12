@@ -12,9 +12,10 @@
  *
  * TRANSLATION ENGINE
  * ──────────────────
- * Uses MyMemory free API (https://api.mymemory.translated.net) — no API key
- * needed, supports all 22 scheduled Indian languages + English.
- * Daily limit: 5,000 words (more than enough for a spiritual chat session).
+ * Routes through the existing backend `/api/translate` endpoint via
+ * `translateText` in `src/lib/chat/transport.ts`. This keeps user messages off
+ * public third-party services and lets the backend handle provider selection,
+ * rate limiting, and authentication.
  *
  * The hook caches translations in a session-scoped Map to avoid re-translating
  * identical strings (e.g., repeated "Tell me more" clicks).
@@ -22,12 +23,13 @@
  * FAIL-SAFE
  * ─────────
  * All translation failures return the original text unchanged so the chat
- * never breaks. Errors are silently logged (no UI crash).
+ * never breaks. Errors are surfaced through `lastError` and logged with a
+ * short prefix.
  */
 
 import { useCallback, useRef, useState } from 'react';
+import { translateText } from '@/lib/chat/transport';
 
-const MYMEMORY_BASE = 'https://api.mymemory.translated.net/get';
 const CACHE_MAX = 200;
 
 interface TranslationCache {
@@ -42,7 +44,6 @@ function makeCache(): TranslationCache {
     get: (k) => map.get(k),
     set: (k, v) => {
       if (map.size >= CACHE_MAX) {
-        // Evict oldest entry
         const first = map.keys().next().value;
         if (first !== undefined) map.delete(first);
       }
@@ -52,27 +53,15 @@ function makeCache(): TranslationCache {
   };
 }
 
-async function myMemoryTranslate(
+async function backendTranslate(
   text: string,
   fromCode: string,
   toCode: string,
 ): Promise<string> {
   if (!text.trim()) return text;
-  const url = new URL(MYMEMORY_BASE);
-  url.searchParams.set('q', text);
-  url.searchParams.set('langpair', `${fromCode}|${toCode}`);
-  const res = await fetch(url.toString(), { signal: AbortSignal.timeout(6000) });
-  if (!res.ok) throw new Error(`MyMemory ${res.status}`);
-  const json = await res.json() as {
-    responseData: { translatedText: string; match: number };
-    responseStatus: number;
-  };
-  if (json.responseStatus !== 200 && json.responseStatus !== 206) {
-    throw new Error(`MyMemory status ${json.responseStatus}`);
-  }
-  const translated = json.responseData.translatedText;
-  if (!translated || translated === text) return text;
-  return translated;
+  const result = await translateText(text, toCode, fromCode);
+  if (!result || result === text) return text;
+  return result;
 }
 
 export interface UseAutoTranslateOptions {
@@ -95,34 +84,11 @@ export interface UseAutoTranslateResult {
   lastError: string | null;
 }
 
-/**
- * Maps our language codes to BCP-47 tags that MyMemory understands.
- * Most codes are the same; a few need remapping.
- */
-const TO_MYMEMORY: Record<string, string> = {
-  en:  'en-GB',
-  hi:  'hi-IN',
-  bn:  'bn-IN',
-  te:  'te-IN',
-  mr:  'mr-IN',
-  ta:  'ta-IN',
-  ur:  'ur-PK',
-  gu:  'gu-IN',
-  kn:  'kn-IN',
-  ml:  'ml-IN',
-  or:  'or-IN',
-  pa:  'pa-IN',
-  as:  'as-IN',
-  mai: 'mai-IN',
-  sa:  'sa-IN',
-  ks:  'ks-IN',
-  ne:  'ne-NP',
-  sd:  'sd-IN',
-  kok: 'kok-IN',
-  doi: 'doi-IN',
-  mni: 'mni-IN',
-  sat: 'sat-IN',
-  brx: 'brx-IN',
+const TO_BACKEND: Record<string, string> = {
+  en: 'en-IN', hi: 'hi-IN', bn: 'bn-IN', te: 'te-IN', mr: 'mr-IN', ta: 'ta-IN',
+  ur: 'ur-IN', gu: 'gu-IN', kn: 'kn-IN', ml: 'ml-IN', or: 'or-IN', pa: 'pa-IN',
+  as: 'as-IN', sa: 'sa-IN', mai: 'mai-IN', ks: 'ks-IN', ne: 'ne-IN', sd: 'sd-IN',
+  kok: 'kok-IN', doi: 'doi-IN', mni: 'mni-IN', sat: 'sat-IN', brx: 'brx-IN',
 };
 
 export function useAutoTranslate({
@@ -133,7 +99,7 @@ export function useAutoTranslate({
   const [lastError, setLastError] = useState<string | null>(null);
   const cacheRef = useRef<TranslationCache>(makeCache());
   const isActive = languageCode !== 'en';
-  const langTag = TO_MYMEMORY[languageCode] ?? languageCode;
+  const langTag = TO_BACKEND[languageCode] ?? `${languageCode}-IN`;
 
   const translateToEnglish = useCallback(async (text: string): Promise<string> => {
     if (!isActive || !text.trim()) return text;
@@ -144,14 +110,14 @@ export function useAutoTranslate({
     setIsTranslating(true);
     setLastError(null);
     try {
-      const result = await myMemoryTranslate(text, langTag, 'en-GB');
+      const result = await backendTranslate(text, langTag, 'en-IN');
       cacheRef.current.set(cacheKey, result);
       return result;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setLastError(msg);
       console.warn('[AutoTranslate] Failed to translate to English:', msg);
-      return text; // fail-safe: return original
+      return text;
     } finally {
       setIsTranslating(false);
     }
@@ -166,14 +132,14 @@ export function useAutoTranslate({
     setIsTranslating(true);
     setLastError(null);
     try {
-      const result = await myMemoryTranslate(text, 'en-GB', langTag);
+      const result = await backendTranslate(text, 'en-IN', langTag);
       cacheRef.current.set(cacheKey, result);
       return result;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setLastError(msg);
       console.warn('[AutoTranslate] Failed to translate from English:', msg);
-      return text; // fail-safe
+      return text;
     } finally {
       setIsTranslating(false);
     }

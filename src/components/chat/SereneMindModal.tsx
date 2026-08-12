@@ -738,7 +738,7 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete, isPrimary = false, 
     } else {
       sendPlayerCommand('pauseVideo');
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [externalIsPlaying, mode]);
 
   // Simulating time tracking for custom seekbar

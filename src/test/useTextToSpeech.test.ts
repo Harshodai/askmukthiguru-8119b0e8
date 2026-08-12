@@ -3,6 +3,19 @@ import { renderHook, act } from '@testing-library/react';
 import { StrictMode, createElement } from 'react';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 
+// Mock backend URL + auth token
+vi.mock('@/lib/backendUrl', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/backendUrl')>();
+  return {
+    ...actual,
+    BACKEND_URL_OR_LOCAL: 'http://localhost:8000',
+  };
+});
+
+vi.mock('@/lib/chat/auth', () => ({
+  getAccessToken: vi.fn(() => Promise.resolve('mock-token')),
+}));
+
 // Mock SpeechSynthesis
 const mockSpeak = vi.fn();
 const mockCancel = vi.fn();
@@ -18,21 +31,15 @@ describe('useTextToSpeech', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSpeaking = false;
+    vi.stubGlobal('fetch', vi.fn());
 
     // Mock SpeechSynthesisUtterance
-    global.SpeechSynthesisUtterance = vi.fn().mockImplementation(() => ({
-      text: '',
-      rate: 1,
-      pitch: 1,
-      volume: 1,
-      voice: null,
-      lang: '',
-      onstart: null,
-      onend: null,
-      onerror: null,
-      onpause: null,
-      onresume: null,
-    })) as unknown as typeof SpeechSynthesisUtterance;
+    global.SpeechSynthesisUtterance = vi.fn(function SpeechSynthesisUtteranceMock() {
+      return {
+        text: '', rate: 1, pitch: 1, volume: 1, voice: null, lang: '',
+        onstart: null, onend: null, onerror: null, onpause: null, onresume: null, onboundary: null,
+      };
+    }) as unknown as typeof SpeechSynthesisUtterance;
 
     // Mock speechSynthesis
     Object.defineProperty(window, 'speechSynthesis', {
@@ -75,14 +82,46 @@ describe('useTextToSpeech', () => {
     expect(result.current.isPaused).toBe(false);
   });
 
-  it('should call speechSynthesis.speak when speak is invoked', () => {
+  it('should call backend /api/speech/tts by default', async () => {
+    const fakeAudio = 'ZmFrZS1hdWRpbw==';
+    vi.mocked(window.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ audio: fakeAudio }),
+    } as Response);
+
     const { result } = renderHook(() => useTextToSpeech());
 
-    act(() => {
+    await act(async () => {
       result.current.speak('Hello world');
     });
 
-    expect(mockCancel).toHaveBeenCalled();
+    expect(window.fetch).toHaveBeenCalledTimes(1);
+    expect(window.fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/api/speech/tts',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer mock-token',
+        }),
+        body: expect.any(String),
+      })
+    );
+  });
+
+  it('should fall back to native speech synthesis when backend returns 5xx', async () => {
+    vi.mocked(window.fetch).mockRejectedValueOnce(new Error('TTS 500'));
+
+    const { result } = renderHook(() => useTextToSpeech());
+
+    await act(async () => {
+      result.current.speak('Hello world');
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+
     expect(mockSpeak).toHaveBeenCalled();
   });
 
@@ -93,6 +132,7 @@ describe('useTextToSpeech', () => {
       result.current.speak('   ');
     });
 
+    expect(window.fetch).not.toHaveBeenCalled();
     expect(mockSpeak).not.toHaveBeenCalled();
   });
 
@@ -131,11 +171,16 @@ describe('useTextToSpeech', () => {
     expect(result.current.isSupported).toBe(true);
   });
 
-  it('should cancel its own speech on unmount only when it owns a speaking utterance', () => {
+  it('should cancel its own speech on unmount only when it owns a speaking utterance', async () => {
+    vi.mocked(window.fetch).mockRejectedValueOnce(new Error('TTS 500'));
     const { result, unmount } = renderHook(() => useTextToSpeech());
 
-    act(() => {
+    await act(async () => {
       result.current.speak('Hello world');
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
     });
 
     mockSpeaking = true;
@@ -154,6 +199,7 @@ describe('useTextToSpeech', () => {
 
     expect(mockCancel).not.toHaveBeenCalled();
   });
+
 
   it('should register and remove the voiceschanged listener on mount and unmount', () => {
     const { unmount } = renderHook(() => useTextToSpeech());
@@ -192,11 +238,15 @@ describe('useTextToSpeech', () => {
     expect(mockRemoveVoicesListener).toHaveBeenCalledTimes(1);
   });
 
-  it('should tolerate double unmount without error', () => {
+  it('should tolerate double unmount without error', async () => {
+    vi.mocked(window.fetch).mockRejectedValueOnce(new Error('TTS 500'));
     const { result, unmount } = renderHook(() => useTextToSpeech());
 
-    act(() => {
+    await act(async () => {
       result.current.speak('Hello world');
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
     });
     mockSpeaking = true;
     const cancelCallsBeforeUnmount = mockCancel.mock.calls.length;
@@ -206,6 +256,34 @@ describe('useTextToSpeech', () => {
 
     expect(mockCancel.mock.calls.length).toBe(cancelCallsBeforeUnmount + 1);
     expect(mockRemoveVoicesListener).toHaveBeenCalled();
+  });
+
+  it('should expose currentSentence and update it on native boundary events', async () => {
+    vi.mocked(window.fetch).mockRejectedValueOnce(new Error('TTS 500'));
+    const { result } = renderHook(() => useTextToSpeech());
+
+    await act(async () => {
+      result.current.speak('Hello world. How are you?');
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+
+    expect(mockSpeak).toHaveBeenCalled();
+    const utterance = mockSpeak.mock.calls[0][0] as SpeechSynthesisUtterance & { onboundary: (event: { charIndex: number }) => void };
+    expect(utterance.onboundary).toBeDefined();
+
+    act(() => {
+      utterance.onboundary({ charIndex: 0 } as Event & { charIndex: number });
+    });
+
+    expect(result.current.currentSentence).toBe('Hello world.');
+
+    act(() => {
+      utterance.onboundary({ charIndex: 15 } as Event & { charIndex: number });
+    });
+
+    expect(result.current.currentSentence).toBe('How are you?');
   });
 });
 

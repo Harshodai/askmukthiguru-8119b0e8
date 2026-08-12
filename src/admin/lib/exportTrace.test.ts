@@ -3,10 +3,11 @@ import type { QueryTrace } from "../types";
 
 // Stub out DOM bits used by exportTrace
 beforeEach(() => {
-  vi.stubGlobal("URL", {
-    createObjectURL: vi.fn(() => "blob:mock"),
-    revokeObjectURL: vi.fn(),
-  });
+  class URLMock extends URL {
+    static createObjectURL = vi.fn(() => "blob:mock");
+    static revokeObjectURL = vi.fn();
+  }
+  vi.stubGlobal("URL", URLMock);
   document.body.innerHTML = "";
 });
 

@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 
-const screensDir = path.join(__dirname, '../video-composition/assets/screens');
+const screensDir = path.join(__dirname, '../artifacts/video-review/screens');
 if (!fs.existsSync(screensDir)) {
   fs.mkdirSync(screensDir, { recursive: true });
 }

@@ -27,6 +27,17 @@ def _regular_user():
     return {"id": "user-1", "email": "user@example.com", "is_superuser": False}
 
 
+class _NoOpSession:
+    def run(self, *args, **kwargs):
+        return iter([])
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
 @pytest.fixture(autouse=True)
 def _admin_override():
     app.dependency_overrides[get_current_user_from_supabase] = _admin_user
@@ -86,6 +97,52 @@ def test_kg_sparql_requires_admin():
     app.dependency_overrides[get_current_user_from_supabase] = _regular_user
     resp = client.post("/api/kg/sparql", json={"query": "MATCH (n) RETURN n LIMIT 1"})
     assert resp.status_code == 403
+
+
+def test_kg_subgraph_allows_anonymous_and_normalizes_teacher(monkeypatch):
+    import app.dependencies
+    import app.api.kg as kg_module
+
+    class _FakeDriver:
+        def session(self):
+            return _NoOpSession()
+
+    class _FakeContainer:
+        neo4j_driver = _FakeDriver()
+
+    monkeypatch.setattr(app.dependencies, "get_container", lambda: _FakeContainer())
+    monkeypatch.setattr(kg_module, "get_container", lambda: _FakeContainer())
+    res = client.get("/api/kg/subgraph?query=beautiful+state&limit=5")
+    assert res.status_code == 200
+    data = res.json()
+    # If live data is present, no node should label teacher as Krishnamurti.
+    for node in data.get("nodes", []):
+        teacher = (node.get("teacher") or "").lower()
+        assert "krishnamurti" not in teacher
+
+
+def test_kg_subgraph_rate_limits_anonymous(monkeypatch):
+    import app.dependencies
+    import app.api.kg as kg_module
+    from app.api.kg import _KG_SUBGRAPH_RATE_LIMITER
+
+    class _FakeDriver:
+        def session(self):
+            return _NoOpSession()
+
+    class _FakeContainer:
+        neo4j_driver = _FakeDriver()
+
+    monkeypatch.setattr(app.dependencies, "get_container", lambda: _FakeContainer())
+    monkeypatch.setattr(kg_module, "get_container", lambda: _FakeContainer())
+    _KG_SUBGRAPH_RATE_LIMITER._store.clear()
+    # Exhaust the anonymous rate limit bucket quickly.
+    for _ in range(30):
+        res = client.get("/api/kg/subgraph?query=beautiful+state&limit=5")
+        assert res.status_code in (200, 429)
+    # The next request should be rejected.
+    res = client.get("/api/kg/subgraph?query=beautiful+state&limit=5")
+    assert res.status_code == 429
 
 
 def test_kg_sparql_runs_inside_managed_read_transaction():

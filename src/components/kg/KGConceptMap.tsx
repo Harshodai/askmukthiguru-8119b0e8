@@ -21,7 +21,7 @@ interface SimNode extends KGNode {
   degree: number;
 }
 
-const DEMO_DATA: Subgraph = {
+export const DEMO_DATA: Subgraph = {
   nodes: [
     { id: '1', label: 'Beautiful State', type: 'State', teacher: 'Sri Preethaji' },
     { id: '2', label: 'Suffering State', type: 'State', teacher: 'Sri Preethaji' },
@@ -29,9 +29,9 @@ const DEMO_DATA: Subgraph = {
     { id: '4', label: 'Compassion', type: 'Practice', teacher: 'Sri Preethaji' },
     { id: '5', label: 'Stillness', type: 'Practice', teacher: 'Sri Preethaji' },
     { id: '6', label: 'Ekam', type: 'Concept', teacher: 'Sri Preethaji' },
-    { id: '7', label: 'Krishnamurti', type: 'Teacher', teacher: 'J. Krishnamurti' },
-    { id: '8', label: 'Freedom from Known', type: 'Concept', teacher: 'J. Krishnamurti' },
-    { id: '9', label: 'Observation', type: 'Practice', teacher: 'J. Krishnamurti' },
+    { id: '7', label: 'Sri Krishnaji', type: 'Teacher', teacher: 'Sri Krishnaji' },
+    { id: '8', label: 'Freedom from the Known', type: 'Concept', teacher: 'Sri Krishnaji' },
+    { id: '9', label: 'Observation', type: 'Practice', teacher: 'Sri Krishnaji' },
     { id: '10', label: 'Serene Mind', type: 'Practice', teacher: 'Sri Preethaji' },
   ],
   edges: [
@@ -164,12 +164,12 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       clearTimeout(timeoutId);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as Subgraph;
-      
+
       if (requestId !== activeReqRef.current) return;
       if (!json.nodes || json.nodes.length === 0) {
-        setData(DEMO_DATA);
-        setIsDemo(true);
-        setError(t('kg.noConceptsFor', 'No matching concepts — showing the core teaching map.'));
+        setData(null);
+        setIsDemo(false);
+        setError(t('kg.noConceptsFor', { query: q }));
       } else {
         setData(json);
         setError(null);
@@ -177,11 +177,12 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       }
       setPan({ x: 0, y: 0 });
       setZoom(1);
-    } catch {
+    } catch (err) {
       if (requestId !== activeReqRef.current) return;
-      setData(DEMO_DATA);
-      setIsDemo(true);
-      setError(null);
+      const message = err instanceof Error ? err.message : String(err);
+      setData(null);
+      setIsDemo(false);
+      setError(t('kg.errorLoading', { error: message }));
       setPan({ x: 0, y: 0 });
       setZoom(1);
     } finally {
@@ -191,15 +192,14 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
     }
   }, [t]);
 
-  // Auto-load on mount so the page never looks empty.
+  // A single submitted-query effect owns request startup. Keeping this dependent
+  // only on the query avoids duplicate startup requests or translation-function
+  // identity changes superseding a valid in-flight response.
   useEffect(() => {
-    fetchSubgraph(submitted || 'beautiful state');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (submitted) fetchSubgraph(submitted);
-  }, [submitted, fetchSubgraph]);
+    void fetchSubgraph(submitted || 'beautiful state');
+    // fetchSubgraph intentionally captures the current translator for this query.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitted]);
 
   useEffect(() => {
     return () => {
@@ -533,12 +533,26 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       {error && (
         <div className="text-sm text-destructive">
           {error}
+          {!isDemo && data === null && (
+            <button
+              type="button"
+              onClick={() => {
+                setData(DEMO_DATA);
+                setIsDemo(true);
+                setError(null);
+              }}
+              className="ml-3 inline-flex items-center rounded-md bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
+              aria-label={t('kg.showExampleMap')}
+            >
+              {t('kg.showExampleMap')}
+            </button>
+          )}
         </div>
       )}
 
       {isDemo && data && (
         <div className="text-sm text-muted-foreground text-center italic font-sans">
-          {t('kg.showingDemo', 'Showing demo data instead')}
+          {t('kg.showingDemo')}
         </div>
       )}
 
@@ -557,12 +571,6 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
           <p className="text-sm text-center max-w-xs italic">
             {t('kg.emptyPrompt', 'Explore the wisdom map \u2014 search above')}
           </p>
-        </div>
-      )}
-
-      {data && data.nodes.length === 0 && !loading && (
-        <div className="flex items-center justify-center py-16 text-muted-foreground font-sans">
-          <p className="text-sm italic">{t('kg.noConceptsFor', { query: submitted })}</p>
         </div>
       )}
 
@@ -748,6 +756,8 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
               return (
                 <g
                   key={n.id}
+                  data-testid="kg-node"
+                  aria-label={n.label}
                   transform={`translate(${n.x} ${n.y})`}
                   opacity={faded ? 0.15 : 1}
                   style={{ transition: 'opacity 0.15s ease-out' }}
