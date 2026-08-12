@@ -167,7 +167,7 @@ async def test_retrieval_bm25_uses_native_sparse_vector(mock_retrieval_services,
 
     captured = {}
 
-    def fake_bm25_sparse_search(query, embedder, qdrant, limit):
+    def fake_bm25_sparse_search(query, embedder, qdrant, limit, scope=None):
         captured["query"] = query
         captured["limit"] = limit
         return [{"text": "bm25 sparse result", "score": 0.7, "source": "bm25"}]

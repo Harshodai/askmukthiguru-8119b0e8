@@ -89,9 +89,15 @@ class QdrantSearcher:
         payload field is applied, enabling per-teacher content isolation
         (payload-based multitenancy).
         """
+        tenant_id = TenantContext.get()
+        if not isinstance(tenant_id, str) or not tenant_id.strip():
+            tenant_id = "default"
+        corpus_id = getattr(settings, "default_corpus_id", "askmukthiguru")
+        if not isinstance(corpus_id, str) or not corpus_id.strip():
+            corpus_id = "askmukthiguru"
         scope = scope or CorpusScope(
-            tenant_id=TenantContext.get() or "default",
-            corpus_id=settings.default_corpus_id,
+            tenant_id=tenant_id,
+            corpus_id=corpus_id,
             teacher_id=teacher_id,
         )
         # Keep internal over-fetch small — fewer prefetches means lower Qdrant latency
