@@ -61,3 +61,19 @@ multiple worker replicas therefore do not process the same claimed row.
 To roll back new memory writes, set `FEATURE_MEMORY_WRITE=false`. Existing outbox
 rows remain visible for controlled replay or account-wide deletion; do not drop the
 outbox tables as a rollback shortcut.
+
+## Queued Chat Reconnection and Redis Streams Gate
+
+Queued chat streams now emit Redis Stream entry IDs as SSE `id` fields and accept
+the standard `Last-Event-ID` header. A reconnect replays only entries after that
+cursor; malformed cursors are ignored and restart from `0`. Event streams retain
+for at least `QUEUE_JOB_TTL`, and responses disable intermediary buffering.
+
+`USE_REQUEST_QUEUE=false` remains the production-safe default. Although the
+repository contains a Redis Streams queue abstraction, the chat producer and a
+dedicated cross-replica request consumer have not yet been switched to it. The
+capability manifest therefore reports it as unavailable even if the flag is set.
+Do not enable the flag until a staging deployment demonstrates producer routing,
+consumer-group recovery (`XAUTOCLAIM`), cancellation semantics, and ownership
+checks under a process restart. The existing Redis-backed `JobQueueService` with
+its NX lease remains the active queued-chat path.

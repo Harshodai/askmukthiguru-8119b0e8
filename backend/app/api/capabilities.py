@@ -35,7 +35,7 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
             "knowledge_graph": _state(settings.knowledge_graph_query_enabled, graph_available),
             "memory_write": _state(settings.feature_memory_write),
             "live_information": _state(settings.web_search_enabled, getattr(container, "web_search", None) is not None),
-            "request_queue": _state(settings.use_request_queue, getattr(container, "job_queue", None) is not None),
+            "request_queue": _state(settings.use_request_queue, False),
             "teacher_voice": _state(settings.langhanam_voice_enabled),
             "whatsapp": "disabled_by_policy",
             "support_attachments": "disabled_by_policy",

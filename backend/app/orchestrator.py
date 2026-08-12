@@ -303,7 +303,7 @@ async def _drain_stream_to_redis(
             )
             marker = "__ERROR__" if failed else "__COMPLETE__"
             await r.xadd(stream_key, {"data": marker}, maxlen=1000)
-            await r.expire(stream_key, 600)
+            await r.expire(stream_key, max(600, settings.queue_job_ttl))
             await r.close()
     except Exception as exc:
         logger.warning(f"Stream drain failed for {job_id}: {exc}")

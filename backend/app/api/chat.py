@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 from functools import wraps
 from typing import Optional
@@ -464,9 +465,15 @@ async def chat_stream_poll(
     import redis.asyncio as aioredis
     r = aioredis.from_url(settings.redis_url, decode_responses=True)
     stream_key = f"job:stream:{job_id}:events"
+    requested_last_id = (request.headers.get("last-event-id") or "0").strip()
+    last_event_id = (
+        requested_last_id
+        if re.fullmatch(r"\d+-\d+", requested_last_id)
+        else "0"
+    )
 
     async def _sse():
-        last_id = "0"
+        last_id = last_event_id
         timeout = settings.queue_default_timeout
         deadline = time.time() + timeout
         try:
@@ -501,28 +508,33 @@ async def chat_stream_poll(
                     for entry_id, fields in entries:
                         last_id = entry_id
                         data = fields.get("data", "")
+                        event_id = f"id: {entry_id}\n"
                         if data == "__COMPLETE__":
-                            yield "event: done\ndata: {}\n\n"
+                            yield f"{event_id}event: done\ndata: {{}}\n\n"
                             return
                         if data == "__ERROR__":
-                            yield "event: error\ndata: Pipeline failed\n\n"
+                            yield f"{event_id}event: error\ndata: Pipeline failed\n\n"
                             return
                         try:
                             parsed = json.loads(data)
                             if isinstance(parsed, dict):
                                 evt = parsed.get("event", "status")
                                 dat = parsed.get("data", "")
-                                yield f"event: {evt}\ndata: {dat}\n\n"
+                                yield f"{event_id}event: {evt}\ndata: {dat}\n\n"
                             else:
-                                yield f"event: token\ndata: {str(parsed)}\n\n"
+                                yield f"{event_id}event: token\ndata: {str(parsed)}\n\n"
                         except (json.JSONDecodeError, TypeError):
-                            yield f"event: token\ndata: {data}\n\n"
+                            yield f"{event_id}event: token\ndata: {data}\n\n"
                 await asyncio.sleep(0.1)
             yield "event: error\ndata: Stream timeout\n\n"
         finally:
             await r.close()
 
-    return StreamingResponse(_sse(), media_type="text/event-stream")
+    return StreamingResponse(
+        _sse(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # === Breath Technique Teaching ===
