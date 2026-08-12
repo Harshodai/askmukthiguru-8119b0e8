@@ -16,7 +16,7 @@ Supports:
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 from qdrant_client.http.models import FieldCondition, Filter, MatchAny, MatchValue
 

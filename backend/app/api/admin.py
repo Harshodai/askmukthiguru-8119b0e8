@@ -3,6 +3,7 @@ Admin dashboard API routes.
 
 Unit 13 — moved from `routers/admin.py` into `app.api`.
 """
+import re
 
 import asyncio
 import logging
@@ -11,6 +12,7 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from celery_config import celery_app
 
 from app.config import settings
 from app.core.limiter import limiter

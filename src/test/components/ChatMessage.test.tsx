@@ -179,4 +179,17 @@ describe('ChatMessage (regression)', () => {
     render(<ChatMessage message={message} />, { wrapper });
     expect(screen.getByText(/Recalled from your reflections/i)).toBeInTheDocument();
   });
+
+  it("surfaces source context and verifier confidence for a guru response", () => {
+    const message = makeGuruMessage({
+      citations: ["https://example.com/one", "https://example.com/two"],
+      confidenceScore: 8.4,
+      confidenceReason: "Retrieved teaching and answer aligned.",
+    });
+    render(<ChatMessage message={message} />, { wrapper });
+    const provenance = screen.getByTestId("response-provenance");
+    expect(provenance).toHaveTextContent("2 source links provided");
+    expect(provenance).toHaveTextContent("8.4/10");
+    expect(screen.getByRole("button", { name: "Open response sources" })).toBeInTheDocument();
+  });
 });

@@ -45,6 +45,7 @@ interface DemoModalProps {
   isOpen: boolean;
   onComplete: () => void;
   onDismiss: () => void;
+  productVideoUrl?: string;
 }
 
 const STEPS = [
@@ -74,7 +75,7 @@ const STEPS = [
   },
 ] as const;
 
-export const DemoModal = ({ isOpen, onComplete, onDismiss }: DemoModalProps) => {
+export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: DemoModalProps) => {
   const { t } = useTranslation();
   const [stepIndex, setStepIndex] = useState(0);
   const completionRef = useRef(false);
@@ -126,6 +127,26 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss }: DemoModalProps) => 
         <DialogDescription className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
           {step.description}
         </DialogDescription>
+        {productVideoUrl && (
+          <section
+            aria-label="AskMukthiGuru product demo video"
+            className="mt-5 overflow-hidden rounded-xl border border-ojas/25 bg-black"
+          >
+            <video
+              controls
+              playsInline
+              preload="metadata"
+              className="aspect-video w-full"
+              aria-label="AskMukthiGuru product demo"
+            >
+              <source src={productVideoUrl} />
+              Your browser does not support the product demo video.
+            </video>
+            <p className="bg-background px-4 py-2.5 text-xs leading-relaxed text-muted-foreground">
+              A short product walkthrough. The interactive tour below remains available if you prefer to explore at your own pace.
+            </p>
+          </section>
+        )}
 
         <div className="mt-6 rounded-xl border border-ojas/20 bg-ojas/5 p-4 sm:p-5">
           <div className="flex items-center gap-3 text-foreground">

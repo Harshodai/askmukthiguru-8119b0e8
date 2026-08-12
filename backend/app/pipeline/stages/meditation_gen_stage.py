@@ -8,6 +8,7 @@ always remains the default fallback.
 
 from __future__ import annotations
 
+from app.pipeline.result import PipelineResult
 import json
 import logging
 import re

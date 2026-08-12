@@ -926,6 +926,43 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             )}
 
             {/* Sources / Citations — collapsed by default, max 3 shown inline */}
+            {isGuru && !isStreaming && (citations.length > 0 || typeof message.confidenceScore === 'number') && (
+              <div
+                data-testid="response-provenance"
+                role="status"
+                className="w-full flex items-center gap-2.5 rounded-xl border border-ojas/15 bg-ojas/[0.045] px-3 py-2 text-xs text-muted-foreground"
+              >
+                <Shield className="h-3.5 w-3.5 shrink-0 text-ojas" aria-hidden="true" />
+                <div className="min-w-0 flex-1 leading-tight">
+                  <p className="font-medium text-foreground/80">Response context</p>
+                  <p>
+                    {citations.length > 0
+                      ? `${citations.length} ${citations.length === 1 ? 'source link' : 'source links'} provided`
+                      : 'Reflective guidance without a direct source link'}
+                  </p>
+                </div>
+                {typeof message.confidenceScore === 'number' && Number.isFinite(message.confidenceScore) && (
+                  <span
+                    className="shrink-0 rounded-full bg-card px-2 py-1 font-medium tabular-nums text-foreground/80"
+                    title={message.confidenceReason || 'Verifier confidence on a 1–10 scale'}
+                    aria-label={`Verifier confidence ${Math.max(0, Math.min(10, message.confidenceScore)).toFixed(1)} out of 10`}
+                  >
+                    {Math.max(0, Math.min(10, message.confidenceScore)).toFixed(1)}/10
+                  </span>
+                )}
+                {citations.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSourcesOpen(true)}
+                    className="shrink-0 rounded-full px-1.5 py-1 text-ojas hover:bg-ojas/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas/60"
+                    aria-label="Open response sources"
+                    title="Open response sources"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            )}
             {isGuru && citations.length > 0 && (
               <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/85 to-card/50 backdrop-blur-md px-4 py-3 group/details shadow-md transition-all duration-300">
                 <summary className="flex items-center gap-2.5 cursor-pointer list-none select-none">

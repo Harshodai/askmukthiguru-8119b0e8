@@ -549,6 +549,32 @@ const ProfilePage = () => {
                       </Select>
                     </div>
                   </div>
+                  <div
+                    data-testid="guidance-preview"
+                    aria-live="polite"
+                    className="rounded-2xl border border-ojas/20 bg-gradient-to-br from-ojas/[0.08] via-card to-card px-4 py-3.5"
+                  >
+                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <Sparkles className="h-4 w-4 text-ojas" aria-hidden="true" />
+                      Your guidance preview
+                    </div>
+                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                      {form.guruTone === 'direct'
+                        ? 'Clear, concise guidance that comes to the practical next step quickly.'
+                        : form.guruTone === 'poetic'
+                          ? 'Reflective language with imagery, while keeping the teaching clear and useful.'
+                          : 'Warm, steady guidance that makes room for your experience before offering a next step.'}
+                      {' '}
+                      {form.familiarityLevel === 'advanced'
+                        ? 'It can use deeper philosophical terms when the teaching supports them.'
+                        : form.familiarityLevel === 'practitioner'
+                          ? 'It balances a teaching with a practical reflection or meditation cue.'
+                          : 'It explains spiritual terms plainly before building on them.'}
+                    </p>
+                    <p className="mt-2 text-xs text-ojas/90">
+                      Source-aware by design: verified quotations remain attributed; unsupported questions receive a clear limit or clarification.
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
 

@@ -1,11 +1,4 @@
-"""Tests for the Langhanam unified guru voice (Task 16).
-
-Covers the no-filler detection, direct-address detection, single-teaching
-guard, Sanskrit-term preservation, system-prompt rendering (variant A),
-rule-based tone adapter (variant B), and feature-flag gating.
-"""
-
-from __future__ import annotations
+"""Regression tests for prompt-time grounded guru voice behavior."""
 
 import pytest
 
@@ -178,70 +171,8 @@ def test_render_langhanam_system_prompt_empty_base():
     assert render_langhanam_system_prompt("") == LANGHANAM_VOICE_BLOCK
 
 
-# --- Variant B: rule-based tone adapter ------------------------------------
-
-def test_apply_langhanam_tone_strips_fillers():
-    from rag.nodes.guru_tone_adapter import apply_langhanam_tone
-
-    text = "Basically, you know, the first langhanam is fasting from food."
-    rewritten = apply_langhanam_tone(text)
-    assert count_fillers(rewritten) == 0
-    assert "langhanam" in rewritten
-
-
-def test_apply_langhanam_tone_preserves_citations_and_sanskrit():
-    from rag.nodes.guru_tone_adapter import apply_langhanam_tone
-
-    text = (
-        "Basically the second langhanam is fasting from breath. "
-        "Practice slow inhalations with breath pauses. [[CITE:1]]"
-    )
-    rewritten = apply_langhanam_tone(text)
-    assert "[[CITE:1]]" in rewritten
-    assert "langhanam" in rewritten
-
-
-def test_apply_langhanam_tone_breaks_long_sentences():
-    from rag.nodes.guru_tone_adapter import (
-        _LANGHANAM_MAX_SENTENCE_WORDS,
-        apply_langhanam_tone,
-    )
-
-    long_sentence = (
-        "When you speak words that are true, and that cause joy to others, "
-        "and that are spoken in a pleasing tone, your vaak Shakti grows "
-        "steadily day after day, year after year."
-    )
-    assert len(long_sentence.split()) > _LANGHANAM_MAX_SENTENCE_WORDS
-    rewritten = apply_langhanam_tone(long_sentence)
-    for sentence in split_sentences(rewritten):
-        assert len(sentence.split()) <= _LANGHANAM_MAX_SENTENCE_WORDS + 2
-    assert "vaak Shakti" in rewritten
-
-
-def test_apply_langhanam_tone_returns_original_when_shrunk():
-    from rag.nodes.guru_tone_adapter import apply_langhanam_tone
-
-    filler_heavy = "I think I think I think you know like basically totally kind of honestly literally."
-    assert apply_langhanam_tone(filler_heavy) == filler_heavy
-
-
-def test_apply_langhanam_tone_empty():
-    from rag.nodes.guru_tone_adapter import apply_langhanam_tone
-
-    assert apply_langhanam_tone("") == ""
-    assert apply_langhanam_tone(None) is None
-
-
-# --- Feature flag gating ---------------------------------------------------
-
 def test_langhanam_voice_flag_default():
-    """The flag ships ON with the evidence-based block (2026-08-01).
-
-    It was flipped on in app/config.py while this test still asserted the old
-    safety default, so it sat red. The default is now asserted to match the
-    shipped config — if someone changes one, this fails instead of drifting.
-    """
+    """The source-aware prompt voice ships enabled by default."""
     from app.config import Settings
 
     settings = Settings(llm_provider="ollama")

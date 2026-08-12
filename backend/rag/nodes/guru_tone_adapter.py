@@ -1,329 +1,40 @@
-"""
-GuruToneAdapter Node — Fused GraphRAG + Qdrant Dual-Stream Final Guardrail Voice Transformer.
+"""Deprecated post-generation tone adapter.
 
-Acts as the mandatory FINAL GUARDRAIL in the retrieval pipeline (ChatEngine), incorporating:
-- Neo4j Knowledge Graph Traversal (OKF Ontology Engine): Traverses spiritual state transformations.
-- Qdrant Vector DB (guru_tone_podcast): Retrieves live direct seeker interaction exemplars from YouTube playlists.
-- PersonaDiscriminator (2026): Automated 1-pass Reflexion self-correction loop when authenticity score < 9.0/10.
+The response pipeline now composes voice during grounded generation. This
+compatibility class remains for imports and legacy integrations, but it never
+rewrites a completed answer: a second creative pass cannot reliably preserve
+claim boundaries, citations, or the distinction between a quotation and a
+paraphrase.
 """
-
 from __future__ import annotations
 
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
-import logging
-from typing import Any, Optional
-
-from rag.prompts import (
-    GURU_TONE_ADAPTER_SYSTEM_PROMPT,
-    GURU_TONE_ADAPTER_USER_PROMPT,
-    GURU_TONE_REFLEXION_CORRECTION_PROMPT,
-)
-from rag.states import GraphState
-from services.guru_brain.guru_brain_service import GuruBrainService
-from services.guru_brain.guru_kg_service import GuruKGService
-from services.guru_brain.persona_discriminator import PersonaDiscriminator
-
-logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Langhanam unified guru voice — variant B (rule-based tone adapter)
-# ---------------------------------------------------------------------------
-# Rewrites a finished answer toward the Langhanam voice: strip American
-# conversational fillers, break over-long sentences into the short rhythmic
-# cadence of the reference voice, keep Sanskrit terms and citation markers
-# intact. New Sanskrit terms are intentionally NOT inserted — inserting
-# doctrine vocabulary into generated text risks editing the facts.
-# Benchmark evidence: benchmarks/guru_voice_benchmark.py compares this
-# adapter against variant A (system-prompt injection) and reports the winner.
-
-_LANGHANAM_MAX_SENTENCE_WORDS = 30
-_LANGHANAM_MIN_SURVIVAL_RATIO = 0.5
-
-
-def _break_long_sentence(sentence: str, max_words: int = _LANGHANAM_MAX_SENTENCE_WORDS) -> str:
-    """Split an over-long sentence at the clause separator nearest its midpoint."""
-    words = sentence.split()
-    if len(words) <= max_words:
-        return sentence
-    mid = len(words) // 2
-    split_at = None
-    for sep in (",", ";", ":", "—", "–"):
-        positions = [i for i, w in enumerate(words) if sep in w]
-        if not positions:
-            continue
-        split_at = min(positions, key=lambda i: abs(i - mid))
-        break
-    if split_at is None:
-        return sentence
-    left = " ".join(words[: split_at + 1]).rstrip(",").rstrip(";")
-    right = " ".join(words[split_at + 1:]).lstrip(",").lstrip(";")
-    if not right:
-        return sentence
-    return f"{left}. {right}"
-
-
-def apply_langhanam_tone(text: str) -> str:
-    """Rewrite ``text`` toward the Langhanam guru voice (variant B, rule-based).
-
-    Strips American conversational fillers and splits sentences longer than
-    ``_LANGHANAM_MAX_SENTENCE_WORDS`` words at a clause boundary. If the
-    rewrite would shrink the text below ``_LANGHANAM_MIN_SURVIVAL_RATIO`` of
-    the original length, the original draft is returned unchanged so factual
-    content is never silently lost.
-    """
-    if not text or not text.strip():
-        return text
-
-    from services.guru_voice_langhanam import split_sentences, strip_fillers
-
-    original_len = len(text)
-    cleaned = strip_fillers(text)
-
-    rewritten_parts: list[str] = []
-    for sentence in split_sentences(cleaned):
-        if len(sentence.split()) > _LANGHANAM_MAX_SENTENCE_WORDS:
-            rewritten_parts.append(_break_long_sentence(sentence))
-        else:
-            rewritten_parts.append(sentence)
-
-    rewritten = " ".join(part for part in rewritten_parts if part).strip()
-    if len(rewritten) < _LANGHANAM_MIN_SURVIVAL_RATIO * original_len:
-        logger.warning(
-            "apply_langhanam_tone: rewrite shrank text to %.0f%% of original "
-            "— returning original draft unchanged",
-            100.0 * len(rewritten) / original_len if original_len else 0.0,
-        )
-        return text
-    return rewritten
-
-
-# Dedicated bounded executor for Neo4j KG operations.
-# Limits concurrent Neo4j threads to prevent thread-pool starvation
-# when asyncio.wait_for abandons the future (the underlying thread
-# still runs until the driver processes the CANCEL response).
-_KG_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="neo4j-kg")
+from typing import Any
 
 
 class GuruToneAdapterNode:
-    """Pass 2 Final Guardrail Guru Voice Transformation Node with Reflexion Self-Correction."""
+    """Return the supplied factual draft unchanged for legacy callers."""
 
     def __init__(
         self,
-        guru_brain_service: Optional[GuruBrainService] = None,
-        guru_kg_service: Optional[GuruKGService] = None,
-        persona_discriminator: Optional[PersonaDiscriminator] = None,
         llm_service: Any = None,
+        guru_brain_service: Any = None,
+        guru_kg_service: Any = None,
+        persona_discriminator: Any = None,
     ) -> None:
-        if guru_brain_service is None or guru_kg_service is None:
-            try:
-                from app.dependencies import get_container
-                container = get_container()
-                if guru_brain_service is None:
-                    guru_brain_service = getattr(container, "guru_brain_service", None)
-                if guru_kg_service is None:
-                    guru_kg_service = getattr(container, "guru_kg_service", None)
-            except Exception:
-                logger.warning(
-                    "GuruToneAdapterNode: container unavailable — services initialized "
-                    "without Qdrant/Neo4j. Tone adaptation will run on static prompts only."
-                )
-
-        if guru_brain_service is None:
-            guru_brain_service = GuruBrainService()
-        if guru_kg_service is None:
-            guru_kg_service = GuruKGService()
-
+        self.llm_service = llm_service
         self.guru_brain_service = guru_brain_service
         self.guru_kg_service = guru_kg_service
-        self.llm_service = llm_service
-        self.persona_discriminator = persona_discriminator or PersonaDiscriminator(llm_service=llm_service)
-
-    @staticmethod
-    def _revalidate_factual_claims(draft: str, adapted: str, req_id: str) -> bool:
-        """Verify tone adaptation preserves all factual claims and citation markers.
-
-        Checks:
-        1. Citation markers are intact — every [[CITE:N]] in draft appears in adapted.
-        2. Factual content overlap — at least 50% of substantive terms from draft survive.
-
-        Returns False when constraints are violated; caller should fall back to draft.
-        """
-        import re
-        draft_cites = set(re.findall(r'\[\[CITE:\d+\]\]', draft))
-        adapted_cites = set(re.findall(r'\[\[CITE:\d+\]\]', adapted))
-        if draft_cites and not draft_cites.issubset(adapted_cites):
-            missing = draft_cites - adapted_cites
-            logger.warning(f"[{req_id}] GuruToneAdapter revalidation: citation markers lost: {missing}. Falling back to original draft.")
-            return False
-
-        draft_words = set(re.findall(r'\w{4,}', draft.lower()))
-        adapted_words = set(re.findall(r'\w{4,}', adapted.lower()))
-        if not draft_words:
-            return True
-        overlap = len(draft_words & adapted_words) / len(draft_words)
-        if overlap < 0.5:
-            logger.warning(f"[{req_id}] GuruToneAdapter revalidation: fact overlap {overlap:.2f} < 0.50. Falling back to original draft.")
-            return False
-        return True
-
-    @staticmethod
-    def _attach_multimodal_metadata(out_state: dict, kg_paths: list, exemplars: list) -> dict:
-        """Attach KG concept nodes, daily practice card, and audio URL to out_state.
-
-        Must run before every post-retrieval return (success or fallback) —
-        these fields power the multi-modal response package and were
-        previously only set on the exception-fallback path.
-        """
-        concept_nodes = set()
-        for arc in kg_paths:
-            if getattr(arc, "target_state", None):
-                concept_nodes.add(arc.target_state)
-            if getattr(arc, "teaching", None):
-                concept_nodes.add(arc.teaching)
-        out_state["kg_concept_nodes"] = list(concept_nodes)
-
-        if exemplars and isinstance(exemplars[0], dict) and exemplars[0].get("audio_url"):
-            out_state["audio_url"] = exemplars[0]["audio_url"]
-
-        if kg_paths and getattr(kg_paths[0], "practice_step", None):
-            top_arc = kg_paths[0]
-            out_state["daily_practice_card"] = {
-                "target_state": getattr(top_arc, "target_state", "Beautiful State"),
-                "practice_step": getattr(top_arc, "practice_step", ""),
-                "guru_speaker": getattr(top_arc, "guru_speaker", "Sri Preethaji & Sri Krishnaji"),
-            }
-        return out_state
+        self.persona_discriminator = persona_discriminator
 
     async def transform_tone(
         self,
-        state: GraphState | dict | None = None,
-        user_query: Optional[str] = None,
-        factual_draft: Optional[str] = None,
-        guru_name: Optional[str] = None,
-        teacher_id: Optional[str] = None,
-    ) -> GraphState | dict:
-        """Transform factual_draft into Sri Preethaji & Sri Krishnaji's authentic voice using fused GraphRAG + Qdrant persona retrieval + Reflexion guardrail."""
-        if state is None:
-            state = {}
-        elif not isinstance(state, dict):
-            state = dict(state)
-
-        req_id = state.get("request_id") or "no-req-id"
-        query = user_query or state.get("question") or state.get("user_query") or ""
-        draft = factual_draft or state.get("final_answer") or state.get("answer") or state.get("factual_draft") or ""
-        target_guru = guru_name or teacher_id or state.get("guru_name") or state.get("teacher_id") or state.get("assistant_slug") or "combined"
-
-        out_state = dict(state)
-        out_state["request_id"] = req_id
-
-        if not draft or not draft.strip():
-            logger.warning(f"[{req_id}] GuruToneAdapter: empty draft received, skipping transformation.")
-            out_state["final_answer"] = draft
-            return out_state
-
-        # Stream 1: Vector Persona Search from Qdrant `guru_tone_podcast` (157 playlist exemplars)
-        try:
-            exemplars = await asyncio.wait_for(
-                self.guru_brain_service.search_tone_exemplars(
-                    query=query,
-                    guru_name=target_guru,
-                    limit=3,
-                ),
-                timeout=4.0,
-            )
-        except asyncio.TimeoutError:
-            logger.warning(f"[{req_id}] GuruToneAdapter: tone exemplar search timed out, continuing with empty context.")
-            exemplars = []
-        except Exception as exc:
-            logger.error(f"[{req_id}] GuruToneAdapter: tone exemplar search failed unexpectedly: {exc}")
-            exemplars = []
-        vector_persona_context = self.guru_brain_service.format_persona_context(exemplars)
-
-        # Stream 2: Knowledge Graph & OKF Ontology Traversal from Neo4j
-        # Bounded dedicated executor (max_workers=4) prevents thread-pool exhaustion
-        # when wait_for cancels the future — the abandoned thread still runs until the
-        # Neo4j driver processes the CANCEL, but only within the pool's capacity limit.
-        # Driver-level timeout (4s) + wall-clock wait_for (8s) safety net.
-        try:
-            loop = asyncio.get_running_loop()
-            kg_paths = await asyncio.wait_for(
-                loop.run_in_executor(
-                    _KG_EXECUTOR,
-                    self.guru_kg_service.traverse_guru_ontology,
-                    query, 3, 4.0,
-                ),
-                timeout=8.0,
-            )
-        except (asyncio.TimeoutError, Exception):
-            logger.warning(f"[{req_id}] GuruToneAdapter: KG ontology traversal timed out or failed, continuing with empty context.")
-            kg_paths = []
-        kg_context = self.guru_kg_service.format_kg_ontology_context(kg_paths)
-
-        # Build Fused System and User Prompts using rag/prompts constants
-        system_prompt = GURU_TONE_ADAPTER_SYSTEM_PROMPT.format(
-            kg_context=kg_context,
-            vector_persona_context=vector_persona_context,
-        )
-
-        user_prompt = GURU_TONE_ADAPTER_USER_PROMPT.format(
-            user_query=query,
-            factual_draft=draft,
-        )
-
-        if not self.llm_service:
-            logger.info(f"[{req_id}] GuruToneAdapterNode: LLM service unavailable, returning factual draft.")
-            out_state["final_answer"] = draft
-            return self._attach_multimodal_metadata(out_state, kg_paths, exemplars)
-
-        try:
-            # First Pass Transformation with explicit timeout
-            transformed = await asyncio.wait_for(
-                self.llm_service.generate(system_prompt, user_prompt, temperature=0.25),
-                timeout=6.0,
-            )
-            if not transformed or len(transformed.strip()) <= 20:
-                out_state["final_answer"] = draft
-                return self._attach_multimodal_metadata(out_state, kg_paths, exemplars)
-
-            transformed_text = transformed.strip()
-
-            # Reflexion Evaluation Step
-            eval_res = await self.persona_discriminator.evaluate_persona(user_query=query, response_text=transformed_text)
-            logger.info(f"[{req_id}] GuruToneAdapter Discriminator Score: {eval_res.overall_score:.1f}/10.0 (Needs Correction: {eval_res.needs_correction})")
-
-            # Execute 1-Pass Self-Correction Loop if Score < 9.0
-            if eval_res.needs_correction and eval_res.correction_directive:
-                logger.info(f"[{req_id}] Executing Reflexion Self-Correction Loop: {eval_res.correction_directive}")
-                correction_prompt = GURU_TONE_REFLEXION_CORRECTION_PROMPT.format(
-                    user_prompt=user_prompt,
-                    overall_score=eval_res.overall_score,
-                    correction_directive=eval_res.correction_directive,
-                )
-                try:
-                    corrected = await asyncio.wait_for(
-                        self.llm_service.generate(system_prompt, correction_prompt, temperature=0.2),
-                        timeout=4.0,
-                    )
-                    if corrected and len(corrected.strip()) > 20:
-                        if self._revalidate_factual_claims(draft, corrected.strip(), req_id):
-                            out_state["final_answer"] = corrected.strip()
-                            return self._attach_multimodal_metadata(out_state, kg_paths, exemplars)
-                        logger.warning(f"[{req_id}] GuruToneAdapter: corrected output failed revalidation, checking first-pass.")
-                except (asyncio.TimeoutError, Exception) as corr_exc:
-                    logger.warning(f"[{req_id}] GuruToneAdapter self-correction LLM generate timed out/failed ({corr_exc}).")
-
-            if self._revalidate_factual_claims(draft, transformed_text, req_id):
-                out_state["final_answer"] = transformed_text
-                return self._attach_multimodal_metadata(out_state, kg_paths, exemplars)
-            logger.warning(f"[{req_id}] GuruToneAdapter: first-pass output failed revalidation, falling back to original draft.")
-            out_state["final_answer"] = draft
-            return self._attach_multimodal_metadata(out_state, kg_paths, exemplars)
-
-        except (asyncio.TimeoutError, Exception) as exc:
-            logger.warning(f"[{req_id}] GuruToneAdapterNode: Voice transformation failed ({exc}), keeping factual draft.")
-
-        out_state["final_answer"] = draft
-        return self._attach_multimodal_metadata(out_state, kg_paths, exemplars)
-
-
+        state: dict[str, Any] | None = None,
+        user_query: str | None = None,
+        factual_draft: str | None = None,
+        guru_name: str | None = None,
+        teacher_id: str | None = None,
+    ) -> dict[str, Any]:
+        del user_query, guru_name, teacher_id
+        output = dict(state or {})
+        output["final_answer"] = factual_draft or output.get("final_answer") or output.get("answer") or ""
+        return output

@@ -1,11 +1,8 @@
-"""ToneAdapterStage citation re-grounding tests (P1-AI-5).
+"""Regression tests for the retired post-generation tone adapter.
 
-The guru tone transform runs inside the pipeline (after citation resolution,
-before output guardrails). When the transform drops citation markers, the
-stage must clear citations and zero the faithfulness score so un-grounded
-claims are never presented as sourced. Mirrors test_pipeline_stages.py.
+The production pipeline must never run a second LLM rewrite after citations are
+attached. Grounded voice is composed once, during source-aware generation.
 """
-
 from __future__ import annotations
 
 from unittest.mock import MagicMock
@@ -19,21 +16,15 @@ GROUNDED_ANSWER = (
     "Return to the breath when the mind is restless. [[CITE:1]] "
     "From that steadiness, presence arises on its own. [[CITE:1]]"
 )
-
-RETOLD_GROUNDED = (
-    "When the mind is restless, return to the breath. [[CITE:1]] "
-    "Presence arises from that steadiness. [[CITE:1]]"
-)
-
-UNGROUNDED_CLAIM = (
-    "Return to the breath when the mind is restless. "
-    "The breath is the root of all healing."
-)
-
 DOCS = [
-    {"id": "d1", "title": "Breath Awareness", "teacher": "Sri Preethaji",
-     "source": "Ekam Discourse", "year": "2023", "url": "https://ekam.example/breath"},
-    {"id": "d2", "title": "On Presence", "source": "Ekam Teaching", "year": "2022"},
+    {
+        "id": "d1",
+        "title": "Breath Awareness",
+        "teacher": "Sri Preethaji",
+        "source": "Ekam Discourse",
+        "year": "2023",
+        "url": "https://ekam.example/breath",
+    }
 ]
 
 
@@ -60,53 +51,31 @@ def _build_ctx(**overrides) -> PipelineContext:
     return PipelineContext(**defaults)
 
 
-class _GroundedAdapter:
-    """Fake adapter that retells the answer while keeping citation markers."""
-
-    def __init__(self, **kwargs):
-        pass
-
-    async def transform_tone(self, state_input):
-        return {"final_answer": RETOLD_GROUNDED}
-
-
-class _UngroundedAdapter:
-    """Fake adapter that drops citation markers and adds an unsupported claim."""
-
-    def __init__(self, **kwargs):
-        pass
-
-    async def transform_tone(self, state_input):
-        return {"final_answer": UNGROUNDED_CLAIM}
-
-
 @pytest.mark.asyncio
-async def test_adapter_preserves_citations(monkeypatch):
-    """A grounded citation survives the tone transform: references stay valid."""
-    monkeypatch.setattr("rag.nodes.guru_tone_adapter.GuruToneAdapterNode", _GroundedAdapter)
-
+async def test_stage_preserves_completed_answer_citations_and_faithfulness():
+    """A completed answer must pass unchanged to output verification."""
     ctx = _build_ctx()
+
     result = await ToneAdapterStage().run(ctx)
 
-    assert result is None, "ToneAdapterStage must not short-circuit"
-    assert ctx.final_answer == RETOLD_GROUNDED
+    assert result is None
+    assert ctx.final_answer == GROUNDED_ANSWER
     assert ctx.citations == DOCS
     assert ctx.graph_result["faithfulness_score"] == 0.9
 
 
 @pytest.mark.asyncio
-async def test_adapter_introduces_ungrounded_claim(monkeypatch):
-    """An ungrounded claim loses its citations and zeroes faithfulness."""
-    monkeypatch.setattr("rag.nodes.guru_tone_adapter.GuruToneAdapterNode", _UngroundedAdapter)
-
+async def test_stage_never_constructs_or_calls_a_legacy_adapter(monkeypatch):
+    """No post-generation call may manufacture a teacher-like response."""
     ctx = _build_ctx()
-    result = await ToneAdapterStage().run(ctx)
+    stage = ToneAdapterStage()
 
-    assert result is None, "ToneAdapterStage must not short-circuit"
-    assert ctx.final_answer == UNGROUNDED_CLAIM
-    assert ctx.citations == []
-    assert ctx.graph_result["faithfulness_score"] == 0.0
+    def unexpected_adapter_access(*_args, **_kwargs):
+        raise AssertionError("post-generation tone adapter must remain unreachable")
 
+    monkeypatch.setattr(stage, "_get_adapter", unexpected_adapter_access, raising=False)
 
-if __name__ == "__main__":
-    raise SystemExit(pytest.main([__file__, "-v"]))
+    result = await stage.run(ctx)
+
+    assert result is None
+    assert ctx.final_answer == GROUNDED_ANSWER

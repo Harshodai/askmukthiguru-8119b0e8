@@ -180,6 +180,10 @@ describe('aiService regression — health and fallback paths', () => {
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
       fetchMock
         .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ token: "signed-anon-session" }),
+        })
+        .mockResolvedValueOnce({
           status: 202,
           ok: false,
           json: async () => ({ job_id: 'job-1', poll_url: 'http://localhost:8000/api/jobs/job-1' }),

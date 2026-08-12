@@ -27,7 +27,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    baseURL: process.env.BASE_URL || 'http://localhost:8080',
+    baseURL: process.env.BASE_URL || 'http://localhost:4173',
   },
 
   projects: [
@@ -61,8 +61,8 @@ export default defineConfig({
     },
   ],
   webServer: process.env.BASE_URL ? undefined : {
-    command: 'npm run dev',
-    port: 8080,
+    command: 'npm run build && npm run preview -- --host 127.0.0.1',
+    port: 4173,
     reuseExistingServer: !process.env.CI,
   },
 });

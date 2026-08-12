@@ -7,6 +7,7 @@ and proactive-state glue that lived inline in ``execute()``.
 
 from __future__ import annotations
 
+from app.pipeline.result import PipelineResult
 import logging
 import re
 import time

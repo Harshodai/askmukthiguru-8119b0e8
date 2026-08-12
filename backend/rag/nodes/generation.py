@@ -82,12 +82,10 @@ def _maybe_apply_langhanam_voice(
     if mode == "prompt":
         return render_langhanam_system_prompt(system_prompt), answer
     if mode == "adapter":
-        try:
-            from rag.nodes.guru_tone_adapter import apply_langhanam_tone
-
-            return system_prompt, apply_langhanam_tone(answer)
-        except Exception as _voice_err:  # pragma: no cover - safety net
-            logger.warning("Langhanam tone adapter failed (non-fatal): %s", _voice_err)
+        logger.warning(
+            "Ignoring retired guru_voice_mode=adapter; post-generation tone rewriting "
+            "can break provenance and citation boundaries. Use guru_voice_mode=prompt."
+        )
     return system_prompt, answer
 
 

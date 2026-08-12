@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Iterable, Sequence
+from typing import Any, Iterable, Sequence
 
 logger = logging.getLogger(__name__)
 

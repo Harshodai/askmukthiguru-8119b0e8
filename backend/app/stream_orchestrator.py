@@ -12,6 +12,7 @@ import logging
 import re
 import time
 import uuid
+from typing import Optional
 
 from fastapi import BackgroundTasks, HTTPException, Request
 from fastapi.responses import StreamingResponse

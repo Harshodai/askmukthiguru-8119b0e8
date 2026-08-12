@@ -154,3 +154,14 @@ def test_fast_tier_does_not_hardcode_a_passing_score():
     # The measured score must be read back off the state and gated on the floor.
     assert 'state.get("faithfulness_score")' in tail
     assert "faithfulness_floor" in tail
+
+
+def test_stimulus_prompt_uses_source_aware_founder_voice():
+    """The distress path must not undo the primary prompt's provenance rule."""
+    from rag.prompts.rag import STIMULUS_RAG_PROMPT
+
+    assert "Translate all first-person references" not in STIMULUS_RAG_PROMPT
+    assert "Never refer to them in the first person" not in STIMULUS_RAG_PROMPT
+    assert "SOURCE-AWARE FOUNDER VOICE" in STIMULUS_RAG_PROMPT
+    assert "exact retrieved quotation" in STIMULUS_RAG_PROMPT
+    assert "Never invent first-person founder speech" in STIMULUS_RAG_PROMPT

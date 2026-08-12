@@ -39,6 +39,7 @@ export const HeroSection = () => {
   const { t } = useTranslation();
   const [demoOpen, setDemoOpen] = useState(false);
   const [welcomeVisible, setWelcomeVisible] = useState(false);
+  const productDemoVideoUrl = import.meta.env.VITE_LANDING_DEMO_VIDEO_URL?.trim();
 
   useEffect(() => {
     // Both this prompt and the cookie banner anchor bottom-right — showing both at
@@ -335,7 +336,12 @@ export const HeroSection = () => {
         onStartTour={startTour}
         onDismiss={dismissWelcome}
       />
-      <DemoModal isOpen={demoOpen} onComplete={completeTour} onDismiss={skipTour} />
+      <DemoModal
+        isOpen={demoOpen}
+        onComplete={completeTour}
+        onDismiss={skipTour}
+        productVideoUrl={productDemoVideoUrl || undefined}
+      />
     </MotionConfig>
   );
 };

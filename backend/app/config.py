@@ -758,18 +758,14 @@ class Settings(BaseSettings):
     # injecting it into prompts; a stale persona is skipped, not served.
     persona_max_age_days: int = 30
 
-    # --- Langhanam guru voice (Task 16) ---
-    # Unified guru voice for BOTH gurus (Preethaji & Krishnaji), derived from
-    # the Langhanam discourse (https://youtu.be/2z5qxSr4EaI): direct address,
-    # short rhythmic sentences, Sanskrit terms kept intact, Indian-English
-    # phrasing, no American conversational fillers, one teaching at a time.
-    # Flipped ON: benchmark scored 4.306/5.0 (gate >= 4.0) on 2026-07-31
-    # with strengthened LANGHANAM_VOICE_BLOCK (explicit imperatives, Sanskrit
-    # term quota, Indian-English anchor, 20-word sentence cap, cadence example).
+    # --- Grounded guru voice ---
+    # Voice is composed during generation from retrieved, attributable context.
+    # It preserves verified first-person quotations but never synthesises founder
+    # speech, forces Sanskrit, imitates an accent, or rewrites a finished answer.
     langhanam_voice_enabled: bool = True
-    # Variant selector: "prompt" (system-prompt persona injection, variant A),
-    # "adapter" (rule-based tone rewrite of the final answer, variant B),
-    # or "off" (no-op regardless of langhanam_voice_enabled).
+    # "prompt" is the only active voice mode. "adapter" is accepted only for
+    # backward-compatible configuration parsing and is a logged no-op; it must
+    # never run a regex or LLM rewrite after citations are attached.
     guru_voice_mode: str = "prompt"
     # Benchmark gate: minimum mean rubric score (of 5.0) required before
     # langhanam_voice_enabled may be flipped on.

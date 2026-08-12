@@ -86,5 +86,6 @@ describe('ProfilePage', () => {
 
     // Check if profile header or name is rendered
     expect(screen.getByText('Test User')).toBeInTheDocument();
+    expect(screen.getByTestId("guidance-preview")).toHaveTextContent("Source-aware by design");
   });
 });

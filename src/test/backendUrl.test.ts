@@ -11,6 +11,11 @@ vi.mock('@capacitor/core', () => ({
 async function loadBackendUrl() {
   return import('@/lib/backendUrl');
 }
+beforeEach(() => {
+  vi.resetModules();
+  vi.stubEnv("VITE_BACKEND_URL", "");
+  vi.stubEnv("VITE_NATIVE_BACKEND", "");
+});
 
 /** jsdom refuses hostname assignment AND history.replaceState across origins
  *  (SecurityError). Swap the location object itself — backendUrl only reads
@@ -59,26 +64,26 @@ describe('isProdHost (exact-match prod hostnames)', () => {
 
 describe('web host resolution', () => {
   it('exact prod host resolves to the Railway prod backend', async () => {
-    window.location.hostname = 'askmukthiguru-8119b0e8-production.up.railway.app';
+    setHostname('askmukthiguru-8119b0e8-production.up.railway.app');
     const { BACKEND_URL, PROD_RAILWAY_URL } = await loadBackendUrl();
     expect(BACKEND_URL).toBe(PROD_RAILWAY_URL);
   });
 
   it('legacy Lovable host does NOT resolve to prod (fail-closed to empty)', async () => {
-    window.location.hostname = 'askmukthiguru.lovable.app';
+    setHostname('askmukthiguru.lovable.app');
     const { BACKEND_URL } = await loadBackendUrl();
     expect(BACKEND_URL).toBe('');
   });
 
   it('staging Lovable host does NOT resolve to prod (fail-closed to empty)', async () => {
-    window.location.hostname = 'askmukthiguru-staging.lovable.app';
+    setHostname('askmukthiguru-staging.lovable.app');
     const { BACKEND_URL } = await loadBackendUrl();
     expect(BACKEND_URL).toBe('');
   });
 
   it('VITE_BACKEND_URL override wins over host detection', async () => {
     vi.stubEnv('VITE_BACKEND_URL', 'https://staging.example.com');
-    window.location.hostname = 'askmukthiguru-8119b0e8-production.up.railway.app';
+    setHostname('askmukthiguru-8119b0e8-production.up.railway.app');
     const { BACKEND_URL } = await loadBackendUrl();
     expect(BACKEND_URL).toBe('https://staging.example.com');
   });

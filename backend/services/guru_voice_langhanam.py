@@ -1,20 +1,8 @@
-"""
-Langhanam-inspired unified guru voice for Sri Preethaji & Sri Krishnaji.
+"""Source-aware voice composition helpers.
 
-Voice definition cleaned from the Langhanam discourse
-(https://youtu.be/2z5qxSr4EaI): direct address to the seeker ("I want you
-to...", "Listen...", "Try this..."), short rhythmic sentences with
-repetition for emphasis, Sanskrit terms kept intact where they carry
-meaning (langhanam, vaak Shakti, prana, shuddhi), Indian-English phrasing
-("Our ancients in India used one very simple principle..."), no American
-conversational fillers ("like", "you know", "basically"), and one teaching
-at a time — never a generic blend of all sources.
-
-Two benchmarked variants:
-- Variant A (prompt): ``render_langhanam_system_prompt`` injects a voice
-  block into the generation system prompt.
-- Variant B (adapter): ``rag.nodes.guru_tone_adapter.apply_langhanam_tone``
-  rule-based rewrite of the finished answer (filler stripping + cadence).
+The active voice path is prompt-time only. It preserves attributable retrieved
+first-person quotations and rejects fabricated founder speech; no completed
+answer is rewritten by regex after citation attachment.
 """
 
 from __future__ import annotations

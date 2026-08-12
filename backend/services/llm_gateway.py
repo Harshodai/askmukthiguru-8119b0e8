@@ -269,7 +269,7 @@ class LLMGateway:
             logger.warning(f"LLMGateway: primary '{self._primary_name}' circuit OPEN — verify rejected")
             open_exc = CircuitOpenException(self._primary_name)
             if self._cross_provider_fallback_enabled and self._secondary is not None:
-                return await self._verify_secondary(answer, context, open_exc)
+                return await self._verify_secondary(answer, context, open_exc, verify_ceiling)
             raise open_exc
 
         try:
@@ -302,7 +302,7 @@ class LLMGateway:
                     primary_exc = fb_exc
 
             if self._cross_provider_fallback_enabled and self._secondary is not None:
-                return await self._verify_secondary(answer, context, primary_exc)
+                return await self._verify_secondary(answer, context, primary_exc, verify_ceiling)
             raise primary_exc
 
     async def _verify_secondary(
@@ -310,6 +310,7 @@ class LLMGateway:
         answer: str,
         context: str,
         upstream_exc: Exception,
+        verify_ceiling: int,
     ) -> dict[str, Any]:
         if self._secondary_breaker is None:
             raise upstream_exc

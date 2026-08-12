@@ -156,7 +156,9 @@ def test_playlist_complete(mock_supabase):
         {"status": "rejected"}
     ]
     
-    with patch("tasks.ingest_tasks.update_job_progress") as mock_update:
+    with patch("tasks.ingest_tasks.update_job_progress") as mock_update, patch(
+        "tasks.ingest_tasks.post_ingestion_maintenance.delay"
+    ) as mock_maintenance:
         res = playlist_complete(results, "https://youtube.com/playlist?list=123", parent_job_id="parent-job", total_count=3)
         assert res["status"] == "success"
         assert res["success"] == 2
@@ -171,6 +173,7 @@ def test_playlist_complete(mock_supabase):
             chunks_indexed=20,
             error_message=None
         )
+        mock_maintenance.assert_called_once_with(trigger="playlist_complete")
 
 
 class _WordOverlapScorer:

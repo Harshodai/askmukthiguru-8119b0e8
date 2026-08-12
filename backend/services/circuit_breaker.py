@@ -13,12 +13,16 @@ with the registry. The active breaker is determined by LLM_PROVIDER config.
 
 from __future__ import annotations
 
+
 import abc
 import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
+
+if TYPE_CHECKING:
+    from services.health_monitor import HealthMonitor
 
 from app.config import settings
 from app.constants import CIRCUIT_BREAKER_CONFIGS, CircuitBreakerProvider

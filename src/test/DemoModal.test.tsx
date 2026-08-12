@@ -79,3 +79,22 @@ describe('first-visit welcome prompt', () => {
     expect(onStartTour).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('landing product video handoff', () => {
+  it('renders the supplied final product video while retaining the tour controls', () => {
+    render(
+      <MemoryRouter>
+        <DemoModal
+          isOpen
+          onComplete={vi.fn()}
+          onDismiss={vi.fn()}
+          productVideoUrl="https://cdn.example.com/askmukthiguru-demo.mp4"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByLabelText('AskMukthiGuru product demo')).toBeInTheDocument();
+    expect(screen.getByText(/interactive tour below remains available/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next tour step' })).toBeInTheDocument();
+  });
+});

@@ -146,3 +146,21 @@ if __name__ == "__main__":
     import sys
 
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+@pytest.mark.asyncio
+async def test_gateway_secondary_verify_keeps_the_bounded_token_ceiling(fast_deep_ceilings):
+    """Fallback verification must receive the same bounded token ceiling."""
+    primary = _RecordingProvider("primary")
+    primary.verify_answer = AsyncMock(side_effect=RuntimeError("primary unavailable"))
+    secondary = _RecordingProvider("secondary")
+    gw = _gateway(
+        primary,
+        secondary=secondary,
+        cross_provider_fallback_enabled=True,
+    )
+
+    result = await gw.verify_answer(answer="a", context="c")
+
+    assert result["is_faithful"] is True
+    assert secondary.calls[0]["max_tokens"] == min(settings.llm_max_tokens_fast, 512)

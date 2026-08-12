@@ -25,7 +25,7 @@ from fastapi.testclient import TestClient
 
 from app.dependencies import get_container
 from app.main import app, get_current_user_from_supabase
-from services.auth_service import get_optional_user
+from services.auth_service import get_optional_user, issue_anon_session_token
 
 client = TestClient(app)
 
@@ -273,6 +273,8 @@ async def test_jwt_expiration():
     # Temporarily remove the mock overrides so real auth runs
     saved_supabase_override = app.dependency_overrides.pop(get_current_user_from_supabase, None)
     saved_optional_override = app.dependency_overrides.pop(get_optional_user, None)
+    saved_container_override = app.dependency_overrides.get(get_container)
+    app.dependency_overrides[get_container] = _build_mock_container
     try:
         expired_token = jwt.encode(
             {"sub": "test-user", "exp": 0},
@@ -280,7 +282,8 @@ async def test_jwt_expiration():
             algorithm="HS256",
         )
         headers = {"Authorization": f"Bearer {expired_token}"}
-        payload = {"user_message": "Hello", "session_id": "jwt-test", "messages": []}
+        anon_session = issue_anon_session_token()
+        payload = {"user_message": "Hello", "session_id": anon_session["token"], "messages": []}
         response = client.post("/api/chat", json=payload, headers=headers)
         # 200 (synchronous) or 202 (queued, when job_queue is enabled) both mean
         # "accepted as anonymous" — only a 401 would mean the hard-reject path.
@@ -290,6 +293,10 @@ async def test_jwt_expiration():
             app.dependency_overrides[get_current_user_from_supabase] = saved_supabase_override
         if saved_optional_override is not None:
             app.dependency_overrides[get_optional_user] = saved_optional_override
+        if saved_container_override is None:
+            app.dependency_overrides.pop(get_container, None)
+        else:
+            app.dependency_overrides[get_container] = saved_container_override
 
 
 @pytest.mark.asyncio
