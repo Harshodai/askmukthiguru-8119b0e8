@@ -18,8 +18,8 @@ RUN useradd -m -s /bin/bash appuser
 WORKDIR /app
 
 # Install Python deps before copying app code (cache layer)
-COPY backend/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/requirements.lock ./requirements.lock
+RUN pip install --no-cache-dir -r requirements.lock
 
 # Copy app code
 COPY backend/ .

@@ -47,12 +47,12 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: backend/requirements.lock
 
       - name: Install backend deps
         run: |
           pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install -r backend/requirements.lock
 
       - name: Skip when eval cannot run (no backend or no judge key)
         # Judge-stub mode reports perfect scores, so a run without a real

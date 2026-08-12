@@ -40,11 +40,9 @@ sentence-transformers==3.4.1
 transformers==4.57.6
 peft==0.14.0
 FlagEmbedding==1.4.0
-# S3: real LettuceDetect span-level hallucination detector (RAGTruth-trained
-# ModernBERT token classifier, 14 langs, MIT). Gated by
-# settings.lettucedetect_enabled; the heuristic stays as fallback so the
-# build does not hard-depend on torch/transformers being importable at runtime.
-lettucedetect>=0.2.2
+# Optional LettuceDetect is installed from requirements-optional-ml.txt.
+# It requires NumPy 2.x and is disabled by default; base production keeps the
+# tested NumPy <2.0/PyArrow compatibility contract.
 # TODO(onnx-reranker-colbert): ragatouille is now deprecated — the ONNX-native
 # ColBERT MaxSim path (services/colbert_maxsim.py + EmbeddingService._colbert_maxsim_rerank)
 # replaces it for multilingual reranking. Keep until the RAGatouille path is
@@ -54,7 +52,7 @@ ragatouille>=0.0.8
 
 # --- YouTube Ingestion ---
 youtube-transcript-api>=1.0.0
-yt-dlp>=2026.3.3
+yt-dlp[default]>=2026.3.3
 defusedxml>=0.7.1  # hardened XML parsing for timedtext caption feeds (youtube_loader); no stdlib xml fallback
 
 # --- Web Ingestion ---

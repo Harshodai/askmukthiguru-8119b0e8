@@ -27,10 +27,10 @@ FROM base AS deps
 # Install 'uv' for state-of-the-art fast dependency installation
 RUN pip install --no-cache-dir uv
 
-COPY backend/requirements.txt ./
-# Install the pre-compiled requirements.txt directly
+COPY backend/requirements.lock ./
+# Install the committed requirements.lock directly
 # 'uv' installs packages 10-100x faster than standard pip
-RUN uv pip install --system --no-cache -r requirements.txt
+RUN uv pip install --system --no-cache -r requirements.lock
 
 # --- Stage 2: Final image ---
 FROM base AS final

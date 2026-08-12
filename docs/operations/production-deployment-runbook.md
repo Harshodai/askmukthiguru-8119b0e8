@@ -94,3 +94,14 @@ official domains. Every returned event card includes `official_source_url`,
 link and verification time rather than treating the generated prose as the
 booking authority. If the feature or live service is unavailable, the response
 contains no event card and directs the seeker to `ekam.org` instead of guessing.
+
+## Reproducible Dependency Release Gate
+
+The committed lock artifacts are deployment inputs: `backend/requirements.lock`
+for Python and `package-lock.json` for the frontend. CI and all Dockerfiles
+install the Python lock, while the frontend uses `npm ci`. A dependency change is
+not ready for deployment until a clean Python 3.12 environment can install the
+backend lock and a clean Node install can complete `npm ci`, tests, and the
+production build. Regenerate the backend lock with `uv pip compile
+backend/requirements.txt --output-file backend/requirements.lock` whenever its
+source manifest changes; review both files together in the same pull request.

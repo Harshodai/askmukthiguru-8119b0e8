@@ -569,3 +569,27 @@ Supabase project `ozmjeuqbholoxypfxixb` has `mailer_autoconfirm: false`. Use ser
 
 ### Pre-existing bug fixed: ONNX encoder re-download
 - `_load_onnx_encoder` was not setting `self._encoder`, so `_ensure_encoder()`'s short-circuit (`if self._encoder is not None: return`) never fired on the ONNX path. Every `encode()`/`encode_batch()`/`encode_with_colbert()` call re-downloaded the 570MB ONNX model (~30s per call). Fix: `self._encoder = session` at the end of `_load_onnx_encoder` — a marker that makes the short-circuit fire. 30657ms → 46ms per call (660× improvement). This was a silent production bug since cp1 shipped (Jul 26). See lessons.md.
+
+### Dependency Lock Authority and Clean Release Installs (Aug 13, 2026)
+
+`backend/requirements.txt` is the human-maintained production input and
+`backend/requirements.lock` is the committed, fully pinned release artifact.
+Docker images and CI install the lock file only. After changing the input, run
+from the repository root:
+
+```bash
+uv pip compile backend/requirements.txt --output-file backend/requirements.lock
+git diff --check backend/requirements.txt backend/requirements.lock
+```
+
+The default backend profile deliberately keeps `numpy<2.0` for the tested
+PyArrow stack. LettuceDetect is a disabled-by-default optional model profile in
+`backend/requirements-optional-ml.txt`; do not enable it in production until its
+NumPy 2.x compatibility has passed a separate staging test.
+
+`package-lock.json` is the frontend lock authority; never use `npm install` in
+CI or deployment. Clean release evidence must include `npm ci`, `npm test --
+--run`, and `npm run build`. Backend clean-install evidence must use a fresh
+Python 3.12 environment and `pip install -r backend/requirements.lock` before
+running the backend suite. Do not claim a release is reproducible solely because
+the existing development virtual environment passes tests.

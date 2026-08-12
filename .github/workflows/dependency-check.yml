@@ -15,7 +15,7 @@ on:
     paths:
       - 'package.json'
       - 'package-lock.json'
-      - 'backend/requirements.txt'
+      - 'backend/requirements.lock'
       - 'backend/pyproject.toml'
 
 jobs:
@@ -53,7 +53,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: backend/requirements.lock
 
       - name: Install pip-audit
         run: pip install pip-audit
@@ -61,11 +61,11 @@ jobs:
       # P1-OPS-2: failure-swallowing removed — a finding must fail the job.
       # No --ignore-vuln exceptions: none verified as false positives
       # (requires a live audit DB run). Triage the first CI run if it fails.
-      - name: Run pip-audit on requirements.txt (JSON report, blocking)
-        run: pip-audit -r requirements.txt --desc --format=json -o pip-audit-report.json
+      - name: Run pip-audit on requirements.lock (JSON report, blocking)
+        run: pip-audit -r requirements.lock --desc --format=json -o pip-audit-report.json
 
-      - name: Run pip-audit on requirements.txt (strict)
-        run: pip-audit -r requirements.txt --desc
+      - name: Run pip-audit on requirements.lock (strict)
+        run: pip-audit -r requirements.lock --desc
         # Fail CI if HIGH/CRITICAL vulnerabilities are found
 
       - name: Upload pip-audit report

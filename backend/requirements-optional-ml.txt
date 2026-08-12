@@ -1,0 +1,4 @@
+# Optional model-backed verification profile. Not installed by the base Docker image.
+# Enable only after a staged compatibility test with NUMPY>=2.2 and the selected
+# PyArrow/datasets stack, then set LETTUCEDETECT_ENABLED=true explicitly.
+lettucedetect>=0.2.2
