@@ -45,3 +45,9 @@ VITE_LANDING_DEMO_VIDEO_URL=https://cdn.example.com/askmukthiguru-product-demo.m
 ```
 
 Before release, verify keyboard access to the dialog, visible controls, caption availability, reduced-motion behavior, mobile layout, MP4 cache headers, poster loading, and the fallback tour with the variable intentionally absent.
+
+## Available instrumental score
+
+The approved full-demo underscore is available at `/media/askmukthiguru-product-demo-instrumental.mp3`. It is a **65.99-second**, stereo MP3 at **44.1 kHz / 192 kbps**, designed to remain under narration and to resolve after the final product-demo scene. Its SHA-256 is `640237abe3786e397fd91069593b7d261b1e7d0fc9f1c1f81e9560ea07b10af2`.
+
+Use the score only as a separate, low-level narration bed in the final video edit; do not autoplay it on the landing page. During final assembly, duck it beneath spoken safety or source-attribution content and retain the accessible, muted-by-default landing-page demo behavior.

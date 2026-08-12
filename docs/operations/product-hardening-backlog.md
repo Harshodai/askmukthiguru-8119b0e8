@@ -48,3 +48,7 @@
 ## Operating rules
 
 The following rules are permanent release criteria. A model may not claim to be Sri Preethaji or Sri Krishnaji. First-person wording is limited to an exact, bounded, attributable source quotation. A missing source is a reason to clarify or limit the answer, not to produce generic spirituality. Indian cultural language must be meaningful and source-backed; it must never be simulated through grammar errors, accent imitation, or forced Sanskrit. All high-stakes requests continue to follow their safety path before any contemplative practice.
+
+## Repository cleanliness register — 2026-08-12
+
+The repository-cleanliness audit is recorded in [`repository-cleanliness-audit-2026-08-12.md`](./repository-cleanliness-audit-2026-08-12.md). The completed safe removals eliminated reproducible test output, an unreferenced temporary video-work directory, three unreferenced legacy demo renders, and a byte-identical editor backup. The following items remain explicit backlog work: **P0** resolve the undeclared `book-to-skill` gitlink; **P1** make an archival-or-retirement decision for the active legacy launch-demo/video-composition pipeline; **P1** add provenance and retention manifests for tracked results, quality-report, and screenshot evidence; **P1** archive the complete legacy composition source outside Git if the pipeline is retired; and **P2** periodically clear ignored local dependency environments and generated reports rather than committing them.

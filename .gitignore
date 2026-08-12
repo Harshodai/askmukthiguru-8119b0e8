@@ -254,3 +254,9 @@ video-composition/assets/screens/screen_07_kg.png
 video-composition/assets/screens/screen_10_privacy.png
 video-composition/index.html
 askmukthiguru-official-launch-demo.mp4
+
+# Reproducible local artifacts removed by repository-cleanliness audit (2026-08-12)
+playwright-screenshots/
+work-*/
+brag-demo*.mp4
+.qoder/*.bak
