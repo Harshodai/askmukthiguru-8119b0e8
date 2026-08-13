@@ -7,6 +7,7 @@ from typing import Any
 
 from app.config import settings
 from services.translation.base import TranslationProvider
+from services.translation.citation_markers import restore_citation_markers
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +39,10 @@ class RoutingTranslationProvider(TranslationProvider):
         # Gemini-first path: try, fall back to Sarvam on any failure.
         if settings.gemini_translation_enabled and self._gemini is not None:
             try:
-                return await self._gemini.translate_text(
+                translated = await self._gemini.translate_text(
                     text=text, source_lang=source_lang, target_lang=target_lang, **kwargs
                 )
+                return restore_citation_markers(text, translated)
             except Exception as gemini_err:
                 if settings.gemini_fallback_to_sarvam:
                     logger.error(
@@ -60,9 +62,10 @@ class RoutingTranslationProvider(TranslationProvider):
             and settings.sarvam_api_key.strip()
         ):
             try:
-                return await self._sarvam.translate_text(
+                translated = await self._sarvam.translate_text(
                     text=text, source_lang=source_lang, target_lang=target_lang, **kwargs
                 )
+                return restore_citation_markers(text, translated)
             except Exception as sarvam_err:
                 logger.error(f"Sarvam translation failed: {sarvam_err}")
                 # Fall through to Ollama if available.
@@ -71,9 +74,10 @@ class RoutingTranslationProvider(TranslationProvider):
         # Ollama fallback if Sarvam unavailable/failed and Ollama configured.
         if self._ollama is not None:
             try:
-                return await self._ollama.translate_text(
+                translated = await self._ollama.translate_text(
                     text=text, source_lang=source_lang, target_lang=target_lang, **kwargs
                 )
+                return restore_citation_markers(text, translated)
             except Exception as ollama_err:
                 logger.error(f"Ollama translation failed: {ollama_err}")
                 raise

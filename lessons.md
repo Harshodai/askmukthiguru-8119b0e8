@@ -6770,3 +6770,13 @@ manifest from the backend, remove actions only when that manifest explicitly
 says they are unavailable or policy-disabled, and retain independently working
 browser actions during a transient manifest failure. This prevents both dummy
 controls and outages that hide capabilities the client can still perform.
+
+### L-HARDEN-29 — Translation may change explanation, never evidence identity
+
+A translated answer is a convenience layer, not a replacement source record.
+Keep citations, source identities, release versions, and original-language
+material intact; preserve in-text citation markers across every translation
+provider and test grouped markers so references cannot silently disappear or be
+duplicated. Automated marker checks protect provenance mechanics only; qualified
+reviewers remain responsible for fluency, cultural fit, and source-context
+fidelity in each priority language.
