@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
+import { evidenceSupport } from '@/lib/chat/evidenceSupport';
 import { useProfile } from '@/hooks/useProfile';
 import { translateText } from '@/lib/aiService';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
@@ -974,10 +975,10 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 {typeof message.confidenceScore === 'number' && Number.isFinite(message.confidenceScore) && (
                   <span
                     className="shrink-0 rounded-full bg-card px-2 py-1 font-medium text-foreground/80"
-                    title={message.confidenceReason || (message.confidenceScore >= 8 ? 'Strong retrieved and verified support' : message.confidenceScore >= 5 ? 'Some supporting context was available' : 'No or limited supporting context was available')}
-                    aria-label={`Response support: ${message.confidenceScore >= 8 ? 'Teaching-supported' : message.confidenceScore >= 5 ? 'Partially supported' : 'Limited support'}`}
+                    title={message.confidenceReason || evidenceSupport(message.confidenceScore).description}
+                    aria-label={`Response support: ${evidenceSupport(message.confidenceScore).label}`}
                   >
-                    {message.confidenceScore >= 8 ? 'Teaching-supported' : message.confidenceScore >= 5 ? 'Partially supported' : 'Limited support'}
+                    {evidenceSupport(message.confidenceScore).label}
                   </span>
                 )}
                 {citations.length > 0 && (
