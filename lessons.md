@@ -6733,3 +6733,12 @@ message. New optional response metadata must also tolerate legacy lightweight
 result objects used by endpoint and streaming tests, so staged rollout does not
 break compatibility surfaces while full pipeline results carry the richer
 contract.
+
+### L-HARDEN-25 — Multilingual release quality needs two independent gates
+
+A language launch matrix can deterministically verify routing, safety contracts,
+structured evidence, attribution, and practical next-step metadata. It must not
+pretend those checks prove tone, cultural fit, or translation quality. Keep a
+separate reviewer-approved artifact for every priority-language case and make
+that artifact mandatory for production, while allowing explicit pending-review
+mode only for local or exploratory runs.
