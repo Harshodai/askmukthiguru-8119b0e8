@@ -39,9 +39,8 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install locust
-        working-directory: backend
-        run: pip install locust
+      - name: Install load-test dependencies
+        run: pip install -r backend/requirements-dev.txt
 
       - name: Boot local stack with mock LLM (mode B only)
         if: env.LOAD_TEST_URL == 'http://127.0.0.1:8000'

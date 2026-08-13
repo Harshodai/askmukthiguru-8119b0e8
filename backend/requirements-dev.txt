@@ -1,2 +1,4 @@
 bandit>=1.7
 pip-audit>=2.7
+# Staged-load harness; intentionally excluded from the production runtime lock.
+locust>=2.31,<3
