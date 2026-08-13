@@ -14,6 +14,7 @@ from app.config import settings
 import app.dependencies as _app_deps
 from app.dependencies import ServiceContainer, get_container
 from app.metrics import HEALTH_CHECK_TOTAL, metrics_endpoint
+from app.runtime_metrics import observe_queue_depths
 from services.auth_service import get_current_user_from_supabase, require_aal2
 from services.circuit_breaker import CircuitState
 
@@ -130,12 +131,16 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     results["standard_graph"] = {"ok": container.standard_graph is not None, "latency_ms": 0, "critical": True}
     results["deep_graph"] = {"ok": container.deep_graph is not None, "latency_ms": 0, "critical": False}
 
+    job_queue = getattr(container, "job_queue", None)
+    queue_size = getattr(job_queue, "queue_size", 0) if job_queue else 0
+    observe_queue_depths({"job": queue_size})
+    # Job Queue
     # Job Queue
     results["job_queue"] = {
-        "ok": getattr(container, "job_queue", None) is not None,
+        "ok": job_queue is not None,
         "latency_ms": 0,
         "critical": False,
-        "queue_size": getattr(container.job_queue, "queue_size", 0) if getattr(container, "job_queue", None) else 0,
+        "queue_size": queue_size,
     }
 
     # P1-OPS-8: chat admission-control contention (per-replica semaphore)

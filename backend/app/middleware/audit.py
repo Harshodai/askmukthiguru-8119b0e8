@@ -8,6 +8,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from app.metrics import REQUEST_COUNT
+from app.runtime_metrics import observe_request_resources
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         start = time.monotonic()
+        cpu_start = time.process_time()
         method = request.method
         path = request.url.path
 
@@ -36,6 +38,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             response: Response = await call_next(request)
         except Exception as exc:
             duration = time.monotonic() - start
+            observe_request_resources(time.process_time() - cpu_start)
             logger.error(
                 "AUDIT %s %s -> EXCEPTION (%.3fs): %s",
                 method, path, duration, exc,
@@ -44,6 +47,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
 
         duration = time.monotonic() - start
 
+        observe_request_resources(time.process_time() - cpu_start)
         if any(path.startswith(p) for p in self.SKIP_PATHS):
             return response
 

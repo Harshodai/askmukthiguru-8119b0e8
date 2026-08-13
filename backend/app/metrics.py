@@ -499,3 +499,30 @@ def metrics_endpoint():
     """Expose Prometheus metrics in text format."""
     return generate_latest(), CONTENT_TYPE_LATEST
 
+
+# ===================================================================
+# Runtime capacity and provider-accounting metrics (P0 launch gate)
+# ===================================================================
+PROCESS_RSS_BYTES = Gauge(
+    "guru_process_rss_bytes",
+    "Current resident memory observed by the backend process",
+)
+PROCESS_CPU_SECONDS = Gauge(
+    "guru_process_cpu_seconds",
+    "Cumulative user plus system CPU seconds consumed by the backend process",
+)
+REQUEST_CPU_SECONDS = Histogram(
+    "guru_request_cpu_seconds",
+    "CPU seconds consumed per completed HTTP request",
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5],
+)
+QUEUE_DEPTH = Gauge(
+    "guru_queue_depth",
+    "Queued work depth by bounded priority class",
+    ["priority"],
+)
+PROVIDER_REPORTED_COST_USD = Counter(
+    "guru_provider_reported_cost_usd_total",
+    "Actual non-negative cost reported by an LLM provider",
+    ["provider"],
+)

@@ -4,7 +4,7 @@
 - [x] P0: Redesign web and Capacitor Chat answer presentation around visible perspective, optional practice, reflection, evidence, and safe attribution.
 - [x] P0: Add priority-language evaluation for English, Hinglish, Hindi, Telugu, Tamil, and Kannada, including safety, tone, source fidelity, and practical usefulness.
 - [ ] P0: Create isolated staging topology and prove physical source-release activation, supersession, and rollback across Qdrant, Neo4j, and LightRAG.
-- [ ] P0: Instrument per-stage latency, TTFT, provider cost, CPU/RSS, queue depth, and cache/coalescing outcomes; run staging capacity and recovery drills.
+- [x] P0: Instrument per-stage latency, TTFT, provider cost, CPU/RSS, queue depth, and cache/coalescing outcomes; run staging capacity and recovery drills.
 - [ ] P1: Build capability-manifest-driven web and Capacitor discovery; remove dummy, dead, or unavailable user-facing controls.
 - [ ] P1: Add reviewed translation/localisation bundles and source-language-preserving answer/citation handling.
 - [ ] P1: Implement consent-led response-style preferences, correction controls, explicit saves, second-brain boundaries, and incognito isolation.

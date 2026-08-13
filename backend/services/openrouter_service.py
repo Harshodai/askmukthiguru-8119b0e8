@@ -209,6 +209,8 @@ class OpenRouterService:
                 acc.cost_usd += max(0.0, cost_usd)
                 acc.model = model
                 acc.provider = "openrouter"
+            from app.runtime_metrics import observe_provider_actual_cost
+            observe_provider_actual_cost("openrouter", cost_usd)
         except Exception as exc:
             logger.warning(f"Failed to record openrouter token usage: {exc}")
 

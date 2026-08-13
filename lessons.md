@@ -6742,3 +6742,13 @@ pretend those checks prove tone, cultural fit, or translation quality. Keep a
 separate reviewer-approved artifact for every priority-language case and make
 that artifact mandatory for production, while allowing explicit pending-review
 mode only for local or exploratory runs.
+
+### L-HARDEN-26 — Capacity telemetry must be low-cardinality and content-free
+
+Latency, TTFT, node timing, cache/coalescing, actual provider cost, CPU, RSS,
+and bounded queue depth are enough to operate a small launch cohort without
+turning observability into another data-retention surface. Sample process
+aggregates at request completion, carry only stable metric labels, and record
+provider-reported cost separately from estimates. Metrics prove neither global
+capacity nor quality by themselves; preserve the staged-load and multi-region
+release drills as independent admission evidence.
