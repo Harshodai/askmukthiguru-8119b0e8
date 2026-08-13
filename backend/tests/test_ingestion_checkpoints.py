@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from ingest.pipeline import IngestionCheckpoint
+from ingest.pipeline import IngestionCheckpoint, IngestionPipeline
 
 
 def test_checkpoint_redis_primary():
@@ -70,9 +70,21 @@ def test_checkpoint_json_fallback(tmp_path):
         assert processed_not_existing is False
 
 
-def test_playlist_checkpoint_uses_the_same_source_key_for_read_and_write():
+def test_playlist_checkpoint_uses_the_same_scoped_key_for_read_and_write():
     from pathlib import Path
 
     source = (Path(__file__).resolve().parents[1] / "ingest" / "pipeline.py").read_text(encoding="utf-8")
-    assert 'checkpoint.is_processed(video["url"])' in source
-    assert 'checkpoint.save(video["url"], {"content_hash": content_hash_pl})' in source
+    assert 'checkpoint.is_processed(self._checkpoint_key(video["url"]))' in source
+    assert 'checkpoint.save(self._checkpoint_key(video["url"]), {"content_hash": content_hash_pl})' in source
+
+
+def test_checkpoint_key_isolated_by_corpus_and_source_version():
+    pipeline = object.__new__(IngestionPipeline)
+    pipeline._corpus_id = "preethaji-approved"
+
+    release_one = pipeline._checkpoint_key("same-content-hash", source_version=1)
+    release_two = pipeline._checkpoint_key("same-content-hash", source_version=2)
+
+    assert release_one == "preethaji-approved:v1:same-content-hash"
+    assert release_two == "preethaji-approved:v2:same-content-hash"
+    assert release_one != release_two

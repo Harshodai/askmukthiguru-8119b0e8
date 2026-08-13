@@ -288,6 +288,7 @@ class IngestionPipeline:
         lightrag_service: Optional[Any] = None,
         ocr_service: Optional[OCRService] = None,
         semantic_cache_service: Optional[Any] = None,
+        corpus_id: Optional[str] = None,
     ) -> None:
         """
         Dependency Injection: All services are injected, not created internally.
@@ -317,6 +318,7 @@ class IngestionPipeline:
         self._corrector = TranscriptCorrector(ollama_service)
         self._lightrag = lightrag_service
         self._semantic_cache = semantic_cache_service
+        self._corpus_id = corpus_id or settings.default_corpus_id
 
         self._adaptive_chunker = AdaptiveChunker(self._embedder)
         self._proposition_service = PropositionService(self._llm)
@@ -359,6 +361,10 @@ class IngestionPipeline:
                 auth=(settings.neo4j_user, settings.neo4j_password),
             )
         return self._neo4j_driver
+
+    def _checkpoint_key(self, source_identity: str, source_version: int = 1) -> str:
+        """Namespace idempotency by corpus and immutable source version."""
+        return f"{self._corpus_id}:v{source_version}:{source_identity}"
 
     async def ingest_file(
         self,
@@ -715,6 +721,7 @@ class IngestionPipeline:
                     hyper_extract_result.get("relationships", []),
                     source_doc_id=url,
                     source_chunk_id=hashlib.sha256(clean_text.strip().encode("utf-8")).hexdigest(),
+                    corpus_id=self._corpus_id,
                 )
             except Exception as e:
                 logger.warning(f"ontology write skipped (post-success): {e}")
@@ -756,7 +763,7 @@ class IngestionPipeline:
             tags = list(set(tags + doc_tags))
         content_hash = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
         checkpoint = IngestionCheckpoint()
-        if checkpoint.is_processed(content_hash):
+        if checkpoint.is_processed(self._checkpoint_key(content_hash, source_version)):
             self._notify(on_progress, "Content already processed. Skipping.", 1.0)
             return {
                 "status": "success",
@@ -883,6 +890,7 @@ class IngestionPipeline:
                     hyper_extract_result.get("relationships", []),
                     source_doc_id=source_url,
                     source_chunk_id=content_hash,
+                    corpus_id=self._corpus_id,
                 )
             except Exception as e:
                 if settings.ontology_write_required:
@@ -896,7 +904,7 @@ class IngestionPipeline:
                     }
                 logger.warning(f"optional ontology write unavailable for {source_url}: {e}")
 
-        checkpoint.save(content_hash)
+        checkpoint.save(self._checkpoint_key(content_hash, source_version))
         self._notify(on_progress, "Complete!", 1.0)
         return {
             "status": "success",
@@ -950,7 +958,7 @@ class IngestionPipeline:
 
         content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
         checkpoint = IngestionCheckpoint()
-        if checkpoint.is_processed(content_hash):
+        if checkpoint.is_processed(self._checkpoint_key(content_hash, source_version)):
             self._notify(on_progress, "Video content already processed. Skipping.", 1.0)
             return {
                 "status": "success",
@@ -1127,6 +1135,7 @@ class IngestionPipeline:
                     hyper_extract_result.get("relationships", []),
                     source_doc_id=url,
                     source_chunk_id=video_id,
+                    corpus_id=self._corpus_id,
                 )
             except Exception as e:
                 if settings.ontology_write_required:
@@ -1140,7 +1149,7 @@ class IngestionPipeline:
                     }
                 logger.warning(f"optional ontology write unavailable for {url}: {e}")
 
-        checkpoint.save(content_hash)
+        checkpoint.save(self._checkpoint_key(content_hash, source_version))
 
         # OKF auto-extraction: fire-and-forget for newly ingested content.
         # ponytail: gated by rag_okf_auto_extract_enabled (default on — hardened
@@ -1194,7 +1203,7 @@ class IngestionPipeline:
 
         content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
         checkpoint = IngestionCheckpoint()
-        if checkpoint.is_processed(content_hash):
+        if checkpoint.is_processed(self._checkpoint_key(content_hash, source_version)):
             self._notify(on_progress, "Video content already processed. Skipping.", 1.0)
             return {
                 "status": "success",
@@ -1389,7 +1398,7 @@ class IngestionPipeline:
                 "summaries_created": 0,
             }
 
-        checkpoint.save(content_hash)
+        checkpoint.save(self._checkpoint_key(content_hash, source_version))
 
         # KG Phase 6: materialize extracted entities/relationships into Neo4j.
         # Post-success, same pattern as _ingest_video.
@@ -1403,6 +1412,7 @@ class IngestionPipeline:
                     hyper_extract_result.get("relationships", []),
                     source_doc_id=url,
                     source_chunk_id=video_id,
+                    corpus_id=self._corpus_id,
                 )
             except Exception as e:
                 logger.warning(f"ontology write skipped (post-success): {e}")
@@ -1550,7 +1560,7 @@ class IngestionPipeline:
         checkpoint = IngestionCheckpoint()
         unprocessed_videos = []
         for i, video in enumerate(videos):
-            if checkpoint.is_processed(video["url"]):
+            if checkpoint.is_processed(self._checkpoint_key(video["url"])):
                 self._notify(
                     on_progress,
                     f"Skipping {i + 1}/{len(videos)}: {video.get('title', 'Unknown')[:50]}... (already processed)",
@@ -1719,6 +1729,7 @@ class IngestionPipeline:
                             pl_hyper_extract.get("relationships", []),
                             source_doc_id=video["url"],
                             source_chunk_id=content_hash_pl,
+                            corpus_id=self._corpus_id,
                         )
                     except Exception as e:
                         if settings.ontology_write_required:
@@ -1728,7 +1739,7 @@ class IngestionPipeline:
                             continue
                         logger.warning(f"optional ontology write unavailable for {video['url']}: {e}")
 
-                checkpoint.save(video["url"], {"content_hash": content_hash_pl})
+                checkpoint.save(self._checkpoint_key(video["url"]), {"content_hash": content_hash_pl})
                 processed += 1
 
                 # OKF auto-extraction: fire-and-forget per video. Fix: playlist path
@@ -1823,6 +1834,7 @@ class IngestionPipeline:
                     img_hyper_extract.get("relationships", []),
                     source_doc_id=url,
                     source_chunk_id=content_hash,
+                    corpus_id=self._corpus_id,
                 )
             except Exception as e:
                 logger.warning(f"ontology write skipped (post-success): {e}")
@@ -2244,6 +2256,7 @@ class IngestionPipeline:
                 "raptor_level": 0,  # Leaf node
                 # Re-ingestion metadata
                 "source_version": source_version,
+                "corpus_id": self._corpus_id,
                 "ingested_at": now_iso,
                 "authority_tier": authority_tier,
                 # YouTube-specific fields (populated when available)
