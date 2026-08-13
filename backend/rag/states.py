@@ -198,6 +198,9 @@ class GraphState(TypedDict):
     assistant_slug: Optional[str]
     knowledge_tags: list[str]
     assistant_system_prompt: Optional[str]
+    # Server-resolved retrieval authority; never populated from client tags.
+    corpus_id: Optional[str]
+    teacher_id: Optional[str]
 
     # Confidence Gate
     low_confidence_retrieval: Optional[bool]

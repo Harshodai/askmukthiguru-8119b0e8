@@ -1,65 +1,85 @@
-"""Server-side assistant persona allowlist (audit item M3).
-
-The client may send an ``assistant`` block on ``ChatRequest`` carrying a
-``slug`` and a ``system_prompt``. The input rail screens ``system_prompt`` and
-``GraphStage`` honours it only for authenticated users, but until M3 there was
-no server-side registry of which slugs are real personas — anyone could ship a
-custom slug with their prompt and have it act as the system instruction.
-
-This module owns the allowlist. ``validate_assistant_slug`` is the single
-gate: it returns the slug when it is in the allowlist, ``None`` otherwise. The
-guardrail stage calls it and clears ``assistant.system_prompt`` when the slug
-is rejected, so the honesty guard in ``rag/nodes/generation`` stays ON and no
-attacker persona replaces the guru.
-"""
-
+"""Server-authoritative assistant persona and corpus-scope registry."""
 from __future__ import annotations
 
+import json
 import logging
+from dataclasses import dataclass
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Optional
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class AssistantScope:
+    """Server-resolved retrieval authority for an approved assistant persona."""
+
+    corpus_id: str
+    teacher_id: str | None = None
+
+
 @lru_cache(maxsize=1)
 def _allowed_slugs() -> frozenset[str]:
-    """Return the frozen set of allowlisted assistant slugs from settings.
-
-    ``settings.allowed_assistant_slugs`` is a comma-separated string. Whitespace
-    around each slug is stripped; empty entries are dropped. Cached because it
-    is read on every chat turn and the setting is process-static.
-    """
     raw = getattr(settings, "allowed_assistant_slugs", "") or ""
-    parsed = {s.strip() for s in raw.split(",") if s.strip()}
-    return frozenset(parsed)
+    return frozenset(s.strip() for s in raw.split(",") if s.strip())
+
+
+@lru_cache(maxsize=1)
+def _scope_registry() -> dict[str, AssistantScope]:
+    """Parse configured assistant scopes; malformed entries are ignored."""
+    raw = getattr(settings, "assistant_corpus_registry", "") or ""
+    if not raw.strip():
+        return {}
+    try:
+        parsed: Any = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.error("assistant_corpus_registry is invalid JSON; ignoring it")
+        return {}
+    if not isinstance(parsed, dict):
+        logger.error("assistant_corpus_registry must be a JSON object")
+        return {}
+
+    scopes: dict[str, AssistantScope] = {}
+    for slug, value in parsed.items():
+        if not isinstance(slug, str) or not isinstance(value, dict):
+            logger.warning("Ignoring malformed assistant scope entry %r", slug)
+            continue
+        corpus_id = value.get("corpus_id") or settings.default_corpus_id
+        teacher_id = value.get("teacher_id")
+        if not isinstance(corpus_id, str) or not corpus_id.strip():
+            logger.warning("Ignoring assistant scope %r with invalid corpus", slug)
+            continue
+        if teacher_id is not None and (
+            not isinstance(teacher_id, str) or not teacher_id.strip()
+        ):
+            logger.warning("Ignoring assistant scope %r with invalid teacher", slug)
+            continue
+        scopes[slug] = AssistantScope(
+            corpus_id=corpus_id.strip(), teacher_id=teacher_id
+        )
+    return scopes
 
 
 def validate_assistant_slug(slug: Optional[str]) -> Optional[str]:
-    """Return ``slug`` if it is in the server-side allowlist, else ``None``.
-
-    ``None``/empty input returns ``None`` (no assistant persona to validate).
-    A non-allowlisted slug is logged at INFO (the slug itself is not PII — it
-    is a short identifier the client chose, not user content) and rejected.
-    Callers must clear ``assistant.system_prompt`` on a ``None`` return so the
-    honesty guard in generation stays ON.
-    """
+    """Return a server-allowlisted slug or ``None`` for untrusted input."""
     if not slug or not isinstance(slug, str):
         return None
     if slug in _allowed_slugs():
         return slug
-    logger.info("Rejecting non-allowlisted assistant slug %r (M3).", slug)
+    logger.info("Rejecting non-allowlisted assistant slug %r.", slug)
     return None
 
 
-def _self_check() -> None:
-    """Runnable self-check: print the parsed allowlist and a few probes."""
-    print(f"allowed_assistant_slugs={sorted(_allowed_slugs())}")
-    for probe in ("guru", "evil_injected_slug", None, ""):
-        print(f"validate({probe!r}) -> {validate_assistant_slug(probe)!r}")
-
-
-if __name__ == "__main__":
-    _self_check()
+def resolve_assistant_scope(slug: Optional[str]) -> AssistantScope | None:
+    """Resolve an allowlisted persona to server-configured retrieval scope."""
+    if not slug:
+        return AssistantScope(corpus_id=settings.default_corpus_id)
+    validated = validate_assistant_slug(slug)
+    if validated is None:
+        return None
+    scope = _scope_registry().get(validated)
+    if scope is None:
+        logger.error("Allowlisted assistant slug %r has no configured scope", validated)
+    return scope

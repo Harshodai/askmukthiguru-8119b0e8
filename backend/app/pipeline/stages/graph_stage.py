@@ -16,6 +16,7 @@ import time
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from app.assistant_registry import resolve_assistant_scope
 from app.config import settings
 from app.context import correlation_id_var
 from app.orchestrator_utils import get_expected_keywords, select_graph_for_query
@@ -114,6 +115,14 @@ class GraphStage(Stage):
             _user = ctx.user or {}
             _is_authed = bool(_user.get("id")) and _user.get("id") != "anonymous" \
                 and not str(_user.get("id")).startswith("anon:") and not _user.get("is_anonymous")
+            requested_slug = getattr(assistant, "slug", None)
+            scope = resolve_assistant_scope(requested_slug)
+            if scope is None:
+                logger.warning("Rejecting assistant without a server-resolved corpus scope: %r", requested_slug)
+                requested_slug = None
+                scope = resolve_assistant_scope(None)
+                if assistant is not None:
+                    assistant.system_prompt = None
             _persona = getattr(assistant, "system_prompt", None) if _is_authed else None
             if getattr(assistant, "system_prompt", None) and not _is_authed:
                 logger.warning("Dropping client-supplied assistant.system_prompt for unauthenticated request (M3).")
@@ -122,10 +131,12 @@ class GraphStage(Stage):
                 chat_history=chat_history_en,
                 meditation_step=meditation_step,
                 request_id=correlation_id_var.get(),
-                assistant_slug=getattr(assistant, "slug", None),
-                knowledge_tags=list(getattr(assistant, "knowledge_tags", []) or []),
+                assistant_slug=requested_slug,
+                knowledge_tags=[],
                 assistant_system_prompt=_persona,
             )
+            initial_state["corpus_id"] = scope.corpus_id
+            initial_state["teacher_id"] = scope.teacher_id
             initial_state["detected_language"] = lang_detection.primary.value if lang_detection else "en"
             initial_state["memory_context"] = memory_context
             initial_state["expected_keywords"] = get_expected_keywords(user_msg_en)

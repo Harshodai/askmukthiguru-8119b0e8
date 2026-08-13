@@ -251,6 +251,8 @@ def create_initial_state(
         assistant_slug=assistant_slug,
         knowledge_tags=knowledge_tags or [],
         assistant_system_prompt=assistant_system_prompt,
+        corpus_id=None,
+        teacher_id=None,
         # Web Search
         needs_web_search=False,
         web_search_results=[],

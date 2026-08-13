@@ -436,6 +436,12 @@ class Settings(BaseSettings):
     # and no attacker persona replaces the guru. Default seeds the four
     # personas the frontend ships today.
     allowed_assistant_slugs: str = "guru,preethaji,krishnaji,serene_mind"
+    # JSON map: approved assistant slug -> server-resolved corpus/teacher scope.
+    # A supplied slug without a registry entry is rejected before graph execution.
+    assistant_corpus_registry: str = (
+        "{\"guru\": {}, \"preethaji\": {\"teacher_id\": \"preethaji\"}, "
+        "\"krishnaji\": {\"teacher_id\": \"krishnaji\"}, \"serene_mind\": {}}"
+    )
     # Default to disabled: the frontend uses Supabase auth, so the FastAPI
     # /api/auth/register endpoint has no legitimate public use case and would
     # otherwise expose an email-enumeration surface. Override with the
