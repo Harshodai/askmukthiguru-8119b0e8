@@ -64,6 +64,7 @@ import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { useAssistants } from '@/hooks/useAssistants';
 import { ChatComposer } from './ChatComposer';
+import { TeacherGuidancePanel } from './TeacherGuidancePanel';
 import { HealingPathCard, type HealingCourseRecommendation, type UserTurn } from './HealingPathCard';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
@@ -1822,6 +1823,19 @@ return (
                 >
                   {buildGreetingSubline(greetingContext)}
                 </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.18 }}
+                className="w-full px-4"
+              >
+                <TeacherGuidancePanel
+                  assistantName={selected?.name}
+                  language={currentLanguage}
+                  onLanguageChange={handleLanguageChange}
+                />
+              </motion.div>
               </div>
 
               <div className="w-full max-w-2xl px-4 mt-2">

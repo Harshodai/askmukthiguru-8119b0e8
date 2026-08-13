@@ -6695,3 +6695,21 @@ governance metadata. They must survive latency reconstruction and request
 coalescing, but must never be inferred from generated response prose. A missing
 retrieval path should explicitly yield limited support rather than a fabricated
 confidence claim.
+
+### L-HARDEN-21 — Teacher alignment must be visible without impersonation
+
+A spiritual guidance UI should state its teaching lineage in the interaction
+surface, not leave it to an opaque prompt. Use clear attribution such as
+“inspired by the teachings of Sri Preethaji and Sri Krishnaji”, disclose that the
+system is not either teacher, and keep the server-resolved corpus scope as the
+actual authority. Do not make teacher alignment a mechanism for invented
+first-person quotations or weakened safety escalation.
+
+### L-HARDEN-22 — Code-mixed language is a routing choice, not a translation bug
+
+Hinglish needs a first-class user choice because translating code-mixed input to
+English can discard tone and intent. Preserve the canonical `hinglish` request
+language for the backend router while retaining ordinary translation for
+script-based language choices. Keep priority language controls compact and make
+the broader language selector available without hiding the user’s preferred
+language.

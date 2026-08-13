@@ -50,3 +50,14 @@ describe('useAutoTranslate backend translation', () => {
     expect(result.current.lastError).toContain('backend down');
   });
 });
+
+  it('preserves Hinglish for the backend language router', async () => {
+    vi.clearAllMocks();
+    const { result } = renderHook(() => useAutoTranslate({ languageCode: 'hinglish' }));
+    await act(async () => {
+      const out = await result.current.translateToEnglish('Mujhe peace chahiye');
+      expect(out).toBe('Mujhe peace chahiye');
+    });
+    expect(result.current.isActive).toBe(false);
+    expect(translateText).not.toHaveBeenCalled();
+  });

@@ -17,6 +17,7 @@ interface Language {
 // 22 scheduled Indian languages + English. Aligned with Sarvam-30B's claimed coverage.
 const MASTER_LANGUAGES: Language[] = [
   { code: 'en', name: 'English (India)', native: 'English', bcp47: 'en-IN' },
+  { code: 'hinglish', name: 'Hinglish', native: 'हिंग्लिश', bcp47: 'en-IN' },
   { code: 'hi', name: 'Hindi', native: 'हिन्दी', bcp47: 'hi-IN' },
   { code: 'bn', name: 'Bengali', native: 'বাংলা', bcp47: 'bn-IN' },
   { code: 'te', name: 'Telugu', native: 'తెలుగు', bcp47: 'te-IN' },
@@ -42,7 +43,7 @@ const MASTER_LANGUAGES: Language[] = [
 ];
 
 export const LANGUAGES: Language[] = MASTER_LANGUAGES.filter((lang) => {
-  return ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'ml', 'bn', 'gu', 'as', 'sa'].includes(lang.code);
+  return ['en', 'hinglish', 'hi', 'te', 'kn', 'ta', 'mr', 'ml', 'bn', 'gu', 'as', 'sa'].includes(lang.code);
 });
 
 /**
@@ -51,6 +52,7 @@ export const LANGUAGES: Language[] = MASTER_LANGUAGES.filter((lang) => {
  */
 export const LANGUAGE_FLAGS: Record<string, string> = {
   en:  '🇮🇳',
+  hinglish: '🇮🇳',
   hi:  '🇮🇳',
   bn:  '🇮🇳',
   te:  '🇮🇳',
@@ -84,7 +86,7 @@ const pillLabel = (lang: Language): string => {
   if (lang.code === 'en') return 'EN';
   // For common langs show their native short-form
   const SHORT: Record<string, string> = {
-    hi: 'हिन्', te: 'తె', ta: 'த', bn: 'বাং', mr: 'मरा',
+    hinglish: 'Hing', hi: 'हिन्', te: 'తె', ta: 'த', bn: 'বাং', mr: 'मरा',
     gu: 'ગુ', kn: 'ಕ', ml: 'മ', pa: 'ਪੰ', ur: 'اُردُو',
     or: 'ওড়',  as: 'অস', ne: 'ने',
   };
@@ -234,8 +236,8 @@ export const LanguageSelector = ({
 
   const currentLang = LANGUAGES.find((l) => l.code === selectedLanguage);
 
-  // ponytail: flat list, no search — LANGUAGES is a fixed 7-item set, a search
-  // box was pure friction (matches Claude.ai/ChatGPT's <10-item picker pattern).
+  // ponytail: flat list, no search — LANGUAGES is a compact priority set, a search
+  // box was pure friction (matches a compact picker pattern).
   // Add search back only if LANGUAGES grows past ~12 entries.
   const renderLanguageRows = () => (
     <>

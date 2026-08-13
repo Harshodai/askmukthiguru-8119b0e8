@@ -78,7 +78,7 @@ export interface UseAutoTranslateResult {
   translateFromEnglish: (text: string) => Promise<string>;
   /** True if translation is in progress (useful to show a spinner). */
   isTranslating: boolean;
-  /** True if auto-translate is active (language !== 'en'). */
+  /** True if translation is active; Hinglish remains code-mixed for the backend router. */
   isActive: boolean;
   /** Error message from last translation attempt, or null. */
   lastError: string | null;
@@ -98,7 +98,7 @@ export function useAutoTranslate({
   const [isTranslating, setIsTranslating] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const cacheRef = useRef<TranslationCache>(makeCache());
-  const isActive = languageCode !== 'en';
+  const isActive = languageCode !== 'en' && languageCode !== 'hinglish';
   const langTag = TO_BACKEND[languageCode] ?? `${languageCode}-IN`;
 
   const translateToEnglish = useCallback(async (text: string): Promise<string> => {
