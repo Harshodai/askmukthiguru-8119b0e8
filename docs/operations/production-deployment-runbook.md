@@ -105,3 +105,92 @@ backend lock and a clean Node install can complete `npm ci`, tests, and the
 production build. Regenerate the backend lock with `uv pip compile
 backend/requirements.txt --output-file backend/requirements.lock` whenever its
 source manifest changes; review both files together in the same pull request.
+
+## Waitlist Activation and Privacy Gate
+
+The public waitlist is deliberately closed by default. Apply
+`supabase/migrations/20260805000002_waitlist_entries.sql` before setting
+`WAITLIST_ENABLED=true` on the backend. The table enables RLS and accepts writes
+only through the service-role client; it stores a normalised `email_key`, the
+contact-consent timestamp, and an optional acquisition source. Never expose the
+Supabase service key or direct table access to the browser.
+
+The landing-page form remains hidden unless the separately deployed frontend
+variable `VITE_WAITLIST_ENABLED=true` is set. Set both frontend and backend flags
+only in the same approved release. The browser submits only an email, source, and
+an affirmative `consent_to_contact=true` value to `POST /api/waitlist/`; the API
+returns the same acceptance response for a new or already-known email. The
+endpoint applies `REGISTRATION_RATE_LIMIT` and returns no account-existence or
+email-delivery signal.
+
+| Release check | Required evidence | Rollback |
+|---|---|---|
+| Database | Migration is applied and `waitlist_entries` has RLS enabled | Keep the table; do not delete consent records as a feature rollback |
+| Backend | `/api/capabilities` reports `waitlist: available` only with the feature enabled and service client present | Set `WAITLIST_ENABLED=false` |
+| Frontend | The form is visible only in the approved production build and links to `/privacy` | Remove `VITE_WAITLIST_ENABLED` or set it to `false` and redeploy |
+| Privacy | A representative record has a consent timestamp and no browser-accessible secret is present | Stop collection; retain and handle records under the published privacy policy |
+
+## Assistant Corpus Registry and Retrieval Containment
+
+Assistant slugs are presentation identifiers, never retrieval authority. Configure
+`ASSISTANT_CORPUS_REGISTRY` as a JSON mapping of an allowlisted assistant slug to
+its permitted `corpus_id` and optional `teacher_id`; keep
+`ALLOWED_ASSISTANT_SLUGS` aligned with that mapping and retain an explicit
+`DEFAULT_CORPUS_ID`. The server resolves this scope once in `GraphStage` and
+passes it to graph, vector, cache, and ontology boundaries. An unrecognised or
+unmapped slug must fail closed to the default corpus, not inherit a client tag.
+
+Before enabling a new teacher, run a canary with sentinel documents in each corpus
+and confirm that cross-corpus retrieval, graph traversal, cache reuse, and
+ontology projection do not expose the sentinel. The corpus ID and source-release
+version are part of ingestion checkpoint identity; a source update must use a new
+release version and must not silently reuse a completed checkpoint from another
+corpus.
+
+## Crisis Pre-emption Verification
+
+Severe distress and crisis classifications are now handled before graph execution,
+model invocation, cache, memory, and proactive-practice stages. The deterministic
+reply must present the immediate helpline-first path and record the
+`crisis_preempted` route decision. This is safety behaviour, not a configurable
+marketing feature; do not gate it with an environment flag.
+
+Run a staging trace with both severe-distress and crisis fixtures before every
+safety-sensitive release. The trace must prove that no retrieval span, generation
+span, memory write, cache write, or live-search span occurs after the classification.
+A failure requires rollback or a release hold, not an exception list.
+
+## Evidence-Support Labels and Official Live Information
+
+The UI renders support as one of `Teaching-supported`, `Partially supported`, or
+`Limited support` through `src/lib/chat/evidenceSupport.ts`; do not add local
+numeric-threshold copies in message components. The label describes support from
+backend metadata and is not a personal diagnosis, truth guarantee, or fabricated
+confidence percentage.
+
+For live logistics, enable `WEB_SEARCH_ENABLED` and `LIVE_LOGISTICS_ENABLED` only
+after the allowlist and freshness checks in the existing live-logistics section
+pass. The transport must retain `live_logistics_events` for both REST and SSE
+responses. The chat UI displays a typed official-event card only for HTTPS
+official URLs, with a verification time and distinct official-details and booking
+links. It must not infer dates or booking availability from generated prose.
+
+## Staged Deployment Control Sheet
+
+Do not call a deployment production-ready merely because unit tests pass. The
+release owner must retain the evidence below for the deployed build and record the
+commit SHA, environment, and timestamp with the release.
+
+| Gate | Evidence that must pass | Decision if it fails |
+|---|---|---|
+| Scope containment | Corpus-sentinel canary shows no cross-tenant or cross-teacher retrieval, graph, cache, or ontology leakage | Hold the release and disable the new assistant mapping |
+| Safety routing | Severe and crisis traces end at `crisis_preempted` before retrieval or generation | Hold the release |
+| Privacy and erasure | Memory deletion drill and waitlist consent path complete as designed | Keep write flags disabled |
+| Live logistics | Official-domain, freshness, and event-card source checks pass | Keep `LIVE_LOGISTICS_ENABLED=false` |
+| Recovery | Restore drill verifies database, Qdrant, Neo4j, and release configuration recovery | Do not increase traffic |
+| Capacity | Staging load test records p95 TTFT, error rate, queue depth, and provider-limit behaviour at the intended launch concurrency | Cap traffic to the observed safe level and investigate |
+
+Versioned source-release approval, atomic corpus alias activation, rollback drills,
+and the full typed answer-envelope quality contract remain launch gates where they
+have not yet been implemented. They must be tracked as explicit work, not implied
+by this runbook.

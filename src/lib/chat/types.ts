@@ -34,6 +34,15 @@ export const recommendedCourseSchema = z.object({
 });
 
 export type RecommendedCourse = z.infer<typeof recommendedCourseSchema>;
+/** A time-bounded event, booking, or schedule link returned from an official source. */
+export interface LiveLogisticsEvent {
+  event_name: string;
+  official_source_url: string;
+  booking_url?: string | null;
+  verified_at: string;
+  expires_at: string;
+}
+
 
 export interface AIResponse {
   content: string;
@@ -47,6 +56,8 @@ export interface AIResponse {
   proactiveSereneMind?: ProactiveSereneMindTrigger | null;
   followUpSuggestions?: string[];
   recommendedCourse?: RecommendedCourse | null;
+  /** Official-only schedule or booking results, time-bounded by the backend. */
+  liveLogisticsEvents?: LiveLogisticsEvent[];
 }
 
 /** Shape of the proactive Serene Mind trigger object returned by the backend */
@@ -85,6 +96,8 @@ export type StreamChunk =
       confidenceReason?: string | null;
       /** Streak-based healing course assignment from the backend. */
       recommendedCourse?: RecommendedCourse | null;
+      /** Official-only schedule or booking results, time-bounded by the backend. */
+      liveLogisticsEvents?: LiveLogisticsEvent[];
     }
   | { type: 'error'; text: string };
 

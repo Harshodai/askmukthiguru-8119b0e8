@@ -29,7 +29,7 @@ import { ChatErrorBanner } from './ChatErrorBanner';
 import { MoodBanner } from '@/components/mood/MoodBanner';
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, LiveLogisticsEvent, getAIConfig } from '@/lib/aiService';
 import { getCourse } from '@/lib/healingCourses';
 import { memoryApi } from '@/lib/memoryApi';
 import { supabase } from '@/integrations/supabase/client';
@@ -1005,8 +1005,9 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
         let streamedProactiveSereneMind: ProactiveSereneMindTrigger | null = null;
         let streamedFollowUpSuggestions: string[] = [];
         let streamedRecommendedCourse: RecommendedCourse | null = null;
-  let streamedConfidenceScore: number | null = null;
-  let streamedConfidenceReason: string | null = null;
+        let streamedConfidenceScore: number | null = null;
+        let streamedConfidenceReason: string | null = null;
+        let streamedLiveLogisticsEvents: LiveLogisticsEvent[] = [];
   for await (const chunk of stream) {
           if (chunk.type === 'status') {
             if (chunk.jobId) {
@@ -1051,6 +1052,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
             streamedRecommendedCourse = chunk.recommendedCourse ?? null;
             streamedConfidenceScore = chunk.confidenceScore ?? null;
             streamedConfidenceReason = chunk.confidenceReason ?? null;
+            streamedLiveLogisticsEvents = chunk.liveLogisticsEvents ?? [];
             continue;
           }
 
@@ -1104,6 +1106,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
                     language: currentLanguage,
                     confidenceScore: streamedConfidenceScore ?? undefined,
                     confidenceReason: streamedConfidenceReason ?? undefined,
+                    liveLogisticsEvents: streamedLiveLogisticsEvents.length > 0 ? streamedLiveLogisticsEvents : undefined,
                   }
                 : m
             )
@@ -1325,6 +1328,7 @@ openSereneMind('audio');
           citations: response.citations && response.citations.length > 0 ? response.citations : undefined,
           error: responseError,
           followUpSuggestions: response.followUpSuggestions && response.followUpSuggestions.length > 0 ? response.followUpSuggestions : undefined,
+          liveLogisticsEvents: response.liveLogisticsEvents && response.liveLogisticsEvents.length > 0 ? response.liveLogisticsEvents : undefined,
         };
         setMessages((prev) => [...prev, guruMessage]);
         if (!responseError) {

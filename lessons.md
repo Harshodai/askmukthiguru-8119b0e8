@@ -6587,3 +6587,80 @@ Run `npm ci` after changing `package-lock.json`; test and audit the dependency t
 `git diff --check` does not review untracked files until they are staged. Stage all intended code and documentation, run `git diff --cached --check`, then commit. Do not treat a passing source-only test as a substitute for reviewing added operating documents or scanning new text for credential literals.
 ### Product-demo video integration should remain deployable while generation capacity is unavailable
 The landing page may accept a final product-video URL through `VITE_LANDING_DEMO_VIDEO_URL`, but the app must still provide an accessible demo experience when that URL is unset. If video-generation capacity or credits are unavailable, record a production-ready storyboard, asset list, narrative, acceptance criteria, and deployment instructions rather than claiming that a video was generated. Generate optional BGM only after the video brief is confirmed and the actual video-production workflow reaches its audio-planning phase.
+
+## Re-verification hardening lessons — August 2026
+
+### L-HARDEN-01 — Retrieval scope is a server-resolved security boundary
+An assistant slug is display input, not corpus authority. Resolve every allowed
+slug to an explicit corpus and optional teacher scope on the server, then carry
+that scope through retrieval, graph traversal, cache, and ontology projection.
+Unknown or incomplete mappings must fail closed to the default corpus.
+
+### L-HARDEN-02 — Idempotency must include corpus release identity
+A checkpoint keyed only by source path or checksum can suppress ingestion in a
+different corpus or a later approved release. Namespace checkpoints by corpus and
+source-release version, and make every ontology write retain the resolved corpus
+identifier.
+
+### L-HARDEN-03 — Severe distress must stop the expensive pipeline
+Safety classification is only useful if it pre-empts the graph, models, cache,
+memory, and live search. A severe or crisis result should have a deterministic
+helpline-first response and a traceable route decision that proves no downstream
+work began.
+
+### L-HARDEN-04 — Consent collection needs a default-off product and API gate
+A waitlist is personal-data collection. Keep the endpoint and its landing CTA
+disabled by default, require affirmative consent, rate-limit requests, use a
+service-side upsert, and return a non-enumerating acceptance response.
+
+### L-HARDEN-05 — Frontend and backend feature flags are a release pair
+The browser should not probe a collection endpoint on every page load. A
+build-time frontend flag controls visibility, while the backend flag controls
+actual acceptance; activation requires both to be deliberately deployed together.
+
+### L-HARDEN-06 — Capability manifests must reflect dependencies, not intent
+A feature flag alone does not prove a capability exists. Report an enabled feature
+as available only when its required dependency, such as the Supabase service
+client, is present; otherwise distinguish policy-disabled from unavailable.
+
+### L-HARDEN-07 — Metadata is lost unless both transport modes preserve it
+REST, queued replies, and SSE done events are independent contracts. Add a typed
+field to all three, store it on the completed message, and test each boundary;
+otherwise a correct backend result silently disappears in the UI.
+
+### L-HARDEN-08 — Live logistics must be rendered as structured official data
+For event and booking queries, show a source-labelled card with verification time
+and separate official-details and booking links. Treat generated wording as
+explanation only, validate URLs in the UI as well, and never manufacture schedule
+facts when no fresh official result is available.
+
+### L-HARDEN-09 — Persisted chat schemas must evolve with the UI contract
+Adding a field to a TypeScript interface is insufficient if stored conversations
+are Zod-validated. Extend the persisted schema with safe optional fields so chat
+reloads neither discard new metadata nor reject older records.
+
+### L-HARDEN-10 — Confidence should communicate evidence support, not a score
+A user-facing score must not look like a numerical measure of spiritual truth.
+Centralise calibrated labels derived from verifier metadata, show provenance with
+them, and avoid copying threshold logic into individual render components.
+
+### L-HARDEN-11 — Tests must cover safe failure as well as the happy path
+The most valuable regressions assert disabled-by-default behaviour, missing
+consent rejection, dependency-unavailable status, insecure URL filtering, and
+crisis short-circuiting. A happy-path-only test suite gives a false launch signal.
+
+### L-HARDEN-12 — Build validation catches contract breaks that type snippets miss
+A complete Vite production build and prerender exercise real module boundaries,
+lazy pages, and JSX transforms. Run it after every frontend contract or component
+change, even where isolated unit tests appear green.
+
+### L-HARDEN-13 — Controlled launches require trace evidence, not confidence
+A production gate needs canaries for scope isolation, safety pre-emption, erasure,
+official-source freshness, restore, and p95 TTFT/error behaviour. Record the
+commit and environment evidence; do not infer readiness from code review alone.
+
+### L-HARDEN-14 — Unimplemented release controls must stay visible
+Source-release approval, atomic corpus alias activation, rollback drills, and a
+typed answer-envelope quality contract are valuable but are not complete merely
+because adjacent hardening landed. Keep each as a named launch gate until it has
+implementation and drill evidence.

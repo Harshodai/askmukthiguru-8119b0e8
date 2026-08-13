@@ -19,6 +19,7 @@ import { createPortal } from 'react-dom';
 import { memoryApi } from '@/lib/memoryApi';
 import { useToast } from '@/hooks/use-toast';
 import { CitationPanel, type Citation } from './CitationPanel';
+import { LiveLogisticsCards } from './LiveLogisticsCards';
 
 interface ChatMessageProps {
   message: Message;
@@ -994,6 +995,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 )}
               </div>
             )}
+            {isGuru && !isStreaming && <LiveLogisticsCards events={message.liveLogisticsEvents} />}
             {isGuru && citations.length > 0 && (
               <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/85 to-card/50 backdrop-blur-md px-4 py-3 group/details shadow-md transition-all duration-300">
                 <summary className="flex items-center gap-2.5 cursor-pointer list-none select-none">

@@ -230,6 +230,7 @@ export async function* sendMessageStreaming(
               confidenceScore: meta.confidence_score ?? null,
               confidenceReason: meta.confidence_reason ?? null,
               recommendedCourse: meta.recommended_course ?? null,
+              liveLogisticsEvents: meta.live_logistics_events ?? [],
             };
           } catch {
             // Ignore malformed done payload

@@ -449,6 +449,8 @@ class Settings(BaseSettings):
     disable_public_registration: bool = True
     chat_rate_limit: str = "20/minute"
     registration_rate_limit: str = "5/minute"
+    # Early-access collection remains off until its migration and privacy copy are deployed.
+    waitlist_enabled: bool = False
     admin_rate_limit: str = "5/minute"
     auth_backoff_base_seconds: float = 2.0
     auth_backoff_multiplier: float = 2.0

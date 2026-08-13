@@ -43,7 +43,10 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
             "teacher_voice": _state(settings.langhanam_voice_enabled),
             "whatsapp": "disabled_by_policy",
             "support_attachments": "disabled_by_policy",
-            "waitlist": "unavailable",
+            "waitlist": _state(
+                settings.waitlist_enabled,
+                getattr(container, "supabase_client", None) is not None,
+            ),
         },
     }
 

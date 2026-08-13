@@ -149,6 +149,7 @@ export const sendMessage = async (
                   blockReason: result.block_reason,
                   proactiveSereneMind: result.proactive_serene_mind ?? null,
                   recommendedCourse: result.recommended_course ?? null,
+                  liveLogisticsEvents: result.live_logistics_events ?? [],
                 };
               }
               if (job.status === 'failed') {
@@ -225,10 +226,11 @@ export const sendMessage = async (
         proactiveSereneMind: data.proactive_serene_mind ?? null,
         followUpSuggestions: data.follow_up_suggestions ?? [],
         recommendedCourse: data.recommended_course ?? null,
+        liveLogisticsEvents: data.live_logistics_events ?? [],
       };
     } catch (err: unknown) {
-      let code: AIErrorCode = 'network';
       const error = err as Error;
+      let code: AIErrorCode = 'network';
       let message = error?.message || 'Connection failed';
       if (error?.name === 'AbortError') {
         code = 'timeout';

@@ -115,15 +115,17 @@ class DistressStage(Stage):
         assessment = await self._detect_distress(ctx, user_msg_en, state)
         ctx.assessment = assessment
 
-        if assessment and assessment.level >= DistressLevel.SEVERE:
+        level_value = getattr(getattr(assessment, "level", None), "value", -1)
+        if not isinstance(level_value, int):
+            level_value = -1
+        if assessment and level_value >= DistressLevel.SEVERE.value:
             return self._crisis_preemption_result(ctx, assessment)
-
         # ponytail: proactive Serene Mind block from execute() verbatim.
         # Trigger on a keyword hit, a persistent distress trend, OR a positive
         # assessment this turn — so a crisis with no listed keyword still routes.
         proactive_data = None
         if ctx.has_distress_keywords or state.get("distress_history") or (
-            assessment and assessment.level.value >= 2
+            assessment and level_value >= DistressLevel.MODERATE.value
         ):
             proactive_data = await self._maybe_trigger_proactive_serene_mind(
                 ctx, assessment, ctx.user_id, ctx.request, state

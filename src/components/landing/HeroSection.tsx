@@ -8,6 +8,7 @@ import { FloatingParticles } from './FloatingParticles';
 import { ContinuePracticeCard } from './ContinuePracticeCard';
 import { DemoModal, hasSeenTour, recordTourOutcome, WelcomePrompt } from './DemoModal';
 import { getConsent } from '@/components/common/CookieConsentBanner';
+import { WaitlistForm } from './WaitlistForm';
 
 const MandalaSVG = ({ className }: { className?: string }) => (
   <svg
@@ -296,6 +297,7 @@ export const HeroSection = () => {
             >
               {t('landing.hero.microcopy', 'No account needed. Your peace is private.')}
             </motion.p>
+            <WaitlistForm />
 
             {/* Continue your practice (only if user has favorites) */}
             <ContinuePracticeCard />
