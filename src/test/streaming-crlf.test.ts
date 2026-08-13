@@ -108,3 +108,17 @@ describe('sendMessageStreaming with CRLF SSE payload', () => {
     expect(recordMetricMock).toHaveBeenCalled();
   });
 });
+
+describe('incognito stream request propagation', () => {
+  it('sends explicit incognito mode to the streaming endpoint', async () => {
+    fetchWithRetryMock.mockClear();
+    fetchWithRetryMock.mockResolvedValue(sseResponse('data: [DONE]\n\n'));
+
+    for await (const _chunk of sendMessageStreaming([], 'private question', 0, undefined, undefined, undefined, undefined, true)) {
+      // Completion payload is intentionally empty; this assertion targets the request contract.
+    }
+
+    const [, options] = fetchWithRetryMock.mock.calls[0];
+    expect(JSON.parse(options.body).incognito).toBe(true);
+  });
+});

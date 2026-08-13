@@ -47,6 +47,10 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = Field(None, description="Optional session ID")
     meditation_step: int = Field(default=0, description="Current meditation step (0 = none)")
     language: Optional[str] = Field(default="en", description="Preferred language")
+    incognito: bool = Field(
+        default=False,
+        description="Ephemeral privacy mode; disables persistence, memory, and shared reuse.",
+    )
     last_serene_mind_at: Optional[float] = Field(
         default=None,
         description="Unix timestamp of the user's last completed Serene Mind session (client-reported)",

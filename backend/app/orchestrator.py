@@ -89,7 +89,11 @@ class ChatRequestOrchestrator:
             )
 
         try:
-            result = await _coalescer.get_or_run(_coalesce_key, _run_pipeline)
+            result = (
+                await _run_pipeline()
+                if chat_body.incognito
+                else await _coalescer.get_or_run(_coalesce_key, _run_pipeline)
+            )
         except asyncio.TimeoutError:
             logger.error(f"Pipeline timeout for user {user_id}: message='{user_msg[:60]}...'")
             raise HTTPException(

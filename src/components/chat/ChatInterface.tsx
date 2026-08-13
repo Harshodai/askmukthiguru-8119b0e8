@@ -925,8 +925,12 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
 
     // ── Memory: fetch relevant context before sending ─────────────────
     // failures are silent (best-effort).
+    const requestHistory = isIncognito ? [] : messageHistory;
+    const requestSummary = isIncognito ? undefined : currentConversation?.summary;
+    const requestSessionId = isIncognito ? undefined : currentConversation?.id;
     let seekerContext = '';
-    try {
+    if (!isIncognito) {
+      try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         // Memory search uses aiText (English) for better semantic matching
@@ -935,7 +939,8 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
           seekerContext = relevant.map((m) => `- ${m.content}`).join('\n');
         }
       }
-    } catch { /* memory is best-effort — never block the chat */ }
+      } catch { /* memory is best-effort — never block the chat */ }
+    }
 
     // Try streaming first (skip when awaiting Serene Mind to avoid leaking blocked content during stream)
     const streamingGuruId = generateId();
@@ -946,20 +951,21 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
 
     if (!isAwaitingSereneMind) {
       try {
-        const lastSereneMindAt = getLastCompletedMeditationTimestamp();
+        const lastSereneMindAt = isIncognito ? undefined : getLastCompletedMeditationTimestamp();
 
         // Fresh AbortController for this turn — Stop button calls .abort().
         const controller = new AbortController();
         streamControllerRef.current = controller;
 
         const stream = sendMessageStreaming(
-          messageHistory,
+          requestHistory,
           aiText,  // translated (English) text sent to AI
           meditationStep,
-          currentConversation?.summary,
-          currentConversation?.id,
+          requestSummary,
+          requestSessionId,
           lastSereneMindAt,
           seekerContext || undefined,
+          isIncognito,
           controller.signal,
         );
 
@@ -1270,7 +1276,7 @@ openSereneMind('audio');
     }
 
     if (streamingWorked) {
-      maybeSummarize();
+      if (!isIncognito) maybeSummarize();
       return;
     }
 
@@ -1279,15 +1285,16 @@ openSereneMind('audio');
     setIsTyping(true);
 
     try {
-      const lastSereneMindAt = getLastCompletedMeditationTimestamp();
+      const lastSereneMindAt = isIncognito ? undefined : getLastCompletedMeditationTimestamp();
       const response = await sendMessage(
-        messageHistory,
+        requestHistory,
         aiText,  // translated (English) text sent to AI
         meditationStep,
-        currentConversation?.summary,
-        currentConversation?.id,
+        requestSummary,
+        requestSessionId,
         lastSereneMindAt,
         seekerContext || undefined,
+        isIncognito,
       );
 
       setIsTyping(false);

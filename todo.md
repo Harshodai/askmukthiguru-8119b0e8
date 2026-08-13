@@ -16,3 +16,10 @@
 - [ ] P1: Extend the existing Capacitor Android/iOS app with verified Chat, language, evidence, practices, voice, safety, and feature-manifest parity; do not create a parallel mobile backend.
 - [ ] P2: Compare alternative hosting and self-hosted model options only after measured usage, latency, reliability, and total-cost evidence justify them.
 - [ ] Launch blocker: apply source-release migrations in staging and capture the A → B → A rollback drill with scoped Qdrant, Neo4j, LightRAG, and citation-canary evidence.
+
+- [ ] Reconcile the complete platform capability matrix, security/data-flow audit, and explicit external launch blockers.
+- [ ] Complete consent-led personalisation and second-brain erasure controls.
+- [x] Enforce incognito isolation across client request context, backend history, memory, cache, queue, coalescing, and content telemetry paths.
+- [ ] Re-audit ingestion, retrieval, ontology, graph, multi-teacher domain isolation, and internal knowledge-governance controls.
+- [ ] Complete security, resilience, operational, cost, restore, load, and launch-evidence gates.
+- [ ] Validate existing Capacitor Android/iOS delivery and implement the Expo companion through native device evidence.

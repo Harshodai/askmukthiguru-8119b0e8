@@ -264,10 +264,11 @@ class ChatStreamRequestOrchestrator:
             meta = json.dumps(_stream_done_metadata(result))
             yield f"event: done\ndata: {meta}\n\n"
 
-            # Log telemetry in background
-            background_tasks.add_task(
-                self._log_telemetry, result, user_id, session_id, user_msg, assistant_slug
-            )
+            if not chat_body.incognito:
+                # Content-bearing telemetry is disabled for ephemeral chats.
+                background_tasks.add_task(
+                    self._log_telemetry, result, user_id, session_id, user_msg, assistant_slug
+                )
 
         return StreamingResponse(_sse(), media_type="text/event-stream")
 

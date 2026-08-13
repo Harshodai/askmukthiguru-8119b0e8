@@ -31,6 +31,10 @@ class PipelineContext:
     user: dict | None = None
     is_benchmark: bool = False
     stream_queue: asyncio.Queue | None = None
+    # Incognito is a server-enforced request boundary, never just a client
+    # storage preference. Stages bypass persistence, memory, and shared reuse
+    # when this is true.
+    incognito: bool = False
 
     # --- Trace / timing ---
     trace_id: str = ""

@@ -257,6 +257,7 @@ describe('ChatInterface (regression)', () => {
         'test-conv-id',
         null,
         undefined,
+        false,
         expect.any(AbortSignal)
       );
     });
@@ -291,7 +292,8 @@ describe('ChatInterface (regression)', () => {
         undefined,
         'test-conv-id',
         null,
-        undefined
+        undefined,
+        false
       );
     });
   });

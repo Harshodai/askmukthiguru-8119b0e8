@@ -35,6 +35,8 @@ export async function* sendMessageStreaming(
   lastSereneMindAt?: number | null,
   /** Pre-fetched relevant memories, injected into guru-chat as seeker_context. */
   seekerContext?: string,
+  /** Ephemeral privacy mode; disables persistence and shared reuse. */
+  incognito: boolean = false,
   /** Optional AbortSignal — when aborted, fetch + reader exit cleanly. */
   signal?: AbortSignal,
   /** Stable id of the user message being sent — required for telemetry. */
@@ -68,6 +70,7 @@ export async function* sendMessageStreaming(
     meditation_step: meditationStep,
     session_id: effectiveSessionId,
     language: getCurrentConfig().language || 'en',
+    incognito,
     stream: true,
     ...(lastSereneMindAt != null
       ? { last_serene_mind_at: lastSereneMindAt / 1000 }

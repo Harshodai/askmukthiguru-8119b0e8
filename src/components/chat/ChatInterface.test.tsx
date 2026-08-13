@@ -207,6 +207,7 @@ describe('ChatInterface', () => {
         'test-conv-id',
         null,
         undefined,
+        false,
         expect.any(AbortSignal)
       );
     });

@@ -97,6 +97,10 @@ def get_chat_backpressure() -> dict:
 
 async def populate_server_side_history(chat_body: ChatRequest, user: dict, container: ServiceContainer, is_benchmark: bool) -> None:
     """Retrieves conversation history from Supabase for security (prevents client history injection)."""
+    if chat_body.incognito:
+        # An ephemeral request must not read a prior durable conversation.
+        chat_body.messages = []
+        return
     if is_benchmark:
         logger.info("Bypassing server-side history retrieval for benchmark client")
         return
@@ -279,7 +283,7 @@ async def chat_endpoint(
 
     await populate_server_side_history(chat_body, user, container, is_benchmark)
 
-    if container.job_queue and settings.queue_enabled and not is_benchmark:
+    if container.job_queue and settings.queue_enabled and not is_benchmark and not chat_body.incognito:
         from app.services.job_queue import QueueFullError
 
         chat_body_dict = chat_body.model_dump()
@@ -415,7 +419,7 @@ async def chat_stream_endpoint(
 
     await populate_server_side_history(chat_body, user, container, is_benchmark)
 
-    if container.job_queue and settings.queue_enabled and not is_benchmark:
+    if container.job_queue and settings.queue_enabled and not is_benchmark and not chat_body.incognito:
         from app.services.job_queue import QueueFullError
 
         chat_body_dict = chat_body.model_dump()

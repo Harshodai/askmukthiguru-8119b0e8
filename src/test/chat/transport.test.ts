@@ -88,3 +88,20 @@ describe('chat/transport helpers', () => {
     );
   });
 });
+
+describe('incognito request propagation', () => {
+  it('sends explicit incognito mode on non-streaming chat requests', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockClear();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ response: 'namaste' }),
+    });
+
+    await sendMessage([], 'private question', 0, undefined, undefined, undefined, undefined, true);
+
+    const [, options] = fetchMock.mock.calls[0];
+    expect(JSON.parse(options.body).incognito).toBe(true);
+  });
+});

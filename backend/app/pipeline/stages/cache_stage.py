@@ -99,6 +99,9 @@ class CacheCheckStage(Stage):
     name = "cache_check"
 
     async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+        if ctx.incognito:
+            logger.debug("Cache read skipped for incognito request")
+            return None
         cache_key = ctx.cache_key
         query_text = ctx.query_for_embedding
         is_indic = ctx.is_indic
@@ -258,6 +261,9 @@ class CacheUpdateStage(Stage):
     name = "cache_update"
 
     async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+        if ctx.incognito:
+            logger.debug("Cache write skipped for incognito request")
+            return None
         cache_key = ctx.cache_key
         final_answer = ctx.final_answer
         intent = ctx.intent

@@ -22,6 +22,7 @@ const buildRequestBody = (
   summary: string | undefined,
   lastSereneMindAt: number | null | undefined,
   seekerContext: string | undefined,
+  incognito: boolean,
 ) => {
   const date = new Date();
   const timeZone = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata' : 'Asia/Kolkata';
@@ -51,6 +52,7 @@ const buildRequestBody = (
     meditation_step: meditationStep,
     session_id: sessionId,
     language: getCurrentConfig().language || 'en',
+    incognito,
     ...(lastSereneMindAt != null
       ? { last_serene_mind_at: lastSereneMindAt / 1000 }
       : {}),
@@ -68,6 +70,7 @@ export const sendMessage = async (
   /** Unix ms of last completed Serene Mind session (from localStorage) */
   lastSereneMindAt?: number | null,
   seekerContext?: string,
+  incognito: boolean = false,
   userMessageId?: string,
   lastMessageId?: string,
 ): Promise<AIResponse> => {
@@ -92,6 +95,7 @@ export const sendMessage = async (
       summary,
       lastSereneMindAt,
       seekerContext,
+      incognito,
     );
 
     const controller = new AbortController();

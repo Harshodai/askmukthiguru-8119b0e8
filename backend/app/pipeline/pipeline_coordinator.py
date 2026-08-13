@@ -128,6 +128,7 @@ class PipelineCoordinator:
             stable_session_id=stable_session_id,
             chat_body_messages=chat_body_messages,
             assistant_config_present=assistant_config_present,
+            incognito=bool(getattr(chat_body, "incognito", False)),
         )
 
         # Pre-stage personalization probe: CacheCheckStage is stage #1 while
@@ -135,7 +136,9 @@ class PipelineCoordinator:
         # prepare_user_memory) runs later in the chain, so ctx.state is empty at
         # cache-lookup time. The flag must be computed here, BEFORE the chain,
         # or the cache read guard would silently degrade to dead code again.
-        ctx.personalization_eligible = await self._compute_personalization_eligible(user_id)
+        ctx.personalization_eligible = (
+            False if ctx.incognito else await self._compute_personalization_eligible(user_id)
+        )
 
         try:
             result = await asyncio.wait_for(

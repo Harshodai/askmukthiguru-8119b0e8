@@ -49,6 +49,9 @@ class MemoryStage(Stage):
     name = "memory_save"
 
     async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+        if ctx.incognito:
+            logger.debug("Memory persistence skipped for incognito request")
+            return None
         # ponytail: body of _save_memory verbatim (self -> ctx.container)
         container = ctx.container
         user_id = ctx.user_id

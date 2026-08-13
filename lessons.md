@@ -6780,3 +6780,13 @@ provider and test grouped markers so references cannot silently disappear or be
 duplicated. Automated marker checks protect provenance mechanics only; qualified
 reviewers remain responsible for fluency, cultural fit, and source-context
 fidelity in each priority language.
+
+### L-HARDEN-30 — Incognito must be an execution boundary, not a storage toggle
+
+Suppressing browser conversation storage alone still allows a private request to
+read durable history, inject memory, reuse a shared answer, enter a queue, or
+write a content-bearing operational record. Carry an explicit privacy flag in
+the request contract and enforce it before every memory, cache, coalescing,
+queue, telemetry, history, and background-work boundary. Keep safety, abuse
+protection, and content-free reliability/cost controls active, and disclose that
+inference providers still receive the active request when generation is needed.
