@@ -103,6 +103,7 @@ async def get_operations_snapshot(
         traces,
         model_policy_id=settings.openrouter_policy_id,
         budget_guard_enabled=settings.openrouter_budget_guard_enabled,
+        release_readiness=_source_release_readiness(),
     )
 
 
@@ -1472,3 +1473,148 @@ async def admin_contextual_reingest(
         await _release_reingest_lock(container)
         raise
 
+
+# ── Governed source-release administration ────────────────────────────────
+class SourceReleaseRegistrationRequest(BaseModel):
+    corpus_id: str = Field(default_factory=lambda: settings.default_corpus_id)
+    source_url: str = Field(..., min_length=1, max_length=4096)
+    source_identity: str = Field(..., min_length=1, max_length=1024)
+    content_checksum: str = Field(..., min_length=1, max_length=256)
+    notes: Optional[str] = Field(default=None, max_length=1000)
+
+
+def _source_release_registry():
+    from app.corpus_release_registry import CorpusReleaseRegistry
+
+    return CorpusReleaseRegistry.from_settings(settings)
+
+
+def _raise_source_release_error(exc: Exception) -> None:
+    from app.corpus_release_registry import (
+        CorpusReleaseRegistryDisabled,
+        CorpusReleaseRegistryUnavailable,
+        CorpusReleaseTransitionError,
+    )
+
+    if isinstance(exc, CorpusReleaseRegistryDisabled):
+        raise HTTPException(status_code=409, detail="Source-release registry is disabled")
+    if isinstance(exc, CorpusReleaseTransitionError):
+        raise HTTPException(status_code=409, detail=str(exc))
+    if isinstance(exc, CorpusReleaseRegistryUnavailable):
+        raise HTTPException(status_code=503, detail="Source-release control store is unavailable")
+    if isinstance(exc, ValueError):
+        raise HTTPException(status_code=422, detail=str(exc))
+    raise HTTPException(status_code=500, detail="Source-release operation failed")
+
+
+@admin_router.get("/source-releases")
+async def list_source_releases(
+    corpus_id: str = Query(default_factory=lambda: settings.default_corpus_id),
+    source_identity: Optional[str] = Query(default=None, max_length=1024),
+    limit: int = Query(default=100, ge=1, le=200),
+    user: dict = Depends(_require_admin),
+) -> list[dict[str, Any]]:
+    """Return bounded source-release metadata without source bodies or checksums."""
+    try:
+        releases = _source_release_registry().list_releases(
+            corpus_id=corpus_id,
+            source_identity=source_identity,
+            limit=limit,
+        )
+        return [release.admin_dict() for release in releases]
+    except Exception as exc:
+        _raise_source_release_error(exc)
+
+
+@admin_router.post("/source-releases", status_code=201)
+async def register_source_release(
+    body: SourceReleaseRegistrationRequest,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Register a checksum-addressed candidate source release for human review."""
+    try:
+        release = _source_release_registry().register_source(
+            corpus_id=body.corpus_id,
+            source_url=body.source_url,
+            source_identity=body.source_identity,
+            content_checksum=body.content_checksum,
+            notes=body.notes,
+        )
+        return release.admin_dict()
+    except Exception as exc:
+        _raise_source_release_error(exc)
+
+
+@admin_router.post("/source-releases/{release_id}/approve")
+async def approve_source_release(
+    release_id: str,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Record an AAL2 admin approval for a pending source release."""
+    try:
+        release = _source_release_registry().approve_release(
+            release_id,
+            approved_by=str(user.get("id") or ""),
+        )
+        return release.admin_dict()
+    except Exception as exc:
+        _raise_source_release_error(exc)
+
+
+@admin_router.post("/source-releases/{release_id}/activate")
+async def activate_source_release(
+    release_id: str,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Atomically activate an approved release and supersede its prior active peer."""
+    try:
+        return _source_release_registry().activate_release(release_id).admin_dict()
+    except Exception as exc:
+        _raise_source_release_error(exc)
+
+
+@admin_router.post("/source-releases/{release_id}/reject")
+async def reject_source_release(
+    release_id: str,
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Close a pending or approved candidate without deleting its audit trail."""
+    try:
+        return _source_release_registry().reject_release(release_id).admin_dict()
+    except Exception as exc:
+        _raise_source_release_error(exc)
+
+
+def _source_release_readiness() -> dict[str, Any]:
+    """Return allowlisted release counts for the operations snapshot only."""
+    readiness = {
+        "enabled": settings.corpus_release_registry_enabled,
+        "available": False,
+        "active_count": 0,
+        "pending_count": 0,
+        "approved_count": 0,
+        "last_activated_at": None,
+    }
+    if not settings.corpus_release_registry_enabled:
+        return readiness
+    try:
+        releases = _source_release_registry().list_releases(
+            corpus_id=settings.default_corpus_id,
+            limit=200,
+        )
+    except Exception as exc:
+        logger.warning("Source-release snapshot unavailable: %s", exc)
+        return readiness
+    readiness["available"] = True
+    for release in releases:
+        if release.status == "active":
+            readiness["active_count"] += 1
+        elif release.status == "pending":
+            readiness["pending_count"] += 1
+        elif release.status == "approved":
+            readiness["approved_count"] += 1
+        if release.activated_at:
+            previous = readiness["last_activated_at"]
+            if previous is None or release.activated_at > previous:
+                readiness["last_activated_at"] = release.activated_at
+    return readiness

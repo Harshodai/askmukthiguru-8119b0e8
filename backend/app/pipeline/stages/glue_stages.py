@@ -17,13 +17,70 @@ from typing import TYPE_CHECKING
 
 from app.config import settings
 from app.orchestrator_utils import prepare_request_state
-from app.pipeline.result import PipelineResult
+from app.evidence_support import evidence_support_label
+from app.pipeline.result import AnswerEvidence, PipelineResult
 from app.pipeline.stages.base import Stage
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
 
 logger = logging.getLogger(__name__)
+
+
+def _citation_value(citation: object, key: str) -> object | None:
+    if not isinstance(citation, dict):
+        return None
+    value = citation.get(key)
+    if value not in (None, ""):
+        return value
+    metadata = citation.get("metadata")
+    if isinstance(metadata, dict):
+        return metadata.get(key)
+    return None
+
+
+def _number(value: object) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        result = float(value)
+        if result == result and result not in (float("inf"), float("-inf")):
+            return result
+    return None
+
+
+def _answer_evidence(ctx, graph_result: dict, citations: list, response_data: dict) -> AnswerEvidence:
+    """Build a provenance envelope without reading answer text or model output."""
+    source_count = len(citations)
+    scores = []
+    versions = []
+    for citation in citations:
+        score = _number(_citation_value(citation, "score"))
+        if score is not None:
+            scores.append(score)
+        version = _number(_citation_value(citation, "source_version"))
+        if version is not None and version >= 1 and version.is_integer():
+            versions.append(int(version))
+    graph_version = _number(graph_result.get("corpus_release_version"))
+    if graph_version is not None and graph_version >= 1 and graph_version.is_integer():
+        versions.append(int(graph_version))
+    corpus_id = ctx.state.get("corpus_id")
+    if not isinstance(corpus_id, str) or not corpus_id.strip():
+        corpus_id = settings.default_corpus_id
+    confidence = response_data.get("confidence_score")
+    return AnswerEvidence(
+        corpus_id=corpus_id,
+        release_version=max(versions) if versions else None,
+        model_policy_id=settings.openrouter_policy_id,
+        evidence_support_label=evidence_support_label(
+            confidence,
+            source_count=source_count,
+        ),
+        source_count=source_count,
+        top_source_score=max(scores) if scores else None,
+        citations_verified=graph_result.get("citations_verified"),
+    )
+
 
 # ---- Kill #3: instant CASUAL greeting short-circuit (moved from coordinator) ----
 _WARM_GREETINGS = [
@@ -168,5 +225,11 @@ class ResultAssemblyStage(Stage):
             kg_concept_nodes=list(graph_result.get("kg_concept_nodes", []) or []),
             daily_practice_card=graph_result.get("daily_practice_card"),
             live_logistics_events=live_logistics_events,
+            answer_evidence=_answer_evidence(
+                ctx,
+                graph_result,
+                ctx.citations,
+                response_data,
+            ),
         )
         return ctx.result

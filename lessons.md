@@ -6676,3 +6676,22 @@ A load test that merely receives HTTP requests does not prove cost protection. A
 
 ### L-HARDEN-18 — A declared load envelope is evidence only after it is exercised
 A 500-session script and thresholds are necessary release controls, not a capacity claim. Preserve each stage report with deployment SHA, model policy, corpus release, region, dependency topology, and outcome. Mock-provider passes validate application behaviour; external-provider capacity, multi-region latency, and recovery must still be measured before admission increases.
+
+### L-HARDEN-19 — Source publication needs a transactional approval gate
+
+A release number in a checkpoint is not a publication workflow. Candidate source
+metadata must be checksum-addressed, approved by an authenticated operator, and
+activated through a transaction that supersedes the prior active release for the
+same corpus/source. Registry reads may fail soft to preserve existing ingestion
+idempotency while disabled, but mutable approval operations must fail closed. Do
+not call release metadata a physical index switch until the Qdrant, Neo4j, and
+LightRAG topology has passed the separate alias/rollback drill.
+
+### L-HARDEN-20 — Evidence provenance is a typed server contract
+
+Support labels, corpus identity, release version, source counts, source scores,
+and model-policy ID must be derived from structured server-side retrieval and
+governance metadata. They must survive latency reconstruction and request
+coalescing, but must never be inferred from generated response prose. A missing
+retrieval path should explicitly yield limited support rather than a fabricated
+confidence claim.

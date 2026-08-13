@@ -175,6 +175,36 @@ responses. The chat UI displays a typed official-event card only for HTTPS
 official URLs, with a verification time and distinct official-details and booking
 links. It must not infer dates or booking availability from generated prose.
 
+## Governed Source-Release Lifecycle
+
+`CORPUS_RELEASE_REGISTRY_ENABLED=false` is the default. Enable it only after the
+Supabase migration is applied and the approval/rollback drill below succeeds in
+staging. The registry records source references, identities, immutable versions,
+checksums, approval audit fields, and activation state. It does not store source
+bodies, seeker messages, prompts, or generated answers.
+
+| Step | Required operator action | Required check |
+|---|---|---|
+| Register | Create a checksum-addressed candidate release through the protected admin API | The release is `pending`; a duplicate checksum returns the same release |
+| Review | Validate source authority, attribution, quality, and checksum against the candidate corpus work | Record an AAL2 admin approval; only `pending` may become `approved` |
+| Activate | Activate an approved release through the protected admin API | The database atomically supersedes the earlier active release for that corpus/source |
+| Verify | Run retrieval and citation canaries using the active corpus/version | The response evidence envelope reports only structured corpus/release/model-policy facts |
+| Roll back | Re-approve and re-activate the prior audited release when rollback is required | Record the reason, then re-run scope and citation canaries before traffic increases |
+
+The present ingestion integration namespaces checkpoints and stored chunk metadata
+by the active release version when the registry is enabled. It does **not** claim
+physical Qdrant/Neo4j/LightRAG blue-green collection aliasing: current ingestion
+can still overwrite the shared physical source index. Keep the registry disabled
+for public traffic until a staging drill proves the approval, activation,
+supersession, and rollback workflow with the actual data topology. A future
+physical-alias design remains a separate implementation gate.
+
+The typed `answer_evidence` response field contains only the resolved corpus,
+observed release version when retrieval provides one, model-policy ID, calibrated
+support label, source count, top structured source score, and citation-verification
+state. It must not be populated from generated answer text or presented as a
+numerical spiritual-truth score.
+
 ## Staged Deployment Control Sheet
 
 Do not call a deployment production-ready merely because unit tests pass. The
@@ -190,10 +220,12 @@ commit SHA, environment, and timestamp with the release.
 | Recovery | Restore drill verifies database, Qdrant, Neo4j, and release configuration recovery | Do not increase traffic |
 | Capacity | Staging load test records p95 TTFT, error rate, queue depth, and provider-limit behaviour at the intended launch concurrency | Cap traffic to the observed safe level and investigate |
 
-Versioned source-release approval, atomic corpus alias activation, rollback drills,
-and the full typed answer-envelope quality contract remain launch gates where they
-have not yet been implemented. They must be tracked as explicit work, not implied
-by this runbook.
+
+Source-release registration, approval, atomic metadata activation, and the typed
+answer-evidence contract are implemented in this repository. They remain launch
+gates until their required staging evidence is retained. Physical corpus alias
+activation, the source-release rollback drill, and live data-topology verification
+are still separate gates and must not be inferred from the metadata registry.
 
 ## OpenRouter Model Policy and Spend-Guard Activation
 

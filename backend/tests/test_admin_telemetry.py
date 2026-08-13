@@ -55,3 +55,27 @@ def test_operations_snapshot_is_aggregate_and_versioned():
     assert snapshot["average_latency_ms"] == 100.0
     assert snapshot["model_policy_id"] == "gemini-flash-budget-v1"
     assert snapshot["budget_guard_enabled"] is False
+
+
+def test_operations_snapshot_allowlists_release_readiness_aggregates():
+    snapshot = operations_snapshot(
+        [],
+        model_policy_id="gemini-flash-budget-v1",
+        budget_guard_enabled=False,
+        release_readiness={
+            "enabled": True,
+            "available": True,
+            "active_count": 2,
+            "pending_count": 1,
+            "approved_count": 3,
+            "last_activated_at": "2026-08-13T02:00:00Z",
+            "source_url": "must-not-leak",
+            "content_checksum": "must-not-leak",
+        },
+    )
+    release = snapshot["source_release_registry"]
+    assert release["active_count"] == 2
+    assert release["pending_count"] == 1
+    assert release["approved_count"] == 3
+    assert "source_url" not in release
+    assert "content_checksum" not in release

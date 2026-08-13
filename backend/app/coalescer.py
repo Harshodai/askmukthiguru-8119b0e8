@@ -154,9 +154,13 @@ class RedisCoalescer:
         """Reconstruct the original result type from a stored JSON payload."""
         if isinstance(data, dict) and data.get("__coalescer_type__") == "PipelineResult":
             try:
-                from app.pipeline.result import PipelineResult
+                from app.pipeline.result import AnswerEvidence, PipelineResult
 
-                return PipelineResult(**data["data"])
+                payload = dict(data["data"])
+                evidence = payload.get("answer_evidence")
+                if isinstance(evidence, dict):
+                    payload["answer_evidence"] = AnswerEvidence(**evidence)
+                return PipelineResult(**payload)
             except TypeError as e:
                 logger.warning(f"Could not reconstruct PipelineResult from coalescer payload: {e}")
                 return data["data"]

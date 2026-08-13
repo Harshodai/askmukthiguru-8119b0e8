@@ -9,6 +9,20 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+@dataclass(frozen=True)
+class AnswerEvidence:
+    """Structured provenance for evidence actually available to an answer."""
+
+    corpus_id: str
+    release_version: int | None
+    model_policy_id: str
+    evidence_support_label: str
+    source_count: int
+    top_source_score: float | None
+    citations_verified: bool | None = None
+
+
+
 
 @dataclass(frozen=True)
 class PipelineResult:
@@ -96,6 +110,8 @@ class PipelineResult:
     kg_concept_nodes: list[str] = field(default_factory=list)
     daily_practice_card: dict | None = None
     live_logistics_events: list[dict] = field(default_factory=list)
+    # Populated only from structured retrieval/release/policy facts.
+    answer_evidence: AnswerEvidence | None = None
 
 
     def with_latency(self, latency_ms: int) -> "PipelineResult":
@@ -135,6 +151,7 @@ class PipelineResult:
             kg_concept_nodes=self.kg_concept_nodes,
             daily_practice_card=self.daily_practice_card,
             live_logistics_events=self.live_logistics_events,
+            answer_evidence=self.answer_evidence,
         )
 
     def to_chat_response(self) -> dict[str, Any]:
@@ -161,4 +178,7 @@ class PipelineResult:
             "citations_verified": self.citations_verified,
             "orphan_citations_stripped": self.orphan_citations_stripped,
             "live_logistics_events": self.live_logistics_events,
+            "answer_evidence": (
+                None if self.answer_evidence is None else self.answer_evidence.__dict__
+            ),
         }

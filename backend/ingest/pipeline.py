@@ -289,6 +289,7 @@ class IngestionPipeline:
         ocr_service: Optional[OCRService] = None,
         semantic_cache_service: Optional[Any] = None,
         corpus_id: Optional[str] = None,
+        release_registry: Optional[Any] = None,
     ) -> None:
         """
         Dependency Injection: All services are injected, not created internally.
@@ -319,6 +320,11 @@ class IngestionPipeline:
         self._lightrag = lightrag_service
         self._semantic_cache = semantic_cache_service
         self._corpus_id = corpus_id or settings.default_corpus_id
+        if release_registry is None:
+            from app.corpus_release_registry import CorpusReleaseRegistry
+
+            release_registry = CorpusReleaseRegistry.from_settings(settings)
+        self._release_registry = release_registry
 
         self._adaptive_chunker = AdaptiveChunker(self._embedder)
         self._proposition_service = PropositionService(self._llm)
@@ -363,8 +369,38 @@ class IngestionPipeline:
         return self._neo4j_driver
 
     def _checkpoint_key(self, source_identity: str, source_version: int = 1) -> str:
-        """Namespace idempotency by corpus and immutable source version."""
-        return f"{self._corpus_id}:v{source_version}:{source_identity}"
+        """Namespace idempotency by corpus and the active immutable release."""
+        active_version = self._resolve_active_source_version(source_identity, source_version)
+        return f"{self._corpus_id}:v{active_version}:{source_identity}"
+
+
+    def _resolve_active_source_version(
+        self, source_identity: str, fallback_version: int = 1
+    ) -> int:
+        """Resolve a source's active release without breaking current ingestion.
+
+        Registry reads are intentionally fail-soft here. A disabled or unavailable
+        control store retains the caller-provided checkpoint version rather than
+        disrupting an existing ingestion job.
+        """
+        if not isinstance(fallback_version, int) or fallback_version < 1:
+            fallback_version = 1
+        registry = getattr(self, "_release_registry", None)
+        if registry is None:
+            return fallback_version
+        try:
+            return registry.get_active_version(
+                corpus_id=self._corpus_id,
+                source_identity=source_identity,
+                fallback_version=fallback_version,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Source-release lookup failed; using version %s: %s",
+                fallback_version,
+                exc,
+            )
+            return fallback_version
 
     async def ingest_file(
         self,
@@ -758,6 +794,10 @@ class IngestionPipeline:
         """
         import hashlib
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
+        source_version = self._resolve_active_source_version(
+            source_url,
+            source_version,
+        )
         doc_tags = extract_doctrine_tags(text)
         if doc_tags:
             tags = list(set(tags + doc_tags))
@@ -925,6 +965,10 @@ class IngestionPipeline:
     ) -> dict:
         """Ingest a single YouTube video."""
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
+        source_version = self._resolve_active_source_version(
+            url,
+            source_version,
+        )
         video_id = extract_video_id(url)
         if not video_id:
             return {"status": "error", "message": "Invalid YouTube URL"}
@@ -1190,6 +1234,10 @@ class IngestionPipeline:
         import uuid
 
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
+        source_version = self._resolve_active_source_version(
+            url,
+            source_version,
+        )
         video_id = extract_video_id(url)
         self._notify(on_progress, "Phase 3: Starting enhanced ingestion...", 0.1)
 
@@ -2411,11 +2459,8 @@ class IngestionPipeline:
         source_version: int = 1,
         authority_tier: str = "primary",
     ) -> int:
-        """
-        Split text → embed → upsert to Qdrant.
-
-        Convenience method for content types that don't need the split result.
-        """
+        """Split, embed, and persist chunks using the active source release."""
+        source_version = self._resolve_active_source_version(source_url, source_version)
         chunks = self._split_text(text, title=title, speaker=speaker, topic=topic)
         return self._embed_and_index(
             chunks,
