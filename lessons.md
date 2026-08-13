@@ -6761,3 +6761,12 @@ database operation. The governed rollback path must require a fresh reviewer
 identity, reuse the atomic activation transition, remain isolated to the same
 corpus and source identity, and be proven separately against live Qdrant, Neo4j,
 and LightRAG before it is considered operational.
+
+### L-HARDEN-28 — Visible controls need a truthful availability authority
+
+A feature flag alone is not sufficient for a user-facing control: runtime
+availability and platform-local capability matter too. Publish a secret-free
+manifest from the backend, remove actions only when that manifest explicitly
+says they are unavailable or policy-disabled, and retain independently working
+browser actions during a transient manifest failure. This prevents both dummy
+controls and outages that hide capabilities the client can still perform.

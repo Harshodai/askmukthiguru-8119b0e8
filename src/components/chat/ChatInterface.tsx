@@ -51,6 +51,7 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useProfile } from '@/hooks/useProfile';
 import { useChatShortcuts } from '@/hooks/useChatShortcuts';
+import { useChatCapabilities } from '@/hooks/useChatCapabilities';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
@@ -96,6 +97,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
 
 export const ChatInterface = () => {
   const { toast } = useToast();
+  const { capabilities: chatCapabilities } = useChatCapabilities();
   const { greetingContext } = useVisitContext();
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1878,6 +1880,7 @@ return (
                                   onVoiceToggle={handleVoiceToggle}
                                   onTtsToggle={handleTtsToggle}
                                   onLanguageChange={handleLanguageChange}
+            capabilities={chatCapabilities}
                                   onSereneMind={() => openSereneMind()}
                                   onGuidedMeditation={() => setShowGuidedMeditation(true)}
                                   onFocus={() => setInputFocused(true)}
@@ -2078,6 +2081,7 @@ return (
             onVoiceToggle={handleVoiceToggle}
             onTtsToggle={handleTtsToggle}
             onLanguageChange={handleLanguageChange}
+            capabilities={chatCapabilities}
             onSereneMind={() => openSereneMind()}
             onGuidedMeditation={() => setShowGuidedMeditation(true)}
             onFocus={() => setInputFocused(true)}

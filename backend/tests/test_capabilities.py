@@ -60,3 +60,15 @@ def test_manifest_reports_waitlist_dependency(monkeypatch) -> None:
 
     assert build_capability_manifest(unavailable)["features"]["waitlist"] == "unavailable"
     assert build_capability_manifest(available)["features"]["waitlist"] == "available"
+
+
+def test_manifest_exposes_composer_capabilities_without_claiming_server_voice():
+    container = SimpleNamespace(
+        qdrant=object(), embedding=object(), ollama=object(), standard_graph=object(),
+        lightrag_degraded=False, web_search=None, job_queue=None, serene_mind=None,
+    )
+    features = build_capability_manifest(container)["features"]
+    assert features["serene_mind"] == "unavailable"
+    assert features["guided_meditation"] == "available"
+    assert features["text_attachments"] == "available"
+    assert features["voice_input"] == "available"

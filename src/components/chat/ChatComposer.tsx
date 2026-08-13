@@ -53,6 +53,7 @@ interface ChatComposerProps {
   onVoiceToggle: () => void;
   onTtsToggle: () => void;
   onLanguageChange: (code: string) => void;
+  capabilities?: { sereneMind: boolean; guidedMeditation: boolean; textAttachments: boolean; voiceInput: boolean };
   onSereneMind: () => void;
   onGuidedMeditation: () => void;
   onFocus: () => void;
@@ -88,6 +89,7 @@ export function ChatComposer({
   onVoiceToggle,
   onTtsToggle,
   onLanguageChange,
+  capabilities,
   onSereneMind,
   onGuidedMeditation,
   onFocus,
@@ -98,6 +100,8 @@ export function ChatComposer({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const actionCapabilities = capabilities ?? { sereneMind: true, guidedMeditation: true, textAttachments: true, voiceInput: true };
+  const hasMoreActions = actionCapabilities.sereneMind || actionCapabilities.guidedMeditation || actionCapabilities.textAttachments;
   const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024; // 2 MB cap for chat text files
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -254,39 +258,47 @@ export function ChatComposer({
           <PromptInputTools>
             <AssistantSwitcher variant="chip" />
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                  aria-label={t('chat.moreActions')}
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="top" className="w-48">
-                <DropdownMenuItem onClick={onSereneMind}>
-                  <Flame className="w-4 h-4 mr-2 text-ojas" />
-                  {t('chat.sereneMind')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onGuidedMeditation}>
-                  <Sparkles className="w-4 h-4 mr-2 text-ojas" />
-                  {t('chat.guidedMeditation')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                  <FileText className="w-4 h-4 mr-2 text-ojas" />
-                  {t('chat.attachTextFile') === 'chat.attachTextFile' ? 'Attach Text File' : t('chat.attachTextFile')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {hasMoreActions && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+                    aria-label={t('chat.moreActions')}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="top" className="w-48">
+                  {actionCapabilities.sereneMind && (
+                    <DropdownMenuItem onClick={onSereneMind}>
+                      <Flame className="w-4 h-4 mr-2 text-ojas" />
+                      {t('chat.sereneMind')}
+                    </DropdownMenuItem>
+                  )}
+                  {actionCapabilities.guidedMeditation && (
+                    <DropdownMenuItem onClick={onGuidedMeditation}>
+                      <Sparkles className="w-4 h-4 mr-2 text-ojas" />
+                      {t('chat.guidedMeditation')}
+                    </DropdownMenuItem>
+                  )}
+                  {actionCapabilities.textAttachments && (
+                    <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                      <FileText className="w-4 h-4 mr-2 text-ojas" />
+                      {t('chat.attachTextFile') === 'chat.attachTextFile' ? 'Attach Text File' : t('chat.attachTextFile')}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </PromptInputTools>
 
           <div className="flex-1" />
 
           <PromptInputTools>
-            {(
+            {actionCapabilities.voiceInput && (
               <Button
                 data-testid="start-voice-input-button"
                 type="button"
@@ -312,7 +324,6 @@ export function ChatComposer({
                 )}
               </Button>
             )}
-
             {(isStreaming || isTyping) ? (
               <PromptInputSubmit
                 type="button"

@@ -41,6 +41,10 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
             ),
             "request_queue": _state(settings.use_request_queue, False),
             "teacher_voice": _state(settings.langhanam_voice_enabled),
+            "serene_mind": _state(True, getattr(container, "serene_mind", None) is not None),
+            "guided_meditation": "available",
+            "text_attachments": "available",
+            "voice_input": "available",
             "whatsapp": "disabled_by_policy",
             "support_attachments": "disabled_by_policy",
             "waitlist": _state(
