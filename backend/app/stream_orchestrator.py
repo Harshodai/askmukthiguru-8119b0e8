@@ -20,7 +20,7 @@ from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.dependencies import ServiceContainer
-from app.orchestrator import _coerce_citations_to_str
+from app.orchestrator import _coerce_citations_to_str, _stream_done_metadata
 from app.pipeline import PipelineCoordinator
 from app.schemas import ChatRequest
 from app.security_utils import is_benchmark_request
@@ -261,26 +261,7 @@ class ChatStreamRequestOrchestrator:
                     await asyncio.sleep(0.01)
 
             # Done event with metadata
-            meta = json.dumps({
-                "intent": result.intent,
-                "citations": _coerce_citations_to_str(result.citations),
-                "meditation_step": result.meditation_step,
-                "proactive_serene_mind": result.proactive_serene_mind,
-                "trace_id": result.trace_id,
-                "latency_ms": result.latency_ms,
-                "model_used": result.model_used,
-                "model_provider": result.model_provider,
-                "route_decision": result.route_decision,
-                "query_tier": result.query_tier,
-                "cache_hit": result.cache_hit,
-                "faithfulness_score": result.faithfulness_score,
-                "hallucination_flag": result.hallucination_flag,
-                "follow_up_suggestions": result.follow_up_suggestions,
-                "confidence_score": result.confidence_score,
-                "citations_verified": result.citations_verified,
-                "orphan_citations_stripped": result.orphan_citations_stripped,
-                "live_logistics_events": getattr(result, "live_logistics_events", []),
-            })
+            meta = json.dumps(_stream_done_metadata(result))
             yield f"event: done\ndata: {meta}\n\n"
 
             # Log telemetry in background

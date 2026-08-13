@@ -70,6 +70,37 @@ export const safeUrlTransform = (url: string): string =>
 const isCrisisAnswer = (content: string): boolean =>
   /🆘/.test(content) || /immediate crisis|crisis, please reach out|helpline/i.test(content);
 
+const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]> }) => (
+  <aside
+    data-testid="guidance-plan"
+    aria-label="Optional guidance plan"
+    className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-ojas/10 to-card px-3.5 py-3 shadow-sm"
+  >
+    <div className="flex items-start gap-2">
+      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        {plan.action_step && (
+          <>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas">Try this now</p>
+            <p className="mt-1 text-sm font-medium leading-5 text-foreground">{plan.action_step.title}</p>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">{plan.action_step.instruction}</p>
+            {plan.action_step.safety_note && (
+              <p className="mt-2 text-xs leading-4 text-muted-foreground">{plan.action_step.safety_note}</p>
+            )}
+          </>
+        )}
+        {plan.reflection_prompt && (
+          <div className={plan.action_step ? "mt-3 border-t border-ojas/15 pt-2.5" : ""}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas">Go deeper</p>
+            <p className="mt-1 text-sm leading-5 text-foreground/85">{plan.reflection_prompt}</p>
+          </div>
+        )}
+        <p className="mt-2.5 text-[11px] leading-4 text-muted-foreground">{plan.attribution.label}</p>
+      </div>
+    </div>
+  </aside>
+);
+
 const getDomain = (url: string): string => {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
@@ -996,6 +1027,9 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               </div>
             )}
             {isGuru && !isStreaming && <LiveLogisticsCards events={message.liveLogisticsEvents} />}
+            {isGuru && !isStreaming && message.guidancePlan && !isCrisisAnswer(message.content) && (
+              <GuidancePlanCard plan={message.guidancePlan} />
+            )}
             {isGuru && citations.length > 0 && (
               <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/85 to-card/50 backdrop-blur-md px-4 py-3 group/details shadow-md transition-all duration-300">
                 <summary className="flex items-center gap-2.5 cursor-pointer list-none select-none">
@@ -1201,6 +1235,8 @@ export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     prev.index === next.index &&
     prev.isLastGuru === next.isLastGuru &&
     prev.message.language === next.message.language &&
+    prev.message.guidancePlan === next.message.guidancePlan &&
+    prev.message.answerEvidence === next.message.answerEvidence &&
     prev.queryText === next.queryText &&
     prev.onAction === next.onAction &&
     prev.onRegenerate === next.onRegenerate &&

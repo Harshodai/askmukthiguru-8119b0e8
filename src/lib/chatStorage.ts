@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { LiveLogisticsEvent } from './chat/types';
+import type { AnswerEvidence, GuidancePlan, LiveLogisticsEvent } from './chat/types';
 import { supabase } from '@/integrations/supabase/client';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
@@ -58,6 +58,10 @@ export interface Message {
   followUpSuggestions?: string[];
   /** Time-bounded event, booking, or schedule information from official sources. */
   liveLogisticsEvents?: LiveLogisticsEvent[];
+  /** Structured, optional UI guidance; never derived from answer prose. */
+  guidancePlan?: GuidancePlan | null;
+  /** Evidence provenance accompanying a guru reply. */
+  answerEvidence?: AnswerEvidence | null;
 }
 
 // ── Feedback helpers ──────────────────────────────────────────────
@@ -99,6 +103,22 @@ const MessageSchema = z.object({
     verified_at: z.string(),
     expires_at: z.string(),
   })).optional(),
+  guidancePlan: z.object({
+    response_mode: z.string(),
+    language: z.string(),
+    attribution: z.object({ label: z.string(), source_backed: z.boolean(), teacher_name: z.string().nullable().optional() }),
+    action_step: z.object({ title: z.string(), instruction: z.string(), optional: z.boolean(), safety_note: z.string().nullable().optional() }).nullable().optional(),
+    reflection_prompt: z.string().nullable().optional(),
+  }).nullable().optional(),
+  answerEvidence: z.object({
+    corpus_id: z.string(),
+    release_version: z.number().nullable().optional(),
+    model_policy_id: z.string(),
+    evidence_support_label: z.string(),
+    source_count: z.number(),
+    top_source_score: z.number().nullable().optional(),
+    citations_verified: z.boolean().nullable().optional(),
+  }).nullable().optional(),
 });
 
 const ConversationSchema = z.object({

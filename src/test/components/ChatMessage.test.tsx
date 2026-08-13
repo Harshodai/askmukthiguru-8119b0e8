@@ -193,3 +193,33 @@ describe('ChatMessage (regression)', () => {
     expect(screen.getByRole("button", { name: "Open response sources" })).toBeInTheDocument();
   });
 });
+
+describe('ChatMessage guidance plan', () => {
+  const guidancePlan = {
+    response_mode: 'balanced_guidance',
+    language: 'en',
+    attribution: {
+      label: 'Guidance inspired by retrieved teachings',
+      source_backed: true,
+    },
+    action_step: {
+      title: 'Notice one breath',
+      instruction: 'Pause gently and notice one complete breath.',
+      optional: true,
+    },
+    reflection_prompt: 'What changes when you pause before reacting?',
+  } as const;
+
+  it('renders the optional action, reflection, and attribution from the structured plan', () => {
+    render(<ChatMessage message={makeGuruMessage({ guidancePlan })} />, { wrapper });
+    expect(screen.getByTestId('guidance-plan')).toHaveTextContent('Try this now');
+    expect(screen.getByTestId('guidance-plan')).toHaveTextContent('Notice one breath');
+    expect(screen.getByTestId('guidance-plan')).toHaveTextContent('Go deeper');
+    expect(screen.getByTestId('guidance-plan')).toHaveTextContent('Guidance inspired by retrieved teachings');
+  });
+
+  it('suppresses the guidance plan for a crisis response', () => {
+    render(<ChatMessage message={makeGuruMessage({ content: '🆘 Please contact a helpline now.', guidancePlan })} />, { wrapper });
+    expect(screen.queryByTestId('guidance-plan')).not.toBeInTheDocument();
+  });
+});

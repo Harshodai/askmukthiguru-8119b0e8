@@ -176,6 +176,14 @@ class ChatResponse(BaseModel):
         description="Actionable daily inner growth practice card recommendation",
     )
 
+    guidance_plan: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Structured, source-aware presentation guidance for a response",
+    )
+    answer_evidence: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Typed evidence provenance for a response",
+    )
 
 class LiveLogisticsEvent(BaseModel):
     """Verified metadata for an official event, booking, or schedule result."""

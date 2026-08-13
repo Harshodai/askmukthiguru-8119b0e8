@@ -150,6 +150,8 @@ export const sendMessage = async (
                   proactiveSereneMind: result.proactive_serene_mind ?? null,
                   recommendedCourse: result.recommended_course ?? null,
                   liveLogisticsEvents: result.live_logistics_events ?? [],
+                  guidancePlan: result.guidance_plan ?? null,
+                  answerEvidence: result.answer_evidence ?? null,
                 };
               }
               if (job.status === 'failed') {
@@ -227,6 +229,8 @@ export const sendMessage = async (
         followUpSuggestions: data.follow_up_suggestions ?? [],
         recommendedCourse: data.recommended_course ?? null,
         liveLogisticsEvents: data.live_logistics_events ?? [],
+        guidancePlan: data.guidance_plan ?? null,
+        answerEvidence: data.answer_evidence ?? null,
       };
     } catch (err: unknown) {
       const error = err as Error;

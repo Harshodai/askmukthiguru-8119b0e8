@@ -43,6 +43,37 @@ export interface LiveLogisticsEvent {
   expires_at: string;
 }
 
+export interface TeachingAttribution {
+  label: string;
+  source_backed: boolean;
+  teacher_name?: string | null;
+}
+
+export interface ActionStep {
+  title: string;
+  instruction: string;
+  optional: boolean;
+  safety_note?: string | null;
+}
+
+export interface GuidancePlan {
+  response_mode: string;
+  language: string;
+  attribution: TeachingAttribution;
+  action_step?: ActionStep | null;
+  reflection_prompt?: string | null;
+}
+
+export interface AnswerEvidence {
+  corpus_id: string;
+  release_version?: number | null;
+  model_policy_id: string;
+  evidence_support_label: string;
+  source_count: number;
+  top_source_score?: number | null;
+  citations_verified?: boolean | null;
+}
+
 
 export interface AIResponse {
   content: string;
@@ -58,6 +89,8 @@ export interface AIResponse {
   recommendedCourse?: RecommendedCourse | null;
   /** Official-only schedule or booking results, time-bounded by the backend. */
   liveLogisticsEvents?: LiveLogisticsEvent[];
+  guidancePlan?: GuidancePlan | null;
+  answerEvidence?: AnswerEvidence | null;
 }
 
 /** Shape of the proactive Serene Mind trigger object returned by the backend */
@@ -98,6 +131,8 @@ export type StreamChunk =
       recommendedCourse?: RecommendedCourse | null;
       /** Official-only schedule or booking results, time-bounded by the backend. */
       liveLogisticsEvents?: LiveLogisticsEvent[];
+  guidancePlan?: GuidancePlan | null;
+  answerEvidence?: AnswerEvidence | null;
     }
   | { type: 'error'; text: string };
 

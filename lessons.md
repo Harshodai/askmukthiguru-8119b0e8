@@ -6713,3 +6713,23 @@ language for the backend router while retaining ordinary translation for
 script-based language choices. Keep priority language controls compact and make
 the broader language selector available without hiding the user’s preferred
 language.
+
+### L-HARDEN-23 — Guidance is a typed presentation contract, not a second model answer
+
+A visible action, reflection prompt, and attribution line must be derived only
+from already-structured pipeline fields such as the practice card, follow-up
+suggestions, requested language, and retrieval citations. Never parse generated
+answer prose to fabricate a next step, quote, or teaching lineage. Preserve the
+frozen typed envelope through latency reconstruction, Redis coalescing, REST,
+direct SSE, queued SSE, browser transport, and local persistence; otherwise a
+surface may silently regress to an incomplete or misleading answer.
+
+### L-HARDEN-24 — Safety pre-emption and compatibility must hold at every display boundary
+
+Crisis and severe paths must produce no guidance plan on the server and the chat
+UI must independently suppress any plan attached to a crisis response. This
+defence in depth prevents a generic wellness card appearing beneath a helpline
+message. New optional response metadata must also tolerate legacy lightweight
+result objects used by endpoint and streaming tests, so staged rollout does not
+break compatibility surfaces while full pipeline results carry the richer
+contract.

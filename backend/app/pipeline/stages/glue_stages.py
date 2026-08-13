@@ -18,7 +18,13 @@ from typing import TYPE_CHECKING
 from app.config import settings
 from app.orchestrator_utils import prepare_request_state
 from app.evidence_support import evidence_support_label
-from app.pipeline.result import AnswerEvidence, PipelineResult
+from app.pipeline.result import (
+    ActionStep,
+    AnswerEvidence,
+    GuidancePlan,
+    PipelineResult,
+    TeachingAttribution,
+)
 from app.pipeline.stages.base import Stage
 
 if TYPE_CHECKING:
@@ -80,6 +86,65 @@ def _answer_evidence(ctx, graph_result: dict, citations: list, response_data: di
         top_source_score=max(scores) if scores else None,
         citations_verified=graph_result.get("citations_verified"),
     )
+
+def _text(value: object, limit: int) -> str | None:
+    """Return bounded display text only from a structured pipeline field."""
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value[:limit] if value else None
+
+
+def _guidance_plan(ctx, graph_result: dict, citations: list) -> GuidancePlan | None:
+    """Build optional UI guidance without parsing or inventing answer content."""
+    assessment = getattr(ctx, "assessment", None)
+    response_type = str(
+        getattr(assessment, "recommended_response_type", "") or ""
+    ).lower()
+    if response_type in {"crisis", "severe"}:
+        return None
+
+    practice = graph_result.get("daily_practice_card")
+    action_step = None
+    if isinstance(practice, dict):
+        instruction = _text(
+            practice.get("instruction")
+            or practice.get("practice")
+            or practice.get("description"),
+            640,
+        )
+        if instruction:
+            action_step = ActionStep(
+                title=_text(practice.get("title"), 120) or "Try this now",
+                instruction=instruction,
+                safety_note=_text(practice.get("safety_note"), 240),
+            )
+
+    reflection_prompt = None
+    suggestions = graph_result.get("follow_up_suggestions")
+    if isinstance(suggestions, list):
+        for suggestion in suggestions:
+            reflection_prompt = _text(suggestion, 280)
+            if reflection_prompt:
+                break
+
+    language = _text(getattr(ctx, "preferred_lang", None), 32) or "en"
+    source_backed = bool(citations)
+    return GuidancePlan(
+        response_mode="balanced_guidance",
+        language=language,
+        attribution=TeachingAttribution(
+            label=(
+                "Guidance inspired by retrieved teachings"
+                if source_backed
+                else "Reflective guidance"
+            ),
+            source_backed=source_backed,
+        ),
+        action_step=action_step,
+        reflection_prompt=reflection_prompt,
+    )
+
 
 
 # ---- Kill #3: instant CASUAL greeting short-circuit (moved from coordinator) ----
@@ -230,6 +295,11 @@ class ResultAssemblyStage(Stage):
                 graph_result,
                 ctx.citations,
                 response_data,
+            ),
+            guidance_plan=_guidance_plan(
+                ctx,
+                graph_result,
+                ctx.citations,
             ),
         )
         return ctx.result

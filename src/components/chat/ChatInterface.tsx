@@ -1009,6 +1009,8 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
         let streamedConfidenceScore: number | null = null;
         let streamedConfidenceReason: string | null = null;
         let streamedLiveLogisticsEvents: LiveLogisticsEvent[] = [];
+        let streamedGuidancePlan: GuidancePlan | null = null;
+        let streamedAnswerEvidence: AnswerEvidence | null = null;
   for await (const chunk of stream) {
           if (chunk.type === 'status') {
             if (chunk.jobId) {
@@ -1054,6 +1056,8 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
             streamedConfidenceScore = chunk.confidenceScore ?? null;
             streamedConfidenceReason = chunk.confidenceReason ?? null;
             streamedLiveLogisticsEvents = chunk.liveLogisticsEvents ?? [];
+            streamedGuidancePlan = chunk.guidancePlan ?? null;
+            streamedAnswerEvidence = chunk.answerEvidence ?? null;
             continue;
           }
 
@@ -1108,6 +1112,8 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
                     confidenceScore: streamedConfidenceScore ?? undefined,
                     confidenceReason: streamedConfidenceReason ?? undefined,
                     liveLogisticsEvents: streamedLiveLogisticsEvents.length > 0 ? streamedLiveLogisticsEvents : undefined,
+                    guidancePlan: streamedGuidancePlan,
+                    answerEvidence: streamedAnswerEvidence,
                   }
                 : m
             )
@@ -1330,6 +1336,8 @@ openSereneMind('audio');
           error: responseError,
           followUpSuggestions: response.followUpSuggestions && response.followUpSuggestions.length > 0 ? response.followUpSuggestions : undefined,
           liveLogisticsEvents: response.liveLogisticsEvents && response.liveLogisticsEvents.length > 0 ? response.liveLogisticsEvents : undefined,
+          guidancePlan: response.guidancePlan ?? null,
+          answerEvidence: response.answerEvidence ?? null,
         };
         setMessages((prev) => [...prev, guruMessage]);
         if (!responseError) {

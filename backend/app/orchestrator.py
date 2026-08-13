@@ -8,6 +8,7 @@ Design Patterns:
 from __future__ import annotations
 
 import asyncio
+from dataclasses import asdict
 import hashlib
 import os
 import time
@@ -133,6 +134,8 @@ class ChatRequestOrchestrator:
             kg_concept_nodes=result.kg_concept_nodes,
             daily_practice_card=result.daily_practice_card,
             live_logistics_events=result.live_logistics_events,
+            answer_evidence=(None if result.answer_evidence is None else asdict(result.answer_evidence)),
+            guidance_plan=(None if result.guidance_plan is None else asdict(result.guidance_plan)),
         )
 
 
@@ -296,14 +299,20 @@ async def _drain_stream_to_redis(
                 except Exception as _e:
                     logger.debug("[orchestrator cleanup] suppressed non-critical error: %s", _e)
         if r:
-            # Report pipeline failure to the SSE consumer via an error marker.
             failed = (
-                pipeline_task.done()
-                and not pipeline_task.cancelled()
-                and pipeline_task.exception() is not None
+                pipeline_task.cancelled()
+                or (pipeline_task.done() and pipeline_task.exception() is not None)
             )
-            marker = "__ERROR__" if failed else "__COMPLETE__"
-            await r.xadd(stream_key, {"data": marker}, maxlen=1000)
+            if failed:
+                completion_payload = "__ERROR__"
+            else:
+                completion_payload = json.dumps(
+                    {
+                        "event": "done",
+                        "data": json.dumps(_stream_done_metadata(pipeline_task.result())),
+                    }
+                )
+            await r.xadd(stream_key, {"data": completion_payload}, maxlen=1000)
             await r.expire(stream_key, max(600, settings.queue_job_ttl))
             await r.close()
     except Exception as exc:
@@ -346,6 +355,34 @@ def _coerce_citations_to_str(citations) -> list[str]:
         else:
             out.append(str(c))
     return out
+
+
+def _stream_done_metadata(result) -> dict:
+    """Return the JSON-safe completion metadata shared by direct and queued SSE."""
+    answer_evidence = getattr(result, "answer_evidence", None)
+    guidance_plan = getattr(result, "guidance_plan", None)
+    return {
+        "intent": result.intent,
+        "citations": _coerce_citations_to_str(result.citations),
+        "meditation_step": result.meditation_step,
+        "proactive_serene_mind": result.proactive_serene_mind,
+        "trace_id": result.trace_id,
+        "latency_ms": result.latency_ms,
+        "model_used": result.model_used,
+        "model_provider": result.model_provider,
+        "route_decision": result.route_decision,
+        "query_tier": result.query_tier,
+        "cache_hit": result.cache_hit,
+        "faithfulness_score": result.faithfulness_score,
+        "hallucination_flag": result.hallucination_flag,
+        "follow_up_suggestions": result.follow_up_suggestions,
+        "confidence_score": result.confidence_score,
+        "citations_verified": result.citations_verified,
+        "orphan_citations_stripped": result.orphan_citations_stripped,
+        "live_logistics_events": getattr(result, "live_logistics_events", []),
+        "answer_evidence": None if answer_evidence is None else asdict(answer_evidence),
+        "guidance_plan": None if guidance_plan is None else asdict(guidance_plan),
+    }
 
 
 async def _increment_turn_counter(user_id: str) -> None:

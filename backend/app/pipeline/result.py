@@ -6,7 +6,7 @@ accidental mutation during the pipeline flow.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 @dataclass(frozen=True)
@@ -21,6 +21,36 @@ class AnswerEvidence:
     top_source_score: float | None
     citations_verified: bool | None = None
 
+
+
+@dataclass(frozen=True)
+class TeachingAttribution:
+    """Safe, UI-ready attribution that never represents the assistant as a teacher."""
+
+    label: str
+    source_backed: bool
+    teacher_name: str | None = None
+
+
+@dataclass(frozen=True)
+class ActionStep:
+    """A bounded, optional next step derived from structured pipeline output."""
+
+    title: str
+    instruction: str
+    optional: bool = True
+    safety_note: str | None = None
+
+
+@dataclass(frozen=True)
+class GuidancePlan:
+    """Structured presentation guidance; it is never inferred from generated prose."""
+
+    response_mode: str
+    language: str
+    attribution: TeachingAttribution
+    action_step: ActionStep | None = None
+    reflection_prompt: str | None = None
 
 
 
@@ -112,6 +142,8 @@ class PipelineResult:
     live_logistics_events: list[dict] = field(default_factory=list)
     # Populated only from structured retrieval/release/policy facts.
     answer_evidence: AnswerEvidence | None = None
+    # Populated only from structured practice, language, and citation fields.
+    guidance_plan: GuidancePlan | None = None
 
 
     def with_latency(self, latency_ms: int) -> "PipelineResult":
@@ -152,6 +184,7 @@ class PipelineResult:
             daily_practice_card=self.daily_practice_card,
             live_logistics_events=self.live_logistics_events,
             answer_evidence=self.answer_evidence,
+            guidance_plan=self.guidance_plan,
         )
 
     def to_chat_response(self) -> dict[str, Any]:
@@ -179,6 +212,9 @@ class PipelineResult:
             "orphan_citations_stripped": self.orphan_citations_stripped,
             "live_logistics_events": self.live_logistics_events,
             "answer_evidence": (
-                None if self.answer_evidence is None else self.answer_evidence.__dict__
+                None if self.answer_evidence is None else asdict(self.answer_evidence)
+            ),
+            "guidance_plan": (
+                None if self.guidance_plan is None else asdict(self.guidance_plan)
             ),
         }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import asdict
 import json
 import logging
 import re
@@ -375,6 +376,15 @@ async def chat_v2_endpoint(
         audio_url=result.audio_url,
         kg_concept_nodes=result.kg_concept_nodes,
         daily_practice_card=result.daily_practice_card,
+        live_logistics_events=getattr(result, "live_logistics_events", []),
+        answer_evidence=(
+            None if getattr(result, "answer_evidence", None) is None
+            else asdict(result.answer_evidence)
+        ),
+        guidance_plan=(
+            None if getattr(result, "guidance_plan", None) is None
+            else asdict(result.guidance_plan)
+        ),
     )
 
 

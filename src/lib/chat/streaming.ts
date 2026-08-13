@@ -231,6 +231,8 @@ export async function* sendMessageStreaming(
               confidenceReason: meta.confidence_reason ?? null,
               recommendedCourse: meta.recommended_course ?? null,
               liveLogisticsEvents: meta.live_logistics_events ?? [],
+              guidancePlan: meta.guidance_plan ?? null,
+              answerEvidence: meta.answer_evidence ?? null,
             };
           } catch {
             // Ignore malformed done payload
