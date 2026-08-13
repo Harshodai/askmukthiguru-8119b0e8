@@ -14,7 +14,12 @@ import time
 from typing import TYPE_CHECKING
 
 from app.pipeline.stages.base import Stage
-from services.serene_mind_engine import DistressAssessment, DistressLevel
+from services.serene_mind_engine import (
+    DISTRESS_RESPONSES,
+    DistressAssessment,
+    DistressLevel,
+    get_crisis_resource,
+)
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
@@ -80,8 +85,12 @@ _INDIC_CRISIS_KEYWORD_RE = re.compile("|".join(_INDIC_CRISIS_KEYWORDS))
 
 
 class DistressStage(Stage):
-    """Run distress detection (conditional on keyword pre-screen) and
-    proactive Serene Mind triggering. Never short-circuits."""
+    """Run deterministic distress detection and preempt severe/crisis paths.
+
+    Moderate and mild distress can continue to the compassionate RAG path.
+    Severe and crisis assessments terminate here so no retrieval, provider call,
+    translation, memory write, or cache write can precede human support.
+    """
 
     name = "distress_detection"
 
@@ -106,6 +115,9 @@ class DistressStage(Stage):
         assessment = await self._detect_distress(ctx, user_msg_en, state)
         ctx.assessment = assessment
 
+        if assessment and assessment.level >= DistressLevel.SEVERE:
+            return self._crisis_preemption_result(ctx, assessment)
+
         # ponytail: proactive Serene Mind block from execute() verbatim.
         # Trigger on a keyword hit, a persistent distress trend, OR a positive
         # assessment this turn — so a crisis with no listed keyword still routes.
@@ -120,6 +132,43 @@ class DistressStage(Stage):
             state["proactive_serene_mind"] = proactive_data
         ctx.proactive_data = proactive_data
         return None
+
+
+
+    @staticmethod
+    def _crisis_preemption_result(
+        ctx: "PipelineContext", assessment: DistressAssessment
+    ) -> PipelineResult:
+        """Return reviewed support before any model or persistence side effect."""
+        level = assessment.level
+        prefix = DISTRESS_RESPONSES.get(level, DISTRESS_RESPONSES[DistressLevel.CRISIS])
+        resources = get_crisis_resource("global")
+        next_step = (
+            "If you are in immediate danger, please contact local emergency services "
+            "or go to a safer place now. If you can, tell a trusted person nearby "
+            "that you need support."
+        )
+        response = "\n\n".join(part for part in (prefix, resources, next_step) if part)
+        start_time = getattr(ctx, "start_time", time.time())
+        return PipelineResult(
+            final_answer=response,
+            intent="DISTRESS",
+            trace_id=getattr(ctx, "trace_id", ""),
+            latency_ms=int((time.time() - start_time) * 1000),
+            model_used=None,
+            model_provider=None,
+            route_decision="crisis_preempted",
+            proactive_serene_mind={
+                "triggered": False,
+                "preempted": True,
+                "level": level.name,
+            },
+            trigger_events=[{
+                "type": "DISTRESS",
+                "level": level.name,
+                "preempted": True,
+            }],
+        )
 
     # -- extracted method bodies (verbatim, self -> ctx) --
 
