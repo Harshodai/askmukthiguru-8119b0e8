@@ -220,3 +220,11 @@ export function useRagFlowGraph(strategy: string) {
     queryFn: () => api.getRagFlowGraph(strategy),
   });
 }
+
+export function useOperationsSnapshot() {
+  return useQuery({
+    queryKey: ["admin", "operations-snapshot"],
+    queryFn: api.getOperationsSnapshot,
+    refetchInterval: 30_000,
+  });
+}

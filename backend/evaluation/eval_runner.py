@@ -805,13 +805,22 @@ def main(argv: list[str] | None = None) -> int:
         results = asyncio.run(asyncio.gather(*[_run_one(q, i) for i, q in enumerate(questions)]))
 
     summary = aggregate(results)
+    metadata = {
+        "dataset_id": args.dataset,
+        "evaluated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "deployment_sha": os.environ.get("DEPLOYMENT_SHA", "unknown"),
+        "model_policy_id": os.environ.get("MODEL_POLICY_ID", "unknown"),
+        "corpus_release": os.environ.get("CORPUS_RELEASE", "unknown"),
+        "endpoint": args.endpoint,
+    }
+
     out_json_path = Path(args.out_json)
     out_md_path = Path(args.out_md)
     out_json_path.parent.mkdir(parents=True, exist_ok=True)
     out_md_path.parent.mkdir(parents=True, exist_ok=True)
 
     with out_json_path.open("w", encoding="utf-8") as f:
-        json.dump({"summary": summary, "per_question": [_serialise(r) for r in results]}, f, indent=2)
+        json.dump({"metadata": metadata, "summary": summary, "per_question": [_serialise(r) for r in results]}, f, indent=2)
     write_markdown_report(summary, out_md_path)
     logger.info("Wrote report to %s and %s", out_json_path, out_md_path)
 

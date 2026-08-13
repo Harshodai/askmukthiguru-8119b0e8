@@ -15,6 +15,8 @@ from pydantic import BaseModel, Field
 from celery_config import celery_app
 
 from app.config import settings
+from app.admin_telemetry import operations_snapshot, trace_detail, trace_summary
+
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
 from app.telemetry_db import (
@@ -76,7 +78,7 @@ async def fetch_telemetry_traces(
     user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Fetch recent traces for Admin UI. Requires admin authentication."""
-    return await get_recent_traces(min(limit, 200))
+    return [trace_summary(trace) for trace in await get_recent_traces(min(limit, 200))]
 
 
 @admin_router.get("/traces/{trace_id}")
@@ -88,7 +90,21 @@ async def fetch_query_trace(
     trace = await get_query_trace(trace_id)
     if not trace:
         raise HTTPException(status_code=404, detail=f"Trace {trace_id} not found")
-    return trace
+    return trace_detail(trace)
+
+
+@admin_router.get("/operations/snapshot")
+async def get_operations_snapshot(
+    user: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Return bounded aggregate evidence for the privacy-safe operations view."""
+    traces = await get_recent_traces(200)
+    return operations_snapshot(
+        traces,
+        model_policy_id=settings.openrouter_policy_id,
+        budget_guard_enabled=settings.openrouter_budget_guard_enabled,
+    )
+
 
 
 @admin_router.get("/prompts")

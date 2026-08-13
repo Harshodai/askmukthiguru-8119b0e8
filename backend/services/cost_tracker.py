@@ -255,5 +255,7 @@ class TokenAccumulator:
     tokens_out: int = 0
     model: str = ""
     provider: str = ""
+    cost_usd: float = 0.0
+
 
 token_accumulator_var: ContextVar[Optional[TokenAccumulator]] = ContextVar("token_accumulator", default=None)

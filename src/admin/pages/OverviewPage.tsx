@@ -9,6 +9,7 @@ import {
   useQueries,
   useRetrievalHealth,
   useTopFailures,
+  useOperationsSnapshot,
 } from "@/admin/hooks/useAdminData";
 import {
   fmtInt,
@@ -35,6 +36,8 @@ export default function OverviewPage() {
   const { data: recentQueries } = useQueries({ limit: 10 });
   const { data: retr } = useRetrievalHealth();
   const { data: failures } = useTopFailures(6);
+  const { data: operations } = useOperationsSnapshot();
+
 
   return (
     <div className="space-y-6">
@@ -62,6 +65,16 @@ export default function OverviewPage() {
         <SeedDemoButton />
       </div>
 
+
+      <Card className="border-primary/20">
+        <CardHeader><CardTitle className="text-base">Launch readiness</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+          <div><div className="text-muted-foreground text-xs">Policy</div><div className="font-mono truncate">{operations?.model_policy_id ?? "unavailable"}</div></div>
+          <div><div className="text-muted-foreground text-xs">Budget guard</div><div>{operations?.budget_guard_enabled ? "Enabled" : "Staged"}</div></div>
+          <div><div className="text-muted-foreground text-xs">Sample error rate</div><div>{fmtPct(operations?.failure_rate ?? 0)}</div></div>
+          <div><div className="text-muted-foreground text-xs">Sample latency</div><div>{operations?.average_latency_ms == null ? "No samples" : fmtMs(operations.average_latency_ms)}</div></div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
         <KpiCard label="Queries" value={isLoading ? "…" : fmtInt(kpis?.total_queries ?? 0)} tooltip="Total number of chat queries processed across all channels." />
@@ -149,7 +162,7 @@ export default function OverviewPage() {
                   className="flex items-center justify-between gap-3 text-sm border-b border-border last:border-0 pb-2 hover:bg-muted/40 -mx-2 px-2 rounded-sm"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="truncate">{truncate(q.query_text, 70)}</div>
+                    <div className="truncate">{q.status ?? "unknown"}</div>
                     <div className="text-xs text-muted-foreground">
                       {fmtDateTime(q.created_at)} · {q.model?.split("/").pop() || "unknown"}
                     </div>
@@ -203,10 +216,10 @@ export default function OverviewPage() {
                 >
                   <div className="flex items-center gap-2">
                     <Badge variant="destructive">{fmtPct(f.faithfulness)}</Badge>
-                    <span className="truncate flex-1">{truncate(f.query_text, 80)}</span>
+                    <span className="truncate flex-1">{f.query_id}</span>
                     <span className="text-xs text-muted-foreground">{fmtDateTime(f.created_at)}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">{f.reason}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Operational quality review required</div>
                 </Link>
               ))}
             </CardContent>

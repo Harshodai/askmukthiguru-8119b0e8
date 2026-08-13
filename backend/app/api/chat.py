@@ -194,6 +194,8 @@ def record_token_usage(endpoint: str):
                             tokens_in=acc.tokens_in,
                             tokens_out=acc.tokens_out,
                             endpoint=endpoint,
+                            cost_override=acc.cost_usd if acc.cost_usd > 0 else None,
+
                         )
                     except Exception as e:
                         logger.warning(f"Failed to record token usage: {e}")

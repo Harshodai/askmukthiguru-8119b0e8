@@ -147,3 +147,23 @@ if __name__ == "__main__":
         print("test_llm_gateway self-check: all OK")
 
     asyncio.run(_run_all())
+
+@pytest.mark.asyncio
+async def test_coalescing_collapses_five_hundred_identical_requests():
+    call_count = 0
+
+    class _SlowProvider:
+        async def generate(self, system_prompt, user_prompt, context="", **kwargs):
+            nonlocal call_count
+            call_count += 1
+            await asyncio.sleep(0.02)
+            return "shared answer"
+
+    gateway = _gateway(_SlowProvider())
+    answers = await asyncio.gather(
+        *(gateway.generate("system", "same question", context="same evidence") for _ in range(500))
+    )
+
+    assert answers == ["shared answer"] * 500
+    assert call_count == 1
+    assert gateway.metrics.snapshot()["cache_hits"] == 499

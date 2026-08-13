@@ -149,6 +149,21 @@ class Settings(BaseSettings):
     openrouter_generation_model_fallback: str = "google/gemini-2.5-flash"
     openrouter_classify_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     openrouter_rpm_limit: int = 20
+    # Versioned server-side OpenRouter policy; pinned IDs keep benchmark evidence reproducible.
+    openrouter_policy_id: str = "gemini-flash-budget-v1"
+    # Optional comma-separated provider order; empty accepts only privacy-compliant routing.
+    openrouter_allowed_providers: str = ""
+    openrouter_require_no_training: bool = True
+    openrouter_allow_provider_fallbacks: bool = True
+    openrouter_enforce_model_policy: bool = True
+    openrouter_daily_budget_usd: float = Field(default=0.25, gt=0)
+    openrouter_monthly_budget_usd: float = Field(default=6.0, gt=0)
+    # Redis-backed cross-replica reservation guard. Enable only after Redis health and budget drill pass.
+    openrouter_budget_guard_enabled: bool = False
+    openrouter_max_request_cost_usd: float = Field(default=0.03, gt=0)
+    openrouter_budget_fail_closed: bool = True
+
+
 
     # --- Re-ingest & Late Chunking Settings ---
     reingest_openrouter_model: str = "google/gemma-3-12b-it"
@@ -1091,6 +1106,11 @@ class Settings(BaseSettings):
             value = getattr(self, key_attr, "") or ""
             if not value.strip():
                 raise ValueError(f"{key_attr} is required when llm_provider='{provider}'")
+        if provider == "openrouter":
+            from app.model_policy import OpenRouterModelPolicy
+
+            OpenRouterModelPolicy.from_settings(self)
+
         return self
 
 

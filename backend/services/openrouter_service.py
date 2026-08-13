@@ -32,6 +32,10 @@ def _is_retryable_openrouter_error(exc: BaseException) -> bool:
     return isinstance(exc, (httpx.HTTPError, asyncio.TimeoutError))
 
 from app.config import settings
+from app.model_policy import OpenRouterModelPolicy
+from app.openrouter_budget import OpenRouterBudgetGuard
+
+
 from app.constants import CircuitBreakerProvider
 from services.circuit_breaker import (
     CircuitBreakerConfig,
@@ -60,7 +64,12 @@ logger = logging.getLogger(__name__)
 class OpenRouterService:
     """Gateway to all LLM operations via OpenRouter Cloud API."""
 
+
     def __init__(self) -> None:
+        self._policy = OpenRouterModelPolicy.from_settings(settings)
+        self._budget_guard = OpenRouterBudgetGuard.from_settings(settings, self._policy)
+
+
         """Initialize the OpenRouter API client."""
         self._api_key = settings.openrouter_api_key
         # Free models can be queried without key occasionally, but key is highly recommended
@@ -172,20 +181,32 @@ class OpenRouterService:
             return 0
         return int(len(text.split()) * 1.3)
 
+    @staticmethod
+    def _usage_cost(usage: dict) -> float:
+        """Read OpenRouter-reported actual cost, rejecting malformed values."""
+        try:
+            value = float((usage or {}).get("cost") or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+        return value if value > 0 else 0.0
+
     def _track_token_usage(
         self,
         *,
         tokens_in: int,
         tokens_out: int,
         model: str,
+        cost_usd: float = 0.0,
     ) -> None:
-        """Push token metrics into the request-scoped accumulator."""
+        """Push token and provider-reported cost into request-scoped accounting."""
         try:
             from services.cost_tracker import token_accumulator_var
+
             acc = token_accumulator_var.get()
             if acc is not None:
                 acc.tokens_in += tokens_in
                 acc.tokens_out += tokens_out
+                acc.cost_usd += max(0.0, cost_usd)
                 acc.model = model
                 acc.provider = "openrouter"
         except Exception as exc:
@@ -215,12 +236,18 @@ class OpenRouterService:
         model, so it must not inherit the primary model's just-triggered
         "sleep until window resets" state.
         """
+        self._policy.assert_model_allowed(model)
+        max_tokens = min(max_tokens, self._policy.output_ceiling(operation))
+
         if not _is_fallback_attempt:
             await self._enforce_rate_limit()
 
         if not self._circuit.can_execute():
             logger.warning(f"OpenRouter circuit breaker open — graceful degradation for {operation}")
             return await self._graceful_degradation(messages, operation=operation)
+
+        reservation = await self._budget_guard.reserve()
+
 
         is_anthropic = "anthropic/" in model or "claude" in model
 
@@ -249,6 +276,8 @@ class OpenRouterService:
             "messages": payload_messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            "provider": self._policy.provider_preferences(),
+
         }
 
         # Handle potential parameters passed in kwargs
@@ -286,15 +315,17 @@ class OpenRouterService:
 
             content = data["choices"][0]["message"]["content"]
             
-            # Track tokens
+            # Track provider-reported usage. Token estimates remain a fallback
+            # only when OpenRouter omits usage metadata.
             usage = data.get("usage", {})
             tokens_in = usage.get("prompt_tokens") or self._estimate_tokens(str(messages))
             tokens_out = usage.get("completion_tokens") or self._estimate_tokens(content)
 
             prompt_details = usage.get("prompt_tokens_details") or {}
             cached_tokens = (
-                prompt_details.get("cached_tokens") or
-                usage.get("cache_read_input_tokens") or 0
+                prompt_details.get("cached_tokens")
+                or usage.get("cache_read_input_tokens")
+                or 0
             )
             if cached_tokens > 0:
                 logger.info(
@@ -302,7 +333,14 @@ class OpenRouterService:
                     f"out of prompt_tokens={tokens_in} for model={model}"
                 )
 
-            self._track_token_usage(tokens_in=tokens_in, tokens_out=tokens_out, model=model)
+            self._track_token_usage(
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                model=model,
+                cost_usd=self._usage_cost(usage),
+            )
+            await reservation.settle(self._usage_cost(usage))
+
 
             return content
 
@@ -335,6 +373,7 @@ class OpenRouterService:
                     )
                 logger.warning(f"OpenRouter {reason} during {operation} — graceful degradation")
                 return await self._graceful_degradation(messages, operation=operation)
+
             self._circuit.record_failure()
             logger.error(f"OpenRouter call failed during {operation} (model={model}): {exc}")
             raise
@@ -444,6 +483,9 @@ class OpenRouterService:
         await self._enforce_rate_limit()
 
         model = kwargs.get("model", self._gen_model)
+        self._policy.assert_model_allowed(model)
+        operation = kwargs.get("operation", "generate")
+
         is_anthropic = "anthropic/" in model or "claude" in model
 
         if is_anthropic and system_prompt:
@@ -468,7 +510,7 @@ class OpenRouterService:
             full_prompt = user_prompt
         messages.append({"role": "user", "content": full_prompt})
 
-        max_tokens = kwargs.get("max_tokens", 8192)
+        max_tokens = min(kwargs.get("max_tokens", 8192), self._policy.output_ceiling(operation))
         temperature = kwargs.get("temperature", 0.1)
 
         payload = {
@@ -476,7 +518,9 @@ class OpenRouterService:
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            "provider": self._policy.provider_preferences(),
             "stream": True,
+            "stream_options": {"include_usage": True},
         }
 
         if not self._circuit.can_execute():
@@ -485,7 +529,9 @@ class OpenRouterService:
                 message="Circuit breaker OPEN in generate_stream",
             )
 
+        reservation = await self._budget_guard.reserve()
         last_error = None
+        stream_usage: dict | None = None
         for attempt in range(self._max_retries):
             try:
                 client = await self._get_http_client()
@@ -504,25 +550,36 @@ class OpenRouterService:
                     resp.raise_for_status()
 
                     async for line in resp.aiter_lines():
-                        if line.startswith("data: "):
-                            data_str = line[6:]
-                            if data_str.strip() == "[DONE]":
-                                break
-                            try:
-                                data = json.loads(data_str)
-                                delta_msg = data.get("choices", [{}])[0].get("delta", {})
-                                delta = delta_msg.get("content") or ""
-                                if delta:
-                                    buffer += delta
-                                    yield delta
-                            except json.JSONDecodeError:
-                                pass
+                        if not line.startswith("data: "):
+                            continue
+                        data_str = line[6:]
+                        if data_str.strip() == "[DONE]":
+                            break
+                        try:
+                            data = json.loads(data_str)
+                        except json.JSONDecodeError:
+                            continue
+                        usage = data.get("usage")
+                        if isinstance(usage, dict):
+                            stream_usage = usage
+                        delta_msg = data.get("choices", [{}])[0].get("delta", {})
+                        delta = delta_msg.get("content") or ""
+                        if delta:
+                            buffer += delta
+                            yield delta
 
                 self._circuit.record_success()
-
-                prompt_tokens = self._estimate_tokens(str(messages))
-                completion_tokens = self._estimate_tokens(buffer)
-                self._track_token_usage(tokens_in=prompt_tokens, tokens_out=completion_tokens, model=model)
+                usage = stream_usage or {}
+                prompt_tokens = usage.get("prompt_tokens") or self._estimate_tokens(str(messages))
+                completion_tokens = usage.get("completion_tokens") or self._estimate_tokens(buffer)
+                cost_usd = self._usage_cost(usage) if stream_usage is not None else None
+                self._track_token_usage(
+                    tokens_in=prompt_tokens,
+                    tokens_out=completion_tokens,
+                    model=model,
+                    cost_usd=cost_usd or 0.0,
+                )
+                await reservation.settle(cost_usd)
                 return
 
             except Exception as e:

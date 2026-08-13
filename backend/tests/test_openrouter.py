@@ -154,6 +154,8 @@ async def test_openrouter_provider_delegation(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_openrouter_service_anthropic_caching(monkeypatch, caplog):
+    monkeypatch.setattr(settings, "openrouter_enforce_model_policy", False)
+
     import logging
     monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
     
@@ -234,6 +236,8 @@ async def test_openrouter_service_anthropic_caching(monkeypatch, caplog):
 
 @pytest.mark.asyncio
 async def test_openrouter_service_anthropic_caching_stream(monkeypatch):
+    monkeypatch.setattr(settings, "openrouter_enforce_model_policy", False)
+
     monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
     
     captured_calls = []

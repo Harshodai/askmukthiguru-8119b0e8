@@ -6664,3 +6664,15 @@ Source-release approval, atomic corpus alias activation, rollback drills, and a
 typed answer-envelope quality contract are valuable but are not complete merely
 because adjacent hardening landed. Keep each as a named launch gate until it has
 implementation and drill evidence.
+
+### L-HARDEN-15 — API costs need provider-reported accounting and admission control
+Token estimates are useful for trends but cannot be a spend ceiling when API pricing varies by model, provider, and cache state. Preserve provider-reported actual cost whenever it is returned, reserve a conservative per-request amount before generation, and use a shared atomic ledger for cross-replica daily and monthly enforcement. If enabled accounting becomes unavailable, fail closed unless an explicitly time-bounded incident decision says otherwise.
+
+### L-HARDEN-16 — Privacy-safe observability is an allowlist, not a redaction hope
+Admin telemetry should expose bounded operational evidence—status, latency, model/policy, quality scores, retrieval counts, and safety categories—through explicit allowlists. Do not return prompts, answers, source contents, identifiers, evaluator prose, span attributes, or safety excerpts and then expect each UI to hide them correctly.
+
+### L-HARDEN-17 — Same-question traffic must be proven at the paid-provider boundary
+A load test that merely receives HTTP requests does not prove cost protection. Add a deterministic high-concurrency identical-request test which verifies that every waiter receives the result while exactly one provider generation occurs; then separately run the staging matrix against real queue and cache topology.
+
+### L-HARDEN-18 — A declared load envelope is evidence only after it is exercised
+A 500-session script and thresholds are necessary release controls, not a capacity claim. Preserve each stage report with deployment SHA, model policy, corpus release, region, dependency topology, and outcome. Mock-provider passes validate application behaviour; external-provider capacity, multi-region latency, and recovery must still be measured before admission increases.

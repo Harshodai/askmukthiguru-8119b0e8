@@ -439,3 +439,13 @@ export interface CacheClearResult {
   status: string;
   tiers: Record<string, string>;
 }
+
+export interface OperationsSnapshot {
+  sample_size: number;
+  failure_count: number;
+  failure_rate: number;
+  average_latency_ms: number | null;
+  cost_estimate_usd: number;
+  model_policy_id: string;
+  budget_guard_enabled: boolean;
+}

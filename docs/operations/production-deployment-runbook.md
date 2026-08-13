@@ -194,3 +194,33 @@ Versioned source-release approval, atomic corpus alias activation, rollback dril
 and the full typed answer-envelope quality contract remain launch gates where they
 have not yet been implemented. They must be tracked as explicit work, not implied
 by this runbook.
+
+## OpenRouter Model Policy and Spend-Guard Activation
+
+The active OpenRouter deployment must use pinned model IDs and the server-side policy rather than browser-selected models. Set `OPENROUTER_POLICY_ID`, `OPENROUTER_ENFORCE_MODEL_POLICY=true`, `OPENROUTER_REQUIRE_NO_TRAINING=true`, and the primary, fast, classification, and optional fallback model IDs in Railway. Leave `OPENROUTER_ALLOWED_PROVIDERS` empty unless a verified provider allowlist is required; the policy still requests no-training routing and records the policy ID in the privacy-safe operations view.
+
+The values in `.env.example` reserve a conservative early-stage envelope: `$0.25` per day, `$6.00` per month, and `$0.03` maximum per admitted request. They are deployment defaults, not a claim about a provider’s final price. Recalculate them from the selected OpenRouter model card and the actual monthly budget before enabling traffic.
+
+| Control | Initial state | Required activation proof | Immediate rollback |
+|---|---|---|---|
+| Model policy | Enabled | Pinned primary/fast/classification/fallback IDs pass startup validation | Restore last known pinned configuration; never use a `:latest` alias |
+| Actual-cost ledger | Enabled | A staging request records non-zero OpenRouter `usage.cost` when returned | Retain token accounting; investigate missing provider usage before interpreting spend totals |
+| Redis spend guard | **Disabled** | Shared-Redis health loss returns a controlled failure, rejected reservation does not call the provider, and a known lower actual cost refunds only the unused reserve | Set `OPENROUTER_BUDGET_GUARD_ENABLED=false` only while the incident is mitigated, then cap public admission and restore the guard |
+
+When the Redis guard is enabled, an unavailable shared ledger fails closed by default. Do not set `OPENROUTER_BUDGET_FAIL_CLOSED=false` in a public launch without an explicit, time-bounded incident decision; doing so trades a cost ceiling for availability.
+
+## Staged 500-Session Readiness Gate
+
+Run the readiness matrix only against local mock infrastructure or a non-production staging environment using test authentication. It must not point to the public Lovable frontend or the production Railway service. The test progresses through 25, 100, 250, and 500 active users, uses the identical-question workload already represented in the Locust file, and saves a JSON report for every stage.
+
+```bash
+cd backend
+export LOAD_TEST_URL=https://staging-api.example.com
+export BENCHMARK_SECRET='staging-only-secret'
+export READINESS_DURATION=180s
+./benchmarks/run_readiness_matrix.sh
+```
+
+The runner rejects a stage with fewer completed requests than declared active users, p95 above the configured default of 8 seconds, or a failure rate above 1 percent. Record the report directory, deployment SHA, model-policy ID, corpus release, region, Redis/Qdrant/Neo4j topology, and current Railway replica count with each run. A passing mock-provider run proves application backpressure and race handling; it does **not** prove external OpenRouter capacity or global user latency.
+
+Before advancing public admission, run a separate staging trace for crisis pre-emption, corpus containment, live-logistics source freshness, memory erasure, Redis guard failure, queued-SSE reconnection, and a restore drill. Failure of any gate freezes cohort expansion and returns the system to the previously observed safe cohort.

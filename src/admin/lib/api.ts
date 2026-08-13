@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type {
   KpiSnapshot,
+  OperationsSnapshot,
   QueryFilters,
   ChatTrace,
   QueryTrace,
@@ -106,6 +107,11 @@ function withDevFallback<T>(
 
 
 // ── KPIs ────────────────────────────────────────────────────────────────────
+export async function getOperationsSnapshot(): Promise<OperationsSnapshot> {
+  return await fetchWithAuth("/api/admin/operations/snapshot");
+}
+
+
 export async function getKpis(filters: QueryFilters): Promise<KpiSnapshot> {
   return withDevFallback(
     'getKpis',
