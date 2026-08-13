@@ -15,3 +15,4 @@
 - [ ] P1: Maintain a ruthless research register for official teacher sources, YouTube evidence, market/product analysis, open-source candidates, and benchmark decisions.
 - [ ] P1: Extend the existing Capacitor Android/iOS app with verified Chat, language, evidence, practices, voice, safety, and feature-manifest parity; do not create a parallel mobile backend.
 - [ ] P2: Compare alternative hosting and self-hosted model options only after measured usage, latency, reliability, and total-cost evidence justify them.
+- [ ] Launch blocker: apply source-release migrations in staging and capture the A → B → A rollback drill with scoped Qdrant, Neo4j, LightRAG, and citation-canary evidence.

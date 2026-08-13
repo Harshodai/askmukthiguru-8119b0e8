@@ -185,9 +185,15 @@ class CorpusReleaseRegistry:
             "p_approved_by": _normalise_text("approved_by", approved_by, 256),
         })
 
-    def activate_release(self, release_id: str) -> SourceRelease:
-        return self._rpc_release("activate_source_release", {"p_release_id": _normalise_uuid(release_id)})
+    def reactivate_release(self, release_id: str, *, approved_by: str) -> SourceRelease:
+        """Explicitly re-approve a superseded release, then atomically activate it."""
+        self.approve_release(release_id, approved_by=approved_by)
+        return self.activate_release(release_id)
 
+    def activate_release(self, release_id: str) -> SourceRelease:
+        return self._rpc_release(
+            "activate_source_release", {"p_release_id": _normalise_uuid(release_id)}
+        )
     def reject_release(self, release_id: str) -> SourceRelease:
         return self._rpc_release("reject_source_release", {"p_release_id": _normalise_uuid(release_id)})
 

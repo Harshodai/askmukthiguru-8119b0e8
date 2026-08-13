@@ -6752,3 +6752,12 @@ aggregates at request completion, carry only stable metric labels, and record
 provider-reported cost separately from estimates. Metrics prove neither global
 capacity nor quality by themselves; preserve the staged-load and multi-region
 release drills as independent admission evidence.
+
+### L-HARDEN-27 — A superseded source release needs an explicit rollback path
+
+An activation transaction that can supersede a prior source release but cannot
+return that release to `approved` leaves rollback as an undocumented manual
+database operation. The governed rollback path must require a fresh reviewer
+identity, reuse the atomic activation transition, remain isolated to the same
+corpus and source identity, and be proven separately against live Qdrant, Neo4j,
+and LightRAG before it is considered operational.

@@ -112,7 +112,7 @@ class Store:
 
     def approve(self, payload):
         item = self.row(payload["p_release_id"])
-        if item["status"] != "pending":
+        if item["status"] not in {"pending", "superseded"}:
             raise RuntimeError("release is not pending")
         item["status"] = "approved"
         item["approved_by"] = payload["p_approved_by"]
@@ -235,3 +235,24 @@ def test_active_release_version_overrides_legacy_checkpoint_version():
     pipeline._corpus_id = "askmukthiguru"
     pipeline._release_registry = ActiveRegistry()
     assert pipeline._checkpoint_key("source", 1) == "askmukthiguru:v7:source"
+
+
+def test_explicit_reactivation_restores_a_superseded_release_without_cross_scope_change():
+    reg = registry(Store())
+    first = candidate(reg, "a" * 64)
+    reg.approve_release(first.id, approved_by="admin-a")
+    reg.activate_release(first.id)
+    second = candidate(reg, "b" * 64)
+    reg.approve_release(second.id, approved_by="admin-b")
+    reg.activate_release(second.id)
+
+    restored = reg.reactivate_release(first.id, approved_by="rollback-reviewer")
+
+    assert restored.id == first.id
+    assert restored.status == "active"
+    assert restored.approved_by == "rollback-reviewer"
+    releases = reg.list_releases(corpus_id="askmukthiguru")
+    assert {release.status for release in releases} == {"active", "superseded"}
+    assert reg.get_active_version(
+        corpus_id="askmukthiguru", source_identity="https://example.org/talk"
+    ) == 1
