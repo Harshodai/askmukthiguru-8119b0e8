@@ -346,7 +346,9 @@ const getSourceDisplayName = (url: string, index: number): string => {
  * it to the `{ default }` shape lazyWithRetry expects. Shared by ChatInterface
  * (Quick Wisdom Card) so the generator stays in exactly one lazy chunk.
  */
-export const LazyWisdomCardGenerator = lazyWithRetry(async () => {
+export const LazyWisdomCardGenerator = lazyWithRetry<
+  React.ComponentType<{ isOpen: boolean; onClose: () => void; content: string }>
+>(async () => {
   const mod = await import('./WisdomCardGenerator');
   return { default: mod.WisdomCardGenerator };
 });
