@@ -40,9 +40,7 @@ describe('aiService session continuity', () => {
       'conversation-123',
     );
 
-    const fetchMock = globalThis.fetch as unknown as {
-      mock: { calls: Array<[string, RequestInit]> };
-    };
+    const fetchMock = globalThis.fetch as any;
     const chatCall = fetchMock.mock.calls.find(([url]) => url === '/api/chat');
     expect(chatCall).toBeDefined();
     const body = JSON.parse(chatCall![1].body as string);
@@ -52,9 +50,7 @@ describe('aiService session continuity', () => {
   });
 
   it('echoes the signed anon-session token instead of the raw id for anonymous users', async () => {
-    const fetchMock = globalThis.fetch as unknown as {
-      mock: { calls: Array<[string, RequestInit]> };
-    };
+    const fetchMock = globalThis.fetch as any;
     fetchMock.mock.calls.length = 0;
     // First call: anon-session mint returns a signed token.
     fetchMock.mockImplementationOnce(async (url: string) => {

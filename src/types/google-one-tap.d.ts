@@ -15,7 +15,6 @@ declare global {
       };
     };
   }
-}
 
 interface GoogleOneTapConfig {
   client_id: string;
@@ -87,6 +86,7 @@ interface GoogleOneTapButtonOptions {
 interface GoogleRevokeResponse {
   successful: boolean;
   error?: string;
+}
 }
 
 export {};
