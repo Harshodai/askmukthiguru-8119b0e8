@@ -15,7 +15,6 @@ declare global {
       };
     };
   }
-}
 
 interface GoogleOneTapConfig {
   client_id: string;
@@ -90,3 +89,4 @@ interface GoogleRevokeResponse {
 }
 
 export {};
+}
