@@ -5,8 +5,9 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.config import settings
 from app.dependencies import ServiceContainer, get_container
-from services.auth_service import get_current_user_from_supabase
+from services.auth_service import get_current_user_from_supabase, require_aal2
 from services.retention_service import STREAK_MILESTONES
 
 router = APIRouter(prefix="/api/retention", tags=["retention"])
