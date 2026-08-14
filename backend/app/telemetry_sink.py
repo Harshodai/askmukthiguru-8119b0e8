@@ -129,16 +129,18 @@ class SupabaseTelemetrySink:
         session_id = self._coerce_uuid(session_id)
         user_id = self._coerce_uuid(user_id)
 
+        from app.telemetry_db import PIIScrubber
+
         payload_dict = {
             "query_id": query_id,
             "session_id": session_id,
             "user_id": user_id,
-            "query_text": query_text,
+            "query_text": PIIScrubber.scrub(query_text),
             "model": model,
             "latency_ms": latency_ms,
             "status": status,
             "created_at": created_at,
-            "response_text": response_text,
+            "response_text": PIIScrubber.scrub(response_text) if response_text else response_text,
             "citations": citations,
             "faithfulness": faithfulness,
             "answer_relevancy": answer_relevancy,
