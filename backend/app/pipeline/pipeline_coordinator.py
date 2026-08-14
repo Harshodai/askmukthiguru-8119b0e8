@@ -38,7 +38,6 @@ from app.metrics import SEARCH_LATENCY_MS, SLO_CHAT_LATENCY
 from app.orchestrator_utils import cache_language_key
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages import PipelineContext, StageRunner, build_default_pipeline
-from app.telemetry.publisher import TelemetryPublisher
 from rag.memory import normalize_session_id
 from services.health_monitor import HealthMonitor
 from services.hot_cache import hot_cache
@@ -59,7 +58,6 @@ class PipelineCoordinator:
 
     def __init__(self, container: ServiceContainer) -> None:
         self.container = container
-        self.telemetry = TelemetryPublisher()
         self.coalescer = container.coalescer
         self._vector_cache: TurboQuantCache | None = None
         self._health_monitor: HealthMonitor | None = None
@@ -276,11 +274,11 @@ class PipelineCoordinator:
         error_type: str | None = None,
         metadata: dict | None = None,
     ) -> None:
-        """Emit a StageCompleted telemetry event."""
-        latency_ms = int((time.time_ns() - start_ns) / 1_000_000) if start_ns else 0
-        await self.telemetry.stage_complete(
-            name, trace_id, latency_ms=latency_ms, status=status, error_type=error_type, metadata=metadata
-        )
+        """No-op: the per-stage event-bus (events.py/publisher.py/sinks.py) was
+        deleted as dead code -- every configured sink discarded the event, so
+        this call did nothing on every request. Kept as a no-op because
+        StageRunner calls it unconditionally after every stage."""
+        return None
 
     # ------------------------------------------------------------------
     # Private helpers (called by stages via ctx.coordinator)

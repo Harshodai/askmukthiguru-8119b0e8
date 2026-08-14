@@ -201,6 +201,12 @@ def chunk_audio_keyframe_segments(
     return chunks
 
 
+# Mirrors ingest/contextual_reingest.py's _assert_coverage 0.85 floor: a
+# partial-segment failure here silently truncated a doctrine transcript with
+# no signal, same failure class that pattern exists to catch.
+_MIN_CHUNK_COVERAGE: float = 0.85
+
+
 async def _transcribe_chunks(chunks: List[Path]) -> str:
     """Transcribe each audio chunk via the local Whisper service, in order.
 
@@ -219,6 +225,14 @@ async def _transcribe_chunks(chunks: List[Path]) -> str:
 
     if not texts:
         raise RuntimeError("Whisper transcription produced no output for any chunk")
+
+    coverage = len(texts) / len(chunks)
+    if coverage < _MIN_CHUNK_COVERAGE:
+        raise RuntimeError(
+            f"Whisper transcription coverage too low: {len(texts)}/{len(chunks)} chunks "
+            f"succeeded ({coverage:.0%}, floor {_MIN_CHUNK_COVERAGE:.0%}) -- "
+            f"refusing to publish a silently truncated transcript"
+        )
     return "\n\n".join(texts)
 
 

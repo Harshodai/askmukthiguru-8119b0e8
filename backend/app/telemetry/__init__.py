@@ -1,21 +1,9 @@
 """Mukthi Guru — Telemetry Infrastructure
 
-Provides per-stage event emission, publishing, and pluggable sinks.
+The per-stage event-bus (events.py/publisher.py/sinks.py) was deleted --
+it was invoked on every request but every configured sink discarded the
+event, so it did nothing. app/pipeline/pipeline_coordinator.py's `_stage()`
+is now a no-op kept only because StageRunner calls it unconditionally.
+
+prompt_cache_telemetry.py is a separate, unrelated module and stays.
 """
-
-from __future__ import annotations
-
-from app.telemetry.events import HealthStatus, StageCompleted, StageFailed, StageStarted
-from app.telemetry.publisher import TelemetryPublisher
-from app.telemetry.sinks import ConsoleSink, SupabaseSink, TelemetrySink
-
-__all__ = [
-    "StageStarted",
-    "StageCompleted",
-    "StageFailed",
-    "HealthStatus",
-    "TelemetryPublisher",
-    "TelemetrySink",
-    "ConsoleSink",
-    "SupabaseSink",
-]
