@@ -365,6 +365,10 @@ class RerankerService:
             if result is not None:
                 return result[:top_k]
 
+        logger.error(
+            f"Reranker: both FlashRank and CrossEncoder backends unavailable/failed for "
+            f"{len(documents)} docs -- returning empty list, not a legitimate zero-match result"
+        )
         return []
 
     def ontology_boost(

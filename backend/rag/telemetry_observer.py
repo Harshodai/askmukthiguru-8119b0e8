@@ -43,7 +43,8 @@ class NodeObserver(abc.ABC):
 
 
 class MetricsObserver(NodeObserver):
-    """Records latency and token usage to Prometheus / StatsD."""
+    """Logs per-node latency and error type. Despite the name, this does not
+    emit to Prometheus or StatsD -- it's a plain logger.info/error call."""
 
     async def on_before_execute(self, command: NodeCommand, state: GraphState) -> None:
         state["__start_time__"] = time.perf_counter()

@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from dataclasses import dataclass
 from typing import Optional
@@ -34,9 +35,39 @@ class MetricsSnapshot:
     error_rate: Optional[float] = None
 
 
+_LE_LABEL_RE = re.compile(r'le="([^"]+)"')
+
+
+def _histogram_percentile(buckets: dict[float, float], pct: float) -> Optional[float]:
+    """Approximate a percentile from cumulative Histogram bucket counts.
+
+    ``buckets`` maps each bucket's ``le`` upper bound (in seconds) to its
+    cumulative count, aggregated across all label combinations. Returns the
+    smallest bucket boundary whose cumulative count covers ``pct`` of the
+    total -- the standard low-cost approximation for a Histogram (which,
+    unlike a Summary, never exposes exact quantiles).
+    """
+    if not buckets:
+        return None
+    total = buckets.get(float("inf"))
+    if not total:
+        return None
+    for le in sorted(buckets):
+        if buckets[le] >= pct * total:
+            return le
+    return None
+
+
 def parse_prometheus(text: str) -> MetricsSnapshot:
-    """Parse Prometheus exposition format into a MetricsSnapshot."""
+    """Parse Prometheus exposition format into a MetricsSnapshot.
+
+    guru_request_latency_seconds is a Histogram, not a Summary -- it exposes
+    cumulative ``_bucket{le="..."}`` lines, never a ``quantile="0.5"`` label.
+    Bucket counts are aggregated across all label combinations (e.g. "stage")
+    and p50/p95 are approximated from the cumulative distribution.
+    """
     snap = MetricsSnapshot()
+    latency_buckets: dict[float, float] = {}
     for line in text.splitlines():
         if line.startswith("#") or not line.strip():
             continue
@@ -49,16 +80,22 @@ def parse_prometheus(text: str) -> MetricsSnapshot:
         except ValueError:
             continue
 
-        if "latency" in metric_line and "0.5" in metric_line:
-            snap.latency_p50_ms = value
-        elif "latency" in metric_line and "0.95" in metric_line:
-            snap.latency_p95_ms = value
+        if metric_line.startswith("guru_request_latency_seconds_bucket"):
+            le_match = _LE_LABEL_RE.search(metric_line)
+            if le_match:
+                le = float(le_match.group(1))
+                latency_buckets[le] = latency_buckets.get(le, 0.0) + value
         elif "cache_hit" in metric_line:
             snap.cache_hit_rate = value
         elif "tokens_per_request" in metric_line:
             snap.tokens_per_request = value
         elif "error_rate" in metric_line:
             snap.error_rate = value
+
+    p50 = _histogram_percentile(latency_buckets, 0.50)
+    p95 = _histogram_percentile(latency_buckets, 0.95)
+    snap.latency_p50_ms = p50 * 1000 if p50 is not None else None
+    snap.latency_p95_ms = p95 * 1000 if p95 is not None else None
     return snap
 
 

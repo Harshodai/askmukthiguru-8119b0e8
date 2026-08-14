@@ -135,7 +135,13 @@ class MultiProviderLLMService:
             for name, cfg in self.providers.items()
         }
 
-        self._provider_priority = ["nim", "sarvam", "openrouter"]
+        # NIM (external hosted API) was deliberately dropped from cross-provider
+        # failover in container.py per a security audit (no silent external-API
+        # fallback). This ingest-tooling-only service still configures it for
+        # scripts that explicitly need it, but must not silently prefer an
+        # external API over Sarvam/OpenRouter -- matches the module docstring's
+        # documented priority order.
+        self._provider_priority = ["sarvam", "openrouter", "nim"]
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if not self._init_session:
