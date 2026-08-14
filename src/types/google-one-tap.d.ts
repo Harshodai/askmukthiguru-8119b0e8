@@ -88,5 +88,4 @@ interface GoogleRevokeResponse {
   error?: string;
 }
 
-export {};
 }
