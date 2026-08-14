@@ -160,6 +160,7 @@ export const sendMessage = async (
                   liveLogisticsEvents: result.live_logistics_events ?? [],
                   guidancePlan: result.guidance_plan ?? null,
                   answerEvidence: result.answer_evidence ?? null,
+                  groundingState: result.grounding_state ?? 'abstained',
                 };
               }
               if (job.status === 'failed') {
@@ -239,6 +240,7 @@ export const sendMessage = async (
         liveLogisticsEvents: data.live_logistics_events ?? [],
         guidancePlan: data.guidance_plan ?? null,
         answerEvidence: data.answer_evidence ?? null,
+        groundingState: data.grounding_state ?? 'abstained',
       };
     } catch (err: unknown) {
       const error = err as Error;

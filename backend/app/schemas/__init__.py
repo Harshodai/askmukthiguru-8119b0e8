@@ -206,8 +206,12 @@ class ChatResponse(BaseModel):
         description="Structured, source-aware presentation guidance for a response",
     )
     answer_evidence: Optional[dict[str, Any]] = Field(
-        default=None,
+        None,
         description="Typed evidence provenance for a response",
+    )
+    grounding_state: Literal["grounded", "abstained", "safety_redirect", "system_error"] = Field(
+        default="abstained",
+        description="Truthful final state of retrieval and response grounding",
     )
 
 class LiveLogisticsEvent(BaseModel):

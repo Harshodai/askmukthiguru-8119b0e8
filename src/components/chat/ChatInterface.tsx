@@ -30,7 +30,7 @@ import { MoodBanner } from '@/components/mood/MoodBanner';
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
-import type { LiveLogisticsEvent, GuidancePlan, AnswerEvidence } from '@/lib/chat/types';
+import type { LiveLogisticsEvent, GuidancePlan, AnswerEvidence, GroundingState } from '@/lib/chat/types';
 import { getCourse } from '@/lib/healingCourses';
 import { memoryApi } from '@/lib/memoryApi';
 import { supabase } from '@/integrations/supabase/client';
@@ -1034,6 +1034,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
         let streamedLiveLogisticsEvents: LiveLogisticsEvent[] = [];
         let streamedGuidancePlan: GuidancePlan | null = null;
         let streamedAnswerEvidence: AnswerEvidence | null = null;
+        let streamedGroundingState: GroundingState = 'abstained';
   for await (const chunk of stream) {
           if (chunk.type === 'status') {
             if (chunk.jobId) {
@@ -1081,6 +1082,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
             streamedLiveLogisticsEvents = chunk.liveLogisticsEvents ?? [];
             streamedGuidancePlan = chunk.guidancePlan ?? null;
             streamedAnswerEvidence = chunk.answerEvidence ?? null;
+            streamedGroundingState = chunk.groundingState ?? (streamedBlocked ? 'safety_redirect' : 'abstained');
             continue;
           }
 
@@ -1137,6 +1139,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
                     liveLogisticsEvents: streamedLiveLogisticsEvents.length > 0 ? streamedLiveLogisticsEvents : undefined,
                     guidancePlan: streamedGuidancePlan,
                     answerEvidence: streamedAnswerEvidence,
+                    groundingState: streamedGroundingState,
                   }
                 : m
             )
@@ -1365,6 +1368,7 @@ openSereneMind('audio');
           liveLogisticsEvents: response.liveLogisticsEvents && response.liveLogisticsEvents.length > 0 ? response.liveLogisticsEvents : undefined,
           guidancePlan: response.guidancePlan ?? null,
           answerEvidence: response.answerEvidence ?? null,
+          groundingState: response.groundingState ?? (responseError ? 'system_error' : 'abstained'),
         };
         setMessages((prev) => [...prev, guruMessage]);
         if (!responseError) {

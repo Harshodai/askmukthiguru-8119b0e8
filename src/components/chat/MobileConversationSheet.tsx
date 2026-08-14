@@ -6,6 +6,7 @@ import {
   BookOpen, Brain, Compass, HardDrive, MessageSquare, LayoutGrid,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { buildChatOwnedPath } from '@/lib/workspaceNavigation';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 import { MeditationStats } from './MeditationStats';
 import {
@@ -85,7 +86,7 @@ export const MobileConversationSheet = ({
       icon: Compass,
       label: t('nav.practices'),
       description: t('nav.practicesDesc', 'Guided spiritual practices'),
-      onClick: () => { navigate('/practices'); onClose(); },
+      onClick: () => { navigate(buildChatOwnedPath('/practices', { conversationId: currentConversationId })); onClose(); },
       color: 'ojas',
       tour: 'mobile-practices',
     },
@@ -94,7 +95,7 @@ export const MobileConversationSheet = ({
       icon: BookOpen,
       label: t('nav.notebooks'),
       description: t('nav.notebooksDesc', 'Your study notes & highlights'),
-      onClick: () => { navigate('/notebooks'); onClose(); },
+      onClick: () => { navigate(buildChatOwnedPath('/notebooks', { conversationId: currentConversationId })); onClose(); },
       color: 'ojas',
       tour: 'mobile-notebook',
     },
@@ -103,7 +104,7 @@ export const MobileConversationSheet = ({
       icon: Brain,
       label: t('nav.knowledgeGraph', 'Wisdom Map'),
       description: t('nav.knowledgeGraphDesc', 'Explore teachings as a living map'),
-      onClick: () => { navigate('/knowledge-graph'); onClose(); },
+      onClick: () => { navigate(buildChatOwnedPath('/knowledge-graph', { conversationId: currentConversationId })); onClose(); },
       color: 'ojas',
       tour: 'mobile-kg',
     },
@@ -112,7 +113,7 @@ export const MobileConversationSheet = ({
       icon: HardDrive,
       label: t('nav.secondBrain', 'My Reflections'),
       description: t('nav.secondBrainDesc', 'Your personal spiritual memory vault'),
-      onClick: () => { navigate('/second-brain'); onClose(); },
+      onClick: () => { navigate(buildChatOwnedPath('/second-brain', { conversationId: currentConversationId })); onClose(); },
       color: 'ojas',
       tour: 'mobile-reflections',
     },

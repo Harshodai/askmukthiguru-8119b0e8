@@ -18,7 +18,7 @@ const sections = [
   {
     title: 'Grounded in doctrine, not invention',
     body:
-      "AskMukthiGuru is a zero-hallucination system: answers are grounded in Sri Preethaji & Sri Krishnaji's own recorded teachings, retrieved and verified before generation. If the doctrine has no answer, it says so. This is what separates a spiritual guide from a chatbot.",
+      "AskMukthiGuru is designed for doctrine-grounded guidance: it retrieves recorded teachings when a verified source is available and labels the response openly when it cannot verify one. If the doctrine has no answer, the Guru should abstain rather than invent one. This is the standard we are building toward — not a claim that an AI can never make a mistake.",
   },
 ];
 
@@ -52,7 +52,7 @@ const faqs = [
   },
   {
     q: 'How is AskMukthiGuru different from a general chatbot?',
-    a: "Every answer is grounded in the recorded teachings of Sri Preethaji & Sri Krishnaji, retrieved and verified before generation. If the doctrine has no answer, the Guru says so rather than inventing one — this is what separates a spiritual guide from a chatbot.",
+    a: "AskMukthiGuru is designed to retrieve and verify recorded teachings before presenting a doctrine-based answer. When no verified source is available, the response is labelled as reflective guidance or the system abstains, so users can distinguish sourced teaching from general reflection.",
   },
   {
     q: 'What is the Beautiful State?',

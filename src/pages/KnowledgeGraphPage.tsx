@@ -1,5 +1,6 @@
 import { KGConceptMap } from '@/components/kg/KGConceptMap';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { returnToOrigin } from '@/lib/workspaceNavigation';
 import { useTranslation } from 'react-i18next';
 import { X, Sparkles } from 'lucide-react';
 
@@ -7,12 +8,12 @@ import { X, Sparkles } from 'lucide-react';
 export default function KnowledgeGraphPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [params] = useSearchParams();
   const initialQuery = params.get('q') ?? '';
 
   const handleClose = () => {
-    if (window.history.length > 1) navigate(-1);
-    else navigate('/chat');
+    returnToOrigin(navigate, location);
   };
 
   return (

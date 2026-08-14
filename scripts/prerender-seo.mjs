@@ -5,10 +5,10 @@
  * into the base dist/index.html template, writes to dist/<path>/index.html.
  *
  * Run AFTER vite build: node scripts/prerender-seo.mjs
- * nginx try_files serves prerendered files; falls back to SPA shell.
+ * nginx try_files serves prerendered files and returns a real 404 for unknown paths.
  *
- * The base dist/index.html is left intact as the SPA fallback for any
- * dynamic routes not in the ROUTES map.
+ * The base dist/index.html remains the homepage artifact. Production Nginx
+ * serves only known files and returns a real 404 for unknown paths.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
@@ -127,6 +127,74 @@ const ROUTES = [
     description: 'Terms of service for AskMukthiGuru AI spiritual guide.',
     jsonLdType: 'WebPage',
   },
+  {
+    path: '/practices/wisdom-reflection',
+    title: 'Wisdom Reflection — Guided Spiritual Practice',
+    description: 'A guided spiritual practice for slowing down, listening inward, and returning to a beautiful state.',
+    jsonLdType: 'Article',
+  },
+  {
+    path: '/notebooks',
+    title: 'Study Notebooks — AskMukthiGuru',
+    description: 'Save and organize teachings for deeper study in your private AskMukthiGuru notebooks.',
+    jsonLdType: 'WebPage',
+    noindex: true,
+  },
+  {
+    path: '/knowledge-graph',
+    title: 'Wisdom Map — AskMukthiGuru',
+    description: 'Explore how sacred concepts connect across the AskMukthiGuru knowledge graph.',
+    jsonLdType: 'WebPage',
+  },
+  {
+    path: '/second-brain',
+    title: 'My Reflections — AskMukthiGuru',
+    description: 'Your private reflections, insights, and preferences in AskMukthiGuru.',
+    jsonLdType: 'WebPage',
+    noindex: true,
+  },
+  {
+    path: '/auth/diagnostics',
+    title: 'Auth Diagnostics — AskMukthiGuru',
+    description: 'Check session, profile, role, and backend connectivity for AskMukthiGuru.',
+    jsonLdType: 'WebPage',
+    noindex: true,
+  },
+  {
+    path: '/auth/mfa',
+    title: 'Multi-factor Authentication — AskMukthiGuru',
+    description: 'Complete the secure sign-in step for AskMukthiGuru.',
+    jsonLdType: 'WebPage',
+    noindex: true,
+  },
+  {
+    path: '/reset-password',
+    title: 'Reset Password — AskMukthiGuru',
+    description: 'Set a new password for your AskMukthiGuru account.',
+    jsonLdType: 'WebPage',
+    noindex: true,
+  },
+  {
+    path: '/profile',
+    title: 'Profile and Settings — AskMukthiGuru',
+    description: 'Manage your AskMukthiGuru profile, preferences, memory, and privacy settings.',
+    jsonLdType: 'WebPage',
+    noindex: true,
+  },
+  {
+    path: '/admin',
+    title: 'Admin Console — AskMukthiGuru',
+    description: 'Restricted AskMukthiGuru administration console.',
+    jsonLdType: 'WebPage',
+    noindex: true,
+  },
+  {
+    path: '/admin/login',
+    title: 'Admin Sign In — AskMukthiGuru',
+    description: 'Restricted AskMukthiGuru administrator sign-in.',
+    jsonLdType: 'WebPage',
+    noindex: true,
+  },
 ];
 
 function canonicalFor(path) {
@@ -218,6 +286,7 @@ function escapeHtml(s) {
 
 function injectMeta(html, route) {
   const canonical = canonicalFor(route.path);
+  const h1 = route.h1 || route.title;
   const ogType = ogTypeFor(route.jsonLdType);
   const jsonLd = buildJsonLd(route);
   const jsonLdBlock = `<script type="application/ld+json" data-prerendered="true">${JSON.stringify(jsonLd)}</script>`;
@@ -260,6 +329,12 @@ function injectMeta(html, route) {
     `<meta property="og:type" content="${ogType}" />`,
   );
 
+  const robotsValue = route.noindex ? 'noindex, nofollow' : 'index, follow';
+  const robotsPattern = /<meta\s+name=["']robots["'][^>]*>/i;
+  const robotsTag = `<meta name="robots" content="${robotsValue}" />`;
+  if (robotsPattern.test(out)) out = out.replace(robotsPattern, robotsTag);
+  else out = out.replace(/(<meta\s+name=["']description["'][^>]*>)/i, `$1\n    ${robotsTag}`);
+
   // Twitter title/description (twitter:image already in base)
   upsertMeta(
     /<meta\s+name=["']twitter:title["']\s+content=["'][^"']*["']\s*\/?>/i,
@@ -277,8 +352,13 @@ function injectMeta(html, route) {
     );
   }
 
-  // Remove any prerendered JSON-LD blocks from a prior run (idempotency)
+  // Remove any prerendered JSON-LD and body blocks from a prior run (idempotency)
   out = out.replace(/<script\s+type=["']application\/ld\+json["']\s+data-prerendered=["']true["'][^>]*>[\s\S]*?<\/script>\s*/gi, '');
+  out = out.replace(/<div\s+id=["']prerender-seo-content["'][^>]*>[\s\S]*?<\/div>\s*/gi, '');
+
+  // Insert a crawler-visible body fallback. main.tsx removes it before React mounts.
+  const seoBody = `<div id="prerender-seo-content"><h1>${escapeHtml(h1)}</h1><p>${escapeHtml(route.description)}</p></div>`;
+  out = out.replace(/<div\s+id=["']root["']\s*>\s*<\/div>/i, `<div id="root">${seoBody}</div>`);
 
   // Insert canonical link + route JSON-LD right before </head>
   const headInject = `    <link rel="canonical" href="${canonical}" />\n    ${jsonLdBlock}\n  </head>`;

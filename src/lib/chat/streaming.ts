@@ -238,6 +238,7 @@ export async function* sendMessageStreaming(
               liveLogisticsEvents: meta.live_logistics_events ?? [],
               guidancePlan: meta.guidance_plan ?? null,
               answerEvidence: meta.answer_evidence ?? null,
+              groundingState: meta.grounding_state ?? 'abstained',
             };
           } catch {
             // Ignore malformed done payload

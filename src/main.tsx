@@ -41,6 +41,8 @@ if (typeof window !== "undefined") {
   }, true);
 }
 
+document.getElementById('prerender-seo-content')?.remove();
+
 createRoot(document.getElementById("root")!).render(
   <I18nextProvider i18n={i18n}>
     <RootErrorBoundary>
