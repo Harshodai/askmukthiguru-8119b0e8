@@ -189,7 +189,7 @@ async def log_query_trace(query_data: dict, response_data: dict) -> None:
                 trigger_payloads.append(
                     {
                         "query_id": query_data["id"],
-                        "trigger_name": t.get("name"),
+                        "trigger_name": t.get("name") or t.get("trigger_name") or t.get("type") or "unknown",
                         "metadata": t.get("metadata", {}),
                         "created_at": query_data["created_at"],
                     }

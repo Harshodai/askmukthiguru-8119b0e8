@@ -347,7 +347,7 @@ class SupabaseTelemetrySink:
                 trigger_payloads.append(
                     {
                         "query_id": query_id,
-                        "trigger_name": te.get("name"),
+                        "trigger_name": te.get("name") or te.get("trigger_name") or te.get("type") or "unknown",
                         "metadata": te.get("metadata", {}),
                         "created_at": created_at,
                     }
