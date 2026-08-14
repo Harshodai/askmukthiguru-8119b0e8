@@ -25,6 +25,7 @@ from app.schemas import ChatRequest, ChatResponse
 from app.security_utils import is_benchmark_request
 from app.telemetry_sink import SupabaseTelemetrySink
 from rag.memory import normalize_session_id
+from app.grounding import grounding_state_for
 
 from app.coalescer import build_coalescer
 
@@ -141,6 +142,7 @@ class ChatRequestOrchestrator:
             live_logistics_events=result.live_logistics_events,
             answer_evidence=(None if result.answer_evidence is None else asdict(result.answer_evidence)),
             guidance_plan=(None if result.guidance_plan is None else asdict(result.guidance_plan)),
+            grounding_state=grounding_state_for(result),
         )
 
 
@@ -387,6 +389,7 @@ def _stream_done_metadata(result) -> dict:
         "live_logistics_events": getattr(result, "live_logistics_events", []),
         "answer_evidence": None if answer_evidence is None else asdict(answer_evidence),
         "guidance_plan": None if guidance_plan is None else asdict(guidance_plan),
+        "grounding_state": grounding_state_for(result),
     }
 
 

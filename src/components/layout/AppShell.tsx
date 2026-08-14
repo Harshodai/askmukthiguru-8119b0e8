@@ -8,9 +8,11 @@ import {
   Sparkles,
   Search,
   Compass,
+  ArrowLeft,
   Loader2,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { returnToOrigin } from '@/lib/workspaceNavigation';
 import {
   Sidebar,
   SidebarContent,
@@ -218,7 +220,12 @@ export const AppShell = ({ children, title }: AppShellProps) => {
   const { t } = useTranslation();
   const { loading: authLoading } = useRequireAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const hasChatOrigin = new URLSearchParams(location.search).get('returnTo') === '/chat';
+  const isChatOwnedPage = hasChatOrigin && ['/notebooks', '/second-brain', '/knowledge-graph', '/wisdom-map', '/reflections', '/practices'].some(
+    (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
+  );
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -250,6 +257,20 @@ export const AppShell = ({ children, title }: AppShellProps) => {
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
           <header className="h-14 flex items-center gap-2 sm:gap-3 border-b border-border/60 backdrop-blur-md bg-card/60 px-3 sm:px-4 sticky top-0 z-30">
             <SidebarTrigger />
+            {isChatOwnedPage && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => returnToOrigin(navigate, location)}
+                className="gap-1.5 text-muted-foreground hover:text-foreground"
+                aria-label={t('layout.backToChat', 'Back to Chat')}
+                title={t('layout.backToChat', 'Back to Chat')}
+              >
+                <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+                <span className="hidden sm:inline">{t('layout.backToChat', 'Back to Chat')}</span>
+              </Button>
+            )}
             <div className="flex-1 min-w-0">
               {title && (
                 <h2 className="text-sm sm:text-base font-semibold text-foreground truncate m-0">

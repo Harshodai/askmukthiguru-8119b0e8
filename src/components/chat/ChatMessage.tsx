@@ -374,6 +374,9 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const citations = (message.citations && message.citations.length > 0)
       ? message.citations
       : inlineUrls;
+    const groundingState = message.groundingState ?? (
+      citations.length > 0 && message.answerEvidence?.citations_verified === true ? 'grounded' : 'abstained'
+    );
 
     // Attribution integrity: a quoted teacher statement with no linked source
     // must be labelled unverified rather than rendered as doctrine (QA P1).
@@ -1000,31 +1003,43 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             )}
 
             {/* Sources / Citations — collapsed by default, max 3 shown inline */}
-            {FEATURE_FLAGS.responseProvenance && isGuru && !isStreaming && (citations.length > 0 || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (
+            {FEATURE_FLAGS.responseProvenance && isGuru && !isStreaming && (message.content || citations.length > 0 || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (
               <div
                 data-testid="response-provenance"
                 role="status"
                 className={cn(
                   'w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-xs text-muted-foreground',
-                  hasUnverifiedAttribution
-                    ? 'border-amber-500/40 bg-amber-500/[0.07]'
-                    : 'border-ojas/15 bg-ojas/[0.045]',
+                  groundingState === 'grounded'
+                    ? 'border-ojas/15 bg-ojas/[0.045]'
+                    : 'border-amber-500/40 bg-amber-500/[0.07]',
                 )}
               >
                 <Shield
-                  className={cn('h-3.5 w-3.5 shrink-0', hasUnverifiedAttribution ? 'text-amber-500' : 'text-ojas')}
+                  className={cn('h-3.5 w-3.5 shrink-0', groundingState === 'grounded' ? 'text-ojas' : 'text-amber-500')}
                   aria-hidden="true"
                 />
                 <div className="min-w-0 flex-1 leading-tight">
                   <p className="font-medium text-foreground/80">
-                    {hasUnverifiedAttribution ? 'Unverified attribution' : 'Response context'}
+                    {groundingState === 'grounded'
+                      ? 'Grounded response'
+                      : groundingState === 'safety_redirect'
+                        ? 'Safety support'
+                        : groundingState === 'system_error'
+                          ? 'Verification unavailable'
+                          : hasUnverifiedAttribution
+                            ? 'Unverified attribution'
+                            : 'Reflective guidance'}
                   </p>
                   <p>
-                    {hasUnverifiedAttribution
-                      ? 'This answer quotes a teacher without a linked source — treat the wording as paraphrase, not a verified quotation.'
-                      : citations.length > 0
-                        ? `${citations.length} ${citations.length === 1 ? 'source link' : 'source links'} provided`
-                        : 'Reflective guidance without a direct source link'}
+                    {groundingState === 'grounded'
+                      ? `${citations.length} verified ${citations.length === 1 ? 'source' : 'sources'} provided`
+                      : groundingState === 'safety_redirect'
+                        ? 'Safety guidance is shown instead of doctrine attribution.'
+                        : groundingState === 'system_error'
+                          ? 'The response could not be verified. Please retry before relying on it.'
+                          : hasUnverifiedAttribution
+                            ? 'This answer quotes a teacher without a linked source — treat the wording as paraphrase, not a verified quotation.'
+                            : 'No grounded teaching was found for this response; treat it as reflective guidance.'}
                   </p>
                 </div>
                 {typeof message.confidenceScore === 'number' && Number.isFinite(message.confidenceScore) && (
@@ -1260,6 +1275,7 @@ export const ChatMessage = memo(ChatMessageInner, (prev, next) => {
     prev.message.language === next.message.language &&
     prev.message.guidancePlan === next.message.guidancePlan &&
     prev.message.answerEvidence === next.message.answerEvidence &&
+    prev.message.groundingState === next.message.groundingState &&
     prev.queryText === next.queryText &&
     prev.onAction === next.onAction &&
     prev.onRegenerate === next.onRegenerate &&

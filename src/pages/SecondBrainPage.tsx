@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Brain, Lock, Plus, Trash2, Download, ShieldAlert, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useTranslation } from "react-i18next";
@@ -42,6 +42,7 @@ export default function SecondBrainPage() {
   const [unlocked, setUnlocked] = useState(false);
   const [items, setItems] = useState<BrainItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [newKind, setNewKind] = useState<BrainItem["kind"]>("reflection");
   const [newText, setNewText] = useState("");
   const [adding, setAdding] = useState(false);
@@ -51,8 +52,9 @@ export default function SecondBrainPage() {
   const [enablePassphraseConfirm, setEnablePassphraseConfirm] = useState("");
   const [brainUnlockKey, setBrainUnlockKey] = useState<string | undefined>(undefined);
 
-  const loadItems = async (unlock?: string) => {
+  const loadItems = useCallback(async (unlock?: string) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const list = await secondBrainApi.listItems(unlock);
       setItems(list);
@@ -61,39 +63,45 @@ export default function SecondBrainPage() {
       if (err instanceof SecondBrainApiError && err.status === 403) {
         setUnlocked(false); // Mode-B, wrong or missing passphrase
       } else {
+        const message = err instanceof Error ? err.message : String(err);
+        setLoadError(message);
         toast({
           title: t('brain.loadError', "Couldn't load your reflections"),
-          description: err instanceof Error ? err.message : String(err),
+          description: message,
           variant: "destructive",
         });
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [t, toast]);
+
+  const initialize = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const status = await secondBrainApi.provision();
+      setWrapMode(status.wrap_mode);
+      if (status.wrap_mode === "server_wrapped") {
+        await loadItems();
+      } else {
+        setLoading(false); // Mode-B: wait for the user to enter their passphrase
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setLoadError(message);
+      setLoading(false);
+      toast({
+        title: t('brain.unavailable', "Reflections unavailable"),
+        description: message,
+        variant: "destructive",
+      });
+    }
+  }, [loadItems, t, toast]);
 
   useEffect(() => {
-    if (authLoading) return;
-    (async () => {
-      try {
-        const status = await secondBrainApi.provision();
-        setWrapMode(status.wrap_mode);
-        if (status.wrap_mode === "server_wrapped") {
-          await loadItems();
-        } else {
-          setLoading(false); // Mode-B: wait for the user to enter their passphrase
-        }
-      } catch (err) {
-        setLoading(false);
-        toast({
-          title: t('brain.unavailable', "Reflections unavailable"),
-          description: err instanceof Error ? err.message : String(err),
-          variant: "destructive",
-        });
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading]);
+    if (!authLoading) void initialize();
+  }, [authLoading, initialize]);
 
   const handleUnlock = async () => {
     if (!passphrase.trim()) return;
@@ -255,12 +263,27 @@ export default function SecondBrainPage() {
         )}
 
         {loading && (
-          <div className="flex justify-center py-12">
+          <div className="flex justify-center py-12" aria-live="polite">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            <span className="sr-only">Loading your reflections</span>
           </div>
         )}
 
-        {!loading && unlocked && (
+        {!loading && loadError && (
+          <Card className="p-6 border-destructive/30 bg-destructive/5" role="alert">
+            <div className="space-y-3">
+              <div>
+                <h2 className="font-semibold text-foreground">Reflections unavailable</h2>
+                <p className="text-sm text-muted-foreground mt-1">We could not load your reflections. Your data has not been deleted.</p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => void initialize()}>
+                Try again
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {!loading && !loadError && unlocked && (
           <>
             <Card className="p-4 mb-6">
               <div className="flex gap-2 mb-2">

@@ -43,6 +43,7 @@ from fastapi import HTTPException
 from app.config import settings
 from app.metrics import TTFT_SECONDS
 from app.dependencies import ServiceContainer
+from app.grounding import grounding_state_for
 from app.schemas import ChatRequest
 from rag.memory import normalize_session_id
 
@@ -85,16 +86,18 @@ class ChatResult:
         self.audio_url: Optional[str] = None
         self.kg_concept_nodes: list[str] = []
         self.daily_practice_card: Optional[dict[str, Any]] = None
+        self.grounding_state: str = 'abstained'
 
 
 
 class ChatChunk:
     """Single chunk from a streaming response."""
 
-    def __init__(self, text: str = "", is_final: bool = False, citations: Optional[list[str]] = None):
+    def __init__(self, text: str = "", is_final: bool = False, citations: Optional[list[str]] = None, grounding_state: str = 'abstained'):
         self.text = text
         self.is_final = is_final
         self.citations = citations or []
+        self.grounding_state = grounding_state
 
 
 class ChatEngine:
@@ -294,7 +297,7 @@ class ChatEngine:
         result.audio_url = getattr(pipeline_result, "audio_url", None)
         result.kg_concept_nodes = list(getattr(pipeline_result, "kg_concept_nodes", []) or [])
         result.daily_practice_card = getattr(pipeline_result, "daily_practice_card", None)
-
+        result.grounding_state = grounding_state_for(pipeline_result)
 
         if not chat_request.incognito:
             # Content-bearing telemetry is disabled for ephemeral chats.
@@ -388,6 +391,7 @@ class ChatEngine:
                 text="I'm experiencing a temporary issue. Please try again.",
                 is_final=True,
                 citations=[],
+                grounding_state='system_error',
             )
             return
         citations = list(pipeline_result.citations) if pipeline_result else []
@@ -400,7 +404,12 @@ class ChatEngine:
                 TTFT_SECONDS.labels(provider="pipeline").observe(time.monotonic() - stream_started_at)
             except Exception:
                 logger.debug("TTFT metric emission failed", exc_info=True)
-        yield ChatChunk(text=final_text, is_final=True, citations=citations)
+        yield ChatChunk(
+            text=final_text,
+            is_final=True,
+            citations=citations,
+            grounding_state=grounding_state_for(pipeline_result) if pipeline_result else 'system_error',
+        )
 
     async def _log_telemetry(
         self,

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AnswerEvidence, GuidancePlan, LiveLogisticsEvent } from './chat/types';
+import type { AnswerEvidence, GuidancePlan, GroundingState, LiveLogisticsEvent } from './chat/types';
 import { supabase } from '@/integrations/supabase/client';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
@@ -62,6 +62,7 @@ export interface Message {
   guidancePlan?: GuidancePlan | null;
   /** Evidence provenance accompanying a guru reply. */
   answerEvidence?: AnswerEvidence | null;
+  groundingState?: GroundingState;
 }
 
 // ── Feedback helpers ──────────────────────────────────────────────
@@ -118,6 +119,7 @@ const MessageSchema = z.object({
     top_source_score: z.number().nullable().optional(),
     citations_verified: z.boolean().nullable().optional(),
   }).nullable().optional(),
+  groundingState: z.enum(['grounded', 'abstained', 'safety_redirect', 'system_error']).optional(),
 });
 
 const ConversationSchema = z.object({

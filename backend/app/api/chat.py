@@ -17,7 +17,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
-from app.schemas import ChatRequest, ChatResponse, MessagePayload
+from app.schemas import ChatRequest, ChatResponse
+from app.grounding import grounding_state_for
 from app.sanitization import sanitize_user_input
 from app.security_utils import is_benchmark_request
 from rag.memory import build_memory_context
@@ -390,6 +391,7 @@ async def chat_v2_endpoint(
             None if getattr(result, "guidance_plan", None) is None
             else asdict(result.guidance_plan)
         ),
+        grounding_state=grounding_state_for(result),
     )
 
 
@@ -491,6 +493,7 @@ async def chat_stream_poll(
 
     async def _sse():
         last_id = last_event_id
+        last_done_data: str | None = None
         timeout = settings.queue_default_timeout
         deadline = time.time() + timeout
         try:
@@ -517,7 +520,8 @@ async def chat_stream_poll(
                             await asyncio.sleep(0.5)
                             continue
                         if status in ("completed", "failed") and last_id != "0":
-                            yield "event: done\ndata: {}\n\n"
+                            fallback = last_done_data or json.dumps({"grounding_state": "system_error"})
+                            yield f"event: done\ndata: {fallback}\n\n"
                             return
                     continue
 
@@ -527,7 +531,8 @@ async def chat_stream_poll(
                         data = fields.get("data", "")
                         event_id = f"id: {entry_id}\n"
                         if data == "__COMPLETE__":
-                            yield f"{event_id}event: done\ndata: {{}}\n\n"
+                            fallback = last_done_data or json.dumps({"grounding_state": "system_error"})
+                            yield f"{event_id}event: done\ndata: {fallback}\n\n"
                             return
                         if data == "__ERROR__":
                             yield f"{event_id}event: error\ndata: Pipeline failed\n\n"
@@ -537,6 +542,8 @@ async def chat_stream_poll(
                             if isinstance(parsed, dict):
                                 evt = parsed.get("event", "status")
                                 dat = parsed.get("data", "")
+                                if evt == "done":
+                                    last_done_data = str(dat)
                                 yield f"{event_id}event: {evt}\ndata: {dat}\n\n"
                             else:
                                 yield f"{event_id}event: token\ndata: {str(parsed)}\n\n"

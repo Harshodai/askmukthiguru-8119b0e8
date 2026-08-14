@@ -1,7 +1,7 @@
 import { useEffect, Suspense, type ComponentType, type ReactNode } from "react";
 import { lazyWithRetry, preloadCriticalRoutes } from "@/lib/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, HashRouter, Routes, Route, Outlet, useLocation } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -256,9 +256,9 @@ const App = () => {
               <Route path="/" element={<Suspense fallback={<BrandedSpinner />}><Index /></Suspense>} />
               <Route path="/auth" element={<Suspense fallback={<BrandedSpinner />}><AuthPage /></Suspense>} />
               <Route path="/auth/mfa" element={<Suspense fallback={<BrandedSpinner />}><MFAChallengePage /></Suspense>} />
+              <Route path="/auth/diagnostics" element={<Suspense fallback={<BrandedSpinner />}><AuthDiagnosticsPage /></Suspense>} />
               {!import.meta.env.PROD && (
                 <>
-                  <Route path="/auth/diagnostics" element={<Suspense fallback={<BrandedSpinner />}><AuthDiagnosticsPage /></Suspense>} />
                   <Route path="/auth/latency" element={<Suspense fallback={<BrandedSpinner />}><AuthLatencyDashboard /></Suspense>} />
                   <Route path="/test-tts" element={<Suspense fallback={<BrandedSpinner />}><TTSVerificationPage /></Suspense>} />
                 </>
@@ -279,7 +279,9 @@ const App = () => {
               <Route path="/guides/suffering-to-beautiful-state" element={<Suspense fallback={<BrandedSpinner />}><SufferingToBeautifulStatePage /></Suspense>} />
               <Route path="/notebooks" element={<Suspense fallback={<BrandedSpinner />}><StudyNotebookPage /></Suspense>} />
               <Route path="/knowledge-graph" element={<Suspense fallback={<BrandedSpinner />}><KnowledgeGraphPage /></Suspense>} />
+              <Route path="/wisdom-map" element={<Navigate to="/knowledge-graph" replace />} />
               <Route path="/second-brain" element={<Suspense fallback={<BrandedSpinner />}><SecondBrainPage /></Suspense>} />
+              <Route path="/reflections" element={<Navigate to="/second-brain" replace />} />
               <Route path="*" element={<Suspense fallback={<BrandedSpinner />}><NotFound /></Suspense>} />
             </Route>
           </Routes>

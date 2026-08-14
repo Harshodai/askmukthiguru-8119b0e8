@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export type AIProvider = 'placeholder' | 'custom';
+export type GroundingState = 'grounded' | 'abstained' | 'safety_redirect' | 'system_error';
 
 export interface AIConfig {
   provider: AIProvider;
@@ -98,6 +99,7 @@ export interface AIResponse {
   liveLogisticsEvents?: LiveLogisticsEvent[];
   guidancePlan?: GuidancePlan | null;
   answerEvidence?: AnswerEvidence | null;
+  groundingState?: GroundingState;
 }
 
 /** Shape of the proactive Serene Mind trigger object returned by the backend */
@@ -139,7 +141,8 @@ export type StreamChunk =
       /** Official-only schedule or booking results, time-bounded by the backend. */
       liveLogisticsEvents?: LiveLogisticsEvent[];
   guidancePlan?: GuidancePlan | null;
-  answerEvidence?: AnswerEvidence | null;
+      answerEvidence?: AnswerEvidence | null;
+      groundingState?: GroundingState;
     }
   | { type: 'error'; text: string };
 
