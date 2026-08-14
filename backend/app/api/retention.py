@@ -63,9 +63,16 @@ async def record_practice(
 @router.get("/curve")
 async def retention_curve(
     days: int = 30,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(require_aal2),
     container: ServiceContainer = Depends(get_container),
 ):
+    # Platform-wide cohort analytics — admin only. A regular seeker must never
+    # be able to read aggregate D1/D7/D30 retention for the whole user base.
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    allowlist = getattr(settings, "admin_user_ids_list", None) or []
+    if allowlist and user.get("id") not in allowlist:
+        raise HTTPException(status_code=403, detail="Admin access required (not allowlisted)")
     if days < 1 or days > 365:
         raise HTTPException(
             status_code=422,
