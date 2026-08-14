@@ -1,3 +1,4 @@
+import type { Session } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, isEmailAllowed } from '@/integrations/supabase/client';

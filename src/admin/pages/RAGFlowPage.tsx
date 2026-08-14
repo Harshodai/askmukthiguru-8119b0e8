@@ -234,7 +234,7 @@ export default function RAGFlowPage() {
   const [selectedNode, setSelectedNode] = useState<RagFlowGraphNode | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<any>([]);
 
   // Compute Layout when graphData changes
   useEffect(() => {

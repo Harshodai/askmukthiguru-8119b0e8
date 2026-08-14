@@ -29,7 +29,8 @@ import { ChatErrorBanner } from './ChatErrorBanner';
 import { MoodBanner } from '@/components/mood/MoodBanner';
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, LiveLogisticsEvent, getAIConfig } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
+import type { LiveLogisticsEvent, GuidancePlan, AnswerEvidence } from '@/lib/chat/types';
 import { getCourse } from '@/lib/healingCourses';
 import { memoryApi } from '@/lib/memoryApi';
 import { supabase } from '@/integrations/supabase/client';

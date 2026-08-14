@@ -95,7 +95,6 @@ const MessageSchema = z.object({
     timestamp: z.coerce.date(),
   }).optional(),
   memoriesUsed: z.array(z.string()).optional(),
-  memoriesUsed: z.array(z.string()).optional(),
   liveLogisticsEvents: z.array(z.object({
     event_name: z.string(),
     official_source_url: z.string().url(),

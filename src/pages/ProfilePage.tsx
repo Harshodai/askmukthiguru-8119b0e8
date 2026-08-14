@@ -349,7 +349,6 @@ const ProfilePage = () => {
         message: '',
         category: 'Feedback'
       });
-      setSupportFiles([]);
       toast({ title: 'Message sent', description: 'We will get back to you within 24-48 hours.' });
     } catch (err) {
       toast({ title: 'Failed to send', description: err instanceof Error ? err.message : 'Please try again.', variant: 'destructive' });

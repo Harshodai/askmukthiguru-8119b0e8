@@ -201,7 +201,7 @@ export default function OkfManagerPage() {
               ) : (
                 <div className="space-y-4">
                   {reviewItems.map((item) => {
-                    const entry = item.entry_json ?? {};
+                    const entry = (item.entry_json ?? {}) as Record<string, any>;
                     return (
                       <div key={item.id} className="border rounded-lg p-4 space-y-3">
                         <div className="flex items-start justify-between gap-4">
