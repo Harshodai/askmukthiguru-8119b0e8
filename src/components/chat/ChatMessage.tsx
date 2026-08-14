@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
 import { evidenceSupport } from '@/lib/chat/evidenceSupport';
+import { cn } from '@/lib/utils';
 import { useProfile } from '@/hooks/useProfile';
 import { translateText } from '@/lib/aiService';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
@@ -370,6 +371,13 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const citations = (message.citations && message.citations.length > 0)
       ? message.citations
       : inlineUrls;
+
+    // Attribution integrity: a quoted teacher statement with no linked source
+    // must be labelled unverified rather than rendered as doctrine (QA P1).
+    const hasUnverifiedAttribution = useMemo(() => {
+      if (!isGuru || citations.length > 0) return false;
+      return /(?:Sri\s+(?:Preethaji|Krishnaji)|Preethaji|Krishnaji)[^.\n]{0,60}["“'']/.test(message.content);
+    }, [isGuru, citations.length, message.content]);
 
     const [showWisdomCard, setShowWisdomCard] = useState(false);
     const [copied, setCopied] = useState(false);
