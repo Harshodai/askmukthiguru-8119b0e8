@@ -8,6 +8,7 @@ import {
   useEdgesState,
   Position,
   MarkerType,
+  type Edge,
   type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -234,7 +235,7 @@ export default function RAGFlowPage() {
   const [selectedNode, setSelectedNode] = useState<RagFlowGraphNode | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<any>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   // Compute Layout when graphData changes
   useEffect(() => {
