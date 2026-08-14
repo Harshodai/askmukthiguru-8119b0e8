@@ -1019,13 +1019,20 @@ class IngestionPipeline:
         result = fetch_transcript_hybrid(video_id, title="", max_accuracy=max_accuracy)
 
         if not result.get("text"):
-            return {
-                "status": "error",
-                "message": f"Could not extract transcript: {result.get('error', 'unknown')}",
-                "source_url": url,
-                "chunks_indexed": 0,
-                "summaries_created": 0,
-            }
+            # Tier-4: all caption/transcript strategies failed -- fall back to
+            # downloading audio and transcribing it locally before giving up.
+            from ingest.sources.youtube_service import YouTubeIngestionService
+            audio_fallback = await YouTubeIngestionService()._try_audio_transcribe_fallback(video_id)
+            if audio_fallback and audio_fallback.get("text"):
+                result = audio_fallback
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Could not extract transcript: {result.get('error', 'unknown')}",
+                    "source_url": url,
+                    "chunks_indexed": 0,
+                    "summaries_created": 0,
+                }
 
         raw_text = result["text"]
 

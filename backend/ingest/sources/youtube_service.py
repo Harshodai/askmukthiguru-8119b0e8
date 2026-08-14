@@ -35,7 +35,7 @@ class YouTubeIngestionService:
             "video_id": video_id,
         }
 
-    def extract_transcript(
+    async def extract_transcript(
         self,
         video_id: str,
         language: str = "en",
@@ -58,7 +58,7 @@ class YouTubeIngestionService:
         if tier2 is not None:
             return tier2
 
-        tier3 = self._try_audio_transcribe_fallback(video_id)
+        tier3 = await self._try_audio_transcribe_fallback(video_id)
         if tier3 is not None:
             return tier3
 
@@ -88,8 +88,8 @@ class YouTubeIngestionService:
             logger.warning("[%s] Tier 2 (Supadata) failed: %s", video_id, e)
         return None
 
-    def _try_audio_transcribe_fallback(self, video_id: str) -> Optional[dict]:
-        """Tier 3: Download audio, downsample with ffmpeg, transcribe & polish via LLM."""
+    async def _try_audio_transcribe_fallback(self, video_id: str) -> Optional[dict]:
+        """Tier 3/4: Download audio, downsample with ffmpeg, transcribe & polish via LLM."""
         try:
             from ingest.audio_transcriber import (
                 compress_audio_to_mono,
@@ -106,7 +106,7 @@ class YouTubeIngestionService:
                 work_dir = Path(tmp_str)
                 downloaded = download_audio_stream(url, work_dir)
                 compressed = compress_audio_to_mono(downloaded, work_dir)
-                transcribed = transcribe_and_preprocess_audio(
+                transcribed = await transcribe_and_preprocess_audio(
                     str(compressed), output_dir=work_dir, should_polish=True
                 )
                 if transcribed and not transcribed.startswith("[Transcript for"):
