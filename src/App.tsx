@@ -156,11 +156,10 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => (
 );
 
 const AppRouter = ({ children }: { children: React.ReactNode }) => {
-  const future = { v7_startTransition: true, v7_relativeSplatPath: true } as const;
   return isNativePlatform ? (
-    <HashRouter future={future}>{children}</HashRouter>
+    <HashRouter>{children}</HashRouter>
   ) : (
-    <BrowserRouter future={future}>{children}</BrowserRouter>
+    <BrowserRouter>{children}</BrowserRouter>
   );
 };
 
