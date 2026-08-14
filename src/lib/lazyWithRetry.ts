@@ -8,7 +8,7 @@ const RELOAD_FLAG = 'chunk_reload_attempted';
  * already-open tab can request an old chunk the server no longer has —
  * that's a signal to refresh, not a bug worth surfacing as a crash.
  */
-export function lazyWithRetry<T extends ComponentType>(
+export function lazyWithRetry<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>
 ) {
   return lazy(async () => {
