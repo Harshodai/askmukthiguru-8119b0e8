@@ -355,6 +355,9 @@ async def kg_subgraph(
     q = query.strip().lower()
     nodes: dict[str, KGNode] = {}
     edges: list[KGEdge] = []
+    # Divide the global edge budget across matched roots so response size
+    # remains bounded even when callers request the maximum node limit.
+    edge_cap = max(1, settings.kg_subgraph_max_edges // max(1, limit))
 
     try:
         with driver.session() as session:
@@ -364,10 +367,16 @@ async def kg_subgraph(
             MATCH (n)
             WHERE toLower(n.entity_id) CONTAINS $q
             WITH n LIMIT $cap
-            OPTIONAL MATCH (n)-[r]->(m)
+            CALL {
+                WITH n
+                OPTIONAL MATCH (n)-[r]->(m)
+                WITH r, m
+                LIMIT $edge_cap
+                RETURN r, m
+            }
             RETURN n.entity_id AS src_id, labels(n) AS src_labels, type(r) AS rel, m.entity_id AS dst_id, labels(m) AS dst_labels
             """
-            result = session.run(cypher, q=q, cap=limit)
+            result = session.run(cypher, q=q, cap=limit, edge_cap=edge_cap)
             for rec in result:
                 src = rec.get("src_id")
                 if not src:

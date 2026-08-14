@@ -149,3 +149,16 @@ async def test_personalized_answer_purges_stale_shared_entry():
         "stale shared entry survived: a memory-personalized answer must purge the "
         "previously cached generic answer for the same key"
     )
+
+@pytest.mark.asyncio
+async def test_response_preferences_scope_shared_cache_keys():
+    container = MagicMock()
+    coordinator = PipelineCoordinator(container)
+    TenantContext.set("tenant-x", email="x@example.com", user_id="user-x")
+    base = {"mode": "balanced_guidance", "include_practice": True}
+    concise = {"mode": "concise", "include_practice": False}
+    key_a = coordinator._build_context_aware_cache_key(QUESTION, "en", response_preferences=base)
+    key_b = coordinator._build_context_aware_cache_key(QUESTION, "en", response_preferences=concise)
+    assert key_a != key_b
+    assert ":pref:" in key_a
+    assert ":pref:" in key_b

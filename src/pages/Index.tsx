@@ -10,6 +10,7 @@ import { SafetyPillarsSection } from '@/components/landing/SafetyPillarsSection'
 import { Footer } from '@/components/landing/Footer';
 import { GoogleOneTap } from '@/components/common/GoogleOneTap';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { useChatCapabilities } from '@/hooks/useChatCapabilities';
 import { useTranslation } from 'react-i18next';
 import { PRODUCTION_DOMAIN, PRODUCTION_OG_IMAGE, PRODUCTION_ICON, buildCanonical } from '@/lib/domain';
 
@@ -71,10 +72,11 @@ const Index = () => {
   });
 
   const isNative = Capacitor.isNativePlatform();
+  const { capabilities } = useChatCapabilities();
 
   return (
     <div className="min-h-dvh bg-background">
-      {!isNative && <GoogleOneTap />}
+      {!isNative && capabilities.googleSso && <GoogleOneTap />}
       <Navbar />
       <HeroSection />
       <MeetTheGurusSection />

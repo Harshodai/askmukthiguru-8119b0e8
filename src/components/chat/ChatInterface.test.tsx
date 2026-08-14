@@ -208,7 +208,15 @@ describe('ChatInterface', () => {
         null,
         undefined,
         false,
-        expect.any(AbortSignal)
+        expect.any(AbortSignal),
+        undefined,
+        undefined,
+        expect.objectContaining({
+          mode: 'balanced_guidance',
+          includePractice: true,
+          includeReflection: true,
+          actionDepth: 'one_step',
+        }),
       );
     });
 

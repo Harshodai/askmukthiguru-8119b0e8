@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { DailyTeaching } from '@/components/chat/DailyTeaching';
 
 // Build chain mock
@@ -72,6 +72,12 @@ describe('DailyTeaching (database-backed)', () => {
       expect(screen.getByText(/Be in your beautiful state/)).toBeInTheDocument();
     });
     expect(screen.getByTestId('daily-teaching-modal')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('receive-wisdom-button'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('daily-teaching-modal')).not.toBeInTheDocument();
+    });
+    expect(localStorage.getItem('askmukthiguru_teaching_dismissed_id')).toBe('test-1');
   });
 
   it('does not render when no active teaching exists', async () => {

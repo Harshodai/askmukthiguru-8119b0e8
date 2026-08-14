@@ -47,3 +47,34 @@ def test_missing_persona_uses_default_public_corpus(monkeypatch):
     assert scope is not None
     assert scope.corpus_id == "askmukthiguru"
     assert scope.teacher_id is None
+
+def test_pending_or_disabled_scope_is_not_rollout_eligible(monkeypatch):
+    _set_registry(
+        monkeypatch,
+        slugs="pending,disabled",
+        registry={
+            "pending": {"corpus_id": "pending-corpus", "rights_status": "pending"},
+            "disabled": {"corpus_id": "disabled-corpus", "rollout_enabled": False},
+        },
+    )
+    assert assistant_registry.resolve_assistant_scope("pending") is None
+    assert assistant_registry.resolve_assistant_scope("disabled") is None
+
+
+def test_approved_scope_preserves_namespace_and_release_metadata(monkeypatch):
+    _set_registry(
+        monkeypatch,
+        slugs="approved",
+        registry={
+            "approved": {
+                "corpus_id": "approved-corpus",
+                "teacher_id": "teacher-a",
+                "graph_namespace": "teacher-a-v1",
+                "source_release_id": "release-123",
+            },
+        },
+    )
+    scope = assistant_registry.resolve_assistant_scope("approved")
+    assert scope is not None
+    assert scope.graph_namespace == "teacher-a-v1"
+    assert scope.source_release_id == "release-123"

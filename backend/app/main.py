@@ -715,6 +715,24 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"RequestQueue shutdown error: {e}")
 
+    try:
+        lightrag = getattr(container, "lightrag", None)
+        rag = getattr(lightrag, "rag", None)
+        finalize_storages = getattr(rag, "finalize_storages", None)
+        if callable(finalize_storages):
+            await finalize_storages()
+            logger.info("Lifespan: LightRAG storages finalized")
+    except Exception as exc:
+        logger.warning("LightRAG shutdown cleanup error: %s", exc)
+    try:
+        memory_service = getattr(container, "memory_service", None)
+        close_memory = getattr(memory_service, "close", None)
+        if callable(close_memory):
+            await close_memory()
+            logger.info("Lifespan: MemoryServiceV2 closed")
+    except Exception as exc:
+        logger.warning("MemoryServiceV2 shutdown cleanup error: %s", exc)
+
     shutdown()
 
 

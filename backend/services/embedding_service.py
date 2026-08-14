@@ -41,6 +41,11 @@ from app.metrics import (
     EMBEDDING_LATENCY,
     EMBEDDING_MODEL_FALLBACK,
 )
+from services.circuit_breaker import (
+    CircuitBreakerConfig,
+    CircuitOpenException,
+    DefaultCircuitBreaker,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +116,10 @@ class EmbeddingService:
 
         self._embed_cache = EmbeddingCache(max_size=settings.embedding_cache_size)
         EMBEDDING_CACHE_SIZE.set(self._embed_cache.max_size)
+        # Provider-agnostic circuit breaker (same pattern as the LLM services).
+        # "embedding" has no entry in CIRCUIT_BREAKER_CONFIGS, so from_provider()
+        # falls back to its dataclass defaults (threshold=5, recovery=90s).
+        self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("embedding"))
         logger.info("Embedding service initialized (lazy load)")
 
     def warm_up(self) -> None:
@@ -600,6 +609,14 @@ class EmbeddingService:
         if not texts:
             return []
 
+        if not self._circuit.can_execute():
+            exc = CircuitOpenException(
+                provider="embedding",
+                message="Circuit breaker OPEN for embedding — failing fast",
+            )
+            logger.warning(str(exc))
+            raise exc
+
         start_time = time.monotonic()
         with self._inference_lock:
             self._ensure_encoder()
@@ -642,6 +659,7 @@ class EmbeddingService:
                     EMBEDDING_LATENCY.labels(operation="encode").observe(
                         time.monotonic() - start_time
                     )
+                    self._circuit.record_success()
                     return result
                 except Exception as e:
                     last_err = e
@@ -662,6 +680,7 @@ class EmbeddingService:
                 f"All {max_retries} attempts to encode dense failed. "
                 f"Raising last error: {last_err}"
             )
+            self._circuit.record_failure()
             raise last_err
 
     async def encode_async(self, texts: list[str]) -> list[list[float]]:

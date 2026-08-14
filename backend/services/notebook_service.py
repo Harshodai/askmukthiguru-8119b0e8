@@ -104,6 +104,21 @@ class NotebookService:
             return []
 
 
+    async def update_item(self, user_id: str, notebook_id: str, item_id: str, answer: str) -> dict | None:
+        if not self.available:
+            return None
+        try:
+            verify = self._client.table(_TABLE).select("id").eq("id", notebook_id).eq("user_id", user_id).execute()
+            if not getattr(verify, "data", None):
+                logger.warning("notebook.update_item: notebook %s not owned by %s", notebook_id, user_id)
+                return None
+            resp = self._client.table(_ITEMS).update({"answer": answer}).eq("id", item_id).eq("notebook_id", notebook_id).execute()
+            data = getattr(resp, "data", None) or []
+            return data[0] if data else None
+        except Exception as e:
+            logger.warning("notebook.update_item failed: %s", e)
+            return None
+
 if __name__ == "__main__":  # ponytail: self-check
     import asyncio
 

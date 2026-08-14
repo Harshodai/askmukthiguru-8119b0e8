@@ -427,6 +427,48 @@ class MemoryService:
             logger.error(f"Failed to forget memory {memory_id} for user {user_id}: {e}")
             return False
 
+    async def edit(self, user_id: str, memory_id: str, content: str) -> dict[str, Any]:
+        """Edit/correct a memory's text by its ID (checks both core and episodic).
+
+        Ownership-checked the same way as forget(): the update filters on both
+        id and user_id, so it only ever touches a row the caller owns.
+        """
+        if not self._supabase or self._is_anonymous(user_id):
+            return {}
+        try:
+            # Try core memory first
+            core_content = content
+            if len(core_content) > 2048:
+                core_content = core_content[:2045] + "..."
+            res_core = await asyncio.to_thread(
+                self._supabase.table("guru_core_memory")
+                .update({"content": core_content})
+                .eq("id", memory_id)
+                .eq("user_id", user_id)
+                .execute
+            )
+            if res_core and hasattr(res_core, "data") and res_core.data:
+                return res_core.data[0]
+
+            # Try episodic memory — re-embed so semantic search stays accurate
+            emb_dict = await asyncio.to_thread(
+                self._embedding_service.encode_single_full, content
+            )
+            res_mem = await asyncio.to_thread(
+                self._supabase.table("guru_memories")
+                .update({"content": content, "embedding": emb_dict["dense"]})
+                .eq("id", memory_id)
+                .eq("user_id", user_id)
+                .execute
+            )
+            if res_mem and hasattr(res_mem, "data") and res_mem.data:
+                return res_mem.data[0]
+
+            return {}
+        except Exception as e:
+            logger.error(f"Failed to edit memory {memory_id} for user {user_id}: {e}")
+            return {}
+
     async def forget_all_reflections(self, user_id: str) -> int:
         """Delete all episodic memories (reflections) for a user. Core facts are durable."""
         if not self._supabase or self._is_anonymous(user_id):

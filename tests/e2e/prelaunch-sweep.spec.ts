@@ -52,13 +52,21 @@ async function scrollThroughPage(page: Page): Promise<void> {
 }
 
 async function clickSafeButtons(page: Page): Promise<void> {
-  const buttons = await page.locator('button:visible, [role="button"]:visible').all();
-  for (const btn of buttons.slice(0, 12)) {
-    const label = ((await btn.textContent()) ?? '').trim();
-    const aria = (await btn.getAttribute('aria-label')) ?? '';
-    if (DESTRUCTIVE.test(label) || DESTRUCTIVE.test(aria)) continue;
-    if (!label && !aria) continue;
-    await btn.click({ timeout: 1500 }).catch(() => undefined);
+  const buttons = page.locator('button:visible, [role="button"]:visible');
+  const count = Math.min(await buttons.count(), 12);
+  const targets: Array<{ index: number; label: string; aria: string }> = [];
+
+  for (let index = 0; index < count; index += 1) {
+    const button = buttons.nth(index);
+    const label = ((await button.textContent({ timeout: 1500 }).catch(() => '')) ?? '').trim();
+    const aria = (await button.getAttribute('aria-label', { timeout: 1500 }).catch(() => '')) ?? '';
+    targets.push({ index, label, aria });
+  }
+
+  for (const target of targets) {
+    if (DESTRUCTIVE.test(target.label) || DESTRUCTIVE.test(target.aria)) continue;
+    if (!target.label && !target.aria) continue;
+    await buttons.nth(target.index).click({ timeout: 1500 }).catch(() => undefined);
     await page.waitForTimeout(120);
     await page.keyboard.press('Escape').catch(() => undefined);
   }

@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Ask Mukthi Guru",
+    "slug": "askmukthiguru",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "askmukthiguru",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.askmukthiguru.expo",
+      "associatedDomains": []
+    },
+    "android": {
+      "package": "org.askmukthiguru.expo",
+      "adaptiveIcon": {
+        "backgroundColor": "#17231f"
+      }
+    },
+    "extra": {
+      "privacyContractVersion": "2026-08-13"
+    }
+  }
+}

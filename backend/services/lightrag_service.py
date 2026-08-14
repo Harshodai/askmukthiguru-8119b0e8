@@ -104,6 +104,12 @@ class LightRAGService:
         os.environ["NEO4J_URI"] = settings.neo4j_uri
         os.environ["NEO4J_USERNAME"] = settings.neo4j_user
         os.environ["NEO4J_PASSWORD"] = settings.neo4j_password
+        os.environ["NEO4J_MAX_CONNECTION_POOL_SIZE"] = str(settings.neo4j_max_connection_pool_size)
+        os.environ["NEO4J_CONNECTION_TIMEOUT"] = str(settings.neo4j_connection_timeout_s)
+        os.environ["NEO4J_CONNECTION_ACQUISITION_TIMEOUT"] = str(settings.neo4j_connection_acquisition_timeout_s)
+        os.environ["NEO4J_MAX_TRANSACTION_RETRY_TIME"] = str(settings.neo4j_max_transaction_retry_time_s)
+        os.environ["NEO4J_MAX_CONNECTION_LIFETIME"] = str(settings.neo4j_max_connection_lifetime_s)
+        os.environ["NEO4J_KEEP_ALIVE"] = str(settings.neo4j_keep_alive).lower()
 
         # LightRAG Native Qdrant Configuration
         os.environ["QDRANT_URL"] = settings.qdrant_url
@@ -371,6 +377,12 @@ class LightRAGService:
             driver = GraphDatabase.driver(
                 settings.neo4j_uri,
                 auth=auth,
+                max_connection_pool_size=settings.neo4j_max_connection_pool_size,
+                connection_timeout=settings.neo4j_connection_timeout_s,
+                connection_acquisition_timeout=settings.neo4j_connection_acquisition_timeout_s,
+                max_transaction_retry_time=settings.neo4j_max_transaction_retry_time_s,
+                max_connection_lifetime=settings.neo4j_max_connection_lifetime_s,
+                keep_alive=settings.neo4j_keep_alive,
             )
             driver.verify_connectivity()
             driver.close()

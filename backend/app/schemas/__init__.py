@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import datetime as _dt
 from urllib.parse import urlparse
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -39,6 +39,23 @@ class AssistantContext(BaseModel):
     knowledge_tags: list[str] = Field(default_factory=list, description="Tags to scope retrieval to")
 
 
+class ResponsePreferences(BaseModel):
+    """Explicit response-form controls; never inferred from seeker traits."""
+
+    mode: Literal["balanced_guidance", "concise", "reflective_guidance", "teaching_explanation"] = Field(
+        default="balanced_guidance", description="Requested response presentation mode"
+    )
+    include_practice: bool = Field(
+        default=True, description="Allow one bounded optional practice when safety permits"
+    )
+    include_reflection: bool = Field(
+        default=True, description="Allow one bounded reflective follow-up when safety permits"
+    )
+    action_depth: Literal["none", "one_step"] = Field(
+        default="one_step", description="Maximum optional action depth"
+    )
+
+
 class ChatRequest(BaseModel):
     """Chat API request body — matches frontend's sendMessage format."""
 
@@ -50,6 +67,10 @@ class ChatRequest(BaseModel):
     incognito: bool = Field(
         default=False,
         description="Ephemeral privacy mode; disables persistence, memory, and shared reuse.",
+    )
+    response_preferences: ResponsePreferences = Field(
+        default_factory=ResponsePreferences,
+        description="Explicit response-form preferences; disabled from persistence in incognito.",
     )
     last_serene_mind_at: Optional[float] = Field(
         default=None,

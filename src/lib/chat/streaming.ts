@@ -5,7 +5,7 @@ import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
 import { fetchWithRetry } from './fetchWithRetry';
 import { recordMetric } from './telemetry';
-import type { MessagePayload, StreamChunk } from './types';
+import type { MessagePayload, ResponsePreferences, StreamChunk } from './types';
 
 /** Error augmented with HTTP/transport metadata for caller telemetry. */
 type RichError = Error & { status?: number; errorCode?: string };
@@ -43,6 +43,7 @@ export async function* sendMessageStreaming(
   userMessageId?: string,
   /** Stable id of the previous assistant message (if any) — for telemetry context. */
   lastMessageId?: string,
+  responsePreferences?: ResponsePreferences,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = getCurrentConfig();
 
@@ -71,6 +72,7 @@ export async function* sendMessageStreaming(
     session_id: effectiveSessionId,
     language: getCurrentConfig().language || 'en',
     incognito,
+    ...(responsePreferences ? { response_preferences: { mode: responsePreferences.mode, include_practice: responsePreferences.includePractice, include_reflection: responsePreferences.includeReflection, action_depth: responsePreferences.actionDepth } } : {}),
     stream: true,
     ...(lastSereneMindAt != null
       ? { last_serene_mind_at: lastSereneMindAt / 1000 }

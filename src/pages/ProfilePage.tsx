@@ -75,6 +75,7 @@ import { getMeditationStats, getMeditationStatsFromDb, loadMeditationSessions, t
 import { loadConversations, deleteConversation, getCurrentConversationId, type Conversation, getMaxConversations, getRetentionDays, setRetentionDays as saveRetentionDays, formatRelativeTime } from '@/lib/chatStorage';
 import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsights';
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
+import { clearResponsePreferences } from '@/lib/chat/responsePreferences';
 import { MemoryManager } from '@/components/profile/MemoryManager';
 import { NotesPanel } from '@/components/profile/NotesPanel';
 import { ProfileStatTiles } from '@/components/profile/ProfileStatTiles';
@@ -312,10 +313,19 @@ const ProfilePage = () => {
     toast({ title: 'Exported', description: 'Your data was downloaded.' });
   };
 
-  const handleDeleteEverything = () => {
+  const handleDeleteEverything = async () => {
     deleteAllData();
     resetProfile();
-    toast({ title: 'All data cleared', description: 'A fresh profile was created.' });
+    clearResponsePreferences();
+    try {
+      await memoryApi.deleteAll();
+    } catch (e) {
+      // Local reset already succeeded; surface the server-side failure separately rather than
+      // rolling back what already worked.
+      toast({ title: 'Local data cleared, but memory erasure failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'All data cleared', description: 'A fresh profile was created and saved memories were erased.' });
   };
 
   const handleSupportSubmit = async (e: React.FormEvent) => {
@@ -1085,8 +1095,8 @@ const ProfilePage = () => {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Clear local data?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Erases this device's profile, chat history, and meditation stats.
-                            Your account remains. This cannot be undone.
+                            Erases this device's profile, chat history, meditation stats, response
+                            preferences, and your saved memories. Your account remains. This cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

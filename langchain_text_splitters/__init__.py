@@ -1,7 +1,6 @@
 """Test stub — NOT for production use.
 Production uses the real langchain_text_splitters package directly.
 """
-
 import os
 import warnings
 
@@ -15,19 +14,25 @@ if not os.environ.get("PYTEST_CURRENT_TEST"):
 
 class RecursiveCharacterTextSplitter:
     def __init__(self, *, chunk_size: int, chunk_overlap: int, separators=None):
+        # Keep both the public names and the private names used by the real
+        # implementation. Tests and ingestion code may tune either form.
         self.chunk_size = chunk_size
         self.chunk_overlap = max(chunk_overlap, 0)
+        self._chunk_size = chunk_size
+        self._chunk_overlap = self.chunk_overlap
         self.separators = separators or ["\n\n", "\n", ". ", " ", ""]
 
     def split_text(self, text: str) -> list[str]:
         if not text:
             return []
-        words = text.split()
-        step = max(self.chunk_size - self.chunk_overlap, 1)
+        chunk_size = max(int(self._chunk_size), 1)
+        chunk_overlap = min(max(int(self._chunk_overlap), 0), chunk_size - 1)
+        step = max(chunk_size - chunk_overlap, 1)
         chunks: list[str] = []
-        for i in range(0, len(words), step):
-            chunk_words = words[i : i + self.chunk_size]
-            if not chunk_words:
+        for start in range(0, len(text), step):
+            chunk = text[start : start + chunk_size].strip()
+            if chunk:
+                chunks.append(chunk)
+            if start + chunk_size >= len(text):
                 break
-            chunks.append(" ".join(chunk_words))
         return chunks

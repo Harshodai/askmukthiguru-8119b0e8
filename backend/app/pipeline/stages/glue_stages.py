@@ -103,6 +103,11 @@ def _guidance_plan(ctx, graph_result: dict, citations: list) -> GuidancePlan | N
     ).lower()
     if response_type in {"crisis", "severe"}:
         return None
+    preferences = getattr(getattr(ctx, "request", None), "response_preferences", None)
+    response_mode = getattr(preferences, "mode", "balanced_guidance")
+    include_practice = bool(getattr(preferences, "include_practice", True))
+    include_reflection = bool(getattr(preferences, "include_reflection", True))
+    action_depth = getattr(preferences, "action_depth", "one_step")
 
     practice = graph_result.get("daily_practice_card")
     action_step = None
@@ -120,6 +125,9 @@ def _guidance_plan(ctx, graph_result: dict, citations: list) -> GuidancePlan | N
                 safety_note=_text(practice.get("safety_note"), 240),
             )
 
+    if not include_practice or action_depth == "none":
+        action_step = None
+
     reflection_prompt = None
     suggestions = graph_result.get("follow_up_suggestions")
     if isinstance(suggestions, list):
@@ -128,10 +136,13 @@ def _guidance_plan(ctx, graph_result: dict, citations: list) -> GuidancePlan | N
             if reflection_prompt:
                 break
 
+    if not include_reflection:
+        reflection_prompt = None
+
     language = _text(getattr(ctx, "preferred_lang", None), 32) or "en"
     source_backed = bool(citations)
     return GuidancePlan(
-        response_mode="balanced_guidance",
+        response_mode=response_mode,
         language=language,
         attribution=TeachingAttribution(
             label=(

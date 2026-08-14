@@ -7,7 +7,7 @@ import { httpStatusToErrorCode } from './errors';
 import { recordMetric } from './telemetry';
 import { placeholderReply } from './placeholder';
 import { checkBackendHealth, getHealthStatus } from './health';
-import type { AIErrorCode, AIResponse, MessagePayload } from './types';
+import type { AIErrorCode, AIResponse, MessagePayload, ResponsePreferences } from './types';
 
 // ponytail: word-list heuristic, not an LLM call — cheap enough to run on every send.
 const REFERENTIAL_WORDS = ['earlier', 'before', 'previously', 'you said', 'you mentioned',
@@ -23,6 +23,7 @@ const buildRequestBody = (
   lastSereneMindAt: number | null | undefined,
   seekerContext: string | undefined,
   incognito: boolean,
+  responsePreferences?: ResponsePreferences,
 ) => {
   const date = new Date();
   const timeZone = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata' : 'Asia/Kolkata';
@@ -53,6 +54,7 @@ const buildRequestBody = (
     session_id: sessionId,
     language: getCurrentConfig().language || 'en',
     incognito,
+    ...(responsePreferences ? { response_preferences: { mode: responsePreferences.mode, include_practice: responsePreferences.includePractice, include_reflection: responsePreferences.includeReflection, action_depth: responsePreferences.actionDepth } } : {}),
     ...(lastSereneMindAt != null
       ? { last_serene_mind_at: lastSereneMindAt / 1000 }
       : {}),
@@ -73,6 +75,7 @@ export const sendMessage = async (
   incognito: boolean = false,
   userMessageId?: string,
   lastMessageId?: string,
+  responsePreferences?: ResponsePreferences,
 ): Promise<AIResponse> => {
   const { provider, endpoint, systemPrompt } = getCurrentConfig();
 
@@ -96,6 +99,7 @@ export const sendMessage = async (
       lastSereneMindAt,
       seekerContext,
       incognito,
+      responsePreferences,
     );
 
     const controller = new AbortController();

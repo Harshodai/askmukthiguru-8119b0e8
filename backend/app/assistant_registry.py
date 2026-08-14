@@ -18,6 +18,10 @@ class AssistantScope:
 
     corpus_id: str
     teacher_id: str | None = None
+    graph_namespace: str | None = None
+    source_release_id: str | None = None
+    rights_status: str = "approved"
+    rollout_enabled: bool = True
 
 
 @lru_cache(maxsize=1)
@@ -48,6 +52,10 @@ def _scope_registry() -> dict[str, AssistantScope]:
             continue
         corpus_id = value.get("corpus_id") or settings.default_corpus_id
         teacher_id = value.get("teacher_id")
+        graph_namespace = value.get("graph_namespace")
+        source_release_id = value.get("source_release_id")
+        rights_status = str(value.get("rights_status", "approved")).strip().lower()
+        rollout_enabled = value.get("rollout_enabled", True)
         if not isinstance(corpus_id, str) or not corpus_id.strip():
             logger.warning("Ignoring assistant scope %r with invalid corpus", slug)
             continue
@@ -56,8 +64,19 @@ def _scope_registry() -> dict[str, AssistantScope]:
         ):
             logger.warning("Ignoring assistant scope %r with invalid teacher", slug)
             continue
+        if rights_status not in {"approved", "pending", "revoked"}:
+            logger.warning("Ignoring assistant scope %r with invalid rights status", slug)
+            continue
+        if not isinstance(rollout_enabled, bool):
+            logger.warning("Ignoring assistant scope %r with invalid rollout flag", slug)
+            continue
         scopes[slug] = AssistantScope(
-            corpus_id=corpus_id.strip(), teacher_id=teacher_id
+            corpus_id=corpus_id.strip(),
+            teacher_id=teacher_id.strip() if isinstance(teacher_id, str) else None,
+            graph_namespace=graph_namespace.strip() if isinstance(graph_namespace, str) and graph_namespace.strip() else None,
+            source_release_id=source_release_id.strip() if isinstance(source_release_id, str) and source_release_id.strip() else None,
+            rights_status=rights_status,
+            rollout_enabled=rollout_enabled,
         )
     return scopes
 
@@ -82,4 +101,8 @@ def resolve_assistant_scope(slug: Optional[str]) -> AssistantScope | None:
     scope = _scope_registry().get(validated)
     if scope is None:
         logger.error("Allowlisted assistant slug %r has no configured scope", validated)
+        return None
+    if scope.rights_status != "approved" or not scope.rollout_enabled:
+        logger.warning("Assistant scope %r is not currently approved for rollout", validated)
+        return None
     return scope

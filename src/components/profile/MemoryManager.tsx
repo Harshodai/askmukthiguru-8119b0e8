@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
-import { List, Loader2, Mic, MicOff, Plus, Trash2, Brain, Sparkles, AlertCircle, Save, BookText, ZoomIn, ZoomOut, RotateCcw, Network, Maximize2, Minimize2, Search, X, Info } from 'lucide-react';
+import { List, Loader2, Mic, MicOff, Plus, Trash2, Brain, Sparkles, AlertCircle, Save, BookText, ZoomIn, ZoomOut, RotateCcw, Pencil, Network, Maximize2, Minimize2, Search, X, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Card,
@@ -143,7 +143,12 @@ export const MemoryManager = () => {
   const [isDemo, setIsDemo] = useState(false);
   const [newText, setNewText] = useState('');
   const [adding, setAdding] = useState(false);
+  const [consentDialogOpen, setConsentDialogOpen] = useState(false);
   const [forgettingId, setForgettingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [clearingReflections, setClearingReflections] = useState(false);
+  const [editingText, setEditingText] = useState('');
+  const [editingSaving, setEditingSaving] = useState(false);
 
   // Voice-to-text for reflection and core memory textareas
   const reflectVoice = useSpeechRecognition({
@@ -255,7 +260,7 @@ export const MemoryManager = () => {
         vy: 0,
       };
     });
-  }, [kgNodes, dimensions.width, dimensions.height]);
+  }, [kgNodes, dimensions.width, dimensions.height, CX, CY]);
 
   // Main Force Simulation Loop
   // - Cooldown counter freezes the sim once the layout settles (Supermemory-
@@ -363,7 +368,7 @@ export const MemoryManager = () => {
 
     animationFrameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [viewMode, kgNodes, kgEdges, dimensions.width, dimensions.height]);
+  }, [viewMode, kgNodes, kgEdges, dimensions.width, dimensions.height, CX, CY]);
 
   const refresh = async () => {
     setLoading(true);
@@ -491,8 +496,9 @@ export const MemoryManager = () => {
     }
   };
 
-  const handleAdd = async () => {
-    if (!newText.trim() || adding) return;
+  const MEMORY_CONSENT_KEY = 'askmukthiguru_memory_consent_granted';
+
+  const saveNewMemory = async () => {
     setAdding(true);
     try {
       const created = await memoryApi.add(newText);
@@ -514,6 +520,43 @@ export const MemoryManager = () => {
     }
   };
 
+  const handleAdd = async () => {
+    if (!newText.trim() || adding) return;
+    if (localStorage.getItem(MEMORY_CONSENT_KEY) === 'true') {
+      await saveNewMemory();
+      return;
+    }
+    setConsentDialogOpen(true);
+  };
+
+  const handleConsentConfirm = async () => {
+    setConsentDialogOpen(false);
+    try {
+      await memoryApi.recordConsent(true);
+    } catch {
+      // Best-effort receipt — a failed write to the consent log must not block a save the user already approved.
+    }
+    localStorage.setItem(MEMORY_CONSENT_KEY, 'true');
+    await saveNewMemory();
+  };
+
+  const handleEdit = async (id: string) => {
+    if (isDemo || !editingText.trim() || editingSaving) return;
+    setEditingSaving(true);
+    try {
+      await memoryApi.edit(id, editingText.trim());
+      setMemories((prev) => prev.map((m) => m.id === id ? { ...m, content: editingText.trim() } : m));
+      setEditingId(null);
+      setEditingText('');
+      toast({ title: t('memory.updated', 'Memory updated') });
+    } catch (err) {
+      const msg = err instanceof MemoryApiError ? err.message : 'Could not update memory.';
+      toast({ title: t('memory.couldNotUpdate', 'Could not update memory'), description: msg, variant: 'destructive' });
+    } finally {
+      setEditingSaving(false);
+    }
+  };
+
   const handleForget = async (id: string) => {
     if (isDemo) return;
     setForgettingId(id);
@@ -531,6 +574,24 @@ export const MemoryManager = () => {
       toast({ title: t('memory.couldNotForget'), description: msg, variant: 'destructive' });
     } finally {
       setForgettingId(null);
+    }
+  };
+
+  const handleForgetAllReflections = async () => {
+    if (isDemo || clearingReflections) return;
+    setClearingReflections(true);
+    try {
+      await memoryApi.forgetAllReflections();
+      setMemories([]);
+      setKgNodes([]);
+      setKgEdges([]);
+      setSelectedNode(null);
+      toast({ title: t('memory.reflectionsCleared', 'Reflections cleared') });
+    } catch (err) {
+      const msg = err instanceof MemoryApiError ? err.message : 'Could not clear reflections.';
+      toast({ title: t('memory.couldNotClear', 'Could not clear reflections'), description: msg, variant: 'destructive' });
+    } finally {
+      setClearingReflections(false);
     }
   };
 
@@ -736,6 +797,23 @@ export const MemoryManager = () => {
                       {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Seed Map'}
                     </Button>
                   </div>
+
+                  <AlertDialog open={consentDialogOpen} onOpenChange={setConsentDialogOpen}>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>{t('memory.consentTitle', 'Save this to your memory?')}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {t('memory.consentDesc', 'You can delete anytime.')}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConsentConfirm}>
+                          {t('memory.consentConfirm', 'Save')}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   <div className="flex items-center gap-1.5 text-[10px] font-sans text-muted-foreground mt-1">
                     <Sparkles className="w-3 h-3 text-ojas" />
                     <span>Try typing a moment of gratitude or a mental challenge.</span>
@@ -1525,6 +1603,26 @@ export const MemoryManager = () => {
                 </Badge>
               )}
             </CardTitle>
+            {!isFullscreen && !isDemo && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-destructive" disabled={clearingReflections}>
+                    {clearingReflections ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    <span className="sr-only">{t('memory.clearReflections', 'Clear reflections')}</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t('memory.clearReflections', 'Clear reflections')}</AlertDialogTitle>
+                    <AlertDialogDescription>{t('memory.clearReflectionsWarning', 'This permanently removes episodic reflections while preserving your core memory.')}</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => void handleForgetAllReflections()}>{t('memory.clearReflectionsConfirm', 'Clear reflections')}</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
             <div className="flex gap-1">
               {!isFullscreen && (
                 <Button
@@ -1655,9 +1753,30 @@ export const MemoryManager = () => {
                         className="flex gap-3 p-3 rounded-lg bg-ojas/5 border border-ojas/10 items-start"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground/90 leading-relaxed font-serif">
-                            "{m.content}"
-                          </p>
+                          {editingId === m.id ? (
+                            <div className="space-y-2">
+                              <Textarea
+                                value={editingText}
+                                onChange={(e) => setEditingText(e.target.value.slice(0, 2048))}
+                                maxLength={2048}
+                                rows={3}
+                                aria-label={t('memory.editAria', 'Correct memory')}
+                              />
+                              <div className="flex gap-2">
+                                <Button size="sm" onClick={() => handleEdit(m.id)} disabled={editingSaving || !editingText.trim()}>
+                                  {editingSaving ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
+                                  {t('common.save')}
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setEditingText(''); }}>
+                                  {t('common.cancel', 'Cancel')}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-foreground/90 leading-relaxed font-serif">
+                              "{m.content}"
+                            </p>
+                          )}
                           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                             <span className="text-xs text-muted-foreground">
                               {formatDate(m.created_at)}
@@ -1671,8 +1790,27 @@ export const MemoryManager = () => {
                                 {t('memory.autoExtracted')}
                               </Badge>
                             )}
+                            {typeof m.decay_score === 'number' && (
+                              <span
+                                className="text-xs text-muted-foreground"
+                                title={t('memory.retentionTooltip', 'Fades from memory over time unless reinforced')}
+                              >
+                                {t('memory.retention', 'Retention')}: {Math.round(m.decay_score * 100)}%
+                              </span>
+                            )}
                           </div>
                         </div>
+                        {!isDemo && editingId !== m.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0 text-muted-foreground hover:text-foreground"
+                            onClick={() => { setEditingId(m.id); setEditingText(m.content); }}
+                            aria-label={t('memory.editAria', 'Correct memory')}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                        )}
                         {!isDemo && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>

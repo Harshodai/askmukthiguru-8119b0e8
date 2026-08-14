@@ -23,6 +23,7 @@ from domain.spiritual_ontology import (
     RelationType,
     canonical_entity_id,
     resolve_relation_type,
+    resolve_teacher_domain,
 )
 
 logger = logging.getLogger(__name__)
@@ -140,7 +141,9 @@ SET n:{label},
     n.source_doc_id = $source_doc_id,
     n.source_chunk_id = $source_chunk_id,
     n.confidence = $confidence,
-    n.extracted_at = $extracted_at
+    n.extracted_at = $extracted_at,
+    n.licensed_domain = $licensed_domain,
+    n.domain_rights_status = $domain_rights_status
 """
 
 # Cypher: MERGE typed relationships inside a corpus scope. Relationship scope is
@@ -223,12 +226,28 @@ async def write_extraction_to_neo4j(
                     canon_id = canonical_entity_id(name)
                     concept_type = _map_concept_type(canon_id)
                     label = _CONCEPT_TYPE_TO_LABEL.get(concept_type, "Concept")
+                    # Rights gate: only BEING (Teacher) nodes carry a domain — everything
+                    # else has no licensing concept, so both stay None (not applicable).
+                    licensed_domain: Optional[bool] = None
+                    domain_rights_status: Optional[str] = None
+                    if concept_type is ConceptType.BEING:
+                        domain = resolve_teacher_domain(canon_id) or resolve_teacher_domain(name)
+                        if domain is not None:
+                            licensed_domain = domain.rollout_enabled
+                            domain_rights_status = domain.rights_status
+                        else:
+                            # Recognized as BEING but not in the registry yet — quarantine
+                            # as unverified rather than silently treating it as licensed.
+                            licensed_domain = False
+                            domain_rights_status = "unverified"
                     cypher = _NODE_MERGE_CYPHER_TEMPLATE.format(label=label)
                     tx.run(
                         cypher,
                         entity_id=canon_id,
                         name=name,
                         entity_type=concept_type.name.lower(),
+                        licensed_domain=licensed_domain,
+                        domain_rights_status=domain_rights_status,
                         source_doc_id=source_doc_id,
                         source_chunk_id=source_chunk_id,
                         confidence=confidence,

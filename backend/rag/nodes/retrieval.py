@@ -87,15 +87,15 @@ def _cosine(a: list[float], b: list[float]) -> float:
 # Minimum cosine an OKF entry must reach before it is injected at all. Below
 # this the curated bundle has nothing to say about the question and injecting it
 # only crowds out genuinely retrieved teachings.
-_OKF_MIN_SIMILARITY = 0.45
+_OKF_MIN_SIMILARITY = settings.okf_min_similarity
 # Curated, human-reviewed doctrine outranks a raw chunk of equal similarity —
 # but by a margin, not by a floor of 0.9.
-_OKF_CURATION_BOOST = 1.10
+_OKF_CURATION_BOOST = settings.okf_curation_boost
 # Keyword-fallback gates (used only when EmbeddingService is unavailable):
 # fraction of the query's content words an entry must contain, and the ceiling
 # its score may reach so lexical overlap never outranks a real embedding match.
-_OKF_MIN_KEYWORD_COVERAGE = 0.30
-_OKF_KEYWORD_SCORE_CEILING = 0.60
+_OKF_MIN_KEYWORD_COVERAGE = settings.okf_min_keyword_coverage
+_OKF_KEYWORD_SCORE_CEILING = settings.okf_keyword_score_ceiling
 
 
 def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[dict]:
@@ -334,10 +334,10 @@ async def query_neo4j_guided_tour(query: str) -> list[dict]:
 _semantic_cache: Optional[Any] = None
 
 # Threshold at which parent text gets adaptive excerpting instead of full injection
-_ADAPTIVE_PARENT_THRESHOLD = 1800
+_ADAPTIVE_PARENT_THRESHOLD = settings.retrieval_adaptive_parent_threshold
 
 # Score-delta cutoff: drop documents whose score is less than this fraction of the top score.
-_SCORE_DELTA_RATIO = 0.5
+_SCORE_DELTA_RATIO = settings.retrieval_score_delta_ratio
 
 
 def _apply_score_delta_cutoff(docs: list[dict], score_key: str = "score", min_ratio: float = _SCORE_DELTA_RATIO) -> list[dict]:

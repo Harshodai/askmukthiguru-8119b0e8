@@ -37,7 +37,7 @@ from typing import Optional
 # Single source of truth: the exporter and the /ontology/version endpoint both
 # read from this constant so the version surfaced externally always matches
 # the version stamped on every concept and relation.
-ONTOLOGY_VERSION = "1.0.0"
+ONTOLOGY_VERSION = "1.1.0"
 
 
 class ConceptType(Enum):
@@ -225,6 +225,92 @@ CANONICAL_ENTITY_ALIASES: dict[str, str] = {
     "yoga sutras": "Yoga Sutras",
     "patanjali": "Yoga Sutras",
 }
+
+
+@dataclass
+class TeacherDomain:
+    """
+    A rights-scoped teacher domain — the isolation boundary for one teacher's
+    corpus, graph namespace, voice policy, and safety overlay. Nothing about
+    one domain's content, voice, or safety policy crosses into another's
+    without going through explicit cross-domain comparison logic.
+
+    A domain with rollout_enabled=False may still be *recognized* as an
+    entity (e.g. mentioned by name in a comparative teaching) but must never
+    be treated as a retrievable corpus, and answers must never be voiced in
+    that teacher's first person.
+    """
+
+    domain_id: str
+    display_name: str
+    # Canonical entity names belonging to this domain (matches values in
+    # CANONICAL_ENTITY_ALIASES / _KNOWN_TEACHERS in ingest/ontology_writer.py).
+    aliases: list[str] = field(default_factory=list)
+    rights_status: str = "unverified"  # "licensed" | "unlicensed_reference_only" | "unverified"
+    corpus_release: Optional[str] = None  # e.g. settings.qdrant_collection value, if this domain has one
+    graph_namespace: Optional[str] = None  # Neo4j scoping label/property for this domain's own nodes
+    voice_policy: str = "third_person_attribution_only"  # never first-person impersonation
+    rollout_enabled: bool = False  # gate: may this domain's content ever reach an answer as doctrine?
+    ontology_version: str = ONTOLOGY_VERSION
+
+
+# Per root CLAUDE.md: "Data source: only Sri Preethaji & Sri Krishnaji's YouTube
+# videos + approved images." Ekam is the only domain with a licensed corpus.
+# The other three names in ingest/ontology_writer.py's _KNOWN_TEACHERS are
+# recognized so cross-teacher mentions can be graphed and cited correctly,
+# but none of them has an approved corpus, voice policy, or retrieval scope —
+# they stay unlicensed reference entities until a real rights/corpus decision
+# is made for each, per the plan's teacher-domain-registry requirement.
+TEACHER_DOMAINS: dict[str, TeacherDomain] = {
+    "ekam": TeacherDomain(
+        domain_id="ekam",
+        display_name="Sri Preethaji & Sri Krishnaji (Ekam / O&O Academy)",
+        aliases=["Sri Preethaji", "Sri Krishnaji", "Ekam", "O&O Academy"],
+        rights_status="licensed",
+        graph_namespace="ekam",
+        rollout_enabled=True,
+    ),
+    "sadhguru_external": TeacherDomain(
+        domain_id="sadhguru_external",
+        display_name="Sadhguru (external reference only)",
+        aliases=["Sadhguru"],
+        rights_status="unlicensed_reference_only",
+        rollout_enabled=False,
+    ),
+    "amma_bhagavan_external": TeacherDomain(
+        domain_id="amma_bhagavan_external",
+        display_name="Sri Amma Bhagavan (external reference only)",
+        aliases=["Sri Amma Bhagavan"],
+        rights_status="unlicensed_reference_only",
+        rollout_enabled=False,
+    ),
+    "iskcon_external": TeacherDomain(
+        domain_id="iskcon_external",
+        display_name="ISKCON (external reference only)",
+        aliases=["ISKCON"],
+        rights_status="unlicensed_reference_only",
+        rollout_enabled=False,
+    ),
+}
+
+# Reverse index: normalized alias -> domain_id, built once at import time.
+_ALIAS_TO_DOMAIN: dict[str, str] = {
+    alias.lower(): domain.domain_id
+    for domain in TEACHER_DOMAINS.values()
+    for alias in domain.aliases
+}
+
+
+def resolve_teacher_domain(entity_name: str) -> Optional[TeacherDomain]:
+    """Resolve an entity name (teacher/org name) to its TeacherDomain, if any.
+
+    Returns None for entities that aren't a recognized teacher/org name at
+    all (most concepts, practices, etc. have no domain). Callers that need to
+    gate on rights must additionally check `.rollout_enabled` — an entity can
+    resolve to a domain and still be reference-only, not a licensed corpus.
+    """
+    domain_id = _ALIAS_TO_DOMAIN.get(normalize_entity_name(entity_name).lower())
+    return TEACHER_DOMAINS.get(domain_id) if domain_id else None
 
 
 def normalize_entity_name(name: str) -> str:
@@ -428,5 +514,20 @@ if __name__ == "__main__":
         f"seed relations stamped with ontology_version={ONTOLOGY_VERSION}"
     )
 
-    # (f) Final sentinel.
+    # (f) TeacherDomain registry: exactly one licensed domain, aliases resolve
+    # back to their own domain, unknown names resolve to None.
+    licensed = [d for d in TEACHER_DOMAINS.values() if d.rollout_enabled]
+    assert len(licensed) == 1 and licensed[0].domain_id == "ekam", (
+        f"Expected exactly one enabled domain (ekam), got: {[d.domain_id for d in licensed]}"
+    )
+    assert resolve_teacher_domain("Sri Preethaji").domain_id == "ekam"
+    assert resolve_teacher_domain("sadhguru").domain_id == "sadhguru_external"
+    assert resolve_teacher_domain("sadhguru").rollout_enabled is False
+    assert resolve_teacher_domain("Not A Real Teacher") is None
+    print(
+        f"TeacherDomain registry: {len(TEACHER_DOMAINS)} domains "
+        f"({len(licensed)} licensed/enabled), alias resolution OK"
+    )
+
+    # (g) Final sentinel.
     print("A1 OK")

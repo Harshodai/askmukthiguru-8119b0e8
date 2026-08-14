@@ -483,6 +483,7 @@ class ServiceContainer:
                 supabase_client=self.supabase_client,
                 embedding_service=self.embedding,
                 llm_service=self.ollama,
+                neo4j_driver_accessor=lambda: self.neo4j_driver,
             )
             # Fix: global_memory collection was never created — every
             # set_global_memory/search_global call silently failed. Idempotent.
@@ -531,6 +532,7 @@ class ServiceContainer:
             lightrag_service=self.lightrag,
             ocr_service=self.ocr,
             semantic_cache_service=self.semantic_cache,
+            neo4j_driver_accessor=lambda: self.neo4j_driver,
         )
 
     def _build_graphs(self) -> None:
@@ -638,6 +640,12 @@ class ServiceContainer:
                 self._neo4j_driver = GraphDatabase.driver(
                     settings.neo4j_uri,
                     auth=(settings.neo4j_user, settings.neo4j_password),
+                    max_connection_pool_size=settings.neo4j_max_connection_pool_size,
+                    connection_timeout=settings.neo4j_connection_timeout_s,
+                    connection_acquisition_timeout=settings.neo4j_connection_acquisition_timeout_s,
+                    max_transaction_retry_time=settings.neo4j_max_transaction_retry_time_s,
+                    max_connection_lifetime=settings.neo4j_max_connection_lifetime_s,
+                    keep_alive=settings.neo4j_keep_alive,
                 )
             except Exception as e:
                 logger.warning(f"ServiceContainer: Failed to create shared Neo4j driver: {e}")

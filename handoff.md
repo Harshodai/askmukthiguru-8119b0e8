@@ -46,6 +46,48 @@
 
 ---
 
+# CURRENT STATE — 2026-08-14 (wave 11: ruthless-plan lane D/F/G + teacher-domain registry)
+
+> Working tree only — **nothing committed**. 22 files changed, all sitting for review.
+
+## What landed this session (all locally verified unless noted)
+
+**Cleanup / dead code**
+- Deleted 5 dead files: `app/test_sarvam.py`, `app/test_retrieval.py`, `app/debug_retrieval.py`, `app/debug_helper.py`, `services/llm/failover_provider.py` (all grep-confirmed zero live callers; failover_provider was already documented-dead per NIM-removal note in CLAUDE.md).
+- Removed 2 genuinely-dead config flags (`use_contextual_chunking`, `context_budget_enabled`). **8 other flags flagged by an investigator agent were FALSE POSITIVES** — had real `getattr`/dict-access readers; grep-verify caught them before deletion. Do not re-flag: `guardrails_provider`, `enable_colbert`, `llm_speaker_role_fallback_enabled`, `data_audit_strict_mode`, `use_request_queue`, `use_markitdown_parser`, `ab_testing_enabled`, `llm_provider`.
+
+**Config extraction (behavior-preserving, values unchanged, verified via live import)**
+- `rag/nodes/retrieval.py`: 6 OKF/adaptive constants → `settings.okf_*` / `settings.retrieval_*`.
+- `rag/nodes/generation.py`: 5 constants → `settings.generation_*`.
+
+**Resilience**
+- Circuit breakers added to `qdrant_service.py`, `embedding_service.py`, `web_search_service.py` (same `CircuitBreakerConfig.from_provider()` pattern as LLM services). **Caveat**: web-search provider classes (`DuckDuckGoProvider`/`SearXNGProvider`) swallow their own exceptions and return `[]`, so most real failures never reach the breaker — cosmetic until that's changed.
+- 5 chaos tests appended to `tests/test_edge_cases.py` (Qdrant timeout, embedding fail, web-search fail, rate-limit, cascading). **NOT RUN GREEN**: the whole file needs live Qdrant/Redis/Neo4j — 11 of 13 pre-existing tests fail identically in a bare sandbox (`400` because `container.py` startup calls `qdrant.init_collection()` synchronously and hard-fails with no Qdrant). Pre-existing infra coupling, not introduced here. **Worth a separate fix: app startup shouldn't 400 the whole TestClient just because Qdrant is unreachable.**
+
+**Cost / security**
+- `cost_tracker.py`: soft ₹3,000/month (~$36 fixed conversion) budget alert, log-level only, throttled to once/hour/process. No hard enforcement.
+- `scripts/whatsapp_webhook.py`: fail-open signature branches now `logger.warning()` when bypassed (behavior unchanged — still fails open outside prod when secret unset; gated by `WHATSAPP_WEBHOOK_ENABLED=False` + freeze test).
+
+**Capability-manifest gating** (removes hardcoded native checks)
+- Added `google_sso` + `push_notifications` flags to `/api/capabilities`; `config.py` `google_sso_enabled`/`push_notifications_enabled` (both default True). `useChatCapabilities` hook + `Index.tsx` + `PushPermissionPrompt.tsx` now read them. Cookie-consent banner left hardcoded (legal, not a feature).
+
+**Memory / privacy (frontend + backend)**
+- Consent gate (`AlertDialog`) before first memory save → existing `PUT /memory/consent`, once-per-device localStorage flag.
+- `POST /memory/edit` correction endpoint + `MemoryService.edit()` (ownership-checked like `forget()`, re-embeds). Frontend `memoryApi.edit()` + `MemoryManager` edit UI — **these were already built by prior/parallel work, verified wired, not re-done.**
+- One-tap reset: ProfilePage "Clear Local Data" now also clears response-prefs + `DELETE /memory/all` cascade; dialog copy updated to disclose truthfully.
+
+**Teacher-domain registry (Phase 3 — NEW, first real domain-isolation)**
+- `domain/spiritual_ontology.py` `ONTOLOGY_VERSION` 1.0.0 → 1.1.0. Added `TeacherDomain` dataclass + `TEACHER_DOMAINS` registry + `resolve_teacher_domain()`. Encodes the actual CLAUDE.md rights boundary: **only `ekam` (Sri Preethaji & Sri Krishnaji) is `licensed`/`rollout_enabled=True`**; Sadhguru / Amma Bhagavan / ISKCON are `unlicensed_reference_only`, `rollout_enabled=False` (recognizable for cross-teacher mentions, never a retrievable corpus, never first-person voice).
+- `ingest/ontology_writer.py` now stamps `licensed_domain` + `domain_rights_status` on BEING/Teacher nodes at Neo4j write time (unregistered BEING → `unverified`, quarantined not silently-licensed). Self-check + `test_ontology_provenance.py` (2/2) pass.
+- **NOT YET DONE**: retrieval side does not yet READ these stamps to filter unlicensed-domain content out of doctrine quotes. The write-side gate exists; the read-side enforcement is the next step.
+
+## Confirmed NOT-STARTED (deferred, need decisions — see "Audit scope" below)
+- **Expo companion**: real skeleton (`mobile/expo/`, 9 files, Expo 54) — only `getCapabilities` + `sendChat` (non-streaming). No auth, no SSE streaming, no language sheet, no practices/library. Needs `expo-secure-store` (new dep) for auth + a live backend to verify SSE.
+- **SLO enforcement/alerting**: `metrics.py` has `SLO_CHAT_LATENCY` etc. as descriptive constants; nothing enforces/alerts. External blocker — Datadog/PagerDuty MCP servers listed but unauthenticated this session.
+- **Response-style preferences** (`ResponsePreferencesMenu`, `responsePreferences.ts`): already fully built + wired by prior work (separate from memory consent).
+
+---
+
 # CURRENT STATE — 2026-08-10 (wave 9: test-isolation fixes + tsc errors)
 
 ## Wave 9 — squash commit `2b2d3470` on main (2026-08-10)

@@ -17,6 +17,8 @@ describe('resolveChatCapabilities', () => {
       guidedMeditation: true,
       textAttachments: false,
       voiceInput: true,
+      googleSso: true,
+      pushNotifications: true,
     });
   });
 });

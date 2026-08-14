@@ -96,3 +96,28 @@ def test_chat_response_includes_optional_fields():
     assert payload["trace_id"] == "trace-123"
     assert payload["latency_ms"] == 1200
     assert payload["faithfulness_score"] == 0.92
+
+def test_chat_request_has_explicit_response_preferences():
+    request = ChatRequest(
+        messages=[MessagePayload(role="user", content="hello")],
+        user_message="Explain the teaching.",
+        response_preferences={
+            "mode": "concise",
+            "include_practice": False,
+            "include_reflection": True,
+            "action_depth": "none",
+        },
+    )
+    assert request.response_preferences.mode == "concise"
+    assert request.response_preferences.include_practice is False
+    assert request.response_preferences.include_reflection is True
+    assert request.response_preferences.action_depth == "none"
+
+
+def test_chat_request_rejects_unknown_response_mode():
+    with pytest.raises(ValidationError):
+        ChatRequest(
+            messages=[MessagePayload(role="user", content="hello")],
+            user_message="Explain the teaching.",
+            response_preferences={"mode": "psychological_profile"},
+        )

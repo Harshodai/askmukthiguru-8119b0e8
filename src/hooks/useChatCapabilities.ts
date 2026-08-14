@@ -11,6 +11,8 @@ export type ChatCapabilities = {
   guidedMeditation: boolean;
   textAttachments: boolean;
   voiceInput: boolean;
+  googleSso: boolean;
+  pushNotifications: boolean;
 };
 
 export const LOCAL_CHAT_CAPABILITIES: ChatCapabilities = {
@@ -18,6 +20,8 @@ export const LOCAL_CHAT_CAPABILITIES: ChatCapabilities = {
   guidedMeditation: true,
   textAttachments: true,
   voiceInput: true,
+  googleSso: true,
+  pushNotifications: true,
 };
 
 export function resolveChatCapabilities(manifest?: CapabilityManifest): ChatCapabilities {
@@ -30,6 +34,8 @@ export function resolveChatCapabilities(manifest?: CapabilityManifest): ChatCapa
     guidedMeditation: isAvailable('guided_meditation', LOCAL_CHAT_CAPABILITIES.guidedMeditation),
     textAttachments: isAvailable('text_attachments', LOCAL_CHAT_CAPABILITIES.textAttachments),
     voiceInput: isAvailable('voice_input', LOCAL_CHAT_CAPABILITIES.voiceInput),
+    googleSso: isAvailable('google_sso', LOCAL_CHAT_CAPABILITIES.googleSso),
+    pushNotifications: isAvailable('push_notifications', LOCAL_CHAT_CAPABILITIES.pushNotifications),
   };
 }
 

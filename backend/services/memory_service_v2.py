@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import inspect
 import json
 import logging
 import os
@@ -49,12 +50,15 @@ class MemoryServiceV2(MemoryService):
     """Three-tier memory service with isolated fallback per tier."""
 
     def __init__(self, supabase_client=None, embedding_service=None, llm_service=None,
-                 *, guru_slug: str = "default", use_global_memory: bool = False):
+                 *, guru_slug: str = "default", use_global_memory: bool = False,
+                 neo4j_driver=None, neo4j_driver_accessor=None):
         super().__init__(supabase_client, embedding_service, llm_service)
         self.guru_slug = guru_slug
         self.use_global_memory = use_global_memory
         self._redis: Optional[aioredis.Redis] = None
-        self._neo4j_driver = None
+        self._neo4j_driver = neo4j_driver
+        self._neo4j_driver_accessor = neo4j_driver_accessor
+        self._owns_neo4j_driver = False
         # LRU fallback when Redis is down — bounded, thread-safe via asyncio
         self._lru_fallback: OrderedDict[str, str] = OrderedDict()
         self._redis_available: Optional[bool] = None  # None = unchecked
@@ -491,14 +495,27 @@ class MemoryServiceV2(MemoryService):
             return False
 
     def _get_neo4j(self):
-        """Get Neo4j driver for graph memory."""
+        """Get the shared Neo4j driver, or a bounded process-local fallback."""
+        if self._neo4j_driver_accessor is not None:
+            try:
+                return self._neo4j_driver_accessor()
+            except Exception as e:
+                logger.warning("Shared Neo4j driver accessor failed: %s", e)
+                return None
         if self._neo4j_driver is None:
             try:
                 from neo4j import GraphDatabase
-                uri = os.environ.get("NEO4J_URI", "bolt://neo4j:7687")
-                user = os.environ.get("NEO4J_USER", "neo4j")
-                password = os.environ.get("NEO4J_PASSWORD", "")
-                self._neo4j_driver = GraphDatabase.driver(uri, auth=(user, password))
+                self._neo4j_driver = GraphDatabase.driver(
+                    settings.neo4j_uri,
+                    auth=(settings.neo4j_user, settings.neo4j_password),
+                    max_connection_pool_size=settings.neo4j_max_connection_pool_size,
+                    connection_timeout=settings.neo4j_connection_timeout_s,
+                    connection_acquisition_timeout=settings.neo4j_connection_acquisition_timeout_s,
+                    max_transaction_retry_time=settings.neo4j_max_transaction_retry_time_s,
+                    max_connection_lifetime=settings.neo4j_max_connection_lifetime_s,
+                    keep_alive=settings.neo4j_keep_alive,
+                )
+                self._owns_neo4j_driver = True
             except Exception as e:
                 logger.warning(f"Neo4j unavailable: {e}")
                 self._neo4j_driver = None
@@ -752,8 +769,15 @@ class MemoryServiceV2(MemoryService):
     async def close(self):
         if self._redis:
             await self._redis.close()
-        if self._neo4j_driver:
-            await self._neo4j_driver.close()
+            self._redis = None
+        # The container-owned driver is shared and must be closed by the
+        # container, not by this service. Only close private fallback drivers.
+        if self._neo4j_driver and self._owns_neo4j_driver:
+            close_result = self._neo4j_driver.close()
+            if inspect.isawaitable(close_result):
+                await close_result
+            self._neo4j_driver = None
+            self._owns_neo4j_driver = False
 
     # ---- E4.3: Personalized subgraphs ----
 

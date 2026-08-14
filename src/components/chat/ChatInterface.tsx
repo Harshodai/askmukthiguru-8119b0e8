@@ -37,6 +37,8 @@ import { getLastCompletedMeditationTimestamp, loadMeditationSessions } from '@/l
 import { hashMessages, getCachedResponse, setCachedResponse, clearResponseCache } from '@/lib/responseCache';
 import { ChatMessage, LazyWisdomCardGenerator } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
+import type { ResponsePreferences } from '@/lib/chat/types';
+import { DEFAULT_RESPONSE_PREFERENCES, loadResponsePreferences, saveResponsePreferences, clearResponsePreferences } from '@/lib/chat/responsePreferences';
 import { ScrollToBottomFab } from './ScrollToBottomFab';
 import { MobileConversationSheet } from './MobileConversationSheet';
 import { DesktopSidebar, useSidebarCollapsed } from './DesktopSidebar';
@@ -103,6 +105,15 @@ export const ChatInterface = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isIncognito, setIsIncognito] = useState(false);
+  const [responsePreferences, setResponsePreferences] = useState<ResponsePreferences>(() => loadResponsePreferences());
+  const updateResponsePreferences = useCallback((next: ResponsePreferences) => {
+    setResponsePreferences(next);
+    saveResponsePreferences(next);
+  }, []);
+  const resetResponsePreferences = useCallback(() => {
+    clearResponsePreferences();
+    setResponsePreferences({ ...DEFAULT_RESPONSE_PREFERENCES });
+  }, []);
   const [messages, setMessages] = useState<Message[]>([]);
   const [recommendedCourse, setRecommendedCourse] = useState<HealingCourseRecommendation | null>(null);
   const userTurnHistory = useMemo<UserTurn[]>(
@@ -967,6 +978,9 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
           seekerContext || undefined,
           isIncognito,
           controller.signal,
+          undefined,
+          undefined,
+          responsePreferences,
         );
 
         // Show pipeline thinking pills — start with Safety check active immediately to eliminate blank gap
@@ -1295,6 +1309,9 @@ openSereneMind('audio');
         lastSereneMindAt,
         seekerContext || undefined,
         isIncognito,
+        undefined,
+        undefined,
+        responsePreferences,
       );
 
       setIsTyping(false);
@@ -1800,6 +1817,9 @@ return (
         hasMessages={messages.some(m => m.role === 'user')}
         isIncognito={isIncognito}
         onCloseIncognito={handleCloseIncognito}
+        responsePreferences={responsePreferences}
+        onResponsePreferencesChange={updateResponsePreferences}
+        onResetResponsePreferences={resetResponsePreferences}
       />
 
 

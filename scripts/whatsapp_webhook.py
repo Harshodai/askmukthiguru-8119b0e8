@@ -38,11 +38,8 @@ WHATSAPP_WEBHOOK_ENABLED = os.getenv('WHATSAPP_WEBHOOK_ENABLED', '').lower() == 
 def validate_twilio_signature(req) -> bool:
     """Validates X-Twilio-Signature against TWILIO_AUTH_TOKEN."""
     if not TWILIO_AUTH_TOKEN:
-        # If token is not set, log warning in dev or fail-open only if dev
-        if os.getenv('ENVIRONMENT') == 'production':
-            logger.error("TWILIO_AUTH_TOKEN missing in production! Rejecting request.")
-            return False
-        return True
+        logger.error("TWILIO_AUTH_TOKEN is not configured; rejecting request.")
+        return False
 
     signature = req.headers.get('X-Twilio-Signature', '')
     validator = RequestValidator(TWILIO_AUTH_TOKEN)
@@ -54,10 +51,8 @@ def validate_twilio_signature(req) -> bool:
 def validate_meta_signature(req) -> bool:
     """Validates X-Hub-Signature-256 against META_APP_SECRET."""
     if not META_APP_SECRET:
-        if os.getenv('ENVIRONMENT') == 'production':
-            logger.error("META_APP_SECRET missing in production! Rejecting request.")
-            return False
-        return True
+        logger.error("META_APP_SECRET is not configured; rejecting request.")
+        return False
 
     header_sig = req.headers.get('X-Hub-Signature-256', '')
     if not header_sig.startswith('sha256='):

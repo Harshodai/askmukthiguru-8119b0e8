@@ -140,6 +140,11 @@ class ForgetMemoryRequest(BaseModel):
     memory_id: str
 
 
+class EditMemoryRequest(BaseModel):
+    memory_id: str
+    text: str
+
+
 class AddMemoryRequest(BaseModel):
     text: str
 
@@ -281,6 +286,27 @@ async def forget_memory_endpoint(
         raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
 
     return {"status": "ok", "message": "Memory forgotten"}
+
+
+@router.post("/memory/edit")
+async def edit_memory_endpoint(
+    body: EditMemoryRequest,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Edit/correct a specific memory's text by its ID."""
+    if not getattr(container, "memory_service", None):
+        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+
+    content = body.text.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Memory text cannot be empty")
+
+    m = await container.memory_service.edit(user["id"], body.memory_id, content)
+    if not m:
+        raise HTTPException(status_code=404, detail="Memory not found or not owned by user")
+
+    return {"status": "ok", "message": "Memory updated"}
 
 
 @router.delete("/memory/reflections")

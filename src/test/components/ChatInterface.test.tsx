@@ -258,7 +258,15 @@ describe('ChatInterface (regression)', () => {
         null,
         undefined,
         false,
-        expect.any(AbortSignal)
+        expect.any(AbortSignal),
+        undefined,
+        undefined,
+        expect.objectContaining({
+          mode: 'balanced_guidance',
+          includePractice: true,
+          includeReflection: true,
+          actionDepth: 'one_step',
+        }),
       );
     });
   });
@@ -293,7 +301,15 @@ describe('ChatInterface (regression)', () => {
         'test-conv-id',
         null,
         undefined,
-        false
+        false,
+        undefined,
+        undefined,
+        expect.objectContaining({
+          mode: 'balanced_guidance',
+          includePractice: true,
+          includeReflection: true,
+          actionDepth: 'one_step',
+        }),
       );
     });
   });

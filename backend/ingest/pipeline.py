@@ -20,6 +20,7 @@ import socket
 import urllib.parse
 from collections.abc import Callable
 from pathlib import Path
+import threading
 from typing import Any, Optional
 
 
@@ -37,6 +38,9 @@ from ingest.deduplication import deduplicate_by_payload
 from ingest.hyper_extract_adapter import enrich_text, is_eligible
 from ingest.image_loader import is_image_url, process_image_url
 from ingest.raptor import RaptorIndexer
+_INGESTION_NEO4J_DRIVER = None
+_INGESTION_NEO4J_DRIVER_LOCK = threading.Lock()
+
 from ingest.youtube_loader import (
     extract_video_id,
     fetch_transcript_hybrid,
@@ -290,6 +294,9 @@ class IngestionPipeline:
         semantic_cache_service: Optional[Any] = None,
         corpus_id: Optional[str] = None,
         release_registry: Optional[Any] = None,
+        *,
+        neo4j_driver=None,
+        neo4j_driver_accessor=None,
     ) -> None:
         """
         Dependency Injection: All services are injected, not created internally.
@@ -329,7 +336,8 @@ class IngestionPipeline:
         self._adaptive_chunker = AdaptiveChunker(self._embedder)
         self._proposition_service = PropositionService(self._llm)
         self._contextual_chunker = ContextualChunkingService(self._llm)
-        self._neo4j_driver = None
+        self._neo4j_driver = neo4j_driver
+        self._neo4j_driver_accessor = neo4j_driver_accessor
 
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=settings.rag_chunk_size,
@@ -360,13 +368,31 @@ class IngestionPipeline:
         return True
 
     def _get_neo4j_driver(self):
-        if self._neo4j_driver is None:
-            from neo4j import GraphDatabase
-            self._neo4j_driver = GraphDatabase.driver(
-                settings.neo4j_uri,
-                auth=(settings.neo4j_user, settings.neo4j_password),
-            )
-        return self._neo4j_driver
+        global _INGESTION_NEO4J_DRIVER
+        if self._neo4j_driver_accessor is not None:
+            try:
+                return self._neo4j_driver_accessor()
+            except Exception as e:
+                logger.warning("Shared ingestion Neo4j driver accessor failed: %s", e)
+                return None
+        if self._neo4j_driver is not None:
+            return self._neo4j_driver
+        # Celery task-created pipelines are short-lived. Reuse one bounded
+        # process-level driver per worker process instead of one pool per task.
+        with _INGESTION_NEO4J_DRIVER_LOCK:
+            if _INGESTION_NEO4J_DRIVER is None:
+                from neo4j import GraphDatabase
+                _INGESTION_NEO4J_DRIVER = GraphDatabase.driver(
+                    settings.neo4j_uri,
+                    auth=(settings.neo4j_user, settings.neo4j_password),
+                    max_connection_pool_size=settings.neo4j_max_connection_pool_size,
+                    connection_timeout=settings.neo4j_connection_timeout_s,
+                    connection_acquisition_timeout=settings.neo4j_connection_acquisition_timeout_s,
+                    max_transaction_retry_time=settings.neo4j_max_transaction_retry_time_s,
+                    max_connection_lifetime=settings.neo4j_max_connection_lifetime_s,
+                    keep_alive=settings.neo4j_keep_alive,
+                )
+            return _INGESTION_NEO4J_DRIVER
 
     def _checkpoint_key(self, source_identity: str, source_version: int = 1) -> str:
         """Namespace idempotency by corpus and the active immutable release."""
@@ -2034,9 +2060,20 @@ class IngestionPipeline:
                         active_res = session.run("MATCH (n:base) WHERE n.entity_id IS NOT NULL RETURN n.entity_id as name")
                         neo4j_entities = {r["name"].strip().lower() for r in active_res if r["name"]}
 
-                    # 4. Synchronize Qdrant Vector Mismatches
-                    qdrant_api_key = os.environ.get("QDRANT_API_KEY") or getattr(settings, "qdrant_api_key", "") or None
-                    qdrant = QdrantClient(url=qdrant_url, api_key=qdrant_api_key, timeout=15)
+                    # 4. Synchronize Qdrant Vector Mismatches. Reuse the
+                    # injected service client; rebuilding a client here would
+                    # create another HTTP pool on every maintenance run.
+                    qdrant = getattr(self._qdrant, "_client", self._qdrant)
+                    if qdrant is None:
+                        from qdrant_client import QdrantClient
+                        qdrant_url = os.environ.get("QDRANT_URL", "http://qdrant:6333")
+                        qdrant_api_key = os.environ.get("QDRANT_API_KEY") or getattr(settings, "qdrant_api_key", "") or None
+                        qdrant = QdrantClient(
+                            url=qdrant_url,
+                            api_key=qdrant_api_key,
+                            check_compatibility=False,
+                            timeout=15,
+                        )
                     all_cols = {c.name for c in qdrant.get_collections().collections}
                     entity_cols = [c for c in all_cols if c.startswith("lightrag_vdb_entities_")]
                     

@@ -184,6 +184,9 @@ if __name__ == "__main__":
         logger.info("Starting Mukthi Guru Celery worker")
         import subprocess
         import sys
+        import threading
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
         cmd = [
             sys.executable, "-m", "celery",
             "-A", "celery_config",
@@ -195,8 +198,51 @@ if __name__ == "__main__":
             "--without-heartbeat",
             "-l", "info",
         ]
-        proc = subprocess.run(cmd)
-        sys.exit(proc.returncode)
+        worker = subprocess.Popen(cmd)
+
+        class _WorkerHealthHandler(BaseHTTPRequestHandler):
+            """Small liveness endpoint for the non-HTTP Celery process."""
+
+            def _respond(self):
+                if self.path != "/api/healthz":
+                    body = b'{"ok":false,"status":"not-found"}'
+                    status = 404
+                elif worker.poll() is None:
+                    body = b'{"ok":true,"status":"alive"}'
+                    status = 200
+                else:
+                    body = b'{"ok":false,"status":"stopped"}'
+                    status = 503
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Connection", "close")
+                self.end_headers()
+                if self.command != "HEAD":
+                    self.wfile.write(body)
+
+            do_GET = _respond
+            do_HEAD = _respond
+
+            def log_message(self, _format, *_args):
+                return
+
+        health_server = ThreadingHTTPServer(("0.0.0.0", port), _WorkerHealthHandler)
+        health_server.daemon_threads = True
+        health_thread = threading.Thread(
+            target=health_server.serve_forever,
+            name="celery-health-server",
+            daemon=True,
+        )
+        health_thread.start()
+        try:
+            return_code = worker.wait()
+        finally:
+            health_server.shutdown()
+            health_server.server_close()
+            if worker.poll() is None:
+                worker.terminate()
+        sys.exit(return_code)
 
     logger.info("Starting Mukthi Guru backend on port %s", port)
 

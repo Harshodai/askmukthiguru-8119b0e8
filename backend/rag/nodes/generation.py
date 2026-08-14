@@ -43,13 +43,13 @@ logger = logging.getLogger(__name__)
 
 # An abstention has no supporting teaching or personal-memory evidence. Keep its
 # internal telemetry deliberately low; the UI presents this as a support label.
-NO_EVIDENCE_CONFIDENCE = 2.0
+NO_EVIDENCE_CONFIDENCE = settings.generation_no_evidence_confidence
 
 # Must exceed len(GURU_SYSTEM_PROMPT.split()) * 1.3 plus the appended
 # [USER CLASSIFICATION] style block. Pinned by
 # tests/test_answer_path_regressions.py — if the constitution grows past this,
 # that test fails rather than the prompt silently losing its tail.
-_PERSONA_TOKEN_BUDGET = 2048
+_PERSONA_TOKEN_BUDGET = settings.generation_persona_token_budget
 
 
 def _build_stop_sequences() -> list[str]:
@@ -144,12 +144,14 @@ def _compute_context_budget(
     return baseline_tokens, max_context_tokens
 
 
-def extractive_compress_doc(question: str, text: str, max_chars: int = 1500) -> str:
+def extractive_compress_doc(question: str, text: str, max_chars: int | None = None) -> str:
     """Fast local extractive document compression based on sentence scoring."""
+    if max_chars is None:
+        max_chars = settings.generation_compression_max_chars
     if len(text) <= max_chars:
         return text
 
-    suffix = " [...]"
+    suffix = settings.generation_compression_truncation_suffix
     if max_chars <= len(suffix):
         return suffix[:max_chars]
 
@@ -164,7 +166,7 @@ def extractive_compress_doc(question: str, text: str, max_chars: int = 1500) -> 
     for idx, sentence in enumerate(sentences):
         s_words = set(re.findall(r'\w+', sentence.lower()))
         overlap = len(q_words.intersection(s_words))
-        pos_bonus = 0.5 if idx < 2 else 0.0
+        pos_bonus = settings.generation_compression_position_bonus if idx < 2 else 0.0
         score = overlap + pos_bonus
         scored_sentences.append((score, idx, sentence))
 
@@ -791,7 +793,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             for idx, doc in enumerate(relevant_docs):
                 title = doc.get("title") or doc.get("source_url") or f"Doc {idx + 1}"
                 raw_text = doc_text(doc)
-                compressed = extractive_compress_doc(question, raw_text, max_chars=1500)
+                compressed = extractive_compress_doc(question, raw_text)
                 if compressed and compressed.strip():
                     compressed_docs.append({"title": title, "text": compressed.strip()})
                     surviving_docs.append(doc)

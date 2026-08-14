@@ -13,6 +13,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import threading
 from typing import Any, Optional
 
 from celery import Task
@@ -20,6 +21,43 @@ from celery import Task
 from celery_config import celery_app, update_job_progress
 
 logger = logging.getLogger(__name__)
+
+
+# Celery runs one task slot in Railway today, but tasks are still short-lived
+# Python calls. Keep heavyweight model/client state at worker-process scope so
+# repeated tasks do not reload BGE-M3 or create a fresh Qdrant connection pool.
+_worker_embedding_service = None
+_worker_embedding_lock = threading.Lock()
+_worker_qdrant_client = None
+_worker_qdrant_lock = threading.Lock()
+
+
+def _get_worker_embedding_service():
+    global _worker_embedding_service
+    if _worker_embedding_service is None:
+        with _worker_embedding_lock:
+            if _worker_embedding_service is None:
+                from services.embedding_service import EmbeddingService
+                _worker_embedding_service = EmbeddingService()
+    return _worker_embedding_service
+
+
+def _get_worker_qdrant_client():
+    global _worker_qdrant_client
+    if _worker_qdrant_client is None:
+        with _worker_qdrant_lock:
+            if _worker_qdrant_client is None:
+                from qdrant_client import QdrantClient
+                qdrant_url = os.environ.get("QDRANT_URL", "http://qdrant:6333")
+                qdrant_api_key = os.environ.get("QDRANT_API_KEY") or None
+                timeout = float(os.environ.get("QDRANT_TIMEOUT", "30"))
+                _worker_qdrant_client = QdrantClient(
+                    url=qdrant_url,
+                    api_key=qdrant_api_key,
+                    check_compatibility=False,
+                    timeout=timeout,
+                )
+    return _worker_qdrant_client
 
 
 class AsyncTask(Task):
@@ -79,9 +117,7 @@ def embed_chunks(self, chunks: list[str], content_hash: str, job_id: str = None)
     self.update_state(state="STARTED", meta={"progress_pct": 50, "stage": "embedding"})
 
     try:
-        from services.embedding_service import EmbeddingService
-
-        embedder = EmbeddingService()
+        embedder = _get_worker_embedding_service()
         result = embedder.encode_batch(chunks)
         embeddings = result["dense"]
 
@@ -124,11 +160,9 @@ def index_vectors(
     self.update_state(state="STARTED", meta={"progress_pct": 70, "stage": "indexing"})
 
     try:
-        from qdrant_client import QdrantClient
         from qdrant_client.http import models as qdrant_models
 
-        qdrant_url = os.environ.get("QDRANT_URL", "http://qdrant:6333")
-        client = QdrantClient(url=qdrant_url)
+        client = _get_worker_qdrant_client()
 
         collection = os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom")
 

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 import re
 import time
@@ -95,6 +96,12 @@ class PipelineCoordinator:
         assistant_config_present = bool(assistant_slug) or bool(assistant_system_prompt) or bool(
             assistant_knowledge_tags
         )
+        response_preferences = getattr(chat_body, "response_preferences", None)
+        response_preferences_data = (
+            response_preferences.model_dump(mode="json")
+            if hasattr(response_preferences, "model_dump")
+            else {}
+        )
         cache_key = self._build_context_aware_cache_key(
             user_msg,
             preferred_lang,
@@ -102,6 +109,7 @@ class PipelineCoordinator:
             assistant_slug,
             assistant_system_prompt,
             assistant_knowledge_tags,
+            response_preferences_data,
         )
         is_indic = bool(preferred_lang) and not preferred_lang.startswith("en")
         user_id = user.get("id", "anonymous") if user else "anonymous"
@@ -323,6 +331,7 @@ class PipelineCoordinator:
         assistant_slug: str | None = None,
         assistant_system_prompt: str | None = None,
         assistant_knowledge_tags: list[str] | None = None,
+        response_preferences: dict | None = None,
     ) -> str:
         """Build cache key that handles follow-up questions.
 
@@ -355,7 +364,13 @@ class PipelineCoordinator:
             )
             config_fp = hashlib.sha256(config_text.encode("utf-8")).hexdigest()[:16]
             persona = f":asst:{config_fp}"
-        base_key = f"tenant:{tenant}{persona}:{cache_language_key(user_msg, preferred_lang)}"
+        preference_scope = ""
+        if response_preferences:
+            preference_fp = hashlib.sha256(
+                json.dumps(response_preferences, sort_keys=True).encode("utf-8")
+            ).hexdigest()[:12]
+            preference_scope = f":pref:{preference_fp}"
+        base_key = f"tenant:{tenant}{persona}{preference_scope}:{cache_language_key(user_msg, preferred_lang)}"
 
         is_standalone = self._is_standalone_question(user_msg)
         if is_standalone:

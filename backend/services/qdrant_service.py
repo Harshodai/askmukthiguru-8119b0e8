@@ -20,6 +20,7 @@ from typing import Any, Optional
 
 from qdrant_client.http.models import FieldCondition, Filter, MatchAny, MatchValue
 
+from services.circuit_breaker import CircuitBreakerConfig, CircuitOpenException, DefaultCircuitBreaker
 from services.qdrant.client import QdrantClientManager
 from services.qdrant.filters import QdrantFilterBuilder
 from services.qdrant.indexer import QdrantIndexer
@@ -96,6 +97,7 @@ class QdrantService:
         self._searcher = QdrantSearcher(self._client, self._collection, self._utils)
         self._neighbor = QdrantNeighborLookup(self._client, self._collection)
         self._raptor = QdrantRaptorStore(self._client, self._collection, self._utils)
+        self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("qdrant"))
 
     # === Client / collection delegation ======================================
 
@@ -209,9 +211,23 @@ class QdrantService:
         **kwargs,
     ) -> list[dict]:
         """Hybrid search using Reciprocal Rank Fusion (RRF) over dense + sparse vectors."""
-        return self._searcher.search(
-            query_vector, limit, content_type, sparse_vector, raptor_level, **kwargs
-        )
+        if not self._circuit.can_execute():
+            exc = CircuitOpenException(
+                provider="qdrant",
+                message="Circuit breaker OPEN for qdrant",
+            )
+            logger.warning(str(exc))
+            raise exc
+
+        try:
+            result = self._searcher.search(
+                query_vector, limit, content_type, sparse_vector, raptor_level, **kwargs
+            )
+            self._circuit.record_success()
+            return result
+        except Exception:
+            self._circuit.record_failure()
+            raise
 
     def _dense_search(self, query_vector, limit, search_filter):
         """Dense-only search using the named 'dense' vector."""

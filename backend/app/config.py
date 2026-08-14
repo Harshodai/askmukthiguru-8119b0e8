@@ -234,7 +234,6 @@ class Settings(BaseSettings):
 
     # --- Chunking Strategies ---
     use_boundary_chunker: bool = True  # Respect sentence and verse boundaries
-    use_contextual_chunking: bool = True  # Prepend Anthropic-style contextual headers
 
 
     # --- Multi-teacher personality (Phase E5) ---
@@ -266,8 +265,16 @@ class Settings(BaseSettings):
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = ""
+    # One bounded, process-shared driver pool per application process.
+    neo4j_max_connection_pool_size: int = Field(default=20, ge=1, le=200)
+    neo4j_connection_timeout_s: float = Field(default=15.0, gt=0, le=300)
+    neo4j_connection_acquisition_timeout_s: float = Field(default=15.0, gt=0, le=300)
+    neo4j_max_transaction_retry_time_s: float = Field(default=15.0, ge=0, le=300)
+    neo4j_max_connection_lifetime_s: float = Field(default=300.0, gt=0, le=3600)
+    neo4j_keep_alive: bool = True
     kg_max_query_len: int = Field(default=4_000, gt=0)
     kg_query_timeout_s: float = Field(default=5.0, gt=0)
+    kg_subgraph_max_edges: int = Field(default=200, ge=1, le=2_000)
 
     # --- Embeddings (config-driven: switch models via env vars) ---
     # Supported: "BAAI/bge-m3" (default, best multilingual, 1024-dim dense+sparse+ColBERT)
@@ -349,6 +356,13 @@ class Settings(BaseSettings):
     )
     transcript_max_retries: int = 3  # Retry per tier before falling to next
     transcript_concurrent_workers: int = 1  # Kept at 1 to avoid YouTube 429 rate limits
+
+    # --- Scheduled external-content synchronization ---
+    # Disabled by default: this job can fetch new videos and run ingestion
+    # stages that call paid STT/LLM providers even when there is no user traffic.
+    # Enable explicitly with ENABLE_SCHEDULED_YOUTUBE_SYNC=true after setting
+    # an operational budget and monitoring plan.
+    enable_scheduled_youtube_sync: bool = False
 
     # --- YouTube Cookie & Runtime Paths (macOS cookie extraction) ---
     # Override with YOUTUBE_COOKIES_PATH in .env to point to a custom cookies.txt location.
@@ -466,6 +480,11 @@ class Settings(BaseSettings):
     registration_rate_limit: str = "5/minute"
     # Early-access collection remains off until its migration and privacy copy are deployed.
     waitlist_enabled: bool = False
+    google_sso_enabled: bool = True
+    push_notifications_enabled: bool = True
+    # ~USD equivalent of the ₹3,000/month operating envelope (see CLAUDE.md budget note).
+    # Fixed conversion, not a live FX lookup — this is a soft alert threshold, not a hard cap.
+    monthly_cost_budget_usd: float = 36.0
     admin_rate_limit: str = "5/minute"
     auth_backoff_base_seconds: float = 2.0
     auth_backoff_multiplier: float = 2.0
@@ -528,6 +547,29 @@ class Settings(BaseSettings):
     # as entries are re-extracted, reviewed, and recompiled.
     rag_okf_injection_enabled: bool = True   # OKF as canonical knowledge layer
     rag_okf_auto_extract_enabled: bool = True  # post-ingestion OKF extraction; hardened w/ Celery retry + logging
+    # Minimum cosine an OKF entry must reach before it is injected at all.
+    okf_min_similarity: float = 0.45
+    # Curated, human-reviewed doctrine outranks a raw chunk of equal similarity — margin, not a floor.
+    okf_curation_boost: float = 1.10
+    # Keyword-fallback gate (used only when EmbeddingService is unavailable): fraction
+    # of the query's content words an entry must contain.
+    okf_min_keyword_coverage: float = 0.30
+    # Ceiling an OKF keyword-fallback score may reach so lexical overlap never outranks a real embedding match.
+    okf_keyword_score_ceiling: float = 0.60
+    # Threshold at which parent text gets adaptive excerpting instead of full injection.
+    retrieval_adaptive_parent_threshold: int = 1800
+    # Score-delta cutoff: drop documents whose score is less than this fraction of the top score.
+    retrieval_score_delta_ratio: float = 0.5
+    # Internal telemetry confidence assigned to an abstention (no supporting evidence).
+    generation_no_evidence_confidence: float = 2.0
+    # Persona system-prompt token budget; pinned by tests/test_answer_path_regressions.py.
+    generation_persona_token_budget: int = 2048
+    # Default max length for extractive document compression before truncation.
+    generation_compression_max_chars: int = 1500
+    # Truncation marker appended when compressed text still exceeds the char budget.
+    generation_compression_truncation_suffix: str = " [...]"
+    # Score bonus for sentences near the start of a document during extractive compression.
+    generation_compression_position_bonus: float = 0.5
 
     # --- FlashRank Reranking & Ingestion Service Config ---
     use_flashrank: bool = True
@@ -596,7 +638,6 @@ class Settings(BaseSettings):
     context_window_total: int = 8192  # Total context window in tokens
     context_system_prompt_reserve: float = 0.20  # Fraction of budget reserved for system prompt
     context_history_reserve: float = 0.10  # Fraction of budget reserved for conversation history
-    context_budget_enabled: bool = True  # Feature flag: enable context budget manager
 
     # --- Feature flags (Phase 2-3) ---
     phi_accrual_enabled: bool = True

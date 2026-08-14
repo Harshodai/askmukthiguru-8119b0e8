@@ -14,6 +14,13 @@ export interface MessagePayload {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
+export type ResponsePreferenceMode = 'balanced_guidance' | 'concise' | 'reflective_guidance' | 'teaching_explanation';
+export interface ResponsePreferences {
+  mode: ResponsePreferenceMode;
+  includePractice: boolean;
+  includeReflection: boolean;
+  actionDepth: 'none' | 'one_step';
+}
 
 export type AIErrorCode =
   | 'rate_limited'

@@ -56,7 +56,11 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    # Recycle ingestion children both by task count and RSS. Celery expects
+    # this value in kilobytes; 1.5 GB bounds model/client high-water marks
+    # without affecting the parent worker process.
     worker_max_tasks_per_child=10,
+    worker_max_memory_per_child=1_500_000,
     task_acks_late=True,
     task_reject_on_worker_lost=True,
     worker_prefetch_multiplier=1,

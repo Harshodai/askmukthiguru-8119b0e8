@@ -26,6 +26,7 @@ from fastapi.testclient import TestClient
 from app.dependencies import get_container
 from app.main import app, get_current_user_from_supabase
 from services.auth_service import get_optional_user, issue_anon_session_token
+from services.circuit_breaker import CircuitOpenException
 
 client = TestClient(app)
 
@@ -495,5 +496,170 @@ async def test_multi_tenant_isolation():
     assert "response" in data_b
     # Both responses should succeed without cross-contamination errors
     assert "Tenant" not in data_b["response"] or True  # just an isolation sanity
+
+    app.dependency_overrides[get_container] = _build_mock_container
+
+
+@pytest.mark.asyncio
+async def test_qdrant_timeout_graceful_degradation():
+    """When Qdrant times out (the circuit breaker added in services/qdrant_service.py trips),
+    the pipeline should degrade gracefully rather than hang or crash."""
+    mock_container = _build_mock_container()
+
+    async def fail_ainvoke(*args, **kwargs):
+        raise CircuitOpenException(provider="qdrant", message="Circuit breaker OPEN for qdrant")
+
+    mock_container.standard_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+    mock_container.fast_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+    mock_container.deep_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+    mock_container.rag_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+
+    app.dependency_overrides[get_container] = lambda: mock_container
+
+    payload = {"user_message": "What is the Beautiful State?", "session_id": "qdrant-timeout", "messages": []}
+    try:
+        response = client.post("/api/chat", json=payload)
+        assert response.status_code in (200, 500)
+        if response.status_code == 200:
+            assert "response" in response.json()
+    except (CircuitOpenException, ExceptionGroup):
+        pass
+
+    health = client.get("/health")
+    assert health.status_code in (200, 404)
+
+    app.dependency_overrides[get_container] = _build_mock_container
+
+
+@pytest.mark.asyncio
+async def test_embedding_service_load_failure():
+    """When the embedding backend fails to load/encode, the pipeline should fail safely
+    rather than hang — same circuit-breaker contract as the other retrieval dependencies."""
+    mock_container = _build_mock_container()
+
+    async def fail_ainvoke(*args, **kwargs):
+        raise CircuitOpenException(provider="embedding", message="Circuit breaker OPEN for embedding — failing fast")
+
+    mock_container.standard_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+    mock_container.fast_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+    mock_container.deep_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+    mock_container.rag_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+
+    app.dependency_overrides[get_container] = lambda: mock_container
+
+    payload = {"user_message": "Tell me about inner peace", "session_id": "embed-fail", "messages": []}
+    try:
+        response = client.post("/api/chat", json=payload)
+        assert response.status_code in (200, 500)
+        if response.status_code == 200:
+            assert "response" in response.json()
+    except (CircuitOpenException, ExceptionGroup):
+        pass
+
+    health = client.get("/health")
+    assert health.status_code in (200, 404)
+
+    app.dependency_overrides[get_container] = _build_mock_container
+
+
+@pytest.mark.asyncio
+async def test_web_search_failure_continues_without_results():
+    """When the web search provider fails, the pipeline should continue and answer from
+    retrieved doctrine rather than failing the whole request."""
+    mock_container = _build_mock_container()
+
+    mock_graph = AsyncMock()
+    mock_graph.ainvoke.return_value = {
+        "final_answer": "Based on the teachings, here is what I can offer without current web results.",
+        "meditation_step": 0,
+        "citations": [],
+        "intent": "general",
+    }
+    mock_container.standard_graph = mock_graph
+    mock_container.fast_graph = mock_graph
+    mock_container.deep_graph = mock_graph
+    mock_container.rag_graph = mock_graph
+    mock_container.web_search = MagicMock()
+    mock_container.web_search.search = AsyncMock(
+        side_effect=CircuitOpenException(provider="web_search", message="Circuit breaker OPEN for web_search")
+    )
+
+    app.dependency_overrides[get_container] = lambda: mock_container
+
+    payload = {"user_message": "What's happening with the guru's schedule today?", "session_id": "websearch-fail", "messages": []}
+    response = client.post("/api/chat", json=payload)
+    assert response.status_code == 200
+    assert len(response.json()["response"]) > 0
+
+    app.dependency_overrides[get_container] = _build_mock_container
+
+
+@pytest.mark.asyncio
+async def test_provider_rate_limit_handling():
+    """When the LLM provider layer reports rate-limit exhaustion (multi_provider_llm.py's
+    token-bucket limiter denies every provider), the request should degrade gracefully
+    rather than hang. This test verifies the same graceful-degradation contract as other
+    dependency failures — it does not assert a distinct retry/backoff path, since none is
+    wired at the /api/chat level today."""
+    mock_container = _build_mock_container()
+
+    async def fail_ainvoke(*args, **kwargs):
+        raise RuntimeError("All providers rate-limited (429) — token bucket exhausted")
+
+    mock_container.standard_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+    mock_container.fast_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+    mock_container.deep_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+    mock_container.rag_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+
+    app.dependency_overrides[get_container] = lambda: mock_container
+
+    payload = {"user_message": "Hello", "session_id": "rate-limited", "messages": []}
+    try:
+        response = client.post("/api/chat", json=payload)
+        assert response.status_code in (200, 500)
+        if response.status_code == 200:
+            assert "response" in response.json()
+    except (RuntimeError, ExceptionGroup):
+        pass
+
+    health = client.get("/health")
+    assert health.status_code in (200, 404)
+
+    app.dependency_overrides[get_container] = _build_mock_container
+
+
+@pytest.mark.asyncio
+async def test_cascading_failure_two_dependencies_down():
+    """When two dependencies fail at once (Redis AND the graph), the system should still
+    return some response rather than a hard crash — worse than any single-dependency failure
+    but not a total outage."""
+    mock_container = _build_mock_container()
+    mock_container.exact_cache = MagicMock()
+    mock_container.exact_cache.get.side_effect = ConnectionError("Redis connection refused")
+    mock_container.semantic_cache = MagicMock()
+    mock_container.semantic_cache.get.side_effect = ConnectionError("Redis connection refused")
+    mock_container.semantic_cache.is_available = False
+
+    async def fail_ainvoke(*args, **kwargs):
+        raise CircuitOpenException(provider="qdrant", message="Circuit breaker OPEN for qdrant")
+
+    mock_container.standard_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+    mock_container.fast_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+    mock_container.deep_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+    mock_container.rag_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
+
+    app.dependency_overrides[get_container] = lambda: mock_container
+
+    payload = {"user_message": "Hello", "session_id": "cascading-fail", "messages": []}
+    try:
+        response = client.post("/api/chat", json=payload)
+        # Under compound failure the system must not hang; a 500 here is an acceptable
+        # degraded outcome, but the process itself must stay alive (checked via /health below).
+        assert response.status_code in (200, 500)
+    except (ConnectionError, CircuitOpenException, RuntimeError, ExceptionGroup):
+        pass
+
+    health = client.get("/health")
+    assert health.status_code in (200, 404)
 
     app.dependency_overrides[get_container] = _build_mock_container

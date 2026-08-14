@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { useWebPush } from '@/hooks/useWebPush';
+import { useChatCapabilities } from '@/hooks/useChatCapabilities';
 import { Button } from '@/components/ui/button';
 
 const DISMISS_KEY = 'askmukthiguru_push_prompt_dismissed_at';
@@ -12,19 +13,21 @@ const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 export const PushPermissionPrompt = () => {
   const { t } = useTranslation();
   const { supported, permission, subscribed, subscribe, loading } = useWebPush();
+  const { capabilities } = useChatCapabilities();
   const [open, setOpen] = useState(false);
   const isNative = Capacitor.isNativePlatform();
+  const gated = isNative || !capabilities.pushNotifications;
 
   useEffect(() => {
-    if (isNative) return;
+    if (gated) return;
     if (!supported || subscribed || permission === 'denied' || permission === 'unsupported') return;
     const last = Number(localStorage.getItem(DISMISS_KEY) || '0');
     if (Date.now() - last < COOLDOWN_MS) return;
     const timer = setTimeout(() => setOpen(true), 4000);
     return () => clearTimeout(timer);
-  }, [supported, subscribed, permission, isNative]);
+  }, [supported, subscribed, permission, gated]);
 
-  if (isNative) return null;
+  if (gated) return null;
 
   const dismiss = () => {
     localStorage.setItem(DISMISS_KEY, String(Date.now()));

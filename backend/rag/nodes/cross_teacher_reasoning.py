@@ -15,23 +15,49 @@ logger = logging.getLogger(__name__)
 _cache_ttl_seconds = 300
 _neo4j_query_cache: TTLCache = TTLCache(maxsize=500, ttl=_cache_ttl_seconds)
 
-# Shared driver: constructing a driver does a handshake/routing-table fetch,
-# so open one per process and reuse it instead of per-request.
+# Prefer the process-wide Container driver. Standalone tests/scripts retain a
+# bounded fallback driver, but never create one per request.
 _driver = None
+_owns_driver = False
 
 
 def _get_driver():
-    global _driver
+    global _driver, _owns_driver
     if _driver is None:
+        try:
+            from app import dependencies as app_dependencies
+            container = getattr(app_dependencies, "_container", None)
+            shared_driver = container.neo4j_driver if container is not None else None
+            if shared_driver is not None:
+                _driver = shared_driver
+                _owns_driver = False
+                return _driver
+        except Exception as e:
+            logger.debug("cross_teacher_reasoning: shared driver unavailable: %s", e)
         try:
             _driver = GraphDatabase.driver(
                 settings.neo4j_uri,
-                auth=(settings.neo4j_user, settings.neo4j_password)
+                auth=(settings.neo4j_user, settings.neo4j_password),
+                max_connection_pool_size=settings.neo4j_max_connection_pool_size,
+                connection_timeout=settings.neo4j_connection_timeout_s,
+                connection_acquisition_timeout=settings.neo4j_connection_acquisition_timeout_s,
+                max_transaction_retry_time=settings.neo4j_max_transaction_retry_time_s,
+                max_connection_lifetime=settings.neo4j_max_connection_lifetime_s,
+                keep_alive=settings.neo4j_keep_alive,
             )
+            _owns_driver = True
         except Exception as e:
             logger.warning(f"cross_teacher_reasoning: Failed to create Neo4j driver: {e}")
             _driver = None
     return _driver
+
+
+def close_neo4j_driver() -> None:
+    global _driver, _owns_driver
+    if _driver is not None and _owns_driver:
+        _driver.close()
+    _driver = None
+    _owns_driver = False
 
 @trace_rag_node("cross_teacher_reasoning")
 async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dict:

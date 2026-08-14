@@ -13,7 +13,7 @@ import json
 import logging
 import re
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from typing import Any, Optional
 
 from anyio import Lock as AsyncLock
@@ -59,6 +59,16 @@ from rag.prompts import (
 )
 
 logger = logging.getLogger(__name__)
+
+# OpenRouter normally reports the actual charged amount in ``usage.cost``.
+# These model-specific prices are an accounting fallback only: they are used
+# when that field is absent, never when a provider-reported value is present.
+# Keep this table synchronized with the production model configuration and
+# OpenRouter's model pages; the fallback must not influence generation.
+_OPENROUTER_FALLBACK_RATES_PER_MILLION: dict[str, tuple[float, float]] = {
+    "qwen/qwen3-30b-a3b-instruct-2507": (0.04815, 0.1931),
+    "meta-llama/llama-3.1-8b-instruct": (0.02, 0.04),
+}
 
 
 class OpenRouterService:
@@ -182,38 +192,64 @@ class OpenRouterService:
         return int(len(text.split()) * 1.3)
 
     @staticmethod
-    def _usage_cost(usage: dict) -> float:
-        """Read OpenRouter-reported actual cost, rejecting malformed values."""
+    def _usage_cost(usage: Mapping[str, Any] | None) -> float | None:
+        """Read the provider-reported cost; ``None`` means it was omitted."""
+        if not isinstance(usage, Mapping) or "cost" not in usage:
+            return None
         try:
-            value = float((usage or {}).get("cost") or 0.0)
+            value = float(usage.get("cost") or 0.0)
         except (TypeError, ValueError):
-            return 0.0
-        return value if value > 0 else 0.0
+            return None
+        return value if value >= 0 else 0.0
 
+    @staticmethod
+    def _fallback_cost(tokens_in: int, tokens_out: int, model: str) -> float:
+        """Estimate cost only for configured models with known public rates."""
+        input_rate, output_rate = _OPENROUTER_FALLBACK_RATES_PER_MILLION.get(
+            model, (0.0, 0.0)
+        )
+        return max(
+            0.0,
+            (
+                max(0, int(tokens_in)) * input_rate
+                + max(0, int(tokens_out)) * output_rate
+            )
+            / 1_000_000,
+        )
     def _track_token_usage(
         self,
         *,
         tokens_in: int,
         tokens_out: int,
         model: str,
-        cost_usd: float = 0.0,
+        cost_usd: float | None = None,
     ) -> None:
-        """Push token and provider-reported cost into request-scoped accounting."""
+        """Push provider cost or an explicit fallback estimate into accounting."""
         try:
             from services.cost_tracker import token_accumulator_var
-
             acc = token_accumulator_var.get()
             if acc is not None:
                 acc.tokens_in += tokens_in
                 acc.tokens_out += tokens_out
-                acc.cost_usd += max(0.0, cost_usd)
+                if cost_usd is None:
+                    estimated_cost = self._fallback_cost(tokens_in, tokens_out, model)
+                    acc.estimated_cost_usd += estimated_cost
+                    if estimated_cost > 0:
+                        logger.info(
+                            "OpenRouter usage cost missing; using fallback estimate "
+                            "model=%s estimate_usd=%.8f",
+                            model,
+                            estimated_cost,
+                        )
+                else:
+                    acc.cost_usd += max(0.0, cost_usd)
                 acc.model = model
                 acc.provider = "openrouter"
             from app.runtime_metrics import observe_provider_actual_cost
-            observe_provider_actual_cost("openrouter", cost_usd)
+            if cost_usd is not None and cost_usd > 0:
+                observe_provider_actual_cost("openrouter", cost_usd)
         except Exception as exc:
             logger.warning(f"Failed to record openrouter token usage: {exc}")
-
     async def _call_api(
         self,
         messages: list[dict],
@@ -335,13 +371,14 @@ class OpenRouterService:
                     f"out of prompt_tokens={tokens_in} for model={model}"
                 )
 
+            cost_usd = self._usage_cost(usage)
             self._track_token_usage(
                 tokens_in=tokens_in,
                 tokens_out=tokens_out,
                 model=model,
-                cost_usd=self._usage_cost(usage),
+                cost_usd=cost_usd,
             )
-            await reservation.settle(self._usage_cost(usage))
+            await reservation.settle(cost_usd)
 
 
             return content

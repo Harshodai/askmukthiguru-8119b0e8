@@ -2,6 +2,8 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { PanelLeft, PanelLeftClose, Home, Download, Library, EyeOff } from 'lucide-react';
 import { UserMenu } from '@/components/common/UserMenu';
+import { ResponsePreferencesMenu } from './ResponsePreferencesMenu';
+import type { ResponsePreferences } from '@/lib/chat/types';
 import { Button } from '@/components/ui/button';
 
 interface ChatHeaderProps {
@@ -15,6 +17,9 @@ interface ChatHeaderProps {
   hasMessages?: boolean;
   isIncognito?: boolean;
   onCloseIncognito?: () => void;
+  responsePreferences?: ResponsePreferences;
+  onResponsePreferencesChange?: (value: ResponsePreferences) => void;
+  onResetResponsePreferences?: () => void;
 }
 
 export const ChatHeader = ({
@@ -27,6 +32,9 @@ export const ChatHeader = ({
   hasMessages = false,
   isIncognito = false,
   onCloseIncognito,
+  responsePreferences,
+  onResponsePreferencesChange,
+  onResetResponsePreferences,
 }: ChatHeaderProps) => {
   const { t } = useTranslation();
 
@@ -104,6 +112,13 @@ export const ChatHeader = ({
         </div>
 
         <div className="flex items-center gap-1.5">
+          {responsePreferences && onResponsePreferencesChange && onResetResponsePreferences && (
+            <ResponsePreferencesMenu
+              value={responsePreferences}
+              onChange={onResponsePreferencesChange}
+              onReset={onResetResponsePreferences}
+            />
+          )}
           {isIncognito && (
             <span className="text-[10px] text-amber-600/70 hidden sm:block mr-1">{t('chat.incognitoDescription')}</span>
           )}

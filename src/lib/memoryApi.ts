@@ -258,6 +258,53 @@ export const memoryApi = {
     if (error) throw new MemoryApiError('server_error', error.message);
   },
 
+  /** Correct a memory through the ownership-checked backend path. */
+  async edit(memoryId: string, text: string): Promise<void> {
+    const session = await requireSession();
+    if (!BACKEND_URL) throw new MemoryApiError("not_configured", "Memory correction is unavailable.");
+    const res = await fetch(`${BACKEND_URL}/api/memory/edit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ memory_id: memoryId, text: text.trim() }),
+    });
+    if (!res.ok) throw new MemoryApiError(res.status === 401 ? "unauthorized" : "server_error", `Memory correction failed (${res.status}).`, res.status);
+  },
+
+  /** Record explicit consent before the first memory save (backend consent-receipt table). */
+  async recordConsent(granted: boolean, consentVersion = 'v1'): Promise<void> {
+    const session = await requireSession();
+    if (!BACKEND_URL) throw new MemoryApiError("not_configured", "Consent recording is unavailable.");
+    const res = await fetch(`${BACKEND_URL}/api/memory/consent`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ granted, consent_version: consentVersion }),
+    });
+    if (!res.ok) throw new MemoryApiError(res.status === 401 ? "unauthorized" : "server_error", `Consent recording failed (${res.status}).`, res.status);
+  },
+
+  /** Cascade-erase memory across every store (Supabase, Qdrant, Neo4j, second brain). Best-effort per-store. */
+  async deleteAll(): Promise<void> {
+    const session = await requireSession();
+    if (!BACKEND_URL) throw new MemoryApiError("not_configured", "Memory erasure is unavailable.");
+    const res = await fetch(`${BACKEND_URL}/api/memory/all`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) throw new MemoryApiError(res.status === 401 ? "unauthorized" : "server_error", `Memory erasure failed (${res.status}).`, res.status);
+  },
+
+  /** Erase all episodic reflections while preserving explicitly configured core facts. */
+  async forgetAllReflections(): Promise<number> {
+    const session = await requireSession();
+    if (!BACKEND_URL) throw new MemoryApiError("not_configured", "Reflection erasure is unavailable.");
+    const res = await fetch(`${BACKEND_URL}/api/memory/reflections`, {
+      method: "DELETE", headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) throw new MemoryApiError(res.status === 401 ? "unauthorized" : "server_error", `Reflection erasure failed (${res.status}).`, res.status);
+    const data = await res.json() as { deleted?: number };
+    return data.deleted ?? 0;
+  },
+
   /** Get the current user's core (stable identity) memory, or null if unset. */
   async getCore(): Promise<CoreMemory | null> {
     const session = await supabase.auth.getSession();

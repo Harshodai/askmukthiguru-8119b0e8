@@ -30,6 +30,16 @@ class NotebookItemRequest(BaseModel):
     answer: str = Field(..., max_length=50000)
     citations: list[dict] = []
     source_episode_id: Optional[str] = None
+class UpdateNotebookItemRequest(BaseModel):
+    answer: str = Field(..., min_length=1, max_length=50000)
+    @field_validator("answer")
+    @classmethod
+    def _strip_answer(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("answer must not be empty or whitespace only")
+        return v
+
 
 
 @router.post("/notebooks")
@@ -89,6 +99,22 @@ async def add_item(
         raise HTTPException(status_code=500, detail="Could not add item. Please try again.")
     return result
 
+
+@router.patch("/notebooks/{notebook_id}/items/{item_id}")
+async def update_item(
+    notebook_id: str,
+    item_id: str,
+    body: UpdateNotebookItemRequest,
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+):
+    svc = getattr(container, "notebook_service", None)
+    if not svc or not svc.available:
+        raise HTTPException(status_code=503, detail="Notebooks are not available at this time.")
+    result = await svc.update_item(user["id"], notebook_id, item_id, body.answer)
+    if not result:
+        raise HTTPException(status_code=404, detail="Notebook item not found")
+    return result
 
 @router.get("/notebooks/{notebook_id}/items")
 async def list_items(

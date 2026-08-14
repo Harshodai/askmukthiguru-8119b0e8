@@ -20,6 +20,20 @@ class _Response:
         }
 
 
+class _ResponseWithoutCost:
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {
+            "choices": [{"message": {"content": "Grounded guidance."}}],
+            "usage": {
+                "prompt_tokens": 1_000,
+                "completion_tokens": 2_000,
+            },
+        }
+
+
 @pytest.mark.asyncio
 async def test_openrouter_policy_caps_request_and_records_actual_usage(monkeypatch):
     captured = {}
@@ -49,3 +63,42 @@ async def test_openrouter_policy_caps_request_and_records_actual_usage(monkeypat
     assert accumulator.tokens_in == 120
     assert accumulator.tokens_out == 40
     assert accumulator.cost_usd == pytest.approx(0.0125)
+    assert accumulator.estimated_cost_usd == 0.0
+
+
+@pytest.mark.asyncio
+async def test_openrouter_missing_cost_uses_model_rate_without_changing_answer(monkeypatch):
+    class _Client:
+        async def post(self, url, json=None, **kwargs):
+            return _ResponseWithoutCost()
+
+    async def _client(self):
+        return _Client()
+
+    monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
+    monkeypatch.setattr(
+        settings,
+        "openrouter_generation_model",
+        "qwen/qwen3-30b-a3b-instruct-2507",
+    )
+    monkeypatch.setattr(OpenRouterService, "_get_http_client", _client)
+    service = OpenRouterService()
+    accumulator = TokenAccumulator()
+    token = token_accumulator_var.set(accumulator)
+    try:
+        answer = await service.generate("system", "question", max_tokens=1600)
+    finally:
+        token_accumulator_var.reset(token)
+
+    assert answer == "Grounded guidance."
+    assert accumulator.cost_usd == 0.0
+    assert accumulator.estimated_cost_usd == pytest.approx(
+        (1_000 * 0.04815 + 2_000 * 0.1931) / 1_000_000
+    )
+
+
+def test_openrouter_usage_cost_distinguishes_missing_and_zero():
+    assert OpenRouterService._usage_cost({}) is None
+    assert OpenRouterService._usage_cost({"cost": None}) == 0.0
+    assert OpenRouterService._usage_cost({"cost": "0.0125"}) == pytest.approx(0.0125)
+    assert OpenRouterService._usage_cost({"cost": "invalid"}) is None

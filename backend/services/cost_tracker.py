@@ -42,10 +42,12 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from threading import Lock
 from typing import Optional
 
-from app.config import get_settings
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +57,37 @@ _COST_RATES: dict[str, float] = {
     "krutrim": 0.001,
     "openai": 0.002,
 }
+_COST_QUANT = Decimal("0.00000001")
+_MONEY_QUANT = Decimal("0.000001")
+_ZERO = Decimal("0")
+
+
+def _non_negative_int(value: object) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _non_negative_decimal(value: object) -> Decimal:
+    try:
+        return max(_ZERO, Decimal(str(value or 0)))
+    except (InvalidOperation, TypeError, ValueError):
+        return _ZERO
+
+
+def _rounded_float(value: Decimal, quantum: Decimal = _MONEY_QUANT) -> float:
+    return float(value.quantize(quantum, rounding=ROUND_HALF_UP))
 
 
 def _calculate_cost(tokens_in: int, tokens_out: int, provider: str) -> float:
-    rate = _COST_RATES.get(provider.lower(), 0.0)
-    total_tokens = tokens_in + tokens_out
-    return round((total_tokens / 1000) * rate, 8)
+    provider_key = (provider or "").lower()
+    rate = _non_negative_decimal(_COST_RATES.get(provider_key, 0.0))
+    total_tokens = _non_negative_int(tokens_in) + _non_negative_int(tokens_out)
+    return _rounded_float(
+        (Decimal(total_tokens) / Decimal(1000)) * rate,
+        _COST_QUANT,
+    )
 
 
 def _get_client():
@@ -68,7 +95,14 @@ def _get_client():
     return _supa_client()
 
 
-UTC = timezone.utc
+UTC = UTC
+
+# ponytail: process-local, once-per-hour gate on the budget check so `record()`
+# doesn't run an extra Supabase query on every single call. Per-instance only —
+# fine for a soft log alert, not a source of truth for enforcement.
+_LAST_BUDGET_CHECK: dict[str, float] = {}
+_BUDGET_CHECK_INTERVAL_SECONDS = 3600
+_BUDGET_CHECK_LOCK = Lock()
 
 
 @dataclass
@@ -101,27 +135,62 @@ class CostTracker:
         endpoint: str = "/api/chat",
         cost_override: Optional[float] = None,
     ) -> None:
-        cost = cost_override if cost_override is not None else _calculate_cost(
-            tokens_in, tokens_out, provider
-        )
+        normalized_tenant = tenant_id or "default"
+        normalized_tokens_in = _non_negative_int(tokens_in)
+        normalized_tokens_out = _non_negative_int(tokens_out)
+        if cost_override is None:
+            cost = _calculate_cost(normalized_tokens_in, normalized_tokens_out, provider)
+        else:
+            cost = _rounded_float(_non_negative_decimal(cost_override), _COST_QUANT)
+
         client = _get_client()
         if not client:
             logger.warning("Supabase client unavailable — skipping cost record")
             return
         try:
             client.table("token_usage").insert({
-                "tenant_id": tenant_id,
-                "user_id": user_id,
-                "session_id": session_id,
-                "model": model,
-                "provider": provider,
-                "tokens_in": tokens_in,
-                "tokens_out": tokens_out,
+                "tenant_id": normalized_tenant,
+                "user_id": user_id or "",
+                "session_id": session_id or "",
+                "model": model or "",
+                "provider": provider or "ollama",
+                "tokens_in": normalized_tokens_in,
+                "tokens_out": normalized_tokens_out,
                 "cost_usd": cost,
-                "endpoint": endpoint,
+                "endpoint": endpoint or "/api/chat",
             }).execute()
         except Exception as e:
             logger.error(f"Failed to record token usage: {e}")
+            return
+        self._maybe_check_budget(normalized_tenant)
+
+    def _maybe_check_budget(self, tenant_id: str) -> None:
+        tenant_key = tenant_id or "default"
+        now = time.monotonic()
+        with _BUDGET_CHECK_LOCK:
+            last_check = _LAST_BUDGET_CHECK.get(tenant_key)
+            if last_check is not None and now - last_check < _BUDGET_CHECK_INTERVAL_SECONDS:
+                return
+            _LAST_BUDGET_CHECK[tenant_key] = now
+
+        try:
+            today = self.get_daily_usage(tenant_key, days=1)
+        except Exception as e:
+            logger.error(f"Budget check failed to fetch daily usage: {e}")
+            with _BUDGET_CHECK_LOCK:
+                _LAST_BUDGET_CHECK.pop(tenant_key, None)
+            return
+        if not today:
+            return
+        today_cost = _non_negative_decimal(today[0].get("cost_usd"))
+        projected_monthly = today_cost * 30
+        budget = _non_negative_decimal(settings.monthly_cost_budget_usd)
+        if projected_monthly > budget:
+            logger.warning(
+                "Cost budget alert: tenant=%s today=$%.4f projected_monthly=$%.2f "
+                "exceeds budget=$%.2f (~₹3,000/month envelope)",
+                tenant_key, float(today_cost), float(projected_monthly), float(budget),
+            )
 
     def get_usage_report(
         self,
@@ -139,9 +208,9 @@ class CostTracker:
             )
 
         since = datetime.now(UTC) - __import__("datetime").timedelta(days=days)
-
-        query = client.table("token_usage").select("*")
-        query = query.gte("created_at", since.isoformat())
+        query = client.table("token_usage").select(
+            "user_id,session_id,model,provider,tokens_in,tokens_out,cost_usd"
+        ).gte("created_at", since.isoformat())
         if tenant_id:
             query = query.eq("tenant_id", tenant_id)
         if user_id:
@@ -153,31 +222,50 @@ class CostTracker:
             logger.error(f"Failed to fetch usage report: {e}")
             rows = []
 
-        total_in = sum(r.get("tokens_in", 0) or 0 for r in rows)
-        total_out = sum(r.get("tokens_out", 0) or 0 for r in rows)
-        total_cost = sum(float(r.get("cost_usd", 0) or 0) for r in rows)
-        unique_users = len({r["user_id"] for r in rows if r.get("user_id")})
-        unique_sessions = len({r["session_id"] for r in rows if r.get("session_id")})
+        total_in = 0
+        total_out = 0
+        total_cost = _ZERO
+        users: set[object] = set()
+        sessions: set[object] = set()
+        by_model: dict[str, dict[str, object]] = {}
+        by_provider: dict[str, dict[str, object]] = {}
 
-        by_model: dict[str, dict] = {}
-        for r in rows:
-            m = r.get("model", "unknown")
-            if m not in by_model:
-                by_model[m] = {"tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "calls": 0}
-            by_model[m]["tokens_in"] += r.get("tokens_in", 0) or 0
-            by_model[m]["tokens_out"] += r.get("tokens_out", 0) or 0
-            by_model[m]["cost_usd"] += float(r.get("cost_usd", 0) or 0)
-            by_model[m]["calls"] += 1
+        for row in rows:
+            tokens_in = _non_negative_int(row.get("tokens_in"))
+            tokens_out = _non_negative_int(row.get("tokens_out"))
+            cost = _non_negative_decimal(row.get("cost_usd"))
+            total_in += tokens_in
+            total_out += tokens_out
+            total_cost += cost
+            if row.get("user_id"):
+                users.add(row["user_id"])
+            if row.get("session_id"):
+                sessions.add(row["session_id"])
 
-        by_provider: dict[str, dict] = {}
-        for r in rows:
-            p = r.get("provider", "unknown")
-            if p not in by_provider:
-                by_provider[p] = {"tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "calls": 0}
-            by_provider[p]["tokens_in"] += r.get("tokens_in", 0) or 0
-            by_provider[p]["tokens_out"] += r.get("tokens_out", 0) or 0
-            by_provider[p]["cost_usd"] += float(r.get("cost_usd", 0) or 0)
-            by_provider[p]["calls"] += 1
+            model = row.get("model") or "unknown"
+            provider = row.get("provider") or "unknown"
+            for bucket, key in ((by_model, model), (by_provider, provider)):
+                if key not in bucket:
+                    bucket[key] = {
+                        "tokens_in": 0, "tokens_out": 0,
+                        "cost_usd": _ZERO, "calls": 0,
+                    }
+                details = bucket[key]
+                details["tokens_in"] += tokens_in
+                details["tokens_out"] += tokens_out
+                details["cost_usd"] += cost
+                details["calls"] += 1
+
+        def finalize(bucket: dict[str, dict[str, object]]) -> dict[str, dict]:
+            return {
+                key: {
+                    "tokens_in": int(value["tokens_in"]),
+                    "tokens_out": int(value["tokens_out"]),
+                    "cost_usd": _rounded_float(value["cost_usd"]),
+                    "calls": int(value["calls"]),
+                }
+                for key, value in bucket.items()
+            }
 
         return UsageReport(
             tenant_id=tenant_id or "all",
@@ -185,11 +273,11 @@ class CostTracker:
             total_tokens_in=total_in,
             total_tokens_out=total_out,
             total_tokens=total_in + total_out,
-            total_cost_usd=round(total_cost, 6),
-            unique_users=unique_users,
-            unique_sessions=unique_sessions,
-            by_model=by_model,
-            by_provider=by_provider,
+            total_cost_usd=_rounded_float(total_cost),
+            unique_users=len(users),
+            unique_sessions=len(sessions),
+            by_model=finalize(by_model),
+            by_provider=finalize(by_provider),
         )
 
     def get_daily_usage(self, tenant_id: str, days: int = 7) -> list[dict]:
@@ -201,7 +289,7 @@ class CostTracker:
         try:
             rows = (
                 client.table("token_usage")
-                .select("*")
+                .select("created_at,tokens_in,tokens_out,cost_usd")
                 .eq("tenant_id", tenant_id)
                 .gte("created_at", since.isoformat())
                 .execute()
@@ -211,27 +299,29 @@ class CostTracker:
             logger.error(f"Failed to fetch daily usage: {e}")
             return []
 
-        day_buckets: dict[str, dict] = {}
-        for r in rows:
-            raw = r.get("created_at")
+        day_buckets: dict[str, dict[str, object]] = {}
+        for row in rows:
+            raw = row.get("created_at")
             if not raw:
                 continue
-            day = raw[:10]
-            if day not in day_buckets:
-                day_buckets[day] = {"tokens": 0, "cost": 0.0, "calls": 0}
-            day_buckets[day]["tokens"] += (r.get("tokens_in", 0) or 0) + (r.get("tokens_out", 0) or 0)
-            day_buckets[day]["cost"] += float(r.get("cost_usd", 0) or 0)
-            day_buckets[day]["calls"] += 1
+            day = str(raw)[:10]
+            bucket = day_buckets.setdefault(
+                day, {"tokens": 0, "cost": _ZERO, "calls": 0}
+            )
+            bucket["tokens"] += _non_negative_int(row.get("tokens_in"))
+            bucket["tokens"] += _non_negative_int(row.get("tokens_out"))
+            bucket["cost"] += _non_negative_decimal(row.get("cost_usd"))
+            bucket["calls"] += 1
 
-        result = []
-        for day, vals in sorted(day_buckets.items(), reverse=True):
-            result.append({
+        return [
+            {
                 "date": day,
-                "total_tokens": vals["tokens"],
-                "cost_usd": round(vals["cost"], 6),
-                "calls": vals["calls"],
-            })
-        return result
+                "total_tokens": int(values["tokens"]),
+                "cost_usd": _rounded_float(values["cost"]),
+                "calls": int(values["calls"]),
+            }
+            for day, values in sorted(day_buckets.items(), reverse=True)
+        ]
 
 
 # Singleton
@@ -255,7 +345,10 @@ class TokenAccumulator:
     tokens_out: int = 0
     model: str = ""
     provider: str = ""
+    # Provider-reported cost is kept separate from a model-rate fallback so
+    # runtime metrics never label an estimate as actual provider spend.
     cost_usd: float = 0.0
+    estimated_cost_usd: float = 0.0
 
 
 token_accumulator_var: ContextVar[Optional[TokenAccumulator]] = ContextVar("token_accumulator", default=None)

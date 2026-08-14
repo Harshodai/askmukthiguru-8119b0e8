@@ -190,6 +190,7 @@ def record_token_usage(endpoint: str):
                 acc = token_accumulator_var.get()
                 if acc and (acc.tokens_in > 0 or acc.tokens_out > 0):
                     try:
+                        tracked_cost = acc.cost_usd + acc.estimated_cost_usd
                         get_cost_tracker().record(
                             tenant_id=TenantContext.get(),
                             user_id=user_id,
@@ -199,7 +200,7 @@ def record_token_usage(endpoint: str):
                             tokens_in=acc.tokens_in,
                             tokens_out=acc.tokens_out,
                             endpoint=endpoint,
-                            cost_override=acc.cost_usd if acc.cost_usd > 0 else None,
+                            cost_override=tracked_cost if tracked_cost > 0 else None,
 
                         )
                     except Exception as e:

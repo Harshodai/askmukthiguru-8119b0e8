@@ -51,6 +51,8 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
                 settings.waitlist_enabled,
                 getattr(container, "supabase_client", None) is not None,
             ),
+            "google_sso": _state(settings.google_sso_enabled),
+            "push_notifications": _state(settings.push_notifications_enabled),
         },
     }
 

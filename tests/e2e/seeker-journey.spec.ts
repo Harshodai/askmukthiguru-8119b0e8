@@ -30,7 +30,7 @@ test.describe('Seeker Journey', () => {
   });
 
   // 2. Comprehensive Multilingual STT/TTS E2E Integration Flow
-  test('complete chat session with STT, automatic language detection, and TTS fallback warning', async ({ page }) => {
+  test('complete chat session with STT, automatic language detection, and native TTS fallback', async ({ page }) => {
     // Console log listener for debugging
     page.on('console', msg => console.log(`[BROWSER LOG] [${msg.type()}] ${msg.text()}`));
     page.on('pageerror', err => console.log(`[PAGE ERROR] ${err.message}\n${err.stack}`));
@@ -116,8 +116,10 @@ test.describe('Seeker Journey', () => {
       }
     });
 
+    let ttsRequestCount = 0;
     await page.route(/\/api\/speech\/tts/, async (route) => {
       const request = route.request();
+      if (request.method() !== 'OPTIONS') ttsRequestCount += 1;
       if (request.method() === 'OPTIONS') {
         await route.fulfill({
           status: 200,
@@ -160,7 +162,7 @@ test.describe('Seeker Journey', () => {
             id: 'mock-user-uuid',
             aud: 'authenticated',
             role: 'authenticated',
-            email: 'seeker@example.com',
+            email: 'seeker@gmail.com',
             email_confirmed_at: '2026-05-20T00:00:00Z',
             user_metadata: {
               full_name: 'Test Seeker',
@@ -198,7 +200,7 @@ test.describe('Seeker Journey', () => {
               id: 'mock-user-uuid',
               aud: 'authenticated',
               role: 'authenticated',
-              email: 'seeker@example.com',
+              email: 'seeker@gmail.com',
               email_confirmed_at: '2026-05-20T00:00:00Z',
               user_metadata: {
                 full_name: 'Test Seeker',
@@ -419,7 +421,7 @@ test.describe('Seeker Journey', () => {
           id: 'mock-user-uuid',
           aud: 'authenticated',
           role: 'authenticated',
-          email: 'seeker@example.com',
+          email: 'seeker@gmail.com',
           email_confirmed_at: '2026-05-20T00:00:00Z',
           user_metadata: {
             full_name: 'Test Seeker',
@@ -440,6 +442,7 @@ test.describe('Seeker Journey', () => {
         guruTone: 'gentle',
         theme: 'dark',
         ttsEnabled: true,
+        voiceAutoplay: true,
         ttsRate: 0.9,
         meditationReminders: false,
         reminderTimeMinutes: 420,
@@ -459,6 +462,10 @@ test.describe('Seeker Journey', () => {
       localStorage.setItem('sb-127.0.0.1-auth-token', JSON.stringify(mockSession));
       localStorage.setItem('sb-127-auth-token', JSON.stringify(mockSession));
       localStorage.setItem('askmukthiguru_profile', JSON.stringify(mockProfile));
+      // Keep the unrelated onboarding overlay from covering this chat-flow test.
+      localStorage.setItem('askmukthiguru_tour_completed', '1');
+      // Keep the consent banner from intercepting microphone/chat controls.
+      localStorage.setItem('askmukthiguru_consent_v1', 'rejected');
 
        const mockConversations = [{
           id: '00000000-0000-4000-8000-000000000003',
@@ -553,9 +560,12 @@ test.describe('Seeker Journey', () => {
       };
 
       // 4. Mock SpeechSynthesis API on prototype to override read-only properties
+      const testWindow = window as unknown as { __mockTtsSpeakCount?: number };
+      testWindow.__mockTtsSpeakCount = 0;
       if (typeof SpeechSynthesis !== 'undefined') {
         SpeechSynthesis.prototype.getVoices = () => [];
         SpeechSynthesis.prototype.speak = function (utterance: SpeechSynthesisUtterance) {
+          testWindow.__mockTtsSpeakCount = (testWindow.__mockTtsSpeakCount ?? 0) + 1;
           setTimeout(() => {
             if (typeof utterance.onstart === 'function') {
               utterance.onstart();
@@ -573,20 +583,10 @@ test.describe('Seeker Journey', () => {
       }
     });
 
-    // C. Visit `/chat`
-    await page.goto('/chat');
+    // C. Visit `/chat` and wait for the prerendered shell to hydrate before
+    // interacting with React controls.
+    await page.goto('/chat', { waitUntil: 'networkidle' });
 
-    // Print window.location and localStorage to see why it redirected
-    const debugInfo = await page.evaluate(() => {
-      return {
-        url: window.location.href,
-        localStorageKeys: Object.keys(localStorage),
-        localStorageDemoToken: localStorage.getItem('sb-supabase-demo-auth-token'),
-        localStorageProdToken: localStorage.getItem('sb-ozmjeuqbholoxypfxixb-auth-token'),
-        sessionStorageKeys: Object.keys(sessionStorage),
-      };
-    });
-    console.log("DEBUG INFO AT START:", JSON.stringify(debugInfo, null, 2));
 
     // D. Validate Language Hydration (Preferred language from profile is Hindi)
     // The language picker button should display the native name for Hindi: 'हिन्'
@@ -640,10 +640,13 @@ test.describe('Seeker Journey', () => {
     const guruResponseBubble = page.locator('.message-bubble').last();
     await expect(guruResponseBubble).toContainText('ప్రణామం, నేను మీకు సహాయం చేయగలను.', { timeout: 15000 });
 
-    // I. Verify graceful fallback warning is displayed on TTS failure
-    const errorToastTitle = page.locator('text=Voice Output Notice').last();
-    await expect(errorToastTitle).toBeVisible({ timeout: 15000 });
-    const errorToastDesc = page.locator("text=Voice output isn't available for Telugu right now. Showing text only.").last();
-    await expect(errorToastDesc).toBeVisible({ timeout: 15000 });
+    // I. Verify the failed backend TTS request falls back to native speech
+    // without blocking the assistant response. The current product behavior
+    // is intentionally silent when native speech succeeds.
+    expect(ttsRequestCount).toBeGreaterThan(0);
+    const nativeTtsSpeakCount = await page.evaluate(() =>
+      (window as unknown as { __mockTtsSpeakCount?: number }).__mockTtsSpeakCount ?? 0,
+    );
+    expect(nativeTtsSpeakCount).toBeGreaterThan(0);
   });
 });

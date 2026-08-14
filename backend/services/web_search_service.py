@@ -28,6 +28,11 @@ import re
 from typing import Any, Optional
 from urllib.parse import urlparse
 
+from services.circuit_breaker import (
+    CircuitBreakerConfig,
+    CircuitOpenException,
+    DefaultCircuitBreaker,
+)
 from services.web_search_guardrails import (
     SearchRateLimiter,
     apply_input_guardrails,
@@ -190,6 +195,9 @@ class WebSearchService:
         self.max_results = max_results
         self.provider_name = provider.lower()
         self._rate_limiter = rate_limiter or SearchRateLimiter()
+        # Provider-agnostic circuit breaker (no dedicated CircuitBreakerProvider
+        # entry for web search; from_provider() falls back to default thresholds).
+        self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("web_search"))
 
         if self.provider_name == "searxng" and searxng_url:
             self._provider: SearchProvider = SearXNGProvider(searxng_url)
@@ -248,9 +256,20 @@ class WebSearchService:
         self._rate_limiter.record_search(user_id)
 
         # ── Layer 3: Execute Search ─────────────────────────────────────
+        if not self._circuit.can_execute():
+            exc = CircuitOpenException(
+                provider=self.provider_name,
+                message=f"Circuit breaker OPEN for web search provider '{self.provider_name}'",
+            )
+            logger.warning(str(exc))
+            log_search_audit(sanitized_query, 0, user_id, flags=["circuit_open"])
+            return []
+
         try:
             raw_results = await self._provider.search(sanitized_query, self.max_results * 3)
+            self._circuit.record_success()
         except Exception as exc:
+            self._circuit.record_failure()
             logger.warning(f"Web search provider failed: {exc}")
             log_search_audit(sanitized_query, 0, user_id, flags=["provider_error"])
             return []

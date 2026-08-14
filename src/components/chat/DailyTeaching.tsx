@@ -20,6 +20,10 @@ export const DailyTeaching = () => {
   const [dismissedId, setDismissedId] = useState<string | null>(
     () => localStorage.getItem(DISMISSED_KEY),
   );
+  // Keep dismissal state synchronous so an in-flight refresh cannot reopen
+  // the same teaching after the user has just dismissed it.
+  const dismissedIdRef = useRef<string | null>(dismissedId);
+  const teachingRef = useRef<DailyTeachingData | null>(null);
   const retryCount = useRef(0);
 
   const fetchTeaching = useCallback(async () => {
@@ -56,18 +60,22 @@ export const DailyTeaching = () => {
     const oldDismissed = localStorage.getItem(DISMISSED_KEY);
     if (oldDismissed && oldDismissed !== data.id) {
       localStorage.removeItem(DISMISSED_KEY);
+      dismissedIdRef.current = null;
       setDismissedId(null);
     }
 
     setImageError(false);
-    setTeaching({
+    const nextTeaching: DailyTeachingData = {
       id: data.id,
       imageUrl: data.image_url,
       caption: data.caption ? data.caption.replace(/^\[Source:\s*[^\]]+\]\s*/i, '') : undefined,
-    });
+    };
+    teachingRef.current = nextTeaching;
+    setTeaching(nextTeaching);
 
     const prePracticeCompleted = sessionStorage.getItem('askmukthiguru_pre_practice_asked') === '1';
-    if (prePracticeCompleted && data.id !== oldDismissed) {
+    const currentDismissedId = localStorage.getItem(DISMISSED_KEY) ?? dismissedIdRef.current;
+    if (prePracticeCompleted && data.id !== currentDismissedId) {
       setIsOpen(true);
     }
   }, []);
@@ -96,13 +104,16 @@ export const DailyTeaching = () => {
 
     const handlePrePracticeCompleted = () => {
       const prePracticeCompleted = sessionStorage.getItem('askmukthiguru_pre_practice_asked') === '1';
-      if (prePracticeCompleted) {
+      const activeTeachingId = localStorage.getItem(DISMISSED_KEY);
+      const currentTeachingId = teachingRef.current?.id;
+      if (prePracticeCompleted && currentTeachingId && currentTeachingId !== activeTeachingId) {
         setIsOpen(true);
       }
     };
 
     const handleMeditationCompleted = () => {
       localStorage.removeItem(DISMISSED_KEY);
+      dismissedIdRef.current = null;
       setDismissedId(null);
       retryCount.current = 0;
       fetchTeaching();
@@ -121,6 +132,7 @@ export const DailyTeaching = () => {
 
   const handleDismiss = () => {
     if (!teaching) return;
+    dismissedIdRef.current = teaching.id;
     setDismissedId(teaching.id);
     localStorage.setItem(DISMISSED_KEY, teaching.id);
     setIsOpen(false);
