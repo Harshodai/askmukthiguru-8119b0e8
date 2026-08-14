@@ -5,15 +5,20 @@ import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode, command }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+  const fileEnv = loadEnv(mode, process.cwd(), "");
+  // Hosted builders (Lovable, Railway, CI) inject config through process.env and
+  // never ship a .env file — merge both so the guard below only fires when the
+  // values are genuinely absent everywhere.
+  const env = { ...fileEnv, ...(process.env as Record<string, string>) };
   const backend = env.VITE_BACKEND_URL || "http://localhost:8000";
   const isProd = mode === "production";
   if (
     command === "build" &&
+    isProd &&
     (!env.VITE_SUPABASE_URL || !env.VITE_SUPABASE_PUBLISHABLE_KEY)
   ) {
     throw new Error(
-      "VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must be set for a build. " +
+      "VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must be set for a production build. " +
         "Add them to .env (or .env.production) — the frontend no longer falls back to the production Supabase project.",
     );
   }
