@@ -62,6 +62,11 @@ except Exception:  # pragma: no cover - prometheus absent on minimal hosts
 
     ontology_contradiction_count = _NoopGauge()
 
+try:
+    from app.metrics import CONTRADICTION_DETECTIONS
+except Exception:  # pragma: no cover - metrics module unavailable on minimal hosts
+    CONTRADICTION_DETECTIONS = None
+
 
 # ---------------------------------------------------------------------------
 # ValidationResult
@@ -207,6 +212,11 @@ class OntologyValidator:
                 ontology_contradiction_count.inc(len(contradictions))
             except Exception:  # pragma: no cover - gauge defensive
                 pass
+            if CONTRADICTION_DETECTIONS is not None:
+                try:
+                    CONTRADICTION_DETECTIONS.inc(len(contradictions))
+                except Exception:  # pragma: no cover - counter defensive
+                    pass
 
         return ValidationResult(
             supported_facts=supported,

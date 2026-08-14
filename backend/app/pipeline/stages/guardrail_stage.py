@@ -32,7 +32,17 @@ class CircuitBreakerStage(Stage):
     async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
         if ctx.coordinator._is_circuit_open():
             ctx.last_stage_status = "error"
-            return ctx.coordinator._circuit_open_result(ctx.is_benchmark, ctx.start_time)
+            result = ctx.coordinator._circuit_open_result(ctx.is_benchmark, ctx.start_time)
+            # This stage short-circuits before TranslationStage ever runs -- an
+            # Indic user would otherwise get the English fallback verbatim.
+            if getattr(ctx, "is_indic", False):
+                import dataclasses
+
+                translated = await ctx.container.translation.translate_text(
+                    text=result.final_answer, source_lang="en", target_lang=ctx.preferred_lang
+                )
+                result = dataclasses.replace(result, final_answer=translated)
+            return result
         return None
 
 

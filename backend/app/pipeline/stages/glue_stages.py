@@ -313,4 +313,29 @@ class ResultAssemblyStage(Stage):
                 ctx.citations,
             ),
         )
+
+        # GDPR audit trail (Unit 24) -- previously wired for reads
+        # (list_sessions_for_user) but never fed a single write, so the audit
+        # trail was always empty. Same incognito boundary as telemetry/memory.
+        if not ctx.incognito:
+            try:
+                from services.tenant_context import TenantContext
+
+                compliance_logger = getattr(ctx.container, "compliance_logger", None)
+                if compliance_logger is not None:
+                    compliance_logger.log_interaction(
+                        tenant_id=TenantContext.get() or "default",
+                        user_id=ctx.user_id,
+                        session_id=ctx.session_id or ctx.stable_session_id,
+                        action="generate",
+                        model=ctx.result.model_used or "",
+                        system_prompt="",
+                        user_prompt=ctx.user_msg,
+                        response=ctx.result.final_answer or "",
+                        latency_ms=ctx.result.latency_ms,
+                        status="error" if ctx.last_stage_status == "error" else "ok",
+                    )
+            except Exception as exc:
+                logger.debug("ComplianceLogger.log_interaction failed: %s", exc)
+
         return ctx.result
