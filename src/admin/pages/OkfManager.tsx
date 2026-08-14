@@ -17,6 +17,20 @@ import {
 
 const TYPES = ["teaching", "practice", "glossary", "qa", "reflection"];
 
+type ReviewEntry = {
+  type?: string;
+  title?: string;
+  body?: string;
+};
+
+function getReviewEntry(entry: Record<string, unknown>): ReviewEntry {
+  return {
+    type: typeof entry.type === "string" ? entry.type : undefined,
+    title: typeof entry.title === "string" ? entry.title : undefined,
+    body: typeof entry.body === "string" ? entry.body : undefined,
+  };
+}
+
 function VerifiedBadge({ verified }: { verified?: { by: string; at: string } }) {
   if (!verified) return <Badge variant="outline" className="text-amber-400 border-amber-500/30">unverified</Badge>;
   const isHuman = verified.by?.startsWith("human:");
@@ -201,7 +215,7 @@ export default function OkfManagerPage() {
               ) : (
                 <div className="space-y-4">
                   {reviewItems.map((item) => {
-                    const entry = (item.entry_json ?? {}) as Record<string, any>;
+                    const entry = getReviewEntry(item.entry_json ?? {});
                     return (
                       <div key={item.id} className="border rounded-lg p-4 space-y-3">
                         <div className="flex items-start justify-between gap-4">

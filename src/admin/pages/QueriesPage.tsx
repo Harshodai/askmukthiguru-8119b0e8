@@ -35,7 +35,7 @@ interface QueryItem {
   prompt_version_id?: string;
   latency_ms?: number;
   status: string;
-  spans?: Array<{ name?: string; duration_ms?: number }>;
+  spans?: Array<{ id?: string; name?: string; duration_ms?: number }>;
 }
 
 export default function QueriesPage() {
@@ -286,9 +286,9 @@ export default function QueriesPage() {
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-1">
                         <span className="tabular-nums text-xs font-mono">{fmtMs(q.latency_ms)}</span>
-                        {(q as any).spans && (q as any).spans.length > 0 && (
+                        {q.spans && q.spans.length > 0 && (
                           <div className="flex h-1.5 w-24 rounded-full overflow-hidden bg-muted">
-                            {(q as any).spans.map((span) => {
+                            {q.spans.map((span, index) => {
                               const colors: Record<string, string> = {
                                 guardrails_in: "bg-slate-400",
                                 embed: "bg-sky-400",
@@ -298,11 +298,11 @@ export default function QueriesPage() {
                                 judge: "bg-amber-500",
                                 guardrails_out: "bg-slate-400",
                               };
-                              const pct = Math.max(2, (span.duration_ms / (q.latency_ms || 1)) * 100);
+                              const pct = Math.max(2, ((span.duration_ms ?? 0) / (q.latency_ms || 1)) * 100);
                               return (
                                 <div
-                                  key={span.id}
-                                  className={colors[span.name] || "bg-gray-400"}
+                                  key={span.id ?? `${span.name ?? "span"}-${index}`}
+                                  className={colors[span.name ?? ""] || "bg-gray-400"}
                                   style={{ width: `${pct}%` }}
                                   title={`${span.name}: ${span.duration_ms}ms`}
                                 />

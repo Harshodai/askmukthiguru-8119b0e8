@@ -10,6 +10,8 @@ export default tseslint.config(
       "dist",
       "dist/**",
       "node_modules",
+      ".tmp_release_evidence",
+      ".tmp_release_evidence/**",
       "node_modules/**",
       ".venv",
       ".venv/**",
