@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
 import { evidenceSupport } from '@/lib/chat/evidenceSupport';
+import { cn } from '@/lib/utils';
 import { useProfile } from '@/hooks/useProfile';
 import { translateText } from '@/lib/aiService';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
@@ -372,6 +373,13 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const citations = (message.citations && message.citations.length > 0)
       ? message.citations
       : inlineUrls;
+
+    // Attribution integrity: a quoted teacher statement with no linked source
+    // must be labelled unverified rather than rendered as doctrine (QA P1).
+    const hasUnverifiedAttribution = useMemo(() => {
+      if (!isGuru || citations.length > 0) return false;
+      return /(?:Sri\s+(?:Preethaji|Krishnaji)|Preethaji|Krishnaji)[^.\n]{0,60}["“'']/.test(message.content);
+    }, [isGuru, citations.length, message.content]);
 
     const [showWisdomCard, setShowWisdomCard] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -991,19 +999,31 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             )}
 
             {/* Sources / Citations — collapsed by default, max 3 shown inline */}
-            {isGuru && !isStreaming && (citations.length > 0 || typeof message.confidenceScore === 'number') && (
+            {isGuru && !isStreaming && (citations.length > 0 || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (
               <div
                 data-testid="response-provenance"
                 role="status"
-                className="w-full flex items-center gap-2.5 rounded-xl border border-ojas/15 bg-ojas/[0.045] px-3 py-2 text-xs text-muted-foreground"
+                className={cn(
+                  'w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-xs text-muted-foreground',
+                  hasUnverifiedAttribution
+                    ? 'border-amber-500/40 bg-amber-500/[0.07]'
+                    : 'border-ojas/15 bg-ojas/[0.045]',
+                )}
               >
-                <Shield className="h-3.5 w-3.5 shrink-0 text-ojas" aria-hidden="true" />
+                <Shield
+                  className={cn('h-3.5 w-3.5 shrink-0', hasUnverifiedAttribution ? 'text-amber-500' : 'text-ojas')}
+                  aria-hidden="true"
+                />
                 <div className="min-w-0 flex-1 leading-tight">
-                  <p className="font-medium text-foreground/80">Response context</p>
+                  <p className="font-medium text-foreground/80">
+                    {hasUnverifiedAttribution ? 'Unverified attribution' : 'Response context'}
+                  </p>
                   <p>
-                    {citations.length > 0
-                      ? `${citations.length} ${citations.length === 1 ? 'source link' : 'source links'} provided`
-                      : 'Reflective guidance without a direct source link'}
+                    {hasUnverifiedAttribution
+                      ? 'This answer quotes a teacher without a linked source — treat the wording as paraphrase, not a verified quotation.'
+                      : citations.length > 0
+                        ? `${citations.length} ${citations.length === 1 ? 'source link' : 'source links'} provided`
+                        : 'Reflective guidance without a direct source link'}
                   </p>
                 </div>
                 {typeof message.confidenceScore === 'number' && Number.isFinite(message.confidenceScore) && (

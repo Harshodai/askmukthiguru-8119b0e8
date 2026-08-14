@@ -87,6 +87,7 @@ interface GoogleRevokeResponse {
   successful: boolean;
   error?: string;
 }
+}
 
 }
 
