@@ -157,8 +157,7 @@ class BoundaryChunker:
         """Split text on paragraph boundaries (blank lines)."""
         return re.split(r"\n\s*\n", text)
 
-    @classmethod
-    def _split_sentences(cls, text: str) -> list[str]:
+    def _split_sentences(self, text: str) -> list[str]:
         """
         Split a paragraph into sentences while protecting abbreviations and decimals.
 
@@ -194,9 +193,38 @@ class BoundaryChunker:
                 .strip()
             )
             if sentence:
-                sentences.append(sentence)
+                sentences.extend(self._split_oversized_fallback(sentence))
 
         return sentences
+
+    def _split_oversized_fallback(self, sentence: str) -> list[str]:
+        """
+        A "sentence" with no punctuation to split on (raw OCR/ASR text, run-on
+        transcript) can be arbitrarily long and would otherwise become a single
+        oversized chunk. Fall back to word-boundary character splitting at
+        max_size so it still produces reasonably-sized pieces.
+        """
+        if len(sentence) <= self.max_size:
+            return [sentence]
+
+        # Split at target_size, not max_size: the outer accumulation loop in
+        # chunk() appends a whole "sentence" before checking the max_size
+        # bound, so a fallback piece sized at max_size can combine with
+        # whatever's already accumulated and nearly double it.
+        split_at = self.target_size
+        pieces: list[str] = []
+        words = sentence.split(" ")
+        current = ""
+        for word in words:
+            candidate = f"{current} {word}".strip()
+            if current and len(candidate) > split_at:
+                pieces.append(current)
+                current = word
+            else:
+                current = candidate
+        if current:
+            pieces.append(current)
+        return pieces
 
     @staticmethod
     def _flush_chunk(
@@ -216,9 +244,8 @@ class BoundaryChunker:
         chunks.append(text)
         bounds.append(ChunkBounds(start=current_offset, end=end_offset))
 
-    @classmethod
     def _merge_small_chunks(
-        cls, chunks: list[str], bounds: list[ChunkBounds]
+        self, chunks: list[str], bounds: list[ChunkBounds]
     ) -> list[str]:
         """Merge trailing chunks that are shorter than min_size into the previous chunk."""
         if not chunks or len(chunks) < 2:
@@ -226,19 +253,11 @@ class BoundaryChunker:
 
         merged: list[str] = [chunks[0]]
         for chunk in chunks[1:]:
-            if len(chunk) < cls._default_min_size() and len(merged[-1]) + len(chunk) + 1 <= cls._default_max_size():
+            if len(chunk) < self.min_size and len(merged[-1]) + len(chunk) + 1 <= self.max_size:
                 merged[-1] = merged[-1] + " " + chunk
             else:
                 merged.append(chunk)
         return merged
-
-    @classmethod
-    def _default_min_size(cls) -> int:
-        return 80
-
-    @classmethod
-    def _default_max_size(cls) -> int:
-        return 1500
 
 
 def split_text_at_boundaries(

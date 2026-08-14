@@ -36,6 +36,7 @@ class _InMemoryCoalescer:
 
     def __init__(self, ttl: float = 60.0):
         self._locks: dict = {}
+        self._lock_created: dict = {}
         self._results: dict = {}
         self._ttl = ttl
 
@@ -45,6 +46,19 @@ class _InMemoryCoalescer:
         for k in expired:
             self._results.pop(k, None)
             self._locks.pop(k, None)
+            self._lock_created.pop(k, None)
+
+        # A key whose coro_func() always raises never lands in self._results,
+        # so the loop above never sees it -- without this, _locks/_lock_created
+        # grow forever for permanently-failing keys. Only drop unlocked entries
+        # so an in-flight coalesced call is never disturbed.
+        stale_locks = [
+            k for k, ts in self._lock_created.items()
+            if now - ts > self._ttl and not self._locks.get(k, asyncio.Lock()).locked()
+        ]
+        for k in stale_locks:
+            self._locks.pop(k, None)
+            self._lock_created.pop(k, None)
 
     async def get_or_run(self, key: str, coro_func: typing.Callable[[], typing.Any]):
         self._cleanup()
@@ -54,6 +68,7 @@ class _InMemoryCoalescer:
 
         if key not in self._locks:
             self._locks[key] = asyncio.Lock()
+            self._lock_created[key] = time.time()
 
         is_collapsed = self._locks[key].locked()
         if is_collapsed:
@@ -107,7 +122,11 @@ class RedisCoalescer:
         tenant_id = TenantContext.get()
         list_key = f"coalesce:{tenant_id}:list:{result_key.split(':')[-1]}"
         try:
-            result = await coro_func()
+            # Shielded: if the leader's own request (e.g. an SSE client that
+            # disconnected) gets cancelled, followers waiting on this same
+            # Redis key must not have their shared pipeline run yanked out
+            # from under them.
+            result = await asyncio.shield(coro_func())
             try:
                 serialized = self._serialize_result(result)
                 await self._redis.set(result_key, serialized, ex=self._ttl)
