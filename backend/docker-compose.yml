@@ -380,6 +380,7 @@ services:
       - "9090:9090"
     volumes:
       - ../infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../infrastructure/prometheus/alerting-rules.yml:/etc/prometheus/alerting-rules.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -395,6 +396,26 @@ services:
         limits:
           memory: 512M
           cpus: '0.5'
+
+  # --- Alertmanager (SLO alerting-rules.yml routes here) ---
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: mukthiguru-alertmanager
+    profiles: [observability]
+    ports:
+      - "9093:9093"
+    volumes:
+      - ../infrastructure/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
 
   # --- Grafana Analytics Dashboard ---
   grafana:
@@ -435,6 +456,8 @@ volumes:
   telemetry_data:
     driver: local
   prometheus_data:
+    driver: local
+  alertmanager_data:
     driver: local
   grafana_data:
     driver: local
