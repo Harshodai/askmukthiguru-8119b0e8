@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Check, ChevronDown, Circle, Loader2 } from 'lucide-react';
 
 import { useWisdomTips } from '@/hooks/useWisdomTips';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
 
 export interface PipelineStep {
   id: string;
@@ -47,7 +48,7 @@ export const ThinkingPills = ({
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
-  const wisdomTip = useWisdomTips(visible);
+  const wisdomTip = useWisdomTips(visible && FEATURE_FLAGS.wisdomTips);
 
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {

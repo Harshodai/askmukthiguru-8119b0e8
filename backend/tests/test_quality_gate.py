@@ -211,3 +211,44 @@ def test_gate_summary_faithfulness_drops_unsupported_summary():
     assert supported is True, f"supported summary should pass (score={s_ok})"
     assert fabricated is False, f"fabrication should be gated out (score={s_bad})"
     assert s_bad < s_ok
+
+@pytest.mark.asyncio
+async def test_llm_quality_timeout_is_explicit_unknown():
+    from ingest.quality_gate import LLMQualityScorer
+
+    class TimeoutLLM:
+        async def generate(self, **kwargs):
+            raise asyncio.TimeoutError()
+
+    score, reasons = await LLMQualityScorer(TimeoutLLM()).score(
+        "A sufficiently long spiritual teaching about consciousness and presence."
+    )
+    assert score == 0
+    assert any(reason.startswith("QUALITY_UNKNOWN:") for reason in reasons)
+
+
+@pytest.mark.asyncio
+async def test_quality_gate_unknown_never_passes():
+    from ingest.quality_gate import DataQualityGate
+
+    class FailingLLM:
+        async def generate(self, **kwargs):
+            raise RuntimeError("provider unavailable")
+
+    text = (
+        "This is a sufficiently long spiritual teaching about consciousness, presence, "
+        "meditation, compassion, and the beautiful state of being. It describes how "
+        "attention, surrender, gratitude, and inner stillness can transform suffering "
+        "into a more connected and peaceful way of living for a seeker."
+    )
+    result = await DataQualityGate(llm_service=FailingLLM()).run(text)
+    assert result.passed is False
+    assert any(reason.startswith("QUALITY_UNKNOWN:") for reason in result.reasons)
+
+
+def test_llm_quality_malformed_json_is_explicit_unknown():
+    from ingest.quality_gate import LLMQualityScorer
+
+    score, reasons = LLMQualityScorer(object())._parse_json_response("not-json")
+    assert score == 0
+    assert any(reason.startswith("QUALITY_UNKNOWN:") for reason in reasons)

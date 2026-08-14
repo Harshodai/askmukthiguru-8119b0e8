@@ -121,6 +121,13 @@ class QdrantSearcher:
             filter_conditions.append(
                 FieldCondition(key="teacher_id", match=MatchValue(value=scope.teacher_id))
             )
+        if scope.required_rights_status:
+            filter_conditions.append(
+                FieldCondition(
+                    key="domain_rights_status",
+                    match=MatchValue(value=scope.required_rights_status),
+                )
+            )
         if kwargs.get("cluster_ids"):
             filter_conditions.append(
                 FieldCondition(key="cluster_id", match=MatchAny(any=kwargs["cluster_ids"]))
@@ -249,6 +256,8 @@ class QdrantSearcher:
                 "speaker": hit.payload.get("speaker", "Unknown"),
                 "topic": hit.payload.get("topic", "Spiritual"),
                 "teacher_id": hit.payload.get("teacher_id", ""),
+                "licensed_domain": hit.payload.get("licensed_domain", ""),
+                "domain_rights_status": hit.payload.get("domain_rights_status", ""),
                 "tenant_id": hit.payload.get("tenant_id", ""),
                 "corpus_id": hit.payload.get("corpus_id", ""),
             }

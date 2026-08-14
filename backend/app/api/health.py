@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import threading
 from datetime import timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -16,10 +17,43 @@ from app.dependencies import ServiceContainer, get_container
 from app.metrics import HEALTH_CHECK_TOTAL, metrics_endpoint
 from app.runtime_metrics import observe_queue_depths
 from services.auth_service import get_current_user_from_supabase, require_aal2
-from services.circuit_breaker import CircuitState
 
 router = APIRouter(tags=["Health"])
 logger = logging.getLogger(__name__)
+_MANUAL_RESET_COOLDOWN_SECONDS = 30.0
+_manual_reset_lock = threading.Lock()
+_manual_reset_last: dict[str, float] = {}
+
+
+async def _claim_manual_reset_slot(operator_id: str) -> tuple[bool, int]:
+    """Claim a global reset slot; production fails closed if Redis is down."""
+    key = f"askmukthiguru:circuit-reset:{operator_id}"
+    try:
+        import redis.asyncio as aioredis
+
+        client = aioredis.from_url(settings.redis_url, decode_responses=True)
+        try:
+            acquired = await client.set(
+                key, str(time.time()), nx=True, ex=int(_MANUAL_RESET_COOLDOWN_SECONDS)
+            )
+            if acquired:
+                return True, 0
+            ttl = await client.ttl(key)
+            return False, max(1, int(ttl))
+        finally:
+            await client.aclose()
+    except Exception as exc:
+        if getattr(settings, "is_production", True):
+            logger.error("Circuit reset rate-limit Redis unavailable; failing closed: %s", exc)
+            return False, int(_MANUAL_RESET_COOLDOWN_SECONDS)
+        # Local/test fallback only. Development must still exercise a cooldown.
+        now = time.monotonic()
+        with _manual_reset_lock:
+            previous_reset = _manual_reset_last.get(operator_id)
+            if previous_reset is not None and now - previous_reset < _MANUAL_RESET_COOLDOWN_SECONDS:
+                return False, int(_MANUAL_RESET_COOLDOWN_SECONDS - (now - previous_reset)) + 1
+            _manual_reset_last[operator_id] = now
+        return True, 0
 
 
 async def _health_check(name: str, coro) -> dict:
@@ -298,12 +332,20 @@ async def circuit_breaker_status(
         return {"status": "error", "message": "internal_error"}
 
 
-@router.get("/api/circuit-breaker/reset")
+@router.post("/api/circuit-breaker/reset")
 async def circuit_breaker_reset_endpoint(
     user: dict = Depends(require_aal2),
 ) -> dict:
     """Manually reset the active circuit breaker to CLOSED. Admin only."""
     _require_admin(user)
+    operator_id = str(user.get("id") or "unknown")
+    allowed, retry_after = await _claim_manual_reset_slot(operator_id)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Circuit-breaker reset is temporarily rate limited",
+            headers={"Retry-After": str(retry_after)},
+        )
     try:
         container = get_container()
         active_breaker = container.circuit_breaker_registry.get_active()
@@ -315,11 +357,16 @@ async def circuit_breaker_reset_endpoint(
 
         provider = container.circuit_breaker_registry.get_active_provider()
         previous_state = active_breaker.get_state().value
-        active_breaker._state = CircuitState.CLOSED
-        active_breaker._failures = 0
-        active_breaker._last_failure_time = None
-        active_breaker._half_open_calls = 0
-        logger.info(f"Circuit breaker [{provider}] manually reset (was {previous_state}) → CLOSED by admin {user.get('id')}")
+        active_breaker.reset(reason="manual_reset")
+        logger.info(
+            "Circuit breaker manually reset",
+            extra={
+                "provider": provider,
+                "previous_state": previous_state,
+                "operator_id": operator_id,
+                "action": "circuit_breaker_reset",
+            },
+        )
         return {
             "status": "ok",
             "provider": provider,

@@ -101,20 +101,21 @@ class ChatRequestOrchestrator:
                 detail="The Guru took too long to respond. Please try again.",
             )
 
-        # Telemetry background logging
-        background_tasks.add_task(
-            self._log_telemetry,
-            result=result,
-            user_id=user_id,
-            session_id=session_id,
-            user_msg=user_msg,
-            assistant_slug=assistant_slug,
-        )
+        if not chat_body.incognito:
+            # Content-bearing telemetry is disabled for ephemeral chats.
+            background_tasks.add_task(
+                self._log_telemetry,
+                result=result,
+                user_id=user_id,
+                session_id=session_id,
+                user_msg=user_msg,
+                assistant_slug=assistant_slug,
+            )
 
-        # Increment turn counter for batched layered memory processing.
-        background_tasks.add_task(
-            _increment_turn_counter, user_id,
-        )
+            # Increment turn counter for batched layered memory processing.
+            background_tasks.add_task(
+                _increment_turn_counter, user_id,
+            )
 
         return ChatResponse(
             response=result.final_answer,

@@ -13,6 +13,7 @@ from app.metrics import (
     RETRIEVAL_SCORE_HISTOGRAM,
 )
 from guardrails.lightweight_handler import contains_prompt_injection
+from domain.spiritual_ontology import resolve_teacher_domain
 from rag.states import GraphState
 from rag.corpus_scope import CorpusScope
 from rag.timeout_utils import get_node_timeout
@@ -233,6 +234,15 @@ async def query_neo4j_subgraph(
                 for concept in matched_concepts:
                     result = session.run(cypher, concept=concept, **scope.to_neo4j_params())
                     for record in result:
+                        # Domain-rights gate: n1/n2 may resolve to a Teacher entity.
+                        # Unlicensed teachers (rollout_enabled=False) are recognized
+                        # entities but must never be surfaced as citable doctrine.
+                        src_domain = resolve_teacher_domain(record["source"] or "")
+                        tgt_domain = resolve_teacher_domain(record["target"] or "")
+                        if (src_domain and not src_domain.rollout_enabled) or (
+                            tgt_domain and not tgt_domain.rollout_enabled
+                        ):
+                            continue
                         desc_str = f" - {record['desc']}" if record.get("desc") else ""
                         subgraph_context.append(
                             f"Relationship: {record['source']} -[{record['rel']}]-> {record['target']}{desc_str}"
@@ -582,6 +592,7 @@ async def navigate_knowledge_tree(state: GraphState, config: dict = None) -> dic
             tenant_id=state.get("tenant_id") or TenantContext.get() or "default",
             corpus_id=state.get("corpus_id") or settings.default_corpus_id,
             teacher_id=state.get("teacher_id"),
+            required_rights_status=("licensed" if settings.require_licensed_domain_reads else None),
         )
         summary_nodes = qdrant.get_summary_nodes(query_vector=query_enc["dense"], limit=10, scope=scope)
 
@@ -647,6 +658,7 @@ async def retrieve_for_single_query(
     scope = scope or CorpusScope(
         tenant_id=TenantContext.get() or "default",
         corpus_id=settings.default_corpus_id,
+        required_rights_status=("licensed" if settings.require_licensed_domain_reads else None),
     )
     augmented_query = query
     if chat_history:
@@ -913,6 +925,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         tenant_id=state.get("tenant_id") or TenantContext.get() or "default",
         corpus_id=state.get("corpus_id") or settings.default_corpus_id,
         teacher_id=state.get("teacher_id"),
+        required_rights_status=("licensed" if settings.require_licensed_domain_reads else None),
     )
     if intent == "GUIDED_TOUR" and scope.tenant_id == "default" and scope.corpus_id == settings.default_corpus_id:
         base_question = state.get("rewritten_query") or state["question"]
@@ -1163,6 +1176,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             raptor_level=0,
             cluster_ids=None,
             knowledge_tags=knowledge_tags,
+            scope=scope,
         )
 
         for doc in fallback_results:

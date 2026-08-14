@@ -17,6 +17,7 @@ from __future__ import annotations
 import abc
 import logging
 import time
+import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Dict, Optional
@@ -86,6 +87,8 @@ class BaseCircuitBreaker(abc.ABC):
     _last_failure_time: Optional[float] = field(default=None, repr=False)
     _state: CircuitState = field(default=CircuitState.CLOSED, repr=False)
     _half_open_calls: int = field(default=0, repr=False)
+    _half_open_in_flight: int = field(default=0, repr=False)
+    _lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
 
     @abc.abstractmethod
     def can_execute(self) -> bool:
@@ -103,27 +106,31 @@ class BaseCircuitBreaker(abc.ABC):
         pass
 
     def get_state(self) -> CircuitState:
-        """Get current circuit state."""
-        return self._state
+        """Get current circuit state atomically."""
+        with self._lock:
+            return self._state
 
     def get_stats(self) -> dict:
-        """Get circuit breaker statistics."""
-        return {
-            "provider": self.config.provider,
-            "state": self._state.value,
-            "failures": self._failures,
-            "last_failure_time": self._last_failure_time,
-            "half_open_calls": self._half_open_calls,
-            "config": {
-                "failure_threshold": self.config.failure_threshold,
-                "recovery_timeout": self.config.recovery_timeout,
-                "half_open_max_calls": self.config.half_open_max_calls,
+        """Get circuit breaker statistics atomically."""
+        with self._lock:
+            return {
+                "provider": self.config.provider,
+                "state": self._state.value,
+                "failures": self._failures,
+                "last_failure_time": self._last_failure_time,
+                "half_open_calls": self._half_open_calls,
+                "half_open_in_flight": self._half_open_in_flight,
+                "config": {
+                    "failure_threshold": self.config.failure_threshold,
+                    "recovery_timeout": self.config.recovery_timeout,
+                    "half_open_max_calls": self.config.half_open_max_calls,
+                }
             }
-        }
 
     def _transition_to_open(self, reason: str = "") -> None:
         """Transition circuit to OPEN state."""
         previous_state = self._state.value
+        self._previous_state = previous_state
         self._state = CircuitState.OPEN
         logger.warning(
             "Circuit breaker state change",
@@ -142,8 +149,10 @@ class BaseCircuitBreaker(abc.ABC):
     def _transition_to_half_open(self) -> None:
         """Transition circuit to HALF_OPEN state."""
         previous_state = self._state.value
+        self._previous_state = previous_state
         self._state = CircuitState.HALF_OPEN
         self._half_open_calls = 0
+        self._half_open_in_flight = 0
         logger.warning(
             "Circuit breaker state change",
             extra={
@@ -160,9 +169,11 @@ class BaseCircuitBreaker(abc.ABC):
     def _transition_to_closed(self) -> None:
         """Transition circuit to CLOSED state."""
         previous_state = self._state.value
+        self._previous_state = previous_state
         self._state = CircuitState.CLOSED
         self._failures = 0
         self._half_open_calls = 0
+        self._half_open_in_flight = 0
         logger.info(
             "Circuit breaker state change",
             extra={
@@ -215,58 +226,84 @@ class DefaultCircuitBreaker(BaseCircuitBreaker):
     _phi_monitor: Optional[HealthMonitor] = field(default=None, repr=False)
 
     def can_execute(self) -> bool:
-        if self._state == CircuitState.CLOSED:
+        """Atomically decide and reserve a request slot."""
+        with self._lock:
+            if self._state == CircuitState.CLOSED:
+                if settings.phi_accrual_enabled:
+                    try:
+                        from services.health_monitor import HealthMonitor as _HM
+                        monitor = _HM()
+                        phi = monitor.get_phi(self.config.provider)
+                        is_healthy = monitor.is_healthy(self.config.provider)
+                        if not is_healthy:
+                            self._transition_to_open(f"phi={phi:.2f} > threshold")
+                            return False
+                    except Exception as _e:
+                        logger.debug("[circuit breaker] suppressed non-critical error: %s", _e)
+                return True
+
+            if self._state == CircuitState.OPEN:
+                if (
+                    self._last_failure_time is not None
+                    and (time.monotonic() - self._last_failure_time) >= self.config.recovery_timeout
+                ):
+                    self._transition_to_half_open()
+                else:
+                    return False
+
+            # HALF_OPEN: reserve admission atomically so concurrent callers
+            # cannot exceed the probe budget.
+            if self._half_open_calls + self._half_open_in_flight >= self.config.half_open_max_calls:
+                return False
+            self._half_open_in_flight += 1
+            return True
+
+    def record_success(self) -> None:
+        with self._lock:
+            if self._state == CircuitState.HALF_OPEN:
+                if self._half_open_in_flight > 0:
+                    self._half_open_in_flight -= 1
+                self._half_open_calls += 1
+                if self._half_open_calls >= self.config.half_open_max_calls:
+                    self._transition_to_closed()
+            elif self._state == CircuitState.CLOSED:
+                self._failures = max(0, self._failures - 1)
+            self._update_gauges()
+
+    def record_failure(self, error: Exception = None) -> None:
+        with self._lock:
+            self._failures += 1
+            self._last_failure_time = time.monotonic()
+
             if settings.phi_accrual_enabled:
                 try:
                     from services.health_monitor import HealthMonitor as _HM
                     monitor = _HM()
-                    phi = monitor.get_phi(self.config.provider)
-                    is_healthy = monitor.is_healthy(self.config.provider)
-                    if not is_healthy:
-                        self._transition_to_open(f"phi={phi:.2f} > threshold")
-                        return False
+                    monitor.record_heartbeat(self.config.provider, success=False)
                 except Exception as _e:
                     logger.debug("[circuit breaker] suppressed non-critical error: %s", _e)
-            return True
 
-        if self._state == CircuitState.OPEN:
-            # Check if recovery timeout has elapsed
-            if self._last_failure_time and (time.time() - self._last_failure_time) > self.config.recovery_timeout:
-                self._transition_to_half_open()
-                return True
-            return False
+            if self._state == CircuitState.HALF_OPEN:
+                if self._half_open_in_flight > 0:
+                    self._half_open_in_flight -= 1
+                self._transition_to_open("(failed during half-open test)")
+            elif self._state == CircuitState.CLOSED:
+                if self._failures >= self.config.failure_threshold:
+                    self._transition_to_open(f"(threshold={self.config.failure_threshold} reached)")
+            self._update_gauges()
 
-        # HALF_OPEN: Allow limited test calls
-        return self._half_open_calls < self.config.half_open_max_calls
-
-    def record_success(self) -> None:
-        if self._state == CircuitState.HALF_OPEN:
-            self._half_open_calls += 1
-            if self._half_open_calls >= self.config.half_open_max_calls:
-                self._transition_to_closed()
-        elif self._state == CircuitState.CLOSED:
-            # Decay failure count on success
-            self._failures = max(0, self._failures - 1)
-        self._update_gauges()
-
-    def record_failure(self, error: Exception = None) -> None:
-        self._failures += 1
-        self._last_failure_time = time.time()
-
-        if settings.phi_accrual_enabled:
-            try:
-                from services.health_monitor import HealthMonitor as _HM
-                monitor = _HM()
-                monitor.record_heartbeat(self.config.provider, success=False)
-            except Exception as _e:
-                logger.debug("[circuit breaker] suppressed non-critical error: %s", _e)
-
-        if self._state == CircuitState.HALF_OPEN:
-            self._transition_to_open("(failed during half-open test)")
-        elif self._state == CircuitState.CLOSED:
-            if self._failures >= self.config.failure_threshold:
-                self._transition_to_open(f"(threshold={self.config.failure_threshold} reached)")
-        self._update_gauges()
+    def reset(self, reason: str = "manual_reset") -> None:
+        """Reset the breaker through one audited, metric-aware transition."""
+        with self._lock:
+            previous_state = self._state.value
+            self._previous_state = previous_state
+            self._state = CircuitState.CLOSED
+            self._failures = 0
+            self._last_failure_time = None
+            self._half_open_calls = 0
+            self._half_open_in_flight = 0
+            self._notify_state_change("closed", reason)
+            self._update_gauges()
 
 
 class CircuitBreakerRegistry:

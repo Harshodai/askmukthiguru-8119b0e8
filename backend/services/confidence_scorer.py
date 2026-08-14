@@ -22,7 +22,10 @@ import datetime as _dt
 import logging
 import math
 
+from services.confidence_calibrator import ConfidenceCalibrator
+
 logger = logging.getLogger(__name__)
+_CALIBRATOR = ConfidenceCalibrator()
 
 # ── Weights must sum to 1.0 ───────────────────────────────────────────────
 _WEIGHTS = {
@@ -156,6 +159,11 @@ def _llm_uncertainty(verification: dict) -> float:
     return max(0.0, min(1.0, 1.0 - u))
 
 
+def confidence_calibration_status() -> str:
+    """Return empirical, uncalibrated, or invalid_artifact status."""
+    return _CALIBRATOR.status
+
+
 def calculate_confidence(state: dict) -> float:
     """Compute calibrated confidence score (1–10) from multi-signal ensemble.
 
@@ -215,7 +223,9 @@ def calculate_confidence(state: dict) -> float:
         }
 
         raw = sum(signals[k] * _WEIGHTS[k] for k in signals)
-        calibrated = _temperature_scale(raw)
+        temperature_scaled = _temperature_scale(raw)
+        calibration = _CALIBRATOR.calibrate(temperature_scaled)
+        calibrated = calibration.value
 
         # Map (0,1) → [1.0, 10.0] to match existing convention
         score = max(1.0, min(10.0, 1.0 + calibrated * 9.0))

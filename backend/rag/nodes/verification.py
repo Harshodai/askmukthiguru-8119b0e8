@@ -15,7 +15,7 @@ from app.metrics import (
 from app.tracing import trace_rag_node
 from rag.doc_utils import doc_text
 from rag.states import GraphState
-from services.confidence_scorer import calculate_confidence, calculate_confidence_reason
+from services.confidence_scorer import calculate_confidence, calculate_confidence_reason, confidence_calibration_status
 
 from . import _services
 from .utils import emit_status, log_metrics, settings
@@ -431,6 +431,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         "verification": {"passed": is_valid, "details": verification_details},
         "confidence_score": confidence_score,
         "confidence_reason": confidence_reason,
+        "confidence_calibration_status": confidence_calibration_status(),
         "faithfulness_score": faithfulness_score,
         "relevancy_score": relevancy_score,
     }

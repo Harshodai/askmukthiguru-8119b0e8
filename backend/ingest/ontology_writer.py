@@ -159,12 +159,35 @@ ON CREATE SET
     r.source_chunk_id = $source_chunk_id,
     r.teacher_id = $teacher_id,
     r.confidence = $confidence,
-    r.extracted_at = $extracted_at
+    r.extracted_at = $extracted_at,
+    r.licensed_domain = $licensed_domain,
+    r.domain_rights_status = $domain_rights_status
 ON MATCH SET
     r.extracted_at = $extracted_at,
     r.confidence = CASE WHEN $confidence > r.confidence THEN $confidence ELSE r.confidence END,
-    r.teacher_id = coalesce(r.teacher_id, $teacher_id)
+    r.teacher_id = coalesce(r.teacher_id, $teacher_id),
+    r.licensed_domain = coalesce(r.licensed_domain, $licensed_domain),
+    r.domain_rights_status = coalesce(r.domain_rights_status, $domain_rights_status)
 """
+
+
+def _resolve_edge_rights_stamp(
+    s_id: str, s_name: str, o_id: str, o_name: str
+) -> tuple[Optional[bool], Optional[str]]:
+    """Rights stamp for a relationship: if either endpoint resolves to a
+    BEING/Teacher domain, propagate that domain's rights_status onto the
+    edge (nodes for non-BEING types stay domain-agnostic, but the edge
+    still traces back to the teacher/domain it was extracted alongside).
+    """
+    domain = (
+        resolve_teacher_domain(s_id)
+        or resolve_teacher_domain(s_name)
+        or resolve_teacher_domain(o_id)
+        or resolve_teacher_domain(o_name)
+    )
+    if domain is None:
+        return None, None
+    return domain.rollout_enabled, domain.rights_status
 
 
 async def write_extraction_to_neo4j(
@@ -265,6 +288,9 @@ async def write_extraction_to_neo4j(
                     o_id = canonical_entity_id(o_name)
                     rel_enum = _resolve_relation(relation_str)
                     rel_type = rel_enum.value.upper()
+                    licensed_domain, domain_rights_status = _resolve_edge_rights_stamp(
+                        s_id, s_name, o_id, o_name
+                    )
                     cypher = _REL_MERGE_CYPHER_TEMPLATE.format(rel_type=rel_type)
                     tx.run(
                         cypher,
@@ -278,6 +304,8 @@ async def write_extraction_to_neo4j(
                         tenant_id=tenant_id,
                         confidence=confidence,
                         extracted_at=now,
+                        licensed_domain=licensed_domain,
+                        domain_rights_status=domain_rights_status,
                     )
                     written += 1
 
@@ -293,6 +321,9 @@ async def write_extraction_to_neo4j(
                         o_id = canonical_entity_id(o_name)
                         rel_enum = _resolve_relation(relation_str)
                         rel_type = rel_enum.value.upper()
+                        licensed_domain, domain_rights_status = _resolve_edge_rights_stamp(
+                            s_id, s_name, o_id, o_name
+                        )
                         cypher = _REL_MERGE_CYPHER_TEMPLATE.format(rel_type=rel_type)
                         tx.run(
                             cypher,
@@ -303,8 +334,11 @@ async def write_extraction_to_neo4j(
                             source_chunk_id=source_chunk_id,
                             corpus_id=corpus_id,
                             teacher_id=teacher_id,
+                            tenant_id=tenant_id,
                             confidence=confidence,
                             extracted_at=now,
+                            licensed_domain=licensed_domain,
+                            domain_rights_status=domain_rights_status,
                         )
                         written += 1
 

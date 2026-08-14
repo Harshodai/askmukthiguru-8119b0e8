@@ -11,6 +11,7 @@ from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import check_sufficiency
 from rag.doc_utils import doc_text
+from rag.nodes.retrieval import _screen_prompt_injection
 
 from app.tracing import trace_rag_node
 from . import _services
@@ -429,8 +430,13 @@ async def enrich_context(state: GraphState, config: dict = None) -> dict:
                     "source_url": "knowledge_graph",
                     "score": 0.95,
                 }
-                enriched_docs.insert(0, summary_doc)
-                logger.info("Enrich context: blended LightRAG global graph summary into context")
+                # This node runs after retrieve_documents, so it bypasses that
+                # node's _screen_prompt_injection call unless applied here.
+                if _screen_prompt_injection([summary_doc]):
+                    enriched_docs.insert(0, summary_doc)
+                    logger.info("Enrich context: blended LightRAG global graph summary into context")
+                else:
+                    logger.warning("Enrich context: dropped LightRAG summary failing prompt-injection screen")
         except Exception as exc:
             logger.warning(f"Enrich context: LightRAG summary fetch skipped (non-critical): {exc}")
 

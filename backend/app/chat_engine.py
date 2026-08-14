@@ -41,6 +41,7 @@ from typing import Any, AsyncIterator, Optional
 from fastapi import HTTPException
 
 from app.config import settings
+from app.metrics import TTFT_SECONDS
 from app.dependencies import ServiceContainer
 from app.schemas import ChatRequest
 from rag.memory import normalize_session_id
@@ -256,7 +257,11 @@ class ChatEngine:
             )
 
         try:
-            pipeline_result = await coalescer.get_or_run(coalesce_key, _run)
+            pipeline_result = (
+                await _run()
+                if chat_request.incognito
+                else await coalescer.get_or_run(coalesce_key, _run)
+            )
         except asyncio.TimeoutError:
             logger.error(f"Pipeline timeout for user {user_id}")
             raise HTTPException(
@@ -291,7 +296,9 @@ class ChatEngine:
         result.daily_practice_card = getattr(pipeline_result, "daily_practice_card", None)
 
 
-        asyncio.create_task(self._log_telemetry(result, user_id, session_id, message))
+        if not chat_request.incognito:
+            # Content-bearing telemetry is disabled for ephemeral chats.
+            asyncio.create_task(self._log_telemetry(result, user_id, session_id, message))
 
         return result
 
@@ -325,6 +332,8 @@ class ChatEngine:
         )
 
         assembled_text: list[str] = []
+        stream_started_at = time.monotonic()
+        first_token_observed = False
 
         try:
             while True:
@@ -342,12 +351,27 @@ class ChatEngine:
                     assembled_text.append(chunk_text)
                     if not is_final:
                         # Mid-stream chunks yielded immediately for low latency
+                        if chunk_text and not first_token_observed:
+                            first_token_observed = True
+                            try:
+                                TTFT_SECONDS.labels(provider="pipeline").observe(time.monotonic() - stream_started_at)
+                            except Exception:
+                                logger.debug("TTFT metric emission failed", exc_info=True)
                         yield ChatChunk(text=chunk_text, is_final=False)
                     # Final chunk handled below after tone adaptation
                 else:
                     chunk_text = str(item)
                     assembled_text.append(chunk_text)
+                    if chunk_text and not first_token_observed:
+                        first_token_observed = True
+                        try:
+                            TTFT_SECONDS.labels(provider="pipeline").observe(time.monotonic() - stream_started_at)
+                        except Exception:
+                            logger.debug("TTFT metric emission failed", exc_info=True)
                     yield ChatChunk(text=chunk_text)
+        except asyncio.CancelledError:
+            logger.info("Chat stream cancelled by client; cancelling pipeline task")
+            raise
         finally:
             if not pipeline_task.done():
                 pipeline_task.cancel()
@@ -371,6 +395,11 @@ class ChatEngine:
         # Final chunk — tone adaptation already ran inside the pipeline
         # (ToneAdapterStage), so the assembled result is the final voice.
         final_text = pipeline_result.final_answer if pipeline_result else "".join(assembled_text).strip()
+        if final_text and not first_token_observed:
+            try:
+                TTFT_SECONDS.labels(provider="pipeline").observe(time.monotonic() - stream_started_at)
+            except Exception:
+                logger.debug("TTFT metric emission failed", exc_info=True)
         yield ChatChunk(text=final_text, is_final=True, citations=citations)
 
     async def _log_telemetry(

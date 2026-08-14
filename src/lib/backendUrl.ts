@@ -20,9 +20,6 @@ export const PROD_RAILWAY_URL =
  *  previews, localhost) must NOT resolve to the prod backend. */
 const PROD_HOSTNAMES: ReadonlySet<string> = new Set([
   'askmukthiguru-8119b0e8-production.up.railway.app',
-  // Published Lovable frontend — the SPA host serves no /api, so relative
-  // calls returned the HTML shell instead of FastAPI JSON (QA P0).
-  'askmukthiguru.lovable.app',
   'www.askmukthiguru.com',
   'askmukthiguru.com',
 ]);

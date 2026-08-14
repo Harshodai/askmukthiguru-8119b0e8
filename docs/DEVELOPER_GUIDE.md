@@ -9,7 +9,7 @@
 
 AskMukthiGuru is an AI spiritual companion grounded in the public teachings of
 Sri Preethaji and Sri Krishnaji. It pairs a React/Vite/TypeScript frontend
-(deployed on **Lovable Cloud** + **Railway**) with a Python FastAPI backend
+(deployed on **Vercel** + **Railway**) with a Python FastAPI backend
 that runs a **12-layer** retrieval-augmented-generation (RAG) pipeline.
 
 Current runtime defaults (updated 2026-08-01; see `AGENTS.md` for invariants):
@@ -19,7 +19,7 @@ Current runtime defaults (updated 2026-08-01; see `AGENTS.md` for invariants):
 - **Safety guardrails**: `GUARDRAILS_PROVIDER=lightweight` — 13 regex-based topic
   categories + prompt injection detection + emotional wellness redirects.
   NeMo Guardrails is available in `backend/guardrails/` but not the runtime default.
-- **Hosting**: Railway.app (backend, via `backend/Dockerfile.railway`); Lovable Cloud
+- **Hosting**: Railway.app (backend, via `backend/Dockerfile.railway`); Vercel
   (frontend build + Supabase auth). `docker-compose.prod.yml` is for self-hosted.
 - **Target**: < 3 s TTFT, < 1 % hallucination rate (measured by eval harness).
 
@@ -52,7 +52,7 @@ and self-hosted deployments where the ML rail is acceptable.
 
 ```
 ┌──────────────┐   HTTPS    ┌───────────────────┐   SQL/RLS  ┌────────────────┐
-│  React UI    │◄──────────►│ Lovable Cloud /   │◄──────────►│   Supabase     │
+│  React UI    │◄──────────►│ Vercel /   │◄──────────►│   Supabase     │
 │ (Vite, TS)   │  auth +    │ Supabase Auth     │            │ Postgres + RLS │
 └──────┬───────┘  realtime  └───────────────────┘            └────────────────┘
        │
@@ -75,7 +75,7 @@ Three deployable surfaces:
 
 | Surface           | Hosted on                   | Entry file                     |
 | ----------------- | --------------------------- | ------------------------------ |
-| End-user web app  | Lovable Cloud + Railway     | `src/main.tsx` → `src/App.tsx` |
+| End-user web app  | Vercel + Railway     | `src/main.tsx` → `src/App.tsx` |
 | Admin console     | Same bundle, `/admin`       | `src/admin/layout/AdminShell`  |
 | FastAPI backend   | Railway (`backend/Dockerfile.railway`) | `backend/app/main.py` |
 
@@ -98,7 +98,7 @@ Three deployable surfaces:
 │   ├── lib/                      ← aiService, chatStorage, persistence, utils
 │   ├── integrations/
 │   │   ├── supabase/             ← Auto-generated Supabase client + types
-│   │   └── lovable/              ← Lovable-managed OAuth wrapper
+│   │   └── lovable/              ← Supabase Auth client
 │   └── test/                     ← Vitest specs
 ├── backend/                      ← Python FastAPI
 │   ├── app/                      ← FastAPI app, config, DI, dashboards
@@ -120,14 +120,14 @@ Three deployable surfaces:
 
 ## 4. Day-1 setup
 
-### 4a. Frontend only (Lovable preview)
+### 4a. Frontend only (Vercel preview)
 
 ```bash
 npm install
 npm run dev          # http://localhost:8080
 ```
 
-Lovable Cloud auto-injects `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
+Vercel auto-injects `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
 Chat will fall back to placeholder responses unless `VITE_BACKEND_URL` points
 at a running FastAPI backend.
 
@@ -150,7 +150,7 @@ export QDRANT_URL=http://localhost:6333 NEO4J_URI=bolt://localhost:7687 \
 cp .env.example .env.local
 # .env.local:
 #   VITE_BACKEND_URL=http://localhost:8000
-#   VITE_USE_NATIVE_OAUTH=true       # only if running outside Lovable proxy
+#   VITE_USE_NATIVE_OAUTH=true       # only if running outside browser hosting origin
 npm install
 npm run dev
 ```
@@ -191,14 +191,14 @@ Smoke check: open http://localhost:8000/docs, http://localhost:8080, and http://
 ```
 User → /auth ──signup/signin──► Supabase Auth ──onAuthStateChange──► /chat
                   │
-                  └──Google──► lovable.auth.signInWithOAuth('google')
+                  └──Google──► supabase.auth.signInWithOAuth('google')
                                   │
-                                  └─ Lovable proxy → Google → callback → session
+                                  └─ browser hosting origin → Google → callback → session
 ```
 
 - **Email/password**: standard Supabase. Email confirmation **required** by
   default; users get a verification link.
-- **Google**: managed by Lovable Cloud; no client-ID setup needed.
+- **Google**: configured in Supabase Auth; no client-ID setup needed.
 - **Password reset**: `/reset-password` page handles the recovery hash and
   calls `supabase.auth.updateUser`.
 - **Auth gate**: `useRequireAuth` hook wraps `ChatPage`; unauthenticated users
@@ -333,7 +333,7 @@ Add a test next to the file you change. Match `src/**/*.{test,spec}.{ts,tsx}`.
 
 ## 10. Deployment
 
-- **Lovable Cloud**: click *Publish*. `VITE_*` are injected automatically.
+- **Vercel**: deploy the Vite build to Vercel. `VITE_*` are injected automatically.
 - **Self-hosted Docker**:
   ```bash
   docker compose -f docker-compose.prod.yml up -d --build
@@ -371,7 +371,7 @@ Use `.venv/bin/python` or `backend/.venv/bin/python` for local verification. The
 | ------------------------------------------------- | ------------------------------------------------------------------ |
 | Chat shows placeholder responses                  | `VITE_BACKEND_URL` empty; set in `.env.local`                       |
 | `useLocation()` outside `<Router>`                | Component imports moved outside `BrowserRouter`; keep them inside  |
-| OAuth pop-up does nothing                         | `VITE_USE_NATIVE_OAUTH=true` outside Lovable proxy; set to `false` |
+| OAuth pop-up does nothing                         | `VITE_USE_NATIVE_OAUTH=true` outside browser hosting origin; set to `false` |
 | 404 on `/api/chat`                                | Backend not running; `docker compose logs -f backend`              |
 | Daily Teaching not refreshing                     | Realtime publication missing; re-run the migration in §7           |
 | Admin login succeeds but `/admin` redirects out   | User has no row in `user_roles` with role `admin`                   |
@@ -417,7 +417,7 @@ Welcome aboard. 🌅
 - **Sitemap & robots.** `public/sitemap.xml` and `public/robots.txt` are
   static. Update sitemap when you add a new public route.
 
-## 15. Local + Lovable parity checklist
+## 15. Local + Vercel parity checklist
 
 When you ship a feature, verify both surfaces:
 

@@ -57,7 +57,15 @@ class SarvamHTTPGateway:
     # Lifecycle
     # ------------------------------------------------------------------
 
-    def __init__(self) -> None:
+    def __init__(self, circuit: Optional["DefaultCircuitBreaker"] = None) -> None:
+        """
+        Args:
+            circuit: Shared circuit breaker instance. When the caller (e.g.
+                SarvamCloudService) already owns a "sarvam_cloud" breaker for its
+                streaming path, pass it in so streaming and non-streaming Sarvam
+                calls trip the same breaker instead of tracking failures in two
+                independent instances that never see each other's state.
+        """
         raw_key = settings.sarvam_30b_api_key or settings.sarvam_api_key or ""
         if not raw_key and not settings.sarvam_30b_endpoint:
             raise ValueError(
@@ -81,12 +89,17 @@ class SarvamHTTPGateway:
         self._timeout = getattr(settings, "llm_timeout", 60)
         self._max_retries = getattr(settings, "llm_max_retries", 3)
 
-        # Circuit breaker (imported from shared module)
-        from app.constants import CircuitBreakerProvider
-        from services.circuit_breaker import CircuitBreakerConfig, DefaultCircuitBreaker
+        # Circuit breaker (imported from shared module). Reuse the caller's shared
+        # breaker when given (see __init__ docstring); only build a fresh one for
+        # standalone construction (tests, scripts/ops/resolve_entities.py).
+        if circuit is not None:
+            self._circuit = circuit
+        else:
+            from app.constants import CircuitBreakerProvider
+            from services.circuit_breaker import CircuitBreakerConfig, DefaultCircuitBreaker
 
-        sarvam_config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.SARVAM_CLOUD.value)
-        self._circuit = DefaultCircuitBreaker(sarvam_config)
+            sarvam_config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.SARVAM_CLOUD.value)
+            self._circuit = DefaultCircuitBreaker(sarvam_config)
 
         # Rate limiting
         self._last_request_time = 0.0

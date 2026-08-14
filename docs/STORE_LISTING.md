@@ -1,7 +1,7 @@
 # AskMukthiGuru — Store Listing & Privacy Disclosures
 
 > Task 9 — Mobile App Launch assets.
-> All char counts verified against store limits (Play short ≤80, App Store subtitle ≤30, keywords ≤100). Update placeholder URLs (lovable.app → final domain) before submission.
+> All char counts verified against store limits (Play short ≤80, App Store subtitle ≤30, keywords ≤100). Set the final Vercel domain before submission.
 
 ---
 
@@ -15,7 +15,7 @@
 | **Category (secondary)** | `Health & Fitness` | — |
 | **Tags** | `spirituality, meditation, mindfulness, wisdom, guidance, mental wellbeing, self-help, chatbot` | — |
 | **Content rating** | Everyone | — |
-| **Privacy policy URL** | `https://askmukthiguru.lovable.app/privacy` ⚠️ **placeholder — update to final domain** | — |
+| **Privacy policy URL** | `https://askmukthiguru.com/privacy` ⚠️ **placeholder — update to final domain** | — |
 | **Support email** | `support@askmukthiguru.com` ⚠️ **placeholder** | — |
 | **Target audience** | 18+ (spiritual content, not for children) | — |
 | **Contains ads** | No | — |
@@ -72,9 +72,9 @@ _Char count: ~2,350 — well within the 4,000 limit._
 | **Primary category** | `Lifestyle` | — |
 | **Secondary category** | `Health & Fitness` | — |
 | **Keywords** | `spirituality,meditation,mindfulness,wisdom,guru,spiritual guide,reflection,daily practice` | 100 |
-| **Privacy policy URL** | `https://askmukthiguru.lovable.app/privacy` ⚠️ **placeholder** | — |
-| **Support URL** | `https://askmukthiguru.lovable.app/support` ⚠️ **placeholder** | — |
-| **Marketing URL** | `https://askmukthiguru.lovable.app` ⚠️ **placeholder** | — |
+| **Privacy policy URL** | `https://askmukthiguru.com/privacy` ⚠️ **placeholder** | — |
+| **Support URL** | `https://askmukthiguru.com/support` ⚠️ **placeholder** | — |
+| **Marketing URL** | `https://askmukthiguru.com` ⚠️ **placeholder** | — |
 | **Age rating** | 4+ | — |
 | **Made for Kids** | No | — |
 | **Apple Sign-In** | ✅ Implemented (native iOS only — `AuthPage.tsx` shows Apple button when `Capacitor.isNativePlatform()` + iOS). Requires Apple provider config in Supabase + Services ID + .p8 key. See §4. | — |
@@ -229,12 +229,12 @@ Until steps 1–4 are done, the Apple button will fail at OAuth init — complet
 
 ## 6. Pre-Submission Checklist
 
-- [ ] Update **privacy policy URL** to final domain (replace `lovable.app`).
+- [ ] Verify the privacy policy URL matches `VITE_PUBLIC_APP_URL`.
 - [ ] Update **support URL** + **marketing URL** to final domain.
 - [ ] Configure **support@askmukthiguru.com** mailbox.
 - [ ] Configure **Sign in with Apple** provider in Supabase (Services ID + .p8 key + Return URL) — implementation already in `AuthPage.tsx` (see §4); verify end-to-end on TestFlight before submission.
 - [ ] Verify **Delete Account** flow on a TestFlight build (calls `delete-my-account` edge function — see §5.3).
-- [ ] Generate screenshots via `node scripts/ops/generate_store_screenshots.cjs --url http://localhost:8080` (or `--url https://askmukthiguru.lovable.app`).
+- [ ] Generate screenshots via `node scripts/ops/generate_store_screenshots.cjs --url http://localhost:8080` (or `--url https://askmukthiguru.com`).
 - [ ] Upload to Play Console + App Store Connect.
 - [ ] Fill Data Safety form on Play Console (mirrors §5.2).
 - [ ] Fill Privacy Nutrition Label on App Store Connect (mirrors §5.1).

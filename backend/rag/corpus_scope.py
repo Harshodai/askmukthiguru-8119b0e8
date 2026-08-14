@@ -13,6 +13,7 @@ class CorpusScope:
     corpus_id: str = "global"
     teacher_id: str | None = None
     allowed_tags: tuple[str, ...] = field(default_factory=tuple)
+    required_rights_status: str | None = None
 
     def to_qdrant_filter(self) -> dict[str, Any]:
         """Return strict payload conditions for shared Qdrant collections."""
@@ -22,6 +23,8 @@ class CorpusScope:
         ]
         if self.teacher_id:
             must.append({"key": "teacher_id", "match": {"value": self.teacher_id}})
+        if self.required_rights_status:
+            must.append({"key": "domain_rights_status", "match": {"value": self.required_rights_status}})
         return {"must": must}
 
     def to_neo4j_params(self) -> dict[str, Any]:
@@ -30,4 +33,5 @@ class CorpusScope:
             "tenant_id": self.tenant_id,
             "corpus_id": self.corpus_id,
             "teacher_id": self.teacher_id,
+            "required_rights_status": self.required_rights_status,
         }

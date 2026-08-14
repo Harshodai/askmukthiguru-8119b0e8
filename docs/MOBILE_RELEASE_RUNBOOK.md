@@ -225,13 +225,13 @@ In Supabase Dashboard → **Authentication → URL Configuration → Redirect UR
 
 ```
 com.askmukthiguru.app://auth-callback
-https://askmukthiguru.lovable.app/auth
+https://askmukthiguru.com/auth
 ```
 
 - `com.askmukthiguru.app://auth-callback` — native deep link captured by `App.addListener('appUrlOpen')` (registered in `src/App.tsx`) on both Android (intent-filter) and iOS (CFBundleURLTypes). Supabase OAuth completes in the system browser then hands control back to the app.
 - The production web URL — for browser-based auth fallback.
 
-Also set the **Site URL** to the production web URL (`https://askmukthiguru.lovable.app`).
+Also set the **Site URL** to the production web URL (`https://askmukthiguru.com`).
 
 > Do NOT use `window.location.origin` on native — it is `https://localhost` inside the Capacitor WebView and Supabase will reject the redirect.
 

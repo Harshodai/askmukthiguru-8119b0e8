@@ -119,9 +119,11 @@ class SarvamCloudService:
         if self._api_key:
             os.environ["SARVAM_API_KEY"] = self._api_key
 
-        # Gateway for all non-streaming LLM transport is instantiated if either api key or endpoint is set
+        # Gateway for all non-streaming LLM transport is instantiated if either api key or endpoint is set.
+        # Shares self._circuit so streaming (generate_stream, below) and non-streaming (gateway.call())
+        # failures trip the SAME breaker instead of two independent ones split-braining on the same provider.
         if self._api_key or settings.sarvam_30b_endpoint:
-            self._http = SarvamHTTPGateway()
+            self._http = SarvamHTTPGateway(circuit=self._circuit)
         else:
             self._http = None
 

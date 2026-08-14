@@ -67,7 +67,6 @@ from services.whisper_local_service import (
 logger = logging.getLogger(__name__)
 
 from ingest.adaptive_chunking import AdaptiveChunker
-from ingest.auditor import DataAuditor
 from ingest.corrector import TranscriptCorrector
 
 
@@ -708,6 +707,18 @@ class IngestionPipeline:
         video_title = result.get("title", "")
         video_speaker = result.get("speaker", "Unknown")
 
+        content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
+        checkpoint = IngestionCheckpoint()
+        if checkpoint.is_processed(self._checkpoint_key(content_hash)):
+            self._notify(on_progress, "Content already processed. Skipping.", 1.0)
+            return {
+                "status": "success",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+                "message": "Content already processed. Skipped.",
+            }
+
         # Clean & PII redact
         self._notify(on_progress, "Cleaning transcript...", 0.3)
         clean_text = clean_transcript(raw_text)
@@ -765,7 +776,8 @@ class IngestionPipeline:
             chunk_dicts = [{"text": c, "source_url": url, "title": video_title,
                             "speaker": video_speaker, "topic": "Spiritual"} for c in chunks]
             summaries_count = await self._raptor.build_tree(chunk_dicts)
-            await self._lightrag.ainsert(clean_text)
+            if self._lightrag:
+                await self._lightrag.ainsert(clean_text)
         except Exception as e:
             logger.error(f"Downstream step failed for social media {url}, rolling back: {e}")
             self._rollback_reindex(url, backup_collection)
@@ -787,6 +799,8 @@ class IngestionPipeline:
                 )
             except Exception as e:
                 logger.warning(f"ontology write skipped (post-success): {e}")
+
+        checkpoint.save(self._checkpoint_key(content_hash))
 
         self._notify(on_progress, "Social media ingestion complete!", 1.0)
         return {
@@ -887,21 +901,22 @@ class IngestionPipeline:
             em.setdefault("source_version", source_version)
             em.setdefault("ingested_at", datetime.now(timezone.utc).isoformat())
             em.setdefault("authority_tier", authority_tier)
-        chunks_count = self._embed_and_index(
-            final_chunks,
-            source_url=source_url,
-            title=title,
-            speaker=speaker,
-            topic=topic,
-            content_type=content_type,
-            source_type=content_type,
-            extra_metadatas=extra_metadatas,
-            tags=tags,
-            source_version=source_version,
-            authority_tier=authority_tier,
-        )
 
         try:
+            chunks_count = self._embed_and_index(
+                final_chunks,
+                source_url=source_url,
+                title=title,
+                speaker=speaker,
+                topic=topic,
+                content_type=content_type,
+                source_type=content_type,
+                extra_metadatas=extra_metadatas,
+                tags=tags,
+                source_version=source_version,
+                authority_tier=authority_tier,
+            )
+
             # Step 6: RAPTOR tree
             self._notify(on_progress, "Building RAPTOR tree...", 0.85)
             chunk_dicts = [
@@ -1137,28 +1152,29 @@ class IngestionPipeline:
             em.setdefault("source_version", source_version)
             em.setdefault("ingested_at", datetime.now(timezone.utc).isoformat())
             em.setdefault("authority_tier", authority_tier)
-        chunks_count = self._embed_and_index(
-            final_chunks,
-            source_url=url,
-            title=video_title,
-            speaker=video_speaker,
-            topic=video_topic,
-            content_type="video",
-            source_type="video",
-            language=video_language,
-            extra_metadatas=extra_metadatas,
-            tags=tags,
-            video_id=video_id,
-            channel_name=result.get("channel_name"),
-            published_at=result.get("published_at"),
-            duration=result.get("duration"),
-            thumbnail_url=result.get("thumbnail_url"),
-            chunk_speakers=chunk_speakers,
-            source_version=source_version,
-            authority_tier=authority_tier,
-        )
 
         try:
+            chunks_count = self._embed_and_index(
+                final_chunks,
+                source_url=url,
+                title=video_title,
+                speaker=video_speaker,
+                topic=video_topic,
+                content_type="video",
+                source_type="video",
+                language=video_language,
+                extra_metadatas=extra_metadatas,
+                tags=tags,
+                video_id=video_id,
+                channel_name=result.get("channel_name"),
+                published_at=result.get("published_at"),
+                duration=result.get("duration"),
+                thumbnail_url=result.get("thumbnail_url"),
+                chunk_speakers=chunk_speakers,
+                source_version=source_version,
+                authority_tier=authority_tier,
+            )
+
             # Step 5: RAPTOR tree (reuses the same chunks, passes source metadata)
             self._notify(on_progress, "Building RAPTOR tree...", 0.8)
             chunk_dicts = [
@@ -1428,28 +1444,28 @@ class IngestionPipeline:
         # Embed and index all leaf chunks at once to prevent catastrophic deletion/overwrite
         self._notify(on_progress, "Indexing all extracted topic chunks...", 0.85)
         total_chunks = 0
-        if all_chunks:
-            total_chunks = self._embed_and_index(
-                all_chunks,
-                source_url=url,
-                title=video_title,
-                speaker=video_speaker,
-                topic="Multi-Topic",
-                content_type="video_enhanced",
-                source_type="video",
-                language=video_language,
-                extra_metadatas=all_extra_metadatas,
-                tags=tags,
-                video_id=video_id,
-                channel_name=result.get("channel_name"),
-                published_at=result.get("published_at"),
-                duration=result.get("duration"),
-                thumbnail_url=result.get("thumbnail_url"),
-                source_version=source_version,
-                authority_tier=authority_tier,
-            )
-
         try:
+            if all_chunks:
+                total_chunks = self._embed_and_index(
+                    all_chunks,
+                    source_url=url,
+                    title=video_title,
+                    speaker=video_speaker,
+                    topic="Multi-Topic",
+                    content_type="video_enhanced",
+                    source_type="video",
+                    language=video_language,
+                    extra_metadatas=all_extra_metadatas,
+                    tags=tags,
+                    video_id=video_id,
+                    channel_name=result.get("channel_name"),
+                    published_at=result.get("published_at"),
+                    duration=result.get("duration"),
+                    thumbnail_url=result.get("thumbnail_url"),
+                    source_version=source_version,
+                    authority_tier=authority_tier,
+                )
+
             # 5. Build RAPTOR and Graph
             self._notify(on_progress, "Finalizing knowledge structure...", 0.9)
             if all_chunks:
@@ -1472,10 +1488,10 @@ class IngestionPipeline:
                 "summaries_created": 0,
             }
 
-        checkpoint.save(self._checkpoint_key(content_hash, source_version))
-
         # KG Phase 6: materialize extracted entities/relationships into Neo4j.
-        # Post-success, same pattern as _ingest_video.
+        # Runs after the RAPTOR/LightRAG rollback-prone block but BEFORE the
+        # checkpoint save — failure propagates so the content is NOT marked
+        # processed and will be retried on the next ingestion attempt.
         if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
@@ -1489,7 +1505,18 @@ class IngestionPipeline:
                     corpus_id=self._corpus_id,
                 )
             except Exception as e:
-                logger.warning(f"ontology write skipped (post-success): {e}")
+                if settings.ontology_write_required:
+                    logger.error(f"required ontology write failed for {url}; checkpoint NOT saved: {e}")
+                    return {
+                        "status": "error",
+                        "message": f"Ontology materialization failed: {e}",
+                        "source_url": url,
+                        "chunks_indexed": 0,
+                        "summaries_created": 0,
+                    }
+                logger.warning(f"optional ontology write unavailable for {url}: {e}")
+
+        checkpoint.save(self._checkpoint_key(content_hash, source_version))
 
         # OKF auto-extraction hook (same gate as _ingest_video).
         # ponytail: simplified from the previous to_thread(asyncio.run(...)) wrapper —
@@ -1684,6 +1711,9 @@ class IngestionPipeline:
 
             try:
                 raw_text = transcript["text"]
+                content_hash_pl = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
+                if checkpoint.is_processed(self._checkpoint_key(content_hash_pl)):
+                    continue
 
                 # Correct + audit
                 sanitized_text = raw_text.replace("<|begin_of_text|>", "").replace("<|eot_id|>", "")
@@ -1740,24 +1770,24 @@ class IngestionPipeline:
                 # can roll back this one video without aborting the whole playlist.
                 backup_collection = self._backup_before_reindex(video["url"])
 
-                chunks_count = self._embed_and_index(
-                    final_chunks,
-                    source_url=video["url"],
-                    title=video_title,
-                    speaker=video_speaker,
-                    topic=video_topic,
-                    language=video_language,
-                    content_type="video",
-                    source_type="video",
-                    tags=tags,
-                    video_id=extract_video_id(video["url"]),
-                    channel_name=transcript.get("channel_name"),
-                    published_at=transcript.get("published_at"),
-                    duration=transcript.get("duration"),
-                    thumbnail_url=transcript.get("thumbnail_url"),
-                )
-
                 try:
+                    chunks_count = self._embed_and_index(
+                        final_chunks,
+                        source_url=video["url"],
+                        title=video_title,
+                        speaker=video_speaker,
+                        topic=video_topic,
+                        language=video_language,
+                        content_type="video",
+                        source_type="video",
+                        tags=tags,
+                        video_id=extract_video_id(video["url"]),
+                        channel_name=transcript.get("channel_name"),
+                        published_at=transcript.get("published_at"),
+                        duration=transcript.get("duration"),
+                        thumbnail_url=transcript.get("thumbnail_url"),
+                    )
+
                     # RAPTOR
                     chunk_dicts = [
                         {
@@ -1774,7 +1804,8 @@ class IngestionPipeline:
                     summaries_count = await self._raptor.build_tree(chunk_dicts)
 
                     # Step 6: Graph RAG
-                    await self._lightrag.ainsert(clean_text)
+                    if self._lightrag:
+                        await self._lightrag.ainsert(clean_text)
                 except Exception as e:
                     logger.error(f"Downstream ingestion step failed for {video['url']}, rolling back: {e}")
                     self._rollback_reindex(video["url"], backup_collection)
@@ -1787,11 +1818,9 @@ class IngestionPipeline:
                 total_chunks += chunks_count
                 total_summaries += summaries_count
 
-                content_hash_pl = hashlib.sha256(clean_text.strip().encode("utf-8")).hexdigest()
-
-                # Keep the source URL as the playlist checkpoint key so the
-                # initial URL lookup and the final saved checkpoint agree.
-                # The content hash remains available for provenance and audits.
+                # Checkpoint is keyed on content_hash_pl (computed from raw_text
+                # right after fetch, same convention as _ingest_video) so re-runs
+                # dedupe by content, not by URL — the URL is kept as metadata only.
                 if pl_hyper_extract and getattr(settings, "write_ontology_to_neo4j", True):
                     try:
                         from ingest.ontology_writer import write_extraction_to_neo4j
@@ -1813,6 +1842,10 @@ class IngestionPipeline:
                             continue
                         logger.warning(f"optional ontology write unavailable for {video['url']}: {e}")
 
+                checkpoint.save(self._checkpoint_key(content_hash_pl), {"url": video["url"]})
+                # ponytail: also save under the URL key so the pre-fetch Phase 1
+                # filter above (which can't know content_hash before fetching)
+                # still skips re-fetching this video on the next playlist run.
                 checkpoint.save(self._checkpoint_key(video["url"]), {"content_hash": content_hash_pl})
                 processed += 1
 

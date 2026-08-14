@@ -37,11 +37,14 @@ async def test_cross_teacher_reasoning_skipped_for_single_teacher():
 
 @pytest.mark.asyncio
 async def test_cross_teacher_reasoning_fires_for_multi_teacher_with_mock_neo4j():
+    """Sadhguru is unlicensed_reference_only per the TeacherDomain registry —
+    the comparison must be injected as a downgraded external reference, not
+    as licensed doctrine. See test below for the licensed-pair (ekam) case."""
     state = GraphState(
         question="How does Sadhguru's view on Karma compare to Sri Preethaji's?",
         relevant_docs=[{"content": "existing doc", "score": 0.5}]
     )
-    
+
     # Mock Neo4j driver and session
     mock_record = {
         "teacher1": "Sadhguru",
@@ -49,25 +52,59 @@ async def test_cross_teacher_reasoning_fires_for_multi_teacher_with_mock_neo4j()
         "concept": "Karma",
         "description": "Spiritual cause and effect."
     }
-    
+
     mock_session = MagicMock()
     mock_session.execute_read.return_value = [mock_record]
-    
+
     mock_driver = MagicMock()
     mock_driver.session.return_value.__enter__.return_value = mock_session
-    
+
     with patch("rag.nodes.cross_teacher_reasoning.GraphDatabase.driver", return_value=mock_driver), \
          patch("app.config.settings.neo4j_uri", "bolt://mock:7687"):
-         
+
         result = await cross_teacher_reasoning(state)
-        
+
         assert "relevant_docs" in result
         assert len(result["relevant_docs"]) == 2
         assert result["is_cross_teacher"] is True
         assert "Sadhguru" in result["compared_teachers"]
         assert "Sri Preethaji" in result["compared_teachers"]
+        assert result["relevant_docs"][0]["content_type"] == "external_reference"
+        assert result["relevant_docs"][0]["score"] == 0.4
+        assert "External reference" in result["relevant_docs"][0]["content"]
+
+
+@pytest.mark.asyncio
+async def test_cross_teacher_reasoning_licensed_pair_stays_ontology_comparison():
+    """Sri Preethaji + Sri Krishnaji both resolve to the licensed 'ekam' domain —
+    this is the only pair that should still get full-weight ontology_comparison."""
+    state = GraphState(
+        question="How does Sri Preethaji's view on Karma compare to Sri Krishnaji's?",
+        relevant_docs=[{"content": "existing doc", "score": 0.5}]
+    )
+
+    mock_record = {
+        "teacher1": "Sri Preethaji",
+        "teacher2": "Sri Krishnaji",
+        "concept": "Karma",
+        "description": "Spiritual cause and effect.",
+    }
+
+    mock_session = MagicMock()
+    mock_session.execute_read.return_value = [mock_record]
+
+    mock_driver = MagicMock()
+    mock_driver.session.return_value.__enter__.return_value = mock_session
+
+    with patch("rag.nodes.cross_teacher_reasoning.GraphDatabase.driver", return_value=mock_driver), \
+         patch("app.config.settings.neo4j_uri", "bolt://mock:7687"):
+
+        result = await cross_teacher_reasoning(state)
+
+        assert result["is_cross_teacher"] is True
         assert "Ontology Connection" in result["relevant_docs"][0]["content"]
         assert result["relevant_docs"][0]["content_type"] == "ontology_comparison"
+        assert result["relevant_docs"][0]["score"] == 0.95
 
 
 @pytest.mark.asyncio

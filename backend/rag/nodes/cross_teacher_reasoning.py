@@ -6,6 +6,8 @@ from neo4j import GraphDatabase
 from rag.states import GraphState
 from app.config import settings
 from app.tracing import trace_rag_node
+from domain.spiritual_ontology import resolve_teacher_domain
+from rag.nodes.retrieval import _screen_prompt_injection
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +61,40 @@ def close_neo4j_driver() -> None:
     _driver = None
     _owns_driver = False
 
+
+def _licensed_pair(teacher1: str, teacher2: str) -> bool:
+    """Both teachers must resolve to a rollout_enabled TeacherDomain for a
+    concept-mapping doc to be injected as citable doctrine."""
+    d1 = resolve_teacher_domain(teacher1)
+    d2 = resolve_teacher_domain(teacher2)
+    return bool(d1 and d1.rollout_enabled and d2 and d2.rollout_enabled)
+
+
+def _build_doc(relationships: list[str], *, licensed: bool) -> dict | None:
+    """Screen Neo4j-sourced comparison text before it enters relevant_docs.
+    This node runs after retrieve_documents, so it bypasses that node's
+    _screen_prompt_injection call unless applied here explicitly."""
+    content = "\n".join(relationships)
+    if not _screen_prompt_injection([{"text": content}]):
+        logger.warning("cross_teacher_reasoning: dropped content failing prompt-injection screen")
+        return None
+    if licensed:
+        return {
+            "content": content,
+            "score": 0.95,
+            "title": "Cross-Teacher Ontology Mapping",
+            "source": "neo4j://ontology/comparison",
+            "content_type": "ontology_comparison",
+        }
+    return {
+        "content": f"[External reference — not part of the licensed teaching corpus]\n{content}",
+        "score": 0.4,
+        "title": "External reference — not part of the licensed teaching corpus",
+        "source": "neo4j://ontology/comparison",
+        "content_type": "external_reference",
+    }
+
+
 @trace_rag_node("cross_teacher_reasoning")
 async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dict:
     """
@@ -110,24 +146,31 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
     cached_results = _neo4j_query_cache.get(cache_key)
     if cached_results is not None:
         logger.info("Neo4j cross-teacher cache hit")
-        if cached_results:
-            comparison_doc = {
-                "content": "\n".join(cached_results),
-                "score": 0.95,
-                "title": "Cross-Teacher Ontology Mapping",
-                "source": "neo4j://ontology/comparison",
-                "content_type": "ontology_comparison"
-            }
+        licensed_rel, external_rel = cached_results
+        docs_to_inject = []
+        if licensed_rel:
+            doc = _build_doc(licensed_rel, licensed=True)
+            if doc:
+                docs_to_inject.append(doc)
+        if external_rel:
+            doc = _build_doc(external_rel, licensed=False)
+            if doc:
+                docs_to_inject.append(doc)
+        if docs_to_inject:
             current_docs = state.get("relevant_docs") or []
             return {
-                "relevant_docs": [comparison_doc] + current_docs,
+                "relevant_docs": docs_to_inject + current_docs,
                 "is_cross_teacher": True,
                 "compared_teachers": teachers
             }
         return {}
 
-    # Query Neo4j for relationships between these teachers and common concepts
-    relationships_found = []
+    # Query Neo4j for relationships between these teachers and common concepts.
+    # Split by whether BOTH teachers resolve to a rollout_enabled TeacherDomain
+    # (see domain/spiritual_ontology.py) -- only licensed pairs are injected as
+    # citable doctrine; anything else is relabeled as an external reference.
+    licensed_relationships: list[str] = []
+    external_relationships: list[str] = []
     if settings.neo4j_uri:
         try:
             def _query_paths(tx):
@@ -150,34 +193,42 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
             records = await asyncio.to_thread(_run_query)
 
             for r in records:
-                relationships_found.append(
+                text = (
                     f"Ontology Connection: Both {r['teacher1']} and {r['teacher2']} expound the concept of '{r['concept']}'. "
                     f"Concept definition: {r['description']}"
                 )
+                if _licensed_pair(r["teacher1"], r["teacher2"]):
+                    licensed_relationships.append(text)
+                else:
+                    external_relationships.append(text)
         except Exception as e:
             logger.warning(f"cross_teacher_reasoning: Failed to query Neo4j for cross-teacher paths: {e}")
 
-    # If we found ontology connections, construct a comparison context and add to documents
-    if relationships_found:
+    # If we found ontology connections, construct comparison context and add to documents
+    if licensed_relationships or external_relationships:
         # Cache the results before returning
-        _neo4j_query_cache[cache_key] = relationships_found
+        _neo4j_query_cache[cache_key] = (licensed_relationships, external_relationships)
 
-        comparison_doc = {
-            "content": "\n".join(relationships_found),
-            "score": 0.95,
-            "title": "Cross-Teacher Ontology Mapping",
-            "source": "neo4j://ontology/comparison",
-            "content_type": "ontology_comparison"
-        }
-        # Prepend to relevant_docs
-        current_docs = state.get("relevant_docs") or []
-        logger.info("cross_teacher_reasoning: Prepending ontology mapping to relevant_docs context.")
-        return {
-            "relevant_docs": [comparison_doc] + current_docs,
-            "is_cross_teacher": True,
-            "compared_teachers": teachers
-        }
+        docs_to_inject = []
+        if licensed_relationships:
+            doc = _build_doc(licensed_relationships, licensed=True)
+            if doc:
+                docs_to_inject.append(doc)
+        if external_relationships:
+            doc = _build_doc(external_relationships, licensed=False)
+            if doc:
+                docs_to_inject.append(doc)
+
+        if docs_to_inject:
+            current_docs = state.get("relevant_docs") or []
+            logger.info("cross_teacher_reasoning: Prepending ontology mapping to relevant_docs context.")
+            return {
+                "relevant_docs": docs_to_inject + current_docs,
+                "is_cross_teacher": True,
+                "compared_teachers": teachers
+            }
+        return {}
 
     # Cache empty result too to avoid repeated queries with no results
-    _neo4j_query_cache[cache_key] = []
+    _neo4j_query_cache[cache_key] = ([], [])
     return {}

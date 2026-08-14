@@ -119,7 +119,7 @@ class DistressStage(Stage):
         if not isinstance(level_value, int):
             level_value = -1
         if assessment and level_value >= DistressLevel.SEVERE.value:
-            return self._crisis_preemption_result(ctx, assessment)
+            return await self._crisis_preemption_result(ctx, assessment)
         # ponytail: proactive Serene Mind block from execute() verbatim.
         # Trigger on a keyword hit, a persistent distress trend, OR a positive
         # assessment this turn — so a crisis with no listed keyword still routes.
@@ -138,7 +138,7 @@ class DistressStage(Stage):
 
 
     @staticmethod
-    def _crisis_preemption_result(
+    async def _crisis_preemption_result(
         ctx: "PipelineContext", assessment: DistressAssessment
     ) -> PipelineResult:
         """Return reviewed support before any model or persistence side effect."""
@@ -151,6 +151,14 @@ class DistressStage(Stage):
             "that you need support."
         )
         response = "\n\n".join(part for part in (prefix, resources, next_step) if part)
+        # This stage runs BEFORE TranslationStage, so an Indic seeker who tripped
+        # the crisis pre-screen would otherwise get an English-only safety
+        # response. Mirror InputGuardrailStage's blocked-response translation
+        # (guardrail_stage.py) — same service call, same is_indic/preferred_lang.
+        if getattr(ctx, "is_indic", False):
+            response = await ctx.container.translation.translate_text(
+                text=response, source_lang="en", target_lang=ctx.preferred_lang
+            )
         start_time = getattr(ctx, "start_time", time.time())
         return PipelineResult(
             final_answer=response,

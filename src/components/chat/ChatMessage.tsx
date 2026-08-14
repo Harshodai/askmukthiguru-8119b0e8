@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
 import { evidenceSupport } from '@/lib/chat/evidenceSupport';
+import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import { cn } from '@/lib/utils';
 import { useProfile } from '@/hooks/useProfile';
 import { translateText } from '@/lib/aiService';
@@ -981,7 +982,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             )}
 
             {/* Follow-up suggestions as clickable chips */}
-            {isGuru && message.followUpSuggestions && message.followUpSuggestions.length > 0 && !isStreaming && onAction && !message.content.includes('_Stopped by you._') && (
+            {FEATURE_FLAGS.suggestedFollowUps && isGuru && message.followUpSuggestions && message.followUpSuggestions.length > 0 && !isStreaming && onAction && !message.content.includes('_Stopped by you._') && (
               <div className="w-full mt-1">
                 <p className="text-[10px] text-muted-foreground/60 mb-2 pl-0.5">{t('chat.suggestedFollowUps')}</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -999,7 +1000,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             )}
 
             {/* Sources / Citations — collapsed by default, max 3 shown inline */}
-            {isGuru && !isStreaming && (citations.length > 0 || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (
+            {FEATURE_FLAGS.responseProvenance && isGuru && !isStreaming && (citations.length > 0 || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (
               <div
                 data-testid="response-provenance"
                 role="status"

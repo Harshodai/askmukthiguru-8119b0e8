@@ -395,6 +395,12 @@ class OpenRouterService:
             if is_rate_limit or is_connection_error:
                 if is_rate_limit:
                     await self._record_rate_limit_response()
+                else:
+                    # Connection-class failures count against the breaker even though
+                    # we still degrade gracefully — matches ollama_service.py's pattern
+                    # (services/ollama_service.py:298-301), so streak of dead-connection
+                    # failures actually trips the circuit instead of looking healthy forever.
+                    self._circuit.record_failure()
                 reason = "rate limited (429)" if is_rate_limit else type(exc).__name__
                 if fallback_model and not _is_fallback_attempt:
                     logger.warning(

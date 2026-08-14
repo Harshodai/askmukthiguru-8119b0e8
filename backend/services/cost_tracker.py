@@ -102,6 +102,8 @@ UTC = UTC
 # fine for a soft log alert, not a source of truth for enforcement.
 _LAST_BUDGET_CHECK: dict[str, float] = {}
 _BUDGET_CHECK_INTERVAL_SECONDS = 3600
+# Retry a failed usage read after a short cooldown, not on every request.
+_BUDGET_FAILURE_RETRY_SECONDS = 1.0
 _BUDGET_CHECK_LOCK = Lock()
 
 
@@ -176,9 +178,13 @@ class CostTracker:
         try:
             today = self.get_daily_usage(tenant_key, days=1)
         except Exception as e:
-            logger.error(f"Budget check failed to fetch daily usage: {e}")
+            # Keep a short failure cooldown so a transient outage can recover
+            # without turning every request into a Supabase retry storm.
             with _BUDGET_CHECK_LOCK:
-                _LAST_BUDGET_CHECK.pop(tenant_key, None)
+                _LAST_BUDGET_CHECK[tenant_key] = (
+                    now - _BUDGET_CHECK_INTERVAL_SECONDS + _BUDGET_FAILURE_RETRY_SECONDS
+                )
+            logger.error(f"Budget check failed to fetch daily usage: {e}")
             return
         if not today:
             return
@@ -191,6 +197,20 @@ class CostTracker:
                 "exceeds budget=$%.2f (~₹3,000/month envelope)",
                 tenant_key, float(today_cost), float(projected_monthly), float(budget),
             )
+            client = _get_client()
+            if client:
+                try:
+                    client.table("alert_events").insert({
+                        "value": float(projected_monthly),
+                        "message": (
+                            f"Cost budget alert: tenant={tenant_key} "
+                            f"today=${float(today_cost):.4f} "
+                            f"projected_monthly=${float(projected_monthly):.2f} "
+                            f"exceeds budget=${float(budget):.2f}"
+                        ),
+                    }).execute()
+                except Exception as e:
+                    logger.error(f"Failed to write budget alert to alert_events: {e}")
 
     def get_usage_report(
         self,

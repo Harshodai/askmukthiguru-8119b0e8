@@ -299,11 +299,11 @@ class LLMQualityScorer:
             )
             return self._parse_json_response(raw)
         except asyncio.TimeoutError:
-            logger.warning("LLM quality score timed out — defaulting to score=60 (pass with caution)")
-            return 60, ["LLM timeout — score defaulted, manual review recommended"]
+            logger.warning("LLM quality score timed out — quarantining as UNKNOWN")
+            return 0, ["QUALITY_UNKNOWN: LLM timeout; manual review required"]
         except Exception as e:
-            logger.warning(f"LLM quality scoring failed: {e} — defaulting to score=65")
-            return 65, [f"LLM scoring unavailable: {e}"]
+            logger.warning("LLM quality scoring failed — quarantining as UNKNOWN: %s", e)
+            return 0, [f"QUALITY_UNKNOWN: LLM scoring unavailable: {e}"]
 
     def _parse_json_response(self, raw: str) -> tuple[int, list[str]]:
         import json
@@ -314,7 +314,7 @@ class LLMQualityScorer:
         match = re.search(r"\{.*\}", clean, re.DOTALL)
         if not match:
             logger.warning(f"LLM quality response not JSON: {raw[:200]}")
-            return 50, ["Could not parse LLM response — borderline score assigned"]
+            return 0, ["QUALITY_UNKNOWN: LLM response was not valid JSON"]
 
         try:
             data = json.loads(match.group())
@@ -325,7 +325,7 @@ class LLMQualityScorer:
             return max(0, min(100, score)), reasons
         except (json.JSONDecodeError, ValueError, TypeError) as e:
             logger.warning(f"JSON parse error in quality response: {e}")
-            return 50, ["JSON parse error — borderline score assigned"]
+            return 0, [f"QUALITY_UNKNOWN: JSON parse error: {e}"]
 
     def _sample_text(self, text: str, sample_size: int, positions: int) -> str:
         """Sample text from start, middle, and end positions."""
@@ -444,6 +444,10 @@ class DataQualityGate:
         # ── Tier 2: LLM Scoring ───────────────────────────────────────────
         if self._llm_scorer:
             llm_score, llm_reasons = await self._llm_scorer.score(text, source_url)
+            quality_unknown = any(
+                str(reason).startswith("QUALITY_UNKNOWN:")
+                for reason in llm_reasons
+            )
             # Blend T1 (40%) and LLM (60%) scores for robustness
             final_score = int(score_from_t1 * 0.4 + llm_score * 0.6)
             all_reasons = t1_reasons + llm_reasons
@@ -452,8 +456,11 @@ class DataQualityGate:
             final_score = score_from_t1
             all_reasons = t1_reasons
             tier = 1
+            quality_unknown = False
 
-        passed = final_score >= self._threshold
+        # Unknown is never a pass. A scorer outage must quarantine the candidate
+        # release instead of allowing a pass-like fallback score to publish.
+        passed = final_score >= self._threshold and not quality_unknown
 
         result = QualityResult(
             passed=passed,

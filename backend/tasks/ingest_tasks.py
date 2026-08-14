@@ -16,11 +16,22 @@ import os
 import threading
 from typing import Any, Optional
 
+from httpx import HTTPError
 from celery import Task
 
 from celery_config import celery_app, update_job_progress
 
 logger = logging.getLogger(__name__)
+
+# Only transient transport failures are automatically retried. Deterministic
+# parse, quality, schema, authorization, and validation failures must surface to
+# the job/DLQ instead of replaying partial writes indefinitely.
+RETRYABLE_INGEST_ERRORS = (
+    TimeoutError,
+    ConnectionError,
+    OSError,
+    HTTPError,
+)
 
 
 # Celery runs one task slot in Railway today, but tasks are still short-lived
@@ -102,7 +113,7 @@ class AsyncTask(Task):
 
 @celery_app.task(
     base=AsyncTask, bind=True,
-    autoretry_for=(Exception,),
+    autoretry_for=RETRYABLE_INGEST_ERRORS,
     retry_kwargs={"max_retries": 3},
     retry_backoff=True,
     retry_jitter=True,
@@ -138,7 +149,7 @@ def embed_chunks(self, chunks: list[str], content_hash: str, job_id: str = None)
 
 @celery_app.task(
     base=AsyncTask, bind=True,
-    autoretry_for=(Exception,),
+    autoretry_for=RETRYABLE_INGEST_ERRORS,
     retry_kwargs={"max_retries": 3},
     retry_backoff=True,
     retry_jitter=True,
@@ -212,7 +223,7 @@ def index_vectors(
 
 @celery_app.task(
     base=AsyncTask, bind=True,
-    autoretry_for=(Exception,),
+    autoretry_for=RETRYABLE_INGEST_ERRORS,
     retry_kwargs={"max_retries": 3},
     retry_backoff=True,
     retry_jitter=True,
@@ -286,7 +297,7 @@ def orchestrate_ingestion(
 
 @celery_app.task(
     base=AsyncTask, bind=True,
-    autoretry_for=(Exception,),
+    autoretry_for=RETRYABLE_INGEST_ERRORS,
     retry_kwargs={"max_retries": 2},
     retry_backoff=True,
     retry_jitter=True,
@@ -362,7 +373,7 @@ def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optiona
     }
 
 
-@celery_app.task(base=AsyncTask, bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 1})
+@celery_app.task(base=AsyncTask, bind=True, autoretry_for=RETRYABLE_INGEST_ERRORS, retry_kwargs={"max_retries": 1})
 def post_ingestion_maintenance(self, trigger: str = "playlist_complete") -> dict[str, Any]:
     """Dedup Neo4j entities and audit cross-store data quality after an ingestion batch.
 
@@ -393,7 +404,7 @@ def post_ingestion_maintenance(self, trigger: str = "playlist_complete") -> dict
 
 @celery_app.task(
     base=AsyncTask, bind=True,
-    autoretry_for=(Exception,),
+    autoretry_for=RETRYABLE_INGEST_ERRORS,
     retry_kwargs={"max_retries": 2},
     retry_backoff=True,
     retry_jitter=True,

@@ -122,7 +122,7 @@ const AuthLatencyDashboard = () => {
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             If Google sign-in is consistently slow, check: network throttling, third-party cookies blocked,
-            Lovable Cloud project status, or a stuck redirect from <code>oauth.lovable.app</code>.
+            Vercel deployment status, or a stuck OAuth redirect.
           </p>
         </Card>
       )}

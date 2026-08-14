@@ -23,6 +23,7 @@ No external dependencies beyond the Python standard library.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Optional
@@ -318,10 +319,25 @@ def normalize_entity_name(name: str) -> str:
     return " ".join(name.strip().split())
 
 
+# Honorific prefixes/suffixes stripped before alias lookup — mirrors
+# ingest/pipeline.py's `_consolidate_graph_entities.clean_name()` regex so
+# LLM-extracted variants like "Guru Preethaji" resolve the same canonical
+# id as "Sri Preethaji".
+_HONORIFIC_PREFIX_RE = re.compile(r"^(sri|shri|sree|guruji|guru|swami|swamiji|acharya)\s+", re.IGNORECASE)
+_HONORIFIC_SUFFIX_RE = re.compile(r"\s+(ji|deva|dev|maharaj|swami|swamiji)$", re.IGNORECASE)
+
+
 def canonical_entity_id(name: str) -> str:
-    """Resolve entity name to canonical entity_id (case-insensitive)."""
+    """Resolve entity name to canonical entity_id (case-insensitive).
+
+    Strips honorific prefixes/suffixes before the alias lookup so a name
+    variant that only differs by honorific still resolves to the same
+    canonical id. Falls back to the (unstripped) normalized name when no
+    alias matches, so unmapped entities keep their original entity_id.
+    """
     normalized = normalize_entity_name(name)
-    return CANONICAL_ENTITY_ALIASES.get(normalized.lower(), normalized)
+    stripped = _HONORIFIC_SUFFIX_RE.sub("", _HONORIFIC_PREFIX_RE.sub("", normalized)).strip()
+    return CANONICAL_ENTITY_ALIASES.get(stripped.lower(), normalized)
 
 
 @dataclass

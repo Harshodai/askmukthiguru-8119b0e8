@@ -10,7 +10,7 @@ Session covered: meditation TTS fallback, a ruthless UI/UX pass, and getting the
 
 1. Add a fallback so a missing/broken Preethaji meditation audio clip falls back to Web Speech API TTS instead of going silent.
 2. Fix UI/UX issues across device sizes (mobile/tablet/desktop) — "ruthless," per the user.
-3. Verify the Lovable-hosted frontend (`askmukthiguru.lovable.app`) and Railway backend (`askmukthiguru-8119b0e8-production.up.railway.app`) are correctly wired, by firing a real end-to-end chat query through the authenticated app.
+3. Verify the Lovable-hosted frontend (`askmukthiguru.com`) and Railway backend (`askmukthiguru-8119b0e8-production.up.railway.app`) are correctly wired, by firing a real end-to-end chat query through the authenticated app.
 4. Determine what's left before this is demo-ready and user-ready.
 
 ## 2. Current state of code

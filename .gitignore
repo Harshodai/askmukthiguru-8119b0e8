@@ -270,3 +270,5 @@ artifacts/video-review/
 
 # Local codebase-index artifacts
 .codebase-memory/
+.temp_release_evidence/*
+.tmp_release_evidence/*
