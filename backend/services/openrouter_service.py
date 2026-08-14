@@ -94,6 +94,8 @@ class OpenRouterService:
         # Use provider-specific circuit breaker
         config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.OPENROUTER.value)
         self._circuit = DefaultCircuitBreaker(config)
+        from services.circuit_breaker import get_circuit_breaker_registry
+        get_circuit_breaker_registry().register(CircuitBreakerProvider.OPENROUTER.value, self._circuit)
 
         # Rate limiting state
         self._rpm_lock = AsyncLock()

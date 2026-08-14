@@ -14,6 +14,11 @@ from lightrag.utils import EmbeddingFunc
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from services.circuit_breaker import (
+    CircuitBreakerConfig,
+    DefaultCircuitBreaker,
+    get_circuit_breaker_registry,
+)
 
 # Fixed enum for LightRAG entity-type extraction. Without this, LightRAG falls
 # back to its own generic DEFAULT_ENTITY_TYPES (Person/Creature/NaturalObject/...)
@@ -87,6 +92,10 @@ class LightRAGService:
         # thread pool can race on read/write. An RLock serialises all cache
         # operations without deadlocking (RLock is reentrant).
         self._cache_lock = threading.RLock()
+        # Provider-agnostic circuit breaker — no dedicated CircuitBreakerProvider
+        # entry for lightrag; from_provider() falls back to default thresholds.
+        self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("lightrag"))
+        get_circuit_breaker_registry().register("lightrag", self._circuit)
 
     async def initialize(self):
         if self._initialized:
@@ -465,6 +474,10 @@ class LightRAGService:
             logger.info("LightRAG cache hit for query")
             return cached
 
+        if not self._circuit.can_execute():
+            logger.warning("Circuit breaker OPEN for lightrag — skipping graph query.")
+            return ""
+
         if not self._initialized:
             await self.initialize()
 
@@ -483,6 +496,7 @@ class LightRAGService:
             )
             with self._cache_lock:
                 self._query_cache[cache_key] = result
+            self._circuit.record_success()
             return result
         except Exception as e:
             # Check for common initialization error and retry once
@@ -494,8 +508,10 @@ class LightRAGService:
                 )
                 with self._cache_lock:
                     self._query_cache[cache_key] = result
+                self._circuit.record_success()
                 return result
             logger.error(f"LightRAG query failed: {e}")
+            self._circuit.record_failure()
             return ""
 
     async def ainsert(

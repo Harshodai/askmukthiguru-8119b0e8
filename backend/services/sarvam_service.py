@@ -107,6 +107,8 @@ class SarvamCloudService:
         from app.constants import CircuitBreakerProvider
         sarvam_config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.SARVAM_CLOUD.value)
         self._circuit = DefaultCircuitBreaker(sarvam_config)
+        from services.circuit_breaker import get_circuit_breaker_registry
+        get_circuit_breaker_registry().register(CircuitBreakerProvider.SARVAM_CLOUD.value, self._circuit)
         self._last_request_time = 0.0
         self._rate_limit_lock = AsyncLock()
         self._max_tokens_limit = 4096

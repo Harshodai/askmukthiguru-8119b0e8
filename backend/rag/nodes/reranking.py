@@ -393,9 +393,19 @@ async def enrich_context(state: GraphState, config: dict = None) -> dict:
 
         # Bypass neighbor lookup for web search results since they are not in Qdrant
         if source_url and chunk_index is not None and doc.get("content_type") != "web_search":
-            neighbors = qdrant.get_neighbor_chunks(
-                source_url, chunk_index, window=settings.rag_context_window
-            )
+            try:
+                neighbors = qdrant.get_neighbor_chunks(
+                    source_url, chunk_index, window=settings.rag_context_window
+                )
+            except Exception as _neighbor_exc:
+                # Circuit-open or transient Qdrant failure: degrade to the
+                # un-enriched doc rather than failing the whole node.
+                logger.debug(f"Neighbor lookup skipped: {_neighbor_exc}")
+                h = hash(doc_text(doc)[:100])
+                if h not in seen_hashes:
+                    seen_hashes.add(h)
+                    enriched_docs.append(doc)
+                continue
             for n in neighbors:
                 h = hash(n["text"][:100])
                 if h not in seen_hashes:

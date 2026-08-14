@@ -404,9 +404,16 @@ def initialize_circuit_breakers(registry: CircuitBreakerRegistry = None) -> Circ
     if registry is None:
         registry = get_circuit_breaker_registry()
 
+    # Services (qdrant/embedding/web_search/sarvam/openrouter) self-register their
+    # REAL breaker via get_circuit_breaker_registry().register(...) in their own
+    # __init__, which runs before this function in ServiceContainer's build order.
+    # Only fill a default for a provider with no real breaker registered yet --
+    # overwriting one here would silently replace the object every service actually
+    # calls can_execute()/record_success() on with a phantom that never sees traffic.
     breakers = create_default_breakers()
     for provider, breaker in breakers.items():
-        registry.register(provider, breaker)
+        if registry.get(provider) is None:
+            registry.register(provider, breaker)
 
     # Set active provider based on config
     from app.config import settings

@@ -96,15 +96,13 @@ class DuckDuckGoProvider(SearchProvider):
                 logger.warning("Neither ddgs nor duckduckgo-search installed; skipping web search")
                 return []
 
-        try:
-            # DDGS is sync; run in thread pool
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
-                None, self._ddg_sync_search, query, max_results
-            )
-        except Exception as exc:
-            logger.warning(f"DuckDuckGo search failed: {exc}")
-            return []
+        # DDGS is sync; run in thread pool. Network/API failures propagate to the
+        # caller (WebSearchService.search) so its circuit breaker can see them --
+        # swallowing here made the breaker see nothing but zero-result "successes".
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None, self._ddg_sync_search, query, max_results
+        )
 
     def _ddg_sync_search(self, query: str, max_results: int) -> list[dict]:
         try:
@@ -149,24 +147,23 @@ class SearXNGProvider(SearchProvider):
 
         url = f"{self.base_url}/search"
         params = {"q": query, "format": "json", "pageno": 1}
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    resp.raise_for_status()
-                    data = await resp.json()
-                    results = []
-                    for r in data.get("results", [])[:max_results]:
-                        results.append(
-                            {
-                                "title": r.get("title", ""),
-                                "url": r.get("url", ""),
-                                "snippet": r.get("content", ""),
-                            }
-                        )
-                    return results
-        except Exception as exc:
-            logger.warning(f"SearXNG search failed: {exc}")
-            return []
+        # Network/API failures propagate to the caller (WebSearchService.search)
+        # so its circuit breaker can see them -- swallowing here made the breaker
+        # see nothing but zero-result "successes".
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                resp.raise_for_status()
+                data = await resp.json()
+                results = []
+                for r in data.get("results", [])[:max_results]:
+                    results.append(
+                        {
+                            "title": r.get("title", ""),
+                            "url": r.get("url", ""),
+                            "snippet": r.get("content", ""),
+                        }
+                    )
+                return results
 
 
 # ---------------------------------------------------------------------------
@@ -198,6 +195,8 @@ class WebSearchService:
         # Provider-agnostic circuit breaker (no dedicated CircuitBreakerProvider
         # entry for web search; from_provider() falls back to default thresholds).
         self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("web_search"))
+        from services.circuit_breaker import get_circuit_breaker_registry
+        get_circuit_breaker_registry().register("web_search", self._circuit)
 
         if self.provider_name == "searxng" and searxng_url:
             self._provider: SearchProvider = SearXNGProvider(searxng_url)

@@ -98,6 +98,8 @@ class QdrantService:
         self._neighbor = QdrantNeighborLookup(self._client, self._collection)
         self._raptor = QdrantRaptorStore(self._client, self._collection, self._utils)
         self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("qdrant"))
+        from services.circuit_breaker import get_circuit_breaker_registry
+        get_circuit_breaker_registry().register("qdrant", self._circuit)
 
     # === Client / collection delegation ======================================
 
@@ -243,13 +245,39 @@ class QdrantService:
 
     def get_neighbor_chunks(self, source_url: str, chunk_index: int, window: int = 1) -> list[dict]:
         """Retrieve chunks immediately before and after the target chunk."""
-        return self._neighbor.get_neighbor_chunks(source_url, chunk_index, window)
+        if not self._circuit.can_execute():
+            exc = CircuitOpenException(
+                provider="qdrant",
+                message="Circuit breaker OPEN for qdrant",
+            )
+            logger.warning(str(exc))
+            raise exc
+        try:
+            result = self._neighbor.get_neighbor_chunks(source_url, chunk_index, window)
+            self._circuit.record_success()
+            return result
+        except Exception:
+            self._circuit.record_failure()
+            raise
 
     def get_summary_nodes(
         self, query_vector: Optional[list[float]] = None, limit: int = 15, scope=None
     ) -> list[dict]:
         """Retrieve RAPTOR level-1 summary nodes for tree navigation."""
-        return self._raptor.get_summary_nodes(query_vector, limit, scope=scope)
+        if not self._circuit.can_execute():
+            exc = CircuitOpenException(
+                provider="qdrant",
+                message="Circuit breaker OPEN for qdrant",
+            )
+            logger.warning(str(exc))
+            raise exc
+        try:
+            result = self._raptor.get_summary_nodes(query_vector, limit, scope=scope)
+            self._circuit.record_success()
+            return result
+        except Exception:
+            self._circuit.record_failure()
+            raise
 
     # === Static MMR / filter helpers ========================================
 

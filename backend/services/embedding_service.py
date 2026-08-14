@@ -120,6 +120,8 @@ class EmbeddingService:
         # "embedding" has no entry in CIRCUIT_BREAKER_CONFIGS, so from_provider()
         # falls back to its dataclass defaults (threshold=5, recovery=90s).
         self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("embedding"))
+        from services.circuit_breaker import get_circuit_breaker_registry
+        get_circuit_breaker_registry().register("embedding", self._circuit)
         logger.info("Embedding service initialized (lazy load)")
 
     def warm_up(self) -> None:
@@ -738,6 +740,14 @@ class EmbeddingService:
                 "sparse": sparse_results,
             }
 
+        if not self._circuit.can_execute():
+            exc = CircuitOpenException(
+                provider="embedding",
+                message="Circuit breaker OPEN for embedding — failing fast",
+            )
+            logger.warning(str(exc))
+            raise exc
+
         start_time = time.monotonic()
         with self._inference_lock:
             self._ensure_encoder()
@@ -838,6 +848,7 @@ class EmbeddingService:
                     EMBEDDING_LATENCY.labels(operation="encode_batch").observe(
                         time.monotonic() - start_time
                     )
+                    self._circuit.record_success()
                     return {
                         "dense": dense_results,
                         "sparse": sparse_results,
@@ -861,6 +872,7 @@ class EmbeddingService:
                 f"All {max_retries} attempts to encode batch failed. "
                 f"Raising last error: {last_err}"
             )
+            self._circuit.record_failure()
             raise last_err
 
     async def encode_batch_async(self, texts: list[str]) -> dict:
