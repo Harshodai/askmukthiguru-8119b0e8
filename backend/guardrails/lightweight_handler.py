@@ -348,19 +348,17 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
                     "redirect_to": "serene_mind",
                 }
 
-        # Spiritual domain allowlist: only bypasses remaining topic checks.
-        # It must NOT short-circuit crisis/self-harm/medical/prompt-injection checks above,
-        # nor the emotional-wellness redirect (which now runs before this block).
-        for term in _SPIRITUAL_DOMAIN_ALLOWLIST:
-            if term in message_lower:
-                logger.debug(f"Spiritual domain allowlist bypass for term: '{term}'")
-                return {"blocked": False, "reason": None, "response": None, "redirect_to": None}
-
-        # Check knowledge trap bypass
-        for pattern in _KNOWLEDGE_TRAP_PATTERNS:
-            if re.search(pattern, message_lower):
-                logger.debug(f"Knowledge trap bypass: '{pattern}'")
-                return {"blocked": False, "reason": None, "response": None, "redirect_to": None}
+        # Spiritual domain allowlist / knowledge-trap bypass moved to AFTER the
+        # LLM classifier (below): these must only skip the regex/keyword checks
+        # above, never the LLM check itself -- an allowlisted term returning
+        # early here let unsafe content slip past the LLM classifier entirely
+        # once guardrails_llm_enabled was turned on (finding #49).
+        allowlist_hit = any(term in message_lower for term in _SPIRITUAL_DOMAIN_ALLOWLIST)
+        knowledge_trap_hit = any(re.search(pattern, message_lower) for pattern in _KNOWLEDGE_TRAP_PATTERNS)
+        if allowlist_hit:
+            logger.debug("Spiritual domain allowlist matched (LLM classifier still runs below)")
+        if knowledge_trap_hit:
+            logger.debug("Knowledge trap pattern matched (LLM classifier still runs below)")
 
         # LLM Guard via Instructor
         if getattr(settings, "guardrails_llm_enabled", False):

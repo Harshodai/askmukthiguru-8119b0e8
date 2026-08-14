@@ -36,12 +36,18 @@ def _iso(dt: datetime) -> str:
     return dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def _fetch_responses(since: datetime, until: Optional[datetime] = None) -> list[dict[str, Any]]:
-    """Pull chat_responses with faithfulness / hallucination_flag in the window."""
+def _fetch_responses(since: datetime, until: Optional[datetime] = None) -> Optional[list[dict[str, Any]]]:
+    """Pull chat_responses with faithfulness / hallucination_flag in the window.
+
+    Returns None (not []) on a connection/query failure, so the caller can
+    distinguish "Supabase is broken" from "genuinely no responses in window" --
+    collapsing both to [] previously made a broken connection report identically
+    to "no anomaly."
+    """
     client = _get_client()
     if not client:
-        logger.warning("Supabase client unavailable; returning empty response set.")
-        return []
+        logger.error("Supabase client unavailable; cannot determine anomaly status.")
+        return None
 
     query = (
         client.table("chat_responses")
@@ -55,7 +61,7 @@ def _fetch_responses(since: datetime, until: Optional[datetime] = None) -> list[
         return query.execute().data or []
     except Exception as e:
         logger.error(f"Failed to fetch chat_responses: {e}")
-        return []
+        return None
 
 
 def _compute_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -93,6 +99,24 @@ def run_anomaly_check(lookback_days: Optional[int] = None) -> dict[str, Any]:
     lookback = lookback_days if lookback_days is not None else settings.anomaly_lookback_days
     since = _utc_now() - timedelta(days=max(1, lookback))
     rows = _fetch_responses(since)
+
+    if rows is None:
+        # Connection/query failure -- must not read the same as "no anomaly
+        # found." Reported as an anomaly so cron/CI alerts on-call instead of
+        # silently going quiet.
+        return {
+            "checked_at": _iso(_utc_now()),
+            "lookback_days": lookback,
+            "window_start": _iso(since),
+            "thresholds": {
+                "hallucination_rate": settings.anomaly_hallucination_rate_threshold,
+                "faithfulness_p50": settings.anomaly_faithfulness_p50_threshold,
+            },
+            "metrics": _compute_metrics([]),
+            "anomaly": True,
+            "alerts": {"connection_error": True},
+        }
+
     metrics = _compute_metrics(rows)
 
     total = metrics.get("total_responses", 0)

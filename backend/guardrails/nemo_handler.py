@@ -90,19 +90,36 @@ class NeMoGuardrailHandler(BaseGuardrailHandler):
             return {"blocked": False, "reason": None, "moderated_response": None}
 
         try:
+            # options={"rails": ["output"]} runs ONLY the configured output rails
+            # against the assistant message below -- it classifies `text` itself,
+            # unlike the old call which generated a fresh dialog continuation and
+            # inspected THAT for moderation phrases instead of the real output.
+            from nemoguardrails.rails.llm.options import GenerationOptions
+
             result = await self._rails.generate_async(
                 messages=[
                     {"role": "user", "content": "Tell me about this topic."},
                     {"role": "assistant", "content": text},
-                ]
+                ],
+                options=GenerationOptions(rails=["output"]),
             )
-            response_text = result.get("content", "")
+            response = result.response
+            response_text = (
+                response[-1].get("content", "")
+                if isinstance(response, list) and response
+                else str(response or "")
+            )
 
-            if _contains_phrase(response_text, _OUTPUT_MODERATION_PHRASES):
+            # NeMo's output rails substitute the assistant message when they
+            # fire, so a changed response means the real `text` was moderated.
+            # The phrase check is a belt-and-suspenders fallback, not the
+            # primary signal.
+            was_moderated = bool(response_text) and response_text.strip() != text.strip()
+            if was_moderated or _contains_phrase(text, _OUTPUT_MODERATION_PHRASES):
                 return {
                     "blocked": True,
                     "reason": "Output moderated by NeMo guardrails",
-                    "moderated_response": response_text,
+                    "moderated_response": response_text or None,
                 }
             return {"blocked": False, "reason": None, "moderated_response": None}
 
