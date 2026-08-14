@@ -107,17 +107,21 @@ class IngestionCheckpoint:
         if getattr(self, "redis_client", None):
             try:
                 key = self._get_redis_key(chunk_id)
-                return bool(self.redis_client.exists(key))
+                if self.redis_client.exists(key):
+                    return True
             except Exception as e:
                 logger.error(f"Failed to check checkpoint in Redis: {e}. Trying Supabase.")
 
         if getattr(self, "supabase_client", None):
             try:
                 res = self.supabase_client.table("ingestion_checkpoints").select("chunk_id").eq("chunk_id", chunk_id).eq("tenant_id", self.tenant_id).execute()
-                return bool(res.data)
+                if res.data:
+                    return True
             except Exception as e:
                 logger.error(f"Failed to check checkpoint in Supabase: {e}. Falling back to file.")
 
+        # A Redis/Supabase miss doesn't rule out a checkpoint that was written
+        # to the local-file fallback during an earlier outage of either store.
         return chunk_id in self.processed_chunks
 
     def prune_stale_entries(self, active_hashes: list[str]):

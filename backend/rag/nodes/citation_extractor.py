@@ -45,7 +45,7 @@ def _is_youtube_url(source: str) -> bool:
 def extract_citations(state: GraphState) -> dict:
     """Map answer sentences to best-matching retrieved documents."""
     answer: str = state.get("answer") or state.get("final_answer") or ""  # type: ignore
-    docs: list[dict] = state.get("documents", []) or []
+    docs: list[dict] = state.get("selected_docs") or state.get("relevant_docs", []) or []
     if not answer or not docs:
         return {"citations": []}
 

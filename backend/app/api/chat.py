@@ -192,7 +192,8 @@ def record_token_usage(endpoint: str):
                 if acc and (acc.tokens_in > 0 or acc.tokens_out > 0):
                     try:
                         tracked_cost = acc.cost_usd + acc.estimated_cost_usd
-                        get_cost_tracker().record(
+                        await asyncio.to_thread(
+                            get_cost_tracker().record,
                             tenant_id=TenantContext.get(),
                             user_id=user_id,
                             session_id=session_id,
@@ -202,7 +203,6 @@ def record_token_usage(endpoint: str):
                             tokens_out=acc.tokens_out,
                             endpoint=endpoint,
                             cost_override=tracked_cost if tracked_cost > 0 else None,
-
                         )
                     except Exception as e:
                         logger.warning(f"Failed to record token usage: {e}")

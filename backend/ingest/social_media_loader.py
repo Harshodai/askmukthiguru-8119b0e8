@@ -59,7 +59,6 @@ def _get_cookie_opts() -> dict:
     # Fallback: try cookies.txt in project root
     possible = [
         os.path.join(os.getcwd(), "cookies.txt"),
-        "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/cookies.txt",
     ]
     for path in possible:
         if os.path.exists(path):

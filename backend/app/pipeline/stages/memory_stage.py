@@ -102,9 +102,11 @@ class MemoryStage(Stage):
 
 
         try:
+            import asyncio
+
             from tasks.memory_outbox_tasks import drain_memory_outbox
 
-            drain_memory_outbox.apply_async()
+            await asyncio.to_thread(drain_memory_outbox.apply_async)
         except Exception as exc:
             # The periodic Celery Beat task will recover this pending row.
             logger.warning("Memory outbox dispatch deferred to scheduled worker: %s", exc)
