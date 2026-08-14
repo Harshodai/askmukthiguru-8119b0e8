@@ -228,25 +228,6 @@ class TestNodeCommand(unittest.TestCase):
         self.assertEqual(result, {"timed": True})
 
 
-class TestCoTVerifier(unittest.TestCase):
-    """Verify Chain-of-Thought Verifier."""
-
-    def test_cot_verifier_import(self):
-        from rag.cot_verifier import CoTSubQuestion, CoTVerifier
-
-        self.assertIsNotNone(CoTVerifier)
-        self.assertIsNotNone(CoTSubQuestion)
-
-    def test_sub_question_creation(self):
-        from rag.cot_verifier import CoTSubQuestion
-
-        sq = CoTSubQuestion("What is X?", "X is true")
-        self.assertEqual(sq.question, "What is X?")
-        self.assertEqual(sq.claim, "X is true")
-        self.assertEqual(sq.evidence, "")
-        self.assertEqual(sq.score, 0.0)
-
-
 class TestSelfCorrection(unittest.TestCase):
     """Verify Self-Correction orchestrator."""
 

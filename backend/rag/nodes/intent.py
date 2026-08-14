@@ -1006,29 +1006,6 @@ async def handle_meditation(state: GraphState, config: dict = None) -> dict:
     }
 
 
-def route_by_intent(state: GraphState) -> str:
-    """Route after intent classification."""
-    intent = state.get("intent", "CASUAL")
-    if intent == "DISTRESS":
-        return "query"
-    elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
-        return "meditation"
-    elif intent in [
-        "QUERY",
-        "FACTUAL",
-        "RELATIONAL",
-        "FOLLOW_UP",
-        "ADVERSARIAL",
-        "SAFETY_VIOLATION",
-        "GUIDED_TOUR",
-    ]:
-        return "query"
-    elif intent in ["ERROR"]:
-        return "casual"
-    else:
-        return "casual"
-
-
 def route_after_grading(state: GraphState) -> str:
     """Route after CRAG grading (merged with context sufficiency check)."""
     relevant = state.get("relevant_docs", [])

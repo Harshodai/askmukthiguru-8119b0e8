@@ -105,62 +105,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def lightweight_verify(state: GraphState) -> dict:
-    """
-    Lightweight verification node using LettuceDetect for faithfulness checking.
-
-    - Skips verification entirely for fast/tier2_simple queries (returns is_faithful=True)
-    - Uses LettuceDetectService for standard queries with settings.lettuce_detect_threshold
-    - FAIL-CLOSED: missing score/faithfulness result, empty inputs, or any error is
-      treated as unfaithful.
-    """
-    query_tier = state.get("query_tier", "standard")
-    if query_tier in ("fast", "tier2_simple"):
-        return {"is_faithful": True, "verification": {"skipped": True, "reason": f"query_tier={query_tier}"}}
-
-    answer = state.get("answer", "")
-    context = state.get("relevant_docs", [])
-    if isinstance(context, list):
-        context = "\n\n".join(d.get("content", "") for d in context if isinstance(d, dict))
-
-    if not answer or not context:
-        return {"is_faithful": False, "confidence_score": 0.0, "verification": {"skipped": False, "reason": "empty answer or context"}}
-
-    try:
-        from app.dependencies import get_container
-        from services.lettuce_detect_service import LettuceDetectService
-
-        embedder = get_container().embedding
-        lettuce = LettuceDetectService(embedder=embedder)
-        result = lettuce.score_faithfulness(
-            query=state.get("question", ""),
-            context=context,
-            answer=answer,
-        )
-
-        # Fail-closed: missing keys default to unfaithful / zero score.
-        is_faithful = result.get("is_faithful", False)
-        score = result.get("score", 0.0)
-
-        # Apply settings threshold (stricter than Lettuce's internal 0.22)
-        if score < settings.lettuce_detect_threshold:
-            is_faithful = False
-
-        # REMOVED: Doctrine-boost auto-pass (findings #1/#49). Pure LettuceDetect score + threshold is sufficient.
-
-        return {
-            "is_faithful": is_faithful,
-            "verification": {
-                "score": score,
-                "details": result.get("details", ""),
-                "unsupported_sentences": result.get("unsupported_sentences", []),
-            },
-        }
-    except Exception as e:
-        logger.error(f"lightweight_verify failed: {e}, marking as unverified")
-        return {"is_faithful": False, "confidence_score": 0.0, "verification": {"error": str(e)}}
-
-
 # ---------------------------------------------------------------------------
 # Routing helpers (previously in graph.py) — moved here to keep graph wiring
 # fully encapsulated inside the strategies.

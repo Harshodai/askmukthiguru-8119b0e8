@@ -107,8 +107,12 @@ class Settings(BaseSettings):
     feature_regex_prerouter: bool = True
 
     # --- Semantic Model Router (embedding-based classification, zero-LLM) ---
-    semantic_router_enabled: bool = True        # Toggle between semantic (fast) and LLM-based (slow) routing
-    semantic_router_top_k: int = 3              # How many nearest utterances vote on the tier
+    # Unwired: nothing in the codebase reads semantic_router_enabled or
+    # semantic_router_top_k. The routing behavior these names imply is
+    # actually gated by semantic_router_confidence_threshold /
+    # semantic_router_shadow_mode below (see orchestrator_utils.py).
+    semantic_router_enabled: bool = True
+    semantic_router_top_k: int = 3
     # Trust the semantic router's tier when its confidence exceeds this; below it,
     # routing defaults to the expensive "standard" path (orchestrator_utils.py:254).
     # Lowered 0.65→0.55 so borderline queries use the router's (often "fast") tier

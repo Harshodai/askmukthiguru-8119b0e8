@@ -140,21 +140,6 @@ def check_agentic_nodes() -> bool:
         return False
 
 
-def check_cot_verifier() -> bool:
-    """Verify Chain-of-Thought Verifier."""
-    _banner("8. Chain-of-Thought (CoT) Verifier")
-    try:
-        from rag.cot_verifier import CoTSubQuestion
-        sq = CoTSubQuestion("test?", "test claim")
-        print("  ✓ CoTVerifier available")
-        print("  ✓ CoTSubQuestion created")
-        return True
-    except Exception as e:
-        print(f"  ✗ FAILED: {e}")
-        traceback.print_exc()
-        return False
-
-
 def check_self_correction() -> bool:
     """Verify Self-Correction orchestrator."""
     _banner("9. Self-Correction Orchestrator")
@@ -215,7 +200,6 @@ def main() -> int:
         ("NodeRegistry", check_node_registry),
         ("TelemetryObserver", check_telemetry_observer),
         ("AgenticNodes", check_agentic_nodes),
-        ("CoTVerifier", check_cot_verifier),
         ("SelfCorrection", check_self_correction),
         ("Tools", check_tools),
         ("main.py Integration", check_mainpy_integrations),

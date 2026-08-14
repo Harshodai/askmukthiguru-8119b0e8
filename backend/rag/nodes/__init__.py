@@ -26,7 +26,6 @@ from .intent import (
     handle_meditation,
     intent_router,
     route_after_grading,
-    route_by_intent,
 )
 from .reranking import (
     enrich_context,
@@ -129,7 +128,6 @@ __all__ = [
     "handle_distress",
     "handle_distress_check",
     "handle_meditation",
-    "route_by_intent",
     "route_after_grading",
     "decompose_query",
     "generate_hyde",

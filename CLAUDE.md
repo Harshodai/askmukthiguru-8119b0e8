@@ -251,7 +251,6 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 │   │   ├── __init__.py
 │   │   ├── ab_testing.py
 │   │   ├── adaptive_chunking_adapter.py
-│   │   ├── adaptive_chunking_service.py
 │   │   ├── auth_service.py
 │   │   ├── base_llm_service.py
 │   │   ├── cache_service.py
@@ -287,8 +286,8 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 │   │   ├── prompt_store.py
 │   │   ├── proposition_service.py
 │   │   ├── qdrant_service.py
+│   │   ├── rankers.py
 │   │   ├── reranker_service.py
-│   │   ├── rrf_ranker.py
 │   │   ├── sarvam_exceptions.py
 │   │   ├── sarvam_service.py
 │   │   ├── sarvam_stt_service.py
@@ -309,7 +308,6 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 │       ├── __init__.py
 │       ├── conftest.py
 │       ├── test_abstractions.py
-│       ├── test_adaptive_chunking.py
 │       ├── test_admin.py
 │       ├── test_benchmarks.py
 │       ├── test_chat_endpoint.py
@@ -334,7 +332,6 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 │       ├── test_openrouter.py
 │       ├── test_rag_advanced.py
 │       ├── test_retrieve_documents_contract.py
-│       ├── test_rrf_ranker.py
 │       ├── test_sarvam_observability.py
 │       ├── test_serene_mind.py
 │       ├── test_tiered_router.py
@@ -706,9 +703,9 @@ The backend `ChatRequest` expects `{ messages, user_message, meditation_step }`.
 | **Qdrant** | `qdrant_service.py` | Qdrant vector DB client |
 | **LightRAG** | `lightrag_service.py` | LightRAG graph-based retrieval |
 | **Reranker** | `reranker_service.py` | ColBERT + CrossEncoder re-ranking |
-| **RRF Ranker** | `rrf_ranker.py` | Reciprocal Rank Fusion ranker |
+| **RRF Ranker** | `rankers.py::_reciprocal_rank_fusion` | Reciprocal Rank Fusion ranker |
 | **Concurrent Retriever** | `concurrent_retriever.py` | Parallel retrieval worker |
-| **Adaptive Chunking** | `adaptive_chunking_service.py` | Dynamic chunk sizing |
+| **Adaptive Chunking** | `ingest/adaptive_chunking.py::AdaptiveChunker` | Dynamic chunk sizing |
 | **Chunking Adapter** | `adaptive_chunking_adapter.py` | Chunking strategy adapter |
 | **Contextual Chunking** | `contextual_chunking_service.py` | Context-aware text splitting |
 | **Proposition** | `proposition_service.py` | Proposition-based chunking |
@@ -790,7 +787,6 @@ Backend tests are in `backend/tests/` with `conftest.py` fixtures:
 - **Memory**: `test_memory_api`, `test_memory_context`, `test_memory_service`
 - **Observability**: `test_sarvam_observability`, `test_observability`
 - **OpenRouter**: `test_openrouter`
-- **Adaptive Chunking**: `test_adaptive_chunking`
 - **Coalescer**: `test_coalescer`
 - **Concurrent Retriever**: `test_concurrent_retriever`
 - **FlashRank**: `test_flashrank_rerank`
