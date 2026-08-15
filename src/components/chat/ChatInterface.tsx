@@ -26,7 +26,7 @@ import { useVisitContext } from '@/hooks/useVisitContext';
 import { useTranslation } from 'react-i18next';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
-import { MoodBanner } from '@/components/mood/MoodBanner';
+
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
@@ -1979,7 +1979,7 @@ return (
                   className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-ojas transition-colors underline-offset-4 hover:underline"
                 >
                   <BookOpen className="w-3 h-3" />
-                  New here? Read The Seeker's Guide to AI-Guided Meditation
+                  {t('chat.seekersGuideLink', "New here? Read The Seeker's Guide to AI-Guided Meditation")}
                 </Link>
               </motion.div>
 
