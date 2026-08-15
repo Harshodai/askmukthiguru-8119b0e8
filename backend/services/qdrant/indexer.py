@@ -212,7 +212,7 @@ class QdrantIndexer:
             # misspelling tolerance means re-adding BOTH the prefetch and this
             # write; services/phonetic.py:IndicPhoneticMatcher is still there for that.
             payload = {"text": text, **meta}
-            payload.setdefault("tenant_id", TenantContext.get() or "default")
+            payload.setdefault("tenant_id", TenantContext.get() or settings.default_tenant_id)
             payload.setdefault("corpus_id", settings.default_corpus_id)
             point = PointStruct(
                 id=point_id,

@@ -26,16 +26,18 @@ from typing import Optional
 
 from fastapi import Request
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------
 # ContextVar: active tenant for the current asyncio task
 # -----------------------------------------------------------------------
-_tenant_id_var: ContextVar[str] = ContextVar("tenant_id", default="default")
+_tenant_id_var: ContextVar[str] = ContextVar("tenant_id", default=settings.default_tenant_id)
 _tenant_email_var: ContextVar[str] = ContextVar("tenant_email", default="")
 _tenant_user_id_var: ContextVar[str] = ContextVar("tenant_user_id", default="")
 
-_LEGACY_TENANT = "default"
+_LEGACY_TENANT = settings.default_tenant_id
 _COLLECTION_SEPARATOR = "__tenant_"
 
 

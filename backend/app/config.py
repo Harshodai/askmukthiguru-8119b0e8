@@ -631,6 +631,12 @@ class Settings(BaseSettings):
     write_ontology_to_neo4j: bool = True  # Materialize hyper_extract entities/relationships into Neo4j during ingestion
     ontology_write_required: bool = False  # Only block and roll back ingestion when graph materialization is explicitly mandatory.
     default_corpus_id: str = "askmukthiguru"  # Required scope for legacy/current teacher corpus data.
+    # Single source of truth for the legacy/default tenant identity (Oneness —
+    # Sri Preethaji & Sri Krishnaji's organization). services/tenant_context.py's
+    # ContextVar/_LEGACY_TENANT and every CorpusScope(tenant_id=...) fallback
+    # read this, so ingestion, Qdrant payload filters, and Neo4j coalesce
+    # defaults stay consistent without hand-copied "default" string literals.
+    default_tenant_id: str = "oneness"
     # Production retrieval requires an explicit licensed-domain payload stamp.
     # Disable only for isolated migration/test environments.
     require_licensed_domain_reads: bool = True

@@ -36,7 +36,7 @@ class QdrantRaptorStore:
         If query_vector is provided, searches by similarity; otherwise scrolls.
         """
         scope = scope or CorpusScope(
-            tenant_id=TenantContext.get() or "default",
+            tenant_id=TenantContext.get() or settings.default_tenant_id,
             corpus_id=settings.default_corpus_id,
         )
         scope_conditions = [

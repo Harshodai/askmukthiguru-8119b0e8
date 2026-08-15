@@ -91,7 +91,7 @@ class QdrantSearcher:
         """
         tenant_id = TenantContext.get()
         if not isinstance(tenant_id, str) or not tenant_id.strip():
-            tenant_id = "default"
+            tenant_id = settings.default_tenant_id
         corpus_id = getattr(settings, "default_corpus_id", "askmukthiguru")
         if not isinstance(corpus_id, str) or not corpus_id.strip():
             corpus_id = "askmukthiguru"

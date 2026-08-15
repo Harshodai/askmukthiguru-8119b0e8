@@ -199,7 +199,7 @@ async def query_neo4j_subgraph(
     Directly query Neo4j for connected subgraphs of spiritual concepts found in the user's query.
     """
     scope = scope or CorpusScope(
-        tenant_id=TenantContext.get() or "default",
+        tenant_id=TenantContext.get() or settings.default_tenant_id,
         corpus_id=corpus_id or settings.default_corpus_id,
     )
     from ingest.pipeline import extract_doctrine_tags
@@ -223,9 +223,9 @@ async def query_neo4j_subgraph(
                 # Ontology relationships are now written with a corpus_id. Legacy
                 # current-corpus edges have no property and remain visible only
                 # through the explicit default-corpus coalesce during migration.
-                cypher = """
-                MATCH (n1 {entity_id: $concept})-[r]->(n2)
-                WHERE coalesce(r.tenant_id, "default") = $tenant_id
+                cypher = f"""
+                MATCH (n1 {{entity_id: $concept}})-[r]->(n2)
+                WHERE coalesce(r.tenant_id, "{settings.default_tenant_id}") = $tenant_id
                   AND coalesce(r.corpus_id, "askmukthiguru") = $corpus_id
                   AND ($teacher_id IS NULL OR r.teacher_id = $teacher_id)
                 RETURN n1.entity_id AS source, type(r) AS rel, r.description AS desc, n2.entity_id AS target
@@ -589,7 +589,7 @@ async def navigate_knowledge_tree(state: GraphState, config: dict = None) -> dic
     try:
         query_enc = await asyncio.to_thread(embedder.encode_single_full, question)
         scope = CorpusScope(
-            tenant_id=state.get("tenant_id") or TenantContext.get() or "default",
+            tenant_id=state.get("tenant_id") or TenantContext.get() or settings.default_tenant_id,
             corpus_id=state.get("corpus_id") or settings.default_corpus_id,
             teacher_id=state.get("teacher_id"),
             required_rights_status=("licensed" if settings.require_licensed_domain_reads else None),
@@ -656,7 +656,7 @@ async def retrieve_for_single_query(
     call. When None, fall back to `encode_single_full` (backward compat).
     """
     scope = scope or CorpusScope(
-        tenant_id=TenantContext.get() or "default",
+        tenant_id=TenantContext.get() or settings.default_tenant_id,
         corpus_id=settings.default_corpus_id,
         required_rights_status=("licensed" if settings.require_licensed_domain_reads else None),
     )
@@ -707,7 +707,7 @@ async def retrieve_for_single_query(
     if (
         getattr(settings, "knowledge_graph_query_enabled", False)
         and lightrag
-        and scope.tenant_id == "default"
+        and scope.tenant_id == settings.default_tenant_id
         and scope.corpus_id == settings.default_corpus_id
         and intent in ["RELATIONAL", "FACTUAL", "QUERY"]
     ):
@@ -922,12 +922,12 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     query_tier = state.get("query_tier", "standard")
     intent = state.get("intent", "FACTUAL")
     scope = CorpusScope(
-        tenant_id=state.get("tenant_id") or TenantContext.get() or "default",
+        tenant_id=state.get("tenant_id") or TenantContext.get() or settings.default_tenant_id,
         corpus_id=state.get("corpus_id") or settings.default_corpus_id,
         teacher_id=state.get("teacher_id"),
         required_rights_status=("licensed" if settings.require_licensed_domain_reads else None),
     )
-    if intent == "GUIDED_TOUR" and scope.tenant_id == "default" and scope.corpus_id == settings.default_corpus_id:
+    if intent == "GUIDED_TOUR" and scope.tenant_id == settings.default_tenant_id and scope.corpus_id == settings.default_corpus_id:
         base_question = state.get("rewritten_query") or state["question"]
         tour_docs = await query_neo4j_guided_tour(base_question)
         return {
@@ -967,7 +967,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         from rag.kg_expansion import expand_query_with_ontology, augment_query
         from app.dependencies import get_container
         _neo4j = getattr(get_container(), "neo4j_driver", None)
-        if _neo4j is not None and scope.tenant_id == "default" and scope.corpus_id == settings.default_corpus_id:
+        if _neo4j is not None and scope.tenant_id == settings.default_tenant_id and scope.corpus_id == settings.default_corpus_id:
             neighbors = await expand_query_with_ontology(base_question, _neo4j)
             if neighbors:
                 base_question = augment_query(base_question, neighbors)
