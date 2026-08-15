@@ -45,7 +45,7 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 │   │   ├── chat/            # ChatInterface, ChatHeader, ChatMessage, ChatErrorBanner,
 │   │   │                     DailyTeaching, DesktopSidebar, LanguageSelector, MeditationStats,
 │   │   │                     MessageList, MobileConversationSheet, PrePracticeGate,
-│   │   │                     ScrollToBottomFab, SereneMindModal, SlashCommandMenu,
+│   │   │                     QuotaAuthPrompt, ScrollToBottomFab, SereneMindModal, SlashCommandMenu,
 │   │   │                     ThinkingPills, WisdomCardGenerator
 │   │   ├── common/          # ChatErrorBoundary, CommandPalette, CookieConsentBanner,
 │   │   │                     ReminderProvider, RootErrorBoundary, SafetyDisclaimer,
@@ -54,7 +54,7 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 │   │   ├── landing/         # HeroSection, AboutMeditationSection, PracticesSection,
 │   │   │                     HowItWorksSection, MeetTheGurusSection, FloatingParticles,
 │   │   │                     Footer, Navbar, ContinuePracticeCard
-│   │   ├── layout/          # AnimatedLayout, AppShell
+│   │   ├── layout/          # AnimatedLayout, AppShell, PublicShell
 │   │   ├── meditation/      # GuidedMeditationFlow, MeditationProgressIndicator,
 │   │   │                     breathTechniques, meditationSteps
 │   │   ├── profile/           # MemoryManager
@@ -67,14 +67,14 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
 │   │                         table, tabs, textarea, toast, toggle, toggle-group, tooltip)
 │   ├── hooks/               # useAdminData, useAdminGuard, use3DTilt, useAuthStatus,
 │   │                         useBreathTeaching, useChatShortcuts, useDailyTeaching,
-│   │                         useFavorites, useMeditationReminder, useMobile, usePageMeta,
-│   │                         useProfile, useRequireAuth, useSpeechRecognition, useSwipeGesture,
-│   │                         useTextToSpeech, useTheme, useToast
+│   │                         useFavorites, useMeditationReminder, useMobile, useOptionalAuth,
+│   │                         usePageMeta, useProfile, useRequireAuth, useSpeechRecognition,
+│   │                         useSwipeGesture, useTextToSpeech, useTheme, useToast
 │   ├── integrations/        # lovable/ (index), supabase/ (client, types)
 │   ├── lib/                 # aiService, authTelemetry, chatErrorBus, chatStorage,
 │   │                         exportConversation, favoritesStorage, meditationStorage,
 │   │                         memoryApi, personalInsights, practicesContent, profileStorage,
-│   │                         responseCache, utils
+│   │                         responseCache, utils (chat/types adds 'quota_exceeded')
 │   ├── pages/               # Index, AuthPage, ChatPage, ProfilePage, PracticesPage,
 │   │                         PracticeDetailPage, PrivacyPage, TermsPage, ResetPasswordPage,
 │   │                         TTSVerificationPage, AuthDiagnosticsPage, AuthLatencyDashboard,

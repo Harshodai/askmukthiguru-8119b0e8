@@ -140,35 +140,37 @@ export async function* sendMessageStreaming(
       signal,
     });
     if (!response.ok || !response.body) {
-      let errorDetail = `Job stream failed: ${response.status}`;
+      let errorData: Record<string, unknown> | undefined;
       try {
-        const errorData = await response.clone().json();
-        if (errorData?.detail) {
-          errorDetail += ` - ${errorData.detail}`;
-        }
+        errorData = await response.clone().json();
       } catch {
         // Ignore JSON parse errors
       }
+      const isQuota = errorData?.quota_exceeded === true;
+      const errorDetail = isQuota
+        ? "You've reached the free-message limit. Sign in to continue."
+        : `Job stream failed: ${response.status}${errorData?.detail ? ` - ${errorData.detail}` : ''}`;
       const err = new Error(errorDetail);
       (err as RichError).status = response.status;
-      (err as RichError).errorCode = httpStatusToErrorCode(response.status);
+      (err as RichError).errorCode = httpStatusToErrorCode(response.status, isQuota);
       throw err;
     }
   }
 
   if (!response.ok || !response.body) {
-    let errorDetail = `Streaming failed: ${response.status}`;
+    let errorData: Record<string, unknown> | undefined;
     try {
-      const errorData = await response.clone().json();
-      if (errorData?.detail) {
-        errorDetail += ` - ${errorData.detail}`;
-      }
+      errorData = await response.clone().json();
     } catch {
       // Ignore JSON parse errors
     }
+    const isQuota = errorData?.quota_exceeded === true;
+    const errorDetail = isQuota
+      ? "You've reached the free-message limit. Sign in to continue."
+      : `Streaming failed: ${response.status}${errorData?.detail ? ` - ${errorData.detail}` : ''}`;
     const error = new Error(errorDetail);
     (error as RichError).status = response.status;
-    (error as RichError).errorCode = httpStatusToErrorCode(response.status);
+    (error as RichError).errorCode = httpStatusToErrorCode(response.status, isQuota);
     throw error;
   }
 

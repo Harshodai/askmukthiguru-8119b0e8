@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Clock, Sparkles, Flame, Heart, Moon, Star } from 'lucide-react';
-import { AppShell } from '@/components/layout/AppShell';
+import { PublicShell } from '@/components/layout/PublicShell';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { practices, getLocalizedPractice, type Practice } from '@/lib/practicesContent';
@@ -129,7 +129,7 @@ const PracticesPage = () => {
   });
 
   return (
-    <AppShell title={t('practices.title')}>
+    <PublicShell title={t('practices.title')}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <motion.header
           initial={{ opacity: 0, y: 12 }}
@@ -235,7 +235,7 @@ const PracticesPage = () => {
           </section>
         )}
       </div>
-    </AppShell>
+    </PublicShell>
   );
 };
 

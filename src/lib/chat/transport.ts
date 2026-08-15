@@ -207,20 +207,24 @@ export const sendMessage = async (
             }
           }
         } else {
-          const errorCode = httpStatusToErrorCode(response.status);
-          let errorDetail = `API error: ${response.status}`;
+          let errorData: Record<string, unknown> | undefined;
           try {
-            const errorData = await response.clone().json();
-            if (errorData?.detail) {
-              errorDetail += ` - ${errorData.detail}`;
-            }
+            errorData = await response.clone().json();
           } catch {
             // Ignore JSON parse errors
           }
+          const isQuota = errorData?.quota_exceeded === true;
+          const errorCode = httpStatusToErrorCode(response.status, isQuota);
+          const friendly = isQuota
+            ? "You've reached the free-message limit. Sign in to continue."
+            : `API error: ${response.status}${errorData?.detail ? ` - ${errorData.detail}` : ''}`;
           return {
             content: '',
-            error: errorDetail,
+            error: friendly,
             errorCode,
+            retryAfterSeconds: typeof errorData?.retry_after_seconds === 'number'
+              ? errorData.retry_after_seconds
+              : undefined,
           };
         }
       }

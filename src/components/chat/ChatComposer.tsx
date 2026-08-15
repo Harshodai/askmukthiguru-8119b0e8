@@ -39,6 +39,7 @@ interface ChatComposerProps {
   isTyping: boolean;
   isStreaming: boolean;
   isAwaitingSereneMind: boolean;
+  isQuotaExceeded?: boolean;
   isListening: boolean;
   currentLanguage: string;
   voiceEnabled: boolean;
@@ -75,6 +76,7 @@ export function ChatComposer({
   isTyping,
   isStreaming,
   isAwaitingSereneMind,
+  isQuotaExceeded,
   isListening,
   currentLanguage,
   voiceEnabled,
@@ -241,17 +243,21 @@ export function ChatComposer({
           onFocus={onFocus}
           onBlur={onBlur}
           placeholder={
-            isAwaitingSereneMind
-              ? t('chat.inputPlaceholderSereneMind')
-              : isListening
-                ? t('chat.inputPlaceholderListening')
-                : t('chat.inputPlaceholder')
+            isQuotaExceeded
+              ? t('chat.quotaExceededPlaceholder') === 'chat.quotaExceededPlaceholder'
+                ? 'Sign in to continue'
+                : t('chat.quotaExceededPlaceholder')
+              : isAwaitingSereneMind
+                ? t('chat.inputPlaceholderSereneMind')
+                : isListening
+                  ? t('chat.inputPlaceholderListening')
+                  : t('chat.inputPlaceholder')
           }
           rows={1}
           aria-label={t('chat.yourMessage') === 'chat.yourMessage' ? 'Your message' : t('chat.yourMessage')}
           className="min-h-9 max-h-[120px] w-full bg-transparent border-none outline-none resize-none px-4 pt-4 pb-1 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus:ring-1 focus:ring-ojas/30 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ minHeight: '28px' }}
-          disabled={isAwaitingSereneMind}
+          disabled={isAwaitingSereneMind || isQuotaExceeded}
         />
 
         <PromptInputFooter className="flex items-center gap-1.5 px-3 pb-3 pt-2">
@@ -339,7 +345,7 @@ export function ChatComposer({
               <PromptInputSubmit
                 type="submit"
                 size="icon-sm"
-                disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind}
+                disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind || isQuotaExceeded}
                 className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-ojas text-white hover:bg-ojas-dark disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all"
                 aria-label={t('chat.send') === 'chat.send' ? 'Send message' : t('chat.send')}
               >

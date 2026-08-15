@@ -68,6 +68,7 @@ import { downloadConversationAsMarkdown } from '@/lib/exportConversation';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { useAssistants } from '@/hooks/useAssistants';
 import { ChatComposer } from './ChatComposer';
+import { QuotaAuthPrompt } from './QuotaAuthPrompt';
 import { TeacherGuidancePanel } from './TeacherGuidancePanel';
 import { HealingPathCard, type HealingCourseRecommendation, type UserTurn } from './HealingPathCard';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
@@ -98,7 +99,11 @@ const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
 const PASTE_ATTACHMENT_THRESHOLD = 2000;
 
-export const ChatInterface = () => {
+export interface ChatInterfaceProps {
+  isAnonymous?: boolean;
+}
+
+export const ChatInterface = ({ isAnonymous }: ChatInterfaceProps) => {
   const { toast } = useToast();
   const { capabilities: chatCapabilities } = useChatCapabilities();
   const { greetingContext } = useVisitContext();
@@ -106,6 +111,7 @@ export const ChatInterface = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isIncognito, setIsIncognito] = useState(false);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [responsePreferences, setResponsePreferences] = useState<ResponsePreferences>(() => loadResponsePreferences());
   const updateResponsePreferences = useCallback((next: ResponsePreferences) => {
     setResponsePreferences(next);
@@ -804,6 +810,12 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
       return;
     }
 
+    // Anonymous quota gate: once the backend has refused a message, don't keep
+    // sending (avoids wasting quota retries and gives a stable UI state).
+    if (quotaExceeded) {
+      return;
+    }
+
     // Show instant pill immediately on submit — appears before any backend status events
     setShowInstantPill(true);
     setPendingQuery(textToSend.trim());
@@ -1258,6 +1270,9 @@ openSereneMind('audio');
           streamingWorked = true;
         } else {
           const msgError = buildMessageError(err?.errorCode, err?.message, err?.status);
+          if (msgError.kind === 'quota_exceeded') {
+            setQuotaExceeded(true);
+          }
           setMessages((prev) =>
             prev.map((m) =>
               m.id === streamingGuruId
@@ -1349,6 +1364,9 @@ openSereneMind('audio');
         const responseError = response.errorCode
           ? buildMessageError(response.errorCode, response.error)
           : undefined;
+        if (responseError?.kind === 'quota_exceeded') {
+          setQuotaExceeded(true);
+        }
         if (responseError) {
           chatErrorBus.publishFromMessage(responseError);
         }
@@ -1435,6 +1453,9 @@ setIsAwaitingSereneMind(true);
       errObj?.message || (error instanceof Error ? error.message : String(error)),
       errObj?.status,
     );
+    if (msgError.kind === 'quota_exceeded') {
+      setQuotaExceeded(true);
+    }
 
     chatErrorBus.publishFromMessage(msgError);
 
@@ -2075,6 +2096,7 @@ return (
 
       {!isLandingMode && (
         <div className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]">
+          {quotaExceeded && <QuotaAuthPrompt />}
           <HealingPathCard
             lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
             recommendedCourse={recommendedCourse}
@@ -2099,6 +2121,7 @@ return (
             isTyping={isTyping}
             isStreaming={isStreaming}
             isAwaitingSereneMind={isAwaitingSereneMind}
+            isQuotaExceeded={quotaExceeded}
             isListening={isListening}
             currentLanguage={currentLanguage}
             voiceEnabled={voiceEnabled}

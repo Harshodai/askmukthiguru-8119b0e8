@@ -29,6 +29,7 @@ export type AIErrorCode =
   | 'server_error'
   | 'timeout'
   | 'network'
+  | 'quota_exceeded'
   | 'unknown';
 
 /** Healing course recommended by the backend (streak-based assignment).

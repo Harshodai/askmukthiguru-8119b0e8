@@ -1,3 +1,30 @@
+## Aug 15, 2026 — Progressive Anonymous Access + Quota Domain
+
+### L-PAA-1. Layout shells must encode auth policy explicitly, not assume all pages need auth
+- **What**: `AppShell.tsx` called `useRequireAuth()`, so every page wrapped in it (practices, guides, etc.) redirected anonymous users to `/auth`. Public content pages were unreachable without signing in.
+- **Fix applied**: Created `PublicShell.tsx` that renders the marketing navbar/footer and never calls an auth hook. Public content pages now import `PublicShell`; auth-only pages keep `AppShell`. The auth policy is visible in the file that wraps the route.
+- **How to prevent**: Never reuse a shell that enforces auth for pages that should be public. Introduce a separate public shell so the policy is explicit in the route/page file.
+
+### L-PAA-2. Optional auth hooks must not redirect; they report mode and let the caller decide
+- **What**: `useRequireAuth()` redirected to `/auth` for anonymous users, making `/chat` unusable without an account. The backend already supported anonymous sessions via `POST /api/auth/anon-session`.
+- **Fix applied**: Added `useOptionalAuth()` that returns `user | null`, `loading`, `mode`, and a server-signed `anonToken`. It validates the Supabase session like `useRequireAuth` but downgrades missing/invalid sessions to anonymous mode instead of redirecting. `ChatPage` uses it and skips authenticated-only features (tour, multi-device prompt) for anonymous users.
+- **How to prevent**: When a route needs both authenticated and anonymous users, use an optional-auth hook; reserve strict-redirect hooks for routes that genuinely require a signed-in user.
+
+### L-PAA-3. Anonymous identity must be server-signed, not client-asserted
+- **What**: The frontend already minted a signed token via `POST /api/auth/anon-session` and echoed it as `session_id`. Backend `resolve_anon_identity()` verifies the HMAC and rejects unsigned/tampered tokens. This contract is unchanged, but it is now load-bearing for quota enforcement because the user id becomes `anon:<payload>`.
+- **Fix applied**: The transport layer (`sendMessage`/`sendMessageStreaming`) already resolves the session id via `getAnonSessionToken()`; we only needed to stop redirecting anonymous users away from `/chat`.
+- **How to prevent**: Never trust a client-provided session id for anonymous identity; always verify a server-signed token before using it in backend logic or quota keys.
+
+### L-PAA-4. Anonymous quota is a small domain with a port + adapters
+- **What**: We needed a per-anonymous-session message limit that could run in production (Redis) and in sandboxes (in-memory) without heavy infrastructure.
+- **Fix applied**: Created `services/anon_quota_port.py` (port), `services/anon_quota_memory.py` (in-memory adapter), `services/anon_quota_redis.py` (Redis sorted-set adapter), and `services/anon_quota_service.py` (settings-aware service that selects Redis and falls back to memory). The service is wired into `ServiceContainer.anon_quota_service` and enforced in `/api/chat`, `/api/chat/v2`, and `/api/chat/stream` before pipeline execution.
+- **How to prevent**: Treat quota as a domain with a port so storage can be swapped. Keep the service layer free of route logic; route handlers only call `check_and_record()` and render a standard 429 response when exceeded.
+
+### L-PAA-5. Soft auth prompt belongs in the chat UI, not as a hard redirect
+- **What**: When the anonymous quota is exhausted, a plain 429 error message would be confusing. The product wants a soft prompt to sign in.
+- **Fix applied**: Backend returns `429` with `{quota_exceeded: true, retry_after_seconds, remaining, total_limit}`. Frontend `httpStatusToErrorCode()` maps that body to the new `quota_exceeded` `MessageErrorKind`. `buildMessageError()` renders a friendly error with `actionLabel: 'sign_in'`. `ChatInterface` tracks `quotaExceeded` state, disables the composer, and renders a `QuotaAuthPrompt` banner above the composer pointing to `/auth`.
+- **How to prevent**: Quota exhaustion is a product state, not a generic error. Surface it with a dedicated UI affordance and a clear sign-in path instead of a generic retry button.
+
 ## Aug 11, 2026 — 13-Fix Audit Remediation Batch (docs + backend)
 
 ### L-AUD-1. Client-supplied assistant configuration must be excluded from shared caches and coalesce identity

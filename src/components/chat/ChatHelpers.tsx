@@ -83,6 +83,14 @@ export const buildMessageError = (
         actionLabel: 'retry',
         detail,
       };
+    case 'quota_exceeded':
+      return {
+        kind: 'quota_exceeded',
+        title: 'Free message limit reached',
+        description: "You've used your anonymous messages. Sign in to continue your conversation with the Guru.",
+        actionLabel: 'sign_in',
+        detail,
+      };
     case 'network':
       return {
         kind: 'network',

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { PrePracticeGate } from '@/components/chat/PrePracticeGate';
-import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { useOptionalAuth } from '@/hooks/useOptionalAuth';
 import { useBackendHealth } from '@/hooks/useBackendHealth';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { Loader2, MonitorCheck, ArrowRight } from 'lucide-react';
@@ -37,7 +37,8 @@ const BackendHealthBanner = () => {
 
 const ChatPage = () => {
   const { t } = useTranslation();
-  const { loading, user } = useRequireAuth();
+  const { loading, user, mode } = useOptionalAuth();
+  const isAnonymous = mode === 'anonymous';
   const [tourOpen, setTourOpen] = useState(false);
   const [showContinuePrompt, setShowContinuePrompt] = useState(false);
   const [lastConversationId, setLastConversationId] = useState<string | null>(null);
@@ -73,10 +74,8 @@ const ChatPage = () => {
     const tourDone = localStorage.getItem(TOUR_COMPLETED_KEY) === '1';
     const shownCount = parseInt(localStorage.getItem(TOUR_SHOWN_COUNT_KEY) || '0', 10);
 
-    // Show tour for:
-    //  - any authenticated user who hasn't finished it yet, up to TOUR_MAX_SHOWS times
-    //  - OR any user at all if tour was never shown (handles demo / product team)
-    const shouldShow = (onboarded || !!user) && !tourDone && shownCount < TOUR_MAX_SHOWS;
+    // Show tour for authenticated users only; never prompt anonymous users to onboard.
+    const shouldShow = !!user && !tourDone && shownCount < TOUR_MAX_SHOWS;
     if (shouldShow) {
       localStorage.setItem(TOUR_SHOWN_COUNT_KEY, String(shownCount + 1));
       // Small delay so the chat UI renders before the tour positions itself
@@ -110,7 +109,7 @@ const ChatPage = () => {
   };
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || isAnonymous) return;
     const checkMultiDevice = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -132,7 +131,7 @@ const ChatPage = () => {
       localStorage.setItem(LAST_SEEN_KEY, Date.now().toString());
     };
     checkMultiDevice();
-  }, [loading]);
+  }, [loading, isAnonymous]);
 
   const handleContinue = () => {
     if (lastConversationId) {
@@ -164,7 +163,7 @@ const ChatPage = () => {
           sidebar footer / user menu) below the fold whenever it appears. */}
       <div className="h-dvh flex flex-col">
         <BackendHealthBanner />
-        <ChatInterface />
+        <ChatInterface isAnonymous={isAnonymous} />
       </div>
       <GuidedTour isOpen={tourOpen} onComplete={handleTourComplete} onDismiss={handleTourDismiss} />
       <Dialog open={showContinuePrompt} onOpenChange={setShowContinuePrompt}>

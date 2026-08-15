@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, ExternalLink, Headphones, PlayCircle, Star, Share2, Check, Play } from 'lucide-react';
-import { AppShell } from '@/components/layout/AppShell';
+import { PublicShell } from '@/components/layout/PublicShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -61,7 +61,7 @@ const PracticeDetailPage = () => {
 
   if (!practice) {
     return (
-      <AppShell title="Practice not found">
+      <PublicShell title="Practice not found">
         <div className="max-w-2xl mx-auto px-4 py-16 text-center space-y-4">
           <h2 className="text-xl font-semibold text-foreground">
             We couldn't find that practice
@@ -70,7 +70,7 @@ const PracticeDetailPage = () => {
             <ArrowLeft className="w-4 h-4 mr-2" /> Back to practices
           </Button>
         </div>
-      </AppShell>
+      </PublicShell>
     );
   }
 
@@ -109,7 +109,7 @@ const PracticeDetailPage = () => {
   };
 
   return (
-    <AppShell title={lp!.title}>
+    <PublicShell title={lp!.title}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
         <Link
           to="/practices"
@@ -330,7 +330,7 @@ const PracticeDetailPage = () => {
           </div>
         )}
       </div>
-    </AppShell>
+    </PublicShell>
   );
 };
 
