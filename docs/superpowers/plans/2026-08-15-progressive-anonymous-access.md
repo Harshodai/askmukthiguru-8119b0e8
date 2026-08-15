@@ -184,8 +184,15 @@ git commit -m "feat(routes): switch public content pages to PublicShell"
 
 **Files:**
 - Modify: `src/components/landing/HeroSection.tsx`
-- Modify: `public/locales/en/translation.json` and the 5 real-locale files (`hi`, `te`, `kn`, `ta`, `mr`)
+- Modify: `src/locales/en.json` and the 5 real-locale files (`hi`, `te`, `kn`, `ta`, `mr`)
 - Test: `src/test/components/HeroSection.test.tsx` (add one assertion)
+
+> **Shipped note:** locale bundles live at `src/locales/<lang>.json` (14 files:
+> `as`, `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `or`, `pa`, `sa`, `ta`, `te`,
+> `ur`) — not `public/locales/<lang>/translation.json`. Non-English bundles are
+> lazy-loaded from `src/i18n.ts` via `import.meta.glob`; the `landing.hero`
+> section already exists in `en.json` (`landing.hero.microcopy` = "No account
+> needed. Your peace is private.").
 
 **Interfaces:**
 - Consumes: i18n keys `landing.hero.microcopyProgressive`.
@@ -193,7 +200,7 @@ git commit -m "feat(routes): switch public content pages to PublicShell"
 
 - [ ] **Step 1: Add translation keys**
 
-Add to `public/locales/en/translation.json` under `landing.hero`:
+Add to `src/locales/en.json` under `landing.hero`:
 
 ```json
 "microcopyProgressive": "Start your conversation. No account needed to begin."
@@ -248,7 +255,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/components/landing/HeroSection.tsx public/locales/en/translation.json public/locales/hi/translation.json public/locales/te/translation.json public/locales/kn/translation.json public/locales/ta/translation.json public/locales/mr/translation.json src/test/components/HeroSection.test.tsx
+git add src/components/landing/HeroSection.tsx src/locales/en.json src/locales/hi.json src/locales/te.json src/locales/kn.json src/locales/ta.json src/locales/mr.json src/test/components/HeroSection.test.tsx
 git commit -m "feat(copy): progressive anonymous microcopy on hero"
 ```
 
@@ -262,6 +269,17 @@ git commit -m "feat(copy): progressive anonymous microcopy on hero"
 - Create: `backend/app/domain/anon_quota.py`
 - Create: `backend/app/domain/interfaces/quota_repository.py`
 - Test: `backend/tests/test_anon_quota_domain.py`
+
+> **Shipped note (supersedes the sketch below):** the implementation did not land in
+> `backend/app/domain/`. The shipped port lives at `backend/services/anon_quota_port.py`
+> (`AnonQuotaPort` with `check_and_record(session_id, limit, window_seconds)` /
+> `inspect(...)` / `reset(session_id)`, returning a frozen `QuotaResult(allowed,
+> remaining, total_limit, retry_after_seconds)` with a `quota_exceeded` property).
+> `AnonQuotaService` (user-facing `check_and_record(user)` / `inspect(user)` /
+> `reset(user)`) reads limits from `settings.anon_quota_messages` (default 5) and
+> `settings.anon_quota_window_hours` (default 24) and lazily selects the Redis or
+> in-memory adapter. Tests shipped as `backend/tests/test_anon_quota.py` (12 tests: sliding-window limits, reset, release, claim-commit, claim-deadline reap for dropped queued jobs, auth bypass/enforcement).
+> Keep the sketch below as historical reference only.
 
 **Interfaces:**
 - Consumes: none.
@@ -397,6 +415,16 @@ git commit -m "feat(domain): anonymous message quota port and value objects"
 - Create: `backend/app/adapters/in_memory_quota_repository.py`
 - Test: `backend/tests/test_quota_adapters.py`
 
+> **Shipped note (supersedes the sketch below):** the adapters landed under
+> `backend/services/anon_quota_memory.py` (`AnonQuotaMemoryAdapter`) and
+> `backend/services/anon_quota_redis.py` (`AnonQuotaRedisAdapter`), not
+> `backend/app/adapters/`. The in-memory adapter is a true sliding window (a deque
+> of `time.monotonic()` timestamps per session, pruned by the window cutoff, with
+> expired/empty sessions evicted by `_prune_empty_sessions`) — the sketch's plain
+> `dict[str, int]` counter ignores `ttl` entirely and never expires. The window
+> length is set by the `anon_quota_window_hours` setting (24h default), passed as
+> `window_seconds` into the port — there is no per-key TTL in the shipped design.
+
 **Interfaces:**
 - Consumes: `IQuotaRepository`.
 - Produces: concrete repositories usable via DI.
@@ -506,6 +534,14 @@ anon_chat_message_limit: int = Field(default=5, ge=1, description="Max anonymous
 anon_chat_quota_window_seconds: int = Field(default=86400, ge=60, description="TTL for anonymous message quota counter")
 ```
 
+> **Shipped note:** the settings that actually landed in `backend/app/config.py`
+> are `anon_quota_messages: int = Field(default=5, gt=0)`,
+> `anon_quota_window_hours: float = Field(default=24.0, gt=0)` (window in hours,
+> not seconds), and `anon_quota_enabled: bool = True`. The sketch names above
+> (`anon_chat_message_limit` / `anon_chat_quota_window_seconds`) were never used;
+> `AnonQuotaService` reads the `anon_quota_*` names via
+> `getattr(settings, ...)`.
+
 - [ ] **Step 2: Add quota service to ServiceContainer**
 
 In `backend/app/dependencies.py`, import `AnonQuotaService` and `QuotaPolicy`, and add:
@@ -587,6 +623,40 @@ git commit -m "feat(infra): wire anonymous quota service into DI container"
 - Consumes: `get_quota_service`.
 - Produces: when anonymous limit reached, endpoint returns `ChatResponse` with `blocked=True`, `block_reason="anon_limit_reached"`, and a compassionate message.
 
+> **Shipped note (supersedes the sketch below):** the shipped contract is NOT a
+> `ChatResponse` with `blocked`/`block_reason`. `_enforce_anon_quota()` in
+> `backend/app/api/chat.py` atomically reserves one turn
+> (`check_and_record`) and the callers return a **429** `JSONResponse`
+> (`_anon_quota_response`)
+> with body `{error, detail, quota_exceeded: true, remaining, total_limit,
+> retry_after_seconds}` and a `Retry-After` header. The frontend maps this to the
+> `quota_exceeded` error kind in `src/lib/chat/errors.ts` (status 429 + body
+> `quota_exceeded` flag) and surfaces `QuotaAuthPrompt` via the `quotaExceeded`
+> state in `ChatInterface`. `QuotaResult` carries `total_limit`/`retry_after_seconds`
+> but the frontend only surfaces `quota_exceeded` today (remaining/total and
+> retry-after are parsed but not displayed). The planned
+> `backend/tests/test_chat_anon_quota.py` was never created — the shipped tests
+> are `backend/tests/test_anon_quota.py` (12 tests; see the verification note at
+> the end of this plan for the runnable command). The reservation lifecycle is
+> also asserted end-to-end in `backend/tests/test_chat_endpoint.py` (QueueFullError
+> on `/api/chat` and `/api/chat/stream` releases the reservation; an inline-stream
+> empty message releases it too).
+>
+> **Shipped note (TTL-expiry leak, end to end):** a queued job that dies on
+> queue-TTL expiry loses its `quota_reservation_id` with the expired job
+> metadata, so `JobQueueService` cannot release it. Fix: reservations now carry
+> a **claim deadline** in the quota layer itself. `check_and_record` accepts
+> `claim_ttl_seconds` (service default: `queue_job_ttl` + 300s, floor 900s);
+> the Redis adapter tracks it in `anon_quota:pending:{session_id}` (Lua
+> `_QUOTA_LUA` now reaps members whose deadline passed without `claim()`, and
+> `release`/`reset` clear the pending hash too), and the memory adapter stores
+> `(ts, rid, deadline)` tuples with a full-scan reap (not head-only — a
+> committed head can sit in front of an expired reservation). Success paths
+> now call the new `AnonQuotaService.claim()`: `_charge_anon_quota` in
+> `app/api/chat.py`, the stream commit point in
+> `app/stream_orchestrator.py`, and both worker success branches in
+> `app/orchestrator.py::queue_worker_factory`.
+
 - [ ] **Step 1: Write the failing test**
 
 Create `backend/tests/test_chat_anon_quota.py`:
@@ -595,36 +665,46 @@ Create `backend/tests/test_chat_anon_quota.py`:
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
+from services.auth_service import issue_anon_session_token
 
 client = TestClient(app)
 
-@pytest.fixture(autouse=True)
-def clear_in_memory_quota():
-    # Reset container singleton if needed; for this test we rely on fresh TestClient process
-    yield
+# NOTE: this fixture is intentionally a no-op and was dropped from the shipped
+# test. It resets nothing — the shipped test (backend/tests/test_anon_quota.py)
+# exercises AnonQuotaMemoryAdapter directly with a fresh instance per test, so
+# there is no container-singleton state to clear. Keep it only if a test starts
+# mutating the app-level ServiceContainer singleton (then make it module-scoped
+# with a teardown that rebuilds the container).
 
 def test_anonymous_chat_blocks_after_limit():
     limit = 2
-    # Hit limit + 1
-    for i in range(limit + 1):
+    # The session_id must be a REAL server-signed token: resolve_anon_identity()
+    # rejects a bare client-chosen "anon:<id>" string with 400 in production
+    # (dev/test-only escape hatch). Mint one via POST /api/auth/anon-session or
+    # issue_anon_session_token().
+    session_token = issue_anon_session_token()["token"]
+    # Exactly `limit` requests succeed...
+    for i in range(limit):
         resp = client.post("/api/chat", json={
             "messages": [],
             "user_message": f"message {i}",
-            "session_id": "anon:quota-test",
+            "session_id": session_token,
             "incognito": True,
         })
         assert resp.status_code in (200, 202), resp.text
-    # Next message should be blocked
+    # ...the next one is blocked with the real 429 quota contract
     resp = client.post("/api/chat", json={
         "messages": [],
         "user_message": "over limit",
-        "session_id": "anon:quota-test",
+        "session_id": session_token,
         "incognito": True,
     })
+    assert resp.status_code == 429
     body = resp.json()
-    assert body.get("blocked") is True
-    assert body.get("block_reason") == "anon_limit_reached"
-    assert "sign in" in body.get("response", "").lower()
+    assert body.get("quota_exceeded") is True
+    assert body.get("remaining") == 0
+    assert isinstance(body.get("total_limit"), int)
+    assert resp.headers.get("Retry-After")
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -653,7 +733,7 @@ quota_service: AnonQuotaService = Depends(get_quota_service),
 
 ```python
 if user.get("is_anonymous"):
-    quota = await quota_service.check_and_increment(user.get("id", "anonymous"))
+    quota = await quota_service.check_and_record(user.get("id", "anonymous"))
     if not quota.allowed:
         return ChatResponse(
             response=(
@@ -668,6 +748,20 @@ if user.get("is_anonymous"):
 ```
 
 For the streaming endpoint, emit an SSE event with `event: blocked` and the same payload shape.
+
+> **Shipped note (supersedes the sketch above):** the shipped code delegates to
+> `_enforce_anon_quota(user, container)`, which performs an **atomic
+> reservation** via `container.anon_quota_service.check_and_record(user)` and
+> returns the reservation's `QuotaResult`; callers in `/api/chat`,
+> `/api/chat/v2`, and `/api/chat/stream` return the 429
+> `_anon_quota_response(quota)` when `quota.quota_exceeded`. The reservation is
+> recorded at admission (so concurrent requests cannot overshoot the limit);
+> a completed interaction keeps it (`_charge_anon_quota` is an explicit
+> no-op commit), while failed, cancelled, or guardrail-blocked interactions
+> release it via `_release_anon_quota`. Queued jobs carry the reservation id
+> in the payload (`quota_reservation_id`) so `queue_worker_factory` can
+> release it when the job fails. There is no `blocked`/`block_reason`
+> ChatResponse path and no `event: blocked` SSE event.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -687,6 +781,16 @@ git commit -m "feat(chat): enforce anonymous message quota with soft auth prompt
 - Modify: `src/pages/ChatPage.tsx`
 - Modify: `src/hooks/useRequireAuth.ts` (add optional mode)
 - Test: `tests/e2e/anonymous-chat.spec.ts`
+
+> **Shipped note (supersedes the sketch below):** no `useRequireAuth` mode was
+> added. The shipped mechanism is a dedicated `useOptionalAuth` hook
+> (`src/hooks/useOptionalAuth.ts`) that runs the same session validation as
+> `useRequireAuth` but never redirects: anonymous users are recognised when
+> Supabase has no session and the backend mints a signed anon token. `ChatPage`
+> calls `useOptionalAuth()` and derives `isAnonymous = mode === 'anonymous'`,
+> passing it to `<ChatInterface isAnonymous={isAnonymous} />`. The
+> `tests/e2e/anonymous-chat.spec.ts` name was not used either — the shipped E2E
+> is `tests/e2e/progressive-anonymous.spec.ts`.
 
 **Interfaces:**
 - Consumes: `useAuthStatus` (already exists).
@@ -730,6 +834,10 @@ export function useRequireAuth({ redirectIfUnauthenticated = true } = {}) {
 
 Modify `src/pages/ChatPage.tsx`: replace `useRequireAuth()` with `useRequireAuth({ redirectIfUnauthenticated: false })`. Use `useAuthStatus()` to know auth state for UI purposes. Keep existing authenticated-only features (multi-device continue, tour) gated by `user` presence.
 
+> **Shipped note (supersedes the sketch above):** `useRequireAuth` is untouched.
+> `ChatPage` uses `useOptionalAuth()` (see the note in "Files" above) and gates
+> authenticated-only preloading on `if (loading || isAnonymous) return;`.
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx playwright test tests/e2e/anonymous-chat.spec.ts`
@@ -749,6 +857,18 @@ git commit -m "feat(chat): allow anonymous users to open /chat without redirect"
 - Modify: `src/components/chat/ChatInterface.tsx`
 - Create: `src/components/chat/AnonLimitPrompt.tsx`
 - Test: `src/test/components/AnonLimitPrompt.test.tsx`
+
+> **Shipped note (supersedes the sketch below):** the shipped component is
+> `src/components/chat/QuotaAuthPrompt.tsx` — an inline banner (NOT a Dialog)
+> with a "Sign in" button (`navigate('/auth')`) and optional
+> `remaining`/`totalLimit` props for an "X of Y used" caption. `ChatInterface`
+> tracks `quotaExceeded` state, sets it from the `quota_exceeded` error kind at
+> three call sites (streaming path, non-streaming path, catch block), and renders
+> `{quotaExceeded && <QuotaAuthPrompt />}` above the composer
+> (`src/components/chat/ChatInterface.tsx:2099`), also passing
+> `isQuotaExceeded={quotaExceeded}` to `ChatComposer`. There is no
+> `AnonLimitPrompt`, no `blockReason` mapping, and no `src/test/components/`
+> test for it.
 
 **Interfaces:**
 - Consumes: backend `blocked` + `block_reason="anon_limit_reached"`.
@@ -958,8 +1078,8 @@ Create `tests/e2e/route-auth-contract.spec.ts`:
 ```ts
 import { test, expect } from '@playwright/test';
 
-const PUBLIC = ['/', '/practices', '/practices/serene-mind', '/guides/spiritual-guide-for-anxiety', '/knowledge-graph', '/privacy', '/terms'];
-const AUTH_ONLY = ['/chat', '/profile', '/notebooks', '/second-brain'];
+const PUBLIC = ['/', '/chat', '/practices', '/practices/serene-mind', '/guides/spiritual-guide-for-anxiety', '/knowledge-graph', '/privacy', '/terms'];
+const AUTH_ONLY = ['/profile', '/notebooks', '/second-brain'];
 
 for (const route of PUBLIC) {
   test(`public route stays on ${route}`, async ({ page }) => {
@@ -1073,18 +1193,24 @@ Expected: 27+ routes prerendered, no errors.
 
 ```bash
 cd backend
-.venv/bin/pytest tests/test_anon_quota_domain.py tests/test_quota_adapters.py tests/test_quota_dependency.py tests/test_chat_anon_quota.py -v
+.venv/bin/pytest tests/test_anon_quota.py tests/test_anon_session_signed.py -v
 ```
 
-Expected: PASS.
+Expected: PASS. (Shipped test files are `tests/test_anon_quota.py` — 12 tests (sliding-window limits, reset, release, claim-commit, claim-deadline reap for dropped queued jobs, auth bypass/enforcement) —
+and `tests/test_anon_session_signed.py`; the planned
+`test_anon_quota_domain.py` / `test_quota_adapters.py` /
+`test_quota_dependency.py` / `test_chat_anon_quota.py` were never created.)
 
 - [ ] **Run targeted Playwright suites**
 
 ```bash
-npx playwright test tests/e2e/public-content-routes.spec.ts tests/e2e/anonymous-chat.spec.ts tests/e2e/crawl-files.spec.ts tests/e2e/route-auth-contract.spec.ts
+npx playwright test tests/e2e/progressive-anonymous.spec.ts
 ```
 
-Expected: PASS.
+Expected: PASS. (The shipped E2E file is `tests/e2e/progressive-anonymous.spec.ts` —
+60 tests across mobile projects; the planned `public-content-routes.spec.ts`,
+`anonymous-chat.spec.ts`, `crawl-files.spec.ts`, and `route-auth-contract.spec.ts`
+were never created.)
 
 - [ ] **Update documentation**
 
@@ -1095,3 +1221,58 @@ Expected: PASS.
 - [ ] **Final review and handoff**
 
 Use `superpowers:finishing-a-development-branch` to present merge options.
+
+---
+
+## Verification note — Aug 15, 2026 (post-merge review sprint)
+
+14 review findings fixed on top of the claim-deadline work, all verified against
+current code before fixing:
+
+1. `chat.py` — `populate_server_side_history` (3 sites: `/api/chat`, `/api/chat/v2`,
+   `/api/chat/stream`) now wrapped so a history-population failure releases the
+   quota reservation taken at admission before propagating.
+2. `job_queue.py` — `QUEUED→CANCELLED` (`_CANCEL_LUA`) and `QUEUED→PROCESSING`
+   (`_CLAIM_LUA`) are now Redis Lua compare-and-set; a cancel that races a claim
+   either wins cleanly or loses cleanly, never overwrites a newer status.
+3. `config.py` — `kg_ontology_expansion_timeout` now validated `gt=0` (Field);
+   new `benchmark_endpoint` setting (default `http://localhost:8000`).
+4. `orchestrator.py` — stream worker releases the quota reservation BEFORE
+   re-awaiting `drain_task`, and suppresses the drain task's exception so the
+   original failure propagates.
+5. `benchmarks/ragas_eval.py` — `_validate_endpoint`: X-Test-Key is only sent to
+   loopback or https hosts; client runs `follow_redirects=False`.
+6. `benchmarks/ragas_eval.py` — `--endpoint`/`--test-key` defaults come from
+   `settings.benchmark_endpoint` / `settings.benchmark_secret or settings.jwt_secret`
+   instead of raw `os.getenv`.
+7. `benchmarks/ragas_eval.py` — `_get_anon_session_token` moved inside the
+   per-question try so a token failure is recorded per question instead of
+   aborting the run.
+8. `scripts/eval/run_ragas_eval.py` — endpoint validated (loopback-or-https),
+   client `follow_redirects=False`. (No X-Test-Key exists in this harness; the
+   keyed part of the finding did not apply.)
+9. `scripts/eval/run_ragas_eval.py` — citation matching is normalized EQUALITY
+   (query/fragment stripped, lowercased, trailing slash removed), not substring.
+10. `scripts/eval/run_ragas_eval.py` — `faithfulness_score` defaults to `None`
+    (missing ≠ 0); None excluded from overall + per-category aggregates, with a
+    `faithfulness_unavailable` count surfaced in the summary.
+11. `anon_quota_memory.py` — `_result` window annotation corrected to the
+    3-tuple `(ts, rid, deadline)`.
+12. `anon_quota_redis.py` — quota + pending keys share a `{session_id}` hash tag
+    (`anon_quota:{sid}:main` / `anon_quota:{sid}:pending`) so `_QUOTA_LUA`'s two
+    KEYS stay in one Redis Cluster slot (no CROSSSLOT).
+13. `tests/test_retrieve_documents_contract.py` — ontology expansion mock counts
+    invocations; asserts exactly one awaited call so the fast return is provably
+    the timeout bounding it, not a skipped path.
+14. `lessons.md` — L-REV-7 updated (commit is explicit `claim()`, not a no-op);
+    L-REV-1 superseded with a provenance note; L-REV-13 added (CAS status
+    transitions, keyed-endpoint validation, Cluster hash tags).
+
+Validation: `py_compile` all touched files OK; touched-file suite
+`37 passed` (test_anon_quota, test_chat_endpoint, test_authz_regression,
+test_streaming_guardrail, test_job_queue — incl. 2 new CAS tests,
+test_retrieve_documents_contract); ruff zero new errors vs the 815 baseline
+(the +4 delta is line-number shift only — every flagged line predates this
+sprint's hunks); memory-adapter self-check OK; endpoint-validation + citation
+normalization smokes pass; Redis self-check SKIP (no local Redis). Committed as
+`6caa1eb1`.
