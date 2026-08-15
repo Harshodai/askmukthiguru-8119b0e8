@@ -22,7 +22,6 @@ from app.config import settings
 from app.pipeline.result import PipelineResult
 from app.schemas import ChatRequest
 
-
 # ---------------------------------------------------------------------------
 # Shared seams
 # ---------------------------------------------------------------------------
