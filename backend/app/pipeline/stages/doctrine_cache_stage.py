@@ -42,9 +42,13 @@ class DoctrineCacheStage(Stage):
         # gap fixed in distress_stage.py's crisis-preemption path) — an Indic
         # user would otherwise get the canned English doctrine answer verbatim.
         if getattr(ctx, "is_indic", False):
-            answer = await ctx.container.translation.translate_text(
-                text=answer, source_lang="en", target_lang=ctx.preferred_lang
-            )
+            try:
+                translated = await ctx.container.translation.translate_text(
+                    text=answer, source_lang="en", target_lang=ctx.preferred_lang
+                )
+                answer = translated
+            except Exception as e:
+                logger.warning("DoctrineCache translation failed for Indic request: %s", e)
 
         logger.info("DoctrineCache fast-path hit for: %s", ctx.user_msg[:60])
         # cache_hit=True also makes the coordinator patch in the real latency;

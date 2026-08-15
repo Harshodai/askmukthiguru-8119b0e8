@@ -129,18 +129,16 @@ class SupabaseTelemetrySink:
         session_id = self._coerce_uuid(session_id)
         user_id = self._coerce_uuid(user_id)
 
-        from app.telemetry_db import PIIScrubber
-
         payload_dict = {
             "query_id": query_id,
             "session_id": session_id,
             "user_id": user_id,
-            "query_text": PIIScrubber.scrub(query_text),
+            "query_text": query_text,
             "model": model,
             "latency_ms": latency_ms,
             "status": status,
             "created_at": created_at,
-            "response_text": PIIScrubber.scrub(response_text) if response_text else response_text,
+            "response_text": response_text,
             "citations": citations,
             "faithfulness": faithfulness,
             "answer_relevancy": answer_relevancy,
@@ -166,6 +164,10 @@ class SupabaseTelemetrySink:
             "citations_verified": citations_verified,
             "orphan_citations_stripped": orphan_citations_stripped,
         }
+
+        # Sanitize once via the shared helper; the Redis path serializes the
+        # scrubbed payload, and the direct-insert fallback reuses the same helper.
+        payload_dict = self._scrub_payload_dict(payload_dict)
 
         if hallucination_flag:
             await self._invalidate_semantic_cache_if_flagged(hallucination_flag, query_text)
@@ -222,6 +224,22 @@ class SupabaseTelemetrySink:
         except Exception as e:
             logger.warning(f"Semantic cache invalidation for flagged query failed: {e}")
 
+    @staticmethod
+    def _scrub_payload_dict(payload_dict: dict) -> dict:
+        """Idempotently sanitize query/response text in a trace payload dict.
+
+        Reuses the shared PIIScrubber so direct callers and replayed records
+        get the same field-level redaction as the Redis Stream path.
+        """
+        from app.telemetry_db import PIIScrubber
+
+        scrubbed = dict(payload_dict)
+        for key in ("query_text", "response_text"):
+            value = scrubbed.get(key)
+            if value:
+                scrubbed[key] = PIIScrubber.scrub(value)
+        return scrubbed
+
     async def log_query_trace_direct(self, payload_dict: dict) -> None:
         """
         Asynchronously write telemetry data into all relevant Supabase tables.
@@ -231,8 +249,9 @@ class SupabaseTelemetrySink:
             logger.debug("SupabaseTelemetrySink is disabled, skipping log.")
             return
 
-        # Unpack the common payload dict for backward-compatibility with the rest of the method
-        p = payload_dict
+        # Normalize the payload through the shared sanitizer before unpacking,
+        # so direct callers and replayed records scrub query/response text.
+        p = self._scrub_payload_dict(payload_dict)
         query_id = self._coerce_uuid(p.get("query_id")) or str(uuid.uuid4())
         # Local aliases from payload so the rest of the code can keep using the flat names
         session_id = self._coerce_uuid(p.get("session_id"))

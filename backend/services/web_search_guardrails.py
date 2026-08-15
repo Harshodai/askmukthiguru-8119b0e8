@@ -463,6 +463,8 @@ def apply_result_guardrails(result: dict) -> tuple[bool, dict, list[str]]:
         logger.warning(f"URL scheme blocked: {url} — {reason}")
         return False, {}, ["bad_scheme"]
 
+    from app.config import settings
+
     # Step 3: Content sanitization
     title = sanitize_result_content(result.get("title", ""))
     snippet = sanitize_result_content(result.get("snippet", ""))
@@ -471,7 +473,7 @@ def apply_result_guardrails(result: dict) -> tuple[bool, dict, list[str]]:
     score, flags = calculate_content_score({"title": title, "snippet": snippet})
 
     # Step 5: Score threshold
-    if score < 0.6:
+    if score < settings.web_search_result_min_score:
         logger.debug(f"Result scored too low ({score:.2f}), filtering out: {url}")
         return False, {}, flags + ["low_score"]
 

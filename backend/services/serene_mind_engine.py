@@ -391,7 +391,7 @@ class SemanticDistressDetector:
     Captures nuance that keyword matching misses.
     """
 
-    def __init__(self, embedding_service, threshold: float = 0.72):
+    def __init__(self, embedding_service, threshold: float | None = None):
         """
         Initialize the semantic distress detector.
 
@@ -409,8 +409,10 @@ class SemanticDistressDetector:
         - Selected: 0.72 (Medium tier) to prevent gating normal conversation while ensuring
           seeker safety during emotional crises.
         """
+        from app.config import settings
+
         self._embedder = embedding_service
-        self._threshold = threshold
+        self._threshold = threshold if threshold is not None else settings.semantic_distress_threshold
         self._distress_embeddings = {}  # level -> list of embeddings
         self._initialized = False
 
@@ -506,12 +508,15 @@ class SereneMindEngine:
             embedding_service: Optional embedding service for semantic distress detection.
                               If provided, enables semantic similarity-based detection.
         """
+        from app.config import settings
+
         self._embedder = embedding_service
         self._semantic_detector = None
         if embedding_service:
             self._semantic_detector = SemanticDistressDetector(embedding_service)
-        self.distress_threshold = 3
-        self.rolling_window = 5
+        self.distress_threshold = settings.semantic_distress_escalation_count
+        self.rolling_window = settings.semantic_distress_rolling_window
+        self._history_score_threshold = settings.semantic_distress_history_score_threshold
         logger.info("Serene Mind Engine initialized")
 
     async def analyze_with_history(self, message: str, history: list) -> DistressAssessment:
@@ -524,7 +529,7 @@ class SereneMindEngine:
                 return msg.get("distress_score", 0)
             return getattr(msg, "distress_score", 0)
 
-        distress_count = sum(1 for msg in recent if get_distress(msg) > 0.6)
+        distress_count = sum(1 for msg in recent if get_distress(msg) > self._history_score_threshold)
 
         assessment = await self.async_assess_distress(message)
 
@@ -751,7 +756,7 @@ class SereneMindEngine:
             PROACTIVE_ENABLED = getattr(settings, "proactive_serene_mind_enabled", True)
             AVG_THRESHOLD = getattr(settings, "proactive_distress_avg_threshold", 1.5)
             TREND_THRESHOLD = getattr(settings, "proactive_distress_trend_threshold", 0.5)
-            FREQ_THRESHOLD = getattr(settings, "proactive_distress_frequency_threshold", 0.6)
+            FREQ_THRESHOLD = settings.proactive_distress_frequency_threshold
             MIN_POINTS = getattr(settings, "proactive_min_conversation_points", 3)
         except Exception:
             # Fallback defaults if config import fails

@@ -45,7 +45,13 @@ def _is_youtube_url(source: str) -> bool:
 def extract_citations(state: GraphState) -> dict:
     """Map answer sentences to best-matching retrieved documents."""
     answer: str = state.get("answer") or state.get("final_answer") or ""  # type: ignore
-    docs: list[dict] = state.get("selected_docs") or state.get("relevant_docs", []) or []
+    selected_docs: Optional[list[dict]] = state.get("selected_docs")
+    relevant_docs: list[dict] = state.get("relevant_docs", [])
+    # Preserve an explicitly empty selected_docs value; only fall back to
+    # relevant_docs when selected_docs is actually absent (None). An empty
+    # selected_docs list means documents were rejected and must not produce
+    # citations.
+    docs = selected_docs if selected_docs is not None else relevant_docs
     if not answer or not docs:
         return {"citations": []}
 

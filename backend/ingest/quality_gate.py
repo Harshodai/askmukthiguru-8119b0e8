@@ -208,16 +208,14 @@ def detect_bias(text: str, extra_blocklist: str = "") -> list[str]:
     return [t for t in terms if t in lower]
 
 
-# ponytail: faithfulness floor for gating LLM-authored cluster summaries against
-# their own source chunks. Tunable — promote to settings if it needs env control.
-SUMMARY_FAITHFULNESS_FLOOR = 0.35
+from app.config import settings
 
 
 def gate_summary_faithfulness(
     summary: str,
     source_chunks: list[str],
     scorer: Any,
-    floor: float = SUMMARY_FAITHFULNESS_FLOOR,
+    floor: float | None = None,
 ) -> tuple[bool, float]:
     """
     Faithfulness gate for a generated summary against its own source chunks.
@@ -240,13 +238,14 @@ def gate_summary_faithfulness(
     context = "\n\n".join(c for c in source_chunks if c and c.strip())
     if not context:
         return False, 0.0
+    effective_floor = floor if floor is not None else settings.raptor_summary_faithfulness_floor
     try:
         result = scorer.score_faithfulness("", context, summary)
         score = float(result.get("score", 0.0))
     except Exception as e:  # noqa: BLE001 — fail closed, summary is dropped not crashed
         logger.warning("Summary faithfulness scoring failed, gating out: %s", e)
         return False, 0.0
-    return score >= floor, score
+    return score >= effective_floor, score
 
 
 # ── Tier 2: LLM quality scoring ───────────────────────────────────────────────

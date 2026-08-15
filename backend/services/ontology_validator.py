@@ -134,9 +134,12 @@ RETURN coalesce(r.confidence, 1.0) AS confidence, type(r) AS rel_type
 LIMIT 1
 """
 
-# Confidence threshold above which a Neo4j relation is treated as authoritative.
-# Matches the blueprint's 0.7 cutoff.
-_CONFIDENCE_THRESHOLD = 0.7
+from app.config import settings
+
+
+def _confidence_threshold() -> float:
+    """Confidence threshold above which a Neo4j relation is treated as authoritative."""
+    return settings.ontology_confidence_threshold
 
 
 class OntologyValidator:
@@ -204,7 +207,7 @@ class OntologyValidator:
 
         total = len(claimed_facts)
         confidence = len(supported) / total if total else 1.0
-        is_valid = confidence >= 0.7 and len(contradictions) == 0
+        is_valid = confidence >= settings.ontology_validity_confidence_threshold and len(contradictions) == 0
 
         # Prom gauge — one increment per contradiction (soft-gate signal).
         if contradictions and ontology_contradiction_count is not None:
@@ -261,7 +264,7 @@ class OntologyValidator:
 
         if result:
             conf = float(result[0].get("confidence", 1.0) or 1.0)
-            if conf > _CONFIDENCE_THRESHOLD:
+            if conf > _confidence_threshold():
                 return "supported"
 
         # Check for a contradiction (opposite relation between same pair).
@@ -281,7 +284,7 @@ class OntologyValidator:
 
         if opp:
             conf = float(opp[0].get("confidence", 1.0) or 1.0)
-            if conf > _CONFIDENCE_THRESHOLD:
+            if conf > _confidence_threshold():
                 return "contradicted"
 
         return "unknown"

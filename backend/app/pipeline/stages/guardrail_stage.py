@@ -38,10 +38,13 @@ class CircuitBreakerStage(Stage):
             if getattr(ctx, "is_indic", False):
                 import dataclasses
 
-                translated = await ctx.container.translation.translate_text(
-                    text=result.final_answer, source_lang="en", target_lang=ctx.preferred_lang
-                )
-                result = dataclasses.replace(result, final_answer=translated)
+                try:
+                    translated = await ctx.container.translation.translate_text(
+                        text=result.final_answer, source_lang="en", target_lang=ctx.preferred_lang
+                    )
+                    result = dataclasses.replace(result, final_answer=translated)
+                except Exception as e:
+                    logger.warning("Circuit-breaker Indic translation failed: %s", e)
             return result
         return None
 
