@@ -1872,7 +1872,7 @@ return (
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="text-[26px] sm:text-4xl font-serif text-foreground/95 tracking-tight leading-tight"
+                  className="text-[22px] sm:text-[30px] font-serif font-normal text-foreground/90 tracking-tight leading-snug text-balance"
                 >
                   {buildGreeting(selected?.slug, profile.displayName ?? '', greetingContext)}
                 </motion.h2>
@@ -1880,7 +1880,7 @@ return (
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
-                  className="mt-3 text-sm sm:text-base text-muted-foreground/75 leading-relaxed max-w-md mx-auto font-serif italic"
+                  className="mt-2 text-[13px] sm:text-sm text-muted-foreground/65 leading-relaxed max-w-sm mx-auto font-serif italic"
                 >
                   {buildGreetingSubline(greetingContext)}
                 </motion.p>
@@ -1889,7 +1889,7 @@ return (
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.18 }}
-                className="w-full px-4"
+                className="mt-4 w-full"
               >
                 <TeacherGuidancePanel assistantName={selected?.name} />
               </motion.div>
