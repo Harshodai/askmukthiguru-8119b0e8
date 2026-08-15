@@ -1585,6 +1585,24 @@ async def reject_source_release(
         _raise_source_release_error(exc)
 
 
+@admin_router.post("/ingest/book")
+async def ingest_book_endpoint(
+    collection: str = "spiritual_wisdom_contextual",
+    json_path: str = "data/book/The_Four_Sacred_Secrets_structure.json",
+    admin: dict = Depends(_require_admin),
+) -> dict[str, Any]:
+    """Dispatch the Four Sacred Secrets book (Qdrant + LightRAG + OKF) via Celery.
+
+    json_path is relative to the backend/ working directory inside the image
+    (baked in via Dockerfile.railway's `COPY backend/ .`); runs in
+    celery-worker so LightRAG can reach Neo4j over Railway's internal network.
+    """
+    from tasks.ingest_tasks import ingest_book_task
+
+    task = ingest_book_task.apply_async(args=[json_path, collection])
+    return {"status": "queued", "task_id": task.id, "collection": collection}
+
+
 def _source_release_readiness() -> dict[str, Any]:
     """Return allowlisted release counts for the operations snapshot only."""
     readiness = {

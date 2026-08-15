@@ -28,6 +28,7 @@ Run command:
 import argparse
 import asyncio
 import enum
+import hashlib
 import json
 import logging
 import os
@@ -365,8 +366,16 @@ async def safe_lightrag_insert(
 
 
 # ── Book Ingestion (In-Process) ─────────────────────────────
-def ingest_book_to_qdrant(json_path: str):
-    """Ingest book structure into Qdrant in-process."""
+def ingest_book_to_qdrant(json_path: str, qdrant_client=None):
+    """Ingest book structure into Qdrant in-process.
+
+    qdrant_client: optional pre-built QdrantClient override. qdrant-client's
+    url= constructor form has a reproducible ConnectTimeout against Railway's
+    public HTTPS proxy (host=/https=True/port=443 construction does not hit
+    it); callers running against that proxy from outside Railway's network
+    should inject a client built that way. Settings-derived internal-network
+    connections are unaffected and can omit this.
+    """
     import uuid
 
     from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -374,7 +383,7 @@ def ingest_book_to_qdrant(json_path: str):
     from services.qdrant_service import QdrantService
 
     logger.info("Initializing Qdrant and Embeddings (in-process)...")
-    qdrant = QdrantService()
+    qdrant = QdrantService(client=qdrant_client)
     qdrant.init_collection()
     embeddings = EmbeddingService()
 
@@ -387,11 +396,21 @@ def ingest_book_to_qdrant(json_path: str):
         logger.error("No 'structure' array found in JSON.")
         return
 
-    child_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=400,
-        chunk_overlap=50,
-        length_function=len,
-    )
+    child_splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=50)
+
+    # PageIndex sometimes repeats a subsection's full text inside its parent
+    # section's text field (2026-08-15: 236/1196 book chunks -- 19.7% -- were
+    # exact duplicates, all parent/child pairs sharing identical body text).
+    # Dedupe globally across the whole tree, not per-node, since the collision
+    # is between a node and its own descendant, not within one node's splits.
+    seen_body_hashes: set[str] = set()
+
+    def _dedup_append(chunks: list, text: str, header: str, metadata: dict) -> None:
+        body_hash = hashlib.md5(text.strip().encode()).hexdigest()
+        if body_hash in seen_body_hashes:
+            return
+        seen_body_hashes.add(body_hash)
+        chunks.append({"text": header + text, "metadata": metadata})
 
     def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
         chunks = []
@@ -410,45 +429,51 @@ def ingest_book_to_qdrant(json_path: str):
                 child_paragraphs = child_splitter.split_text(text)
                 header = f"[Source: The_Four_Sacred_Secrets.pdf | Chapter: {context_title}]\n"
 
-                for child_index, child_text in enumerate(child_paragraphs):
-                    chunks.append(
+                for child_text in child_paragraphs:
+                    _dedup_append(
+                        chunks,
+                        child_text,
+                        header,
                         {
-                            "text": header + child_text,
-                            "metadata": {
-                                "source_url": "The_Four_Sacred_Secrets.pdf",
-                                "title": context_title,
-                                "speaker": "Sri Preethaji & Sri Krishnaji",
-                                "topic": "Spiritual",
-                                "content_type": "book",
-                                "raptor_level": 0,
-                                "cluster_id": cluster_id,
-                                "node_id": node.get("node_id", ""),
-                                "page_range": f"{node.get('start_index', '?')}-{node.get('end_index', '?')}",
-                                "parent_id": parent_id,
-                                "parent_text": text,
-                                "is_child": True,
-                            },
-                        }
+                            "source_url": "The_Four_Sacred_Secrets.pdf",
+                            "title": context_title,
+                            "speaker": "Sri Preethaji & Sri Krishnaji",
+                            "topic": "Spiritual",
+                            "content_type": "book",
+                            "source_type": "book",
+                            "language": "en",
+                            "tags": ["general"],
+                            "raptor_level": 0,
+                            "cluster_id": cluster_id,
+                            "node_id": node.get("node_id", ""),
+                            "page_range": f"{node.get('start_index', '?')}-{node.get('end_index', '?')}",
+                            "parent_id": parent_id,
+                            "parent_text": text,
+                            "is_child": True,
+                        },
                     )
 
             if summary:
                 header = (
                     f"[Source: The_Four_Sacred_Secrets.pdf | Chapter Summary: {context_title}]\n"
                 )
-                chunks.append(
+                _dedup_append(
+                    chunks,
+                    summary,
+                    header,
                     {
-                        "text": header + summary,
-                        "metadata": {
-                            "source_url": "The_Four_Sacred_Secrets.pdf",
-                            "title": f"Summary: {context_title}",
-                            "speaker": "Sri Preethaji & Sri Krishnaji",
-                            "topic": "Spiritual",
-                            "content_type": "summary",
-                            "raptor_level": 1,
-                            "cluster_id": cluster_id,
-                            "node_id": node.get("node_id", ""),
-                        },
-                    }
+                        "source_url": "The_Four_Sacred_Secrets.pdf",
+                        "title": f"Summary: {context_title}",
+                        "speaker": "Sri Preethaji & Sri Krishnaji",
+                        "topic": "Spiritual",
+                        "content_type": "summary",
+                        "source_type": "book",
+                        "language": "en",
+                        "tags": ["general"],
+                        "raptor_level": 1,
+                        "cluster_id": cluster_id,
+                        "node_id": node.get("node_id", ""),
+                    },
                 )
 
             if "nodes" in node and node["nodes"]:

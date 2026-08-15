@@ -100,6 +100,39 @@ class AsyncTask(Task):
 @celery_app.task(
     base=AsyncTask, bind=True,
     autoretry_for=RETRYABLE_INGEST_ERRORS,
+    retry_kwargs={"max_retries": 1},
+    retry_backoff=True,
+    retry_jitter=True,
+)
+def ingest_book_task(
+    self,
+    json_path: str,
+    collection: str,
+    job_id: str = None,
+) -> dict[str, Any]:
+    """Ingest a PageIndex-JSON book into Qdrant + LightRAG + OKF (see ingest/book_ingest.py).
+
+    Runs inside celery-worker so LightRAG can reach Neo4j over the internal
+    Railway network -- the host-side scripts/ingestion/bulk_ingest_async.py
+    path can only reach the public Qdrant proxy, not Neo4j's bolt port.
+    """
+    logger.info(f"Ingesting book: {json_path} -> {collection}")
+    if job_id:
+        update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)
+
+    from ingest.book_ingest import ingest_book
+
+    result = self.run_async(ingest_book(json_path, collection))
+
+    if job_id:
+        update_job_progress(job_id, "completed", progress_pct=100)
+    logger.info(f"Book ingestion done: {result}")
+    return result
+
+
+@celery_app.task(
+    base=AsyncTask, bind=True,
+    autoretry_for=RETRYABLE_INGEST_ERRORS,
     retry_kwargs={"max_retries": 3},
     retry_backoff=True,
     retry_jitter=True,

@@ -478,7 +478,7 @@ class SupabaseAuthStrategy(AuthStrategy):
     # evicted (dicts preserve insertion order, so pop(next(iter(...))) is
     # FIFO). TTL semantics unchanged.
     _admin_cache: dict[str, tuple] = {}
-    _CACHE_TTL = 300  # 5 minutes
+    _CACHE_TTL = 90  # 1.5 minutes
     _CACHE_MAXSIZE = 256
 
     async def _check_admin_role(self, user_id: str, jwt_token: str | None = None) -> bool:

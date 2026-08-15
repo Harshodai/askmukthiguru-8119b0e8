@@ -26,6 +26,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { normalizeSarvamVoice, SARVAM_VOICES } from '@/lib/sarvamVoices';
@@ -34,6 +35,7 @@ import { buildCanonical } from '@/lib/domain';
 import { fireTestReminder, requestNotificationPermission } from '@/hooks/useMeditationReminder';
 import { AppShell } from '@/components/layout/AppShell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -158,22 +160,14 @@ const ProfilePage = () => {
   useEffect(() => {
     setForm(profile);
     setDirty(false);
-  }, [profile.id]);
-
-  const resolveName = (): string => {
-    const raw = profile.displayName || user?.user_metadata?.full_name || '';
-    return raw && raw !== 'Seeker' ? raw : '';
-  };
-
-  const resolveEmail = (): string => {
-    return user?.email || '';
-  };
+  }, [profile]);
 
   useEffect(() => {
     if (user || profile) {
-      const resolvedName = resolveName();
-      const resolvedEmail = resolveEmail();
-      setSupportForm(prev => ({
+      const raw = profile.displayName || user?.user_metadata?.full_name || '';
+      const resolvedName = raw && raw !== 'Seeker' ? raw : '';
+      const resolvedEmail = user?.email || '';
+      setSupportForm((prev) => ({
         ...prev,
         name: resolvedName || prev.name || '',
         email: resolvedEmail || prev.email || '',
@@ -372,6 +366,7 @@ const ProfilePage = () => {
 
 
   const isOnboarding = searchParams.get('onboarding') === 'true';
+  const setupMfaRedirect = searchParams.get('setup_mfa') === '1' ? searchParams.get('redirect') : null;
 
   if (authLoading) {
     return (
@@ -385,55 +380,80 @@ const ProfilePage = () => {
     <AppShell title={isOnboarding ? "Welcome, Seeker" : "My Profile"}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 safe-x">
         {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
+        {/* ── Profile hero: avatar, name, email, streak, level — calm, spiritual, generous ── */}
         {!isOnboarding && (
-          <div className="flex items-center gap-4 sm:gap-5 pb-2">
-            <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-1 ring-hairline">
-              {(profile.avatarDataUrl || profile.avatarUrl) ? (
-                <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
-              ) : null}
-              <AvatarFallback className="bg-ojas/10 text-ojas text-xl font-serif">
-                {getInitials(profile.displayName)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl sm:text-2xl font-serif text-foreground truncate">
-                {profile.displayName || 'Seeker'}
-              </h1>
+          <div className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-md p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+            <div className="relative group shrink-0">
+              <div className="absolute inset-0 rounded-full bg-ojas/15 blur-lg opacity-80 group-hover:scale-105 transition-transform duration-500" />
+              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 ring-2 ring-ojas/30 shadow-md relative">
+                {(profile.avatarDataUrl || profile.avatarUrl) ? (
+                  <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
+                ) : null}
+                <AvatarFallback className="bg-gradient-to-br from-ojas/20 to-ojas/5 text-ojas text-2xl font-serif font-bold">
+                  {getInitials(profile.displayName)}
+                </AvatarFallback>
+              </Avatar>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Change profile photo"
+                className="absolute bottom-0 right-0 min-w-[36px] min-h-[36px] p-2 rounded-full bg-ojas text-primary-foreground shadow-lg hover:scale-110 active:scale-95 transition-all flex items-center justify-center"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 min-w-0 text-center sm:text-left space-y-2">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                <h1 className="text-2xl sm:text-3xl font-serif font-semibold text-foreground tracking-tight truncate">
+                  {profile.displayName || 'Seeker'}
+                </h1>
+                <Badge variant="outline" className="bg-ojas/10 text-ojas border-ojas/30 capitalize text-xs px-2.5 py-0.5">
+                  <Sparkles className="w-3 h-3 mr-1 text-ojas" />
+                  {profile.familiarityLevel || 'Seeker'}
+                </Badge>
+              </div>
               <p className="text-sm text-muted-foreground truncate">
-                {user?.email ?? 'Your spiritual journey'}
+                {user?.email ?? 'Your sacred journey with Sri Preethaji & Sri Krishnaji'}
               </p>
-              {stats && stats.streakDays > 0 && (
-                <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-ojas">
-                  <Flame className="w-3.5 h-3.5" />
-                  <span className="font-medium">{stats.streakDays}-day streak</span>
-                </div>
-              )}
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-1">
+                {stats && stats.streakDays > 0 && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ojas/10 border border-ojas/20 text-xs text-ojas font-medium">
+                    <Flame className="w-3.5 h-3.5" />
+                    <span>{stats.streakDays}-day streak</span>
+                  </div>
+                )}
+                {stats && stats.totalMinutes > 0 && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border/60 text-xs text-muted-foreground font-medium">
+                    <Clock className="w-3.5 h-3.5 text-ojas" />
+                    <span>{stats.totalMinutes} min practiced</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
 
         <div className="space-y-6">
           <Tabs value={tab} onValueChange={setTab} className="w-full">
-            {/* ── Scrollable tab rail — no cramped 7-col grid ── */}
+            {/* ── Scrollable tab rail — generous touch targets and sacred minimal background ── */}
             <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto momentum-scroll no-tap-highlight">
-              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-7 gap-1.5 mb-8 bg-black/40 ring-1 ring-border/30 p-1.5 rounded-full">
-                <TabsTrigger value="conversations" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
-                <TabsTrigger value="profile" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
-                <TabsTrigger value="stats" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
-                <TabsTrigger value="notes" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">{t('profile.tabs.notes', 'Notes')}</TabsTrigger>
-                <TabsTrigger value="memory" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
-                <TabsTrigger value="settings" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
-                <TabsTrigger value="support" className="rounded-full text-xs sm:text-sm px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg transition-all duration-300">{t('profile.tabs.support', 'Support')}</TabsTrigger>
+              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-7 gap-1.5 mb-8 bg-muted/60 backdrop-blur-md ring-1 ring-border/40 p-1.5 rounded-full">
+                <TabsTrigger value="conversations" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
+                <TabsTrigger value="profile" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
+                <TabsTrigger value="stats" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
+                <TabsTrigger value="notes" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.notes', 'Notes')}</TabsTrigger>
+                <TabsTrigger value="memory" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
+                <TabsTrigger value="settings" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
+                <TabsTrigger value="support" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.support', 'Support')}</TabsTrigger>
               </TabsList>
             </div>
 
             <TabsContent value="profile" className="space-y-6 mt-0">
-              <Card className="bg-card/40 backdrop-blur-xl ring-1 ring-border/20">
+              <Card className="bg-card/60 backdrop-blur-xl ring-1 ring-border/30 shadow-sm rounded-2xl">
                 <CardHeader className="border-l-2 border-ojas pl-5 py-4">
                   <CardTitle className="text-lg font-sacred">Personal Details</CardTitle>
-                  <CardDescription>Tell the Guru about yourself.</CardDescription>
+                  <CardDescription>Tell the Guru about yourself and your spiritual focus.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-6 p-5 sm:p-7">
                   <div className="flex flex-col sm:flex-row items-center gap-6 pb-2">
                     <div className="relative group shrink-0">
                       {/* Aura glow behind */}
@@ -451,7 +471,7 @@ const ProfilePage = () => {
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         aria-label="Change profile photo"
-                        className="absolute bottom-0 right-0 p-2 rounded-full bg-ojas text-primary-foreground shadow-lg hover:scale-110 transition-transform"
+                        className="absolute bottom-0 right-0 min-w-[36px] min-h-[36px] p-2 rounded-full bg-ojas text-primary-foreground shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
                       >
                         <Camera className="w-4 h-4" />
                       </button>
@@ -466,17 +486,18 @@ const ProfilePage = () => {
                     </div>
                     <div className="flex-1 space-y-3 w-full">
                       <div className="space-y-1.5">
-                        <Label htmlFor="displayName">Display Name</Label>
+                        <Label htmlFor="displayName" className="text-sm font-medium">Display Name</Label>
                         <Input
                           id="displayName"
                           value={form.displayName}
                           onChange={(e) => patch('displayName', e.target.value)}
                           placeholder="How should I address you?"
                           maxLength={40}
+                          className="min-h-[44px] rounded-xl"
                         />
                       </div>
                       {profile.avatarDataUrl && (
-                        <Button variant="ghost" size="sm" onClick={handleRemoveAvatar} className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs h-8 px-2">
+                        <Button variant="ghost" size="sm" onClick={handleRemoveAvatar} className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs min-h-[36px] px-2.5 rounded-lg">
                           <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Remove photo
                         </Button>
                       )}
@@ -484,13 +505,13 @@ const ProfilePage = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="bio">Your Path & Intention</Label>
+                    <Label htmlFor="bio" className="text-sm font-medium">Your Path & Intention</Label>
                     <Textarea
                       id="bio"
                       value={form.bio}
                       onChange={(e) => patch('bio', e.target.value)}
                       placeholder="Share what brings you here or your current spiritual challenges..."
-                      className="min-h-[120px] resize-none"
+                      className="min-h-[120px] resize-none rounded-xl"
                       maxLength={280}
                     />
                     <p className="text-xs text-muted-foreground text-right">
@@ -500,9 +521,12 @@ const ProfilePage = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label>Preferred Language</Label>
+                      <Label className="text-sm font-medium flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5 text-ojas" />
+                        Preferred Language
+                      </Label>
                       <Select value={form.preferredLanguage} onValueChange={(v) => patch('preferredLanguage', v)}>
-                        <SelectTrigger>
+                        <SelectTrigger className="min-h-[44px] rounded-xl">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="max-h-80">
@@ -515,9 +539,9 @@ const ProfilePage = () => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Guru's Tone</Label>
+                      <Label className="text-sm font-medium">Guru's Tone</Label>
                       <Select value={form.guruTone} onValueChange={(v) => patch('guruTone', v as GuruTone)}>
-                        <SelectTrigger>
+                        <SelectTrigger className="min-h-[44px] rounded-xl">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -531,12 +555,12 @@ const ProfilePage = () => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Guidance Depth</Label>
+                      <Label className="text-sm font-medium">Guidance Depth</Label>
                       <Select
                         value={form.familiarityLevel || 'seeker'}
                         onValueChange={(v) => patch('familiarityLevel', v as 'seeker' | 'practitioner' | 'advanced')}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="min-h-[44px] rounded-xl">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -585,14 +609,21 @@ const ProfilePage = () => {
                 </CardContent>
               </Card>
 
-              <div className="flex items-center justify-between gap-4 sticky bottom-4 z-20">
+              <div className="flex items-center justify-between gap-4 sticky bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] z-20 bg-background/85 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-border/50 shadow-xl">
                 <div className="hidden sm:block">
-                  {dirty && <p className="text-xs text-ojas font-medium animate-pulse">Unsaved changes...</p>}
+                  {dirty ? (
+                    <p className="text-xs text-ojas font-medium animate-pulse flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-ojas inline-block" />
+                      Unsaved changes
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">All profile details are up to date</p>
+                  )}
                 </div>
                 <Button
                   onClick={handleSave}
                   disabled={!dirty}
-                  className="w-full sm:w-auto h-11 px-8 bg-ojas hover:bg-ojas-light text-primary-foreground shadow-lg shadow-ojas/20 gap-2"
+                  className="w-full sm:w-auto min-h-[44px] h-11 px-8 bg-ojas hover:bg-ojas-light text-primary-foreground shadow-lg shadow-ojas/20 gap-2 font-medium rounded-xl"
                 >
                   <Save className="w-4 h-4" />
                   {isOnboarding ? "Complete Onboarding" : "Save Changes"}
@@ -898,7 +929,16 @@ const ProfilePage = () => {
 
 
             <TabsContent value="settings" className="space-y-6 mt-0">
-              <TwoFactorSettings />
+              {setupMfaRedirect && (
+                <Alert>
+                  <AlertDescription>
+                    Admin access requires two-factor authentication. Set it up below, then you'll be sent back automatically.
+                  </AlertDescription>
+                </Alert>
+              )}
+              <TwoFactorSettings
+                onEnrolled={setupMfaRedirect ? () => navigate(setupMfaRedirect, { replace: true }) : undefined}
+              />
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Appearance</CardTitle>

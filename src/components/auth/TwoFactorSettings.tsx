@@ -21,7 +21,12 @@ interface EnrollState {
   uri: string;
 }
 
-export const TwoFactorSettings = () => {
+interface TwoFactorSettingsProps {
+  /** Called after a factor is successfully enrolled and verified (session is now aal2). */
+  onEnrolled?: () => void;
+}
+
+export const TwoFactorSettings = ({ onEnrolled }: TwoFactorSettingsProps = {}) => {
 const { t } = useTranslation();
   const { toast } = useToast();
   const [factors, setFactors] = useState<Factor[]>([]);
@@ -85,6 +90,7 @@ const { t } = useTranslation();
       setEnrollment(null);
       setCode('');
       await refresh();
+      onEnrolled?.();
     } catch (e) {
       toast({
         title: 'Code did not match',
