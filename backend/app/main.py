@@ -528,6 +528,15 @@ async def _background_startup_body(container, fastapi_app) -> None:
     except Exception as e:
         logger.warning(f"Lifespan: reranker cache check error (non-critical): {e}")
 
+    # Pre-warm LettuceDetect if enabled to prevent 20s cold-start latency spike on first user turn
+    if getattr(settings, "lettucedetect_enabled", False) and getattr(container, "lettuce_detect", None):
+        try:
+            logger.info("Lifespan: pre-warming LettuceDetect model...")
+            await asyncio.to_thread(container.lettuce_detect._load_real_detector)
+            logger.info("Lifespan: LettuceDetect model pre-warmed — OK")
+        except Exception as e:
+            logger.warning(f"Lifespan: LettuceDetect pre-warming skipped (non-critical): {e}")
+
     # Observability tracing (OpenTelemetry + Jaeger)
 
     logger.info("Lifespan: about to init observability...")

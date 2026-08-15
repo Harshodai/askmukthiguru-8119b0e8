@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import i18n from '@/i18n';
 import { Globe, Mic, MicOff, Volume2, VolumeX, ChevronDown, Languages } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -43,7 +42,7 @@ const MASTER_LANGUAGES: Language[] = [
 ];
 
 export const LANGUAGES: Language[] = MASTER_LANGUAGES.filter((lang) => {
-  return ['en', 'hinglish', 'hi', 'te', 'kn', 'ta', 'mr', 'ml', 'bn', 'gu', 'as', 'sa'].includes(lang.code);
+  return ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'ur', 'pa', 'or', 'as', 'sa'].includes(lang.code);
 });
 
 /**
@@ -52,7 +51,6 @@ export const LANGUAGES: Language[] = MASTER_LANGUAGES.filter((lang) => {
  */
 export const LANGUAGE_FLAGS: Record<string, string> = {
   en:  '🇮🇳',
-  hinglish: '🇮🇳',
   hi:  '🇮🇳',
   bn:  '🇮🇳',
   te:  '🇮🇳',
@@ -135,13 +133,15 @@ export const LanguageSelector = ({
   value,
   compact,
 }: LanguageSelectorProps) => {
+  const { i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
-  const [internalLang, setInternalLang] = useState('en');
+  const [internalLang, setInternalLang] = useState<string>(() => i18n?.language || 'en');
+  const [focusedIndex, setFocusedIndex] = useState<number>(0);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const selectedLanguage = value ?? internalLang;
-  // ponytail: voice-capability detection kept as-is (not touching bcp47/voice logic),
-  // just no longer rendered as a per-row badge — implementation detail, not user-facing value.
+  
   const [voiceCapable, setVoiceCapable] = useState<Set<string>>(new Set(['en']));
   const { t } = useTranslation();
 
@@ -154,17 +154,17 @@ export const LanguageSelector = ({
       const viewportWidth = window.innerWidth;
       const margin = 8;
       
-      const bottom = viewportHeight - rect.top + margin;
+      const bottom = Math.max(12, viewportHeight - rect.top + margin);
       
       let left = rect.left;
-      const menuWidth = Math.min(320, viewportWidth - 24); // 20rem is 320px
+      const menuWidth = Math.min(320, viewportWidth - 24);
       
-      // Clamp left to avoid overflowing the right side of the screen
       if (left + menuWidth > viewportWidth - 12) {
         left = Math.max(12, viewportWidth - menuWidth - 12);
       }
       
-      const maxHeight = rect.top - margin - 20; // 20px padding from the top
+      const availableAbove = rect.top - margin - 20;
+      const maxHeight = Math.max(0, Math.min(320, availableAbove));
       setCoords({ bottom, left, maxHeight });
     }
   }, []);
@@ -172,14 +172,30 @@ export const LanguageSelector = ({
   useEffect(() => {
     if (isOpen) {
       updatePosition();
+      const selectedIdx = LANGUAGES.findIndex((l) => l.code === selectedLanguage);
+      const initialIdx = selectedIdx >= 0 ? selectedIdx : 0;
+      setFocusedIndex(initialIdx);
+      // Move real DOM focus onto the selected option so roving tabindex is
+      // consistent from the moment the popover opens (not just after a
+      // keypress) — itemRefs are only populated once the list has rendered.
+      requestAnimationFrame(() => itemRefs.current[initialIdx]?.focus());
+
+      const handleScroll = (e: Event) => {
+        // Do not update/re-render if the scroll event is inside our own dropdown list
+        if (popoverRef.current && popoverRef.current.contains(e.target as Node)) {
+          return;
+        }
+        updatePosition();
+      };
+
       window.addEventListener('resize', updatePosition);
-      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('scroll', handleScroll, true);
+      return () => {
+        window.removeEventListener('resize', updatePosition);
+        window.removeEventListener('scroll', handleScroll, true);
+      };
     }
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
-    };
-  }, [isOpen, updatePosition]);
+  }, [isOpen, updatePosition, selectedLanguage]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -196,11 +212,58 @@ export const LanguageSelector = ({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsOpen(false);
-        // Restore focus to the trigger for keyboard users
         requestAnimationFrame(() => triggerRef.current?.focus());
         return;
       }
-      // Focus trap: keep Tab cycling inside the open popover
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setFocusedIndex((prev) => {
+          const next = (prev + 1) % LANGUAGES.length;
+          itemRefs.current[next]?.focus();
+          itemRefs.current[next]?.scrollIntoView({ block: 'nearest' });
+          return next;
+        });
+        return;
+      }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setFocusedIndex((prev) => {
+          const next = (prev - 1 + LANGUAGES.length) % LANGUAGES.length;
+          itemRefs.current[next]?.focus();
+          itemRefs.current[next]?.scrollIntoView({ block: 'nearest' });
+          return next;
+        });
+        return;
+      }
+
+      if (event.key === 'Home') {
+        event.preventDefault();
+        setFocusedIndex(0);
+        itemRefs.current[0]?.focus();
+        itemRefs.current[0]?.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+
+      if (event.key === 'End') {
+        event.preventDefault();
+        const last = LANGUAGES.length - 1;
+        setFocusedIndex(last);
+        itemRefs.current[last]?.focus();
+        itemRefs.current[last]?.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        const selected = LANGUAGES[focusedIndex];
+        if (selected) {
+          handleLanguageChange(selected.code);
+        }
+        return;
+      }
+
       if (event.key === 'Tab') {
         const popover = popoverRef.current;
         if (!popover) return;
@@ -222,11 +285,8 @@ export const LanguageSelector = ({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen]);
+  }, [isOpen, focusedIndex]);
 
-  // ponytail: no toast here — the parent (ChatInterface.handleLanguageChange)
-  // already surfaces a single confirmation toast; showing one here too was
-  // producing a double-toast on every switch.
   const handleLanguageChange = (code: string) => {
     setInternalLang(code);
     setLanguage(code);
@@ -241,15 +301,21 @@ export const LanguageSelector = ({
   // Add search back only if LANGUAGES grows past ~12 entries.
   const renderLanguageRows = () => (
     <>
-      {LANGUAGES.map((lang) => {
+      {LANGUAGES.map((lang, idx) => {
         const isSelected = selectedLanguage === lang.code;
+        const isFocused = focusedIndex === idx;
         return (
           <button
             key={lang.code}
+            ref={(el) => {
+              itemRefs.current[idx] = el;
+            }}
             onClick={() => handleLanguageChange(lang.code)}
+            onFocus={() => setFocusedIndex(idx)}
+            tabIndex={isFocused ? 0 : -1}
             className={`w-full px-3 py-3 text-left hover:bg-ojas/10 transition-colors flex items-center gap-3 ${
               isSelected ? 'bg-ojas/15' : ''
-            }`}
+            } ${isFocused ? 'ring-1 ring-ojas/50 bg-ojas/10' : ''}`}
             role="option"
             aria-selected={isSelected}
           >
@@ -292,7 +358,7 @@ export const LanguageSelector = ({
               if (!isOpen) updatePosition();
               setIsOpen(!isOpen);
             }}
-            className={`flex items-center gap-1.5 px-2.5 h-9 rounded-full transition-all font-semibold border ${
+            className={`flex items-center gap-1.5 px-2.5 h-9 min-h-[44px] min-w-[44px] rounded-full transition-all font-semibold border ${
               isNonEnglish ? 'text-sm' : 'text-xs'
             } ${
               isNonEnglish
@@ -306,7 +372,7 @@ export const LanguageSelector = ({
             aria-label={`Selected language: ${lang?.name ?? selectedLanguage}. Click to change.`}
             title={`Language: ${lang?.name ?? selectedLanguage}`}
           >
-            <span className="text-sm leading-none">{flag}</span>
+            <Globe className="w-3.5 h-3.5 flex-shrink-0 opacity-80" aria-hidden="true" />
             <span className={`font-medium ${isNonEnglish ? 'text-base leading-none' : ''}`}>{label}</span>
             {isNonEnglish && (
               <span className="flex items-center gap-1 text-[10px] font-bold text-ojas/90 bg-ojas/10 px-1.5 py-0.5 rounded">

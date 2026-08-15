@@ -38,8 +38,8 @@ async def test_spiritual_teaching_query():
 async def test_meditation_instruction_query():
     """Verify meditation practice query."""
     query = "Guide me through the steps of Soul Sync meditation."
-    # Meditation request
-    assert len(query) > 10
+    intent = classify(query)
+    assert intent != "CASUAL"
 
 
 @pytest.mark.asyncio

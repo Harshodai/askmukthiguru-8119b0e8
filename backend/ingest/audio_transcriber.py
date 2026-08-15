@@ -207,14 +207,15 @@ def chunk_audio_keyframe_segments(
 _MIN_CHUNK_COVERAGE: float = 0.85
 
 
+from services.whisper_local_service import transcribe_with_whisper
+
+
 async def _transcribe_chunks(chunks: List[Path]) -> str:
     """Transcribe each audio chunk via the local Whisper service, in order.
 
     Mirrors the fallback call in ingest/video_pipeline.py's _transcribe():
     same helper, run off the event loop since mlx-whisper is blocking.
     """
-    from services.whisper_local_service import transcribe_with_whisper
-
     texts: List[str] = []
     no_speech_chunks = 0
     for i, chunk in enumerate(chunks):

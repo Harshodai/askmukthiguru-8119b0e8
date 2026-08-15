@@ -706,6 +706,52 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
     if state.get("final_answer"):
         return {}  # answer already produced — write nothing (returning full state collides with parallel writers)
 
+    intent = state.get("intent", "CASUAL")
+    chat_history = state.get("chat_history", [])
+
+    _english_only = lambda q: bool(q and q.isascii() and q.isprintable())  # narrow guard
+
+    # Direct resolution for Conversation Recall (no vector search needed) — English only
+    if intent == "CONVERSATION_RECALL" or any(p in state.get("question", "").lower() for p in ("what did i just ask", "what did i ask you", "what was my last question", "what were we talking about")):
+        user_messages = [
+            m.get("content", "") for m in chat_history if m.get("role") == "user"
+        ]
+        q_raw = state.get("question", "")
+        if _english_only(q_raw):
+            if user_messages:
+                last_q = user_messages[-1]
+                return {
+                    "final_answer": f"You previously asked: \"{last_q}\"\n\nHow may I help you reflect on this or explore further? 🙏",
+                    "intent": "CONVERSATION_RECALL",
+                    "citations": [],
+                }
+            return {
+                "final_answer": "You haven't asked a previous question yet in our conversation. What is on your heart today? 🙏",
+                "intent": "CONVERSATION_RECALL",
+                "citations": [],
+            }
+        # Fall through to LLM for non-English so GURU_SYSTEM_PROMPT preserves language/script
+
+    # Direct resolution for App Orientation — English only
+    if intent == "APP_ORIENTATION" or any(p in state.get("question", "").lower() for p in ("what is this app", "how does ask mukthi guru work", "what does this app do", "about this app", "who created this app")):
+        q_raw = state.get("question", "")
+        if _english_only(q_raw):
+            return {
+                "final_answer": (
+                    "🙏 **Welcome to AskMukthiGuru!**\n\n"
+                    "I am your spiritual companion, dedicated to sharing the wisdom and practices "
+                    "of Sri Preethaji and Sri Krishnaji from Ekam (World Centre for Enlightenment).\n\n"
+                    "Here is how I can support your inner journey:\n"
+                    "1. **Sacred Teachings**: Explore insights on the Beautiful State, dissolving the Suffering State, the Four Sacred Secrets, and spiritual transformation.\n"
+                    "2. **Guided Practices**: Experience guided meditations including Serene Mind breathing, Soul Sync, and Deeksha.\n"
+                    "3. **Reflective Wisdom**: Ask questions about life, relationships, purpose, and inner peace.\n\n"
+                    "How would you like to begin today? 🙏"
+                ),
+                "intent": "APP_ORIENTATION",
+                "citations": [],
+            }
+        # Fall through to LLM for non-English so GURU_SYSTEM_PROMPT preserves language/script
+
     _SPIRITUAL_PRACTICE_SIGNALS = [
         r"\bpractice\b", r"\bpracticing\b", r"\bhow\s+(do|can|should)\s+i\b",
         r"\bsoul\s+sync\b", r"\bdeeksha\b", r"\bmeditat", r"\bbeautiful\s+state\b",
@@ -731,7 +777,6 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
     from rag.nodes.utils import emit_status
     await emit_status(config, "Saying hello...")
 
-    chat_history = state.get("chat_history", [])
     ollama = _services._ollama
 
     history_ctx = ""
@@ -841,13 +886,8 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
         )
 
     if assessment.level >= DistressLevel.SEVERE:
-        crisis_info = (
-            "\n\n🆘 **Crisis Support (available 24/7):**\n"
-            "• iCall (India): 9152987821\n"
-            "• AASRA (India): 9820466726 | aasra.info\n"
-            "• Vandrevala Foundation: 1860-2662-345\n"
-            "• International: Crisis Text Line — text HOME to 741741"
-        )
+        from services.crisis_helplines import format_helplines_block
+        crisis_info = "\n\n" + format_helplines_block(intro="🆘 **Crisis Support (available 24/7):**")
         response = crisis_info + "\n\n" + response
 
     # handle_distress returns straight to END (graph_strategies.py), bypassing

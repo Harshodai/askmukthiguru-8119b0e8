@@ -371,6 +371,12 @@ doctrine_keywords:
 # =============================================================================
 crisis_helplines:
   - region: "India"
+    name: "Tele-MANAS (National Mental Health Helpline - 24/7 Toll-Free)"
+    contact: "14416 / 1800-891-4416"
+  - region: "India"
+    name: "KIRAN (Mental Health Helpline)"
+    contact: "1800-599-0019"
+  - region: "India"
     name: "iCall"
     contact: "9152987821"
   - region: "India"
@@ -395,3 +401,18 @@ crisis_helplines:
   - region: "United Kingdom"
     name: "SHOUT"
     contact: "Text SHOUT to 85258"
+
+domestic_violence_helplines:
+  - region: "India"
+    name: "National Emergency Helpline"
+    contact: "112"
+  - region: "India"
+    name: "Women Helpline (All India)"
+    contact: "181 / 1091"
+  - region: "United States"
+    name: "National Domestic Violence Hotline"
+    contact: "1-800-799-SAFE (7233) or Text START to 88788"
+  - region: "United Kingdom"
+    name: "National Domestic Abuse Helpline"
+    contact: "0808 2000 247"
+

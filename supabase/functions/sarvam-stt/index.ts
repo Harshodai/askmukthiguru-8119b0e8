@@ -13,13 +13,16 @@ const corsHeaders = {
 const SARVAM_STT_URL = "https://api.sarvam.ai/speech-to-text";
 
 const toSarvamLang = (code: string): string => {
-  if (!code) return "unknown";
-  if (code === "unknown") return "unknown";
+  if (!code || code === "unknown" || code === "auto") return "unknown";
+  // "or-IN" is the pre-canonicalization Odia alias (ISO 639-1 "or"); Sarvam's
+  // API only accepts "od-IN". Normalize before the hyphenated-code early
+  // return below, which would otherwise pass "or-IN" straight through.
+  if (code === "or-IN") return "od-IN";
   if (code.includes("-")) return code;
   const map: Record<string, string> = {
     en: "en-IN", hi: "hi-IN", bn: "bn-IN", te: "te-IN", mr: "mr-IN",
     ta: "ta-IN", ur: "ur-IN", gu: "gu-IN", kn: "kn-IN", ml: "ml-IN",
-    or: "od-IN", pa: "pa-IN",
+    or: "od-IN", pa: "pa-IN", as: "as-IN", sa: "sa-IN", mai: "mai-IN",
   };
   return map[code] ?? `${code}-IN`;
 };

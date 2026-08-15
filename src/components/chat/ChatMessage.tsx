@@ -374,9 +374,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const citations = (message.citations && message.citations.length > 0)
       ? message.citations
       : inlineUrls;
-    const groundingState = message.groundingState ?? (
-      citations.length > 0 && message.answerEvidence?.citations_verified === true ? 'grounded' : 'abstained'
-    );
+    const groundingState = message.groundingState ?? 'abstained';
 
     // Attribution integrity: a quoted teacher statement with no linked source
     // must be labelled unverified rather than rendered as doctrine (QA P1).

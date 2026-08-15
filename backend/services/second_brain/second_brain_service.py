@@ -137,9 +137,8 @@ class SecondBrainService:
         self._llm = llm_service
         self._qdrant = qdrant_client  # a vault_index.VaultIndex, or None
         self._server_kek: Optional[bytes] = None
-        env_kek = os.getenv("BRAIN_KEK", "") or os.getenv("brain_kek", "") or getattr(settings, "brain_kek", None)
-        if env_kek:
-            self._server_kek = derive_server_kek(env_kek)
+        if hasattr(settings, "brain_kek") and settings.brain_kek:
+            self._server_kek = derive_server_kek(str(settings.brain_kek))
 
     # ------------------------------------------------------------------
     # Key management

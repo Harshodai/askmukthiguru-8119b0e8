@@ -11,6 +11,7 @@ Per the deep-module-refactor RFC, row 1 of the Testing Strategy table.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -186,6 +187,42 @@ async def test_chat_engine_telemetry_fired():
     # First positional arg is the ChatResult; ensure it carries the answer.
     args, _ = telemetry_mock.call_args
     assert args[0].final_answer == "Telemetry check"
+
+
+# ---------------------------------------------------------------------------
+# 6. Streaming final chunk normalizes dict citations same as the batch path
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_chat_engine_stream_final_chunk_coerces_dict_citations():
+    """The streaming path's final ChatChunk must run citations through
+    _coerce_citations like the batch path does — a raw list() pass-through
+    would leak un-normalized citation dicts to streaming clients."""
+    engine = _new_engine()
+
+    dict_citations = [
+        {"source_url": "https://example.com/teaching-1"},
+        {"title": "Beautiful State", "doc_id": "unused"},
+    ]
+
+    async def _fake_execute(*, stream_queue, **_kw):
+        await stream_queue.put({"text": "answer", "is_final": True})
+        return dataclasses.replace(_make_pipeline_result("answer"), citations=dict_citations)
+
+    mock_stream_host = MagicMock()
+    mock_stream_host.coordinator.execute = _fake_execute
+    engine._stream_coordinator = mock_stream_host
+
+    chunks: list[ChatChunk] = []
+    async for chunk in engine.chat_advanced_stream(
+        _basic_request("Cite something"), user={"id": "u6"}
+    ):
+        chunks.append(chunk)
+
+    final = chunks[-1]
+    assert final.is_final is True
+    assert final.citations == ["https://example.com/teaching-1", "Beautiful State"]
 
 
 if __name__ == "__main__":

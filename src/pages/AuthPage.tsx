@@ -1096,15 +1096,18 @@ const AuthPage = () => {
               {isSignUp ? t('auth.signInBtn') : t('auth.signUpBtn')}
             </button>
           </p>
-          <p className="text-[11px] text-muted-foreground/60">
-            {t('auth.troubleSigningIn')}{' '}
-            <a href="/auth/diagnostics" className="text-ojas hover:underline">
-              {t('auth.runDiagnostics')}
-            </a>
-          </p>
+          {!import.meta.env.PROD && (
+            <p className="text-[11px] text-muted-foreground/60">
+              {t('auth.troubleSigningIn')}{' '}
+              <a href="/auth/diagnostics" className="text-ojas hover:underline">
+                {t('auth.runDiagnostics')}
+              </a>
+            </p>
+          )}
           <p className="text-[11px] text-muted-foreground/50">
             {t('auth.byContinuing')}{' '}
-            <a href="/terms" className="hover:text-ojas hover:underline">{t('auth.terms')}</a>{t('auth.and')}{' '}
+            <a href="/terms" className="hover:text-ojas hover:underline">{t('auth.terms')}</a>{' '}
+            {t('auth.and')}{' '}
             <a href="/privacy" className="hover:text-ojas hover:underline">{t('auth.privacyPolicy')}</a>.
           </p>
         </div>

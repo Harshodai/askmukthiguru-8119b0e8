@@ -58,10 +58,19 @@ class Helpline:
 
 
 _FALLBACK_HELPLINES: tuple[Helpline, ...] = (
+    Helpline("India", "Tele-MANAS", "14416 / 1800-891-4416"),
+    Helpline("India", "KIRAN", "1800-599-0019"),
     Helpline("India", "iCall", "9152987821"),
     Helpline("India", "Vandrevala Foundation", "1860-2662-345"),
     Helpline("United States", "988 Suicide & Crisis Lifeline", "988"),
     Helpline("International", "Crisis Text Line", "Text HOME to 741741"),
+)
+
+_FALLBACK_DOMESTIC_VIOLENCE_HELPLINES: tuple[Helpline, ...] = (
+    Helpline("India", "National Emergency Helpline", "112"),
+    Helpline("India", "Women Helpline (All India)", "181 / 1091"),
+    Helpline("United States", "National Domestic Violence Hotline", "1-800-799-SAFE (7233) or Text START to 88788"),
+    Helpline("United Kingdom", "National Domestic Abuse Helpline", "0808 2000 247"),
 )
 
 
@@ -105,6 +114,14 @@ def get_helplines() -> tuple[Helpline, ...]:
         )
         return _FALLBACK_HELPLINES
 
+    if not isinstance(raw, dict):
+        logger.warning(
+            "crisis_helplines: %s did not parse to a mapping (got %s); using in-code fallback.",
+            path,
+            type(raw).__name__,
+        )
+        return _FALLBACK_HELPLINES
+
     entries = raw.get("crisis_helplines") or []
     if not entries:
         logger.warning(
@@ -131,6 +148,42 @@ def get_helplines() -> tuple[Helpline, ...]:
     if not parsed:
         return _FALLBACK_HELPLINES
     return tuple(parsed)
+
+
+@lru_cache(maxsize=1)
+def get_domestic_violence_helplines() -> tuple[Helpline, ...]:
+    """Return the immutable tuple of domestic violence helplines configured via YAML."""
+    path = _resolve_config_path()
+    if not path.is_file():
+        return _FALLBACK_DOMESTIC_VIOLENCE_HELPLINES
+
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            raw = yaml.safe_load(f) or {}
+    except (OSError, yaml.YAMLError):
+        return _FALLBACK_DOMESTIC_VIOLENCE_HELPLINES
+
+    if not isinstance(raw, dict):
+        return _FALLBACK_DOMESTIC_VIOLENCE_HELPLINES
+
+    entries = raw.get("domestic_violence_helplines") or []
+    if not entries:
+        return _FALLBACK_DOMESTIC_VIOLENCE_HELPLINES
+
+    parsed: list[Helpline] = []
+    for entry in entries:
+        try:
+            parsed.append(
+                Helpline(
+                    region=str(entry["region"]),
+                    name=str(entry["name"]),
+                    contact=str(entry["contact"]),
+                    url=str(entry["url"]) if entry.get("url") else None,
+                )
+            )
+        except (KeyError, TypeError):
+            continue
+    return tuple(parsed) or _FALLBACK_DOMESTIC_VIOLENCE_HELPLINES
 
 
 def _filter_by_region(helplines: Iterable[Helpline], region: str | None) -> tuple[Helpline, ...]:
@@ -192,3 +245,22 @@ def format_helplines_block(
         url_suffix = f" ({h.url})" if h.url else ""
         lines.append(f"- {h.region} | {h.name}: {h.contact}{url_suffix}")
     return "\n".join(lines)
+
+
+def format_domestic_violence_helplines_block(
+    *,
+    region: str | None = None,
+    intro: str = "🛡️ Domestic Violence & Emergency Support Helplines:",
+) -> str:
+    """Render domestic violence helplines as a user-facing block."""
+    helplines = _filter_by_region(get_domestic_violence_helplines(), region)
+    if not helplines:
+        return ""
+    lines = []
+    if intro:
+        lines.append(intro)
+    for h in helplines:
+        url_suffix = f" ({h.url})" if h.url else ""
+        lines.append(f"- {h.region} | {h.name}: {h.contact}{url_suffix}")
+    return "\n".join(lines)
+

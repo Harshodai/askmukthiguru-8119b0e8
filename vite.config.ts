@@ -129,13 +129,9 @@ export default defineConfig(({ mode, command }) => {
           },
         },
       },
-      minify: 'esbuild',
+      minify: isProd,
       target: 'es2020',
       reportCompressedSize: true,
-    },
-    esbuild: {
-      treeShaking: true,
-      pure: isProd ? ['console.log', 'console.debug'] : [],
     },
   };
 });

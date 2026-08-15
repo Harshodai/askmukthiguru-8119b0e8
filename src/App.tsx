@@ -256,9 +256,9 @@ const App = () => {
               <Route path="/" element={<Suspense fallback={<BrandedSpinner />}><Index /></Suspense>} />
               <Route path="/auth" element={<Suspense fallback={<BrandedSpinner />}><AuthPage /></Suspense>} />
               <Route path="/auth/mfa" element={<Suspense fallback={<BrandedSpinner />}><MFAChallengePage /></Suspense>} />
-              <Route path="/auth/diagnostics" element={<Suspense fallback={<BrandedSpinner />}><AuthDiagnosticsPage /></Suspense>} />
               {!import.meta.env.PROD && (
                 <>
+                  <Route path="/auth/diagnostics" element={<Suspense fallback={<BrandedSpinner />}><AuthDiagnosticsPage /></Suspense>} />
                   <Route path="/auth/latency" element={<Suspense fallback={<BrandedSpinner />}><AuthLatencyDashboard /></Suspense>} />
                   <Route path="/test-tts" element={<Suspense fallback={<BrandedSpinner />}><TTSVerificationPage /></Suspense>} />
                 </>

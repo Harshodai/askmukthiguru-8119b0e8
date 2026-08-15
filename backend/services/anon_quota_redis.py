@@ -101,6 +101,13 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
                 ttl * 1000,
                 deadline,
             )
+            allowed = bool(allowed)
+            remaining = max(0, limit - count_after_add)
+            retry_after: int | None = None
+            if not allowed:
+                oldest = await self._redis.zrange(key, 0, 0, withscores=True)
+                if oldest:
+                    retry_after = max(0, int(oldest[0][1] + window_seconds - now) + 1)
         except RedisError as exc:
             # This adapter is only selected after a successful cold-start Redis
             # probe (AnonQuotaService._build_adapter_async); a LATER outage
@@ -109,13 +116,7 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
             # mid-session Redis-outage contract (backend/CLAUDE.md).
             logger.warning(f"AnonQuotaRedisAdapter.check_and_record degraded to allowed (Redis error): {exc}")
             return QuotaResult(allowed=True, remaining=limit, total_limit=limit)
-        allowed = bool(allowed)
-        remaining = max(0, limit - count_after_add)
-        retry_after: int | None = None
-        if not allowed:
-            oldest = await self._redis.zrange(key, 0, 0, withscores=True)
-            if oldest:
-                retry_after = max(0, int(oldest[0][1] + window_seconds - now) + 1)
+
         # reservation_id is the member added by the Lua script; only a slot
         # that was actually reserved can be given back via release().
         reservation_id = member if allowed else None

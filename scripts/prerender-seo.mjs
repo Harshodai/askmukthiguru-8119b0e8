@@ -195,6 +195,13 @@ const ROUTES = [
     jsonLdType: 'WebPage',
     noindex: true,
   },
+  {
+    path: '/404',
+    title: 'Page Not Found — AskMukthiGuru',
+    description: 'The requested spiritual resource or page could not be found.',
+    jsonLdType: 'WebPage',
+    noindex: true,
+  },
 ];
 
 function canonicalFor(path) {
@@ -381,6 +388,9 @@ function main() {
     const outFile = join(outDir, 'index.html');
     mkdirSync(outDir, { recursive: true });
     writeFileSync(outFile, outHtml);
+    if (route.path === '/404') {
+      writeFileSync(join(DIST, '404.html'), outHtml);
+    }
     count += 1;
     console.log(`✓ prerendered: ${route.path} → ${outFile.replace(ROOT + '/', '')}`);
   }

@@ -394,7 +394,7 @@ class ChatEngine:
                 grounding_state='system_error',
             )
             return
-        citations = list(pipeline_result.citations) if pipeline_result else []
+        citations = self._coerce_citations(pipeline_result.citations) if pipeline_result else []
 
         # Final chunk — tone adaptation already ran inside the pipeline
         # (ToneAdapterStage), so the assembled result is the final voice.
@@ -448,13 +448,19 @@ class ChatEngine:
             if isinstance(c, str):
                 out.append(c)
             elif isinstance(c, dict):
-                doc_id = c.get("doc_id") or c.get("source") or c.get("source_url")
-                if doc_id and doc_id != "unknown":
-                    out.append(str(doc_id))
+                source_url = c.get("source_url")
+                url = c.get("url")
+                http_url: str | None = None
+                for cand in (source_url, url):
+                    if cand and str(cand).startswith(("http://", "https://")):
+                        http_url = str(cand)
+                        break
+                if http_url:
+                    out.append(http_url)
                 else:
-                    quote = c.get("quote") or c.get("title") or ""
-                    if quote:
-                        out.append(str(quote)[:200])
+                    title = c.get("title") or c.get("doc_id") or c.get("source") or c.get("quote") or ""
+                    if title and title != "unknown":
+                        out.append(str(title))
             else:
                 out.append(str(c))
         return out

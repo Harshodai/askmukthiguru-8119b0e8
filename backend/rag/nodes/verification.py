@@ -522,8 +522,7 @@ async def _cove_subquestion_check(question: str, answer: str, context: str, olla
         )
         sub_qs = [q.strip() for q in raw.splitlines() if q.strip() and len(q) > 10][:3]
 
-        supported = 0
-        for sq in sub_qs:
+        async def _verify_single_sq(sq: str) -> bool:
             verify_prompt = (
                 "Does the context support a 'yes' answer? Reply only 'yes' or 'no'.\n\n"
                 f"Context:\n{context[:1500]}\n\n"
@@ -533,14 +532,18 @@ async def _cove_subquestion_check(question: str, answer: str, context: str, olla
                 resp = await ollama.generate(
                     system_prompt="Answer only yes or no.",
                     user_prompt=verify_prompt,
-                    timeout=6,
+                    timeout=5,
                     max_retries=1,
                 )
-                if "yes" in resp.lower():
-                    supported += 1
+                return "yes" in (resp or "").lower()
             except Exception:
-                # Fail-closed: sub-question verification error means NOT supported
-                pass
+                return False
+
+        if sub_qs:
+            results = await asyncio.gather(*[_verify_single_sq(sq) for sq in sub_qs], return_exceptions=True)
+            supported = sum(1 for r in results if r is True)
+        else:
+            supported = 0
 
         ratio = supported / max(len(sub_qs), 1)
         passed = ratio >= settings.verifier_pass_ratio

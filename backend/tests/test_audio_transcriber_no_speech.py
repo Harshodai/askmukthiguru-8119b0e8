@@ -17,7 +17,7 @@ from ingest.audio_transcriber import _transcribe_chunks
 @pytest.mark.asyncio
 async def test_all_chunks_no_speech_raises_distinct_message(monkeypatch):
     monkeypatch.setattr(
-        "services.whisper_local_service.transcribe_with_whisper",
+        "ingest.audio_transcriber.transcribe_with_whisper",
         lambda video_id, path: "",
     )
     chunks = [Path("chunk_0.wav"), Path("chunk_1.wav")]
@@ -29,7 +29,7 @@ async def test_all_chunks_no_speech_raises_distinct_message(monkeypatch):
 @pytest.mark.asyncio
 async def test_genuine_failure_keeps_generic_message(monkeypatch):
     monkeypatch.setattr(
-        "services.whisper_local_service.transcribe_with_whisper",
+        "ingest.audio_transcriber.transcribe_with_whisper",
         lambda video_id, path: None,
     )
     chunks = [Path("chunk_0.wav")]
@@ -46,7 +46,7 @@ async def test_mixed_no_speech_and_success_keeps_successful_text(monkeypatch):
     calls = {f"audio_chunk_{i}": f"segment {i} text" for i in range(1, 10)}
     calls["audio_chunk_0"] = ""
     monkeypatch.setattr(
-        "services.whisper_local_service.transcribe_with_whisper",
+        "ingest.audio_transcriber.transcribe_with_whisper",
         lambda video_id, path: calls[video_id],
     )
     chunks = [Path(f"chunk_{i}.wav") for i in range(10)]

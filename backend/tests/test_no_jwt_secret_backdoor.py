@@ -217,16 +217,26 @@ class TestChatV2Endpoint:
                     audio_url=None,
                     kg_concept_nodes=[],
                     daily_practice_card=None,
+                    verification=None,
+                    answer_evidence=None,
+                    guidance_plan=None,
+                    grounding_state=None,
                 )
 
         async def _fake_history(chat_body, user, container, is_benchmark):
             return None
 
-        monkeypatch.setattr(chat_api, "populate_server_side_history", _fake_history)
-
         import app.chat_engine as chat_engine_module
 
         monkeypatch.setattr(chat_engine_module, "ChatEngine", _FakeEngine)
+
+        class _MockAnonQuotaService:
+            async def check_and_record(self, user):
+                from services.anon_quota_service import QuotaResult
+                return QuotaResult(allowed=True, remaining=10, total_limit=10)
+
+        class _MockContainer:
+            anon_quota_service = _MockAnonQuotaService()
 
         body = self._chat_request()
         resp = asyncio.run(
@@ -235,7 +245,7 @@ class TestChatV2Endpoint:
                 body,
                 background_tasks=None,
                 user={"id": "test-user"},
-                container=None,
+                container=_MockContainer(),
             )
         )
         assert resp is not None

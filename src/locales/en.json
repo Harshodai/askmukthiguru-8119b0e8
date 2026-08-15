@@ -535,7 +535,7 @@
     "intro": "AskMukthiGuru is a privacy-first spiritual companion. We collect the minimum data required to deliver the experience: your email (for authentication) and your conversation messages (stored locally on your device via chatStorage so you can pick up where you left off).",
     "whatWeStore": "What we store",
     "storeEmail": "Email address & encrypted password (or Google profile) — for sign-in.",
-    "storeChats": "Chat conversations and messages — stored locally on your device.",
+    "storeChats": "Chat conversations and messages — stored locally on your device via chatStorage, while backend inference logs may retain chat content and related identifiers.",
     "storeMeditation": "Meditation sessions — stored locally on your device.",
     "whatWeNeverDo": "What we never do",
     "neverSell": "Sell or share your data with third parties.",

@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
-import { LANGUAGES, LANGUAGE_FLAGS } from '@/components/chat/LanguageSelector';
-import i18n from '@/i18n';
+import { Sparkles, Globe, Languages } from 'lucide-react';
+import { LANGUAGES } from '@/components/chat/LanguageSelector';
 
 interface LanguageOnboardingStepProps {
   onComplete: (languageCode: string) => void;
@@ -22,9 +21,9 @@ export const LanguageOnboardingStep = ({ onComplete }: LanguageOnboardingStepPro
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-dvh flex flex-col bg-background"
+      className="min-h-dvh flex flex-col bg-background overflow-y-auto"
     >
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-12 max-w-lg mx-auto w-full">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 pt-10 pb-32 sm:pb-16 max-w-lg mx-auto w-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -50,7 +49,6 @@ export const LanguageOnboardingStep = ({ onComplete }: LanguageOnboardingStepPro
         >
           {LANGUAGES.map((lang, index) => {
             const isSelected = selected === lang.code;
-            const flag = LANGUAGE_FLAGS[lang.code] ?? '🌐';
             return (
               <motion.button
                 key={lang.code}
@@ -58,13 +56,19 @@ export const LanguageOnboardingStep = ({ onComplete }: LanguageOnboardingStepPro
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.05 * index + 0.25, duration: 0.25 }}
                 onClick={() => setSelected(lang.code)}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all border ${
+                className={`w-full min-h-[48px] flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all border ${
                   isSelected
                     ? 'bg-ojas/10 border-ojas/40 shadow-sm'
                     : 'bg-card border-border hover:border-ojas/20 hover:bg-muted/50'
                 }`}
               >
-                <span className="text-xl leading-none flex-shrink-0">{flag}</span>
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                    isSelected ? 'bg-ojas/20 text-ojas' : 'bg-muted/60 text-muted-foreground'
+                  }`}
+                >
+                  <Globe className="w-4 h-4" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <span
                     className={`block font-medium truncate ${

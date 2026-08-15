@@ -226,16 +226,21 @@ class CasualShortCircuitStage(Stage):
 
 
 class TranslationStage(Stage):
-    """Translate the final answer to the user's preferred language if Indic. Never short-circuits."""
+    """Translate the final answer to the user's preferred language if Indic and still in English. Never short-circuits."""
 
     name = "translation"
 
     async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
-        # ponytail: inline block from execute() verbatim
-        if ctx.is_indic:
-            ctx.final_answer = await ctx.container.translation.translate_text(
-                text=ctx.final_answer, source_lang="en", target_lang=ctx.preferred_lang
-            )
+        if ctx.is_indic and ctx.final_answer and getattr(ctx, "container", None) and getattr(ctx.container, "translation", None):
+            from app.language_utils import detect_message_lang
+            detected = detect_message_lang(ctx.final_answer)
+            # Only translate if the model generated English despite the prompt suffix.
+            # If the model already produced native Indic script, re-translating with source_lang="en"
+            # causes grammar distortion, phrase duplication, and doubles request latency.
+            if detected == "en":
+                ctx.final_answer = await ctx.container.translation.translate_text(
+                    text=ctx.final_answer, source_lang="en", target_lang=ctx.preferred_lang
+                )
         return None
 
 

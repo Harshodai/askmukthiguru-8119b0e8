@@ -1,14 +1,10 @@
 /**
  * i18n parity regression test.
  *
- * Loads en.json, hi.json, te.json and asserts that no NEW missing user-facing
- * keys have appeared since the baseline snapshot was written.
+ * Asserts that all 14 supported language files have 100% key parity
+ * with canonical en.json (1,077 keys, 0 missing keys, identical key paths).
  *
- * The baseline acknowledges that pre-existing gaps (admin section, etc.) are
- * out of scope — admin console is English-only by design. This test enforces
- * that no NEW user-facing keys are added without the corresponding hi/te
- * translations. When you add a key to en.json, also add it to hi.json and
- * te.json OR extend the baseline.
+ * Supported locales: en, hi, te, kn, ta, mr, bn, gu, ml, as, sa, or, pa, ur
  *
  * Run: `npm test` or `npm run test:watch`
  */
@@ -17,8 +13,17 @@ import { describe, it, expect } from 'vitest';
 import en from '../locales/en.json';
 import hi from '../locales/hi.json';
 import te from '../locales/te.json';
-import baselineHi from './__snapshots__/i18n_baseline_hi.txt?raw';
-import baselineTe from './__snapshots__/i18n_baseline_te.txt?raw';
+import kn from '../locales/kn.json';
+import ta from '../locales/ta.json';
+import mr from '../locales/mr.json';
+import bn from '../locales/bn.json';
+import gu from '../locales/gu.json';
+import ml from '../locales/ml.json';
+import as from '../locales/as.json';
+import sa from '../locales/sa.json';
+import odia from '../locales/or.json';
+import pa from '../locales/pa.json';
+import ur from '../locales/ur.json';
 
 interface FlatDict { [key: string]: string; }
 interface NestedDict { [k: string]: unknown; }
@@ -36,44 +41,47 @@ function flatten(obj: NestedDict, prefix = ''): FlatDict {
   return out;
 }
 
-const USER_NAMESPACES = [
-  'chat.', 'profile.', 'meditation.', 'common.', 'mood.', 'engagement.',
-  'practices.', 'practice.', 'greeting.', 'support.', 'language.',
-  'tour.', 'welcome.', 'nav.', 'sereneMind.', 'serene.',
-];
+const allEnKeys = Object.keys(flatten(en as NestedDict)).sort();
 
-const isUserFacing = (k: string) => USER_NAMESPACES.some((ns) => k.startsWith(ns));
+const LOCALES: Record<string, NestedDict> = {
+  hi: hi as NestedDict,
+  te: te as NestedDict,
+  kn: kn as NestedDict,
+  ta: ta as NestedDict,
+  mr: mr as NestedDict,
+  bn: bn as NestedDict,
+  gu: gu as NestedDict,
+  ml: ml as NestedDict,
+  as: as as NestedDict,
+  sa: sa as NestedDict,
+  or: odia as NestedDict,
+  pa: pa as NestedDict,
+  ur: ur as NestedDict,
+};
 
-const enKeys = Object.keys(flatten(en as NestedDict)).filter(isUserFacing);
-const hiKeys = Object.keys(flatten(hi as NestedDict));
-const teKeys = Object.keys(flatten(te as NestedDict));
-
-const baselineMissingHi = new Set(
-  baselineHi.trim().split('\n').filter(Boolean),
-);
-const baselineMissingTe = new Set(
-  baselineTe.trim().split('\n').filter(Boolean),
-);
-
-const newMissingHi = enKeys.filter(
-  (k) => !hiKeys.includes(k) && !baselineMissingHi.has(k),
-);
-const newMissingTe = enKeys.filter(
-  (k) => !teKeys.includes(k) && !baselineMissingTe.has(k),
-);
-
-describe('i18n parity regression', () => {
-  it('no NEW user-facing keys missing in hi.json', () => {
-    expect(
-      newMissingHi,
-      `Hi missing ${newMissingHi.length} NEW user-facing keys. Add them to src/locales/hi.json or extend the baseline at src/test/__snapshots__/i18n_baseline_hi.txt:\n${newMissingHi.slice(0, 20).join('\n')}`,
-    ).toEqual([]);
+describe('i18n 100% parity across all 14 supported languages', () => {
+  it('en.json has valid keys structure', () => {
+    expect(allEnKeys.length).toBeGreaterThan(1000);
   });
 
-  it('no NEW user-facing keys missing in te.json', () => {
-    expect(
-      newMissingTe,
-      `Te missing ${newMissingTe.length} NEW user-facing keys. Add them to src/locales/te.json or extend the baseline at src/test/__snapshots__/i18n_baseline_te.txt:\n${newMissingTe.slice(0, 20).join('\n')}`,
-    ).toEqual([]);
-  });
+  for (const [langCode, localeObj] of Object.entries(LOCALES)) {
+    it(`${langCode}.json has 100% key parity with en.json (0 missing, 0 extra)`, () => {
+      const flat = flatten(localeObj);
+      const keys = Object.keys(flat).sort();
+      const missing = allEnKeys.filter((k) => !(k in flat));
+      const extra = keys.filter((k) => !allEnKeys.includes(k));
+
+      expect(
+        missing,
+        `${langCode}.json missing ${missing.length} keys:\n${missing.slice(0, 20).join('\n')}`,
+      ).toEqual([]);
+
+      expect(
+        extra,
+        `${langCode}.json has ${extra.length} extra keys:\n${extra.slice(0, 20).join('\n')}`,
+      ).toEqual([]);
+
+      expect(keys.length).toBe(allEnKeys.length);
+    });
+  }
 });

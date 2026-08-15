@@ -183,14 +183,32 @@ describe('ChatMessage (regression)', () => {
   it("surfaces source context and verifier confidence for a guru response", () => {
     const message = makeGuruMessage({
       citations: ["https://example.com/one", "https://example.com/two"],
+      groundingState: "grounded",
       confidenceScore: 8.4,
       confidenceReason: "Retrieved teaching and answer aligned.",
+      answerEvidence: {
+        citations_verified: true,
+        claims: [],
+        unsupported_claims: [],
+        sources_used: ["https://example.com/one", "https://example.com/two"],
+      },
     });
     render(<ChatMessage message={message} />, { wrapper });
     const provenance = screen.getByTestId("response-provenance");
-    expect(provenance).toHaveTextContent("2 source links provided");
+    expect(provenance).toHaveTextContent("2 verified sources provided");
     expect(provenance).toHaveTextContent("Teaching-supported");
     expect(screen.getByRole("button", { name: "Open response sources" })).toBeInTheDocument();
+  });
+
+  it("treats ungrounded responses with inline URLs as abstained (reflective guidance)", () => {
+    const message = makeGuruMessage({
+      content: 'Here is some wisdom with inline link https://example.com/audio',
+      confidenceScore: 7.0,
+    });
+    render(<ChatMessage message={message} />, { wrapper });
+    const provenance = screen.getByTestId("response-provenance");
+    expect(provenance).toHaveTextContent("Reflective guidance");
+    expect(provenance).not.toHaveTextContent("verified source");
   });
 });
 

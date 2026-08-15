@@ -375,9 +375,9 @@ def _response_to_dict(response) -> dict:
 def _coerce_citations_to_str(citations) -> list[str]:
     """Coerce citation objects to the list[str] shape ChatResponse expects.
 
-    citation_extractor emits list[dict] with {doc_id, quote, ...}; the API
-    contract + frontend expect list[str]. Use doc_id (or quote fallback) as
-    the string representation. Gracefully handles already-string items.
+    citation_extractor emits list[dict] with {doc_id, quote, source_url, title, ...};
+    the API contract + frontend expect list[str]. Use source_url (if http), title,
+    or doc_id as the string representation.
     """
     if not citations:
         return []
@@ -386,13 +386,19 @@ def _coerce_citations_to_str(citations) -> list[str]:
         if isinstance(c, str):
             out.append(c)
         elif isinstance(c, dict):
-            doc_id = c.get("doc_id") or c.get("source") or c.get("source_url")
-            if doc_id and doc_id != "unknown":
-                out.append(str(doc_id))
+            source_url = c.get("source_url")
+            url = c.get("url")
+            valid_url: str | None = None
+            for cand in (source_url, url):
+                if cand and str(cand).startswith(("http://", "https://")):
+                    valid_url = str(cand)
+                    break
+            if valid_url:
+                out.append(valid_url)
             else:
-                quote = c.get("quote") or c.get("title") or ""
-                if quote:
-                    out.append(str(quote)[:200])
+                title = c.get("title") or c.get("doc_id") or c.get("source") or c.get("quote") or ""
+                if title and title != "unknown":
+                    out.append(str(title))
         else:
             out.append(str(c))
     return out

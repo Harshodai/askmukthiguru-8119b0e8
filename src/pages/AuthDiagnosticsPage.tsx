@@ -30,8 +30,9 @@ const ICON: Record<Status, React.ReactNode> = {
 const AuthDiagnosticsPage = () => {
   usePageMeta({
     title: 'Auth Diagnostics — AskMukthiGuru',
-    description: 'Self-test for session, profile, roles, admin status, and backend reachability.',
+    description: 'Internal diagnostic self-test for session and backend reachability.',
     canonical: buildCanonical('/auth/diagnostics'),
+    noindex: true,
   });
 
   const [checks, setChecks] = useState<Check[]>([]);
@@ -107,7 +108,7 @@ const AuthDiagnosticsPage = () => {
         status: w.profile_present ? 'ok' : 'fail',
         detail: w.profile_present
           ? 'Row found in profiles table.'
-          : 'No profile row. The signup trigger may have failed — re-sign-up or run the migration.',
+          : 'No profile row found for current user.',
       });
 
       // 4. Roles
@@ -118,7 +119,7 @@ const AuthDiagnosticsPage = () => {
         detail:
           w.roles.length > 0
             ? `Roles assigned: ${w.roles.join(', ')}`
-            : 'No roles assigned. Ask an existing admin to grant the admin role, or insert a row into user_roles.',
+            : 'Standard seeker role active.',
       });
 
       // 5. Admin
@@ -127,8 +128,8 @@ const AuthDiagnosticsPage = () => {
         label: 'Admin role check (has_role)',
         status: w.is_admin ? 'ok' : 'warn',
         detail: w.is_admin
-          ? 'You ARE an admin — /admin will load.'
-          : 'You are NOT an admin. Insert (user_id, \'admin\') into public.user_roles to grant access.',
+          ? 'Admin access verified.'
+          : 'Standard user (no administrative role).',
       });
     }
 

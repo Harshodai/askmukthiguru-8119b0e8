@@ -13,6 +13,6 @@ describe('TeacherGuidancePanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /how this guidance works/i }));
 
     expect(screen.getByText(/not an impersonation/i)).toBeInTheDocument();
-    expect(screen.getByText(/professional support/i)).toBeInTheDocument();
+    expect(screen.getByText(/replacement for professional support/i)).toBeInTheDocument();
   });
 });

@@ -8,7 +8,7 @@ pa_locale = {
     "low": "ਮੈਨੂੰ ਕੁਝ ਬੇਚੈਨੀ ਮਹਿਸੂਸ ਹੋ ਰਹੀ ਹੈ। ਕੀ ਤੁਸੀਂ ਗੱਲਬਾਤ ਕਰਨਾ ਚਾਹੋਗੇ?",
     "moderate": "ਤੁਸੀਂ ਪਰੇਸ਼ਾਨ ਲੱਗ ਰਹੇ ਹੋ। ਕੀ ਮੈਂ ਕਿਸੇ ਸ਼ਾਂਤ ਕਰਨ ਵਾਲੇ ਅਭਿਆਸ ਵਿੱਚ ਮਦਦ ਕਰਾਂ?",
     "high": "ਮੈਂ ਤੁਹਾਡੇ ਨਾਲ ਹਾਂ। ਕੀ ਤੁਸੀਂ ਸਾਹ ਦਾ ਅਭਿਆਸ ਕਰਨਾ ਚਾਹੋਗੇ?",
-    "yes": "ਹਾਂ, ਮੇਰੀ ਮਦਦ ਕਰੋ"
+    "yes": "ਹਾਂ"
   },
   "common": {
     "save": "ਸੰਭਾਲੋ",
@@ -540,7 +540,7 @@ pa_locale = {
     "intro": "AskMukthiGuru ਇੱਕ ਗੋਪਨੀਯਤਾ-ਪਹਿਲ ਅਧਿਆਤਮਿਕ ਸਾਥੀ ਹੈ। ਅਸੀਂ ਅਨੁਭਵ ਪ੍ਰਦਾਨ ਕਰਨ ਲਈ ਲੋੜੀਂਦਾ ਘੱਟੋ-ਘੱਟ ਡਾਟਾ ਇਕੱਠਾ ਕਰਦੇ ਹਾਂ: ਤੁਹਾਡੀ ਈਮੇਲ (ਪ੍ਰਮਾਣਿਕਤਾ ਲਈ) ਅਤੇ ਤੁਹਾਡੇ ਗੱਲਬਾਤ ਸੁਨੇਹੇ (ਤੁਹਾਡੀ ਡਿਵਾਈਸ 'ਤੇ chatStorage ਰਾਹੀਂ ਸਥਾਨਕ ਤੌਰ 'ਤੇ ਸਟੋਰ ਕੀਤੇ ਜਾਂਦੇ ਹਨ ਤਾਂ ਜੋ ਤੁਸੀਂ ਜਿੱਥੋਂ ਛੱਡਿਆ ਸੀ ਉੱਥੋਂ ਸ਼ੁਰੂ ਕਰ ਸਕੋ)।",
     "whatWeStore": "ਅਸੀਂ ਕੀ ਸਟੋਰ ਕਰਦੇ ਹਾਂ",
     "storeEmail": "ਈਮੇਲ ਪਤਾ ਅਤੇ ਐਨਕ੍ਰਿਪਟਡ ਪਾਸਵਰਡ (ਜਾਂ Google ਪ੍ਰੋਫਾਈਲ) — ਸਾਈਨ-ਇਨ ਲਈ।",
-    "storeChats": "ਗੱਲਬਾਤ ਅਤੇ ਸੁਨੇਹੇ — ਤੁਹਾਡੀ ਡਿਵਾਈਸ 'ਤੇ ਸਥਾਨਕ ਤੌਰ 'ਤੇ ਸਟੋਰ ਕੀਤੇ ਜਾਂਦੇ ਹਨ।",
+    "storeChats": "ਗੱਲਬਾਤ ਅਤੇ ਸੁਨੇਹੇ — chatStorage ਰਾਹੀਂ ਸਥਾਨਕ ਤੌਰ 'ਤੇ ਸਟੋਰ ਕੀਤੇ ਜਾਂਦੇ ਹਨ; ਬੈਕਐਂਡ ਇਨਫਰੈਂਸ ਲੌਗ ਚੈਟ ਸਮੱਗਰੀ ਅਤੇ ਸੰਬੰਧਿਤ ਪਛਾਣਕਰਤਾਵਾਂ ਨੂੰ ਬਰਕਰਾਰ ਰੱਖ ਸਕਦੇ ਹਨ।",
     "storeMeditation": "ਧਿਆਨ ਸੈਸ਼ਨ — ਤੁਹਾਡੀ ਡਿਵਾਈਸ 'ਤੇ ਸਥਾਨਕ ਤੌਰ 'ਤੇ ਸਟੋਰ ਕੀਤੇ ਜਾਂਦੇ ਹਨ।",
     "whatWeNeverDo": "ਅਸੀਂ ਕੀ ਕਦੇ ਨਹੀਂ ਕਰਦੇ",
     "neverSell": "ਤੁਹਾਡਾ ਡਾਟਾ ਤੀਜੀ ਧਿਰ ਨੂੰ ਵੇਚਣਾ ਜਾਂ ਸਾਂਝਾ ਕਰਨਾ।",
@@ -732,7 +732,7 @@ pa_locale = {
     "practiceComplete": "ਤੁਸੀਂ ਆਪਣਾ ਅਭਿਆਸ ਪੂਰਾ ਕਰ ਲਿਆ ਹੈ। ਇਸ {{mood}} ਅਵਸਥਾ ਨੂੰ ਆਪਣੇ ਦਿਨ ਵਿੱਚ ਲੈ ਕੇ ਜਾਓ।",
     "returnToChat": "ਗੱਲਬਾਤ 'ਤੇ ਵਾਪਸ ਜਾਓ",
     "infusedFromTeaching": "{{teaching}} ਤੋਂ ਪ੍ਰੇਰਿਤ",
-    "secondsRemaining": "{{count}}s ਬਾਕੀ",
+    "secondsRemaining": "{{count}} ਸਕਿੰਟ ਬਾਕੀ",
     "skipStep": "ਕਦਮ ਛੱਡੋ",
     "resumeYourPractice": "ਕੀ ਆਪਣਾ ਅਭਿਆਸ ਮੁੜ ਸ਼ੁਰੂ ਕਰਨਾ ਹੈ?",
     "youPausedAt": "ਤੁਸੀਂ {{step}} 'ਤੇ ਰੋਕਿਆ ਸੀ। ਜਿੱਥੋਂ ਛੱਡਿਆ ਸੀ ਉੱਥੋਂ ਹੀ ਜਾਰੀ ਰੱਖੋ।",
@@ -749,7 +749,7 @@ pa_locale = {
     "dayStreak": "ਦਿਨਾਂ ਦਾ ਸਿਲਸਿਲਾ",
     "breath": "ਸਾਹ",
     "breaths": "ਸਾਹ",
-    "stepXofY": "{{current}} ਵਿੱਚੋਂ {{total}}",
+    "stepXofY": "{{total}} ਵਿੱਚੋਂ {{current}}",
     "return": "ਵਾਪਸ",
     "guideStepVideo1Title": "ਆਸਣ ਅਤੇ ਸਾਹ",
     "guideStepVideo1Desc": "ਸਿੱਧੇ ਬੈਠੋ, ਅੱਖਾਂ ਬੰਦ ਕਰੋ। ਲੰਬੇ ਸਾਹ ਬਾਹਰ ਛੱਡਣ ਦੇ ਨਾਲ ਹੌਲੀ ਡੂੰਘੇ ਸਾਹ ਲਓ।",
@@ -1294,10 +1294,49 @@ pa_locale = {
   }
 }
 
-# Write out to src/locales/pa.json
-output_path = "src/locales/pa.json"
-with open(output_path, "w", encoding="utf-8") as f:
-    json.dump(pa_locale, f, ensure_ascii=False, indent=2)
-    f.write("\n")
+if __name__ == "__main__":
+    import sys
 
-print("Successfully wrote pa.json")
+    # Validate against canonical English
+    en_path = "src/locales/en.json"
+    if os.path.exists(en_path):
+        with open(en_path, "r", encoding="utf-8") as f:
+            en_locale = json.load(f)
+
+        def get_keys_and_placeholders(d, prefix=""):
+            keys = {}
+            for k, v in d.items():
+                full_k = f"{prefix}.{k}" if prefix else k
+                if isinstance(v, dict):
+                    keys.update(get_keys_and_placeholders(v, full_k))
+                elif isinstance(v, str):
+                    placeholders = set(re.findall(r"\{\{([^}]+)\}\}", v))
+                    keys[full_k] = placeholders
+                elif isinstance(v, list):
+                    keys[full_k] = set()
+            return keys
+
+        en_keys = get_keys_and_placeholders(en_locale)
+        pa_keys = get_keys_and_placeholders(pa_locale)
+
+        missing = set(en_keys.keys()) - set(pa_keys.keys())
+        if missing:
+            print(f"Error: Missing keys in pa_locale: {missing}", file=sys.stderr)
+            sys.exit(1)
+
+        placeholder_mismatches = []
+        for k in en_keys:
+            if en_keys[k] != pa_keys.get(k, set()):
+                placeholder_mismatches.append((k, en_keys[k], pa_keys.get(k, set())))
+
+        if placeholder_mismatches:
+            print(f"Error: Placeholder mismatches in pa_locale: {placeholder_mismatches}", file=sys.stderr)
+            sys.exit(1)
+
+    # Write out to src/locales/pa.json
+    output_path = "src/locales/pa.json"
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(pa_locale, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+    print("Successfully wrote pa.json")

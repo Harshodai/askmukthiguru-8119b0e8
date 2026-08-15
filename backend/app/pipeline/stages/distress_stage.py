@@ -56,10 +56,10 @@ _DISTRESS_KEYWORD_RE = re.compile(
 #   - ICHI Mental Health Glossary updates 2025 (both scripts)
 _INDIC_CRISIS_KEYWORDS = (
     # Hindi (Devanagari)
-    "आत्महत्या",  # suicide (also Marathi — shared Devanagari script)
+    "आत्महत्या",  # suicide
     "खुदकुशी",  # suicide (colloquial)
     "खुद को मार",  # kill myself
-    # Marathi-specific (Devanagari — distinct from Hindi)
+    # Marathi-specific (Devanagari)
     "जीव देणे",   # "give life" — Marathi idiom for suicide
     "जीव संपवणे",  # "end life" — Marathi
     # Bengali (Bengali script)
@@ -71,17 +71,41 @@ _INDIC_CRISIS_KEYWORDS = (
     # Telugu (Telugu script)
     "ఆత్మహత్య",  # suicide
     "ఆత్మహత్య చేసుకో",  # commit suicide
-    # Kannada (Kannada script) — ADDED 2026-08-10 to close audit gap
+    # Kannada (Kannada script)
     "ಆತ್ಮಹತ್ಯೆ",   # suicide
     "ಆತ್ಮಹತ್ಯೆ ಮಾಡಿಕೊಳ್ಳ",  # commit suicide
     "ನನ್ನನ್ನು ಕೊಲ್ಲ",  # kill myself
-    # Malayalam (Malayalam script) — ADDED 2026-08-10 to close audit gap
+    # Malayalam (Malayalam script)
     "ആത്മഹത്യ",   # suicide
     "ആത്മഹത്യ ചെയ്യ",  # commit suicide
     "എന്നെ കൊല്ല",   # kill myself
+    # Gujarati (Gujarati script)
+    "આત્મહત્યા",
+    "જીવ આપવો",
+    "મરી જવું",
+    # Punjabi (Gurmukhi script)
+    "ਆਤਮਹੱਤਿਆ",
+    "ਖੁਦਕੁਸ਼ੀ",
+    # Odia (Odia script)
+    "ଆତ୍ମହତ୍ୟା",
+    # Urdu (Arabic script)
+    "خودکشی",
+    "جان دینا",
+    # Transliterated / Romanized Indic crisis phrases
+    "marna chahta",
+    "mar jana chahta",
+    "jaan de dunga",
+    "zindagi khatam",
+    "chavali anipistundi",
+    "chavalanukuntunna",
+    "saaganum pola",
+    "saayabeku",
+    "jeev dyava vat-to",
+    "marvu che",
+    "morite chai",
 )
 
-_INDIC_CRISIS_KEYWORD_RE = re.compile("|".join(_INDIC_CRISIS_KEYWORDS))
+_INDIC_CRISIS_KEYWORD_RE = re.compile("|".join(_INDIC_CRISIS_KEYWORDS), re.IGNORECASE)
 
 
 class DistressStage(Stage):
@@ -150,15 +174,27 @@ class DistressStage(Stage):
             "or go to a safer place now. If you can, tell a trusted person nearby "
             "that you need support."
         )
-        response = "\n\n".join(part for part in (prefix, resources, next_step) if part)
-        # This stage runs BEFORE TranslationStage, so an Indic seeker who tripped
-        # the crisis pre-screen would otherwise get an English-only safety
-        # response. Mirror InputGuardrailStage's blocked-response translation
-        # (guardrail_stage.py) — same service call, same is_indic/preferred_lang.
-        if getattr(ctx, "is_indic", False):
-            response = await ctx.container.translation.translate_text(
-                text=response, source_lang="en", target_lang=ctx.preferred_lang
-            )
+        # Resources (helpline numbers/shortcodes) MUST appear in the first 200
+        # characters of a SEVERE/CRISIS response (see docs/INTEGRATION_GUIDE.md,
+        # evaluation/datasets/mukthi_guru_v1.yaml, evaluation/rubrics/
+        # refusal_correctness.yaml) — DISTRESS_RESPONSES[SEVERE]'s prefix alone
+        # runs well past 200 chars, so resources must lead, not follow.
+        # Translate compassionate prose if Indic, but preserve the helpline resource block
+        # in clean ASCII format so phone numbers and SMS shortcodes ("Text HOME to 741741")
+        # are never mangled by machine translation.
+        if getattr(ctx, "is_indic", False) and getattr(ctx, "container", None) and getattr(ctx.container, "translation", None):
+            try:
+                translated_prefix = await ctx.container.translation.translate_text(
+                    text=prefix, source_lang="en", target_lang=ctx.preferred_lang
+                )
+                translated_next_step = await ctx.container.translation.translate_text(
+                    text=next_step, source_lang="en", target_lang=ctx.preferred_lang
+                )
+                response = "\n\n".join(part for part in (resources, translated_prefix, translated_next_step) if part)
+            except Exception:
+                response = "\n\n".join(part for part in (resources, prefix, next_step) if part)
+        else:
+            response = "\n\n".join(part for part in (resources, prefix, next_step) if part)
         start_time = getattr(ctx, "start_time", time.time())
         return PipelineResult(
             final_answer=response,

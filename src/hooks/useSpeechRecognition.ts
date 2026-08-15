@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
 import { supabase } from '@/integrations/supabase/client';
+import { BACKEND_URL } from '@/lib/backendUrl';
+import { getAnonSessionToken } from '@/lib/chat/anonSession';
 
 // Build BCP-47 lookup from the canonical LANGUAGES list (22 Indic + English).
 const languageCodeMap: Record<string, string> = LANGUAGES.reduce(
@@ -134,6 +136,13 @@ export const useSpeechRecognition = (
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
+      const mediaSupported = !!(navigator.mediaDevices && window.MediaRecorder);
+      if (mediaSupported) {
+        useSarvamRef.current = true;
+        setIsSupported(true);
+        setError(null);
+        return;
+      }
       setIsSupported(false);
       setError('Speech recognition is not supported in this browser');
       return;
@@ -267,16 +276,36 @@ export const useSpeechRecognition = (
             const targetLang = languageCodeMap[langRef.current] || 'en-IN';
             formData.append('language_code', targetLang);
 
-            const { data, error: fnError } = await supabase.functions.invoke('sarvam-stt', {
-              body: formData,
-            });
+            let text = '';
+            let detectedLang = targetLang;
 
-            if (fnError) {
-              throw new Error(fnError.message || 'STT edge function failed');
+            try {
+              const { data, error: fnError } = await supabase.functions.invoke('sarvam-stt', {
+                body: formData,
+              });
+              if (fnError) throw fnError;
+              text = data?.transcript || '';
+              detectedLang = data?.language_code || targetLang;
+            } catch (edgeErr) {
+              console.warn('[STT] Edge function failed, trying backend STT endpoint fallback:', edgeErr);
+              // Authenticate anonymous user before calling /api/speech/stt
+              const { data: sessionData } = await supabase.auth.getSession();
+              const token = sessionData?.session?.access_token;
+              // If no token, obtain one via anonymous auth flow
+              const authToken = token || (await getAnonSessionToken());
+              const backendUrl = BACKEND_URL || '';
+              const resp = await fetch(`${backendUrl}/api/speech/stt`, {
+                method: 'POST',
+                headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+                body: formData,
+              });
+              if (!resp.ok) {
+                throw new Error(`STT service unavailable (HTTP ${resp.status})`);
+              }
+              const result = await resp.json();
+              text = result?.transcript || '';
+              detectedLang = result?.language_code || targetLang;
             }
-
-            const text = data?.transcript || '';
-            const detectedLang = data?.language_code || targetLang;
 
             if (!text) {
               throw new Error('No speech detected. Please try again.');

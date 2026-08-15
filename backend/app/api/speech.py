@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
+from app.language_utils import detect_message_lang
 from services.auth_service import get_current_user_from_supabase
 from services.sarvam_service import SarvamCloudService
 from services.whisper_local_service import transcribe_with_whisper
@@ -117,12 +118,11 @@ async def speech_to_text_endpoint(
 
             if transcript:
                 detected_lang = language_code or "en-IN"
-                if any("ऀ" <= c <= "ॿ" for c in transcript):
-                    detected_lang = "hi-IN"
-                elif any("ఀ" <= c <= "౿" for c in transcript):
-                    detected_lang = "te-IN"
-                elif any("஀" <= c <= "௿" for c in transcript):
-                    detected_lang = "ta-IN"
+                msg_lang = detect_message_lang(transcript)
+                if msg_lang and msg_lang not in ("en", "non_en"):
+                    # Sarvam's canonical Odia tag is "od-IN", not "or-IN" —
+                    # detect_message_lang uses ISO 639-1 "or" for Oriya script.
+                    detected_lang = "od-IN" if msg_lang == "or" else f"{msg_lang}-IN"
 
                 return {"transcript": transcript, "language_code": detected_lang}
             else:

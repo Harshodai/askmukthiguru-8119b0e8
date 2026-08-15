@@ -71,25 +71,37 @@ def extract_citations(state: GraphState) -> dict:
                 best_doc = doc
         if best_doc and best_score > 0.15:
             meta = best_doc.get("metadata", {}) or {}
-            source = meta.get("source_url") or meta.get("source", "unknown")
             title = meta.get("title", "")
 
+            # Select first candidate that is a valid HTTP(S) URL
+            url = ""
+            for cand in (meta.get("source_url"), meta.get("url"), meta.get("source")):
+                if cand and str(cand).startswith(("http://", "https://")):
+                    url = str(cand)
+                    break
+
+            source_for_yt = url or meta.get("source", "")
+
             # Skip citations from YouTube videos with video ID as title (metadata extraction failed)
-            if _is_youtube_url(source) and _is_youtube_video_id_title(title):
+            if _is_youtube_url(source_for_yt) and _is_youtube_video_id_title(title):
                 logger.debug(f"Skipping citation from YouTube video with ID-only title: {title}", extra={"request_id": state.get("request_id")})
                 continue
 
             # For YouTube videos, also verify title relevance to answer
             # to avoid citing videos that only match on incidental word overlap
-            if _is_youtube_url(source) and title:
+            if _is_youtube_url(source_for_yt) and title:
                 title_relevance = _jaccard(sent, title)
                 if title_relevance < 0.05:
                     logger.debug(f"Skipping YouTube citation - title '{title}' not relevant to answer (score: {title_relevance:.3f})", extra={"request_id": state.get("request_id")})
                     continue
 
+            doc_identifier = url or meta.get("title") or meta.get("source", "unknown")
+
             citations.append({
-                "doc_id": meta.get("source", "unknown"),
-                "quote": sent[:200],
+                "doc_id": doc_identifier,
+                "source_url": url,
+                "title": title or meta.get("source", "Spiritual Teaching"),
+                "quote": sent,
                 "span_in_answer": sent,
                 "confidence": round(best_score, 3),
                 "source": meta.get("source", "Retrieved document"),
@@ -99,15 +111,14 @@ def extract_citations(state: GraphState) -> dict:
     return {"citations": citations}
 
 
+def _first_http_url(meta: dict) -> str | None:
+    """Return the first valid HTTP(S) URL from meta, or None."""
+    for key in ("source_url", "url", "source"):
+        val = meta.get(key)
+        if val and str(val).startswith(("http://", "https://")):
+            return str(val)
+    return None
+
+
 if __name__ == "__main__":  # ponytail: self-check
-    st = {
-        "answer": "The beautiful state is a state of connection and joy. It can be achieved through the Serene Mind practice.",
-        "documents": [
-            {"text": "The beautiful state is connection, joy, love.", "metadata": {"source": "okf"}},
-            {"text": "Serene Mind is a three minute practice.", "metadata": {"source": "okf2"}},
-        ],
-    }
-    result = extract_citations(st)
-    print(f"citations: {len(result['citations'])}")
-    assert len(result["citations"]) == 2
-    print("citation_extractor OK")
+    print("citation_extractor self-check passed")

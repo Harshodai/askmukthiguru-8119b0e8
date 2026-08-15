@@ -31,7 +31,11 @@ logger = logging.getLogger(__name__)
 # callers elsewhere in the app. asyncio.wait_for's timeout does not cancel the
 # underlying thread (there is no way to interrupt a blocking Celery call), so
 # bounding the pool caps how many such stuck threads can accumulate.
-_DISPATCH_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="memory-outbox-dispatch")
+# Non-blocking capacity mechanism: only allow the configured number of active
+# or queued Celery apply_async calls; defer to Celery Beat when no slot is available.
+_DISPATCH_MAX_SLOTS = 2
+_DISPATCH_EXECUTOR = ThreadPoolExecutor(max_workers=_DISPATCH_MAX_SLOTS, thread_name_prefix="memory-outbox-dispatch")
+_DISPATCH_SEMAPHORE = asyncio.Semaphore(_DISPATCH_MAX_SLOTS)
 
 
 def _schedule_memory_task(coro, task_name: str) -> None:
@@ -110,7 +114,12 @@ class MemoryStage(Stage):
             logger.error("Durable memory enqueue failed; persistence skipped: %s", exc)
             return None
 
+        if _DISPATCH_SEMAPHORE.locked():
+            logger.warning("Memory outbox dispatch capacity reached; deferring to Celery Beat")
+            logger.debug("Durable memory outbox row queued: %s", outbox_entry.get("id"))
+            return None
 
+        await _DISPATCH_SEMAPHORE.acquire()
         try:
             import asyncio
             import functools
@@ -133,5 +142,7 @@ class MemoryStage(Stage):
         except Exception as exc:
             # The periodic Celery Beat task will recover this pending row.
             logger.warning("Memory outbox dispatch deferred to scheduled worker: %s", exc)
+        finally:
+            _DISPATCH_SEMAPHORE.release()
         logger.debug("Durable memory outbox row queued: %s", outbox_entry.get("id"))
         return None

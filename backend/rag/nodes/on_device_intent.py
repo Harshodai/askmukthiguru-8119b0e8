@@ -53,6 +53,18 @@ _CLASS_KEYWORDS: dict[str, list[str]] = {
         "who are you", "what can you do", "what do you know", "tell me about yourself",
         "capabilities", "help me", "joke", "funny", "weather", "time",
     ],
+    "CONVERSATION_RECALL": [
+        "what did i just ask", "what did i ask you", "what was my last question",
+        "repeat what i said", "what were we talking about", "summarize our chat",
+        "what did you say earlier", "can you repeat that", "repeat that", "what did i say",
+        "what did i ask", "what was my question",
+    ],
+    "APP_ORIENTATION": [
+        "what is this app", "how does ask mukthi guru work", "who created this app",
+        "what can i ask here", "how do i use this website", "app guide", "what do you do",
+        "how does this work", "what is ask mukthi guru", "about this app", "what does this app do",
+        "what does the app do", "tell me about this app", "how to use ask mukthi guru",
+    ],
     "FACTUAL": [
         "what is", "who is", "where is", "when", "why", "how", "define", "explain",
         "describe", "meaning of", "teach me", "tell me about", "four sacred secrets",
@@ -85,6 +97,8 @@ _PER_CLASS_THRESHOLDS: dict[str, float] = {
     "MEDITATION": 0.45,
     "FACTUAL": 0.45,
     "CASUAL": 0.45,
+    "CONVERSATION_RECALL": 0.40,
+    "APP_ORIENTATION": 0.40,
     "GUIDED_TOUR": 0.45,
     "QUERY": 0.45,
 }
@@ -176,6 +190,10 @@ def classify(text: str, *, threshold: float = 0.45) -> str | None:
             return "ADVERSARIAL"
         if "SAFETY_VIOLATION" in best_intents:
             return "SAFETY_VIOLATION"
+        if "CONVERSATION_RECALL" in best_intents:
+            return "CONVERSATION_RECALL"
+        if "APP_ORIENTATION" in best_intents:
+            return "APP_ORIENTATION"
         if "FACTUAL" in best_intents:
             return "FACTUAL"
     
