@@ -70,7 +70,7 @@ _BLOCKED_TOPICS = {
         r"\bhow\s+to\s+(kill|poison|attack|hurt)\s+(someone|a\s+person|people)\b",
     ],
     "cryptocurrency": [
-        r"\bcrypto\b",
+        r"\bcrypto",
         r"\bbitcoin\b",
         r"\bethereum\b",
         r"\bnft\b",
@@ -90,12 +90,28 @@ _BLOCKED_TOPICS = {
         r"\bpresident\b.*\bpolicy\b",
         r"\bgovernment\b.*\bcorrupt\b",
     ],
+    "domestic_abuse_safety": [
+        r"\b(my\s+)?(husband|wife|partner|boyfriend|girlfriend|father|mother|parents?|in-laws?|spouse)\b.*\b(hit|hits|beat|beats|beating|abuse|abuses|abusing|abusive|assault|threaten|choke|strangle|hurt|rape)\s+(me|us)\b",
+        r"\b(being|am|is)\s+(abused|beaten|hit|physically\s+attacked|threatened|assaulted)\b",
+        r"\bdomestic\s+(violence|abuse)\b",
+        r"\bafraid\s+(of\s+my|for\s+my\s+life)\b.*\b(husband|wife|partner|spouse|family)\b",
+        r"\bpartner\s+(is\s+violent|hits\s+me|threatens\s+me)\b",
+    ],
+    "divination_and_astrology": [
+        r"\b(astrolog(?:y|ical)|horoscope|zodiac|kundli|kundali|rashi|jyotish|tarot|palmistry|palm\s*reading)\b",
+        r"\b(predict|tell)\s+(my\s+)?(future|destiny|fortune)\b",
+        r"\bwhen\s+will\s+i\s+(get\s+married|die|become\s+rich|find\s+love)\b",
+        r"\bfortune\s*telling\b",
+    ],
     "medical_prescription": [
         r"\bprescri(?:be|ption)\b",
         r"\bdosage\b",
         r"\bmedication\b",
-        r"\bdiagnos(?:e|is)\b.*\b(disease|condition)\b",
-        r"\btreat(?:ment)?\b.*\b(cancer|diabetes|heart)\b",
+        r"\bdiagnos(?:e|is)\b",
+        r"\btreat(?:ment)?\b.*\b(cancer|diabetes|heart|stroke|tumor)\b",
+        r"\b(stop|quit|reduce|taper)\b.*\b(medication|antidepressant|pills?|therapy|treatment)\b",
+        r"\breplace\b.*\b(doctor|therapist|psychiatrist|medicine|medication|antidepressant|therapy|drugs)\b",
+        r"\b(do\s+i\s+need|can\s+i\s+skip)\b.*\b(doctor|therapist|psychiatrist|medicine)\b",
     ],
     "explicit": [
         r"\bporn\b",
@@ -104,10 +120,13 @@ _BLOCKED_TOPICS = {
         r"\bexplicit\b.*\b(image|video|content)\b",
     ],
     "financial_advice": [
-        r"\bstock\b.*\bbuy\b",
-        r"\binvest\b.*\b(market|mutual|fund)\b",
-        r"\btax\b.*\b(save|plan|evade)\b",
-        r"\bloan\b.*\bapply\b",
+        r"\bstock\b.*\b(buy|sell|pick|recommend|tip|target|price)\b",
+        r"\b(which|what)\s+stocks?\s+should\s+i\b",
+        r"\binvest\b.*\b(market|mutual\s*fund|shares?|crypto|portfolio|real\s*estate|property)\b",
+        r"\btax\b.*\b(save|plan|evade|bracket)\b",
+        r"\bloan\b.*\b(apply|interest|rate)\b",
+        r"\bfinancial\s+(advice|planning|portfolio)\b",
+        r"\bhow\s+to\s+get\s+rich\s+(fast|quick)\b",
     ],
     "manipulation": [
         r"\bhow\s+to\s+(manipulate|deceive|trick|scam)\b",
@@ -126,10 +145,11 @@ _BLOCKED_TOPICS = {
         r"\boverride\s+(mode|system|safety|guardrails?|instructions?)\b",
     ],
     "medical_advice_broad": [
-        r"\b(cure|remedy)\s+for\b.*\b(disease|illness|infection|cancer|diabetes|tumor|virus|bacteria)\b",
-        r"\bhow\s+to\s+(cure|heal|treat|fix)\b.*\b(disease|illness|infection|cancer|diabetes|heart|depression)\b",
-        r"\bwhat\s+(medicine|drug|pill|supplement)\b.*\bshould\s+(i|I)\b",
-        r"\bsymptoms?\s+of\b.*\b(disease|cancer|diabetes|infection)\b",
+        r"\b(cure|remedy)\s+for\b.*\b(disease|illness|infection|cancer|diabetes|tumor|virus|bacteria|depression|bipolar|schizophrenia|ocd|ptsd)\b",
+        r"\bhow\s+to\s+(cure|heal|treat|fix)\b.*\b(disease|illness|infection|cancer|diabetes|heart|depression|anxiety|bipolar|schizophrenia)\b",
+        r"\bwhat\s+(medicine|drug|pill|supplement)\b",
+        r"\bsymptoms?\s+of\b",
+        r"\b(cure|heal)\s+(clinical|severe)\s+(depression|anxiety|illness|disorder)\b",
     ],
 }
 
@@ -156,9 +176,31 @@ def contains_prompt_injection(text: str) -> bool:
 _BLOCK_RESPONSES = {
     "cryptocurrency": "I'm focused on spiritual guidance rooted in the teachings of Sri Preethaji and Sri Krishnaji. I'm not able to help with cryptocurrency or financial topics. 🙏",
     "politics": "I'm here to guide you on your spiritual journey. Political discussions are outside my area of guidance. Let me share the teachings of inner peace instead. 🙏",
-    "medical_prescription": "I care about your wellbeing deeply, but medical advice should come from a qualified healthcare professional. I can guide you through meditation for inner healing. 🙏",
+    "medical_prescription": (
+        "I care about your wellbeing deeply. Mukthi Guru is a spiritual guide and cannot provide "
+        "medical or psychiatric advice, diagnoses, or prescriptions. Spiritual practices are strictly "
+        "complementary and are NEVER a substitute for professional healthcare, therapy, or medication. "
+        "Please consult a qualified doctor or mental health professional. 🙏"
+    ),
     "explicit": "Let's keep our conversation centered on spiritual growth, inner peace, and the Beautiful State. 🙏",
-    "financial_advice": "Financial guidance isn't my area of wisdom. I'm here to share the teachings of Sri Preethaji and Sri Krishnaji on consciousness and inner transformation. 🙏",
+    "financial_advice": (
+        "Financial advice and market predictions are outside my area of wisdom. Mukthi Guru shares "
+        "the spiritual teachings of Sri Preethaji and Sri Krishnaji on consciousness, right action, "
+        "and inner transformation. For financial planning or investment decisions, please consult a qualified financial advisor. 🙏"
+    ),
+    "divination_and_astrology": (
+        "I am here to share the spiritual teachings of Sri Preethaji and Sri Krishnaji on consciousness, "
+        "inner transformation, and the Beautiful State. I do not provide astrological readings, horoscope analysis, "
+        "future predictions, or fortune-telling. How may I guide your inner journey today? 🙏"
+    ),
+    "domestic_abuse_safety": (
+        "Beloved, your physical safety and life are the absolute priority. "
+        "Abuse and violence are never acceptable, and you do not have to face this alone. "
+        "Please reach out immediately to safety and domestic violence support services:\n\n"
+        "__DOMESTIC_VIOLENCE_HELPLINES__\n\n"
+        "If you are in immediate physical danger, please call emergency services (112 in India, 911 in US, 999 in UK) "
+        "or go to a safe location now. 🙏"
+    ),
     "self_harm": (
         "I can feel that you're going through something deeply painful right now. "
         "You are not alone, and your life matters deeply. 🙏\n\n"
@@ -184,9 +226,10 @@ _BLOCK_RESPONSES = {
         "Sri Preethaji and Sri Krishnaji. How may I guide you on your spiritual journey? 🙏"
     ),
     "medical_advice_broad": (
-        "I care about your wellbeing deeply, but medical advice should come from a qualified "
-        "healthcare professional. I can share the teachings of Sri Preethaji and Sri Krishnaji "
-        "on inner healing and the Beautiful State. Would you like to explore that path? 🙏"
+        "I care deeply about your health. Mukthi Guru shares spiritual wisdom for inner peace, "
+        "which is strictly complementary to and NEVER a replacement for qualified medical treatment, "
+        "psychotherapy, or psychiatric care. For physical or mental health conditions, please consult "
+        "a licensed healthcare professional. 🙏"
     ),
     "violence": (
         "I cannot and will not provide guidance on harming others. "
@@ -197,24 +240,35 @@ _BLOCK_RESPONSES = {
 
 # Topics that redirect to Serene Mind meditation
 def _resolve_block_response(category: str, default_message: str) -> str:
-    """Look up the canned block response for a category and substitute the
-    `__HELPLINES__` token (if present) with the current YAML-driven helpline
-    block. Centralising the substitution here means the helpline contents are
-    never duplicated as literal strings in this module.
+    """Look up the canned block response for a category and substitute
+    helpline tokens with current YAML-driven helpline blocks.
     """
     template = _BLOCK_RESPONSES.get(category, default_message)
-    if "__HELPLINES__" not in template:
-        return template
-    try:
-        from services.crisis_helplines import format_helplines_block
+    if "__HELPLINES__" in template:
+        try:
+            from services.crisis_helplines import format_helplines_block
 
-        return template.replace(
-            "__HELPLINES__",
-            format_helplines_block(style="compact_two_line", intro=""),
-        )
-    except Exception:  # noqa: BLE001 — defensive: safety path must never crash
-        logger.exception("Failed to render helplines; using template as-is.")
-        return template.replace("__HELPLINES__", "")
+            template = template.replace(
+                "__HELPLINES__",
+                format_helplines_block(style="compact_two_line", intro=""),
+            )
+        except Exception:  # noqa: BLE001 — defensive: safety path must never crash
+            logger.exception("Failed to render helplines; using template as-is.")
+            template = template.replace("__HELPLINES__", "")
+
+    if "__DOMESTIC_VIOLENCE_HELPLINES__" in template:
+        try:
+            from services.crisis_helplines import format_domestic_violence_helplines_block
+
+            template = template.replace(
+                "__DOMESTIC_VIOLENCE_HELPLINES__",
+                format_domestic_violence_helplines_block(intro=""),
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to render domestic violence helplines; using template as-is.")
+            template = template.replace("__DOMESTIC_VIOLENCE_HELPLINES__", "")
+
+    return template
 
 
 _SERENE_MIND_REDIRECT_TOPICS = frozenset(["self_harm", "substance_abuse"])
@@ -222,6 +276,8 @@ _SERENE_MIND_REDIRECT_TOPICS = frozenset(["self_harm", "substance_abuse"])
 # Output moderation patterns (content the bot should not produce)
 _OUTPUT_BLOCK_PATTERNS = [
     (r"\b(?:take|prescribe|recommend)\b.*\b(?:mg|pill|tablet|medicine)\b", "medical_advice"),
+    (r"\b(?:replace|substitute|instead\s+of)\b.*\b(?:doctor|therapist|psychiatrist|medication|therapy|medical\s+treatment)\b", "medical_replacement"),
+    (r"\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b.*\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|clinical\s+depression|disease)\b|\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|clinical\s+depression|disease)\b.*\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b", "disease_cure_claim"),
     (r"\b(?:guaranteed|100%|risk.?free)\b.*\b(?:return|profit|income)\b", "financial_promise"),
     (r"\b(?:vote for|support|elect)\b.*\b(?:party|candidate|politician)\b", "political_advice"),
 ]

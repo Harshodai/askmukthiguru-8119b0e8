@@ -29,10 +29,15 @@ _LONG_ANSWER = (
 )
 
 
-def _unverified_citation_check(cleaned_answer: str = "") -> AsyncMock:
-    """Awaitable _verify_inline_citations stub: answer comes back with a
-    failing citation verification (orphan marker stripped / grounding failed)."""
-    m = AsyncMock()
+def _unverified_citation_check(cleaned_answer: str = "") -> MagicMock:
+    """_verify_inline_citations stub: answer comes back with a failing
+    citation verification (orphan marker stripped / grounding failed).
+
+    _verify_inline_citations (rag/nodes/utils.py) is a plain sync function --
+    format_final_answer calls it directly, not awaited. A MagicMock (not
+    AsyncMock) matches that call shape.
+    """
+    m = MagicMock()
     m.return_value = (cleaned_answer, False, 1)
     return m
 

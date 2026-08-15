@@ -47,8 +47,12 @@ async def test_format_final_answer_source_mapping():
     # "Wisdom Teachings" -> [2] (matches relevant_docs[1])
     assert "[2]" in final_answer
     
-    # "Soul Sync" out-of-range (relevant_docs has only 2 items) -> stripped
-    assert "Soul Sync helps" in final_answer
+    # "Soul Sync" out-of-range (relevant_docs has only 2 items) -> the whole
+    # claim is stripped along with its marker (services/citation_service.py's
+    # orphan-stripping drops the unverifiable claim text too, not just the
+    # marker -- an unresolvable citation means the preceding sentence isn't
+    # doctrine-grounded and must not be presented as fact).
+    assert "Soul Sync helps" not in final_answer
     assert "[3]" not in final_answer
     assert "[[CITE:3]]" not in final_answer
     assert "[1] Soul Sync" not in final_answer   # not remapped to Meditation Guide

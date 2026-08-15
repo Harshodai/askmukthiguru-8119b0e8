@@ -1620,13 +1620,13 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     orphan_citations_stripped = False
     if answer and ("[[CITE:" in answer or re.search(r"(?<!\[)\[\d{1,3}\](?!\[)", answer)):
         try:
-            answer, citations_verified, orphan_count = await _verify_inline_citations(
+            answer, citations_verified, orphan_count = _verify_inline_citations(
                 answer, relevant_docs
             )
             orphan_citations_stripped = orphan_count > 0
         except Exception as _cite_err:
             logger.warning("Citation post-verification failed (non-fatal): %s", _cite_err)
-            citations_verified = state.get("verification", {}).get("citations_verified", True)
+            citations_verified = (state.get("verification") or {}).get("citations_verified", True)
 
     verification = state.get("verification")
     if not isinstance(verification, dict):
