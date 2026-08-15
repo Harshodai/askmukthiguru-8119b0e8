@@ -40,7 +40,7 @@ describe('useOptionalAuth', () => {
 
   it('ignores a stale getSession that resolves after a newer onAuthStateChange session', async () => {
     let onAuthCallback: (event: string, session: any) => void = () => {};
-    onAuthStateChangeMock.mockImplementation((callback: any) => {
+    (onAuthStateChangeMock as unknown as { mockImplementation: (fn: (cb: any) => unknown) => void }).mockImplementation((callback: any) => {
       onAuthCallback = callback;
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     });

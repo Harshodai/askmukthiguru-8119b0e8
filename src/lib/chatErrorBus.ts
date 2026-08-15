@@ -27,6 +27,7 @@ let lastAt = 0;
 export const CODE_BY_KIND: Record<MessageErrorKind, { code: string; nextStep: string }> = {
   unauthorized: { code: 'AUTH_401', nextStep: 'Sign in again to continue. Your draft is saved.' },
   rate_limited: { code: 'RATE_429', nextStep: 'The Guru is serving many seekers right now. Retrying automatically…' },
+  quota_exceeded: { code: 'QUOTA_402', nextStep: 'Sign in to continue your conversation with the Guru.' },
   server_error: { code: 'MODEL_5XX', nextStep: 'The model is recovering. Retry in a moment.' },
   network: { code: 'NET_OFFLINE', nextStep: 'Check your connection, then retry.' },
   timeout: { code: 'TIMEOUT_504', nextStep: 'Deep wisdom takes time. Please try again — it will be faster on the second attempt.' },

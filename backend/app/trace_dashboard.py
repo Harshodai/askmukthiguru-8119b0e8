@@ -17,7 +17,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.config import settings
-from services.auth_service import get_current_user_from_supabase
+from services.auth_service import require_aal2
 
 logger = logging.getLogger(__name__)
 
@@ -117,11 +117,19 @@ def _get_trace_redis(request_id: str) -> Optional[dict]:
 # ===================================================================
 
 
-@router.get("/trace/{request_id}")
-async def get_trace(request_id: str, user: dict = Depends(get_current_user_from_supabase)):
-    """Get detailed trace for a specific request. Requires admin authentication."""
+def _require_admin_aal2(user: dict) -> None:
+    """Admin + MFA step-up + allowlist, matching /api/admin/* and /api/retention/curve."""
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
+    allowlist = getattr(settings, "admin_user_ids_list", None) or []
+    if allowlist and user.get("id") not in allowlist:
+        raise HTTPException(status_code=403, detail="Admin access required (not allowlisted)")
+
+
+@router.get("/trace/{request_id}")
+async def get_trace(request_id: str, user: dict = Depends(require_aal2)):
+    """Get detailed trace for a specific request. Requires admin auth with MFA step-up."""
+    _require_admin_aal2(user)
 
     # Check memory first
     if request_id in _traces:
@@ -136,12 +144,11 @@ async def get_trace(request_id: str, user: dict = Depends(get_current_user_from_
 
 
 @router.get("/metrics/summary")
-async def get_metrics_summary(user: dict = Depends(get_current_user_from_supabase)):
+async def get_metrics_summary(user: dict = Depends(require_aal2)):
     """
-    High-level pipeline metrics summary. Requires admin authentication.
+    High-level pipeline metrics summary. Requires admin auth with MFA step-up.
     """
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
+    _require_admin_aal2(user)
 
     from app.metrics import (
         CACHE_OPERATIONS,
