@@ -297,11 +297,18 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
 
         message_lower = text.lower()
 
-        # Check blocked topics FIRST. Crisis/self-harm/medical/violence/prompt-injection
-        # must run before the harmful-pattern hard-block and the spiritual-domain
-        # allowlist — the allowlist may only skip *topic* checks, never safety checks.
-        # Ordering rationale: a self-harm message that also mentions medication must
-        # hit the self_harm topic (helplines), NOT a medical cold-refusal (finding S1).
+        # Check blocked topics FIRST and unconditionally. A blocked topic takes
+        # precedence over the spiritual-domain allowlist / knowledge-trap
+        # classification: a message that matches BOTH must be blocked, not passed
+        # (the allowlist flags were previously computed before the topic check and
+        # could mask a real block). The allowlist may only skip *topic* checks,
+        # never safety checks, emotional wellness, or the optional LLM classifier —
+        # and since the topic check now runs before any allowlist consideration,
+        # the allowlist never overrides a block.
+        # Ordering rationale: crisis topics (self_harm, substance_abuse, violence)
+        # must precede medical_prescription — a self-harm message that also mentions
+        # medication must hit the self_harm topic (helplines), NOT a medical
+        # cold-refusal (finding S1).
         for topic, patterns in _BLOCKED_TOPICS.items():
             for pattern in patterns:
                 if re.search(pattern, message_lower):
@@ -347,18 +354,6 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
                     ),
                     "redirect_to": "serene_mind",
                 }
-
-        # Spiritual domain allowlist / knowledge-trap bypass moved to AFTER the
-        # LLM classifier (below): these must only skip the regex/keyword checks
-        # above, never the LLM check itself -- an allowlisted term returning
-        # early here let unsafe content slip past the LLM classifier entirely
-        # once guardrails_llm_enabled was turned on (finding #49).
-        allowlist_hit = any(term in message_lower for term in _SPIRITUAL_DOMAIN_ALLOWLIST)
-        knowledge_trap_hit = any(re.search(pattern, message_lower) for pattern in _KNOWLEDGE_TRAP_PATTERNS)
-        if allowlist_hit:
-            logger.debug("Spiritual domain allowlist matched (LLM classifier still runs below)")
-        if knowledge_trap_hit:
-            logger.debug("Knowledge trap pattern matched (LLM classifier still runs below)")
 
         # LLM Guard via Instructor
         if getattr(settings, "guardrails_llm_enabled", False):

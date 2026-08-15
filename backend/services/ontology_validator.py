@@ -210,11 +210,12 @@ class OntologyValidator:
         is_valid = confidence >= settings.ontology_validity_confidence_threshold and len(contradictions) == 0
 
         # Prom gauge — one increment per contradiction (soft-gate signal).
-        if contradictions and ontology_contradiction_count is not None:
-            try:
-                ontology_contradiction_count.inc(len(contradictions))
-            except Exception:  # pragma: no cover - gauge defensive
-                pass
+        if contradictions:
+            if ontology_contradiction_count is not None:
+                try:
+                    ontology_contradiction_count.inc(len(contradictions))
+                except Exception:  # pragma: no cover - gauge defensive
+                    pass
             if CONTRADICTION_DETECTIONS is not None:
                 try:
                     CONTRADICTION_DETECTIONS.inc(len(contradictions))

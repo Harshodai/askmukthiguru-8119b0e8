@@ -40,7 +40,10 @@ class TestBoundaryChunker:
 
         if len(chunks) > 1:
             # Overlapping sentence should appear in two consecutive chunks
-            overlap = set(chunks[0].split(". ")) & set(chunks[1].split(". "))
+            # Normalize trailing punctuation before comparing.
+            def _normalize(s: str) -> str:
+                return s.rstrip(".!? ")
+            overlap = set(_normalize(c) for c in chunks[0].split(". ")) & set(_normalize(c) for c in chunks[1].split(". "))
             assert overlap, "Expected at least one overlapping whole sentence"
 
     def test_chunk_with_contextual_headers(self):
@@ -55,6 +58,30 @@ class TestBoundaryChunker:
         for chunk in chunks:
             assert "[Source: Teaching | Speaker: Sri Krishnaji | Topic: Meditation]" in chunk
             assert "First sentence" in chunk or "Second sentence" in chunk or "Third sentence" in chunk
+
+    def test_oversized_fallback_respects_max_size(self):
+        from ingest.boundary_chunker import BoundaryChunker
+
+        chunker = BoundaryChunker(target_size=20, max_size=30)
+        # A single overlong token should be sliced into character-sized pieces.
+        text = "A" * 75
+        # Disable sentence fallback so the raw long sentence reaches the chunk loop.
+        chunker._split_sentences = lambda text: [text]
+        chunks = chunker.chunk(text)
+        assert len(chunks) >= 2
+        for chunk in chunks:
+            assert len(chunk) <= chunker.max_size
+
+    def test_fallback_does_not_merge_past_max_size(self):
+        from ingest.boundary_chunker import BoundaryChunker
+
+        chunker = BoundaryChunker(target_size=20, max_size=30)
+        # Existing small chunk + an oversized fallback piece must not exceed max_size.
+        text = "Small chunk here. " + "B" * 50
+        chunker._split_sentences = lambda text: [text]
+        chunks = chunker.chunk(text)
+        for chunk in chunks:
+            assert len(chunk) <= chunker.max_size
 
 
 class TestDeduplication:

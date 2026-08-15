@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from pathlib import Path
 from typing import Any
 
+from app.config import settings
 from guardrails.base import BaseGuardrailHandler
 
 logger = logging.getLogger(__name__)
@@ -96,12 +98,16 @@ class NeMoGuardrailHandler(BaseGuardrailHandler):
             # inspected THAT for moderation phrases instead of the real output.
             from nemoguardrails.rails.llm.options import GenerationOptions
 
-            result = await self._rails.generate_async(
-                messages=[
-                    {"role": "user", "content": "Tell me about this topic."},
-                    {"role": "assistant", "content": text},
-                ],
-                options=GenerationOptions(rails=["output"]),
+            nemo_timeout = max(1.0, settings.node_timeout_main + 2.0)
+            result = await asyncio.wait_for(
+                self._rails.generate_async(
+                    messages=[
+                        {"role": "user", "content": "Tell me about this topic."},
+                        {"role": "assistant", "content": text},
+                    ],
+                    options=GenerationOptions(rails=["output"]),
+                ),
+                timeout=nemo_timeout,
             )
             response = result.response
             response_text = (

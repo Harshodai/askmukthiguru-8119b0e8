@@ -45,17 +45,24 @@ def _histogram_percentile(buckets: dict[float, float], pct: float) -> Optional[f
     cumulative count, aggregated across all label combinations. Returns the
     smallest bucket boundary whose cumulative count covers ``pct`` of the
     total -- the standard low-cost approximation for a Histogram (which,
-    unlike a Summary, never exposes exact quantiles).
+    unlike a Summary, never exposes exact quantiles). The ``+Inf`` bucket
+    holds the total and is never a meaningful latency, so when no finite
+    boundary covers ``pct`` (a heavy-tail distribution), the largest finite
+    boundary is returned instead.
     """
     if not buckets:
         return None
     total = buckets.get(float("inf"))
     if not total:
         return None
+    threshold = pct * total
     for le in sorted(buckets):
-        if buckets[le] >= pct * total:
+        if le == float("inf"):
+            break
+        if buckets[le] >= threshold:
             return le
-    return None
+    finite = [le for le in buckets if le != float("inf")]
+    return max(finite) if finite else None
 
 
 def parse_prometheus(text: str) -> MetricsSnapshot:

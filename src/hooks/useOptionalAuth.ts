@@ -27,12 +27,17 @@ export function useOptionalAuth(): OptionalAuthResult {
 
   useEffect(() => {
     let cancelled = false;
+    // Bumped on every session validation so stale async resolutions (e.g. a
+    // slow getAnonSessionToken() from a previous onAuthStateChange event) never
+    // overwrite state set by a newer one.
+    let generation = 0;
 
     const validateAndSetSession = async (session: Session | null) => {
+      const myGeneration = ++generation;
       if (!session?.user) {
         // No Supabase session — try to mint an anonymous session token.
         const token = await getAnonSessionToken();
-        if (cancelled) return;
+        if (cancelled || myGeneration !== generation) return;
         setAnonToken(token);
         setUser(null);
         setLoading(false);
@@ -46,14 +51,14 @@ export function useOptionalAuth(): OptionalAuthResult {
       if (!isAllowed || (email === 'test@example.com' && !isExplicitLogin)) {
         // Treat invalid/disallowed sessions as anonymous rather than forcing a redirect.
         const token = await getAnonSessionToken();
-        if (cancelled) return;
+        if (cancelled || myGeneration !== generation) return;
         setAnonToken(token);
         setUser(null);
         setLoading(false);
         return;
       }
 
-      if (cancelled) return;
+      if (cancelled || myGeneration !== generation) return;
       setUser(session.user);
       setAnonToken(null);
       setLoading(false);
@@ -67,7 +72,9 @@ export function useOptionalAuth(): OptionalAuthResult {
       } catch (err) {
         console.error('[useOptionalAuth] getSession crashed:', err);
         if (cancelled) return;
+        const myGeneration = ++generation;
         const token = await getAnonSessionToken();
+        if (cancelled || myGeneration !== generation) return;
         setAnonToken(token);
         setUser(null);
         setLoading(false);

@@ -163,3 +163,61 @@ def test_ingest_raw_text_metadata_propagation(mock_pipeline, monkeypatch):
     assert "ingested_at" in metadata_list[0]
     # Contextual enrichment ran because full_document is supplied
     assert chunk_texts[0].startswith("[Context:")
+
+
+def test_ingest_video_audio_fallback_enriches_missing_metadata(mock_pipeline, monkeypatch):
+    """Tier-4 audio fallback results (no title/speaker from captions) must still
+    go through extract_video_metadata enrichment before embedding."""
+    import asyncio
+
+    video_id = "dQw4w9WgXcQ"
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    fallback_text = "This is a sufficiently long audio fallback transcript. " * 8
+
+    monkeypatch.setattr(
+        "ingest.pipeline.fetch_transcript_hybrid",
+        lambda video_id, title="", max_accuracy=False: {"error": "no captions available"},
+    )
+    monkeypatch.setattr(
+        mock_pipeline._youtube_service,
+        "_try_audio_transcribe_fallback",
+        AsyncMock(return_value={"text": fallback_text, "title": None, "speaker": None}),
+    )
+    monkeypatch.setattr(
+        "ingest.pipeline.extract_video_metadata",
+        lambda text, vid, metadata_enrichment=False: {
+            "title": "Enriched Title",
+            "speaker": "Sri Preethaji",
+            "language": "en",
+        },
+    )
+    monkeypatch.setattr("ingest.pipeline.IngestionCheckpoint.is_processed", lambda self, chunk_id: False)
+    monkeypatch.setattr("ingest.pipeline.IngestionCheckpoint.save", lambda self, chunk_id, metadata=None: None)
+    monkeypatch.setattr("ingest.pipeline.is_valid_text_deterministic", lambda text: (True, ""))
+    mock_pipeline._corrector.correct_transcript = AsyncMock(side_effect=lambda text, url: text)
+    mock_pipeline._auditor.run = AsyncMock(
+        return_value=MagicMock(passed=True, score=90, reasons=[])
+    )
+    monkeypatch.setattr("ingest.pipeline.clean_transcript", lambda text: text)
+    monkeypatch.setattr("ingest.pipeline.redact_pii", lambda text: (text, 0))
+    mock_pipeline._enrich_text = MagicMock(return_value={})
+    monkeypatch.setattr(
+        "ingest.chunkers.youtube_chunker.chunk_youtube_transcript",
+        lambda video_id, text, chunk_size=0, chunk_overlap=0, languages=None: [{"text": "chunk one"}],
+    )
+    mock_pipeline._augment_chunks = AsyncMock(return_value=["chunk one"])
+    mock_pipeline._backup_before_reindex = MagicMock(return_value="backup")
+    mock_pipeline._resolve_chunk_speakers_from_cache = MagicMock(return_value=[None])
+    mock_pipeline._embed_and_index = MagicMock(return_value=1)
+    mock_pipeline._raptor.build_tree = AsyncMock(return_value=0)
+    mock_pipeline._implicit_teachings_connector = AsyncMock()
+    mock_pipeline._consolidate_graph_entities = AsyncMock()
+
+    result = asyncio.run(mock_pipeline._ingest_video(url))
+
+    assert result["status"] == "success"
+    embed_args = mock_pipeline._embed_and_index.call_args
+    assert embed_args is not None
+    kwargs = embed_args.kwargs
+    assert kwargs["title"] == "Enriched Title"
+    assert kwargs["speaker"] == "Sri Preethaji"

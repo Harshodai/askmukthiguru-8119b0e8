@@ -1,4 +1,10 @@
 {
+  "distressIndicator": {
+    "low": "I sense some unease. Would you like to talk?",
+    "moderate": "You seem distressed. Can I help with a calming practice?",
+    "high": "I'm here for you. Would you like to try a breathing exercise?",
+    "yes": "Yes"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
@@ -1185,6 +1191,16 @@
       "signInRequired": "Sign in to access your reflections.",
       "requestFailed": "Reflections request failed ({{status}})."
     }
+  },
+  "profileStatTiles": {
+    "sessions": "Sessions",
+    "minutes": "Minutes",
+    "streak": "Day Streak",
+    "breaths": "Breaths",
+    "streakDays": "{{days}}d",
+    "thisWeek": "This week",
+    "weekSummary": "{{minutes}} min this week",
+    "noPracticeThisWeek": "No practice this week — begin with Serene Mind."
   },
   "profile": {
     "tabs": {

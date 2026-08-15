@@ -4,13 +4,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.config import settings
+
 
 @dataclass(frozen=True)
 class CorpusScope:
     """The smallest scope allowed to cross retrieval and graph boundaries."""
 
-    tenant_id: str = "default"
-    corpus_id: str = "global"
+    tenant_id: str = settings.default_tenant_id
+    corpus_id: str = settings.default_corpus_id
     teacher_id: str | None = None
     allowed_tags: tuple[str, ...] = field(default_factory=tuple)
     required_rights_status: str | None = None

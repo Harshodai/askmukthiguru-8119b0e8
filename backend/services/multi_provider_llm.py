@@ -141,7 +141,7 @@ class MultiProviderLLMService:
         # scripts that explicitly need it, but must not silently prefer an
         # external API over Sarvam/OpenRouter -- matches the module docstring's
         # documented priority order.
-        self._provider_priority = ["sarvam", "openrouter", "nim"]
+        self._provider_priority = ["sarvam", "openrouter"]
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if not self._init_session:

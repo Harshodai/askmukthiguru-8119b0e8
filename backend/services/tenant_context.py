@@ -106,6 +106,18 @@ def get_tenant_id_from_user(user: dict) -> str:
 
     In a multi-tenant SaaS, orgs would be modelled as separate Supabase projects
     or as a custom ``tenant_id`` claim. For now we use the user ID as the tenant.
+
+    DORMANT PATH WARNING: this only fires when ``request.state.user`` is set,
+    and nothing in the codebase currently sets it (confirmed via full-repo
+    grep) -- ``set_tenant_from_request`` therefore always falls through to
+    ``_LEGACY_TENANT`` in production today. If a future change ever populates
+    ``request.state.user`` for an authenticated caller, this branch activates
+    and TenantContext.get() returns their Supabase UUID instead of the legacy
+    tenant -- every CorpusScope(tenant_id=TenantContext.get() or ...) call
+    then scopes retrieval to a tenant_id no ingested Qdrant point carries,
+    silently zeroing RAG retrieval for every authenticated user (the same
+    failure shape as the tenant/corpus outage fixed this session, just
+    dormant rather than live, and via the authenticated path specifically).
     """
     return (
         user.get("tenant_id")

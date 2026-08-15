@@ -163,7 +163,11 @@ async def query_backend(question: str) -> dict:
     else:
         logger.warning("No auth configured — request may be rejected. Set TEST_KEY or SUPABASE_JWT.")
 
-    payload = {"message": question, "session_id": f"eval_{uuid.uuid4().hex}"}
+    payload = {
+        "messages": [],
+        "user_message": question,
+        "session_id": f"eval_{uuid.uuid4().hex}",
+    }
 
     async with httpx.AsyncClient(timeout=120) as client:
         resp = await client.post(f"{BACKEND_URL}/api/chat", json=payload, headers=headers)
@@ -237,7 +241,7 @@ async def main(args: argparse.Namespace) -> int:
             continue
 
         answer = resp.get("answer") or resp.get("response") or resp.get("final_answer") or ""
-        contexts = resp.get("sources") or resp.get("contexts") or []
+        contexts = resp.get("sources") or resp.get("contexts") or resp.get("citations") or []
         if isinstance(contexts, list):
             context_strs = [c.get("text", c) if isinstance(c, dict) else str(c) for c in contexts]
         else:

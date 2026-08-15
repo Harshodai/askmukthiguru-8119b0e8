@@ -7,6 +7,7 @@ returns a pre-canned answer immediately, bypassing all downstream stages.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from app.config import settings
@@ -43,10 +44,16 @@ class DoctrineCacheStage(Stage):
         # user would otherwise get the canned English doctrine answer verbatim.
         if getattr(ctx, "is_indic", False):
             try:
-                translated = await ctx.container.translation.translate_text(
-                    text=answer, source_lang="en", target_lang=ctx.preferred_lang
+                translation_timeout = max(1.0, settings.node_timeout_fast - 2.0)
+                translated = await asyncio.wait_for(
+                    ctx.container.translation.translate_text(
+                        text=answer, source_lang="en", target_lang=ctx.preferred_lang
+                    ),
+                    timeout=translation_timeout,
                 )
                 answer = translated
+            except asyncio.TimeoutError:
+                logger.warning("DoctrineCache translation timed out for Indic request; preserving English answer")
             except Exception as e:
                 logger.warning("DoctrineCache translation failed for Indic request: %s", e)
 

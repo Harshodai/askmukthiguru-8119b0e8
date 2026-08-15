@@ -4,10 +4,17 @@ Checkpoint handler for ingestion state tracking across Redis, Supabase, and loca
 
 import json
 import logging
+import os
+import threading
 from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# Cross-instance lock around the file read-modify-write path. Without it, two
+# concurrent IngestionCheckpoint instances (different tenants/processes) can
+# lose each other's updates via load-merge-write races.
+_FILE_LOCK = threading.Lock()
 
 
 class IngestionCheckpoint:
@@ -55,10 +62,63 @@ class IngestionCheckpoint:
                 self.supabase_client = None
 
         self.data = self._load()
-        self.processed_chunks = set(self.data.keys())
+        self.processed_chunks = self._load_processed_chunks()
 
     def _get_redis_key(self, chunk_id: str) -> str:
         return f"ingestion_checkpoint:{self.tenant_id}:{chunk_id}"
+
+    def _atomic_write(self, data: dict) -> None:
+        """Atomically replace the checkpoint file (write temp + os.replace).
+
+        write_text in place is not atomic: a crash mid-write corrupts the file.
+        os.replace is atomic on POSIX; the temp file lives in the same directory
+        so the rename never crosses filesystems.
+        """
+        tmp_path = self.filepath.with_suffix(self.filepath.suffix + ".tmp")
+        tmp_path.write_text(json.dumps(data, indent=2))
+        os.replace(tmp_path, self.filepath)
+
+    def _load_processed_chunks(self) -> set[str]:
+        """Return tenant-qualified chunk IDs, migrating legacy unqualified keys.
+
+        The rewrite is persisted back to the checkpoint file once (only when
+        legacy keys are detected) so the migration survives restarts instead of
+        being recomputed in memory on every boot.
+        """
+        tenant = getattr(self, "tenant_id", None) or "default"
+        result: set[str] = set()
+        has_legacy = False
+        for key in self.data.keys():
+            if key.startswith("tenant:"):
+                result.add(key)
+            else:
+                # Legacy default-tenant entry: rewrite to the qualified namespace.
+                has_legacy = True
+                qualified = f"tenant:{tenant}:{key}"
+                result.add(qualified)
+        if has_legacy:
+            self._persist_qualified_keys(tenant)
+        return result
+
+    def _persist_qualified_keys(self, tenant: str) -> None:
+        """Rewrite legacy unqualified keys to the tenant-qualified namespace on
+        disk. Called once from _load_processed_chunks; _load() stays untouched
+        so there is no recursion between the two.
+        """
+        rewritten = {
+            (key if key.startswith("tenant:") else f"tenant:{tenant}:{key}"): value
+            for key, value in self.data.items()
+        }
+        self.data = rewritten
+        with _FILE_LOCK:
+            self._atomic_write(rewritten)
+
+    def _qualify_chunk_id(self, chunk_id: str) -> str:
+        """Prefix chunk_id with the tenant namespace for local-file isolation."""
+        if chunk_id.startswith("tenant:"):
+            return chunk_id
+        tenant = getattr(self, "tenant_id", None) or "default"
+        return f"tenant:{tenant}:{chunk_id}"
 
     def _load(self) -> dict:
         if self.filepath.exists():
@@ -96,12 +156,18 @@ class IngestionCheckpoint:
             except Exception as e:
                 logger.error(f"Failed to save checkpoint to Supabase: {e}. Falling back to file.")
 
-        self.processed_chunks.add(chunk_id)
-        self.data[chunk_id] = metadata or {"timestamp": time.time()}
-        try:
-            self.filepath.write_text(json.dumps(self.data, indent=2))
-        except Exception as e:
-            logger.error(f"Failed to save checkpoint: {e}")
+        qualified = self._qualify_chunk_id(chunk_id)
+        self.processed_chunks.add(qualified)
+        with _FILE_LOCK:
+            # Merge with the file's current state: self.data is a construction-time
+            # snapshot, and other IngestionCheckpoint instances (e.g. different
+            # tenants) may have written entries since. Overwriting the snapshot
+            # would silently drop their checkpoints. The lock serializes the
+            # read-modify-write so concurrent instances cannot lose updates.
+            merged = self._load()
+            merged[qualified] = metadata or {"timestamp": time.time()}
+            self.data = merged
+            self._atomic_write(merged)
 
     def is_processed(self, chunk_id: str) -> bool:
         if getattr(self, "redis_client", None):
@@ -122,7 +188,7 @@ class IngestionCheckpoint:
 
         # A Redis/Supabase miss doesn't rule out a checkpoint that was written
         # to the local-file fallback during an earlier outage of either store.
-        return chunk_id in self.processed_chunks
+        return self._qualify_chunk_id(chunk_id) in self.processed_chunks
 
     def prune_stale_entries(self, active_hashes: list[str]):
         """Remove any entries from checkpoint that are no longer active."""
@@ -130,11 +196,11 @@ class IngestionCheckpoint:
             logger.warning("prune_stale_entries is not supported in centralized database mode.")
             return
 
-        active_set = set(active_hashes)
-        self.data = {k: v for k, v in self.data.items() if k in active_set}
-        self.processed_chunks = set(self.data.keys())
-        try:
-            self.filepath.write_text(json.dumps(self.data, indent=2))
-        except Exception as e:
-            logger.error(f"Failed to prune checkpoint file: {e}")
+        active_set = {self._qualify_chunk_id(h) for h in active_hashes}
+        with _FILE_LOCK:
+            # Merge with the on-disk state (other instances may have written
+            # since construction) before pruning, mirroring save().
+            self.data = {k: v for k, v in self._load().items() if k in active_set}
+            self.processed_chunks = set(self.data.keys())
+            self._atomic_write(self.data)
 

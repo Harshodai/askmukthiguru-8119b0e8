@@ -20,11 +20,43 @@ import json
 import os
 import sys
 import time
+import urllib.parse
 from typing import Any
 
 import httpx
 
 GOLDEN_QUESTIONS_FILE = os.path.join(os.path.dirname(__file__), "golden_questions.json")
+
+
+def _validate_endpoint(endpoint: str) -> str | None:
+    """Return an error message if endpoint is unsafe to call, else None.
+
+    No credential is sent by this harness, but the endpoint must still be a
+    well-formed http(s) URL; non-loopback plain-http targets are refused and
+    the client never follows redirects (follow_redirects=False), so a 3xx
+    cannot silently reroute requests to an unvalidated host.
+    """
+    try:
+        parsed = urllib.parse.urlparse(endpoint)
+    except ValueError:
+        return f"Endpoint is not a valid URL: {endpoint!r}"
+    if parsed.scheme not in ("http", "https"):
+        return f"Endpoint must use http or https (got scheme {parsed.scheme!r}): {endpoint}"
+    host = parsed.hostname or ""
+    is_loopback = host in {"localhost", "127.0.0.1", "::1"}
+    if not is_loopback and parsed.scheme != "https":
+        return f"Endpoint must be https or loopback (got {endpoint!r})"
+    return None
+
+
+def _normalize_citation_url(url: str) -> str:
+    """Canonical citation form for equality comparison: query/fragment stripped,
+    lowercased, trailing slash removed. Compare for equality, never substring."""
+    try:
+        parsed = urllib.parse.urlsplit(url)
+        return (parsed.scheme + "://" + parsed.netloc + parsed.path).strip().lower().rstrip("/")
+    except ValueError:
+        return url.strip().lower().rstrip("/")
 
 
 def load_golden_set() -> list[dict[str, Any]]:
@@ -68,7 +100,20 @@ def evaluate_abstention(answer: str, should_abstain: bool, expected_keywords: li
         return not has_abstained
 
 
+async def _get_anon_session_token(client: httpx.AsyncClient) -> str:
+    """Mint a fresh signed anon session token (resolve_anon_identity() rejects a
+    bare client-chosen session_id in production). Fetched per question so the
+    per-session anon quota (settings.anon_quota_messages, default 5) doesn't
+    throttle a 50-question golden-set run."""
+    r = await client.post("/api/auth/anon-session", timeout=15.0)
+    r.raise_for_status()
+    return r.json()["token"]
+
+
 async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[str, Any]:
+    url_error = _validate_endpoint(endpoint)
+    if url_error:
+        raise ValueError(url_error)
     golden_set = load_golden_set()
     print(f"Loaded {len(golden_set)} golden evaluation questions.")
     print(f"Targeting endpoint: {endpoint}")
@@ -76,7 +121,7 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
     results = []
     category_scores: dict[str, list[dict]] = {}
 
-    async with httpx.AsyncClient(base_url=endpoint, timeout=60.0) as client:
+    async with httpx.AsyncClient(base_url=endpoint, timeout=60.0, follow_redirects=False) as client:
         for idx, item in enumerate(golden_set, 1):
             q_id = item["id"]
             question = item["question"]
@@ -88,25 +133,28 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
             start_time = time.time()
             status_code = 0
             answer = ""
-            citations = []
-            confidence_score = 0.0
+            citations: list[str] = []
+            faithfulness_score = None
             error = None
 
             try:
+                token = await _get_anon_session_token(client)
                 resp = await client.post(
                     "/api/chat",
                     json={
                         "messages": [],
                         "user_message": question,
-                        "preferred_language": item.get("language", "en"),
+                        "session_id": token,
+                        "language": item.get("language", "en"),
+                        "incognito": True,
                     },
                 )
                 status_code = resp.status_code
                 if status_code == 200:
                     data = resp.json()
-                    answer = data.get("answer", "")
+                    answer = data.get("response", "")
                     citations = data.get("citations", [])
-                    confidence_score = data.get("confidence_score", 0.0)
+                    faithfulness_score = data.get("faithfulness_score")
                 else:
                     error = f"HTTP {status_code}: {resp.text[:100]}"
             except Exception as exc:
@@ -116,16 +164,20 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
 
             kw_recall = calculate_keyword_recall(answer, expected_keywords)
             abstention_correct = evaluate_abstention(answer, should_abstain, expected_keywords)
-            faithfulness_score = min(confidence_score / 10.0, 1.0)
             if expected_citations and citations:
-                citation_urls = [c.get("url") if isinstance(c, dict) else str(c) for c in citations]
-                expected_urls = [c.get("url") if isinstance(c, dict) else c for c in expected_citations]
-                matched = sum(1 for e in expected_urls if any(e.lower() in u.lower() for u in citation_urls))
+                citation_set = {_normalize_citation_url(u) for u in citations}
+                matched = sum(
+                    1 for e in expected_citations if _normalize_citation_url(e) in citation_set
+                )
                 citation_validity = matched / max(len(expected_citations), 1)
             elif not expected_citations:
                 citation_validity = 1.0
             else:
                 citation_validity = 0.0
+
+            faith_display = (
+                f"{faithfulness_score * 100:.0f}%" if faithfulness_score is not None else "N/A"
+            )
 
             eval_entry = {
                 "id": q_id,
@@ -136,9 +188,10 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
                 "answer_length": len(answer),
                 "keyword_recall": round(kw_recall, 2),
                 "abstention_correct": abstention_correct,
-                "faithfulness_score": round(faithfulness_score, 2),
+                "faithfulness_score": (
+                    round(faithfulness_score, 2) if faithfulness_score is not None else None
+                ),
                 "citation_validity": round(citation_validity, 2),
-                "confidence_score": round(confidence_score, 2),
                 "citation_count": len(citations),
                 "error": error,
             }
@@ -148,7 +201,7 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
             print(
                 f"[{idx}/{len(golden_set)}] {category:<12} | "
                 f"KW Recall: {kw_recall * 100:>3.0f}% | "
-                f"Faith: {faithfulness_score * 100:>3.0f}% | "
+                f"Faith: {faith_display:>4} | "
                 f"Cite Valid: {citation_validity * 100:>3.0f}% | "
                 f"Abstain OK: {'✓' if abstention_correct else '✗'} | "
                 f"Latency: {latency:>4.1f}s | "
@@ -158,17 +211,21 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
     # Calculate Aggregate Metrics
     avg_latency = sum(r["latency_s"] for r in results) / max(len(results), 1)
     avg_kw_recall = sum(r["keyword_recall"] for r in results) / max(len(results), 1)
-    avg_faithfulness = sum(r["faithfulness_score"] for r in results) / max(len(results), 1)
+    faith_scores = [r["faithfulness_score"] for r in results if r["faithfulness_score"] is not None]
+    faith_unavailable = len(results) - len(faith_scores)
+    avg_faithfulness = sum(faith_scores) / len(faith_scores) if faith_scores else 0.0
     avg_citation_validity = sum(r["citation_validity"] for r in results) / max(len(results), 1)
     abstain_accuracy = sum(1 for r in results if r["abstention_correct"]) / max(len(results), 1)
 
     cat_summaries = {}
     for cat, items in category_scores.items():
+        cat_faith = [i["faithfulness_score"] for i in items if i["faithfulness_score"] is not None]
         cat_summaries[cat] = {
             "count": len(items),
             "avg_latency": round(sum(i["latency_s"] for i in items) / len(items), 2),
             "avg_kw_recall": round(sum(i["keyword_recall"] for i in items) / len(items), 2),
-            "avg_faithfulness": round(sum(i["faithfulness_score"] for i in items) / len(items), 2),
+            "avg_faithfulness": round(sum(cat_faith) / len(cat_faith), 2) if cat_faith else 0.0,
+            "faithfulness_count": len(cat_faith),
             "avg_citation_validity": round(sum(i["citation_validity"] for i in items) / len(items), 2),
             "abstain_accuracy": round(sum(1 for i in items if i["abstention_correct"]) / len(items), 2),
         }
@@ -179,6 +236,7 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
         "overall_avg_latency_s": round(avg_latency, 2),
         "overall_kw_recall": round(avg_kw_recall, 2),
         "overall_faithfulness": round(avg_faithfulness, 2),
+        "faithfulness_unavailable": faith_unavailable,
         "overall_citation_validity": round(avg_citation_validity, 2),
         "overall_abstain_accuracy": round(abstain_accuracy, 2),
         "category_summaries": cat_summaries,
@@ -189,7 +247,10 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
     print("EVALUATION SUMMARY REPORT")
     print("=" * 60)
     print(f"Overall Keyword Recall:   {avg_kw_recall * 100:.1f}%")
-    print(f"Overall Faithfulness:     {avg_faithfulness * 100:.1f}%")
+    print(
+        f"Overall Faithfulness:     {avg_faithfulness * 100:.1f}% "
+        f"({faith_unavailable} of {len(results)} unanswered)"
+    )
     print(f"Overall Citation Validity:{avg_citation_validity * 100:.1f}%")
     print(f"Abstention Accuracy:      {abstain_accuracy * 100:.1f}%")
     print(f"Average Latency:          {avg_latency:.2f}s")

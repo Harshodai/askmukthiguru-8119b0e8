@@ -138,11 +138,14 @@ async def test_graph_stage_deep_pattern_not_force_fasted():
     mock_fast_graph.nodes = {"handle_distress_check": {}, "handle_distress": {}}
     mock_fast_graph.ainvoke.return_value = {"final_answer": "fast answered", "citations": [], "intent": "FACTUAL"}
 
+    mock_standard_graph = AsyncMock()
+    mock_standard_graph.ainvoke.return_value = {"final_answer": "standard answered", "citations": [], "intent": "FACTUAL"}
+
     mock_deep_graph = AsyncMock()
     mock_deep_graph.ainvoke.return_value = {"final_answer": "deep answered", "citations": [], "intent": "FACTUAL"}
 
     container.fast_graph = mock_fast_graph
-    container.standard_graph = mock_deep_graph
+    container.standard_graph = mock_standard_graph
     container.deep_graph = mock_deep_graph
 
     coordinator = PipelineCoordinator(container)
@@ -180,6 +183,7 @@ async def test_graph_stage_deep_pattern_not_force_fasted():
 
         assert mock_deep_graph.ainvoke.called
         assert not mock_fast_graph.ainvoke.called
+        assert not mock_standard_graph.ainvoke.called
 
 
 @pytest.mark.asyncio

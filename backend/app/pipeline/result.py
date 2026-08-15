@@ -186,6 +186,7 @@ class PipelineResult:
             live_logistics_events=self.live_logistics_events,
             answer_evidence=self.answer_evidence,
             guidance_plan=self.guidance_plan,
+            verification=self.verification,
         )
 
     def to_chat_response(self) -> dict[str, Any]:
@@ -212,6 +213,7 @@ class PipelineResult:
             "citations_verified": self.citations_verified,
             "orphan_citations_stripped": self.orphan_citations_stripped,
             "live_logistics_events": self.live_logistics_events,
+            "verification": self.verification,
             "answer_evidence": (
                 None if self.answer_evidence is None else asdict(self.answer_evidence)
             ),

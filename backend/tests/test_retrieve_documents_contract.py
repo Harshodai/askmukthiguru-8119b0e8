@@ -96,3 +96,90 @@ async def test_retrieve_documents_contract(monkeypatch):
     assert not any(doc["text"] == "LightRAG wisdom" for doc in res_complex["documents"])
     mock_lightrag.aquery.assert_not_awaited()
 
+
+@pytest.mark.asyncio
+async def test_retrieve_documents_kg_ontology_expansion_times_out(monkeypatch):
+    """A stalled Neo4j ontology-expansion session must not stall the whole node.
+
+    Regression for the unbounded `expand_query_with_ontology` await that sat
+    sequentially before retrieve_documents' async fan-out — under a slow/
+    contended Neo4j connection it had no ceiling. See
+    app/config.py:kg_ontology_expansion_timeout.
+    """
+    import asyncio
+
+    from app.config import settings
+
+    mock_embedder = MagicMock()
+    mock_embedder.encode_single_full.return_value = {
+        "dense": [0.1] * 1024,
+        "sparse": {"1": 0.5},
+    }
+    mock_embedder.encode_batch.return_value = {
+        "dense": [[0.1] * 1024],
+        "sparse": [{"1": 0.5}],
+    }
+    mock_embedder.instruction = "Given a spiritual teaching, retrieve relevant passages: "
+
+    mock_qdrant = MagicMock()
+    mock_qdrant.search = MagicMock(return_value=[
+        {"text": "Found document teaching", "source_url": "url1", "title": "doc1", "score": 0.9}
+    ])
+
+    mock_lightrag = MagicMock()
+    mock_lightrag.aquery = AsyncMock(return_value="")
+
+    import rag.nodes as nodes
+    monkeypatch.setattr(nodes, "_ollama", AsyncMock())
+    monkeypatch.setattr(nodes, "_embedder", mock_embedder)
+    monkeypatch.setattr(nodes, "_qdrant", mock_qdrant)
+    monkeypatch.setattr(nodes, "_lightrag", mock_lightrag)
+
+    monkeypatch.setattr(settings, "rag_okf_injection_enabled", False)
+    monkeypatch.setattr(settings, "semantic_cache_enabled", False)
+    monkeypatch.setattr(settings, "retrieval_score_delta_enabled", False)
+    # Tiny timeout so a "stalled" expansion call fails fast in the test.
+    monkeypatch.setattr(settings, "kg_ontology_expansion_timeout", 0.05)
+    monkeypatch.setattr(settings, "default_tenant_id", "default")
+    monkeypatch.setattr(settings, "default_corpus_id", "default")
+    # Not exercising the LLM query-expansion path here; keep the AsyncMock
+    # ollama stub unused so no coroutine is created without being awaited.
+    monkeypatch.setattr(settings, "rag_skip_retrieval_expansions", True)
+
+    calls = {"n": 0}
+
+    async def _hangs_forever(*args, **kwargs):
+        calls["n"] += 1
+        await asyncio.sleep(10)
+        return ["Dharma"]
+
+    monkeypatch.setattr("rag.kg_expansion.expand_query_with_ontology", _hangs_forever)
+
+    mock_container = MagicMock()
+    mock_container.neo4j_driver = object()  # non-None => expansion path is attempted
+    monkeypatch.setattr("app.dependencies.get_container", lambda: mock_container)
+
+    state = {
+        "question": "What is karma?",
+        "chat_history": [],
+        "rewritten_query": None,
+        "sub_queries": [],
+        "selected_clusters": [],
+        "hyde_text": None,
+        "intent": "FACTUAL",
+        "tenant_id": "default",
+        "corpus_id": "default",
+    }
+
+    started = asyncio.get_event_loop().time()
+    res = await asyncio.wait_for(nodes.retrieve_documents(state), timeout=5.0)
+    elapsed = asyncio.get_event_loop().time() - started
+
+    assert "error" not in res
+    assert any(doc["text"] == "Found document teaching" for doc in res["documents"])
+    # Must return roughly at the configured timeout, not the 10s hang.
+    assert elapsed < 2.0
+    # The expansion path was genuinely exercised (exactly once) — the fast
+    # return above is the timeout bounding it, not a path that skipped it.
+    assert calls["n"] == 1
+

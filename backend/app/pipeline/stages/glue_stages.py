@@ -8,6 +8,8 @@ warm-greeting list moved here from the coordinator (sole consumer).
 
 from __future__ import annotations
 
+import asyncio
+import functools
 import logging
 import random
 import re
@@ -339,15 +341,29 @@ class ResultAssemblyStage(Stage):
                         "response": ctx.result.final_answer or "",
                         "latency_ms": ctx.result.latency_ms,
                         "status": "error" if ctx.last_stage_status == "error" else "ok",
+                        # GDPR Art. 6/17 metadata. Consent receipt is None here:
+                        # the chat pipeline has no consent ledger association —
+                        # memory outbox receipts live in memory_outbox.py.
+                        "legal_basis": settings.compliance_legal_basis,
+                        "consent_receipt_id": None,
+                        "retention_days": settings.compliance_retention_days,
                     }
                     # The logger's API is synchronous file I/O. Offload it so
                     # the event loop is not blocked while the audit record is
                     # written, and keep the write best-effort.
+                    loop = asyncio.get_running_loop()
+                    audit_timeout = max(1.0, settings.memory_background_task_timeout_seconds - 2.0)
                     if hasattr(compliance_logger, "log_interaction_async"):
-                        await compliance_logger.log_interaction_async(**interaction_payload)
+                        await asyncio.wait_for(
+                            compliance_logger.log_interaction_async(**interaction_payload),
+                            timeout=audit_timeout,
+                        )
                     else:
-                        loop = asyncio.get_running_loop()
-                        await loop.run_in_executor(None, compliance_logger.log_interaction, **interaction_payload)
+                        sync_call = functools.partial(compliance_logger.log_interaction, **interaction_payload)
+                        await asyncio.wait_for(
+                            loop.run_in_executor(None, sync_call),
+                            timeout=audit_timeout,
+                        )
             except Exception as exc:
                 logger.debug("ComplianceLogger.log_interaction failed: %s", exc)
 

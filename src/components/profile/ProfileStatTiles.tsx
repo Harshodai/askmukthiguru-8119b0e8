@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Flame, Clock, Calendar, Wind } from 'lucide-react';
 import type { MeditationSession, MeditationStats } from '@/lib/meditationStorage';
 import { dailySeries } from '@/lib/meditationMetrics';
@@ -13,11 +14,12 @@ interface Props {
  * No chart library, semantic tokens only.
  */
 export const ProfileStatTiles = ({ stats, sessions }: Props) => {
+  const { t } = useTranslation();
   const tiles = [
-    { icon: Flame, label: 'Sessions', value: stats.totalSessions },
-    { icon: Clock, label: 'Minutes', value: stats.totalMinutes },
-    { icon: Calendar, label: 'Streak', value: `${stats.streakDays}d` },
-    { icon: Wind, label: 'Breaths', value: stats.totalCycles },
+    { icon: Flame, label: t('profileStatTiles.sessions'), value: stats.totalSessions },
+    { icon: Clock, label: t('profileStatTiles.minutes'), value: stats.totalMinutes },
+    { icon: Calendar, label: t('profileStatTiles.streak'), value: t('profileStatTiles.streakDays', { days: stats.streakDays }) },
+    { icon: Wind, label: t('profileStatTiles.breaths'), value: stats.totalCycles },
   ];
 
   // Same calculator the tiles/DB use — the caption total and the curve can't disagree.
@@ -77,10 +79,10 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
         <div className="flex items-baseline justify-between mb-3">
           <div>
             <p className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">
-              This week
+              {t('profileStatTiles.thisWeek')}
             </p>
             <p className="text-sm font-serif text-foreground mt-0.5">
-              {hasData ? `${weekMinutes} minutes over 7 days` : 'No practice this week'}
+              {hasData ? t('profileStatTiles.weekSummary', { minutes: weekMinutes }) : t('profileStatTiles.noPracticeThisWeek')}
             </p>
           </div>
         </div>

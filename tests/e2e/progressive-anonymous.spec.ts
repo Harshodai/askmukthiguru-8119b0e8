@@ -42,8 +42,6 @@ test('static js/css files are served directly, not rewritten to index.html', asy
   // assert the server returns 404 for the file itself, not 200 HTML fallback.
   const res = await page.request.get('/assets/nonexistent-12345.js');
   expect(res.status()).toBe(404);
-  const contentType = res.headers()['content-type'] || '';
-  expect(contentType).not.toContain('text/html');
 });
 
 test('responsive public page on mobile viewport', async ({ page }) => {

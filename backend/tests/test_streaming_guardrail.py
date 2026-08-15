@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from unittest.mock import MagicMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -64,6 +65,16 @@ def _make_container():
     container.coalescer = MagicMock()
     container.exact_cache = MagicMock()
     container.circuit_breaker_registry = MagicMock()
+    # anon_quota_service is set in __init__ (invisible to spec); the
+    # stream-orchestrator claims/releases quota after the done event, so bind
+    # awaitable check_and_record/claim/release explicitly.
+    quota_mock = MagicMock()
+    quota_mock.check_and_record = AsyncMock(
+        return_value=SimpleNamespace(quota_exceeded=False)
+    )
+    quota_mock.claim = AsyncMock()
+    quota_mock.release = AsyncMock()
+    container.anon_quota_service = quota_mock
     return container
 
 

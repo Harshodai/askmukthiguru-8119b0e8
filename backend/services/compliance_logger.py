@@ -26,6 +26,9 @@ Log record schema:
     "latency_ms": 789,           # Wall-clock ms
     "status": "ok|error",        # Outcome
     "error": "..."               # Only on status=error
+    "legal_basis": "consent",    # GDPR Art. 6 basis (optional)
+    "consent_receipt_id": "...", # Consent ledger receipt (optional)
+    "retention_days": 365        # Retention period (optional)
   }
 """
 
@@ -130,6 +133,9 @@ class ComplianceLogger:
         latency_ms: float = 0.0,
         status: str = "ok",
         error: Optional[str] = None,
+        legal_basis: Optional[str] = None,
+        consent_receipt_id: Optional[str] = None,
+        retention_days: Optional[int] = None,
     ) -> None:
         """Log a single completed LLM interaction."""
         combined_prompt = system_prompt + "\n" + user_prompt
@@ -149,6 +155,22 @@ class ComplianceLogger:
         }
         if error:
             record["error"] = error[:500]
+        # GDPR Art. 6/17 metadata — written only when the caller supplies it so
+        # existing call sites keep the historical schema unchanged.
+        if legal_basis:
+            record["legal_basis"] = legal_basis
+        if consent_receipt_id:
+            record["consent_receipt_id"] = consent_receipt_id
+        if retention_days is not None:
+            if (
+                isinstance(retention_days, bool)
+                or not isinstance(retention_days, int)
+                or retention_days < 0
+            ):
+                raise ValueError(
+                    f"retention_days must be a non-negative integer, got {retention_days!r}"
+                )
+            record["retention_days"] = retention_days
         self.write_record(record)
 
     def log_error(

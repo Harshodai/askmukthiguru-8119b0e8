@@ -197,6 +197,26 @@ class ChatRequestOrchestrator:
 # ── Job Queue Worker Factory ─────────────────────────────────────────────
 
 
+async def _release_anon_quota(container, user: dict, reservation_id: str | None) -> None:
+    """Give a queued job's quota reservation back when the job failed."""
+    if not reservation_id:
+        return
+    try:
+        await container.anon_quota_service.release(user, reservation_id)
+    except Exception as exc:
+        logger.debug(f"anon quota release failed (non-fatal): {exc}")
+
+
+async def _claim_anon_quota(container, user: dict, reservation_id: str | None) -> None:
+    """Commit a queued job's quota reservation when the job succeeded."""
+    if not reservation_id:
+        return
+    try:
+        await container.anon_quota_service.claim(user, reservation_id)
+    except Exception as exc:
+        logger.debug(f"anon quota claim failed (non-fatal): {exc}")
+
+
 async def queue_worker_factory(
     request_data: dict,
     is_stream: bool,
@@ -211,6 +231,9 @@ async def queue_worker_factory(
     container = get_container()
     user = request_data.get("user", {})
     chat_body = ChatRequest(**request_data.get("chat_body", {}))
+    # Reservation made atomically at the endpoint gate; committed on success
+    # (claim) and released when the job fails or is cancelled.
+    quota_reservation_id = request_data.get("quota_reservation_id")
 
     if is_stream:
         from app.stream_orchestrator import ChatStreamRequestOrchestrator
@@ -233,11 +256,18 @@ async def queue_worker_factory(
         )
         try:
             await pipeline_task
+            await drain_task
+            await _claim_anon_quota(container, user, quota_reservation_id)
         except Exception as _e:
             logger.error(f"Queue worker: job {job_id} stream pipeline failed: {_e}")
-            await drain_task
+            await _release_anon_quota(container, user, quota_reservation_id)
+            try:
+                await drain_task
+            except Exception:
+                # drain_task typically fails with the same root cause; suppress
+                # its exception so the original failure is what propagates.
+                logger.debug("Queue worker: drain task also failed for %s", job_id, exc_info=True)
             raise
-        await drain_task
         return {"job_id": job_id, "status": "streamed"}
 
     orch = ChatRequestOrchestrator(container)
@@ -249,11 +279,14 @@ async def queue_worker_factory(
         fake_bg = BackgroundTasks()
         response = await orch.orchestrate(fake_request, chat_body, fake_bg, user)
         await fake_bg()
+        await _claim_anon_quota(container, user, quota_reservation_id)
         return _response_to_dict(response)
     except HTTPException as exc:
+        await _release_anon_quota(container, user, quota_reservation_id)
         return {"error": exc.detail, "status_code": exc.status_code}
     except Exception as exc:
         logger.error(f"Queue worker: job {job_id} failed: {exc}")
+        await _release_anon_quota(container, user, quota_reservation_id)
         return {"error": str(exc)}
 
 
@@ -391,6 +424,7 @@ def _stream_done_metadata(result) -> dict:
         "answer_evidence": None if answer_evidence is None else asdict(answer_evidence),
         "guidance_plan": None if guidance_plan is None else asdict(guidance_plan),
         "grounding_state": grounding_state_for(result),
+        "verification": getattr(result, "verification", None),
     }
 
 

@@ -88,3 +88,45 @@ def test_checkpoint_key_isolated_by_corpus_and_source_version():
     assert release_one == "preethaji-approved:v1:same-content-hash"
     assert release_two == "preethaji-approved:v2:same-content-hash"
     assert release_one != release_two
+
+
+def test_checkpoint_json_isolated_by_tenant(tmp_path):
+    import json
+
+    checkpoint_file = tmp_path / "ingest_checkpoint.json"
+
+    with patch("redis.from_url", side_effect=Exception("Redis down")), \
+         patch("supabase.create_client", side_effect=Exception("Supabase down")):
+
+        default_ckpt = IngestionCheckpoint(filepath=str(checkpoint_file))
+        other_ckpt = IngestionCheckpoint(filepath=str(checkpoint_file))
+        other_ckpt.tenant_id = "teacher-a"
+
+        default_ckpt.save("chunk_xyz", {"timestamp": 1})
+        assert default_ckpt.is_processed("chunk_xyz") is True
+        # Same chunk id under another tenant must not collide.
+        assert other_ckpt.is_processed("chunk_xyz") is False
+
+        other_ckpt.save("chunk_xyz", {"timestamp": 2})
+        assert other_ckpt.is_processed("chunk_xyz") is True
+        assert default_ckpt.is_processed("chunk_xyz") is True
+
+        # File must contain both tenant-qualified entries, no unqualified key.
+        stored = json.loads(checkpoint_file.read_text())
+        assert f"tenant:{default_ckpt.tenant_id}:chunk_xyz" in stored
+        assert f"tenant:{other_ckpt.tenant_id}:chunk_xyz" in stored
+        assert "chunk_xyz" not in stored
+
+
+def test_checkpoint_json_migrates_legacy_unqualified_keys(tmp_path):
+    import json
+
+    checkpoint_file = tmp_path / "ingest_checkpoint.json"
+    checkpoint_file.write_text(json.dumps({"legacy-hash": {"timestamp": 1}}))
+
+    with patch("redis.from_url", side_effect=Exception("Redis down")), \
+         patch("supabase.create_client", side_effect=Exception("Supabase down")):
+
+        ckpt = IngestionCheckpoint(filepath=str(checkpoint_file))
+        assert ckpt.is_processed("legacy-hash") is True
+        assert ckpt.is_processed("unrelated-hash") is False

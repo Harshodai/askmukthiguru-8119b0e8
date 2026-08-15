@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import time
+import uuid
 from typing import TYPE_CHECKING
 
 from services.anon_quota_port import AnonQuotaPort, QuotaResult
@@ -16,6 +17,44 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Atomic prune + count + record for the sliding window. The prune, count,
+# add, TTL refresh and conditional rollback must run as one script, or
+# concurrent requests could both pass the limit and the compensating
+# rollback would leak events. A parallel hash tracks each reservation's
+# claim deadline: members whose deadline passed without a claim() (dropped
+# jobs, e.g. queue-TTL expiry) are reaped so they cannot burn a slot for
+# the rest of the window.
+_QUOTA_LUA = """
+local key = KEYS[1]
+local pending = KEYS[2]
+local member = ARGV[1]
+local now = tonumber(ARGV[2])
+local cutoff = tonumber(ARGV[3])
+local limit = tonumber(ARGV[4])
+local ttl_ms = tonumber(ARGV[5])
+local deadline = tonumber(ARGV[6])
+
+local members = redis.call('ZRANGE', key, 0, -1)
+for _, m in ipairs(members) do
+    local dl = redis.call('HGET', pending, m)
+    if dl and tonumber(dl) < now then
+        redis.call('ZREM', key, m)
+        redis.call('HDEL', pending, m)
+    end
+end
+
+redis.call('ZREMRANGEBYSCORE', key, 0, cutoff)
+local count = redis.call('ZCARD', key)
+if count >= limit then
+    return {0, count}
+end
+redis.call('ZADD', key, now, member)
+redis.call('HSET', pending, member, deadline)
+redis.call('PEXPIRE', key, ttl_ms)
+redis.call('PEXPIRE', pending, ttl_ms)
+return {1, count + 1}
+"""
+
 
 class AnonQuotaRedisAdapter(AnonQuotaPort):
     """Redis sorted-set sliding window for anonymous message quotas."""
@@ -24,46 +63,57 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
         self._redis = redis_client
 
     def _key(self, session_id: str) -> str:
-        return f"anon_quota:{session_id}"
+        # Shared {session_id} hash tag keeps quota + pending in one Redis
+        # Cluster slot so _QUOTA_LUA's two KEYS never hit CROSSSLOT. The
+        # anon_quota: / :main prefixes/suffixes are plain text outside the tag.
+        return f"anon_quota:{{{session_id}}}:main"
+
+    def _pending_key(self, session_id: str) -> str:
+        return f"anon_quota:{{{session_id}}}:pending"
 
     async def check_and_record(
         self,
         session_id: str,
         limit: int,
         window_seconds: float,
+        claim_ttl_seconds: float,
     ) -> QuotaResult:
         key = self._key(session_id)
+        pending = self._pending_key(session_id)
         now = time.time()
         cutoff = now - window_seconds
         ttl = int(window_seconds) + 1
+        member = str(uuid.uuid4())
+        deadline = now + claim_ttl_seconds
 
-        pipe = self._redis.pipeline()
-        pipe.zremrangebyscore(key, 0, cutoff)
-        pipe.zcard(key)
-        pipe.zadd(key, {str(now): now})
-        pipe.pexpire(key, ttl * 1000)
-        results = await pipe.execute()
-        # results: [pruned_count, current_count, added_count, expire_ok]
-        count_after_add = results[1] + results[2]
-        allowed = count_after_add <= limit
-
-        if not allowed:
-            # Roll back the recorded event so the request is not charged.
-            await self._redis.zrem(key, str(now))
-            # Recompute remaining without the rolled-back event.
-            count_after_add -= 1
-
+        allowed, count_after_add = await self._redis.eval(
+            _QUOTA_LUA,
+            2,
+            key,
+            pending,
+            member,
+            now,
+            cutoff,
+            limit,
+            ttl * 1000,
+            deadline,
+        )
+        allowed = bool(allowed)
         remaining = max(0, limit - count_after_add)
         retry_after: int | None = None
         if not allowed:
             oldest = await self._redis.zrange(key, 0, 0, withscores=True)
             if oldest:
                 retry_after = max(0, int(oldest[0][1] + window_seconds - now) + 1)
+        # reservation_id is the member added by the Lua script; only a slot
+        # that was actually reserved can be given back via release().
+        reservation_id = member if allowed else None
         return QuotaResult(
             allowed=allowed,
             remaining=remaining,
             total_limit=limit,
             retry_after_seconds=retry_after,
+            reservation_id=reservation_id,
         )
 
     async def inspect(
@@ -73,15 +123,35 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
         window_seconds: float,
     ) -> QuotaResult:
         key = self._key(session_id)
+        pending = self._pending_key(session_id)
         now = time.time()
         cutoff = now - window_seconds
         await self._redis.zremrangebyscore(key, 0, cutoff)
+        # Reap reservations whose claim deadline passed without a claim.
+        members = await self._redis.zrange(key, 0, -1)
+        if members:
+            deadlines = await self._redis.hmget(pending, *members)
+            for member, dl in zip(members, deadlines):
+                if dl and float(dl) < now:
+                    await self._redis.zrem(key, member)
+                    await self._redis.hdel(pending, member)
         count = await self._redis.zcard(key)
         remaining = max(0, limit - count)
         return QuotaResult(allowed=remaining > 0, remaining=remaining, total_limit=limit)
 
     async def reset(self, session_id: str) -> None:
-        await self._redis.delete(self._key(session_id))
+        await self._redis.delete(self._key(session_id), self._pending_key(session_id))
+
+    async def claim(self, session_id: str, reservation_id: str) -> None:
+        # Removing the pending marker commits the reservation: it stays in the
+        # window (counts against the limit) until it expires naturally.
+        await self._redis.hdel(self._pending_key(session_id), reservation_id)
+
+    async def release(self, session_id: str, reservation_id: str) -> None:
+        # Single-member removal needs no Lua script: ZREM is atomic and the
+        # member is only ever added/removed by quota operations.
+        await self._redis.zrem(self._key(session_id), reservation_id)
+        await self._redis.hdel(self._pending_key(session_id), reservation_id)
 
 
 if __name__ == "__main__":
@@ -105,8 +175,24 @@ if __name__ == "__main__":
         sid = "anon:test-redis"
         await adapter.reset(sid)
         for i in range(6):
-            res = await adapter.check_and_record(sid, 5, 1.0)
+            res = await adapter.check_and_record(sid, 5, 1.0, 30.0)
             assert (i < 5) == res.allowed, f"iteration {i}: {res}"
+        # Release returns the slot for a failed interaction.
+        await adapter.reset(sid)
+        reserved = await adapter.check_and_record(sid, 5, 1.0, 30.0)
+        assert reserved.reservation_id is not None
+        await adapter.release(sid, reserved.reservation_id)
+        assert (await adapter.inspect(sid, 5, 1.0)).remaining == 5
+        # A claim keeps the slot until natural window expiry.
+        claimed = await adapter.check_and_record(sid, 5, 1.0, 30.0)
+        await adapter.claim(sid, claimed.reservation_id)
+        assert (await adapter.inspect(sid, 5, 1.0)).remaining == 4
+        # An unclaimed reservation past its deadline is reaped.
+        await adapter.reset(sid)
+        dropped = await adapter.check_and_record(sid, 5, 1.0, 0.05)
+        assert dropped.reservation_id is not None
+        await asyncio.sleep(0.06)
+        assert (await adapter.inspect(sid, 5, 1.0)).remaining == 5
         await adapter.reset(sid)
         print("anon_quota_redis OK")
         await r.close()

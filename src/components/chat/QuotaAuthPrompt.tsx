@@ -16,7 +16,7 @@ export const QuotaAuthPrompt = ({ remaining, totalLimit }: { remaining?: number;
           Free message limit reached
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Sign in to continue the conversation{totalLimit ? ` (${remaining ?? 0} of ${totalLimit} used)` : ''}.
+          Sign in to continue the conversation{totalLimit !== undefined && remaining !== undefined ? ` (${totalLimit - remaining} of ${totalLimit} used)` : ''}.
         </p>
       </div>
       <Button

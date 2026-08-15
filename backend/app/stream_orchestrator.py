@@ -28,6 +28,7 @@ from app.telemetry_sink import SupabaseTelemetrySink
 from guardrails.lightweight_handler import _HARMFUL_PATTERNS
 from rag.memory import normalize_session_id
 from rag.nodes.generation import _clean_inline_citations
+from services.anon_quota_port import QuotaResult
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +65,14 @@ class ChatStreamRequestOrchestrator:
         chat_body: ChatRequest,
         background_tasks: BackgroundTasks,
         user: dict,
+        anon_quota: QuotaResult | None = None,
     ) -> StreamingResponse:
-        """Execute streaming conversation pipeline."""
+        """Execute streaming conversation pipeline.
+
+        ``anon_quota`` is the reservation made at the endpoint gate for
+        anonymous users; the stream keeps it when the pipeline completes and
+        releases it on failures, cancellations, and blocked responses.
+        """
         user_msg = chat_body.user_message.strip()
         preferred_lang = chat_body.language or "en"
         user_id = user.get("id", "anonymous") if user else "anonymous"
@@ -75,11 +82,15 @@ class ChatStreamRequestOrchestrator:
         is_benchmark = is_benchmark_request(request)
 
         if not user_msg:
+            # No pipeline work ran; give the admission reservation back.
+            await self._release_anon_quota(user, anon_quota)
             async def _empty():
                 yield "event: error\ndata: Message cannot be empty\n\n"
             return StreamingResponse(_empty(), media_type="text/event-stream")
 
         if len(user_msg) > settings.max_input_length:
+            # Message rejected before pipeline work; give the reservation back.
+            await self._release_anon_quota(user, anon_quota)
             msg = f"Message too long. Please keep it under {settings.max_input_length} characters."
             async def _too_long():
                 yield f"event: error\ndata: {msg}\n\n"
@@ -109,6 +120,7 @@ class ChatStreamRequestOrchestrator:
             _pending: str = ""  # buffered text not yet emitted to client
             _ttft_recorded = False
             _t0 = asyncio.get_event_loop().time()
+            completed = False
             try:
                 yield "event: status\ndata: Query received, starting pipeline…\n\n"
 
@@ -214,6 +226,7 @@ class ChatStreamRequestOrchestrator:
 
                 # Pipeline task completed
                 result = await pipeline_task
+                completed = True
             except asyncio.TimeoutError:
                 logger.error(f"Pipeline timeout for user {user_id}: message='{user_msg[:60]}...'")
                 yield "event: error\ndata: The Guru took too long to respond. Please try again.\n\n"
@@ -231,9 +244,16 @@ class ChatStreamRequestOrchestrator:
                         pass
                     except Exception as _e:
                         logger.debug("[stream cleanup] suppressed non-critical error: %s", _e)
+                if not completed:
+                    # Pipeline failed, timed out, or the client disconnected
+                    # before it finished — return the reserved slot.
+                    await self._release_anon_quota(user, anon_quota)
 
             # If blocked, emit only done
             if result.blocked:
+                # Blocked responses do not consume a quota slot (preserves the
+                # historical no-charge behavior for guardrail-blocked streams).
+                await self._release_anon_quota(user, anon_quota)
                 yield f"event: token\ndata: {result.final_answer}\n\n"
                 meta = json.dumps({
                     "blocked": True,
@@ -243,6 +263,12 @@ class ChatStreamRequestOrchestrator:
                 yield f"event: done\ndata: {meta}\n\n"
                 return
 
+            # Anonymous quota commit point: mark the reservation claimed so it
+            # counts against the window until natural expiry. The turn was
+            # reserved atomically at admission (check_and_record in the
+            # endpoint gate); failures and cancellations already released it
+            # in the finally block above. No-op for authenticated users.
+
             # Flush any buffered text held back by the pending safety buffer.
             # End-of-stream means no more chunks can complete a harmful pattern,
             # so the tail is safe to emit.
@@ -250,6 +276,8 @@ class ChatStreamRequestOrchestrator:
                 escaped = _pending.replace("\n", "\\n")
                 yield f"event: token\ndata: {escaped}\n\n"
                 _pending = ""
+
+            await self._claim_anon_quota(user, anon_quota)
 
             # Simulate streaming if no real-time tokens were received (e.g. cache hit)
             if tokens_streamed == 0:
@@ -271,6 +299,32 @@ class ChatStreamRequestOrchestrator:
                 )
 
         return StreamingResponse(_sse(), media_type="text/event-stream")
+
+    async def _claim_anon_quota(
+        self,
+        user: dict,
+        quota: QuotaResult | None,
+    ) -> None:
+        """Mark the anonymous-quota reservation committed (completed stream)."""
+        if quota is None or quota.reservation_id is None:
+            return
+        try:
+            await self.container.anon_quota_service.claim(user, quota.reservation_id)
+        except Exception as exc:
+            logger.debug(f"anon quota claim failed (non-fatal): {exc}")
+
+    async def _release_anon_quota(
+        self,
+        user: dict,
+        quota: QuotaResult | None,
+    ) -> None:
+        """Give the anonymous-quota reservation back (failed/cancelled/blocked)."""
+        if quota is None or quota.reservation_id is None:
+            return
+        try:
+            await self.container.anon_quota_service.release(user, quota.reservation_id)
+        except Exception as exc:
+            logger.debug(f"anon quota release failed (non-fatal): {exc}")
 
     async def _log_telemetry(
         self,

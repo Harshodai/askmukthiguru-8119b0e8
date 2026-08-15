@@ -25,6 +25,30 @@ class QueueFullError(Exception):
     pass
 
 
+# Atomic QUEUED -> CANCELLED transition + pending-list removal. A cancel that
+# races a worker's claim must either win cleanly (job never runs) or lose
+# cleanly (job already claimed) — never overwrite a newer status.
+_CANCEL_LUA = """
+local status = redis.call('HGET', KEYS[1], 'status')
+if status == ARGV[1] then
+    redis.call('HSET', KEYS[1], 'status', ARGV[2])
+    redis.call('LREM', KEYS[2], 1, ARGV[3])
+    return 1
+end
+return 0
+"""
+
+# Atomic QUEUED -> PROCESSING claim. Only one worker (or a cancel) wins the
+# transition; the loser skips the job instead of executing it twice.
+_CLAIM_LUA = """
+if redis.call('HGET', KEYS[1], 'status') == ARGV[1] then
+    redis.call('HSET', KEYS[1], 'status', ARGV[2], 'started_at', ARGV[3])
+    return 1
+end
+return 0
+"""
+
+
 class JobQueueService:
     """Bounded async queue with Redis-backed job storage.
 
@@ -194,13 +218,31 @@ class JobQueueService:
         meta = await r.hgetall(f"job:{job_id}:meta")
         if not meta:
             return False
-        status = meta.get("status", "")
-        if status == JobStatus.QUEUED.value:
-            await r.hset(f"job:{job_id}:meta", "status", JobStatus.CANCELLED.value)
-            await r.lrem("job_queue:pending", 1, job_id)
+        cancelled = await r.eval(
+            _CANCEL_LUA,
+            2,
+            f"job:{job_id}:meta",
+            "job_queue:pending",
+            JobStatus.QUEUED.value,
+            JobStatus.CANCELLED.value,
+            job_id,
+        )
+        if cancelled:
             logger.info(f"JobQueue: cancelled {job_id}")
-            return True
-        return False
+        else:
+            logger.debug("JobQueue: cancel skipped %s (no longer queued)", job_id)
+        return bool(cancelled)
+
+    async def get_request_data(self, job_id: str) -> dict:
+        """Return the raw request_data payload for a job, or {} if gone."""
+        r = await self._get_redis()
+        meta = await r.hgetall(f"job:{job_id}:meta")
+        if not meta:
+            return {}
+        try:
+            return json.loads(meta.get("request_data", "{}"))
+        except (json.JSONDecodeError, TypeError):
+            return {}
 
     async def _worker_loop(self, worker_factory: Callable, worker_id: int) -> None:
         while self._running:
@@ -253,10 +295,20 @@ class JobQueueService:
                 return
 
             is_stream = meta.get("is_stream", "0") == "1"
-            await r.hset(f"job:{job_id}:meta", mapping={
-                "status": JobStatus.PROCESSING.value,
-                "started_at": str(time.time()),
-            })
+            # Atomic QUEUED -> PROCESSING claim: the final authority on whether
+            # a cancel (or a competing worker) already took the job. A failed
+            # claim means the job must not run.
+            claimed = await r.eval(
+                _CLAIM_LUA,
+                1,
+                f"job:{job_id}:meta",
+                JobStatus.QUEUED.value,
+                JobStatus.PROCESSING.value,
+                str(time.time()),
+            )
+            if not claimed:
+                logger.debug("JobQueue worker %s: %s no longer queued — skipping", worker_id, job_id)
+                return
             request_data = json.loads(meta.get("request_data", "{}"))
             result = await worker_factory(request_data, is_stream, job_id)
             if not is_stream:

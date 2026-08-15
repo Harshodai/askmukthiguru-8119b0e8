@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -5,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.dependencies import get_container
 from app.main import app, get_current_user_from_supabase
+from app.services.job_queue import QueueFullError
 from services.auth_service import get_optional_user
 
 client = TestClient(app)
@@ -163,6 +165,24 @@ def mock_get_container():
     mock_supabase.table.side_effect = mock_table
     mock_container.supabase_client = mock_supabase
     mock_container.job_queue = None
+
+    # Mock anonymous quota: the endpoint gate reserves atomically at request
+    # time (check_and_record); failures release via reservation_id. AsyncMock
+    # attribute access yields plain MagicMock children, so bind the methods
+    # explicitly.
+    mock_quota = MagicMock()
+    quota_ok = SimpleNamespace(
+        quota_exceeded=False,
+        remaining=5,
+        total_limit=5,
+        retry_after_seconds=0,
+        reservation_id=None,
+    )
+    mock_quota.inspect = AsyncMock(return_value=quota_ok)
+    mock_quota.check_and_record = AsyncMock(return_value=quota_ok)
+    mock_quota.release = AsyncMock()
+    mock_quota.claim = AsyncMock()
+    mock_container.anon_quota_service = mock_quota
     return mock_container
 
 
@@ -319,6 +339,20 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
     mock_container.supabase_client = mock_supabase
     mock_container.job_queue = None
 
+    mock_quota = MagicMock()
+    quota_ok = SimpleNamespace(
+        quota_exceeded=False,
+        remaining=5,
+        total_limit=5,
+        retry_after_seconds=0,
+        reservation_id=None,
+    )
+    mock_quota.inspect = AsyncMock(return_value=quota_ok)
+    mock_quota.check_and_record = AsyncMock(return_value=quota_ok)
+    mock_quota.release = AsyncMock()
+    mock_quota.claim = AsyncMock()
+    mock_container.anon_quota_service = mock_quota
+
 
     # Temporarily override the container dependency
     app.dependency_overrides[get_container] = lambda: mock_container
@@ -340,6 +374,101 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
 
     # Restore original mock
     app.dependency_overrides[get_container] = mock_get_container
+
+
+def test_chat_endpoint_queue_full_releases_reservation():
+    """QueueFullError after the gate must return the reservation, not burn it."""
+    container = mock_get_container()
+
+    full_queue = MagicMock()
+    full_queue.enqueue = AsyncMock(side_effect=QueueFullError("queue full"))
+    container.job_queue = full_queue
+
+    mock_quota = MagicMock()
+    quota_ok = SimpleNamespace(
+        quota_exceeded=False,
+        remaining=5,
+        total_limit=5,
+        retry_after_seconds=0,
+        reservation_id="res-1",
+    )
+    mock_quota.check_and_record = AsyncMock(return_value=quota_ok)
+    mock_quota.inspect = AsyncMock(return_value=quota_ok)
+    mock_quota.release = AsyncMock()
+    mock_quota.claim = AsyncMock()
+    container.anon_quota_service = mock_quota
+
+    app.dependency_overrides[get_container] = lambda: container
+
+    try:
+        payload = {"user_message": "Hello", "session_id": "test-session", "messages": []}
+        response = client.post("/api/chat", json=payload)
+        assert response.status_code == 429
+        mock_quota.release.assert_awaited_once_with({"id": "test-user-id", "email": "test@example.com"}, "res-1")
+    finally:
+        app.dependency_overrides[get_container] = mock_get_container
+
+
+def test_stream_endpoint_queue_full_releases_reservation():
+    """Streaming endpoint QueueFullError must also return the reservation."""
+    container = mock_get_container()
+
+    full_queue = MagicMock()
+    full_queue.enqueue = AsyncMock(side_effect=QueueFullError("queue full"))
+    container.job_queue = full_queue
+
+    mock_quota = MagicMock()
+    quota_ok = SimpleNamespace(
+        quota_exceeded=False,
+        remaining=5,
+        total_limit=5,
+        retry_after_seconds=0,
+        reservation_id="res-2",
+    )
+    mock_quota.check_and_record = AsyncMock(return_value=quota_ok)
+    mock_quota.inspect = AsyncMock(return_value=quota_ok)
+    mock_quota.release = AsyncMock()
+    mock_quota.claim = AsyncMock()
+    container.anon_quota_service = mock_quota
+
+    app.dependency_overrides[get_container] = lambda: container
+
+    try:
+        payload = {"user_message": "Hello", "session_id": "test-session", "messages": []}
+        response = client.post("/api/chat/stream", json=payload)
+        assert response.status_code == 429
+        mock_quota.release.assert_awaited_once_with({"id": "test-user-id", "email": "test@example.com"}, "res-2")
+    finally:
+        app.dependency_overrides[get_container] = mock_get_container
+
+
+def test_stream_endpoint_empty_message_releases_reservation():
+    """An inline-stream empty message must return the reservation (no pipeline)."""
+    container = mock_get_container()
+
+    mock_quota = MagicMock()
+    quota_ok = SimpleNamespace(
+        quota_exceeded=False,
+        remaining=5,
+        total_limit=5,
+        retry_after_seconds=0,
+        reservation_id="res-3",
+    )
+    mock_quota.check_and_record = AsyncMock(return_value=quota_ok)
+    mock_quota.inspect = AsyncMock(return_value=quota_ok)
+    mock_quota.release = AsyncMock()
+    mock_quota.claim = AsyncMock()
+    container.anon_quota_service = mock_quota
+
+    app.dependency_overrides[get_container] = lambda: container
+
+    try:
+        payload = {"user_message": "   ", "session_id": "test-session", "messages": []}
+        response = client.post("/api/chat/stream", json=payload)
+        assert response.status_code == 200
+        mock_quota.release.assert_awaited_once_with({"id": "test-user-id", "email": "test@example.com"}, "res-3")
+    finally:
+        app.dependency_overrides[get_container] = mock_get_container
 
 
 def test_chat_endpoint_unauthorized_conversation_owner():

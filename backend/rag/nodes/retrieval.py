@@ -920,6 +920,12 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         return contract_err
 
     query_tier = state.get("query_tier", "standard")
+    # Canonical deep tier: select_graph_for_query / graph_stage use "deep"
+    # while the in-graph intent_router emits "tier4_deep". Normalize once so
+    # every downstream check (depth, escalation, compression) agrees on one
+    # value.
+    if query_tier == "tier4_deep":
+        query_tier = "deep"
     intent = state.get("intent", "FACTUAL")
     scope = CorpusScope(
         tenant_id=state.get("tenant_id") or TenantContext.get() or settings.default_tenant_id,
@@ -968,10 +974,19 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         from app.dependencies import get_container
         _neo4j = getattr(get_container(), "neo4j_driver", None)
         if _neo4j is not None and scope.tenant_id == settings.default_tenant_id and scope.corpus_id == settings.default_corpus_id:
-            neighbors = await expand_query_with_ontology(base_question, _neo4j)
+            # Bounded: this call sits sequentially before the retrieval fan-out
+            # (asyncio.gather below), so an unbounded/degraded Neo4j session
+            # would stall the whole node. It already fails open (returns []),
+            # so a timeout is a pure latency guard, not a behavior change.
+            neighbors = await asyncio.wait_for(
+                expand_query_with_ontology(base_question, _neo4j),
+                timeout=getattr(settings, "kg_ontology_expansion_timeout", 3.0),
+            )
             if neighbors:
                 base_question = augment_query(base_question, neighbors)
                 logger.info(f"KG ontology expansion: +{len(neighbors)} neighbor(s)")
+    except asyncio.TimeoutError:
+        logger.warning("KG ontology expansion timed out; continuing without neighbor terms")
     except Exception as _kg_err:
         logger.debug(f"KG ontology expansion skipped: {_kg_err}")
     sub_queries = state.get("sub_queries", [base_question]) or [base_question]
@@ -1317,7 +1332,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # to web search if the context is still thin. Non-fatal on every failure.
     if (
         state.get("low_confidence_retrieval")
-        and state.get("query_tier") in ("standard", "tier3_complex", "tier4_deep")
+        and query_tier in ("standard", "tier3_complex", "deep")
         and not deep_research_done
     ):
         try:
@@ -1341,7 +1356,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         # because they rely on LITM/BM25/deep-research breadth. Fast/simple tiers
         # benefit from a tighter focus. Preserve at least the top 3 and up to a
         # score-threshold fraction of the retrieved set.
-        if query_tier in ("tier4_deep", "tier3_complex"):
+        if query_tier in ("deep", "tier3_complex"):
             max_compress_k = max(5, len(all_docs) // 2)
         elif query_tier in ("fast", "tier2_simple"):
             max_compress_k = 3

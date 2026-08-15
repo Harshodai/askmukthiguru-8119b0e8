@@ -64,12 +64,52 @@ def _anon_quota_response(quota: "QuotaResult") -> JSONResponse:
 async def _enforce_anon_quota(
     user: dict,
     container: ServiceContainer,
-) -> JSONResponse | None:
-    """Return a 429 response if the anonymous session has no quota left."""
-    quota = await container.anon_quota_service.check_and_record(user)
-    if quota.quota_exceeded:
-        return _anon_quota_response(quota)
-    return None
+) -> QuotaResult:
+    """Reserve one anonymous turn atomically at admission.
+
+    The reservation is recorded immediately (sliding-window check_and_record),
+    so concurrent requests cannot overshoot the limit. Callers return
+    ``_anon_quota_response(quota)`` when ``quota.quota_exceeded``. A completed
+    interaction keeps its reservation (commit via ``_charge_anon_quota``);
+    failed or cancelled interactions return it via ``_release_anon_quota``.
+    No-op for authenticated users and disabled quotas — the service records
+    nothing and returns an allowed result.
+    """
+    return await container.anon_quota_service.check_and_record(user)
+
+
+async def _charge_anon_quota(
+    user: dict,
+    container: ServiceContainer,
+    quota: QuotaResult | None = None,
+) -> None:
+    """Commit the admission-time reservation.
+
+    The turn was recorded atomically by ``_enforce_anon_quota`` at admission;
+    this marks the reservation claimed so it counts against the window until
+    natural expiry. Failures and cancellations release it via
+    ``_release_anon_quota`` instead.
+    """
+    if quota is None or quota.reservation_id is None:
+        return
+    try:
+        await container.anon_quota_service.claim(user, quota.reservation_id)
+    except Exception as exc:
+        logger.debug(f"anon quota claim failed (non-fatal): {exc}")
+
+
+async def _release_anon_quota(
+    user: dict,
+    container: ServiceContainer,
+    quota: QuotaResult | None,
+) -> None:
+    """Give the reserved slot back when the interaction failed/cancelled."""
+    if quota is None or quota.reservation_id is None:
+        return
+    try:
+        await container.anon_quota_service.release(user, quota.reservation_id)
+    except Exception as exc:
+        logger.debug(f"anon quota release failed (non-fatal): {exc}")
 
 # P1-OPS-8: upstream backpressure for chat. A single replica can be
 # overwhelmed by concurrent chat requests; the LLM circuit breaker only
@@ -318,23 +358,43 @@ async def chat_endpoint(
 
     user = resolve_anon_identity(user, chat_body.session_id)
 
-    quota_response = await _enforce_anon_quota(user, container)
-    if quota_response:
-        return quota_response
+    quota = await _enforce_anon_quota(user, container)
+    if quota.quota_exceeded:
+        return _anon_quota_response(quota)
 
-    await populate_server_side_history(chat_body, user, container, is_benchmark)
+    try:
+        await populate_server_side_history(chat_body, user, container, is_benchmark)
+    except Exception:
+        # History population is optional enrichment; a failure here must not
+        # leak the quota reservation taken at admission.
+        await _release_anon_quota(user, container, quota)
+        raise
 
     if container.job_queue and settings.queue_enabled and not is_benchmark and not chat_body.incognito:
         from app.services.job_queue import QueueFullError
 
         chat_body_dict = chat_body.model_dump()
-        user_dict = {"id": user.get("id", "anonymous")} if user else {"id": "anonymous"}
-        request_data = {"chat_body": chat_body_dict, "user": user_dict, "is_benchmark": False}
+        user_dict = (
+            {"id": user.get("id", "anonymous"), "is_anonymous": bool(user.get("is_anonymous"))}
+            if user
+            else {"id": "anonymous", "is_anonymous": False}
+        )
+        request_data = {
+            "chat_body": chat_body_dict,
+            "user": user_dict,
+            "is_benchmark": False,
+            # Lets the queued worker release the reservation when the job
+            # fails; a successful job keeps it (commit on completion).
+            "quota_reservation_id": quota.reservation_id,
+        }
         try:
             job_id, queue_pos = await container.job_queue.enqueue(
                 request_data, user.get("id", "anonymous"), is_stream=False
             )
         except QueueFullError:
+            # The reservation was recorded at admission; give it back since
+            # the interaction never entered the queue.
+            await _release_anon_quota(user, container, quota)
             return JSONResponse(
                 status_code=429,
                 content={"error": "Too Many Requests", "detail": "Server is busy. Please try again shortly."},
@@ -365,7 +425,13 @@ async def chat_endpoint(
     from app.orchestrator import ChatRequestOrchestrator
 
     orchestrator = ChatRequestOrchestrator(container)
-    return await orchestrator.orchestrate(request, chat_body, background_tasks, user)
+    try:
+        response = await orchestrator.orchestrate(request, chat_body, background_tasks, user)
+    except Exception:
+        await _release_anon_quota(user, container, quota)
+        raise
+    await _charge_anon_quota(user, container, quota)
+    return response
 
 
 @router.post("/chat/v2")
@@ -390,16 +456,32 @@ async def chat_v2_endpoint(
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
     is_benchmark = is_benchmark_request(request)
     user = resolve_anon_identity(user, chat_body.session_id)
-    await populate_server_side_history(chat_body, user, container, is_benchmark)
+
+    quota = await _enforce_anon_quota(user, container)
+    if quota.quota_exceeded:
+        return _anon_quota_response(quota)
+
+    try:
+        await populate_server_side_history(chat_body, user, container, is_benchmark)
+    except Exception:
+        # History population is optional enrichment; a failure here must not
+        # leak the quota reservation taken at admission.
+        await _release_anon_quota(user, container, quota)
+        raise
 
     from app.chat_engine import ChatEngine
 
     engine = ChatEngine(container)
-    result = await engine.chat_advanced(
-        chat_body,
-        user=user or {"id": "anonymous"},
-        is_benchmark=is_benchmark,
-    )
+    try:
+        result = await engine.chat_advanced(
+            chat_body,
+            user=user or {"id": "anonymous"},
+            is_benchmark=is_benchmark,
+        )
+    except Exception:
+        await _release_anon_quota(user, container, quota)
+        raise
+    await _charge_anon_quota(user, container, quota)
     return ChatResponse(
         response=result.final_answer,
         intent=result.intent,
@@ -460,23 +542,43 @@ async def chat_stream_endpoint(
 
     user = resolve_anon_identity(user, chat_body.session_id)
 
-    quota_response = await _enforce_anon_quota(user, container)
-    if quota_response:
-        return quota_response
+    quota = await _enforce_anon_quota(user, container)
+    if quota.quota_exceeded:
+        return _anon_quota_response(quota)
 
-    await populate_server_side_history(chat_body, user, container, is_benchmark)
+    try:
+        await populate_server_side_history(chat_body, user, container, is_benchmark)
+    except Exception:
+        # History population is optional enrichment; a failure here must not
+        # leak the quota reservation taken at admission.
+        await _release_anon_quota(user, container, quota)
+        raise
 
     if container.job_queue and settings.queue_enabled and not is_benchmark and not chat_body.incognito:
         from app.services.job_queue import QueueFullError
 
         chat_body_dict = chat_body.model_dump()
-        user_dict = {"id": user.get("id", "anonymous")} if user else {"id": "anonymous"}
-        request_data = {"chat_body": chat_body_dict, "user": user_dict, "is_benchmark": False}
+        user_dict = (
+            {"id": user.get("id", "anonymous"), "is_anonymous": bool(user.get("is_anonymous"))}
+            if user
+            else {"id": "anonymous", "is_anonymous": False}
+        )
+        request_data = {
+            "chat_body": chat_body_dict,
+            "user": user_dict,
+            "is_benchmark": False,
+            # Lets the queued worker release the reservation when the job
+            # fails; a successful job keeps it (commit on completion).
+            "quota_reservation_id": quota.reservation_id,
+        }
         try:
             job_id, queue_pos = await container.job_queue.enqueue(
                 request_data, user.get("id", "anonymous"), is_stream=True
             )
         except QueueFullError:
+            # The reservation was recorded at admission; give it back since
+            # the interaction never entered the queue.
+            await _release_anon_quota(user, container, quota)
             return JSONResponse(
                 status_code=429,
                 content={"error": "Too Many Requests", "detail": "Server is busy. Please try again shortly."},
@@ -496,7 +598,9 @@ async def chat_stream_endpoint(
     from app.stream_orchestrator import ChatStreamRequestOrchestrator
 
     orchestrator = ChatStreamRequestOrchestrator(container)
-    return await orchestrator.orchestrate_stream(request, chat_body, background_tasks, user)
+    return await orchestrator.orchestrate_stream(
+        request, chat_body, background_tasks, user, anon_quota=quota
+    )
 
 
 @router.get("/chat/stream/{job_id}")

@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 /**
@@ -26,25 +27,25 @@ interface LevelConfig {
   containerClass: string;
   /** Pulsing dot color. */
   dotClass: string;
-  /** Empathetic copy shown to the seeker. */
-  text: string;
+  /** i18n key for the empathetic copy shown to the seeker. */
+  textKey: string;
 }
 
 const LEVEL_CONFIG: Record<Exclude<DistressLevel, 'none'>, LevelConfig> = {
   low: {
     containerClass: 'bg-[#D4A574]/10 border-[#D4A574]/30',
     dotClass: 'bg-[#D4A574]',
-    text: 'I sense some unease. Would you like to talk?',
+    textKey: 'distressIndicator.low',
   },
   moderate: {
     containerClass: 'bg-[#D4A574]/15 border-[#D4A574]/40',
     dotClass: 'bg-[#C9A96E]',
-    text: 'You seem distressed. Can I help with a calming practice?',
+    textKey: 'distressIndicator.moderate',
   },
   high: {
     containerClass: 'bg-[#C47065]/12 border-[#C47065]/40',
     dotClass: 'bg-[#C47065]',
-    text: "I'm here for you. Would you like to try a breathing exercise?",
+    textKey: 'distressIndicator.high',
   },
 };
 
@@ -62,9 +63,10 @@ const LEVEL_CONFIG: Record<Exclude<DistressLevel, 'none'>, LevelConfig> = {
 export function DistressIndicator({
   level,
   onOfferHelp,
-  ctaLabel = 'Yes',
+  ctaLabel,
   className,
 }: DistressIndicatorProps) {
+  const { t } = useTranslation();
   const handleOfferHelp = useCallback(() => {
     onOfferHelp();
   }, [onOfferHelp]);
@@ -94,14 +96,14 @@ export function DistressIndicator({
         aria-hidden
       />
       <p className="text-sm text-[#2C2420] dark:text-[#F0EBE3] flex-1 leading-relaxed">
-        {config.text}
+        {t(config.textKey)}
       </p>
       <button
         type="button"
         onClick={handleOfferHelp}
         className="px-4 py-2 bg-sacred-sand dark:bg-[#2C2420] rounded-full text-sm font-medium text-[#2C2420] dark:text-[#F0EBE3] shadow-sm hover:shadow-md transition-shadow flex-shrink-0"
       >
-        {ctaLabel}
+        {ctaLabel ?? t('distressIndicator.yes')}
       </button>
     </div>
   );

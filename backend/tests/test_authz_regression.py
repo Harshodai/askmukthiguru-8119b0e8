@@ -44,6 +44,7 @@ def _mock_container(job_owner: str | None):
     job = {"user_id": job_owner, "id": "job1"} if job_owner is not None else None
     container.job_queue.get_job = AsyncMock(return_value=job)
     container.job_queue.cancel_job = AsyncMock(return_value=True)
+    container.job_queue.get_request_data = AsyncMock(return_value={})
     return container
 
 

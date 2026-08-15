@@ -234,7 +234,7 @@ class SupabaseTelemetrySink:
         from app.telemetry_db import PIIScrubber
 
         scrubbed = dict(payload_dict)
-        for key in ("query_text", "response_text"):
+        for key in ("query_text", "response_text", "judge_reasoning"):
             value = scrubbed.get(key)
             if value:
                 scrubbed[key] = PIIScrubber.scrub(value)

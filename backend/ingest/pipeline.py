@@ -1052,9 +1052,9 @@ class IngestionPipeline:
 
         raw_text = result["text"]
 
-        # Enrich metadata for cached transcripts lacking a title
-        method = result.get("method", "")
-        if method.startswith("pre_extracted_") and not result.get("title"):
+        # Enrich metadata for transcripts lacking a title or speaker, regardless
+        # of whether they came from a caption source or the Tier-4 audio fallback.
+        if not result.get("title") or not result.get("speaker"):
             self._notify(on_progress, "Extracting video metadata...", 0.15)
             enriched = extract_video_metadata(raw_text, video_id, metadata_enrichment=True)
             if enriched.get("title"):

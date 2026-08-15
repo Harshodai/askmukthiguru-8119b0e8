@@ -478,6 +478,10 @@ class Settings(BaseSettings):
     anon_session_hmac_secret: Optional[str] = None
     supabase_jwt_audience: str = "authenticated"
     benchmark_secret: Optional[str] = None
+    # Benchmarks (ragas_eval.py) default their live --endpoint to this value
+    # instead of reading the env directly, so the endpoint is validated the same
+    # way as every other settings-sourced URL.
+    benchmark_endpoint: str = "http://localhost:8000"
     # P1-SEC-1 (T4): Defense-in-depth admin allowlist. Comma-separated admin
     # user UUIDs. When non-empty, an AAL2 superuser MUST also be in this list
     # to reach admin/ingest/kg admin endpoints. Empty (default) = not enforced
@@ -507,9 +511,14 @@ class Settings(BaseSettings):
     registration_rate_limit: str = "5/minute"
     # --- Anonymous Quota (Progressive Auth) ---
     # Max user turns allowed per anonymous session within the window.
-    anon_quota_messages: int = 5
-    anon_quota_window_hours: float = 24.0
+    anon_quota_messages: int = Field(default=5, gt=0)
+    anon_quota_window_hours: float = Field(default=24.0, gt=0)
     anon_quota_enabled: bool = True
+    # --- Compliance audit trail (Unit 24) ---
+    # Legal basis recorded on each compliance_audit NDJSON record (GDPR Art. 6)
+    # and the retention period advertised to downstream data-retention tooling.
+    compliance_legal_basis: str = "consent"
+    compliance_retention_days: int = 365
     # Early-access collection remains off until its migration and privacy copy are deployed.
     waitlist_enabled: bool = False
     google_sso_enabled: bool = True
@@ -699,7 +708,6 @@ class Settings(BaseSettings):
     proactive_serene_mind_enabled: bool = True
     proactive_distress_avg_threshold: float = 1.5  # Minimum average distress to consider
     proactive_distress_trend_threshold: float = 0.5  # Minimum escalation rate
-    proactive_distress_frequency_threshold: float = 0.6  # Minimum frequency of moderate+
     proactive_min_conversation_points: int = 3  # Minimum data points needed
 
     # --- Proactive Healing Course Assignment (Task 10) ---
@@ -735,6 +743,11 @@ class Settings(BaseSettings):
     # extraction at query time — cap tightly to prevent single-query 30s hangs.
     # For tier2_simple queries, graph_stage.py skips LightRAG entirely.
     lightrag_retrieval_timeout: int = 30  # raised from 3 — KG now has 2,200+ relations, needs 15-25s for real graph traversals
+    # Bound on kg_expansion.expand_query_with_ontology's Neo4j session.run() calls
+    # (one per matched concept, no upstream timeout previously) — this call sits
+    # sequentially before retrieve_documents' async fan-out, so a stalled/contended
+    # Neo4j connection blocked the entire retrieval node with no ceiling.
+    kg_ontology_expansion_timeout: float = Field(default=3.0, gt=0.0)
     # Per-query graph traversal enabled — LightRAG now holds 2,200+ relations
     # (well above the original 1,000-edge threshold). Each RELATIONAL/FACTUAL/QUERY
     # uses LightRAG for graph context alongside Qdrant vector search.

@@ -518,14 +518,19 @@ class LightRAGService:
             # Check for common initialization error and retry once
             if "JsonDocStatusStorage not initialized" in str(e):
                 logger.warning("LightRAG storage not initialized, retrying...")
-                await self.rag.initialize_storages()
-                result = await self.rag.aquery(
-                    query, param=QueryParam(mode=mode, only_need_context=only_need_context)
-                )
-                with self._cache_lock:
-                    self._query_cache[cache_key] = result
-                self._circuit.record_success()
-                return result
+                try:
+                    await self.rag.initialize_storages()
+                    result = await self.rag.aquery(
+                        query, param=QueryParam(mode=mode, only_need_context=only_need_context)
+                    )
+                    with self._cache_lock:
+                        self._query_cache[cache_key] = result
+                    self._circuit.record_success()
+                    return result
+                except Exception as retry_err:
+                    logger.error(f"LightRAG retry query failed: {retry_err}")
+                    self._circuit.record_failure()
+                    return ""
             logger.error(f"LightRAG query failed: {e}")
             self._circuit.record_failure()
             return ""

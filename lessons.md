@@ -1,3 +1,74 @@
+## Aug 15, 2026 — Code-Review Remediation Sprint (quota atomicity, guardrail ordering, checkpoint writes)
+
+### L-REV-13. Queue status transitions need compare-and-set; keyed benchmark clients validate the endpoint
+- **What**: `cancel_job` read-then-wrote status (a racing worker claim could be overwritten by a late cancel) and the worker claimed via read + `hset`, so a cancel could land between the two; the live benchmark sent the X-Test-Key backdoor secret to any endpoint; the quota Redis keys lacked a Cluster hash tag (two KEYS in one Lua script = CROSSSLOT on a cluster); `_result`'s annotation still described the pre-claim 2-tuple.
+- **Fix applied**: Redis Lua CAS for `QUEUED→CANCELLED` (`_CANCEL_LUA`: status guard + pending-list `LREM` in one script) and `QUEUED→PROCESSING` (`_CLAIM_LUA`: one worker wins, the loser skips — a cancellation can never be overwritten by a stale claim). `benchmarks/ragas_eval.py` + `scripts/eval/run_ragas_eval.py` validate the endpoint (loopback, or https for any host carrying a key) and run with `follow_redirects=False`; `--endpoint`/`--test-key` defaults now come from `settings.benchmark_endpoint` / `settings.benchmark_secret or settings.jwt_secret` instead of raw env reads. Redis quota keys share a `{session_id}` hash tag (`anon_quota:{sid}:main` / `anon_quota:{sid}:pending`) so `_QUOTA_LUA`'s two KEYS stay in one slot. Where a reservation is already held, release it before re-awaiting cleanup tasks, and suppress the cleanup task's exception so the original failure propagates.
+- **How to prevent**: Multi-writer status fields move through CAS (Lua `HGET` guard or WATCH/MULTI), never read-then-write. A credential-carrying client validates scheme + host and refuses redirects before first use. Redis keys consumed together in one script share a hash tag. Cleanup awaits happen after (not before) releasing held resources.
+
+### L-REV-12. Resources handed to TTL-owned queues need their own claim deadline, not metadata-coupling
+- **What**: A queued job dropped by queue-TTL expiry loses `quota_reservation_id` with the expired `job:{id}:meta`, so `JobQueueService` can never release the reservation — the slot burned until the 24h window expired.
+- **Fix applied**: Reservations carry their own deadline in the quota layer, decoupled from job metadata. `AnonQuotaPort.check_and_record` now takes `claim_ttl_seconds` (service default `queue_job_ttl` + 300s, floor 900s) and there is a new `AnonQuotaPort.claim(session_id, reservation_id)` — a claim commits the slot (counts until natural window expiry); an unclaimed reservation past its deadline is reaped by later quota operations (Redis `anon_quota:pending:{session_id}` hash reaped in `_QUOTA_LUA`/`inspect`; memory `(ts, rid, deadline)` tuples with a full-scan reap — head-only is wrong when a committed head sits in front of an expired member). Success paths claim explicitly: `_charge_anon_quota` (chat.py), the stream commit point, and both `queue_worker_factory` success branches.
+- **How to prevent**: When a resource (reservation, lock, lease) crosses into a queue whose metadata has its own TTL, never couple release to that metadata — give the resource its own deadline in its own store and reap lazily. Claim explicitly on success; everything unclaimed past deadline is garbage.
+
+### L-REV-7. Anonymous quota is an atomic reservation, not a completion charge
+- **What**: The inspect-gate + charge-on-completion model let concurrent in-flight requests overshoot the limit.
+- **Fix applied**: `check_and_record()` runs at admission (endpoint gate) and enforces 429 immediately; a completed interaction commits the reservation via the explicit `AnonQuotaPort.claim(session_id, reservation_id)` (not a no-op — see L-REV-12 for the claim deadline); failed/cancelled/guardrail-blocked interactions release it via `AnonQuotaPort.release(session_id, reservation_id)`. `QuotaResult` gained an optional `reservation_id` token so release removes exactly the right member (Redis ZREM / memory deque removal) instead of popping the latest.
+- **How to prevent**: Quota is a reservation taken at admission and claimed-on-success or released-on-failure; never charge-after-the-fact for work that may never run.
+
+### L-REV-8. Reservation tokens must cross the job-queue boundary
+- **What**: Queued (202) jobs are executed by `queue_worker_factory`, which can't see the endpoint's quota result.
+- **Fix applied**: The endpoint puts `quota_reservation_id` into the enqueue `request_data` payload; the worker releases it on failure (stream + inline + HTTPException paths) and keeps it on success. Never re-call `check_and_record` in the worker — that would double-count the reservation.
+- **How to prevent**: Any token minted at the gate that a background worker must act on travels in the job payload; the worker releases, it never re-checks.
+
+### L-REV-9. Stream quota commit point: after the blocked branch, before the done event
+- **What**: The old charge sat AFTER the `event: done` yield, so a client disconnect at the done yield could skip it.
+- **Fix applied**: Under the reservation model the commit is implicit; the release sites are the `completed` flag in `_sse`'s finally (pipeline failed/timed out/cancelled) and the blocked branch (guardrail-blocked streams stay uncharged, preserving historical behavior). A `completed = True` right after `result = await pipeline_task` gates whether the finally releases.
+- **How to prevent**: Place completion markers before the last yield and gate the finally's release on them, so a disconnect at the final event can't skip the accounting.
+
+### L-REV-10. `retention_days` on the compliance log must be validated, not echoed
+- **What**: The GDPR metadata field was written unvalidated.
+- **Fix applied**: Guard accepts only `int >= 0` (explicitly rejects `bool`, which is an int subclass), raises `ValueError` otherwise, and keeps omitting the key when `None` so historical call sites keep the old schema.
+- **How to prevent**: Validate numeric metadata at the boundary and reject `bool` explicitly; `None` means "absent", never a value.
+
+### L-REV-11. SearXNG base-URL validation: access `parsed.port` and classify IP literals with `ipaddress`
+- **What**: `urlparse(...).port` raises `ValueError` for non-numeric ports on access, so it was never actually accessed; non-loopback IPv6 literals (no dots) slipped past a `"." in host` check.
+- **Fix applied**: Access `parsed.port` (plus a 1–65535 range check). For the non-https case, classify hosts with `ipaddress.ip_address(host).is_loopback` instead of a hardcoded tuple, so non-loopback IPv6 literals are rejected; single-label hostnames (localhost, docker-internal `searxng`) remain allowed over http.
+- **How to prevent**: Touch lazy-raise properties (`parsed.port`) inside the validation, and use `ipaddress` for literal classification rather than string-dot heuristics.
+
+### L-REV-1. Quota gates must inspect, never consume; charge only on completed work
+> **Superseded (Aug 15, 2026)** — the inspect-only gate was replaced by the
+> admission-reservation model: `check_and_record()` runs at the gate, the
+> success path explicitly `claim()`s, and failed/cancelled work `release()`s
+> (see L-REV-7, L-REV-8, L-REV-12). Kept as provenance for why gates 429 early.
+- **What**: `chat.py` charged the anonymous quota at the request gate (`check_and_record` before `job_queue.enqueue`), so queued-202, wait-timeout-504, and QueueFull-429 requests burned quota for work that never produced a response.
+- **Fix applied**: Gate is now `inspect()`-only; `_charge_anon_quota` runs after inline pipeline success, and the queued worker (`stream_orchestrator._sse` / queue worker) charges on job completion. `is_anonymous` is carried in the enqueue payload so the worker knows when to charge.
+- **How to prevent**: Charge-for-work is a completion event, not an admission event. Gates return 429s; only the success path records.
+
+### L-REV-2. Redis sliding-window quota needs one Lua script, not pipeline + compensating ZREM
+- **What**: prune/count/add/TTL ran as a pipeline followed by a compensating `zrem` rollback when over limit — not atomic; concurrent requests could both pass the limit and rollbacks leaked events.
+- **Fix applied**: `_QUOTA_LUA` (anon_quota_redis.py) does prune → ZCARD → ZADD → PEXPIRE → conditional ZREM in one `eval`, returning `{allowed, count_after_add}`. Validated under 20-way concurrency (limit 3 → exactly 3 members).
+- **How to prevent**: Any check-then-record against Redis that must not overshoot its limit is a single Lua script; never a pipeline plus a compensating delete.
+
+### L-REV-3. Guardrail classification order: hard blocks first, allowlists after
+- **What**: `lightweight_handler.py` computed allowlist/knowledge-trap hits before the blocked-topic check, and the blocked-topic loop was gated behind `if not (allowlist_hit or knowledge_trap_hit)` — a blocked topic matching an allowlist term slipped through as a wellness redirect.
+- **Fix applied**: `_BLOCKED_TOPICS` runs first, unconditionally; the dead allowlist flags were removed. Emotional-wellness redirect (pinned by `test_allowlist_emotional_wellness.py`) still runs after harmful patterns.
+- **How to prevent**: Hard-safety filters are evaluated before any soft classification (allowlist, wellness, knowledge-trap); nothing can bypass a block by also matching a softer pattern.
+
+### L-REV-4. Ingest checkpoint file writes: atomic replace + lock; persist legacy-key rewrites
+- **What**: `checkpoint.py` rewrote legacy `tenant:` keys in memory only (migration was ephemeral), and `save()` did read-modify-write with `write_text` — lost updates under concurrent instances and corruptible on crash.
+- **Fix applied**: Module-level `_FILE_LOCK` around load-merge-write; `_atomic_write` (temp file + `os.replace`); `_persist_qualified_keys` writes the qualified form to disk once after load.
+- **How to prevent**: File-backed state with multiple writers gets a lock + atomic rename; migrations that rewrite keys persist the rewrite, not just the in-memory view.
+
+### L-REV-5. Canonicalize query tiers at one point; membership checks must agree
+- **What**: `select_graph_for_query` mapped `tier4_deep` → `deep`, but `retrieval.py` checked `("deep","tier3_complex")` in one branch and `("standard","tier3_complex","tier4_deep")` in another — two names for the deep tier, one branch unreachable.
+- **Fix applied**: `retrieval.py:922` normalizes `tier4_deep` → `deep` once; downstream checks use the normalized value. `test_graph_stage_fixes.py` (pins `query_tier == "standard"`) still passes.
+- **How to prevent**: Pick one canonical enum value per tier and normalize at the graph-boundary; audit all membership checks for the same string set.
+
+### L-REV-6. TDD plan docs drift from shipped code — annotate, don't rewrite
+- **What**: `docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md` described a port/response-shape/UI that diverged from what shipped (`IQuotaRepository` vs `AnonQuotaPort`, `ChatResponse.blocked` vs 429 JSONResponse, `public/locales` vs `src/locales`, `useRequireAuth` mode vs `useOptionalAuth`).
+- **Fix applied**: Added "Shipped note" blocks and corrected test-sketch names inline rather than rewriting the document; `handoff.md` Task #41 marked CLOSED (`6ede2bce`) at every contradictory site.
+- **How to prevent**: When a plan's design is superseded, annotate the plan at the point of divergence with the shipped reality; keep historical plans intact as provenance.
+
 ## Aug 15, 2026 — Progressive Anonymous Access + Quota Domain
 
 ### L-PAA-1. Layout shells must encode auth policy explicitly, not assume all pages need auth

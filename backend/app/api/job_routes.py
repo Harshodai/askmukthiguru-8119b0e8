@@ -62,4 +62,15 @@ async def cancel_job(
     cancelled = await container.job_queue.cancel_job(job_id)
     if not cancelled:
         raise HTTPException(status_code=404, detail="Job not found or already processing")
+    # A cancelled chat job never reaches the worker, so its anonymous-quota
+    # reservation (made at the endpoint gate) must be returned here.
+    request_data = await container.job_queue.get_request_data(job_id)
+    reservation_id = request_data.get("quota_reservation_id")
+    if reservation_id:
+        try:
+            await container.anon_quota_service.release(
+                request_data.get("user", {}), reservation_id
+            )
+        except Exception as exc:
+            logger.warning(f"anon quota release on job cancel failed (non-fatal): {exc}")
     return {"status": "cancelled", "job_id": job_id}

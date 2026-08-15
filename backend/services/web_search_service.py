@@ -23,6 +23,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
 import re
 from typing import Any, Optional
@@ -140,6 +141,39 @@ class SearXNGProvider(SearchProvider):
     """Search via self-hosted SearXNG instance."""
 
     def __init__(self, base_url: str) -> None:
+        # SSRF guardrail at construction (mirrors the credential-carrying
+        # client pattern in services/gateways/sarvam_http.py::_validate_base_url):
+        # only http(s) schemes are accepted, a hostname is required, and plain
+        # http is tolerated only for loopback (local dev) and single-label
+        # docker-internal hostnames (the compose default is
+        # "http://searxng:8080"). Public hosts must use https.
+        parsed = urlparse(base_url)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            raise ValueError(
+                f"Invalid SearXNG base URL (must be an http(s) URL with a host): {base_url!r}"
+            )
+        # Accessing parsed.port raises ValueError for non-numeric ports; an
+        # explicit range check also rejects out-of-range values that urlparse
+        # would otherwise accept.
+        port = parsed.port
+        if port is not None and not (1 <= port <= 65535):
+            raise ValueError(
+                f"Invalid SearXNG base URL (port must be 1-65535): {base_url!r}"
+            )
+        if parsed.scheme != "https":
+            host = parsed.hostname
+            try:
+                # IP literals (incl. IPv6): only loopback addresses may use
+                # plain http. Non-loopback literals are rejected outright.
+                host_is_local = ipaddress.ip_address(host).is_loopback
+            except ValueError:
+                # Hostname: single-label names (localhost, docker-internal
+                # service names) are local; public multi-label hosts need https.
+                host_is_local = "." not in host
+            if not host_is_local:
+                raise ValueError(
+                    f"SearXNG base URL must use https for non-local host {host!r}: {base_url!r}"
+                )
         self.base_url = base_url.rstrip("/")
 
     async def search(self, query: str, max_results: int) -> list[dict]:
