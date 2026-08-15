@@ -18,7 +18,7 @@ def grounding_state_for(result: Any) -> GroundingState:
         return "safety_redirect"
 
     intent = str(getattr(result, "intent", "") or "").upper()
-    if intent in {"CRISIS", "SAFETY", "SELF_HARM", "DISTRESS_SAFETY"}:
+    if intent in {"DISTRESS", "SAFETY_VIOLATION", "CRISIS", "SAFETY", "SELF_HARM", "DISTRESS_SAFETY"}:
         return "safety_redirect"
 
     evidence = getattr(result, "answer_evidence", None)

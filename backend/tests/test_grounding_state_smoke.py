@@ -44,6 +44,15 @@ class GroundingStateSmokeTests(unittest.TestCase):
         self.assertEqual(grounding_state_for(blocked), 'safety_redirect')
         self.assertEqual(grounding_state_for(crisis), 'safety_redirect')
 
+    def test_real_distress_and_safety_violation_intents_are_safety_redirects(self):
+        """rag/nodes/intent.py only ever sets intent='DISTRESS' or 'SAFETY_VIOLATION' --
+        never 'CRISIS'/'SAFETY'/'SELF_HARM'. A crisis-helpline response must not
+        fall through to the evidence-based grounded/abstained branch."""
+        distress = SimpleNamespace(blocked=False, intent='DISTRESS', citations=[])
+        safety_violation = SimpleNamespace(blocked=False, intent='SAFETY_VIOLATION', citations=[])
+        self.assertEqual(grounding_state_for(distress), 'safety_redirect')
+        self.assertEqual(grounding_state_for(safety_violation), 'safety_redirect')
+
 
 if __name__ == '__main__':
     unittest.main()
