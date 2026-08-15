@@ -286,9 +286,9 @@ export default function QueriesPage() {
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-1">
                         <span className="tabular-nums text-xs font-mono">{fmtMs(q.latency_ms)}</span>
-                        {(q as ChatQuery & { spans?: TraceSpan[] }).spans?.length ? (
+                        {((q as ChatQuery & { spans?: TraceSpan[] }).spans?.length ?? 0) > 0 && (
                           <div className="flex h-1.5 w-24 rounded-full overflow-hidden bg-muted">
-                            {q.spans.map((span, index) => {
+                            {((q as ChatQuery & { spans?: TraceSpan[] }).spans ?? []).map((span, index) => {
                               const colors: Record<string, string> = {
                                 guardrails_in: "bg-slate-400",
                                 embed: "bg-sky-400",
