@@ -26,7 +26,7 @@ import { useVisitContext } from '@/hooks/useVisitContext';
 import { useTranslation } from 'react-i18next';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
-import { MoodBanner } from '@/components/mood/MoodBanner';
+
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
@@ -1852,8 +1852,6 @@ return (
       {/* Global chat error banner */}
       <ChatErrorBanner onRetry={handleRegenerate} />
 
-      {/* Mood check-in banner */}
-      <MoodBanner />
 
       {/* Messages Area — this is the scroll container */}
       <div
@@ -1874,7 +1872,7 @@ return (
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="text-[26px] sm:text-4xl font-serif text-foreground/95 tracking-tight leading-tight"
+                  className="text-[22px] sm:text-[30px] font-serif font-normal text-foreground/90 tracking-tight leading-snug text-balance"
                 >
                   {buildGreeting(selected?.slug, profile.displayName ?? '', greetingContext)}
                 </motion.h2>
@@ -1882,7 +1880,7 @@ return (
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
-                  className="mt-3 text-sm sm:text-base text-muted-foreground/75 leading-relaxed max-w-md mx-auto font-serif italic"
+                  className="mt-2 text-[13px] sm:text-sm text-muted-foreground/65 leading-relaxed max-w-sm mx-auto font-serif italic"
                 >
                   {buildGreetingSubline(greetingContext)}
                 </motion.p>
@@ -1891,13 +1889,9 @@ return (
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.18 }}
-                className="w-full px-4"
+                className="mt-4 w-full"
               >
-                <TeacherGuidancePanel
-                  assistantName={selected?.name}
-                  language={currentLanguage}
-                  onLanguageChange={handleLanguageChange}
-                />
+                <TeacherGuidancePanel assistantName={selected?.name} />
               </motion.div>
               </div>
 
@@ -1985,7 +1979,7 @@ return (
                   className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-ojas transition-colors underline-offset-4 hover:underline"
                 >
                   <BookOpen className="w-3 h-3" />
-                  New here? Read The Seeker's Guide to AI-Guided Meditation
+                  {t('chat.seekersGuideLink', "New here? Read The Seeker's Guide to AI-Guided Meditation")}
                 </Link>
               </motion.div>
 

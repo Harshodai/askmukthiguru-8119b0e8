@@ -213,6 +213,36 @@ export const getMeditationStatsFromDb = async (): Promise<MeditationStats> => {
 };
 
 /**
+ * DB-backed normalized sessions for authenticated users (used by the
+ * activity chart). Falls back to local sessions when signed out or the
+ * query fails, so anonymous and authenticated seekers both get a chart.
+ */
+export const getMeditationSessionsFromDb = async (): Promise<NormalizedSession[]> => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return loadMeditationSessions().map(toNormalized);
+
+    const { data, error } = await supabase
+      .from('meditation_sessions')
+      .select('duration_seconds, breath_cycles, completed, completed_at, started_at')
+      .eq('user_id', session.user.id)
+      .order('completed_at', { ascending: false })
+      .limit(500);
+
+    if (error || !data) return loadMeditationSessions().map(toNormalized);
+
+    return data.map((s) => ({
+      at: new Date((s.completed_at ?? s.started_at) as string),
+      durationSeconds: s.duration_seconds ?? 0,
+      breathCycles: s.breath_cycles ?? 0,
+      completed: s.completed ?? false,
+    }));
+  } catch {
+    return loadMeditationSessions().map(toNormalized);
+  }
+};
+
+/**
  * Clear all meditation data
  */
 export const clearMeditationData = (): void => {
