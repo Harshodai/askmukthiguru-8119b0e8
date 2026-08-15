@@ -101,6 +101,8 @@ export interface AIResponse {
   guidancePlan?: GuidancePlan | null;
   answerEvidence?: AnswerEvidence | null;
   groundingState?: GroundingState;
+  /** Seconds the client should wait before retrying (429 responses). */
+  retryAfterSeconds?: number;
 }
 
 /** Shape of the proactive Serene Mind trigger object returned by the backend */

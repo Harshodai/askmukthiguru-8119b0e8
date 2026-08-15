@@ -286,7 +286,7 @@ export default function QueriesPage() {
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-1">
                         <span className="tabular-nums text-xs font-mono">{fmtMs(q.latency_ms)}</span>
-                        {q.spans && q.spans.length > 0 && (
+                        {(q as ChatQuery & { spans?: TraceSpan[] }).spans?.length ? (
                           <div className="flex h-1.5 w-24 rounded-full overflow-hidden bg-muted">
                             {q.spans.map((span, index) => {
                               const colors: Record<string, string> = {

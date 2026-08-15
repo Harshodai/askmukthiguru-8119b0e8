@@ -4,7 +4,7 @@ const enabled = (value: unknown, fallback = true): boolean => {
   return !['0', 'false', 'off', 'no'].includes(String(value).trim().toLowerCase());
 };
 
-const env = typeof import.meta !== 'undefined' ? import.meta.env : {};
+const env = (typeof import.meta !== 'undefined' ? import.meta.env : {}) as Record<string, unknown>;
 
 export const FEATURE_FLAGS = Object.freeze({
   wisdomTips: enabled(env?.VITE_ENABLE_WISDOM_TIPS, true),
