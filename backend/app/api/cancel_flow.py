@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.config import settings
 from app.core.limiter import limiter
-from services.auth_service import get_current_user_from_supabase
+from services.auth_service import get_current_user_from_supabase, require_aal2
 
 logger = logging.getLogger(__name__)
 
@@ -593,12 +593,19 @@ async def reactivate_account(
 
 
 def _require_admin_or_dev(user: dict) -> None:
-    """Admin-only in production; any authenticated user in dev (matches admin.py pattern)."""
+    """Admin-only in production; any authenticated user in dev (matches admin.py pattern).
+
+    Callers must additionally depend on `require_aal2` so MFA step-up is enforced
+    for cross-user analytics, matching /api/admin/*, /api/retention/curve, /api/kg/*.
+    """
     uid = user.get("id")
     if not uid or uid == "anonymous":
         raise HTTPException(status_code=401, detail="Authentication required.")
     if settings.is_production and not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
+    allowlist = getattr(settings, "admin_user_ids_list", None) or []
+    if allowlist and uid not in allowlist:
+        raise HTTPException(status_code=403, detail="Admin access required (not allowlisted)")
 
 
 def _load_churn_metrics_from_db(request: Request) -> ChurnMetrics:
@@ -670,7 +677,7 @@ def _load_churn_metrics_from_db(request: Request) -> ChurnMetrics:
 @limiter.limit("30/minute")
 async def churn_metrics_snapshot(
     request: Request,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(require_aal2),
 ) -> dict[str, Any]:
     """Admin-only snapshot of churn-prevention effectiveness vs benchmark targets.
 
