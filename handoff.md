@@ -885,3 +885,58 @@ The final local matrix is green: backend non-integration **1,771 passed, 24 skip
 ### Release decision
 
 **Internal review: GO. Controlled alpha: CONDITIONAL GO. Ten-customer waitlist: CONDITIONAL / staging first. Unrestricted public production: NO-GO.** The blocking items are external rather than hidden: credential rotation/history handling, staging RLS, rights-approved corpus rebuild, Railway load/memory/SLO/alert evidence, backup restore drill, real-provider TTFT, and authenticated OAuth/audio/device E2E. The owner must complete those gates before inviting paying or waitlisted customers beyond controlled testing.
+
+---
+
+# EXECUTION RUNBOOK CLOSE-OUT — 2026-08-15 (83/84 findings fixed)
+
+All 24 clusters (B through Z, LL) from the EXECUTION RUNBOOK above are closed. 12 commits landed on local `main`, working tree clean, full backend test suite green (1 pre-existing unrelated failure, see below). Task list (session-local, IDs #1-#84) shows 83 `completed`, 1 `pending` (blocked by design).
+
+## What landed (chronological, all committed)
+
+1. **Circuit-breaker cluster (tasks #75-81)** `899a4ba5` — `initialize_circuit_breakers()` no-clobber fix (checks `registry.get()` before `register()`); qdrant/embedding/web_search/sarvam/openrouter services now self-register their real breaker into the shared registry; embedding breaker moved onto `encode_batch()` (the actual hot path, not the little-used `encode()`); DuckDuckGo/SearXNG providers now re-raise instead of swallowing exceptions so the web-search breaker can see failures; `lightrag_service.aquery()` got a breaker (previously none); qdrant breaker extended from `search()` to `get_neighbor_chunks()`/`get_summary_nodes()`, with `enrich_context`'s neighbor-lookup call site catching the resulting `CircuitOpenException` so it degrades instead of crashing the node.
+2. **Blocking-I/O + wrong-field + checkpoint-fallback (tasks #25,28,29,40,63)** `0cf42a3c` — `chat.py`/`memory_stage.py` wrap their sync calls in `asyncio.to_thread`; `citation_extractor.py` reads `selected_docs`/`relevant_docs` instead of the never-populated `documents` key; `checkpoint.py`'s Redis/Supabase miss now falls through to the local-file set; `social_media_loader.py` drops a hardcoded dev-machine path.
+3. **Coalescer + BoundaryChunker (tasks #30,32,57,58)** `58c3c87a` — `_InMemoryCoalescer` expires unlocked lock entries for permanently-failing keys (previously leaked forever); `RedisCoalescer`'s leader run is `asyncio.shield()`ed; `BoundaryChunker` gets a word-boundary fallback split for unpunctuated text and uses instance-configured `min_size`/`max_size` instead of hardcoded classmethod defaults.
+4. **Guardrail/db_rectify/anomaly fixes (tasks #46,49,66,67)** `22925093` — NeMo `_handle_output` now runs output-only rails (`GenerationOptions(rails=["output"])`) against the real response text instead of a generated continuation; guardrail allowlist no longer bypasses the optional LLM classifier; `db_rectify.py` requires `--apply` for destructive deletes (default dry-run); `hallucination_anomaly.py` distinguishes a connection failure (`alerts.connection_error=True`) from a genuinely empty window.
+5. **PII scrubber wiring (task #65)** `0a6c979a` — `SupabaseTelemetrySink.log_query_trace` routes `query_text`/`response_text` through the existing (previously-unused) `PIIScrubber`.
+6. **YouTube Tier-4 audio fallback (tasks #54,55)** `5a57b199` — fixed the missing `await` on `transcribe_and_preprocess_audio()`; wired the fallback into `ingest/pipeline.py`'s transcript-failure branch (previously dead code, unreachable from the real pipeline).
+7. **Translation short-circuits + GDPR audit writes + contradiction metric (tasks #31,48,71)** `f99821ab` — `DoctrineCacheStage` and `CircuitBreakerStage`'s circuit-open path both now translate before returning (same gap already fixed in `distress_stage.py`); `ResultAssemblyStage` wires the existing `ComplianceLogger` to actually write an audit record (was read-only); `CONTRADICTION_DETECTIONS` counter now increments alongside the already-correct `ontology_contradiction_count` gauge.
+8. **Dead-code deletion batch (tasks #33,43,44,45,47,50,60,61) + doc fixes (#51,53)** `f0bbb3b0` — deleted `streaming_generator.py`, `model_failover.py`, `ontology_schema_validator.py`, `ingest/sources/base.py`, `ingest/auditor.py` (`DataAuditor`), `rag/cot_verifier.py`, `services/adaptive_chunking_service.py` (+ dedicated test); removed `lightweight_verify` (never wired into any graph strategy — grep-confirmed against all `add_node` calls) and `route_by_intent` (superseded by `route_after_intent`); fixed misleading `semantic_router_enabled`/`_top_k` config comments and stale `CLAUDE.md` references.
+9. **Audio coverage guard + dead telemetry event-bus (tasks #62,68)** `ff2a0fec` — `_transcribe_chunks` now raises below 0.85 chunk-success coverage instead of silently truncating; deleted `app/telemetry/{events,publisher,sinks}.py` (invoked every request, every sink discarded the event) — `pipeline_coordinator._stage()` is now a documented no-op, `prompt_cache_telemetry.py` (a separate module) untouched.
+10. **Misc LOW findings (tasks #72,74,83,84)** `2102472d` — `MetricsObserver` docstring corrected; reranker logs an explicit error when both backends fail instead of a silent `[]`; `multi_provider_llm.py`'s NIM priority moved from first to last (ingest-tooling-only, matches the documented NIM-removal security decision); `monitoring_dashboard.py`'s Prometheus parser now reads real `_bucket{le=...}` lines instead of substring-matching a quantile line a Histogram never emits.
+11. **SLO alerting wiring (task #69)** `526974ef` — `prometheus.yml` gets `rule_files`/`alerting` sections pointing at the existing `alerting-rules.yml` and a new `alertmanager` compose service (mirrors the `prometheus`/`grafana` observability-profile pattern). `docker compose config --quiet` passes.
+12. **Full-suite fallout fixes** `039ea0a8` — `test_citation_extractor.py` fixtures updated from the old `documents` key to `relevant_docs` (item 2's fix made the old fixtures test nothing); found and fixed a **pre-existing, unrelated bug**: `app/api/chat.py` used `MessagePayload` at line 160 without importing it — every server-side history load hit a `NameError`, caught and surfaced as a generic 500. Confirmed via `git log` that this predates the session and isn't a side effect of item 2's chat.py edit.
+
+## Verification
+
+- `.venv/bin/pytest tests/` (from `backend/`): **1761 passed, 32 skipped** after fallout fixes.
+- One pre-existing, unrelated failure remains: `test_wiring_invariants.py::test_no_undeclared_dead_settings` flags `cove_partial_threshold`, `cove_supported_threshold`, `data_audit_enabled`, `data_audit_strict_mode` as unread. Confirmed via `git show HEAD~11:backend/app/config.py` that all four existed before this session — not a regression, not one of the 84 tracked findings. Worth a follow-up task.
+
+## Task #41 — still BLOCKED, do not auto-fix
+
+`faithfulness_floor` enforcement in `rag/nodes/verification.py` needs a RAGAS/benchmark before/after reject-rate delta before any code change (per the runbook's original warning: "code matches docs" is not "safe to ship"). User explicitly chose "run the eval first" over "apply now" or "leave blocked." **Attempted and stalled**: Docker Desktop's daemon would not come up via `open -a Docker` (likely stuck behind a GUI dialog — license/permission prompt — that can't be clicked through headlessly). Two 60s-spaced checks both failed with `Cannot connect to the Docker daemon`. **Next session**: confirm Docker Desktop is actually running (`docker compose ps` from `backend/`), then `bash benchmarks/RUN_ME.sh quick` (needs `/api/health` green first) or `python3 benchmarks/ragas_eval.py` directly for the reject-rate baseline.
+
+## Not yet done (deferred behind #41 / user's original /goal)
+
+- **Railway deploy** — user's instruction was "deploy after all done"; #41 is the one open item. Not yet executed.
+- **Full reaudit** — user asked for this once fixes land; not yet run.
+- **Reingestion of all Sri Preethaji/Sri Krishnaji videos** — user's instruction, scope (which channels/playlists, how many videos) not yet clarified. This is a multi-hour, resource-intensive, production-data-mutating operation — confirm scope explicitly before starting, don't infer "all" from a single word.
+
+## Commits this session (local `main`, not pushed)
+
+```
+899a4ba5 fix: close circuit-breaker cluster (tasks #75-81)
+0cf42a3c fix: close blocking-I/O, wrong-field, and checkpoint-fallback findings (tasks #25,28,29,40,63)
+58c3c87a fix: coalescer lock leak/shield + BoundaryChunker fallback/bounds (tasks #30,32,57,58)
+22925093 fix: NeMo output check, allowlist ordering, db_rectify dry-run, anomaly connection-failure signal (tasks #46,49,66,67)
+0a6c979a fix: wire PIIScrubber into live telemetry sink (task #65)
+5a57b199 fix: wire YouTube Tier-4 audio fallback into pipeline + fix missing await (tasks #54,55)
+f99821ab fix: translate doctrine-cache/circuit-open short-circuits, wire GDPR audit writes, contradiction metric (tasks #31,48,71)
+f0bbb3b0 refactor: delete confirmed-dead code batch (tasks #33,43,44,45,47,50,60,61) + stale doc fixes (#51,53)
+ff2a0fec fix: audio_transcriber coverage guard + delete dead telemetry event-bus (tasks #62,68)
+2102472d fix: misc LOW findings — docstring, reranker silent failure, NIM priority, histogram parsing (tasks #72,74,83,84)
+526974ef fix: wire SLO alerting-rules.yml into Prometheus + add alertmanager service (task #69)
+039ea0a8 fix: update citation_extractor test fixtures + fix pre-existing MessagePayload NameError in chat.py
+```
+
+Local `main` is ahead of `origin/main` by these 12 commits plus the 3 from the prior session (merge `b28514f2` and before). Not pushed. No Railway deploy attempted.

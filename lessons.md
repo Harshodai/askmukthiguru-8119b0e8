@@ -6790,3 +6790,87 @@ the request contract and enforce it before every memory, cache, coalescing,
 queue, telemetry, history, and background-work boundary. Keep safety, abuse
 protection, and content-free reliability/cost controls active, and disclose that
 inference providers still receive the active request when generation is needed.
+
+### L-HARDEN-31 — A circuit breaker's registry entry and its enforcement object must be the same instance
+
+Adding `self._circuit = DefaultCircuitBreaker(...)` inside a service's
+`__init__` protects that service's own calls, but an admin dashboard/reset
+endpoint reading from a separate global registry sees nothing real unless the
+service also calls `registry.register(provider, self._circuit)` at
+construction time. A startup routine that unconditionally re-registers
+default breakers for every known provider will then silently overwrite the
+real, already-registered object with a phantom that never sees traffic —
+guard that overwrite with `if registry.get(provider) is None` so
+already-registered real breakers win over the initializer's defaults, not the
+other way around. Status always read healthy and reset always reported
+success while doing nothing, because the object being inspected was never
+the object doing the work.
+
+### L-HARDEN-32 — An exception swallowed one layer down makes the protection above it fictional
+
+Wrapping a call in `try: ... except Exception: return []` inside a provider
+implementation defeats any circuit breaker sitting in the caller, no matter
+how correctly that breaker is wired — `record_failure()` never fires because
+the exception never reaches it, and a string of real outages reads as a
+string of empty-but-successful calls. When adding resilience wrapping to an
+existing call chain, trace all the way to the actual I/O and confirm nothing
+between there and the breaker call already catches the failure; a breaker
+added around a call that swallows its own errors is a strictly cosmetic
+diff, and the same check applies to a Prometheus counter, a retry loop, or
+any other failure-count-based mechanism layered on top of a exception path.
+
+### L-HARDEN-33 — Every short-circuit stage must independently repeat what the normal-path stages do
+
+A staged pipeline where `TranslationStage` (or any cross-cutting stage) runs
+once in the middle of the ordered chain protects only requests that reach it.
+A fast-path stage placed earlier in the chain (cache hit, circuit-open
+fallback, distress preemption) that returns its own terminal result bypasses
+every stage after it, including translation — silently. This class of bug
+recurred three separate times in the same session (distress preemption,
+doctrine-cache hit, circuit-open fallback) because each fast path was added
+independently without re-deriving "what does the normal path also do before
+it returns." When adding a new early-return branch to a staged pipeline,
+explicitly list every cross-cutting stage downstream of the insertion point
+and decide for each one whether the fast path needs to replicate it, rather
+than assuming the fast path inherits behavior it structurally cannot reach.
+
+### L-HARDEN-34 — A field-name bug fix isn't verified until its dedicated test is checked against the fix, not just re-run
+
+`extract_citations` reading `state["documents"]` instead of the actually-
+populated `state["relevant_docs"]` was a real bug — but its dedicated test
+file built fixtures using `"documents"` too, so the test exercised the same
+wrong field the code read and passed cleanly both before and after a naive
+fix verification pass ("tests still green"). Only the one test asserting a
+*non-empty* result caught the mismatch; three sibling tests expecting empty
+results passed by coincidence regardless of which field was read. A test
+suite that agrees with a bug is not evidence the bug doesn't exist — after
+fixing a wrong-field/wrong-key class of bug, read the test fixtures
+themselves, not just their pass/fail status, since a fixture encoding the
+same wrong key will validate nothing.
+
+### L-HARDEN-35 — A "dead" function's own test file can also cover a live one
+
+Before deleting `lightweight_verify` (confirmed dead via grep against every
+`graph.add_node()` call across all three graph strategies), its dedicated
+test file's own import line pulled in a second function,
+`route_after_intent`, that a later test in the same file exercises and that
+*is* live. Deleting the whole file on the "solely for the dead function"
+assumption would have destroyed real coverage. Before removing a test file
+alongside a dead-code deletion, grep the file's own imports and test names
+for anything beyond the target — a file's name and its docstring both
+implied single-purpose, but the actual import list was the only reliable
+signal.
+
+### L-HARDEN-36 — Run the full test suite after a large edit series, not just the tests near each edit
+
+Eleven consecutive fix batches were each verified with `pytest -k <topic>`
+scoped to the touched area — a reasonable per-commit check, but it never
+exercised `app/api/chat.py`'s server-side history load path, which had used
+`MessagePayload` without importing it since before this session started. A
+full, unscoped suite run at the very end surfaced this pre-existing 500-on-
+every-history-load bug in about two minutes, alongside a citation-extractor
+fixture staleness from this session's own field-name fix. Scoped test runs
+during a long edit series are the right default for cost, but they only
+cover blast radius the editor already predicted; a full suite run before
+declaring a large remediation pass complete catches what scoped runs
+structurally cannot — including bugs the session didn't introduce.
