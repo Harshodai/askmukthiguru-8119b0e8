@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
+import type { ChatQuery, TraceSpan } from "@/admin/types";
 import { useQueries, usePromptVersions, useModels } from "@/admin/hooks/useAdminData";
 import { fmtDateTime, fmtMs, truncate } from "@/admin/lib/formatters";
 import { TraceDrawer } from "@/admin/components/TraceDrawer";
