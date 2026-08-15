@@ -1852,8 +1852,6 @@ return (
       {/* Global chat error banner */}
       <ChatErrorBanner onRetry={handleRegenerate} />
 
-      {/* Mood check-in banner */}
-      <MoodBanner />
 
       {/* Messages Area — this is the scroll container */}
       <div
