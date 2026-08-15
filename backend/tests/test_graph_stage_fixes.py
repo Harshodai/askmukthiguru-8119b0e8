@@ -188,12 +188,14 @@ async def test_graph_stage_deep_pattern_not_force_fasted():
 
 @pytest.mark.asyncio
 async def test_graph_stage_query_tier_synced_to_selected_graph():
-    """When graph_variant resolves to standard/deep but the on-device
-    classifier already stamped state['query_tier']='tier2_simple', every
-    in-graph gate (grade_documents, verify_answer, retrieval depth) reads
+    """When graph_variant resolves to deep but the on-device classifier
+    already stamped state['query_tier']='tier2_simple', every in-graph gate
+    (grade_documents, verify_answer, retrieval depth) reads
     state['query_tier'] and would self-bypass real grading/verification on
-    the stale tag. GraphStage must promote it to 'standard' so nodes inside
-    the actually-selected graph behave consistently with graph_variant.
+    the stale tag. GraphStage must promote it to a tier consistent with the
+    actually-selected graph -- 'tier4_deep' for graph_variant=='deep', so
+    tier4_deep-gated logic (deep_contradiction_gate, route_after_verification)
+    isn't silently downgraded out of its own extra verification pass.
     """
     container = MagicMock()
 
@@ -243,7 +245,7 @@ async def test_graph_stage_query_tier_synced_to_selected_graph():
         stage = GraphStage()
         await stage.run(ctx)
 
-        assert captured_state.get("query_tier") == "standard"
+        assert captured_state.get("query_tier") == "tier4_deep"
 
 
 @pytest.mark.asyncio

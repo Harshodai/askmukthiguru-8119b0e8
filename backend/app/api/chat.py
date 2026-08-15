@@ -410,6 +410,11 @@ async def chat_endpoint(
                 if job and job["status"] == "failed":
                     raise HTTPException(status_code=500, detail=job.get("error", "Pipeline failed"))
                 await asyncio.sleep(0.5)
+            # The client gave up waiting; the job may still be running and its
+            # eventual worker-side release/keep is a separate, idempotent event
+            # (double-release is a no-op). Releasing here avoids charging quota
+            # for a request the caller received no answer for.
+            await _release_anon_quota(user, container, quota)
             raise HTTPException(status_code=504, detail="Pipeline timeout")
 
         return JSONResponse(

@@ -163,7 +163,7 @@ const ChatPage = () => {
           sidebar footer / user menu) below the fold whenever it appears. */}
       <div className="h-dvh flex flex-col">
         <BackendHealthBanner />
-        <ChatInterface isAnonymous={isAnonymous} />
+        <ChatInterface />
       </div>
       <GuidedTour isOpen={tourOpen} onComplete={handleTourComplete} onDismiss={handleTourDismiss} />
       <Dialog open={showContinuePrompt} onOpenChange={setShowContinuePrompt}>

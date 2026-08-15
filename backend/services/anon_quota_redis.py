@@ -10,6 +10,8 @@ import time
 import uuid
 from typing import TYPE_CHECKING
 
+from redis.exceptions import RedisError
+
 from services.anon_quota_port import AnonQuotaPort, QuotaResult
 
 if TYPE_CHECKING:
@@ -86,18 +88,27 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
         member = str(uuid.uuid4())
         deadline = now + claim_ttl_seconds
 
-        allowed, count_after_add = await self._redis.eval(
-            _QUOTA_LUA,
-            2,
-            key,
-            pending,
-            member,
-            now,
-            cutoff,
-            limit,
-            ttl * 1000,
-            deadline,
-        )
+        try:
+            allowed, count_after_add = await self._redis.eval(
+                _QUOTA_LUA,
+                2,
+                key,
+                pending,
+                member,
+                now,
+                cutoff,
+                limit,
+                ttl * 1000,
+                deadline,
+            )
+        except RedisError as exc:
+            # This adapter is only selected after a successful cold-start Redis
+            # probe (AnonQuotaService._build_adapter_async); a LATER outage
+            # (connection drop, timeout) must not 500 anonymous chat. Degrade
+            # to allowed -- unenforced, not crashed -- matching the documented
+            # mid-session Redis-outage contract (backend/CLAUDE.md).
+            logger.warning(f"AnonQuotaRedisAdapter.check_and_record degraded to allowed (Redis error): {exc}")
+            return QuotaResult(allowed=True, remaining=limit, total_limit=limit)
         allowed = bool(allowed)
         remaining = max(0, limit - count_after_add)
         retry_after: int | None = None
@@ -126,16 +137,20 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
         pending = self._pending_key(session_id)
         now = time.time()
         cutoff = now - window_seconds
-        await self._redis.zremrangebyscore(key, 0, cutoff)
-        # Reap reservations whose claim deadline passed without a claim.
-        members = await self._redis.zrange(key, 0, -1)
-        if members:
-            deadlines = await self._redis.hmget(pending, *members)
-            for member, dl in zip(members, deadlines):
-                if dl and float(dl) < now:
-                    await self._redis.zrem(key, member)
-                    await self._redis.hdel(pending, member)
-        count = await self._redis.zcard(key)
+        try:
+            await self._redis.zremrangebyscore(key, 0, cutoff)
+            # Reap reservations whose claim deadline passed without a claim.
+            members = await self._redis.zrange(key, 0, -1)
+            if members:
+                deadlines = await self._redis.hmget(pending, *members)
+                for member, dl in zip(members, deadlines):
+                    if dl and float(dl) < now:
+                        await self._redis.zrem(key, member)
+                        await self._redis.hdel(pending, member)
+            count = await self._redis.zcard(key)
+        except RedisError as exc:
+            logger.warning(f"AnonQuotaRedisAdapter.inspect degraded to allowed (Redis error): {exc}")
+            return QuotaResult(allowed=True, remaining=limit, total_limit=limit)
         remaining = max(0, limit - count)
         return QuotaResult(allowed=remaining > 0, remaining=remaining, total_limit=limit)
 

@@ -225,11 +225,30 @@ class SupabaseTelemetrySink:
             logger.warning(f"Semantic cache invalidation for flagged query failed: {e}")
 
     @staticmethod
+    def _scrub_value(value: Any, scrub) -> Any:
+        """Recursively scrub string leaves inside a JSON-shaped value.
+
+        Preserves dict/list structure and non-string leaves (numbers, bools,
+        None); only str values get PIIScrubber.scrub applied.
+        """
+        if isinstance(value, str):
+            return scrub(value) if value else value
+        if isinstance(value, dict):
+            return {k: SupabaseTelemetrySink._scrub_value(v, scrub) for k, v in value.items()}
+        if isinstance(value, list):
+            return [SupabaseTelemetrySink._scrub_value(v, scrub) for v in value]
+        return value
+
+    @staticmethod
     def _scrub_payload_dict(payload_dict: dict) -> dict:
-        """Idempotently sanitize query/response text in a trace payload dict.
+        """Idempotently sanitize free-text fields in a trace payload dict.
 
         Reuses the shared PIIScrubber so direct callers and replayed records
-        get the same field-level redaction as the Redis Stream path.
+        get the same field-level redaction as the Redis Stream path. Beyond
+        the top-level query/response/judge text, evaluation_trace,
+        retrieval_metadata, spans, trigger_events, and safety_events can all
+        carry free-text (source excerpts, span attributes, guardrail reasons)
+        that may echo user input -- scrubbed recursively, structure preserved.
         """
         from app.telemetry_db import PIIScrubber
 
@@ -238,6 +257,10 @@ class SupabaseTelemetrySink:
             value = scrubbed.get(key)
             if value:
                 scrubbed[key] = PIIScrubber.scrub(value)
+        for key in ("evaluation_trace", "retrieval_metadata", "spans", "trigger_events", "safety_events"):
+            value = scrubbed.get(key)
+            if value:
+                scrubbed[key] = SupabaseTelemetrySink._scrub_value(value, PIIScrubber.scrub)
         return scrubbed
 
     async def log_query_trace_direct(self, payload_dict: dict) -> None:
@@ -566,3 +589,31 @@ class TelemetryWorker:
                         except Exception as reconnect_err:
                             logger.error(f"Failed to reconnect Redis: {reconnect_err}")
                 await asyncio.sleep(5)
+
+
+if __name__ == "__main__":
+    # Exercises _scrub_payload_dict against representative local data only --
+    # never initializes Supabase/Redis clients or touches external services.
+    sample = {
+        "query_text": "My email is seeker@example.com, call me at 555-123-4567",
+        "response_text": "Reach out at guide@ashram.org for guidance.",
+        "judge_reasoning": "Contains phone 555-987-6543, otherwise faithful.",
+        "evaluation_trace": {"note": "flagged by user@test.com", "score": 0.8},
+        "retrieval_metadata": {"source_docs": ["doc about aadhaar 1234 5678 9012"]},
+        "spans": [{"name": "generate", "attributes": {"detail": "email test@x.com"}}],
+        "trigger_events": [{"metadata": {"reason": "contact 999-888-7777"}}],
+        "safety_events": [{"details": {"reason": "user wrote foo@bar.com"}}],
+        "unaffected_number": 42,
+    }
+    scrubbed = SupabaseTelemetrySink._scrub_payload_dict(sample)
+    assert "[EMAIL]" in scrubbed["query_text"] and "[PHONE]" in scrubbed["query_text"]
+    assert "[EMAIL]" in scrubbed["response_text"]
+    assert "[PHONE]" in scrubbed["judge_reasoning"]
+    assert "[EMAIL]" in scrubbed["evaluation_trace"]["note"]
+    assert scrubbed["evaluation_trace"]["score"] == 0.8  # non-string leaves untouched
+    assert "[ID_NUMBER]" in scrubbed["retrieval_metadata"]["source_docs"][0]
+    assert "[EMAIL]" in scrubbed["spans"][0]["attributes"]["detail"]
+    assert "[PHONE]" in scrubbed["trigger_events"][0]["metadata"]["reason"]
+    assert "[EMAIL]" in scrubbed["safety_events"][0]["details"]["reason"]
+    assert scrubbed["unaffected_number"] == 42
+    print("telemetry_sink._scrub_payload_dict OK")

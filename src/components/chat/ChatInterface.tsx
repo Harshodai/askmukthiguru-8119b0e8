@@ -99,11 +99,7 @@ const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
 const PASTE_ATTACHMENT_THRESHOLD = 2000;
 
-export interface ChatInterfaceProps {
-  isAnonymous?: boolean;
-}
-
-export const ChatInterface = ({ isAnonymous }: ChatInterfaceProps) => {
+export const ChatInterface = () => {
   const { toast } = useToast();
   const { capabilities: chatCapabilities } = useChatCapabilities();
   const { greetingContext } = useVisitContext();

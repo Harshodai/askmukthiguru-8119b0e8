@@ -207,9 +207,13 @@ class GraphStage(Stage):
                 # verify_answer) reads state["query_tier"], not graph_variant
                 # -- left at "tier2_simple" it self-bypasses real grading and
                 # verification even while running the standard/deep graph.
-                # "standard" is the safe promotion: it doesn't trip any
-                # tier4_deep-only gate it shouldn't.
-                initial_state["query_tier"] = "standard"
+                # Promote to the tier matching the graph actually selected:
+                # "deep" graph_variant means tier4_deep-gated logic
+                # (deep_contradiction_gate, route_after_verification) must
+                # see "tier4_deep", not the "standard" that was previously
+                # used for both -- that silently downgraded deep queries out
+                # of their own tier's extra verification pass.
+                initial_state["query_tier"] = "tier4_deep" if graph_variant == "deep" else "standard"
 
             selected_graph = getattr(container, f"{graph_variant}_graph")
 

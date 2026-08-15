@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from app.config import settings
@@ -22,6 +23,15 @@ if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
 
 logger = logging.getLogger(__name__)
+
+# Dedicated bounded pool for the Celery apply_async dispatch below (matches
+# the pattern in app/telemetry_sink.py's _invalidation_executor). The default
+# asyncio.to_thread executor is shared process-wide -- a slow/hanging broker
+# repeatedly consuming its threads on timeout starves unrelated to_thread
+# callers elsewhere in the app. asyncio.wait_for's timeout does not cancel the
+# underlying thread (there is no way to interrupt a blocking Celery call), so
+# bounding the pool caps how many such stuck threads can accumulate.
+_DISPATCH_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="memory-outbox-dispatch")
 
 
 def _schedule_memory_task(coro, task_name: str) -> None:
@@ -103,18 +113,21 @@ class MemoryStage(Stage):
 
         try:
             import asyncio
+            import functools
 
             from tasks.memory_outbox_tasks import drain_memory_outbox
 
             publish_timeout = max(1.0, settings.memory_background_task_timeout_seconds - 2.0)
             request_deadline = max(2.0, settings.memory_background_task_timeout_seconds + 2.0)
+            loop = asyncio.get_running_loop()
+            dispatch_call = functools.partial(
+                drain_memory_outbox.apply_async,
+                kwargs={},
+                countdown=0,
+                time_limit=request_deadline,
+            )
             await asyncio.wait_for(
-                asyncio.to_thread(
-                    drain_memory_outbox.apply_async,
-                    kwargs={},
-                    countdown=0,
-                    time_limit=request_deadline,
-                ),
+                loop.run_in_executor(_DISPATCH_EXECUTOR, dispatch_call),
                 timeout=publish_timeout,
             )
         except Exception as exc:

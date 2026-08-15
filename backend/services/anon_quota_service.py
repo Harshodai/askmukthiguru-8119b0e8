@@ -133,7 +133,7 @@ class AnonQuotaService:
     def _session_id(self, user: dict | None) -> str | None:
         if not user or not user.get("is_anonymous"):
             return None
-        sid = user.get("id") or "anonymous"
+        sid = str(user.get("id") or "anonymous")
         return sid if sid.startswith("anon:") else f"anon:{sid}"
 
     async def check_and_record(self, user: dict | None) -> QuotaResult:
