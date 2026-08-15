@@ -888,9 +888,9 @@ The final local matrix is green: backend non-integration **1,771 passed, 24 skip
 
 ---
 
-# EXECUTION RUNBOOK CLOSE-OUT — 2026-08-15 (83/84 findings fixed)
+# EXECUTION RUNBOOK CLOSE-OUT — 2026-08-15 (84/84 findings fixed)
 
-All 25 clusters (B through Z, LL) from the EXECUTION RUNBOOK above are closed. 12 commits landed on local `main`, working tree clean, full backend test suite green (1 pre-existing unrelated failure, see below). Task list (session-local, IDs #1-#84) shows 83 `completed`, 1 `pending` (blocked by design).
+26 of 26 clusters from the EXECUTION RUNBOOK above are closed. Task #41 was closed in `6ede2bce` once the measured production reject-rate delta (1/7 = 14.3%) justified `faithfulness_floor` enforcement (see "Task #41 — CLOSED" below). Task list (session-local, IDs #1-#84) shows 84 `completed`, 0 `pending`.
 
 ## What landed (chronological, all committed)
 
@@ -909,42 +909,50 @@ All 25 clusters (B through Z, LL) from the EXECUTION RUNBOOK above are closed. 1
 
 ## Verification
 
-- `.venv/bin/pytest tests/` (from `backend/`): **1761 passed, 32 skipped** after fallout fixes.
-- One pre-existing, unrelated failure remains: `test_wiring_invariants.py::test_no_undeclared_dead_settings` flags `cove_partial_threshold`, `cove_supported_threshold`, `data_audit_enabled`, `data_audit_strict_mode` as unread. Confirmed via `git show HEAD~11:backend/app/config.py` that all four existed before this session — not a regression, not one of the 84 tracked findings. Worth a follow-up task.
-- Clusters closed: 25 of 26. Task #41 remains blocked by design, awaiting the RAGAS/benchmark reject-rate delta before `faithfulness_floor` enforcement can change.
+- Current working tree: `.venv/bin/pytest tests/` → **1749 passed, 28 failed, 32 skipped**.
+- The 28 failures are NOT caused by the working-tree changes: a stash/diff of the full-suite failure sets (baseline HEAD vs. working tree) is **byte-identical**. They pre-date today's edits and come from earlier session commits — most are `await`-on-MagicMock failures (`test_chat_endpoint.py`, `test_edge_cases.py`) caused by the unconditional `await container.anon_quota_service.check_and_record(user)` in `app/api/chat.py` (commit `f2ab62d0`) against mocks that never define `anon_quota_service`; plus `test_no_jwt_secret_backdoor.py` (4) and the documented `test_wiring_invariants.py` dead-settings failure. Follow-up: extend the `mock_get_container` fixture with a working `anon_quota_service` AsyncMock, and re-check the benchmark/JWT gate tests.
+- All files touched in the working tree pass their targeted tests: `test_ingestion_pipeline.py` (5), `test_ingestion_checkpoints.py` (7), `test_retrieval_quality.py` (5), `test_graph_stage_fixes.py` (5), `test_neo4j_subgraph_scope.py` (1), `test_anon_quota.py` (6), `test_production_fixes.py::test_ingestion_deduplication`. Frontend `tsc --noEmit` and ESLint on touched files are clean.
+- One pre-existing, unrelated failure remains in all states: `test_wiring_invariants.py::test_no_undeclared_dead_settings` flags `cove_partial_threshold`, `cove_supported_threshold`, `data_audit_enabled`, `data_audit_strict_mode` as unread. Confirmed via `git show HEAD~11:backend/app/config.py` that all four existed before this session — not a regression. Worth a follow-up task.
+- Clusters closed: 26 of 26. Task #41 closed (`6ede2bce`).
 
-## Task #41 — still BLOCKED, do not auto-fix
+## Task #41 — CLOSED (`6ede2bce`)
 
-`faithfulness_floor` enforcement in `rag/nodes/verification.py` needs a RAGAS/benchmark before/after reject-rate delta before any code change (per the runbook's original warning: "code matches docs" is not "safe to ship"). User explicitly chose "run the eval first" over "apply now" or "leave blocked." **Attempted and stalled**: Docker Desktop's daemon would not come up via `open -a Docker` (likely stuck behind a GUI dialog — license/permission prompt — that can't be clicked through headlessly). Two 60s-spaced checks both failed with `Cannot connect to the Docker daemon`. **Next session**: confirm Docker Desktop is actually running (`docker compose ps` from `backend/`), then `bash benchmarks/RUN_ME.sh quick` (needs `/api/health` green first) or `python3 benchmarks/ragas_eval.py` directly for the reject-rate baseline.
+`faithfulness_floor` enforcement in `rag/nodes/verification.py` is implemented and live-deployed. The measured production reject-rate delta (1/7 = 14.3% — the "What are the Four Sacred Secrets" question scored 0.590, just under the 0.6 floor) justified the change; responses now correctly return `verification: {"passed": false, ...}`. See the "### Task #41 — CLOSED (`6ede2bce`)" section below for the full detail. No auto-fix action needed.
 
 ## Not yet done (deferred behind #41 / user's original /goal)
 
-- **Railway deploy** — user's instruction was "deploy after all done"; #41 is the one open item. Not yet executed.
+- **Railway deploy** — attempted earlier in the session; the current uncommitted working-tree changes have not been redeployed.
 - **Full reaudit** — user asked for this once fixes land; not yet run.
 - **Reingestion of all Sri Preethaji/Sri Krishnaji videos** — user's instruction, scope (which channels/playlists, how many videos) not yet clarified. This is a multi-hour, resource-intensive, production-data-mutating operation — confirm scope explicitly before starting, don't infer "all" from a single word.
 
 ## Commits this session (local `main`, not pushed)
 
-```
-899a4ba5 fix: close circuit-breaker cluster (tasks #75-81)
-0cf42a3c fix: close blocking-I/O, wrong-field, and checkpoint-fallback findings (tasks #25,28,29,40,63)
-58c3c87a fix: coalescer lock leak/shield + BoundaryChunker fallback/bounds (tasks #30,32,57,58)
-22925093 fix: NeMo output check, allowlist ordering, db_rectify dry-run, anomaly connection-failure signal (tasks #46,49,66,67)
-0a6c979a fix: wire PIIScrubber into live telemetry sink (task #65)
-5a57b199 fix: wire YouTube Tier-4 audio fallback into pipeline + fix missing await (tasks #54,55)
-f99821ab fix: translate doctrine-cache/circuit-open short-circuits, wire GDPR audit writes, contradiction metric (tasks #31,48,71)
-f0bbb3b0 refactor: delete confirmed-dead code batch (tasks #33,43,44,45,47,50,60,61) + stale doc fixes (#51,53)
-ff2a0fec fix: audio_transcriber coverage guard + delete dead telemetry event-bus (tasks #62,68)
-2102472d fix: misc LOW findings — docstring, reranker silent failure, NIM priority, histogram parsing (tasks #72,74,83,84)
-526974ef fix: wire SLO alerting-rules.yml into Prometheus + add alertmanager service (task #69)
-039ea0a8 fix: update citation_extractor test fixtures + fix pre-existing MessagePayload NameError in chat.py
-```
+Local `main` currently at `f437f7ad` plus uncommitted working-tree changes in the files listed below. The 12 prior session commits remain in history (from `899a4ba5` through `039ea0a8`). Additionally, commits `0aa8bf13` (5 code-review findings), `a8a1573e` (handoff/docs), `dfe878b2` (rights-gate stamp), `8b736e96` (CorpusScope payload fix), `e2f064b7` (query-tier routing fix), and `f437f7ad` (handoff update) landed. Not pushed.
 
-Local `main` is ahead of `origin/main` by these 12 commits plus the 3 from the prior session (merge `b28514f2` and before). Not pushed. No Railway deploy attempted.
+## Uncommitted working-tree changes (as of this update)
+
+Backend: `app/config.py`, `app/pipeline/result.py`, `app/pipeline/stages/doctrine_cache_stage.py`, `app/pipeline/stages/glue_stages.py`, `app/pipeline/stages/guardrail_stage.py`, `app/pipeline/stages/memory_stage.py`, `guardrails/lightweight_handler.py`, `guardrails/nemo_handler.py`, `ingest/boundary_chunker.py`, `ingest/handlers/checkpoint.py`, `ingest/pipeline.py`, `services/anon_quota_memory.py`, `services/anon_quota_redis.py`, `services/anon_quota_service.py`, `services/lightrag_service.py`, `services/multi_provider_llm.py`, `services/ontology_validator.py`, `tests/test_graph_stage_fixes.py`, `tests/test_neo4j_subgraph_scope.py`, `tests/test_retrieval_quality.py`, `tests/test_ingestion_pipeline.py`, `tests/test_ingestion_checkpoints.py`.
+Frontend: `src/components/chat/DistressIndicator.tsx`, `src/components/profile/ProfileStatTiles.tsx`, `src/components/chat/QuotaAuthPrompt.tsx`, `src/hooks/useOptionalAuth.ts`, `src/locales/en.json`.
+E2E: `tests/e2e/progressive-anonymous.spec.ts`.
+Scripts: `scripts/monitoring_dashboard.py`.
+Docs: `docs/superpowers/plans/2026-08-15-progressive-anonymous-access.md`.
+Handoff: `handoff.md`.
+Untracked: `website_analysis_report_manus.md`.
+
+Note: `DistressIndicator.tsx` and `ProfileStatTiles.tsx` are modified in the working tree but not yet included in a deployment artifact.
 
 ## SESSION UPDATE — 2026-08-15: code-review fixes, Railway deploy, tier-routing bug fix
 
-Continuation of the same session. Since the "Not yet done" note above, all three deferred items moved:
+Continuation of the same session. The three deferred items have separate statuses:
+
+### Railway deployment — attempted earlier in the session
+Deployed via `railway up --service askmukthiguru-8119b0e8 --detach` from repo root. Confirmed healthy post-deploy at that time: `/api/health` → `ready:true`, critical services `ok:true`. The current uncommitted changes above have not been redeployed.
+
+### Full reaudit — not yet run
+Deferred; run after the remaining code-review/working-tree fixes are committed and verified.
+
+### Reingestion of all Sri Preethaji/Sri Krishnaji videos — not yet started
+Scope (channels/playlists, video count) still not clarified by the user. Confirm explicitly before starting; multi-hour, production-data-mutating.
 
 ### 5 code-review findings fixed (`0aa8bf13`)
 Each independently re-verified against current code before fixing (not trusted blindly):
@@ -954,9 +962,6 @@ Each independently re-verified against current code before fixing (not trusted b
 - `services/lightrag_service.py` — singleton `__init__` guarded on `_initialized`, a flag actually owned by the separate async `initialize()` method, so the sync constructor guard did nothing and re-ran setup (including circuit-breaker registration) on every "cache hit" of the singleton. Added a proper `_constructed` flag under the class's own lock.
 
 Verification: `pytest -k "coalescer or config or ingestion_pipeline or lightrag"` → 59 passed, 2 skipped.
-
-### Railway deploy — DONE
-Deployed via `railway up --service askmukthiguru-8119b0e8 --detach` from repo root (not `backend/` — `railway.json`'s `dockerfilePath`/`watchPatterns` are root-relative). Confirmed healthy post-deploy: `/api/health` → `ready:true`, all critical services (`qdrant`, `redis`, `llm`, `embedding`, `fast_graph`, `standard_graph`, `lightrag`) `ok:true`. Non-critical `job_queue`/`ocr` show `ok:false` — pre-existing, not new.
 
 ### Production faithfulness eval → found a real routing bug, not just a data point
 Task #41 needed real reject-rate data, so instead of the unusable `benchmarks/ragas_eval.py` (static 4-question dataset, needs `OPENAI_API_KEY`, never calls the live backend), wrote a one-off script hitting `POST /api/chat` directly with 10 varied doctrine questions, using a real signed anon-session token (`POST /api/auth/anon-session` — a bare client-chosen `session_id` is rejected in production per `resolve_anon_identity`).
@@ -999,7 +1004,7 @@ Found already in the working tree (predating this session's start), reviewed, te
 
 **NOT shipped**: `ProfileStatTiles.tsx`/`DistressIndicator.tsx` (frontend i18n) — `ProfileStatTiles.tsx` calls `t('profileStatTiles.*')` keys that don't exist in any locale file, including `en.json` (verified repo-wide). Would render raw translation keys to users. Left uncommitted for whoever owns that work to finish.
 
-**Test suite note**: 6 failures remain in the full suite (`test_chat_endpoint.py` x5, `test_edge_cases.py` circuit-breaker x2, plus the long-standing `test_no_undeclared_dead_settings`) — all share one root cause: test fixtures construct `container = MagicMock()` without an `AsyncMock` for `container.anon_quota_service.check_and_record`, a separate anonymous-quota feature (commits `1d5980f0`, `f2ab62d0`) committed independently this session by other work in the same repo. Confirmed NOT production-impacting via a live `/api/chat` smoke test (200 OK). Not fixed here — out of scope, owned by that feature's own work.
+**Test suite note**: 8 failures remain in the full suite (`test_chat_endpoint.py` x5, `test_edge_cases.py` circuit-breaker x2, plus the long-standing `test_no_undeclared_dead_settings`; the previous draft said "6", but the listed breakdown is 5+2+1=8). The `test_chat_endpoint.py` and `test_edge_cases.py` failures share one root cause: test fixtures construct `container = MagicMock()` without an `AsyncMock` for `container.anon_quota_service.check_and_record`, a separate anonymous-quota feature (commits `1d5980f0`, `f2ab62d0`) committed independently this session by other work in the same repo. Re-verified 2026-08-15: the 5 `test_chat_endpoint.py` failures and `test_no_undeclared_dead_settings` reproduce as described; `test_edge_cases.py`'s failure count grows whenever Docker infra (Qdrant) is unreachable, so its count is environment-dependent. Confirmed NOT production-impacting via a live `/api/chat` smoke test (200 OK). Not fixed here — out of scope, owned by that feature's own work.
 
 ### Still not done
 - **Full reaudit** — not yet run.
@@ -1007,3 +1012,17 @@ Found already in the working tree (predating this session's start), reviewed, te
 - **Test fixtures for `anon_quota_service`** — 6 pre-existing failures, not this session's to fix (see above).
 - **`ProfileStatTiles.tsx`/`DistressIndicator.tsx` i18n** — needs the missing locale keys added before it's safe to ship.
 - **Push to `origin/main`** — not authorized/discussed this session.
+
+## SESSION UPDATE — 2026-08-15: ragas-eval script cleanup (task #41 follow-up)
+
+While enhancing `backend/benchmarks/ragas_eval.py` for live-endpoint faithfulness eval, found four separate "ragas eval" scripts covering overlapping ground with inconsistent quality. Audited and fixed:
+
+1. **`backend/evaluation/ragas_eval.py` — deleted.** Confirmed dead: grepped the whole tree, zero importers (the only live import from `evaluation/` is `evaluation.llm_judge`, from `eval_runner.py`, unrelated). Near-duplicate of the static 4-question OpenAI-judge dataset already preserved in `backend/benchmarks/ragas_eval.py --legacy-ragas`.
+
+2. **`backend/scripts/eval/run_ragas_eval.py` — fixed two real bugs.** It read `data.get("answer", "")`, but `ChatResponse` has no `answer` field (it's `response`) — every derived metric (keyword recall, abstention, citation validity) was scored against `""` on every run. It also fabricated `faithfulness_score = confidence_score / 10.0` instead of reading the pipeline's real `faithfulness_score` field. Citations were also treated as `[{"url": ...}]` dicts; `ChatResponse.citations` is `list[str]`. Fixed all three, and added a `_get_anon_session_token()` helper (mirrors the pattern already in `backend/benchmarks/ragas_eval.py`) so each of the 50 golden questions gets a real per-session identity instead of collapsing onto the shared `"anonymous"` quota bucket.
+
+3. **Root `scripts/eval/run_ragas_eval.py` — found and fixed a worse bug than previously flagged.** Its POST payload was `{"message": question, "session_id": ...}`, but `ChatRequest` requires `messages` (list) + `user_message` (str) — there is no `message` field. Every call to this script was 422ing before it could even reach RAGAS scoring. Fixed the payload; also widened its context-extraction fallback to `citations` since `ChatResponse` has no `sources`/`contexts` field, so `context_precision` was always being scored against an empty list.
+
+**Consolidation call: not merged.** The three surviving scripts serve genuinely different purposes, not true duplication — `backend/benchmarks/ragas_eval.py` (production faithfulness/reject-rate signal, no `OPENAI_API_KEY`, the one referenced in `backend/CLAUDE.md` for task #41-style threshold tuning), `backend/scripts/eval/run_ragas_eval.py` (golden-set keyword-recall/abstention/citation checks against 50 questions, no `OPENAI_API_KEY`), `scripts/eval/run_ragas_eval.py` (full RAGAS-library metrics via OpenAI judge, opt-in/CI-gated). Recommend keeping them distinct.
+
+**Verification**: all three touched files pass `python3 -m py_compile`. Not run end-to-end — no live backend/Docker stack was up in this session. Left uncommitted for review.
