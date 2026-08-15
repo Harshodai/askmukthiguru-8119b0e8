@@ -6901,3 +6901,76 @@ during a long edit series are the right default for cost, but they only
 cover blast radius the editor already predicted; a full suite run before
 declaring a large remediation pass complete catches what scoped runs
 structurally cannot — including bugs the session didn't introduce.
+
+### L-HARDEN-37 — Two independent classifiers writing the same field will drift unless one is designated the source of truth after both have run
+
+`app/pipeline/stages/graph_stage.py` had two separate query-complexity
+classifications feeding the same decision: `CacheCheckStage` runs an
+intent-blind regex/semantic classification early (catches deterministic
+signals like "difference between" via `HEURISTIC_DEEP_PATTERNS`), and
+`GraphStage` later runs an intent-aware but coarser on-device classifier.
+The reconciliation code treated whichever one wrote `query_tier` *first* as
+authoritative ("only set query_tier if on-device didn't already set it") —
+so the earlier, more request-specific signal from the on-device classifier
+always won, even when the later act of finalizing `graph_variant` (the
+actual compiled graph selected) landed on something more complex. The result:
+`initial_state["query_tier"]`, the field every downstream node
+(`grade_documents`, `verify_answer`, retrieval-depth gates) actually reads,
+could permanently diverge from `graph_variant`, the field that determined
+which graph — and which nodes — physically executed. A query correctly
+routed to the standard/deep graph still self-bypassed real grading and
+verification, because the nodes inside it were reading a stale "simple" tag
+frozen in before the routing decision was final. Caught only by comparing a
+live production faithfulness eval (0/10 responses reached `verify_answer`)
+against prod deploy logs showing `grade_documents` finishing in 0.0ms — a
+symptom with no corresponding log line naming the actual defect. **When two
+classifiers can both write the same state field and downstream code branches
+on it, the value written must be re-synced to whatever the final decision
+was AFTER that decision is made — "first write wins" quietly rots into
+"stale write wins" the moment a later stage's decision legitimately
+disagrees with the earlier one.**
+
+### L-HARDEN-38 — A clean null result from an eval is a symptom, not a diagnosis; keep pulling until the mechanism is named
+
+A live faithfulness eval against production returned 0/10 responses reaching
+`verify_answer`. The first fix found (`graph_stage.py`'s tier-routing
+divergence, L-HARDEN-37) was real, tested, deployed — and the eval still
+came back 0/10. Rather than accepting "the eval is inconclusive" or
+attributing the null result entirely to the first bug, re-running against
+prod deploy logs surfaced `RAG retrieval yielded zero chunks` on every
+single query, including a trivial doctrine lookup ("What are the Four
+Sacred Secrets"). That led to a **mandatory Qdrant payload filter
+(`tenant_id`+`corpus_id`) that matched 0 of 89,053 production points** —
+the entire corpus predated the commit that made the filter mandatory and
+was never backfilled. Fixing that still didn't fully clear the eval signal;
+a **second, independent** mandatory filter (`domain_rights_status`, task
+#17's rights gate) was *also* zeroing every result, because the write side
+only ever stamped it on Neo4j nodes, never on the Qdrant chunks the gate
+actually filters. Two unrelated, independently-introduced mandatory filters
+had silently compounded into a total retrieval outage, and the original
+symptom (routing) was real but almost a red herring relative to the actual
+blast radius. **A "clean" null result — no errors, no exceptions, just
+uniformly empty — is not evidence that nothing is wrong; it's evidence that
+whatever's wrong is silent by construction (an honest fallback path,
+working exactly as designed, triggered by something upstream that
+shouldn't be empty). Trace the mechanism (prod logs, direct queries against
+the actual datastore) until a concrete "N of M records match this filter"
+number exists, and don't stop pulling after the first real bug found if the
+symptom that started the investigation hasn't actually changed.**
+
+### L-HARDEN-39 — When a new mandatory filter ships, the backfill for existing data is part of the same change, not a follow-up
+
+Both zero-retrieval causes this session (`tenant_id`/`corpus_id`,
+`domain_rights_status`) share one shape: a read-side filter was added as
+"mandatory" in one commit, with the intent that ingestion would always
+populate the field going forward — but the *existing* corpus at the time
+of that commit was never migrated, and nothing caught it because the
+read-side change alone doesn't error, it just silently returns fewer (here,
+zero) results. Both filters were also *deliberate, correct, load-bearing*
+safety features (tenant/corpus containment; not misattributing other
+teachers' content as licensed doctrine) — the bug was never "this
+validation shouldn't exist," only "this validation shipped without its
+migration." **A mandatory filter on existing data is two changes, not one:
+the filter itself, and a backfill for every record that predates it. Ship
+them in the same PR, or the gap between them is a silent, total outage
+waiting for someone to notice the absence of errors.**

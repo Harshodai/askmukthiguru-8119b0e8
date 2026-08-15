@@ -890,7 +890,7 @@ The final local matrix is green: backend non-integration **1,771 passed, 24 skip
 
 # EXECUTION RUNBOOK CLOSE-OUT — 2026-08-15 (83/84 findings fixed)
 
-All 24 clusters (B through Z, LL) from the EXECUTION RUNBOOK above are closed. 12 commits landed on local `main`, working tree clean, full backend test suite green (1 pre-existing unrelated failure, see below). Task list (session-local, IDs #1-#84) shows 83 `completed`, 1 `pending` (blocked by design).
+All 25 clusters (B through Z, LL) from the EXECUTION RUNBOOK above are closed. 12 commits landed on local `main`, working tree clean, full backend test suite green (1 pre-existing unrelated failure, see below). Task list (session-local, IDs #1-#84) shows 83 `completed`, 1 `pending` (blocked by design).
 
 ## What landed (chronological, all committed)
 
@@ -911,6 +911,7 @@ All 24 clusters (B through Z, LL) from the EXECUTION RUNBOOK above are closed. 1
 
 - `.venv/bin/pytest tests/` (from `backend/`): **1761 passed, 32 skipped** after fallout fixes.
 - One pre-existing, unrelated failure remains: `test_wiring_invariants.py::test_no_undeclared_dead_settings` flags `cove_partial_threshold`, `cove_supported_threshold`, `data_audit_enabled`, `data_audit_strict_mode` as unread. Confirmed via `git show HEAD~11:backend/app/config.py` that all four existed before this session — not a regression, not one of the 84 tracked findings. Worth a follow-up task.
+- Clusters closed: 25 of 26. Task #41 remains blocked by design, awaiting the RAGAS/benchmark reject-rate delta before `faithfulness_floor` enforcement can change.
 
 ## Task #41 — still BLOCKED, do not auto-fix
 
@@ -940,3 +941,69 @@ ff2a0fec fix: audio_transcriber coverage guard + delete dead telemetry event-bus
 ```
 
 Local `main` is ahead of `origin/main` by these 12 commits plus the 3 from the prior session (merge `b28514f2` and before). Not pushed. No Railway deploy attempted.
+
+## SESSION UPDATE — 2026-08-15: code-review fixes, Railway deploy, tier-routing bug fix
+
+Continuation of the same session. Since the "Not yet done" note above, all three deferred items moved:
+
+### 5 code-review findings fixed (`0aa8bf13`)
+Each independently re-verified against current code before fixing (not trusted blindly):
+- `app/coalescer.py` — `_run_as_leader` used bare `await task` after `create_task`, which propagates cancellation *into* the leader task instead of just detaching the awaiting coroutine from it. Switched to `await asyncio.shield(task)`.
+- `app/config.py` — added `Field(ge=/le=/gt=)` bounds to 9 previously-unbounded safety-dial settings (`semantic_distress_threshold` and siblings) + a `@model_validator` rejecting `semantic_distress_escalation_count > semantic_distress_rolling_window` (an escalation count above the window can never fire).
+- `ingest/pipeline.py` — found a **currently-broken, uncommitted working-tree corruption** (not mine, not the review's fault either — some prior edit had inserted a method definition mid-`__init__`, so `self._splitter`/`self._raptor` were never set). Fixed placement + added defense-in-depth exception handling around the Tier-4 audio-transcribe fallback.
+- `services/lightrag_service.py` — singleton `__init__` guarded on `_initialized`, a flag actually owned by the separate async `initialize()` method, so the sync constructor guard did nothing and re-ran setup (including circuit-breaker registration) on every "cache hit" of the singleton. Added a proper `_constructed` flag under the class's own lock.
+
+Verification: `pytest -k "coalescer or config or ingestion_pipeline or lightrag"` → 59 passed, 2 skipped.
+
+### Railway deploy — DONE
+Deployed via `railway up --service askmukthiguru-8119b0e8 --detach` from repo root (not `backend/` — `railway.json`'s `dockerfilePath`/`watchPatterns` are root-relative). Confirmed healthy post-deploy: `/api/health` → `ready:true`, all critical services (`qdrant`, `redis`, `llm`, `embedding`, `fast_graph`, `standard_graph`, `lightrag`) `ok:true`. Non-critical `job_queue`/`ocr` show `ok:false` — pre-existing, not new.
+
+### Production faithfulness eval → found a real routing bug, not just a data point
+Task #41 needed real reject-rate data, so instead of the unusable `benchmarks/ragas_eval.py` (static 4-question dataset, needs `OPENAI_API_KEY`, never calls the live backend), wrote a one-off script hitting `POST /api/chat` directly with 10 varied doctrine questions, using a real signed anon-session token (`POST /api/auth/anon-session` — a bare client-chosen `session_id` is rejected in production per `resolve_anon_identity`).
+
+**First run: 0/10 responses reached `verify_answer`** (`verification` was `null` on every response), including a clearly comparative Sri Preethaji/Sri Krishnaji question that still returned 2 citations. That's not a task #41 data point — it's a sign the anti-hallucination chain wasn't running for queries it's supposed to protect.
+
+**Root cause, in `app/pipeline/stages/graph_stage.py`:** two queries feed graph selection — `CacheCheckStage` runs a query-complexity classification *before* intent classification (no intent hint, but does catch deterministic regex complexity signals like "compare"/"difference between" — `HEURISTIC_DEEP_PATTERNS`), and stores it as `ctx.detected_query_tier`. Later, `GraphStage` runs a second, intent-aware but coarser on-device classification. Two bugs in how they were reconciled:
+1. Whenever the on-device classifier guessed `tier2_simple`/`fast`, that guess **always** forced `graph_variant="fast"` — discarding a `ctx.detected_query_tier="deep"` result even though the deep-pattern regex match is a stronger, deterministic complexity signal. This is exactly what happened to "Explain the difference between Soul Sync meditation and Serene Mind breathing" (on-device tagged it FACTUAL/simple; the regex correctly caught "difference between").
+2. Even when `graph_variant` correctly resolved to `standard`/`deep`, `initial_state["query_tier"]` — the value every in-graph gate (`grade_documents`, `verify_answer`, retrieval depth) actually reads — stayed at the on-device classifier's early `tier2_simple` guess, because the old code only synced it to `graph_variant` "if nothing had set it yet," which was almost never true. So a query correctly routed to the standard/deep *graph* could still have every node inside it self-bypass real grading and verification on the stale tag. This matches "`grade_documents` finished in 0.0000s" bypass entries found in production deploy logs from the same time window.
+
+**Fix (`e2f064b7`):** a `ctx.detected_query_tier == "deep"` result is never downgraded by the on-device guess; when `graph_variant` lands on `standard`/`deep` but `initial_state["query_tier"]` is still `tier2_simple`/`fast`, promote it to `"standard"`. Two regression tests added to `tests/test_graph_stage_fixes.py`. Full suite: 1765 passed, 32 skipped, same one pre-existing `test_no_undeclared_dead_settings` failure as before (confirmed unrelated, tracked separately). Deployed and verified healthy.
+
+Re-running the eval after this fix landed still showed **0/10 responses reaching `verify_answer`** — the graph-routing fix was real but didn't explain the null result. That led to a second, much bigger discovery below.
+
+### Production RAG retrieval outage — 100% of queries, two independent causes (`8b736e96`, `dfe878b2`)
+
+Investigating the still-empty eval found `RAG retrieval yielded zero chunks` in prod logs for every query, including "What are the Four Sacred Secrets" — basic doctrine content. Root cause: `services/qdrant/searcher.py` has required a mandatory `tenant_id`+`corpus_id` payload filter on every search since commit `dd308d2e` ("mandatory CorpusScope containment"), but confirmed via direct Qdrant REST query that **0 of 89,053 points** in the production `spiritual_wisdom` collection carried a `corpus_id` field at all — the entire corpus predates that commit and was never backfilled. Every chat request, regardless of content, silently retrieved nothing and fell through to the honest "couldn't find relevant teachings" message. This is why the tier-routing fix alone couldn't produce a real eval signal — there was nothing to verify.
+
+Fixed the legacy-tenant sentinel (previously the hardcoded literal `"default"`, duplicated across 7+ call sites) into one config-driven source of truth: `settings.default_tenant_id = "oneness"` (per the user: the teachings' organization, Sri Preethaji & Sri Krishnaji's Oneness/O&O Academy). Every call site (`services/tenant_context.py`'s ContextVar/`_LEGACY_TENANT`, `services/qdrant/{indexer,raptor,searcher}.py`, `rag/nodes/retrieval.py` x6 including a Neo4j Cypher `coalesce`) now reads it instead of a copy-pasted string, so ingestion and retrieval can't drift apart again. Backfilled all 89,053 existing points via Qdrant's `set_payload` with an empty filter (additive merge, doesn't touch existing fields).
+
+A **second, independent** gate was also zeroing retrieval: `services/qdrant/searcher.py` additionally requires `domain_rights_status == "licensed"` when `settings.require_licensed_domain_reads` is True (production default) — this is task #17's deliberate "teacher-domain rights gate" (commit `17e48038`), meant to quarantine other teachers' content (Sadhguru, Amma Bhagavan, ISKCON) from being misattributed as licensed Ekam doctrine. The write side only ever stamped this on Neo4j BEING nodes; neither Qdrant ingestion path — `services/qdrant/indexer.py` nor the Celery job-queue `tasks/ingest_tasks.py` — ever wrote it to the point payload. Per `CLAUDE.md`'s ingestion-source constraint (only Sri Preethaji/Krishnaji's own approved videos are ever ingested through these paths), user confirmed backfilling `domain_rights_status="licensed"` on the existing corpus was correct; both write paths now stamp it going forward. Verified: all 89,053 points now match `tenant_id="oneness"` AND `corpus_id="askmukthiguru"` AND `domain_rights_status="licensed"` together.
+
+### `verification` API field was architecturally dead (`6ede2bce`)
+
+While diagnosing the eval's own "verified" signal, found `ChatResponse.verification: Optional[dict]` was declared in the schema but **never populated anywhere** — `PipelineResult` (the dataclass) had no `verification` field at all, so it was always `null` regardless of whether `verify_answer` actually ran. `verify_answer` already returns a real `{"passed": ..., "details": ...}` dict in graph state; it just never got carried past the graph result. Added the field to `PipelineResult`, wired it through `ResultAssemblyStage` → all three `ChatResponse(...)` construction sites (`orchestrator.py`, `app/api/chat.py` x2). Confirmed live: a production smoke test now returns a real `verification` object.
+
+### Task #41 — CLOSED (`6ede2bce`)
+
+With retrieval and the routing bug both fixed, got real data: `settings.faithfulness_floor` (0.6) was previously referenced only in a log string — `verify_answer`'s `is_valid` decision depended solely on LettuceDetect's strict per-sentence boolean, never on a numeric comparison against the floor. Fixed by AND-ing the floor check into `is_faithful_ld` at both of its computation sites in `rag/nodes/verification.py` — every downstream branch (fast/tier2 bypass, standard short-answer bypass, tier3_complex fast-exit, final `is_valid`) reuses one of those two variables, so gating at the source closes the gap everywhere in one place.
+
+**Final measured reject-rate delta** (production, post-fix, 10 varied doctrine questions, 7 reached real verification): **1/7 = 14.3%** would flip to REJECTED — the "What are the Four Sacred Secrets" question scored 0.590, just under the 0.6 floor. Live-deployed and confirmed: that response now correctly shows `verification: {"passed": false, ...}`.
+
+### Also committed and deployed this session: H1 threshold wiring + misc fixes (`960cdbd7`)
+
+Found already in the working tree (predating this session's start), reviewed, tested, and shipped together:
+- `serene_mind_engine.py`, `ontology_validator.py`, `web_search_guardrails.py`, `ingest/quality_gate.py` — wire the `Field`-bounded settings added in `0aa8bf13` (`semantic_distress_*`, `ontology_confidence_threshold`, `ontology_validity_confidence_threshold`, `web_search_result_min_score`, `raptor_summary_faithfulness_floor`) into their actual call sites, replacing hardcoded literals that ignored env overrides.
+- `doctrine_cache_stage.py`, `guardrail_stage.py` — wrap the Indic-translation short-circuit calls in try/except (an unhandled translation failure previously crashed the fast path instead of falling back to English).
+- `rag/nodes/citation_extractor.py` — an explicitly empty `selected_docs` (documents rejected during grading) was falling back to `relevant_docs` because `[] or x` evaluates `x`; now checks `is not None`.
+- `telemetry_sink.py` — consolidated PII scrubbing into one helper so `log_query_trace_direct()` gets the same redaction as the primary path.
+
+**NOT shipped**: `ProfileStatTiles.tsx`/`DistressIndicator.tsx` (frontend i18n) — `ProfileStatTiles.tsx` calls `t('profileStatTiles.*')` keys that don't exist in any locale file, including `en.json` (verified repo-wide). Would render raw translation keys to users. Left uncommitted for whoever owns that work to finish.
+
+**Test suite note**: 6 failures remain in the full suite (`test_chat_endpoint.py` x5, `test_edge_cases.py` circuit-breaker x2, plus the long-standing `test_no_undeclared_dead_settings`) — all share one root cause: test fixtures construct `container = MagicMock()` without an `AsyncMock` for `container.anon_quota_service.check_and_record`, a separate anonymous-quota feature (commits `1d5980f0`, `f2ab62d0`) committed independently this session by other work in the same repo. Confirmed NOT production-impacting via a live `/api/chat` smoke test (200 OK). Not fixed here — out of scope, owned by that feature's own work.
+
+### Still not done
+- **Full reaudit** — not yet run.
+- **Reingestion of all Sri Preethaji/Sri Krishnaji videos** — scope (which channels/playlists, how many videos) still not clarified by the user. Confirm before starting; multi-hour, production-data-mutating.
+- **Test fixtures for `anon_quota_service`** — 6 pre-existing failures, not this session's to fix (see above).
+- **`ProfileStatTiles.tsx`/`DistressIndicator.tsx` i18n** — needs the missing locale keys added before it's safe to ship.
+- **Push to `origin/main`** — not authorized/discussed this session.
