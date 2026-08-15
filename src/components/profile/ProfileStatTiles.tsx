@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Flame, Clock, Calendar, Wind } from 'lucide-react';
-import type { MeditationSession, MeditationStats } from '@/lib/meditationStorage';
-import { dailySeries } from '@/lib/meditationMetrics';
+import type { MeditationStats } from '@/lib/meditationStorage';
+import { dailySeries, type NormalizedSession } from '@/lib/meditationMetrics';
 
 interface Props {
   stats: MeditationStats;
-  sessions: MeditationSession[];
+  sessions: NormalizedSession[];
 }
 
 /**
@@ -23,18 +23,7 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
   ];
 
   // Same calculator the tiles/DB use — the caption total and the curve can't disagree.
-  const last7 = useMemo(
-    () =>
-      dailySeries(
-        sessions.map((s) => ({
-          at: new Date(s.completedAt ?? s.startedAt),
-          durationSeconds: s.durationSeconds ?? 0,
-          breathCycles: s.breathCycles ?? 0,
-          completed: s.completed,
-        })),
-      ),
-    [sessions],
-  );
+  const last7 = useMemo(() => dailySeries(sessions), [sessions]);
 
   const weekMinutes = useMemo(
     () => Math.round(last7.reduce((sum, d) => sum + d.seconds, 0) / 60),
