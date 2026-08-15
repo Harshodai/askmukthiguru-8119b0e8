@@ -25,11 +25,6 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-try:
-    from benchmarks.ragas_eval import EVAL_DATASET as RAGAS_DATASET
-except ImportError:
-    RAGAS_DATASET = None
-
 
 class Difficulty(Enum):
     SIMPLE = "simple"

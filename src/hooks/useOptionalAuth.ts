@@ -65,13 +65,14 @@ export function useOptionalAuth(): OptionalAuthResult {
     };
 
     const check = async () => {
+      const generationAtStart = generation;
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (cancelled) return;
+        if (cancelled || generation !== generationAtStart) return;
         await validateAndSetSession(session);
       } catch (err) {
         console.error('[useOptionalAuth] getSession crashed:', err);
-        if (cancelled) return;
+        if (cancelled || generation !== generationAtStart) return;
         const myGeneration = ++generation;
         const token = await getAnonSessionToken();
         if (cancelled || myGeneration !== generation) return;

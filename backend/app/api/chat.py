@@ -430,7 +430,10 @@ async def chat_endpoint(
     except Exception:
         await _release_anon_quota(user, container, quota)
         raise
-    await _charge_anon_quota(user, container, quota)
+    if getattr(response, "blocked", False):
+        await _release_anon_quota(user, container, quota)
+    else:
+        await _charge_anon_quota(user, container, quota)
     return response
 
 
@@ -481,7 +484,10 @@ async def chat_v2_endpoint(
     except Exception:
         await _release_anon_quota(user, container, quota)
         raise
-    await _charge_anon_quota(user, container, quota)
+    if result.blocked:
+        await _release_anon_quota(user, container, quota)
+    else:
+        await _charge_anon_quota(user, container, quota)
     return ChatResponse(
         response=result.final_answer,
         intent=result.intent,

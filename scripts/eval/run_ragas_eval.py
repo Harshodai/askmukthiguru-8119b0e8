@@ -32,6 +32,10 @@ Environment variables:
     RAGAS_LLM_MODEL     LLM model for metric scoring (default: gpt-4o-mini)
     RAGAS_EMBEDDINGS_MODEL  Embeddings model for metric scoring
                     (default: text-embedding-3-small)
+    RAGAS_ANON_SESSION_TIMEOUT  Timeout (s) for POST /api/auth/anon-session
+                    (default: 15; a 5s margin is added before use)
+    RAGAS_CHAT_TIMEOUT  Timeout (s) for POST /api/chat (default: 120; a 5s
+                    margin is added before use)
 
     Privacy note: evaluation sends the collected chat answers and retrieved
     contexts to the configured LLM/embedding provider (e.g. OpenAI) for metric
@@ -50,7 +54,6 @@ import logging
 import math
 import os
 import sys
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -72,6 +75,11 @@ LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
 RAGAS_LLM_API_KEY = os.environ.get("RAGAS_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
 RAGAS_LLM_MODEL = os.environ.get("RAGAS_LLM_MODEL", "gpt-4o-mini")
 RAGAS_EMBEDDINGS_MODEL = os.environ.get("RAGAS_EMBEDDINGS_MODEL", "text-embedding-3-small")
+
+# Client timeouts. A 5s margin is added at each call site so the harness's own
+# timeout never races the service-side deadline (repo convention).
+ANON_SESSION_TIMEOUT = float(os.environ.get("RAGAS_ANON_SESSION_TIMEOUT", "15"))
+CHAT_TIMEOUT = float(os.environ.get("RAGAS_CHAT_TIMEOUT", "120"))
 
 # Golden evaluation set — 5 queries with ground truth answers.
 # Add new queries here to expand the eval set; do NOT change existing ground
@@ -129,6 +137,19 @@ GOLDEN_SET = [
 ]
 
 
+async def _get_anon_session_token(client: httpx.AsyncClient) -> str:
+    """Mint a server-signed anon session token via POST /api/auth/anon-session.
+
+    Production resolve_anon_identity() rejects bare client-chosen session ids,
+    so the harness must exchange the signed token it returns and echo it back
+    as session_id."""
+    resp = await client.post(
+        "/api/auth/anon-session", timeout=ANON_SESSION_TIMEOUT + 5.0
+    )
+    resp.raise_for_status()
+    return resp.json()["token"]
+
+
 async def query_backend(question: str) -> dict:
     """POST to /api/chat and return the full response JSON."""
     try:
@@ -163,14 +184,16 @@ async def query_backend(question: str) -> dict:
     else:
         logger.warning("No auth configured — request may be rejected. Set TEST_KEY or SUPABASE_JWT.")
 
-    payload = {
-        "messages": [],
-        "user_message": question,
-        "session_id": f"eval_{uuid.uuid4().hex}",
-    }
-
-    async with httpx.AsyncClient(timeout=120) as client:
-        resp = await client.post(f"{BACKEND_URL}/api/chat", json=payload, headers=headers)
+    async with httpx.AsyncClient(
+        base_url=BACKEND_URL, timeout=CHAT_TIMEOUT + 5.0, follow_redirects=False
+    ) as client:
+        token = await _get_anon_session_token(client)
+        payload = {
+            "messages": [],
+            "user_message": question,
+            "session_id": token,
+        }
+        resp = await client.post("/api/chat", json=payload, headers=headers)
         resp.raise_for_status()
         return resp.json()
 

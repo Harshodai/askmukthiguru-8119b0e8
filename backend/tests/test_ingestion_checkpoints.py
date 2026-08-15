@@ -130,3 +130,34 @@ def test_checkpoint_json_migrates_legacy_unqualified_keys(tmp_path):
         ckpt = IngestionCheckpoint(filepath=str(checkpoint_file))
         assert ckpt.is_processed("legacy-hash") is True
         assert ckpt.is_processed("unrelated-hash") is False
+
+
+def test_checkpoint_json_legacy_keys_migrate_to_default_tenant(tmp_path):
+    import json
+
+    checkpoint_file = tmp_path / "ingest_checkpoint.json"
+    checkpoint_file.write_text(json.dumps({"legacy-hash": {"timestamp": 1}}))
+
+    with patch("redis.from_url", side_effect=Exception("Redis down")), \
+         patch("supabase.create_client", side_effect=Exception("Supabase down")), \
+         patch("app.config.settings.default_tenant_id", "configured-default"), \
+         patch("services.tenant_context.TenantContext.get", return_value="teacher-a"):
+
+        teacher_ckpt = IngestionCheckpoint(filepath=str(checkpoint_file))
+        assert teacher_ckpt.tenant_id == "teacher-a"
+
+        # Legacy keys belong to the default tenant, not the loading instance.
+        assert teacher_ckpt.is_processed("legacy-hash") is False
+
+        stored = json.loads(checkpoint_file.read_text())
+        assert "tenant:configured-default:legacy-hash" in stored
+        assert "tenant:teacher-a:legacy-hash" not in stored
+
+    with patch("redis.from_url", side_effect=Exception("Redis down")), \
+         patch("supabase.create_client", side_effect=Exception("Supabase down")), \
+         patch("app.config.settings.default_tenant_id", "configured-default"), \
+         patch("services.tenant_context.TenantContext.get", return_value=None):
+
+        default_ckpt = IngestionCheckpoint(filepath=str(checkpoint_file))
+        assert default_ckpt.tenant_id == "configured-default"
+        assert default_ckpt.is_processed("legacy-hash") is True

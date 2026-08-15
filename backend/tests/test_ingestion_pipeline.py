@@ -207,7 +207,13 @@ def test_ingest_video_audio_fallback_enriches_missing_metadata(mock_pipeline, mo
     )
     mock_pipeline._augment_chunks = AsyncMock(return_value=["chunk one"])
     mock_pipeline._backup_before_reindex = MagicMock(return_value="backup")
-    mock_pipeline._resolve_chunk_speakers_from_cache = MagicMock(return_value=[None])
+    # Patch the module-level function: _ingest_video calls the module symbol
+    # (pipeline.py:1161), not an instance attribute, so an instance patch
+    # would never intercept it.
+    monkeypatch.setattr(
+        "ingest.pipeline._resolve_chunk_speakers_from_cache",
+        lambda video_id, chunks: [None],
+    )
     mock_pipeline._embed_and_index = MagicMock(return_value=1)
     mock_pipeline._raptor.build_tree = AsyncMock(return_value=0)
     mock_pipeline._implicit_teachings_connector = AsyncMock()

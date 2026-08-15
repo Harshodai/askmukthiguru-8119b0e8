@@ -105,7 +105,13 @@ async def _get_anon_session_token(client: httpx.AsyncClient) -> str:
     bare client-chosen session_id in production). Fetched per question so the
     per-session anon quota (settings.anon_quota_messages, default 5) doesn't
     throttle a 50-question golden-set run."""
-    r = await client.post("/api/auth/anon-session", timeout=15.0)
+    from app.config import settings
+    from rag.timeout_utils import timeout_with_margin
+
+    r = await client.post(
+        "/api/auth/anon-session",
+        timeout=timeout_with_margin(settings.benchmark_anon_session_timeout),
+    )
     r.raise_for_status()
     return r.json()["token"]
 
@@ -121,7 +127,14 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
     results = []
     category_scores: dict[str, list[dict]] = {}
 
-    async with httpx.AsyncClient(base_url=endpoint, timeout=60.0, follow_redirects=False) as client:
+    from app.config import settings
+    from rag.timeout_utils import timeout_with_margin
+
+    async with httpx.AsyncClient(
+        base_url=endpoint,
+        timeout=timeout_with_margin(settings.benchmark_chat_timeout),
+        follow_redirects=False,
+    ) as client:
         for idx, item in enumerate(golden_set, 1):
             q_id = item["id"]
             question = item["question"]

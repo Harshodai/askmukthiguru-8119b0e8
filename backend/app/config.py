@@ -13,11 +13,12 @@ Includes configs for:
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
-from pydantic import Field, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -482,6 +483,23 @@ class Settings(BaseSettings):
     # instead of reading the env directly, so the endpoint is validated the same
     # way as every other settings-sourced URL.
     benchmark_endpoint: str = "http://localhost:8000"
+    # Comma-separated or JSON-list of HTTPS hostnames allowed to receive the
+    # X-Test-Key benchmark secret (non-loopback targets only — see
+    # benchmarks/ragas_eval.py::_validate_endpoint).
+    benchmark_test_key_allowed_hosts: Annotated[list[str], NoDecode] = []
+    benchmark_anon_session_timeout: float = Field(default=15.0, gt=0.0)
+    benchmark_chat_timeout: float = Field(default=180.0, gt=0.0)
+
+    @field_validator("benchmark_test_key_allowed_hosts", mode="before")
+    @classmethod
+    def _parse_benchmark_test_key_allowed_hosts(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (ValueError, json.JSONDecodeError):
+                return [h.strip() for h in v.split(",") if h.strip()]
+        return v
+
     # P1-SEC-1 (T4): Defense-in-depth admin allowlist. Comma-separated admin
     # user UUIDs. When non-empty, an AAL2 superuser MUST also be in this list
     # to reach admin/ingest/kg admin endpoints. Empty (default) = not enforced

@@ -2,12 +2,19 @@
 Checkpoint handler for ingestion state tracking across Redis, Supabase, and local JSON files.
 """
 
+import contextlib
 import json
 import logging
 import os
+import tempfile
 import threading
 from pathlib import Path
 from typing import Optional
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - non-POSIX platforms
+    fcntl = None
 
 logger = logging.getLogger(__name__)
 
@@ -23,19 +30,18 @@ class IngestionCheckpoint:
         self.filepath.parent.mkdir(exist_ok=True)
         self.redis_client = None
         self.supabase_client = None
-        self.tenant_id = "default"
+        self.tenant_id = self._default_tenant_id()
+        try:
+            from services.tenant_context import TenantContext
+            self.tenant_id = TenantContext.get() or self._default_tenant_id()
+        except Exception:
+            self.tenant_id = self._default_tenant_id()
 
         # Try establishing connection to Redis for centralized checkpointing
         try:
             from app.config import settings
             import redis
             if getattr(settings, "redis_url", None):
-                try:
-                    from services.tenant_context import TenantContext
-                    self.tenant_id = TenantContext.get() or "default"
-                except Exception:
-                    self.tenant_id = "default"
-
                 self.redis_client = redis.from_url(settings.redis_url, socket_timeout=2.0)
                 self.redis_client.ping()
                 logger.info(f"IngestionCheckpoint: Centralized Redis backend connected. Tenant: {self.tenant_id}")
@@ -49,12 +55,6 @@ class IngestionCheckpoint:
                 from app.config import settings
                 from supabase import create_client
                 if settings.supabase_url and settings.supabase_key:
-                    try:
-                        from services.tenant_context import TenantContext
-                        self.tenant_id = TenantContext.get() or "default"
-                    except Exception:
-                        self.tenant_id = "default"
-
                     self.supabase_client = create_client(settings.supabase_url, settings.supabase_key)
                     logger.info(f"IngestionCheckpoint: Centralized Supabase backend connected. Tenant: {self.tenant_id}")
             except Exception as e:
@@ -71,21 +71,63 @@ class IngestionCheckpoint:
         """Atomically replace the checkpoint file (write temp + os.replace).
 
         write_text in place is not atomic: a crash mid-write corrupts the file.
-        os.replace is atomic on POSIX; the temp file lives in the same directory
-        so the rename never crosses filesystems.
+        A unique temp file per call avoids two concurrent writers colliding on
+        the same temp name. os.replace is atomic on POSIX; the temp file lives
+        in the same directory so the rename never crosses filesystems.
         """
-        tmp_path = self.filepath.with_suffix(self.filepath.suffix + ".tmp")
-        tmp_path.write_text(json.dumps(data, indent=2))
-        os.replace(tmp_path, self.filepath)
+        fd, tmp_path = tempfile.mkstemp(
+            dir=self.filepath.parent, prefix=".ckpt-", suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(data, f, indent=2)
+            os.replace(tmp_path, self.filepath)
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    @contextlib.contextmanager
+    def _file_lock(self):
+        """Serialize checkpoint-file read-modify-write across processes.
+
+        fcntl.flock serializes processes sharing the checkpoint file; the
+        module-level _FILE_LOCK additionally serializes threads within this
+        process. Both are always acquired in the same order.
+        """
+        lock_path = self.filepath.with_suffix(self.filepath.suffix + ".ckpt.lock")
+        lock_fh = lock_path.open("a+")
+        try:
+            if fcntl is not None:
+                fcntl.flock(lock_fh, fcntl.LOCK_EX)
+            with _FILE_LOCK:
+                yield
+        finally:
+            try:
+                if fcntl is not None:
+                    fcntl.flock(lock_fh, fcntl.LOCK_UN)
+            finally:
+                lock_fh.close()
+
+    def _default_tenant_id(self) -> str:
+        """Tenant id of the legacy default namespace (settings or 'default')."""
+        try:
+            from app.config import settings
+            return getattr(settings, "default_tenant_id", None) or "default"
+        except Exception:
+            return "default"
 
     def _load_processed_chunks(self) -> set[str]:
         """Return tenant-qualified chunk IDs, migrating legacy unqualified keys.
 
         The rewrite is persisted back to the checkpoint file once (only when
         legacy keys are detected) so the migration survives restarts instead of
-        being recomputed in memory on every boot.
+        being recomputed in memory on every boot. Legacy keys predate tenant
+        support and always belong to the default tenant, so they migrate into
+        the default-tenant namespace regardless of the loading instance's
+        tenant.
         """
-        tenant = getattr(self, "tenant_id", None) or "default"
         result: set[str] = set()
         has_legacy = False
         for key in self.data.keys():
@@ -94,23 +136,29 @@ class IngestionCheckpoint:
             else:
                 # Legacy default-tenant entry: rewrite to the qualified namespace.
                 has_legacy = True
-                qualified = f"tenant:{tenant}:{key}"
+                qualified = f"tenant:{self._default_tenant_id()}:{key}"
                 result.add(qualified)
         if has_legacy:
-            self._persist_qualified_keys(tenant)
+            self._persist_qualified_keys()
         return result
 
-    def _persist_qualified_keys(self, tenant: str) -> None:
-        """Rewrite legacy unqualified keys to the tenant-qualified namespace on
+    def _persist_qualified_keys(self) -> None:
+        """Rewrite legacy unqualified keys to the default-tenant namespace on
         disk. Called once from _load_processed_chunks; _load() stays untouched
         so there is no recursion between the two.
         """
-        rewritten = {
-            (key if key.startswith("tenant:") else f"tenant:{tenant}:{key}"): value
-            for key, value in self.data.items()
-        }
-        self.data = rewritten
-        with _FILE_LOCK:
+        with self._file_lock():
+            # Reload under the lock: self.data is a construction-time snapshot,
+            # and another instance may have written to disk since.
+            current = self._load()
+            rewritten = {k: v for k, v in current.items() if k.startswith("tenant:")}
+            default_tenant = self._default_tenant_id()
+            for key, value in current.items():
+                if not key.startswith("tenant:"):
+                    qualified = f"tenant:{default_tenant}:{key}"
+                    if qualified not in rewritten:
+                        rewritten[qualified] = value
+            self.data = rewritten
             self._atomic_write(rewritten)
 
     def _qualify_chunk_id(self, chunk_id: str) -> str:
@@ -158,7 +206,7 @@ class IngestionCheckpoint:
 
         qualified = self._qualify_chunk_id(chunk_id)
         self.processed_chunks.add(qualified)
-        with _FILE_LOCK:
+        with self._file_lock():
             # Merge with the file's current state: self.data is a construction-time
             # snapshot, and other IngestionCheckpoint instances (e.g. different
             # tenants) may have written entries since. Overwriting the snapshot
@@ -167,6 +215,7 @@ class IngestionCheckpoint:
             merged = self._load()
             merged[qualified] = metadata or {"timestamp": time.time()}
             self.data = merged
+            self.processed_chunks = set(merged.keys())
             self._atomic_write(merged)
 
     def is_processed(self, chunk_id: str) -> bool:
@@ -188,6 +237,9 @@ class IngestionCheckpoint:
 
         # A Redis/Supabase miss doesn't rule out a checkpoint that was written
         # to the local-file fallback during an earlier outage of either store.
+        # Reload the on-disk state so writes from other instances are visible.
+        self.data = self._load()
+        self.processed_chunks = set(self.data.keys())
         return self._qualify_chunk_id(chunk_id) in self.processed_chunks
 
     def prune_stale_entries(self, active_hashes: list[str]):
@@ -197,10 +249,17 @@ class IngestionCheckpoint:
             return
 
         active_set = {self._qualify_chunk_id(h) for h in active_hashes}
-        with _FILE_LOCK:
-            # Merge with the on-disk state (other instances may have written
-            # since construction) before pruning, mirroring save().
-            self.data = {k: v for k, v in self._load().items() if k in active_set}
+        tenant_ns = f"tenant:{self.tenant_id}:"
+        with self._file_lock():
+            # Reload the on-disk state (other instances may have written since
+            # construction) before pruning, mirroring save(). Only the current
+            # tenant's namespace is pruned; other tenants' entries stay.
+            current = self._load()
+            self.data = {
+                k: v
+                for k, v in current.items()
+                if not k.startswith(tenant_ns) or k in active_set
+            }
             self.processed_chunks = set(self.data.keys())
             self._atomic_write(self.data)
 

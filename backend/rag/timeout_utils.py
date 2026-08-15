@@ -67,3 +67,8 @@ def get_node_timeout(node_name: str, default_timeout: Optional[float] = None) ->
     if default_timeout is None:
         return NODE_TIMEOUTS.get(node_name, 30.0)
     return default_timeout
+
+def timeout_with_margin(base_seconds: float, margin_seconds: float = 5.0) -> float:
+    """Return base_seconds + margin_seconds so the caller's own timeout never
+    races the service-side deadline (safety margin, per repo convention)."""
+    return base_seconds + margin_seconds

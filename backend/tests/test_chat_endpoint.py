@@ -467,6 +467,7 @@ def test_stream_endpoint_empty_message_releases_reservation():
         response = client.post("/api/chat/stream", json=payload)
         assert response.status_code == 200
         mock_quota.release.assert_awaited_once_with({"id": "test-user-id", "email": "test@example.com"}, "res-3")
+        container.rag_graph.ainvoke.assert_not_awaited()
     finally:
         app.dependency_overrides[get_container] = mock_get_container
 

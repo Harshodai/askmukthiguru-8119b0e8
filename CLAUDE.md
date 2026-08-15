@@ -767,7 +767,7 @@ The backend `ChatRequest` expects `{ messages, user_message, meditation_step }`.
 | `focused_fix_test.py` | Regression tests for specific bug fixes |
 | `comprehensive_benchmark.py` | Full pipeline evaluation with RAGAS |
 | `ruthless_benchmark.py` | Stress test with edge cases and adversarial queries |
-| `ragas_eval.py` | Live-endpoint faithfulness eval (default): hits `/api/chat` via the signed anon-session-token flow, reports `faithfulness_score`/`verification`/`hallucination_flag`/citations/`query_tier` and the reject-rate delta against `settings.faithfulness_floor`. `--legacy-ragas` runs the old static 4-question OpenAI-judge RAGAS dataset (needs `OPENAI_API_KEY`, outside the $0-budget stack, never actually run per git history) — kept opt-in only. |
+| `ragas_eval.py` | Live-endpoint faithfulness eval (default): hits `/api/chat` via the signed anon-session-token flow, reports `faithfulness_score`/`verification`/`hallucination_flag`/citations/`query_tier` and the reject-rate delta against `settings.faithfulness_floor`. |
 | `sdlc_rag_benchmark.py` | SDLC-style benchmark with golden question bank |
 | `chunk_size_evaluation.py` | Evaluate optimal chunk sizing parameters |
 | `validate_graph.py` | Validate graph wiring and node connectivity |

@@ -2,29 +2,19 @@
 """
 ragas_eval.py — Faithfulness evaluation for AskMukthiGuru.
 
-Two modes:
-
-  (default) live-endpoint mode — hits the real /api/chat endpoint with
-    questions from question_bank.py, using the signed anon-session-token flow
-    (POST /api/auth/anon-session -> resolve_anon_identity), and reports the
-    pipeline's OWN faithfulness_score / verification / hallucination_flag /
-    citations / query_tier fields, plus the reject-rate delta against
-    settings.faithfulness_floor — i.e. what % of currently-accepted answers
-    would flip to REJECTED under an explicit floor gate. This is the real
-    production signal needed for threshold tuning (task #41).
-
-  --legacy-ragas — the original static 4-question dataset scored by the RAGAS
-    library's OpenAI-judge metrics. Requires OPENAI_API_KEY, which is outside
-    this project's $0-budget open-source stack (root CLAUDE.md). Never calls
-    the live backend. Kept only for anyone who wants to run it manually with
-    their own key — git history shows this path has never actually been run
-    (2 commits, both unrelated repo-wide refactors).
+Live-endpoint mode — hits the real /api/chat endpoint with questions from
+question_bank.py, using the signed anon-session-token flow (POST
+/api/auth/anon-session -> resolve_anon_identity), and reports the pipeline's
+OWN faithfulness_score / verification / hallucination_flag / citations /
+query_tier fields, plus the reject-rate delta against
+settings.faithfulness_floor — i.e. what % of currently-accepted answers would
+flip to REJECTED under an explicit floor gate. This is the real production
+signal needed for threshold tuning (task #41).
 
 Usage:
   cd backend
   .venv/bin/python benchmarks/ragas_eval.py --endpoint http://localhost:8000
   .venv/bin/python benchmarks/ragas_eval.py --endpoint https://askmukthiguru-8119b0e8-production.up.railway.app --limit 2
-  .venv/bin/python benchmarks/ragas_eval.py --legacy-ragas
 """
 
 from __future__ import annotations
@@ -33,7 +23,6 @@ import argparse
 import asyncio
 import json
 import logging
-import os
 import sys
 import time
 import urllib.parse
@@ -51,96 +40,10 @@ except ImportError:
     # Fallback if run directly as scripts/benchmarks/ragas_eval.py
     from question_bank import QUERIES
 
-try:
-    from datasets import Dataset
-
-    from ragas import evaluate
-    from ragas.metrics import (
-        answer_relevancy,
-        context_precision,
-        context_recall,
-        faithfulness,
-    )
-
-    RAGAS_AVAILABLE = True
-except ImportError:
-    RAGAS_AVAILABLE = False
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
-
-# Standard Ragas benchmark dataset using public teachings (legacy mode only)
-EVAL_DATASET = {
-    "question": [
-        "What is the Beautiful State?",
-        "How do I deal with suffering according to Sri Krishnaji?",
-        "What are the Four Sacred Secrets of O&O Academy?",
-        "What is the first step of Soul Sync meditation?",
-    ],
-    "contexts": [
-        [
-            "The Beautiful State is a state of connection, joy, and peace. It is the absence of suffering."
-        ],
-        ["Suffering is a doorway to transformation. You must observe it to overcome it."],
-        [
-            "The Four Sacred Secrets include: Spiritual Vision, Inner Truth, Universal Intelligence, and Spiritual Right Action."
-        ],
-        ["The first step of Soul Sync is deep breathing (breath awareness) for 8 counts."],
-    ],
-    "answer": [
-        "The Beautiful State is a state of connection and joy, characterized by the absence of suffering.",
-        "According to Sri Krishnaji, suffering is a doorway to transformation and must be observed.",
-        "The Four Sacred Secrets are: Spiritual Vision, Inner Truth, Universal Intelligence, and Spiritual Right Action.",
-        "The first step of the practice is taking deep breaths for 8 counts.",
-    ],
-    "ground_truth": [
-        "The Beautiful State is a state devoid of suffering, full of peace and connection.",
-        "Sri Krishnaji teaches that observing suffering transforms it.",
-        "The Four Sacred Secrets are Spiritual Vision, Inner Truth, Universal Intelligence, and Spiritual Right Action.",
-        "The first step of Soul Sync is deep breathing.",
-    ],
-}
-
-
-def run_evaluation():
-    """Legacy static-dataset RAGAS evaluation (OpenAI-judge metrics). Never
-    calls the live backend — see module docstring for why this is opt-in only."""
-    logger.info("Starting legacy static Ragas RAG Evaluation...")
-
-    if not RAGAS_AVAILABLE:
-        logger.error("Ragas package is not installed. Run: pip install ragas")
-        return
-
-    if "OPENAI_API_KEY" not in os.environ:
-        logger.warning("OPENAI_API_KEY not set. Ragas uses OpenAI by default.")
-        logger.warning("Please set your OPENAI_API_KEY or configure custom LLM wrapper.")
-
-    dataset = Dataset.from_dict(EVAL_DATASET)
-
-    try:
-        result = evaluate(
-            dataset,
-            metrics=[
-                context_precision,
-                context_recall,
-                faithfulness,
-                answer_relevancy,
-            ],
-        )
-        logger.info("Evaluation Completed Successfully!")
-
-        df = result.to_pandas()
-        print("\n--- Ragas Evaluation Results ---")
-        print(df.to_markdown() if hasattr(df, "to_markdown") else df)
-
-        REPORT_DIR.mkdir(parents=True, exist_ok=True)
-        df.to_csv(REPORT_DIR / "ragas_evaluation.csv", index=False)
-        logger.info("Results saved to %s", REPORT_DIR / "ragas_evaluation.csv")
-
-    except Exception as e:
-        logger.error(f"Ragas evaluation failed: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -161,9 +64,10 @@ def _validate_endpoint(endpoint: str, test_key: Optional[str]) -> Optional[str]:
     """Return an error message if endpoint is unsafe to call, else None.
 
     The X-Test-Key backdoor secret must never be sent to an unvalidated host:
-    loopback is fine (local dev), any other host must be https. Redirects are
-    refused by the client (follow_redirects=False) so a 3xx can never bounce
-    the keyed request to a host we did not validate.
+    loopback is fine (local dev), any other host must be https AND listed in
+    settings.benchmark_test_key_allowed_hosts. Redirects are refused by the
+    client (follow_redirects=False) so a 3xx can never bounce the keyed
+    request to a host we did not validate.
     """
     try:
         parsed = urllib.parse.urlparse(endpoint)
@@ -175,6 +79,14 @@ def _validate_endpoint(endpoint: str, test_key: Optional[str]) -> Optional[str]:
     is_loopback = host in {"localhost", "127.0.0.1", "::1"}
     if test_key and not is_loopback and parsed.scheme != "https":
         return f"Endpoint with a test key must be https or loopback (got {endpoint!r})"
+    if test_key and not is_loopback:
+        from app.config import settings
+
+        if host not in settings.benchmark_test_key_allowed_hosts:
+            return (
+                f"Endpoint with a test key must be in "
+                f"settings.benchmark_test_key_allowed_hosts (got {endpoint!r})"
+            )
     return None
 
 
@@ -183,7 +95,13 @@ async def _get_anon_session_token(client: httpx.AsyncClient, endpoint: str) -> s
     resolve_anon_identity() (a bare client-chosen session_id is rejected).
     Fetched fresh per question so the per-session anon quota
     (settings.anon_quota_messages, default 5) never throttles the eval run."""
-    r = await client.post(f"{endpoint}/api/auth/anon-session", timeout=15.0)
+    from app.config import settings
+    from rag.timeout_utils import timeout_with_margin
+
+    r = await client.post(
+        f"{endpoint}/api/auth/anon-session",
+        timeout=timeout_with_margin(settings.benchmark_anon_session_timeout),
+    )
     r.raise_for_status()
     return r.json()["token"]
 
@@ -205,6 +123,9 @@ async def _ask(
     question: str,
     test_key: Optional[str],
 ) -> dict[str, Any]:
+    from app.config import settings
+    from rag.timeout_utils import timeout_with_margin
+
     headers = {"X-Test-Key": test_key} if test_key else {}
     payload = {
         "messages": [],
@@ -212,7 +133,12 @@ async def _ask(
         "session_id": token,
         "incognito": True,
     }
-    r = await client.post(f"{endpoint}/api/chat", json=payload, headers=headers, timeout=180.0)
+    r = await client.post(
+        f"{endpoint}/api/chat",
+        json=payload,
+        headers=headers,
+        timeout=timeout_with_margin(settings.benchmark_chat_timeout),
+    )
     r.raise_for_status()
     return r.json()
 
@@ -325,7 +251,12 @@ def _parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--endpoint", default=settings.benchmark_endpoint)
-    parser.add_argument("--test-key", default=settings.benchmark_secret or settings.jwt_secret)
+    parser.add_argument(
+        "--test-key",
+        default=settings.benchmark_secret,
+        help="X-Test-Key benchmark secret (defaults to settings.benchmark_secret; "
+        "non-loopback targets must be https and in settings.benchmark_test_key_allowed_hosts).",
+    )
     parser.add_argument(
         "--categories",
         default=",".join(DEFAULT_LIVE_CATEGORIES),
@@ -338,26 +269,18 @@ def _parse_args() -> argparse.Namespace:
         default=8.0,
         help="Delay between requests — keep >= 6s for the default RATE_LIMIT_PER_MINUTE=10.",
     )
-    parser.add_argument(
-        "--legacy-ragas",
-        action="store_true",
-        help="Run the old static-dataset OpenAI-judge RAGAS mode instead (needs OPENAI_API_KEY, never hits the live backend).",
-    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = _parse_args()
-    if args.legacy_ragas:
-        run_evaluation()
-    else:
-        categories = [c.strip() for c in args.categories.split(",") if c.strip()]
-        asyncio.run(
-            run_live_endpoint_eval(
-                endpoint=args.endpoint,
-                categories=categories,
-                limit_per_category=args.limit,
-                pace_seconds=args.pace_seconds,
-                test_key=args.test_key,
-            )
+    categories = [c.strip() for c in args.categories.split(",") if c.strip()]
+    asyncio.run(
+        run_live_endpoint_eval(
+            endpoint=args.endpoint,
+            categories=categories,
+            limit_per_category=args.limit,
+            pace_seconds=args.pace_seconds,
+            test_key=args.test_key,
         )
+    )

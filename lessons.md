@@ -17,12 +17,12 @@
 
 ### L-REV-8. Reservation tokens must cross the job-queue boundary
 - **What**: Queued (202) jobs are executed by `queue_worker_factory`, which can't see the endpoint's quota result.
-- **Fix applied**: The endpoint puts `quota_reservation_id` into the enqueue `request_data` payload; the worker releases it on failure (stream + inline + HTTPException paths) and keeps it on success. Never re-call `check_and_record` in the worker — that would double-count the reservation.
-- **How to prevent**: Any token minted at the gate that a background worker must act on travels in the job payload; the worker releases, it never re-checks.
+- **Fix applied**: The endpoint puts `quota_reservation_id` into the enqueue `request_data` payload; the worker releases it on failure (stream + inline + HTTPException paths) and claims it explicitly on success (see L-REV-12). Never re-call `check_and_record` in the worker — that would double-count the reservation.
+- **How to prevent**: Any token minted at the gate that a background worker must act on travels in the job payload; the worker releases on failure and claims on success, it never re-checks.
 
 ### L-REV-9. Stream quota commit point: after the blocked branch, before the done event
 - **What**: The old charge sat AFTER the `event: done` yield, so a client disconnect at the done yield could skip it.
-- **Fix applied**: Under the reservation model the commit is implicit; the release sites are the `completed` flag in `_sse`'s finally (pipeline failed/timed out/cancelled) and the blocked branch (guardrail-blocked streams stay uncharged, preserving historical behavior). A `completed = True` right after `result = await pipeline_task` gates whether the finally releases.
+- **Fix applied**: Under the reservation model the success path claims explicitly via `_claim_anon_quota` right after `result = await pipeline_task` (the `completed = True` flag set there gates whether the `_sse` finally releases on pipeline failed/timed out/cancelled), and the blocked branch releases (guardrail-blocked streams stay uncharged, preserving historical behavior).
 - **How to prevent**: Place completion markers before the last yield and gate the finally's release on them, so a disconnect at the final event can't skip the accounting.
 
 ### L-REV-10. `retention_days` on the compliance log must be validated, not echoed

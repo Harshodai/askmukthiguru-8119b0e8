@@ -939,6 +939,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         return {
             "documents": tour_docs,
             "relevant_docs": tour_docs,
+            "query_tier": query_tier,
             "sub_queries": [base_question],
             "retrieval_queries": [base_question],
             "evaluation_trace": _trace_update(
@@ -1382,6 +1383,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     return {
         "documents": all_docs,
         "raw_documents": raw_docs_copy,
+        "query_tier": query_tier,
         "evaluation_trace": _trace_update(
             state,
             retrieval_queries=retrieval_queries,

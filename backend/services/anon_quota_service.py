@@ -6,6 +6,7 @@ reads limits from app.config.settings so callers only pass a session id.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from app.config import settings
@@ -66,6 +67,7 @@ class AnonQuotaService:
     def __init__(self, redis_url: str | None = None) -> None:
         self._redis_url = redis_url
         self._adapter: AnonQuotaPort | None = None
+        self._adapter_lock = asyncio.Lock()
         self._enabled = bool(getattr(settings, "anon_quota_enabled", True))
         self._limit = int(getattr(settings, "anon_quota_messages", 5))
         self._window_hours = float(getattr(settings, "anon_quota_window_hours", 24.0))
@@ -82,26 +84,40 @@ class AnonQuotaService:
         if self._adapter is not None:
             return self._adapter
 
-        if not self._redis_url:
-            logger.info("AnonQuota: no redis_url configured, using in-memory adapter")
-            self._adapter = AnonQuotaMemoryAdapter()
+        async with self._adapter_lock:
+            if self._adapter is not None:
+                return self._adapter
+
+            if not self._redis_url:
+                logger.info("AnonQuota: no redis_url configured, using in-memory adapter")
+                self._adapter = AnonQuotaMemoryAdapter()
+                return self._adapter
+
+            client = None
+            adapter = None
+            try:
+                import redis.asyncio as aioredis
+
+                client = aioredis.from_url(self._redis_url, decode_responses=True)
+                await asyncio.wait_for(client.ping(), timeout=_REDIS_PROBE_TIMEOUT)
+                from services.anon_quota_redis import AnonQuotaRedisAdapter
+
+                adapter = AnonQuotaRedisAdapter(client)
+                logger.info("AnonQuota: using Redis adapter")
+                self._adapter = adapter
+            except Exception as exc:
+                logger.warning(f"AnonQuota: Redis adapter failed ({exc}), falling back to in-memory")
+                self._adapter = AnonQuotaMemoryAdapter()
+            finally:
+                if client is not None and adapter is None:
+                    try:
+                        if hasattr(client, "aclose"):
+                            await client.aclose()
+                        else:
+                            await client.close()
+                    except Exception:
+                        pass
             return self._adapter
-
-        try:
-            import asyncio
-
-            import redis.asyncio as aioredis
-
-            client = aioredis.from_url(self._redis_url, decode_responses=True)
-            await asyncio.wait_for(client.ping(), timeout=_REDIS_PROBE_TIMEOUT)
-            from services.anon_quota_redis import AnonQuotaRedisAdapter
-
-            logger.info("AnonQuota: using Redis adapter")
-            self._adapter = AnonQuotaRedisAdapter(client)
-        except Exception as exc:
-            logger.warning(f"AnonQuota: Redis adapter failed ({exc}), falling back to in-memory")
-            self._adapter = AnonQuotaMemoryAdapter()
-        return self._adapter
 
     def _build_adapter(self, redis_url: str | None) -> AnonQuotaPort:
         """Synchronous constructor no longer probes Redis; use _build_adapter_async."""
