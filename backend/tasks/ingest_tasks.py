@@ -19,6 +19,7 @@ from typing import Any, Optional
 from httpx import HTTPError
 from celery import Task
 
+from app.config import settings
 from celery_config import celery_app, update_job_progress
 
 logger = logging.getLogger(__name__)
@@ -190,6 +191,13 @@ def index_vectors(
                         "content_hash": content_hash,
                         "source": (metadata or {}).get("source", ""),
                         "title": (metadata or {}).get("title", ""),
+                        # Same mandatory CorpusScope/rights-gate fields as
+                        # services/qdrant/indexer.py -- without these every point
+                        # written by this job-queue path is permanently
+                        # unretrievable under searcher.py's mandatory filter.
+                        "tenant_id": settings.default_tenant_id,
+                        "corpus_id": settings.default_corpus_id,
+                        "domain_rights_status": "licensed",
                     },
                 )
             )

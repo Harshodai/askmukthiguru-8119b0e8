@@ -214,6 +214,14 @@ class QdrantIndexer:
             payload = {"text": text, **meta}
             payload.setdefault("tenant_id", TenantContext.get() or settings.default_tenant_id)
             payload.setdefault("corpus_id", settings.default_corpus_id)
+            # Task #17 rights gate (services/qdrant/searcher.py) mandatorily filters on
+            # this field when settings.require_licensed_domain_reads is True. Only
+            # Sri Preethaji/Sri Krishnaji's own approved sources are ever ingested here
+            # (see CLAUDE.md's data-source constraint) -- this pipeline never handles
+            # other-teacher content, unlike ontology_writer.py's Neo4j BEING-node stamp,
+            # which does need the registered/unverified distinction. Without this write,
+            # every chunk indexed here was permanently unretrievable under the gate.
+            payload.setdefault("domain_rights_status", "licensed")
             point = PointStruct(
                 id=point_id,
                 vector=vector_dict,
