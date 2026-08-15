@@ -20,13 +20,17 @@ Benchmarks: `benchmarks/RUN_ME.sh` (needs the live Docker stack; normally run by
 
 ## Request flow (chat)
 
-`POST /api/chat` → `app/orchestrator.py` (sync) or `app/stream_orchestrator.py` (SSE) → `app/pipeline/pipeline_coordinator.py:PipelineCoordinator.execute()` → `StageRunner` runs the ordered stage chain from `app/pipeline/stages/pipeline_builder.py`:
+`POST /api/chat` → anonymous-quota check (`ServiceContainer.anon_quota_service`) → `app/orchestrator.py` (sync) or `app/stream_orchestrator.py` (SSE) → `app/pipeline/pipeline_coordinator.py:PipelineCoordinator.execute()` → `StageRunner` runs the ordered stage chain from `app/pipeline/stages/pipeline_builder.py`:
 
 ```
 CacheCheck → CircuitBreaker → RequestState → InputGuardrail → DoctrineCache
 → CasualShortCircuit → Distress → Graph → MeditationGen → Translation
 → ToneAdapter → OutputGuardrail → Memory → CacheUpdate → ResultAssembly
 ```
+
+- Anonymous users get a server-signed session token from `POST /api/auth/anon-session` and echo it back as `session_id` / `X-Session-Id`. `resolve_anon_identity()` verifies the HMAC and rewrites the user id to `anon:<payload>` so sessions are isolated.
+- Anonymous chat quota: `settings.anon_quota_messages` (default 5), `settings.anon_quota_window_hours` (default 24), `settings.anon_quota_enabled` (default true). Enforced in `/api/chat`, `/api/chat/v2`, and `/api/chat/stream` before any pipeline work. Exceeded requests return `429 {quota_exceeded: true}`.
+- Quota storage is a port (`services/anon_quota_port.py`) with Redis (`services/anon_quota_redis.py`) and in-memory (`services/anon_quota_memory.py`) adapters; `AnonQuotaService` chooses Redis when available and falls back to memory.
 
 - Stages are pure functions over a `PipelineContext` (`app/pipeline/stages/context.py`), unit-testable in isolation; they reach services via `ctx.container` and coordinator helpers via `ctx.coordinator`.
 - `GraphStage` executes the LangGraph: `rag/graph.py` is a thin facade over `rag/graph_strategies.py` (Fast/Standard/Deep); nodes live in `rag/nodes/`. The node data contract is the `GraphState` TypedDict in `rag/states.py` (carries `request_id` for log correlation).

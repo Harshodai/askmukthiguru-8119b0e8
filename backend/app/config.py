@@ -505,6 +505,11 @@ class Settings(BaseSettings):
     disable_public_registration: bool = True
     chat_rate_limit: str = "20/minute"
     registration_rate_limit: str = "5/minute"
+    # --- Anonymous Quota (Progressive Auth) ---
+    # Max user turns allowed per anonymous session within the window.
+    anon_quota_messages: int = 5
+    anon_quota_window_hours: float = 24.0
+    anon_quota_enabled: bool = True
     # Early-access collection remains off until its migration and privacy copy are deployed.
     waitlist_enabled: bool = False
     google_sso_enabled: bool = True

@@ -49,6 +49,7 @@ from services.qdrant_service import QdrantService
 from services.serene_mind_engine import SereneMindEngine
 from services.user_profile_service import UserProfileService
 from services.web_search_service import WebSearchService
+from services.anon_quota_service import AnonQuotaService
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +140,9 @@ class ServiceContainer:
         self.ocr = OCRService()
         self.krutrim = KrutrimService()
         self.language_router = LanguageRouter()
+
+        # Anonymous chat quota — lightweight, no external deps required.
+        self.anon_quota_service = AnonQuotaService(redis_url=getattr(settings, "redis_url", None))
 
         # Initialize Supabase client early for dynamic settings loading
         from supabase import create_client

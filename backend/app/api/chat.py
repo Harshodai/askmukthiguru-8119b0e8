@@ -22,6 +22,7 @@ from app.grounding import grounding_state_for
 from app.sanitization import sanitize_user_input
 from app.security_utils import is_benchmark_request
 from rag.memory import build_memory_context
+from services.anon_quota_port import QuotaResult
 from services.auth_service import (
     get_current_user_from_supabase,
     get_optional_user,
@@ -35,6 +36,40 @@ from services.tenant_context import TenantContext, set_tenant_from_request
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Chat"])
+
+
+# ---------------------------------------------------------------------------
+# Anonymous chat quota (progressive auth)
+# ---------------------------------------------------------------------------
+
+def _anon_quota_response(quota: "QuotaResult") -> JSONResponse:
+    """Standard 429 response when an anonymous session hits its message quota."""
+    headers = {}
+    if quota.retry_after_seconds:
+        headers["Retry-After"] = str(quota.retry_after_seconds)
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": "Anonymous quota exceeded",
+            "detail": "Sign in to continue the conversation.",
+            "quota_exceeded": True,
+            "remaining": quota.remaining,
+            "total_limit": quota.total_limit,
+            "retry_after_seconds": quota.retry_after_seconds,
+        },
+        headers=headers,
+    )
+
+
+async def _enforce_anon_quota(
+    user: dict,
+    container: ServiceContainer,
+) -> JSONResponse | None:
+    """Return a 429 response if the anonymous session has no quota left."""
+    quota = await container.anon_quota_service.check_and_record(user)
+    if quota.quota_exceeded:
+        return _anon_quota_response(quota)
+    return None
 
 # P1-OPS-8: upstream backpressure for chat. A single replica can be
 # overwhelmed by concurrent chat requests; the LLM circuit breaker only
@@ -283,6 +318,10 @@ async def chat_endpoint(
 
     user = resolve_anon_identity(user, chat_body.session_id)
 
+    quota_response = await _enforce_anon_quota(user, container)
+    if quota_response:
+        return quota_response
+
     await populate_server_side_history(chat_body, user, container, is_benchmark)
 
     if container.job_queue and settings.queue_enabled and not is_benchmark and not chat_body.incognito:
@@ -419,6 +458,10 @@ async def chat_stream_endpoint(
     is_benchmark = is_benchmark_request(request)
 
     user = resolve_anon_identity(user, chat_body.session_id)
+
+    quota_response = await _enforce_anon_quota(user, container)
+    if quota_response:
+        return quota_response
 
     await populate_server_side_history(chat_body, user, container, is_benchmark)
 
