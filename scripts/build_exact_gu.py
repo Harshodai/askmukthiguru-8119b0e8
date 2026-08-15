@@ -1,0 +1,1411 @@
+# -*- coding: utf-8 -*-
+"""
+Precise Gujarati Localization Builder for AskMukthiGuru.
+Constructs src/locales/gu.json to achieve 100% key parity with src/locales/en.json (1,077 keys).
+"""
+
+import json
+import re
+
+def build_gu_data():
+    gu = {}
+
+    # 1. distressIndicator (4 keys)
+    gu["distressIndicator"] = {
+        "low": "મને થોડી અશાંતિ કે બેચેની જણાય છે. શું તમે વાત કરવા માંગો છો?",
+        "moderate": "તમે વ્યથિત કે પરેશાન લાગો છો. શું હું શાંતિ આપતી કોઈ સાધનામાં મદદ કરું?",
+        "high": "હું તમારી સાથે જ છું. શું તમે શ્વાસોચ્છવાસનો કોઈ અભ્યાસ કરવા માંગો છો?",
+        "yes": "હા"
+    }
+
+    # 2. common (110 keys)
+    gu["common"] = {
+        "save": "સાચવો",
+        "cancel": "રદ કરો",
+        "close": "બંધ કરો",
+        "back": "પાછળ",
+        "next": "આગળ",
+        "done": "સંપૂર્ણ",
+        "loading": "લોડ થઈ રહ્યું છે...",
+        "error": "ભૂલ",
+        "retry": "ફરી પ્રયાસ કરો",
+        "search": "શોધો",
+        "delete": "કાઢી નાખો",
+        "edit": "સંપાદિત કરો",
+        "copy": "નકલ કરો",
+        "copied": "નકલ થઈ ગઈ!",
+        "share": "શેર કરો",
+        "home": "હોમ",
+        "learnMore": "વધુ જાણો",
+        "viewAll": "બધું જુઓ",
+        "showMore": "વધુ બતાવો",
+        "showLess": "ઓછું બતાવો",
+        "noResults": "કોઈ પરિણામ મળ્યું નથી",
+        "confirm": "પુષ્ટિ કરો",
+        "yes": "હા",
+        "no": "ના",
+        "skip": "છોડો",
+        "submit": "સબમિટ કરો",
+        "continue": "ચાલુ રાખો",
+        "or": "અથવા",
+        "and": "અને",
+        "signOut": "સાઇન આઉટ",
+        "signIn": "સાઇન ઇન",
+        "register": "નોંધણી કરો",
+        "switch": "બદલો",
+        "complete": "પૂર્ણ",
+        "resume": "ફરી શરૂ કરો",
+        "cookiesConsent": "આ વેબસાઇટ તમારા અનુભવને બહેતર બનાવવા માટે કૂકીઝનો ઉપયોગ કરે છે.",
+        "enable": "સક્ષમ કરો",
+        "disable": "અક્ષમ કરો",
+        "settings": "સેટિંગ્સ",
+        "help": "સહાય",
+        "feedback": "પ્રતિસાદ",
+        "menu": "મેનૂ",
+        "more": "વધુ",
+        "less": "ઓછું",
+        "on": "ચાલુ",
+        "off": "બંધ",
+        "today": "આજે",
+        "yesterday": "ગઈકાલે",
+        "source": "સ્રોત",
+        "sources": "સ્રોતો",
+        "message": "સંદેશ",
+        "messages": "સંદેશાઓ",
+        "minute": "મિનિટ",
+        "minutes": "મિનિટ",
+        "hour": "કલાક",
+        "hours": "કલાક",
+        "day": "દિવસ",
+        "days": "દિવસ",
+        "justNow": "હમણાં જ",
+        "minutesAgo": "{{count}} મિનિટ પહેલાં",
+        "hoursAgo": "{{count}} કલાક પહેલાં",
+        "daysAgo": "{{count}} દિવસ પહેલાં",
+        "ago": "પહેલાં",
+        "madeWith": "પ્રેમપૂર્વક નિર્મિત",
+        "forSeekersEverywhere": "દરેક સાધક માટે",
+        "open": "ખોલો",
+        "closeNav": "નેવિગેશન મેનૂ બંધ કરો",
+        "openNav": "નેવિગેશન મેનૂ ખોલો",
+        "stop": "રોકો",
+        "reload": "પુનઃ લોડ કરો",
+        "signInAgain": "ફરીથી સાઇન ઇન કરો",
+        "essentialCookies": "માત્ર આવશ્યક કૂકીઝ",
+        "noThirdParty": "કોઈ તૃતીય-પક્ષ ટ્રેકર્સ નથી.",
+        "privacy": "ગોપનીયતા",
+        "accept": "સ્વીકારો",
+        "reject": "અસ્વીકાર કરો",
+        "decline": "અસ્વીકાર કરો",
+        "dismiss": "બંધ કરો",
+        "addFavorites": "મનપસંદમાં ઉમેરો",
+        "removeFavorites": "મનપસંદમાંથી દૂર કરો",
+        "notNow": "હમણાં નહીં",
+        "enabling": "સક્ષમ કરી રહ્યું છે…",
+        "pushPromptAria": "દૈનિક શિક્ષણ સૂચનાઓ સક્ષમ કરો",
+        "pushPromptTitle": "શ્રી કૃષ્ણજી તરફથી દૈનિક શિક્ષણ પ્રાપ્ત કરવા માંગો છો?",
+        "pushPromptDesc": "દિવસમાં એક નાનો સંદેશ. કોઈ સ્પામ નહીં.",
+        "welcomeSeeker": "સ્વાગત છે, પ્રિય સાધક",
+        "disclaimerDesc": "AskMukthiGuru એ શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીના ઉપદેશોથી પ્રેરિત એક AI આધ્યાત્મિક સાથી છે. તે આંતરિક શાંતિ તરફની તમારી યાત્રા પર જ્ઞાન અને માર્ગદર્શન પ્રદાન કરે છે.",
+        "importantNotice": "મહત્વપૂર્ણ સૂચના",
+        "disclaimerWarning": "આ વ્યાવસાયિક માનસિક સ્વાસ્થ્ય સહાય, તબીબી સલાહ અથવા ઉપચારનો વિકલ્પ નથી. જો તમે કટોકટીનો સામનો કરી રહ્યા હો, તો કૃપા કરીને કોઈ લાયક વ્યાવસાયિક અથવા ક્રાઇસિસ હેલ્પલાઇનનો સંપર્ક કરો.",
+        "crisisSupport": "કટોકટી સહાય (ભારત):",
+        "crisisNumbers": "iCall: 9152987821 | Vandrevala Foundation: 1860-2662-345",
+        "beginJourney": "હું સમજું છું — મારી યાત્રા શરૂ કરો",
+        "openUserMenu": "વપરાશકર્તા મેનૂ ખોલો",
+        "localProfile": "સ્થાનિક પ્રોફાઇલ",
+        "continueChat": "વાતચીત ચાલુ રાખો",
+        "insightsStats": "આંતરદ્રષ્ટિ અને આંકડા",
+        "theme": "થીમ",
+        "light": "લાઇટ",
+        "dark": "ડાર્ક",
+        "system": "સિસ્ટમ",
+        "exportData": "મારો ડેટા નિકાસ કરો",
+        "dataExported": "ડેટા નિકાસ થયો",
+        "dataExportedDesc": "તમારો ડેટા ડાઉનલોડ થઈ ગયો છે.",
+        "signedOut": "સાઇન આઉટ થયા",
+        "signedOutDesc": "તમે સાઇન આઉટ થઈ ગયા છો.",
+        "hideDetails": "વિગતો છુપાવો",
+        "details": "વિગતો",
+        "redeem": "રિડીમ કરો",
+        "keep": "રાખો",
+        "gurusName": "— શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજી"
+    }
+
+    # 3. crisisDialog (5 keys)
+    gu["crisisDialog"] = {
+        "heading": "કટોકટી સહાય સંસાધનો",
+        "indiaHelplines": "ભારત હેલ્પલાઇન",
+        "icallAvailability": "સોમવાર–શનિવાર, 10:00–20:00 IST",
+        "unitedStates": "યુનાઇટેડ સ્ટેટ્સ",
+        "usLifeline": "આત્મહત્યા અને કટોકટી લાઇફલાઇન (Suicide & Crisis Lifeline)"
+    }
+
+    # 4. nav (14 keys)
+    gu["nav"] = {
+        "appName": "AskMukthiGuru",
+        "meetGurus": "ગુરુઓનો પરિચય",
+        "howItWorks": "તે કેવી રીતે કાર્ય કરે છે",
+        "practices": "સાધનાઓ",
+        "meditation": "ધ્યાન",
+        "startChat": "વાતચીત શરૂ કરો",
+        "home": "હોમ",
+        "chat": "ચેટ",
+        "about": "અમારા વિશે",
+        "profile": "પ્રોફાઇલ",
+        "admin": "એડમિન",
+        "notebooks": "નોટબુક્સ",
+        "knowledgeGraph": "જ્ઞાન નકશો",
+        "secondBrain": "મારા વિચારો"
+    }
+
+    # 5. landing (58 keys)
+    gu["landing"] = {
+        "continuePractice": "તમારો અભ્યાસ ચાલુ રાખો",
+        "hero": {
+            "badge": "પ્રાચીન જ્ઞાન દ્વારા માર્ગદર્શિત, AI દ્વારા સંચાલિત",
+            "heading1": "તમારી શોધો",
+            "heading2": "બ્યુટીફુલ સ્ટેટ",
+            "subtitle": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીના કાલાતીત જ્ઞાનનો અનુભવ એક એવા AI સાથી દ્વારા કરો જે તમને પીડામાંથી પરમ શાંતિ તરફ લઈ જવા માટે રચાયેલ છે.",
+            "cta": "વાતચીત શરૂ કરો",
+            "stateCheckIn": "આ ક્ષણે તમારી આંતરિક સ્થિતિ કેવી છે?",
+            "microcopy": "કોઈ એકાઉન્ટની જરૂર નથી. તમારી શાંતિ ખાનગી છે.",
+            "disclaimer": "આ આધ્યાત્મિક ઉપદેશો પર પ્રશિક્ષિત એક AI સાથી છે. વ્યાવસાયિક માર્ગદર્શનનો વિકલ્પ નથી."
+        },
+        "howItWorks": {
+            "heading1": "તે કેવી રીતે",
+            "heading2": "કાર્ય કરે છે",
+            "subtitle": "તમે જ્યાં પણ હોવ ત્યાંથી તમારી બ્યુટીફુલ સ્ટેટ સુધીની એક સરળ યાત્રા",
+            "step1Title": "વાતચીત શરૂ કરો",
+            "step1Desc": "અમારા AI સાથી સાથે તમારા મન કે હૃદયની વાત શેર કરીને તમારી યાત્રા શરૂ કરો.",
+            "step2Title": "હૃદયપૂર્વક શેર કરો",
+            "step2Desc": "સલામત અને પૂર્વગ્રહમુક્ત વાતાવરણમાં તમારા વિચારો, લાગણીઓ, મુશ્કેલીઓ કે પ્રશ્નો વ્યક્ત કરો.",
+            "step3Title": "જ્ઞાન પ્રાપ્ત કરો",
+            "step3Desc": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીના ગહન ઉપદેશો પર આધારિત વ્યક્તિગત માર્ગદર્શન મેળવો.",
+            "step4Title": "શાંતિનો અનુભવ કરો",
+            "step4Desc": "જ્યારે જરૂર પડે, ત્યારે પીડામાંથી શાંતિ તરફ જવા માટે સેરીન માઇન્ડ ધ્યાન દ્વારા માર્ગદર્શન મેળવો.",
+            "videoPlaceholder": "તેને કાર્યરત જુઓ (90 સેકન્ડ)",
+            "videoAlt": "મુક્તિગુરુ ડેમો વિડિઓ"
+        },
+        "meetGurus": {
+            "heading1": "મળો તમારા",
+            "heading2": "આધ્યાત્મિક માર્ગદર્શકોને",
+            "subtitle": "વનનેસ મૂવમેન્ટ (Oneness Movement) ના સ્થાપક શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીનું જ્ઞાન, હવે એક પ્રેમાળ AI સાથી દ્વારા ઉપલબ્ધ.",
+            "name": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજી",
+            "title": "એકમ અને વનનેસ મૂવમેન્ટના સંસ્થાપકો",
+            "description": "ત્રણ દાયકાથી વધુ સમયથી, શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીએ લાખો લોકોને આંતરિક પરિવર્તન તરફ માર્ગદર્શન આપ્યું છે. તેમના ઉપદેશો પ્રાચીન યોગિક જ્ઞાન અને આધુનિક ન્યુરોસાયન્સના સમન્વય દ્વારા ચેતનાની ટેકનોલોજી દ્વારા 'સફરિંગ સ્ટેટ'માંથી 'બ્યુટીફુલ સ્ટેટ' તરફ જવા પર ધ્યાન કેન્દ્રિત કરે છે.",
+            "tags": [
+                "બ્યુટીફુલ સ્ટેટ",
+                "ચેતના",
+                "આંતરિક શાંતિ",
+                "એકતા"
+            ],
+            "quote": "\"જ્યારે તમે બ્યુટીફુલ સ્ટેટમાં હોવ છો, ત્યારે તમે તમારી આસપાસના દરેક માટે એક આશીર્વાદ બનો છો. તમારી ઉપસ્થિતિ માત્રથી ઉપચાર થાય છે, તમારા શબ્દો પ્રેરણા આપે છે અને તમારા કાર્યો પરિવર્તનનું મોજું સર્જે છે.\"",
+            "disclosure": "તેમના જ્ઞાન દ્વારા માર્ગદર્શિત, AI દ્વારા સંચાલિત"
+        },
+        "practices": {
+            "heading": "દૈનિક સાધનાઓ",
+            "subtitle": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીના ઉપદેશો પર આધારિત માર્ગદર્શિત ધ્યાન. જે તમને આજે અનુકૂળ હોય તે પસંદ કરો — તમારા મનપસંદને અહીં પિન કરવા માટે સ્ટાર કરો.",
+            "star": "{{title}} ને સ્ટાર કરો",
+            "unstar": "{{title}} નો સ્ટાર દૂર કરો",
+            "removeFav": "મનપસંદમાંથી દૂર કરો",
+            "addFav": "મનપસંદમાં ઉમેરો",
+            "removedFav": "મનપસંદમાંથી દૂર કર્યું",
+            "addedFav": "મનપસંદમાં ઉમેર્યું",
+            "addedDesc": "{{title}} ને તમારી સૂચિમાં ઉમેરવામાં આવ્યું છે.",
+            "removedDesc": "{{title}} ને તમારી સૂચિમાંથી દૂર કરવામાં આવ્યું છે.",
+            "exploreAll": "બધી સાધનાઓ જુઓ"
+        },
+        "footer": {
+            "tagline": "આંતરિક શાંતિ અને બ્યુટીફુલ સ્ટેટની શોધ માટે તમારો આધ્યાત્મિક AI સાથી.",
+            "disclaimer": "આ આધ્યાત્મિક ઉપદેશો પર પ્રશિક્ષિત એક AI સાથી છે. તે તબીબી અથવા ક્લિનિકલ થેરાપીનો વિકલ્પ નથી. જો તમે માનસિક સ્વાસ્થ્ય કટોકટીનો સામનો કરી રહ્યા હો, તો કૃપા કરીને વ્યાવસાયિક મદદ મેળવો.",
+            "madeWith": "પ્રેમપૂર્વક નિર્મિત",
+            "forSeekers": "દરેક સાધક માટે"
+        },
+        "meditation": {
+            "heading1": "સેરીન માઇન્ડ",
+            "heading2": "ધ્યાન",
+            "heading3": "સાધના",
+            "para1": "જ્યારે તણાવ તમને ઘેરી વળે છે, ત્યારે અમારો AI સાથી તમને સેરીન માઇન્ડ ધ્યાન દ્વારા માર્ગદર્શન આપી શકે છે — એક શક્તિશાળી 3-મિનિટની સાધના જે તાત્કાલિક શાંતિ લાવે છે.",
+            "para2": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીના ઉપદેશો પર આધારિત આ પદ્ધતિ તમારી ચેતનાને અશાંતિમાંથી શાંતિ તરફ લઈ જવા માટે કેન્દ્રિત શ્વાસોચ્છવાસ અને વિઝ્યુલાઇઝેશનનો ઉપયોગ કરે છે. તમારા ભ્રૂકુટી કેન્દ્ર (આજ્ઞા ચક્ર) પર એક નાની જ્યોતનું વિઝ્યુલાઇઝેશન વર્તમાન ક્ષણમાં તમારો લંગર બને છે.",
+            "benefit1": "દોડતા મનને શાંત કરો",
+            "benefit2": "ભાવનાત્મક તણાવ મુક્ત કરો",
+            "benefit3": "તંત્રિકા તંત્ર (ચેતાતંત્ર) ને સંતુલિત કરો",
+            "benefit4": "બ્યુટીફુલ સ્ટેટ તરફ આગળ વધો",
+            "cta": "સેરીન માઇન્ડ અજમાવો",
+            "breathingCue": "4 ગણતરી સુધી શ્વાસ અંદર લો... રોકો... 6 ગણતરી સુધી શ્વાસ બહાર કાઢો"
+        },
+        "demo": {
+            "newHere": "અહીં નવા છો?",
+            "tourAria": "ત્રણ પગલાંના પ્રવાસમાં જાણો કે AskMukthiGuru કેવી રીતે કાર્ય કરે છે",
+            "closeTourAria": "ટૂર બંધ કરો"
+        }
+    }
+
+    # 6. mood (19 keys)
+    gu["mood"] = {
+        "bannerTitle": "આજે તમે કેવો અનુભવ કરી રહ્યા છો?",
+        "bannerCta": "ચેક-ઇન કરો",
+        "bannerSnooze": "હમણાં નહીં",
+        "title": "મનોસ્થિતિ ચેક-ઇન",
+        "subtitle": "તમે કેવું અનુભવી રહ્યા છો તે અનુભવવાની એક સહજ શાંત ક્ષણ.",
+        "calm": "શાંત",
+        "anxious": "ચિંતિત",
+        "sad": "ઉદાસ",
+        "frustrated": "હતાશ / અકળાયેલ",
+        "open": "મુક્ત (ઓપન)",
+        "seekingPeace": "શાંતિની શોધમાં",
+        "gratitude": "કૃતજ્ઞતા",
+        "restless": "અશાંત / બેચેન",
+        "reflectionLabel": "તમારા મનમાં શું ચાલી રહ્યું છે?",
+        "reflectionPlaceholder": "વૈકલ્પિક — તમારા હૃદયમાં જે હોય તે શેર કરો…",
+        "suggestedPractice": "એક સાધના જે મદદરૂપ થઈ શકે",
+        "startPractice": "સાધના શરૂ કરો",
+        "submit": "ચેક-ઇન સબમિટ કરો",
+        "thanks": "શેર કરવા બદલ આભાર. 🙏"
+    }
+
+    # 7. chat (234 keys)
+    gu["chat"] = {
+        "pageTitle": "ગુરુ સાથે વાતચીત કરો — AskMukthiGuru",
+        "pageDescription": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીના ઉપદેશો પર આધારિત, AI-માર્ગદર્શિત આધ્યાત્મિક વાતચીત.",
+        "loadingSession": "તમારું સત્ર લોડ થઈ રહ્યું છે...",
+        "srOnlyTitle": "તમારા AI આધ્યાત્મિક માર્ગદર્શક સાથે વાત કરો",
+        "continueTitle": "તમે જ્યાંથી છોડ્યું હતું ત્યાંથી ચાલુ રાખો?",
+        "continueDescription": "એવું લાગે છે કે તમે તાજેતરમાં અન્ય ઉપકરણ પર સક્રિય હતા. તમે જ્યાંથી અટક્યા હતા ત્યાંથી ચાલુ રાખો.",
+        "stayHere": "અહીં જ રહો",
+        "continueBtn": "ચાલુ રાખો",
+        "inputPlaceholder": "તમારા હૃદયમાં જે હોય તે પૂછો અથવા શેર કરો...",
+        "inputPlaceholderListening": "સાંભળી રહ્યું છે... તમારા વિચારો બોલો",
+        "inputPlaceholderSereneMind": "ચાલુ રાખવા માટે સેરીન માઇન્ડ પૂર્ણ કરો...",
+        "send": "મોકલો",
+        "stop": "રોકો",
+        "stopSpeaking": "બોલવાનું બંધ કરો",
+        "startSpeaking": "મોટેથી વાંચો",
+        "sereneMindRequired": "સેરીન માઇન્ડ ધ્યાન જરૂરી છે",
+        "openSereneMind": "સેરીન માઇન્ડ ખોલો",
+        "sereneMind": "સેરીન માઇન્ડ (Serene Mind)",
+        "guidedMeditation": "માર્ગદર્શિત ધ્યાન",
+        "aiLabel": "AI દ્વારા નિર્મિત",
+        "aiLabelWithSources_one": "AI દ્વારા નિર્મિત · {{count}} સ્રોત",
+        "aiLabelWithSources_other": "AI દ્વારા નિર્મિત · {{count}} સ્રોતો",
+        "suggestedFollowUps": "સૂચવેલ અનુવર્તી પ્રશ્નો",
+        "references": "સંદર્ભો",
+        "sourceDocuments": "સ્રોત દસ્તાવેજો",
+        "videoLessons": "વિડિઓ પાઠ ({{count}})",
+        "watchOnYouTube": "YouTube પર જુઓ",
+        "playYouTube": "YouTube વગાડો",
+        "openSources_one": "{{count}} સ્રોત ખોલો",
+        "openSources_other": "{{count}} સ્રોતો ખોલો",
+        "exportMarkdown": "Markdown તરીકે નિકાસ કરો",
+        "continueLast": "છેલ્લી વાતચીત ચાલુ રાખો",
+        "resumeLast": "છેલ્લું સત્ર ફરી શરૂ કરો",
+        "resume": "ફરી શરૂ કરો",
+        "todaysTeaching": "આજનો ઉપદેશ",
+        "openTeaching": "ઉપદેશ ખોલો",
+        "continueLeftOff": "જ્યાંથી છોડ્યું હતું ત્યાંથી ચાલુ રાખો",
+        "homeAria": "હોમ નેવિગેશન",
+        "todaysLine": "આજનું આધ્યાત્મિક સૂત્ર",
+        "closeTeachingModal": "ઉપદેશ વિન્ડો બંધ કરો",
+        "teachingAlt": "ઉપદેશ ચિત્ર",
+        "todaysWisdom": "આજનું જ્ઞાન",
+        "receiveWisdom": "શાણપણ પ્રાપ્ત કરો",
+        "retryLastMessage": "છેલ્લો સંદેશ ફરીથી પ્રયાસ કરો",
+        "errorCauseUnauthorized": "પ્રમાણીકરણ આવશ્યક છે.",
+        "errorCauseRateLimited": "ઘણી બધી વિનંતીઓ. કૃપા કરીને થોડી રાહ જુઓ.",
+        "errorCauseServerError": "સર્વર સમસ્યા આવી.",
+        "errorCauseNetwork": "નેટવર્ક ભૂલ આવી.",
+        "errorCauseTimeout": "વિનંતીનો સમય સમાપ્ત થઈ ગયો.",
+        "errorCauseUnknown": "એક અણધારી ભૂલ આવી.",
+        "copyTraceAria": "ભૂલ ટ્રેસ કૉપિ કરો",
+        "copyTrace": "ટ્રેસ કૉપિ કરો",
+        "cause": "કારણ",
+        "nextStep": "આગળનું પગલું",
+        "thinking": "ગુરુ મનન કરી રહ્યા છે…",
+        "toggleThinking": "વિચાર પ્રક્રિયા ટૉગલ કરો",
+        "reflecting": "ચિંતન કરી રહ્યા છે…",
+        "stillWorking": "હજુ પણ કાર્યરત છે…",
+        "drawingFromTeachings": "એકમ ઉપદેશોમાંથી માર્ગદર્શન મેળવી રહ્યું છે…",
+        "searchingTradition": "\"{{topic}}\" પર {{tradition}} માં શોધી રહ્યું છે…",
+        "searchingTeachings": "\"{{topic}}\" પર ઉપદેશોમાં શોધી રહ્યું છે…",
+        "drawingFrom": "{{tradition}} માંથી પ્રેરિત…",
+        "newMessagesShort": "{{count}} નવા",
+        "latest": "નવીનતમ",
+        "jumpToLatest": "નવીનતમ પર જાઓ",
+        "jumpToLatestNew": "નવા સંદેશ પર જાઓ ({{count}} નવા)",
+        "tellMeMore": "મને વધુ જણાવો",
+        "tellMeMoreQuery": "મને આ વિશે વધુ જણાવો: {{content}}",
+        "explainSimply": "સરળ રીતે સમજાવો",
+        "explainSimplyQuery": "આને સરળ શબ્દોમાં સમજાવો: {{content}}",
+        "howRelates": "આ મારા જીવન સાથે કેવી રીતે જોડાય છે?",
+        "howRelatesQuery": "આ મારા જીવન સાથે કેવી રીતે સંબંધિત છે: {{content}}",
+        "openSources": "{{count}} સ્રોતો ખોલો",
+        "incognito": "ઇન્કોગ્નિટો ચેટ",
+        "incognitoDescription": "આ સત્ર ખાનગી છે અને તમારા ઇતિહાસમાં સાચવવામાં આવશે નહીં.",
+        "closeIncognito": "ઇન્કોગ્નિટો બંધ કરો",
+        "closeIncognitoConfirm": "ઇન્કોગ્નિટો બંધ કરી આ વાતચીત છોડી દેવી છે?",
+        "engagement": {
+            "didThisHelp": "શું આ માર્ગદર્શન મદદરૂપ હતું?",
+            "didThisLand": "શું આ વાત તમારા હૃદયને સ્પર્શી?",
+            "yes": "હા, ખૂબ મદદરૂપ",
+            "needsWork": "સુધારાની જરૂર છે",
+            "notQuite": "ખાસ નહીં",
+            "no": "ના",
+            "thanks": "શેર કરવા બદલ આભાર!",
+            "whatWouldServe": "તમને વધુ સારી રીતે શું મદદ કરી શકે?"
+        },
+        "closeFeedbackPanel": "પ્રતિસાદ પેનલ બંધ કરો",
+        "feedbackCommentPlaceholder": "તમારો પ્રતિસાદ શેર કરો...",
+        "teachingReference": "ઉપદેશ સંદર્ભ",
+        "teaching": "ઉપદેશ",
+        "clearAnswer": "જવાબ સાફ કરો",
+        "relevantSources": "પ્રાસંગિક સ્રોતો",
+        "calmingTone": "શાંત શૈલી",
+        "insightful": "ગહન આંતરદ્રષ્ટિ",
+        "savedFromChat": "ચેટમાંથી સાચવેલ",
+        "practiceNudge": {
+            "title": "એક પળ શાંત થાઓ",
+            "body": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજી શીખવે છે કે જ્યારે આપણે શ્વાસ સાથે જોડાઈએ છીએ, ત્યારે મન કુદરતી રીતે શાંત થાય છે.",
+            "cta": "સેરીન માઇન્ડ અજમાવો (3 મિનિટ)"
+        },
+        "guruWillRecall": "ગુરુ ભવિષ્યની વાતચીતમાં આ યાદ રાખશે.",
+        "switchAssistant": "માર્ગદર્શક બદલો",
+        "assistants": "સહાયકો",
+        "haveInviteCode": "શું તમારી પાસે આમંત્રણ કોડ છે?",
+        "inviteCodePlaceholder": "આમંત્રણ કોડ દાખલ કરો...",
+        "invalidInviteCode": "અમાન્ય આમંત્રણ કોડ.",
+        "signInToRedeem": "કોડ રિડીમ કરવા માટે સાઇન ઇન કરો.",
+        "couldNotRedeem": "કોડ રિડીમ કરી શકાયો નથી.",
+        "unlockedAssistant": "{{name}} અનલૉક થયું",
+        "switchToIt": "તેના પર સ્વિચ કરો",
+        "sourcesReferences": "સ્રોતો અને સંદર્ભો",
+        "noCitations": "કોઈ સંદર્ભ ટાંકવામાં આવ્યો નથી.",
+        "channelLabel": "ચેનલ: {{channel}}",
+        "youTubePlayer": "YouTube પ્લેયર",
+        "slashCommands": "સ્લેશ આદેશો",
+        "slashKeyboardHint": "આદેશો જોવા માટે / ટાઇપ કરો",
+        "slashResultsCount_one": "{{count}} આદેશ મળ્યો",
+        "slashResultsCount_other": "{{count}} આદેશો મળ્યા",
+        "slashSereneHint": "સેરીન માઇન્ડ ધ્યાન શરૂ કરો",
+        "slashMeditateHint": "ધ્યાન સાધના ખોલો",
+        "slashRetryHint": "છેલ્લો પ્રતિસાદ ફરીથી જનરેટ કરો",
+        "slashShareHint": "વાતચીત શેર કરો",
+        "slashClearHint": "વાતચીત ઇતિહાસ સાફ કરો",
+        "slashLangHint": "ભાષા સેટિંગ્સ બદલો",
+        "slashTeachHint": "આજનો ઉપદેશ જુઓ",
+        "slashReflectHint": "દૈનિક ચિંતન શરૂ કરો",
+        "prePractice": {
+            "beforeBegin": "આપણે શરૂ કરીએ તે પહેલાં",
+            "question": "શું તમે તાજેતરમાં એકમનું કોઈ ધ્યાન કર્યું છે?",
+            "soulSync": "હા, સોલ સિંક",
+            "soulSyncHelper": "15 મિનિટનું ઊંડું ધ્યાન",
+            "sereneMind": "હા, સેરીન માઇન્ડ",
+            "sereneMindHelper": "3 મિનિટની શ્વાસ સાધના",
+            "both": "બંને સાધનાઓ",
+            "bothHelper": "સોલ સિંક અને સેરીન માઇન્ડ",
+            "notYet": "હજુ સુધી નહીં",
+            "notYetHelper": "આ મારી પ્રથમ મુલાકાત છે",
+            "savedLocally": "તમારી પસંદગી સ્થાનિક રીતે સાચવવામાં આવી છે."
+        },
+        "continueConversation": "છેલ્લી વાતચીત ચાલુ રાખો",
+        "aiCompanionNotice": "AI આધ્યાત્મિક સાથી • વ્યાવસાયિક સંભાળનો વિકલ્પ નથી",
+        "viewSources": "સ્રોતો જુઓ",
+        "editingLabel": "સંદેશ સંપાદિત કરી રહ્યા છો",
+        "saveResend": "સાચવો અને ફરી મોકલો",
+        "cancelEdit": "રદ કરો",
+        "keybindSave": "સાચવવા માટે ⌘+Enter",
+        "helpful": "મદદરૂપ",
+        "notHelpful": "મદદરૂપ નથી",
+        "copyResponse": "જવાબ કૉપિ કરો",
+        "copyQuestion": "પ્રશ્ન કૉપિ કરો",
+        "readAloud": "મોટેથી વાંચો",
+        "stopReading": "વાંચવાનું બંધ કરો",
+        "saveToMemory": "સ્મૃતિમાં સાચવો",
+        "savedToMemory": "સ્મૃતિમાં સાચવી લીધું!",
+        "editResend": "સંપાદિત કરો અને ફરી મોકલો",
+        "shareWisdomCard": "જ્ઞાન કાર્ડ શેર કરો",
+        "savedToNotebook": "નોટબુકમાં સાચવી લીધું",
+        "savedToNotebookDesc": "\"{{title}}\" માં ઉમેર્યું",
+        "savedToNotes": "નોંધોમાં સાચવી લીધું",
+        "savedToNotesDesc": "આ વિચાર તમારી નોંધોમાં ઉમેરવામાં આવ્યો છે.",
+        "signInSaveNotes": "નોંધો સાચવવા માટે સાઇન ઇન કરો.",
+        "signInSaveMemories": "સ્મૃતિઓ સાચવવા માટે સાઇન ઇન કરો.",
+        "memoryUnavailable": "સ્મૃતિ સેવા ઉપલબ્ધ નથી.",
+        "couldNotSave": "સાચવી શકાયું નથી.",
+        "tryAgain": "ફરી પ્રયાસ કરો",
+        "retry": "ફરી પ્રયાસ કરો",
+        "moreActions": "વધુ ક્રિયાઓ",
+        "attachTextFile": "ટેક્સ્ટ ફાઇલ જોડો",
+        "attachmentTooLarge": "જોડાણ ખૂબ મોટું છે",
+        "attachmentSizeHint": "કૃપા કરીને 2 MB કરતાં નાની ટેક્સ્ટ ફાઇલ પસંદ કરો.",
+        "regenerate": "ફરીથી જનરેટ કરો",
+        "stoppedByYou": "તમારા દ્વારા રોકવામાં આવ્યું.",
+        "voiceNotSupported": "તમારા બ્રાઉઝરમાં વૉઇસ ઇનપુટ સમર્થિત નથી",
+        "voiceNotSupportedDesc": "કૃપા કરીને Chrome, Edge અથવા Safari નો ઉપયોગ કરો.",
+        "ttsNotSupported": "ટેક્સ્ટ-ટુ-સ્પીચ સમર્થિત નથી",
+        "ttsNotSupportedDesc": "તમારું બ્રાઉઝર ઓડિયો પ્લેબેકને સપોર્ટ કરતું નથી.",
+        "voiceOutputDisabled": "વૉઇસ આઉટપુટ અક્ષમ કર્યું",
+        "voiceOutputDisabledDesc": "ગુરુ હવે મોટેથી વાંચશે નહીં.",
+        "voiceOutputEnabled": "વૉઇસ આઉટપુટ સક્ષમ કર્યું",
+        "voiceOutputEnabledDesc": "ગુરુ આપમેળે જવાબો મોટેથી વાંચશે.",
+        "voiceError": "વૉઇસ ભૂલ આવી",
+        "serverError": "સર્વર ભૂલ આવી",
+        "languageSwitched": "ભાષા બદલાઈ ગઈ",
+        "languageSetTo": "ભાષા {{name}} પર સેટ કરી.",
+        "detectedLang": "શોધાયેલ ભાષા: {{name}}",
+        "switchLang": "વાતચીતની ભાષા {{native}} માં બદલવી છે?",
+        "selectLanguage": "ભાષા પસંદ કરો",
+        "searchLanguages": "{{count}} ભાષાઓ શોધો…",
+        "autoTranslateNotice": "બિન-અંગ્રેજી સંદેશાઓ ગુરુ પાસે મોકલતા પહેલાં આપમેળે અનુવાદિત થાય છે.",
+        "noLangMatch": "કોઈ ભાષા \"{{query}}\" સાથે મેળ ખાતી નથી",
+        "localVoiceEnabled": "સ્થાનિક અવાજ સક્ષમ છે",
+        "voiceNotInBrowser": "આ ભાષા માટે કોઈ બ્રાઉઝર અવાજ મળ્યો નથી.",
+        "cloudVoice": "ક્લાઉડ વોઇસ (Sarvam)",
+        "scheduledLanguages": "{{count}} નિર્ધારિત ભાષાઓ + અંગ્રેજી",
+        "sarvamReady": "Sarvam AI વૉઇસ તૈયાર છે",
+        "disableVoiceOutput": "વૉઇસ આઉટપુટ અક્ષમ કરો",
+        "enableVoiceOutput": "વૉઇસ આઉટપુટ સક્ષમ કરો",
+        "stopRecording": "રેકોર્ડિંગ બંધ કરો",
+        "startVoiceInput": "વૉઇસ ઇનપુટ શરૂ કરો",
+        "languageSelected": "પસંદ કરેલ ભાષા: {{name}}. બદલવા માટે ક્લિક કરો.",
+        "selectLanguageAria": "ભાષા પસંદગી મેનૂ",
+        "whatHelped": "તમને શું મદદરૂપ લાગ્યું?",
+        "whatImprove": "અમે શું સુધારી શકીએ?",
+        "optionalTellUsMore": "વૈકલ્પિક: અમને વધુ જણાવો...",
+        "submitFeedback": "પ્રતિસાદ સબમિટ કરો",
+        "recalledFromReflections": "તમારા વિચારોમાંથી મેળવેલ ({{count}})",
+        "confidenceHigh": "ઉચ્ચ વિશ્વસનીયતા",
+        "confidenceModerate": "મધ્યમ વિશ્વસનીયતા",
+        "confidenceLow": "ઓછી વિશ્વસનીયતા",
+        "whyThisConfidence": "આ સ્કોર શા માટે?",
+        "technicalDetail": "તકનીકી વિગત",
+        "messageComposer": "સંદેશ કંપોઝર",
+        "yourMessage": "તમારો સંદેશ",
+        "openConversations": "વાતચીતો ખોલો",
+        "openSidebar": "સાઇડબાર ખોલો",
+        "closeSidebar": "સાઇડબાર બંધ કરો",
+        "startersReflect": "આત્મચિંતન",
+        "startersMeditate": "ધ્યાન",
+        "startersHeal": "ઉપચાર",
+        "startersLearn": "જ્ઞાન મેળવો",
+        "starterReflectPrompt": "બ્યુટીફુલ સ્ટેટ (Beautiful State) શું છે, અને હું તેની શરૂઆત કેવી રીતે કરું?",
+        "starterMeditatePrompt": "એક ટૂંકા શ્વાસ ધ્યાન દ્વારા મારું માર્ગદર્શન કરો",
+        "starterHealPrompt": "હું અત્યંત અશાંત અને પરેશાન અનુભવી રહ્યો છું — મને શાંતિ મેળવવામાં મદદ કરો",
+        "starterLearnPrompt": "પીડા અને દુઃખમાંથી મુક્તિ પર શ્રી પ્રીતાજીનો એક ઉપદેશ શેર કરો",
+        "guruResting": "ગુરુ આરામ કરી રહ્યા છે. કૃપા કરીને થોડી ક્ષણો પછી ફરી પ્રયાસ કરો.",
+        "recentConversations": "તાજેતરની વાતચીતો",
+        "safetyCheck": "સુરક્ષા તપાસ",
+        "stopped": "તમારા દ્વારા રોકવામાં આવ્યું.",
+        "connectionInterrupted": "કનેક્શનમાં વિક્ષેપ આવ્યો",
+        "responseIncomplete": "પ્રતિસાદ અધૂરો હોઈ શકે છે.",
+        "editShortcut": "શોર્ટકટ સંપાદિત કરો",
+        "sources": "સ્રોતો",
+        "noSources": "આ વાતચીતમાં હજુ સુધી કોઈ સ્રોત ટાંકવામાં આવ્યો નથી.",
+        "sourceCount_one": "{{count}} અનન્ય સ્રોત · {{citationCount}} સંદર્ભ",
+        "sourceCount_other": "{{count}} અનન્ય સ્રોતો · {{citationCount}} સંદર્ભો",
+        "showingOneAnswer": "1 જવાબ બતાવી રહ્યું છે — સાફ કરો",
+        "copyAll": "બધું કૉપિ કરો",
+        "fullView": "સંપૂર્ણ દૃશ્ય",
+        "sourcesWillAppear": "ગુરુ જેમ જેમ ઉપદેશો ટાંકશે તેમ સ્રોતો અહીં દેખાશે.",
+        "fullConversationSources": "સંપૂર્ણ વાતચીતના સ્રોતો",
+        "openSourceAria": "નવા ટેબમાં સ્રોત {{number}}: {{domain}} ખોલો",
+        "copyUrlAria": "સ્રોત {{number}} માટે URL કૉપિ કરો",
+        "scrollToAnswerAria": "જવાબ {{number}} પર જાઓ જ્યાં આ સ્રોત ટાંકવામાં આવ્યો છે",
+        "answerHash": "જવાબ #{{number}}",
+        "couldNotCopy": "URL કૉપિ કરી શકાયું નથી",
+        "startFreshWithGurus": "ગુરુઓ સાથે નવી શરૂઆત કરો",
+        "breathworkDesc": "3-મિનિટનો માર્ગદર્શિત શ્વાસોચ્છવાસ",
+        "messagesCount": "{{count}} સંદેશાઓ",
+        "yourSpiritualCompanion": "તમારો આધ્યાત્મિક સાથી",
+        "backToHome": "હોમ પર પાછા ફરો",
+        "newConversation": "નવી વાતચીત",
+        "starterCards": {
+            "reflect": {
+                "eyebrow": "આત્મચિંતન",
+                "prompt": "બ્યુટીફુલ સ્ટેટ (Beautiful State) શું છે, અને હું તેની શરૂઆત કેવી રીતે કરું?"
+            },
+            "meditate": {
+                "eyebrow": "ધ્યાન",
+                "prompt": "એક ટૂંકા શ્વાસ ધ્યાન દ્વારા મારું માર્ગદર્શન કરો"
+            },
+            "heal": {
+                "eyebrow": "ઉપચાર (હીલિંગ)",
+                "prompt": "હું અત્યંત અશાંત અને પરેશાન અનુભવી રહ્યો છું — મને શાંતિ મેળવવામાં મદદ કરો"
+            },
+            "learn": {
+                "eyebrow": "જ્ઞાન મેળવો",
+                "prompt": "પીડા અને દુઃખમાંથી મુક્તિ પર શ્રી પ્રીતાજીનો એક ઉપદેશ શેર કરો"
+            }
+        },
+        "proactivePrelude": {
+            "streaming": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજી આપણને યાદ અપાવે છે: પીડા (દુઃખ) એ તમારી વાસ્તવિકતા નથી. પીડાની દરેક ક્ષણ જાગૃતિનું દ્વાર પણ છે. આગળ વધવા માટે કૃપા કરીને હવે સેરીન માઇન્ડ ધ્યાન કરો. તમે \"do serene mind now\" લખી શકો છો અથવા શરૂ કરવા માટે નીચે આપેલા બટન પર ક્લિક કરી શકો છો.",
+            "standard": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજી આપણને યાદ અપાવે છે: પીડા (દુઃખ) એ તમારી વાસ્તવિકતા નથી. પીડાની દરેક ક્ષણ જાગૃતિનું દ્વાર પણ છે. આગળ વધવા માટે કૃપા કરીને હવે સેરીન માઇન્ડ ધ્યાન કરો. શરૂ કરવા માટે તમે નીચે આપેલા બટન પર ક્લિક કરી શકો છો."
+        },
+        "savedToNotesDescription": "તેને પ્રોફાઇલ → નોંધો માં શોધો.",
+        "translationUnavailable": "અનુવાદ ઉપલબ્ધ નથી",
+        "saveAsNote": "નોંધ તરીકે સાચવો",
+        "showOriginal": "મૂળ લખાણ જુઓ",
+        "translateTo": "{{lang}} માં અનુવાદ કરો"
+    }
+
+    # 8. notFound (2 keys)
+    gu["notFound"] = {
+        "message": "અરેરે! પૃષ્ઠ મળ્યું નથી",
+        "returnHome": "હોમ પર પાછા ફરો"
+    }
+
+    # 9. privacy (18 keys)
+    gu["privacy"] = {
+        "pageTitle": "ગોપનીયતા નીતિ — AskMukthiGuru",
+        "pageDescription": "AskMukthiGuru તમારા ડેટાને કેવી રીતે સુરક્ષિત રાખે છે: ન્યૂનતમ સંગ્રહ, કોઈ તૃતીય-પક્ષ શેરિંગ નહીં, DPDP એક્ટ અને GDPR હેઠળ સંપૂર્ણ નિકાસ અને વિલોપન અધિકારો.",
+        "title": "ગોપનીયતા નીતિ",
+        "lastUpdated": "છેલ્લે અપડેટ કરેલ: {{date}}",
+        "intro": "AskMukthiGuru એ ગોપનીયતા-પ્રથમ આધ્યાત્મિક સાથી છે. અમે અનુભવ પ્રદાન કરવા માટે જરૂરી ન્યૂનતમ ડેટા એકત્રિત કરીએ છીએ: તમારો ઇમેઇલ (પ્રમાણીકરણ માટે) અને તમારા વાતચીત સંદેશાઓ (તમારા ઉપકરણ પર chatStorage દ્વારા સ્થાનિક રીતે સંગ્રહિત થાય છે જેથી તમે જ્યાંથી અટક્યા હતા ત્યાંથી ચાલુ રાખી શકો).",
+        "whatWeStore": "અમે શું સંગ્રહિત કરીએ છીએ",
+        "storeEmail": "ઇમેઇલ સરનામું અને એન્ક્રિપ્ટેડ પાસવર્ડ (અથવા Google પ્રોફાઇલ) — સાઇન-ઇન માટે.",
+        "storeChats": "ચેટ વાતચીતો અને સંદેશાઓ — તમારા ઉપકરણ પર સ્થાનિક રીતે સંગ્રહિત.",
+        "storeMeditation": "ધ્યાન સત્રો — તમારા ઉપકરણ પર સ્થાનિક રીતે સંગ્રહિત.",
+        "whatWeNeverDo": "અમે ક્યારેય શું કરતા નથી",
+        "neverSell": "તમારો ડેટા તૃતીય પક્ષોને વેચવો અથવા શેર કરવો.",
+        "neverTrain": "બાહ્ય મોડેલોને પ્રશિક્ષિત કરવા માટે તમારી વાતચીતોનો ઉપયોગ કરવો.",
+        "neverAds": "તમને જાહેરાતો બતાવવી.",
+        "yourRights": "તમારા અધિકારો (DPDP એક્ટ / GDPR)",
+        "exportDeletion": "તમે આના પર ઇમેઇલ કરીને કોઈપણ સમયે તમારા ડેટાની નિકાસ અથવા વિલોપનની વિનંતી કરી શકો છો",
+        "aiDisclosure": "AI प्रકટીકરણ",
+        "aiDisclosureText": "પ્રતિસાદો શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીના સાર્વજનિક રૂપે ઉપલબ્ધ ઉપદેશો પર આધારિત AI દ્વારા જનરેટ થાય છે. AskMukthiGuru એ વ્યાવસાયિક માનસિક-સ્વાસ્થ્ય સંભાળનો વિકલ્પ નથી.",
+        "backToHome": "← હોમ પર પાછા ફરો"
+    }
+
+    # 10. terms (15 keys)
+    gu["terms"] = {
+        "pageTitle": "સેવાની શરતો — AskMukthiGuru",
+        "pageDescription": "AskMukthiGuru ના વ્યક્તિગત, બિન-વ્યાવસાયિક ઉપયોગને સંચાલિત કરતી શરતો. AI માર્ગદર્શન એ વ્યાવસાયિક માનસિક-સ્વાસ્થ્ય સંભાળનો વિકલ્પ નથી.",
+        "title": "સેવાની શરતો",
+        "lastUpdated": "છેલ્લે અપડેટ કરેલ: {{date}}",
+        "useOfService": "સેવાનો ઉપયોગ",
+        "useOfServiceText": "AskMukthiGuru માત્ર વ્યક્તિગત આત્મચિંતન માટે AI-સહાયિત આધ્યાત્મિક માર્ગદર્શન પ્રદાન કરે છે. સેવાનો ઉપયોગ કરીને તમે સંમત થાઓ છો કે તમે તેનો સદ્ભાવનાથી ઉપયોગ કરશો અને કોઈ હાનિકારક, અપમાનજનક અથવા ગેરકાયદેસર હેતુઓ માટે નહીં.",
+        "notMedical": "તબીબી અથવા માનસિક સ્વાસ્થ્ય સલાહ નથી",
+        "notMedicalText": "પ્રતિસાદો AI દ્વારા જનરેટ કરવામાં આવે છે અને તે વ્યાવસાયિક માનસિક સ્વાસ્થ્ય સંભાળનો વિકલ્પ નથી. જો તમે કટોકટીમાં હોવ, તો કૃપા કરીને કોઈ લાયક વ્યાવસાયિક અથવા ક્રાઇસિસ હેલ્પલાઇનનો તરત જ સંપર્ક કરો. ભારત: iCall +91-9152987821, Vandrevala Foundation 1860-2662-345.",
+        "intellectualProperty": "બૌદ્ધિક સંપદા",
+        "intellectualPropertyText": "ટાંકવામાં આવેલા ઉપદેશો શ્રી પ્રીતાજી, શ્રી કૃષ્ણજી અને AUM ની બૌદ્ધિક સંપદા છે, જેનો ઉપયોગ અહીં યોગ્ય સંદર્ભ સાથે શૈક્ષણિક અને ચિંતનના હેતુઓ માટે કરવામાં આવે છે.",
+        "accountTermination": "એકાઉન્ટ અને સમાપ્તિ",
+        "accountTerminationText": "તમે કોઈપણ સમયે તમારું એકાઉન્ટ કાઢી શકો છો. આ શરતો અથવા લાગુ કાયદાનું ઉલ્લંઘન કરતા એકાઉન્ટ્સને અમે સ્થગિત કરી શકીએ છીએ.",
+        "changes": "ફેરફારો",
+        "changesText": "અમે આ શરતોને અપડેટ કરી શકીએ છીએ; ફેરફાર પછી સતત ઉપયોગ એ નવી શરતોની સ્વીકૃતિ માનવામાં આવે છે.",
+        "backToHome": "← હોમ પર પાછા ફરો"
+    }
+
+    # 11. auth (63 keys)
+    gu["auth"] = {
+        "pageTitle": "સાઇન ઇન કરો અથવા એકાઉન્ટ બનાવો — AskMukthiGuru",
+        "pageDescription": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીના ઉપદેશો પર આધારિત તમારી ખાનગી, AI-માર્ગદર્શિત આધ્યાત્મિક વાતચીતો ચાલુ રાખવા માટે AskMukthiGuru માં સાઇન ઇન કરો.",
+        "signInTitle": "AskMukthiGuru માં સાઇન ઇન કરો",
+        "createAccount": "એકાઉન્ટ બનાવો",
+        "welcomeBack": "ફરી સ્વાગત છે",
+        "profileSetupIncomplete": "પ્રોફાઇલ સેટઅપ અધૂરું છે",
+        "profileSetupIncompleteDesc": "ચાલુ રાખવા માટે કૃપા કરીને તમારું પ્રોફાઇલ સેટઅપ પૂર્ણ કરો.",
+        "profileSetupServerError": "પ્રોફાઇલ સેટ કરતી વખતે સર્વર ભૂલ આવી.",
+        "authTimeout": "પ્રમાણીકરણ સમય સમાપ્ત થયો",
+        "connectionTimeout": "કનેક્શનનો સમય સમાપ્ત થઈ ગયો. કૃપા કરીને તમારું નેટવર્ક તપાસો.",
+        "tryAgain": "ફરી પ્રયાસ કરો",
+        "authFailed": "પ્રમાણીકરણ નિષ્ફળ ગયું",
+        "signInFailed": "સાઇન ઇન નિષ્ફળ ગયું",
+        "enterName": "કૃપા કરીને તમારું નામ દાખલ કરો",
+        "checkEmail": "તમારું ઇમેઇલ તપાસો",
+        "verificationSent": "ચકાસણી ઇમેઇલ મોકલવામાં આવ્યો છે",
+        "enterEmailFirst": "કૃપા કરીને પહેલાં તમારો ઇમેઇલ દાખલ કરો",
+        "passwordResetSent": "પાસવર્ડ રીસેટ ઇમેઇલ મોકલ્યો",
+        "couldNotConnectGoogle": "Google સાથે કનેક્ટ થઈ શક્યું નથી",
+        "couldNotConnectGoogleRetry": "Google કનેક્શન નિષ્ફળ ગયું. કૃપા કરીને ફરી પ્રયાસ કરો.",
+        "couldNotConnectFacebook": "Facebook સાથે કનેક્ટ થઈ શક્યું નથી",
+        "couldNotConnectFacebookRetry": "Facebook કનેક્શન નિષ્ફળ ગયું. કૃપા કરીને ફરી પ્રયાસ કરો.",
+        "resetComplete": "પાસવર્ડ રીસેટ પૂર્ણ થયું",
+        "signedInOneTap": "One Tap દ્વારા સાઇન ઇન થયા",
+        "oneTapFailed": "One Tap સાઇન-ઇન નિષ્ફળ ગયું",
+        "continueWithGoogle": "Google સાથે ચાલુ રાખો",
+        "connectingToGoogle": "Google સાથે કનેક્ટ થઈ રહ્યું છે…",
+        "redirectingToGoogle": "Google પર રીડાયરેક્ટ કરી રહ્યું છે…",
+        "returningFromGoogle": "Google પરથી પાછા આવી રહ્યા છો…",
+        "continueWithApple": "Apple સાથે ચાલુ રાખો",
+        "appleConnecting": "Apple સાથે કનેક્ટ થઈ રહ્યું છે…",
+        "appleRedirecting": "Apple પર રીડાયરેક્ટ કરી રહ્યું છે…",
+        "appleFinalizing": "Apple સાઇન-ઇન પૂર્ણ થઈ રહ્યું છે…",
+        "signingYouIn": "તમને સાઇન ઇન કરી રહ્યા છીએ…",
+        "stepConnect": "કનેક્ટ કરો",
+        "stepAuthorize": "અધિકૃત કરો",
+        "stepSignIn": "સાઇન ઇન",
+        "signInProgress": "સાઇન ઇન પ્રગતિમાં છે…",
+        "takingTooLong": "ઘણો સમય લાગી રહ્યો છે?",
+        "continueWithFacebook": "Facebook સાથે ચાલુ રાખો",
+        "connectingToFacebook": "Facebook સાથે કનેક્ટ થઈ રહ્યું છે…",
+        "or": "અથવા",
+        "fullName": "પૂરું નામ",
+        "yourName": "તમારું નામ",
+        "email": "ઇમેઇલ સરનામું",
+        "emailPlaceholder": "aap@example.com",
+        "password": "પાસવર્ડ",
+        "passwordPlaceholder": "••••••••",
+        "hidePassword": "પાસવર્ડ છુપાવો",
+        "showPassword": "પાસવર્ડ બતાવો",
+        "pleaseWait": "કૃપા કરીને રાહ જુઓ…",
+        "createAccountBtn": "એકાઉન્ટ બનાવો",
+        "signInBtn": "સાઇન ઇન કરો",
+        "forgotPassword": "પાસવર્ડ ભૂલી ગયા છો?",
+        "alreadyAccount": "પહેલેથી એકાઉન્ટ છે?",
+        "noAccount": "એકાઉન્ટ નથી?",
+        "signUpBtn": "નોંધણી કરો",
+        "byContinuing": "ચાલુ રાખીને, તમે અમારી સંમતિ આપો છો",
+        "terms": "સેવાની શરતો",
+        "and": "અને",
+        "privacyPolicy": "ગોપનીયતા નીતિ",
+        "troubleSigningIn": "સાઇન ઇન કરવામાં મુશ્કેલી છે?",
+        "runDiagnostics": "ડાયગ્નોસ્ટિક્સ ચલાવો"
+    }
+
+    # 12. admin (25 keys)
+    gu["admin"] = {
+        "dashboard": "ડેશબોર્ડ",
+        "overview": "ઝાંખી",
+        "queries": "પ્રશ્નો",
+        "quality": "ગુણવત્તા",
+        "retrieval": "પુનઃપ્રાપ્તિ",
+        "dailyTeaching": "દૈનિક શિક્ષણ",
+        "teachingTips": "શિક્ષણ ટિપ્સ",
+        "triggers": "ટ્રિગર્સ",
+        "topics": "વિષયો",
+        "prompts": "પ્રોમ્પ્ટ્સ",
+        "evals": "મૂલ્યાંકન",
+        "ingestion": "ડેટા ઇન્જેશન",
+        "logs": "લોગ્સ",
+        "telemetry": "ટેલિમેટ્રી",
+        "monitoring": "મોનિટરિંગ",
+        "alerts": "ચેતવણીઓ",
+        "settings": "સેટિંગ્સ",
+        "admins": "એડમિનિસ્ટ્રેટર્સ",
+        "feedback": "પ્રતિસાદ",
+        "okfManager": "OKF મેનેજર",
+        "jobs": "કાર્યો",
+        "ragFlow": "RAG ફ્લો",
+        "login": "એડમિન લૉગિન",
+        "loginTitle": "એડમિન પેનલમાં સાઇન ઇન કરો",
+        "unauthorized": "અનધિકૃત ઍક્સેસ"
+    }
+
+    # 13. meditation (99 keys)
+    gu["meditation"] = {
+        "sereneMind": "સેરીન માઇન્ડ (Serene Mind)",
+        "guidedMeditation": "માર્ગદર્શિત ધ્યાન",
+        "guidedPractice": "માર્ગદર્શિત સાધના",
+        "start": "શરૂ કરો",
+        "stop": "રોકો",
+        "pause": "થોભો",
+        "resume": "ફરી શરૂ કરો",
+        "complete": "પૂર્ણ કરો",
+        "breatheIn": "શ્વાસ અંદર લો",
+        "breatheOut": "શ્વાસ બહાર કાઢો",
+        "hold": "શ્વાસ રોકો",
+        "step": "પગલું {{number}}",
+        "durationMinutes": "{{count}} મિનિટ",
+        "closeEyes": "તમારી આંખો બંધ કરો",
+        "focusOnFlame": "જ્યોત પર ધ્યાન કેન્દ્રિત કરો",
+        "returnToPresent": "વર્તમાન ક્ષણમાં પાછા ફરો",
+        "obstacleTeacher": "શ્રી કૃષ્ણજી શીખવે છે કે દરેક અવરોધ એક ગુરુ છે. ચાલુ રાખવા માટે કૃપા કરીને હવે સેરીન માઇન્ડ કરો. શરૂ કરવા માટે તમે નીચેના બટન પર ક્લિક કરી શકો છો, અથવા કહી શકો છો \"can you open serene mind for me\".",
+        "sufferingDoorway": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજી આપણને યાદ અપાવે છે: પીડા (દુઃખ) એ તમારી વાસ્તવિકતા નથી. પીડાની દરેક ક્ષણ જાગૃતિનું દ્વાર પણ છે. આગળ વધવા માટે કૃપા કરીને હવે સેરીન માઇન્ડ ધ્યાન કરો. તમે \"do serene mind now\" લખી શકો છો અથવા શરૂ કરવા માટે નીચે આપેલા બટન પર ક્લિક કરી શકો છો.",
+        "blockedSereneMind": "ચાલુ રાખવા માટે કૃપા કરીને હવે સેરીન માઇન્ડ કરો. શરૂ કરવા માટે તમે નીચેના બટન પર ક્લિક કરી શકો છો, અથવા કહી શકો છો \"can you open serene mind for me\".",
+        "blockedMessage": "સંદેશ અવરોધિત: {{reason}}",
+        "inspiredBy": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીથી પ્રેરિત",
+        "tabBreathe": "શ્વાસોચ્છવાસ",
+        "tabAudio": "ઓડિયો",
+        "tabVideo": "વિડિઓ",
+        "tablistAria": "ધ્યાન મોડ",
+        "selectTechnique": "પદ્ધતિ પસંદ કરો",
+        "continueChatting": "વાતચીત ચાલુ રાખો",
+        "retrievingTeaching": "પ્રમાણભૂત એકમ ઉપદેશ મેળવી રહ્યું છે...",
+        "teachingLabel": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજી ઉપદેશ",
+        "practiceGuide": "સેરીન માઇન્ડ સાધના માર્ગદર્શિકા (5 પગલાં)",
+        "guideStep1Title": "આસન અને તૈયારી",
+        "guideStep1Desc": "કરોડરજ્જુ સીધી રાખીને બેસો, આંખો બંધ કરો અને તમારું ધ્યાન અંદર તરફ વાળવા માટે તૈયાર થાઓ.",
+        "guideStep2Title": "સભાન શ્વાસોચ્છવાસ (4-2-6)",
+        "guideStep2Desc": "4 સેકન્ડ ધીમેથી શ્વાસ અંદર લો, 2 સેકન્ડ રોકો, પછી 6 સેકન્ડ ધીમેથી બહાર કાઢો. લાંબો શ્વાસ બહાર કાઢવાથી શાંતિ સક્રિય થાય છે.",
+        "guideStep3Title": "આત્મ-નિરીક્ષણ (ભાવના)",
+        "guideStep3Desc": "શ્વાસ રોકવા દરમિયાન, તેને બદલવાનો પ્રયાસ કર્યા વિના તમારામાં રહેલી ચોક્કસ લાગણી (ચિંતા, ક્રોધ, શાંતિ) ઓળખો.",
+        "guideStep4Title": "વિચારની દિશાનું નિરીક્ષણ",
+        "guideStep4Desc": "તમારા વિચારો ક્યાં ભટકી રહ્યા છે તેનું નિરીક્ષણ કરો — ભૂતકાળની યાદોમાં, ભવિષ્યની યોજનાઓમાં કે વર્તમાનમાં સ્થિર છે.",
+        "guideStep5Title": "મગજમાં જ્યોતનું દર્શન",
+        "guideStep5Desc": "તમારા ભ્રૂકુટી કેન્દ્ર પર ધ્યાન લાવો, તમારા મગજના કેન્દ્રમાં જતી એક નાની જ્યોતની કલ્પના કરો. મુક્ત હાસ્ય સાથે ધીમેથી આંખો ખોલો.",
+        "practiceProgression": "સાધના પ્રગતિ",
+        "sereneMindGuidance": "સેરીન માઇન્ડ માર્ગદર્શન",
+        "sriPreethajisVoice": "શ્રી પ્રીતાજીનો અવાજ",
+        "restartAudio": "ઓડિયો ફરી શરૂ કરો",
+        "completeAndUnlock": "ધ્યાન પૂર્ણ કરો અને ચેટ અનલૉક કરો",
+        "openInYoutube": "YouTube પર ખોલો",
+        "remainingAndCycles": "બાકી સમય: {{time}} • ચક્ર: {{count}}",
+        "startBreathing": "શ્વાસોચ્છવાસ શરૂ કરો",
+        "pauseBreathing": "શ્વાસોચ્છવાસ થોભો",
+        "playGuidance": "માર્ગદર્શન ચલાવો",
+        "pauseGuidance": "માર્ગદર્શન થોભો",
+        "namaste": "નમસ્તે",
+        "howDoYouFeel": "આ ક્ષણે તમે કેવું અનુભવો છો?",
+        "peaceful": "શાંત",
+        "grateful": "કૃતજ્ઞ",
+        "lighter": "હળવાશભર્યું",
+        "reflective": "આત્મચિંતનશીલ",
+        "emotional": "ભાવુક",
+        "energised": "ઊર્જાવાન",
+        "skipToChat": "ચેટ પર જાઓ",
+        "captureThisMoment": "આ ક્ષણને નોંધી લો",
+        "whatInsightArose": "તમારા ધ્યાન દરમિયાન કઈ આંતરદ્રષ્ટિ પ્રગટ થઈ?",
+        "journalPlaceholder": "આ ક્ષણે તમે શું અનુભવો છો... વિચારો, સંવેદનાઓ, લાગણીઓ...",
+        "oneThingOfGratitude": "કૃતજ્ઞતાની એક વાત",
+        "nameSomethingGrateful": "આ ક્ષણે તમે જેના માટે આભારી હોવ તે કહો.",
+        "gratitudePlaceholder": "હું આભારી છું...",
+        "beautiful": "સુંદર",
+        "practiceComplete": "તમે તમારી સાધના પૂર્ણ કરી છે. તમારા દિવસમાં આ {{mood}} સ્થિતિ જાળવી રાખો.",
+        "returnToChat": "ચેટ પર પાછા ફરો",
+        "infusedFromTeaching": "{{teaching}} માંથી પ્રેરિત",
+        "secondsRemaining": "{{count}} સેકન્ડ બાકી",
+        "skipStep": "પગલું છોડો",
+        "resumeYourPractice": "તમારી સાધના ફરી શરૂ કરવી છે?",
+        "youPausedAt": "તમે {{step}} પર અટક્યા હતા. જ્યાંથી છોડ્યું હતું ત્યાંથી જ ચાલુ રાખો.",
+        "startFresh": "નવેસરથી શરૂ કરો",
+        "pausePractice": "આ સાધના થોભાવવી છે?",
+        "pauseDesc": "આગલી વખતે જ્યારે તમે સેરીન માઇન્ડ ખોલશો ત્યારે તમે જ્યાંથી અટક્યા હતા ત્યાંથી ચાલુ રાખી શકો છો.",
+        "keepGoing": "ચાલુ રાખો",
+        "pauseAndClose": "થોભો અને બંધ કરો",
+        "endPractice": "સાધના સમાપ્ત કરો",
+        "beginYourJourney": "તમારી યાત્રા શરૂ કરો",
+        "journeyDesc": "તમારી પ્રગતિ ટ્રૅક કરવા માટે સેરીન માઇન્ડ ધ્યાન અજમાવો",
+        "yourSoulJourney": "તમારી આત્મિક યાત્રા",
+        "sessions": "સત્રો",
+        "dayStreak": "દિવસોનો ક્રમ",
+        "breath": "શ્વાસ",
+        "breaths": "શ્વાસ ચક્ર",
+        "stepXofY": "{{current}} {{total}}",
+        "return": "પાછા ફરો",
+        "guideStepVideo1Title": "આસન અને શ્વાસોચ્છવાસ",
+        "guideStepVideo1Desc": "ટટ્ટાર બેસો, આંખો બંધ કરો. લાંબા શ્વાસ બહાર કાઢીને ધીમા ઊંડા શ્વાસ લો.",
+        "guideStepVideo2Title": "ભાવનાનું નિરીક્ષણ",
+        "guideStepVideo2Desc": "તેને બદલવાનો પ્રયત્ન કર્યા વિના તમારી આંતરિક ભાવનાત્મક સ્થિતિનો અનુભવ કરો.",
+        "guideStepVideo3Title": "વિચારોનું નિરીક્ષણ",
+        "guideStepVideo3Desc": "તમારા વિચારો ક્યાં ભટકે છે તે નોંધો — ભૂતકાળ, ભવિષ્ય કે વર્તમાન.",
+        "guideStepVideo4Title": "જ્યોત પર ધ્યાન",
+        "guideStepVideo4Desc": "ભ્રૂકુટી કેન્દ્રથી મગજના કેન્દ્ર તરફ આગળ વધતી જ્યોતનું વિઝ્યુલાઇઝેશન કરો.",
+        "guideStepVideo5Title": "ધ્યાન રોકો અને સ્મિત કરો",
+        "guideStepVideo5Desc": "જ્યોત પર ધ્યાન સ્થિર રાખો, હળવું સ્મિત કરો અને ધીમેથી આંખો ખોલો."
+    }
+
+    # 14. error (25 keys)
+    gu["error"] = {
+        "generic": "કંઈક ખોટું થયું.",
+        "genericDescription": "અણધારી ભૂલ આવી. કૃપા કરીને થોડીવાર પછી ફરી પ્રયાસ કરો.",
+        "offline": "તમે ઑફલાઇન છો",
+        "offlineDescription": "તમારું ઇન્ટરનેટ કનેક્શન તપાસો અને ફરી પ્રયાસ કરો.",
+        "networkError": "નેટવર્ક ભૂલ",
+        "networkErrorDescription": "સર્વર સાથે કનેક્ટ થઈ શક્યું નથી. કૃપા કરીને તમારું ઇન્ટરનેટ કનેક્શન તપાસો.",
+        "notFound": "મળ્યું નથી",
+        "notFoundDescription": "તમે જે પૃષ્ઠ અથવા સંસાધન શોધી રહ્યા છો તે અસ્તિત્વમાં નથી.",
+        "unauthorized": "અનધિકૃત",
+        "unauthorizedDescription": "આ સામગ્રી ઍક્સેસ કરવા માટે કૃપા કરીને સાઇન ઇન કરો.",
+        "sessionExpired": "સત્ર સમાપ્ત થઈ ગયું",
+        "sessionExpiredDescription": "તમારું સત્ર સમાપ્ત થઈ ગયું છે. કૃપા કરીને ફરીથી સાઇન ઇન કરો.",
+        "rateLimited": "ઘણી બધી વિનંતીઓ",
+        "rateLimitedDescription": "તમે વિનંતી મર્યાદા વટાવી દીધી છે. કૃપા કરીને થોડીવાર રાહ જુઓ.",
+        "serverError": "સર્વર ભૂલ",
+        "serverErrorDescription": "અમારા સર્વર પર કંઈક ખોટું થયું. અમે તેનું નિરાકરણ લાવી રહ્યા છીએ.",
+        "maintenanceMode": "જાળવણી મોડ",
+        "maintenanceDescription": "AskMukthiGuru હાલમાં સુનિશ્ચિત જાળવણી હેઠળ છે. કૃપા કરીને ટૂંક સમયમાં ફરી મુલાકાત લો.",
+        "guruResting": "ગુરુ આરામ કરી રહ્યા છે",
+        "circuitBreaker": "સેવા અસ્થાયી રૂપે અનુપલબ્ધ છે. કૃપા કરીને થોડી ક્ષણો પછી ફરી પ્રયાસ કરો.",
+        "chatErrorTitle": "વાતચીત ભૂલ",
+        "chatErrorDesc": "તમારો સંદેશ પ્રક્રિયા કરતી વખતે એક ભૂલ આવી.",
+        "unknownError": "અજ્ઞાત ભૂલ",
+        "boundaryDescription": "AskMukthiGuru લોડ કરતી વખતે અણધારી ભૂલ આવી. ફરી લોડ કરવાથી સામાન્ય રીતે તે ઠીક થઈ જાય છે.",
+        "technicalDetails": "તકનીકી વિગતો"
+    }
+
+    # 15. onboarding (32 keys)
+    gu["onboarding"] = {
+        "welcome": "AskMukthiGuru માં સ્વાગત છે",
+        "welcomeDesc": "આંતરિક શાંતિ અને પરિવર્તન માટે તમારો આધ્યાત્મિક AI સાથી.",
+        "step1": "તમારો પ્રશ્ન ટાઇપ કરીને અથવા બોલીને વાતચીત શરૂ કરો.",
+        "step2": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીના ઉપદેશોમાંથી શાણપણ મેળવો.",
+        "step3": "જ્યારે પણ તમને શાંતિની જરૂર હોય ત્યારે સેરીન માઇન્ડ ધ્યાન કરો.",
+        "step4": "તમારી પ્રોફાઇલમાં તમારી આધ્યાત્મિક યાત્રાને ટ્રૅક કરો.",
+        "skip": "ટૂર છોડો",
+        "next": "આગળ",
+        "done": "શરૂ કરો",
+        "dontShowAgain": "આ ફરીથી બતાવશો નહીં",
+        "language": {
+            "title": "તમારી ભાષા પસંદ કરો",
+            "subtitle": "ગુરુ માટે તમારી પસંદગીની ભાષા પસંદ કરો",
+            "continue": "ચાલુ રાખો",
+            "searchPlaceholder": "23 ભાષાઓ શોધો…",
+            "translationNotice": "બિન-અંગ્રેજી સંદેશાઓ ગુરુ પાસે મોકલતા પહેલાં આપમેળે અનુવાદિત થાય છે.",
+            "ariaLabel": "પસંદ કરેલ ભાષા: {{name}}. બદલવા માટે ક્લિક કરો."
+        },
+        "tour": {
+            "step1": {
+                "title": "ગુરુ સાથે વાતચીત કરો",
+                "description": "તમારી આધ્યાત્મિક યાત્રા વિશે ગુરુને કંઈપણ પૂછો"
+            },
+            "step2": {
+                "title": "તમારી ભાષા પસંદ કરો",
+                "description": "તમારી પસંદગીની ભાષામાં વાત કરો — ગુરુ તે જ ભાષામાં જવાબ આપે છે"
+            },
+            "step3": {
+                "title": "માર્ગદર્શિત ધ્યાન",
+                "description": "વ્યાકુળતા અનુભવો છો? સેરીન માઇન્ડ માર્ગદર્શિત ધ્યાન અજમાવો"
+            },
+            "step4": {
+                "title": "અભ્યાસ નોટબુક",
+                "description": "તમારા હૃદયને સ્પર્શતા ઉપદેશોને ભવિષ્યના ચિંતન માટે સાચવો"
+            },
+            "step5": {
+                "title": "જ્ઞાન નકશો",
+                "description": "આધ્યાત્મિક વિભાવનાઓ કેવી રીતે જોડાયેલી છે તે અન્વેષણ કરો"
+            },
+            "step6": {
+                "title": "તમારી પ્રોફાઇલ",
+                "description": "તમારા અનુભવને અનુકૂળ બનાવો — ભાષા, અવાજ, થીમ અને ઘણું બધું"
+            },
+            "stepIndicator": "{{current}}/{{total}}",
+            "next": "આગળ",
+            "skip": "ટૂર છોડો",
+            "gotIt": "સમજાઈ ગયું"
+        }
+    }
+
+    # 16. kg (30 keys)
+    gu["kg"] = {
+        "title": "જ્ઞાન નકશો (Wisdom Map)",
+        "searchPlaceholder": "વિભાવનાઓ શોધો...",
+        "searchPlaceholderDetailed": "વિભાવનાઓ, ઉપદેશો અથવા ગુરુઓ શોધો…",
+        "noResults": "કોઈ વિભાવનાઓ મળી નથી",
+        "relatedConcepts": "સંબંધિત વિભાવનાઓ",
+        "expand": "વિસ્તૃત કરો",
+        "collapse": "સંકોચો",
+        "relationships": "સંબંધો",
+        "conceptDetail": "વિભાવના વિગત",
+        "zoomIn": "ઝૂમ ઇન",
+        "zoomOut": "ઝૂમ આઉટ",
+        "reset": "રીસેટ",
+        "loading": "જ્ઞાન નકશો લોડ થઈ રહ્યો છે…",
+        "explore": "અન્વેષણ કરો",
+        "dragToPan": "પૅન કરવા ખેંચો",
+        "errorLoading": "ગ્રાફ લોડ કરી શકાયો નથી: {{error}}",
+        "noConceptsFor": "\"{{query}}\" માટે કોઈ વિભાવનાઓ મળી નથી",
+        "searchToVisualise": "તેમના જોડાણો જોવા માટે વિભાવનાઓ શોધો",
+        "conceptRelationshipCount": "{{nodeCount}} વિભાવનાઓ · {{edgeCount}} સંબંધો",
+        "subtitle": "શોધો કે એકમ ઉપદેશોની પવિત્ર વિભાવનાઓ કેવી રીતે જોડાયેલી છે.",
+        "help": "પૅન કરવા ખેંચો · ઝૂમ કરવા સ્ક્રોલ કરો · નોડ પિન કરવા ડબલ-ક્લિક કરો",
+        "showingDemo": "ઉદાહરણ નકશો બતાવી રહ્યું છે",
+        "showExampleMap": "ઉદાહરણ નકશો જુઓ",
+        "settings": {
+            "title": "ગ્રાફ દૃશ્ય સેટિંગ્સ",
+            "repelForce": "અપાકર્ષણ બળ",
+            "linkDistance": "લિંક અંતર",
+            "centerGravity": "કેન્દ્ર ગુરુત્વાકર્ષણ",
+            "labelThreshold": "લેબલ થ્રેશોલ્ડ",
+            "scaleByConnections": "જોડાણો અનુસાર નોડ કદ બદલો",
+            "colorByTeacher": "ગુરુ અનુસાર રંગ કોડ કરો"
+        }
+    }
+
+    # 17. layout (9 keys)
+    gu["layout"] = {
+        "navigate": "નેવિગેટ કરો",
+        "quick": "ઝડપી ક્રિયાઓ",
+        "commandPalette": "આદેશ પેલેટ",
+        "search": "શોધો",
+        "viewProfile": "પ્રોફાઇલ જુઓ",
+        "offlineMode": "ઑફલાઇન મોડ",
+        "connectedMode": "કનેક્ટેડ મોડ",
+        "aiService": "AI સેવા: {{mode}}",
+        "sereneMindTitle": "સેરીન માઇન્ડ ધ્યાન"
+    }
+
+    # 18. desktopSidebar (23 keys)
+    gu["desktopSidebar"] = {
+        "newConversation": "નવી વાતચીત",
+        "dayFlame": "{{count}}-દિવસની જ્યોત",
+        "flameEncouragement": "તમારી સાધનાની જ્યોત પ્રજ્વલિત રાખો.",
+        "searchPlaceholder": "વાતચીતો શોધો…",
+        "noResults": "કોઈ મેળ ખાતી વાતચીતો નથી",
+        "noConversations": "હજુ સુધી કોઈ વાતચીત નથી",
+        "rename": "નામ બદલો",
+        "renameConv": "વાતચીતનું નામ બદલો",
+        "deleteConv": "વાતચીત કાઢી નાખો",
+        "gurusAlt": "શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજી",
+        "newConvTooltip": "નવી વાતચીત શરૂ કરો",
+        "sereneMindTooltip": "સેરીન માઇન્ડ ધ્યાન શરૂ કરો",
+        "conversation": "વાતચીત",
+        "expandTooltip": "સાઇડબાર વિસ્તૃત કરો",
+        "collapseTooltip": "સાઇડબાર સંકોચો",
+        "tagline": "તમારો આધ્યાત્મિક AI સાથી",
+        "memories": "{{count}} સ્મૃતિ",
+        "memories_plural": "{{count}} સ્મૃતિઓ",
+        "deleteTitle": "વાતચીત કાઢી નાખવી છે?",
+        "deleteWarning": "આ ક્રિયા પૂર્વવત્ કરી શકાતી નથી.",
+        "newIncognitoChat": "નવી ઇન્કોગ્નિટો ચેટ",
+        "incognitoTooltip": "ખાનગી મોડ — સત્ર પછી કાઢી નાખવામાં આવશે",
+        "explore": "અન્વેષણ કરો"
+    }
+
+    # 19. notes (22 keys)
+    gu["notes"] = {
+        "yourNotes": "તમારી નોંધો",
+        "description": "શિક્ષણો, આંતરદ્રષ્ટિ અને તમારા પોતાના વિચારો સાચવો.",
+        "export": "નિકાસ કરો",
+        "newNote": "નવી નોંધ",
+        "editNote": "નોંધ સંપાદિત કરો",
+        "searchPlaceholder": "નોંધો શોધો…",
+        "loading": "તમારી નોંધો લોડ થઈ રહી છે…",
+        "noNotes": "હજુ સુધી કોઈ નોંધ નથી. ચેટમાંથી ઉપદેશ સાચવો અથવા નવી બનાવો.",
+        "noMatch": "કોઈ મેળ ખાતી નોંધો મળી નથી",
+        "writeFirst": "તમારી પ્રથમ નોંધ લખો",
+        "fromChat": "ચેટમાંથી સાચવેલ",
+        "titlePlaceholder": "નોંધનું શીર્ષક…",
+        "bodyPlaceholder": "તમારા વિચારો, પ્રતિબિંબ અથવા આંતરદ્રષ્ટિ લખો…",
+        "tagsPlaceholder": "ટૅગ્સ (અલ્પવિરામથી અલગ કરેલા)",
+        "saveChanges": "ફેરફારો સાચવો",
+        "saveNote": "નોંધ સાચવો",
+        "emptyTitle": "શીર્ષક વગરની નોંધ",
+        "emptyDesc": "કોઈ સામગ્રી નથી",
+        "updated": "અપડેટ કર્યું",
+        "saved": "સાચવ્યું",
+        "deleted": "કાઢી નાખ્યું",
+        "untitled": "શીર્ષકહીન"
+    }
+
+    # 20. memory (44 keys)
+    gu["memory"] = {
+        "memory": "સ્મૃતિ",
+        "memoryDesc": "ગુરુ તમારા વિશે શું યાદ રાખે છે.",
+        "signInToView": "તમારી સ્મૃતિઓ જોવા માટે સાઇન ઇન કરો.",
+        "couldNotLoad": "સ્મૃતિઓ લોડ થઈ શકી નથી.",
+        "coreSaved": "મૂળ સ્મૃતિ સાચવી લીધી",
+        "coreSavedDesc": "ગુરુ હંમેશા તમારી સાથે આ જ્ઞાન રાખશે.",
+        "memorySaved": "સ્મૃતિ સાચવી લીધી",
+        "memorySavedDesc": "ગુરુ આ યાદ રાખશે.",
+        "forgotten": "ભૂલી ગયા",
+        "forgottenDesc": "આ સ્મૃતિ મુક્ત કરવામાં આવી છે.",
+        "couldNotSave": "સાચવી શકાયું નથી",
+        "couldNotForget": "ભૂલી શકાયું નથી",
+        "statMemories": "સ્મૃતિઓ",
+        "statCoreStatus": "મૂળ સ્થિતિ",
+        "active": "સક્રિય",
+        "unset": "અસેટ",
+        "statKgNodes": "KG નોડ્સ",
+        "statReflections": "ચિંતનો",
+        "coreMemory": "મૂળ સ્મૃતિ",
+        "coreMemoryDesc": "તમારા વિશેના સ્થિર તથ્યો — ગુરુની જાગૃતિમાં હંમેશા હાજર. આનો ઉપયોગ તમારા નામ, અભ્યાસ સ્તર, જીવન સંદર્ભ, મુખ્ય થીમ માટે કરો.",
+        "corePlaceholder": "દા.ત. હું અમદાવાદમાં શિક્ષક છું, 3 વર્ષથી નિયમિત ધ્યાન કરું છું, એકમના ઉપદેશોનું અન્વેષણ કરું છું…",
+        "lastSaved": "છેલ્લે સાચવેલ {{date}}",
+        "consciousnessMap": "મારું ચેતના માનચિત્ર",
+        "memories": "સ્મૃતિઓ",
+        "listView": "સૂચિ દૃશ્ય",
+        "graphView": "ગ્રાફ દૃશ્ય",
+        "fullscreenDesc": "તમારા ઇન્ટરેક્ટિવ વ્યક્તિગત ચેતના નકશાનું પૂર્ણ સ્ક્રીન દૃશ્ય. ખસેડવા માટે નોડ્સ ખેંચો, પૅન કરવા બેકગ્રાઉન્ડ ખેંચો, ઝૂમ કરવા સ્ક્રોલ કરો.",
+        "graphDesc": "તમારી વાતચીતોમાંથી તારવેલી તમારી આધ્યાત્મિક સ્થિતિઓનો ઇન્ટરેક્ટિવ નકશો. જોડાણો શોધવા માટે ગ્રાફ વ્યૂ પર સ્વિચ કરો.",
+        "reflectPlaceholder": "દા.ત. હું દરરોજ સૂર્યોદય પહેલાં સાધના કરું છું.",
+        "saveMemory": "સ્મૃતિ સાચવો",
+        "searchPlaceholder": "સ્મૃતિઓ શોધો...",
+        "noMatchFound": "કોઈ મેળ ખાતી સ્મૃતિઓ મળી નથી.",
+        "noMemories": "હજુ સુધી કોઈ સ્મૃતિ નથી.",
+        "youAdded": "તમે ઉમેર્યું",
+        "autoExtracted": "આપમેળે તારવેલું",
+        "forgetAria": "આ સ્મૃતિ ભૂલી જાઓ",
+        "forgetTitle": "આ સ્મૃતિ ભૂલી જવી છે?",
+        "forgetWarning": "ગુરુ ભવિષ્યની વાતચીતમાં આનો સંદર્ભ આપશે નહીં. આ પૂર્વવત્ કરી શકાતું નથી.",
+        "forgetBtn": "ભૂલી જાઓ",
+        "keep": "રાખો",
+        "sessionReflections": "સત્ર પ્રતિબિંબો",
+        "sessionReflectionsDesc": "ગુરુ તમારા ભૂતકાળના સત્રોમાંથી જે સંક્ષિપ્ત સારાંશ રાખે છે.",
+        "exitFullscreen": "પૂર્ણ સ્ક્રીનમાંથી બહાર નીકળો (Esc)",
+        "toggleInsights": "ચેતના આંતરદ્રષ્ટિ ટૉગલ કરો"
+    }
+
+    # 21. practices (40 keys)
+    gu["practices"] = {
+        "title": "સાધનાઓ અને અભ્યાસ",
+        "subtitle": "દૈનિક આધ્યાત્મિક સાધનાઓ — શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજી",
+        "startPractice": "શરૂ કરો",
+        "openInChat": "ચેટમાં ખોલો",
+        "benefits": "મુખ્ય લાભો",
+        "howItWorks": "તે કેવી રીતે કાર્ય કરે છે",
+        "perPracticeHint": "કરોડરજ્જુ સીધી રાખીને આરામથી બેસો. આંખો બંધ, મોં હળવાશથી બંધ.",
+        "soulSync": {
+            "title": "સોલ સિંક (Soul Sync)",
+            "tagline": "તમારા હૃદય, મન અને સંકલ્પને બ્રહ્માંડ સાથે એકરૂપ કરો.",
+            "duration": "15–20 મિનિટ",
+            "purpose": "એકમના સૌથી શક્તિશાળી ધ્યાનોમાંનું એક. સોલ સિંક તમને મનની અશાંતિમાંથી અસીમ ચેતનાના ક્ષેત્રમાં લઈ જાય છે, જ્યાં તમારા સંકલ્પો શક્તિશાળી બને છે અને જીવનમાં સહજ સંવાદિતા (સિંક્રોનિસિટી) પ્રગટ થાય છે.",
+            "howItWorks": [
+                "સભાન શ્વાસોચ્છવાસ — હાથ તમારી જાંઘ પર હથેળીઓ ઉપર રાખીને આરામથી બેસો. આંખો બંધ. અંગૂઠા વડે દરેક આંગળીને સ્પર્શ કરીને (તર્જનીથી ટચલી અને પાછા) 8 ધીમા, ઊંડા શ્વાસ ગણો.",
+                "ભ્રામરી ગુંજન કંપન — જ્ઞાન મુદ્રામાં તર્જની અને અંગૂઠો જોડો. શ્વાસ બહાર કાઢતી વખતે ભમરાની જેમ ધીમો ગુંજારવ કરો (ભ્રામરી પ્રાણાયામ). 8 શ્વાસ સુધી પુનરાવર્તન કરો. આ સૌમ્ય કંપન તમારી નર્વસ સિસ્ટમને શાંત કરે છે.",
+                "શાંત વિરામમાં સ્થિર થાઓ — દરેક શ્વાસ અંદર લેવા અને બહાર કાઢવા વચ્ચેના કુદરતી મૌનમાં સ્થિર થાઓ. કોઈ દબાણ નહીં — ફક્ત સાક્ષી બનો.",
+                "\"અહમ્\" નું સ્મરણ — દરેક શ્વાસ બહાર કાઢતી વખતે, મનમાં ધીમેથી કહો \"અહમ્\" (હું છું — સીમાહીન ચેતના). હોવાના સરળ અનુભવમાં વિશ્રામ કરો.",
+                "વિલીન થવું અને વિસ્તરણ — તમારું શરીર, ઓરડો અને સમગ્ર બ્રહ્માંડ એક અનંત સુવર્ણ પ્રકાશના સમુદ્રમાં ઓગળીને વિસ્તરી રહ્યું છે તેવી કલ્પના કરો. અનુભવો કે તમે અને અસ્તિત્વ અલગ નથી.",
+                "તમારો સંકલ્પ ધારણ કરો — આ વિસ્તૃત સ્થિતિમાં, તમારા હૃદયપૂર્વકના સંકલ્પને મનમાં લાવો. તેને સાકાર થતો જુઓ. ઊંડી કૃતજ્ઞતા સાથે પૂર્ણ કરો."
+            ],
+            "benefits": [
+                "તમારા મન અને શરીરને હળવાશથી શાંત કરે છે — તમે કદાચ જાણતા પણ ન હો તેવો તણાવ મુક્ત કરે છે.",
+                "માનસિક અશાંતિ શાંત કરે છે અને શાંત, કેન્દ્રિત જાગૃતિ લાવે છે.",
+                "તમારી આંતરિક સ્થિતિને તમારા સંકલ્પો સાથે સુમેળ કરે છે — સિંક્રોનિસિટીના દ્વાર ખોલે છે.",
+                "સ્વ-કેન્દ્રિત પીડાદાયક સ્થિતિઓને ઓગાળી નાખે છે — પ્રેમ, જોડાણ અને શાંતિ માટે હૃદય ખોલે છે."
+            ]
+        },
+        "sereneMind": {
+            "title": "સેરીન માઇન્ડ (Serene Mind)",
+            "tagline": "માત્ર 3 મિનિટમાં તણાવ અને અશાંતિમાંથી મુક્તિ મેળવો.",
+            "duration": "3 મિનિટ",
+            "purpose": "જ્યારે લાગણીઓ ઉભરાય અથવા મન દોડતું હોય ત્યારે કરવા માટેની એક ત્વરિત સાધના. સેરીન માઇન્ડ તમારા શ્વાસ અને ભ્રૂકુટી કેન્દ્રમાં એક નાની જ્યોતના વિઝ્યુલાઇઝેશનનો ઉપયોગ કરીને તમારી ચેતનાને અશાંતિમાંથી શાંતિ તરફ વાળે છે.",
+            "howItWorks": [
+                "તમારા શ્વાસ પર ધ્યાન કેન્દ્રિત કરો — આંખો બંધ રાખીને ટટ્ટાર બેસો. તમારા નસકોરાંમાંથી અંદર અને બહાર આવતા શ્વાસ પર તમારું સંપૂર્ણ ધ્યાન આપો.",
+                "તમારી આંતરિક સ્થિતિનું નિરીક્ષણ કરો — તેને દૂર કરવાનો પ્રયાસ કર્યા વિના અત્યારે રહેલી લાગણીઓ અને વિચારોને ધ્યાનમાં લો. પૂછો: \"હું અત્યારે કઈ લાગણી અનુભવી રહ્યો છું?\" (ચિંતા, ક્રોધ, ઉદાસી, શાંતિ...)",
+                "પૂર્વગ્રહ વગર સ્વીકારો — લાગણીને હળવાશથી ઓળખો. કોઈ નિર્ણય નહીં. કોઈ સંઘર્ષ નહીં. માત્ર સાક્ષીભાવ.",
+                "તમારું મન ક્યાં છે તે જુઓ — ભૂતકાળના પસ્તાવા, ભવિષ્યની ચિંતાઓ કે સ્વ-કેન્દ્રિત વાતો? બસ આ અલગતાની સ્થિતિને ઓળખો.",
+                "જ્યોતનું વિઝ્યુલાઇઝેશન — તમારા ભ્રૂકુટી કેન્દ્ર વચ્ચે એક સ્થિર સુવર્ણ જ્યોત ચમકતી જુઓ. ધીમે ધીમે તેને તમારા મગજના કેન્દ્રમાં ખેંચો — તે અંધકારને દૂર કરીને મનને સ્થિર કરે છે.",
+                "સ્મિત સાથે સમાપ્ત કરો — તમારા ચહેરા પર એક હુંફાળું, હળવું સ્મિત લાવો. વધુ એક ઊંડો શ્વાસ લો. આ પરિવર્તનનો અનુભવ કરો. ધીમેથી આંખો ખોલો."
+            ],
+            "benefits": [
+                "તીવ્ર લાગણીઓને ઝડપથી શાંત કરે છે — માત્ર ત્રણ મિનિટમાં એક નવો પ્રારંભ.",
+                "આત્મ-જાગૃતિ વધારે છે — તમે જે અનુભવો છો તેને નામ આપવાથી તે કુદરતી રીતે નરમ પડે છે.",
+                "ધ્યાન અને એકાગ્રતા મજબૂત બનાવે છે — જ્યોત ભટકતા મનને સ્થિર કરે છે.",
+                "તમારા સમગ્ર અસ્તિત્વ માટે કુદરતી રીસેટ — શરીર હળવું બને છે, મન શાંત થાય છે."
+            ]
+        },
+        "beautifulState": {
+            "title": "બ્યુટીફુલ સ્ટેટ (Beautiful State)",
+            "tagline": "પીડામાંથી બહાર નીકળીને પ્રેમ અને જોડાણમાં પ્રવેશો.",
+            "duration": "10–15 મિનિટ",
+            "purpose": "બ્યુટીફુલ સ્ટેટ એ તમારા હૃદયની કુદરતી સ્થિતિ છે — શાંત, આનંદમય અને જોડાયેલી. આ સાધના તમને સ્વ-કેન્દ્રિત પીડાને ઓગાળીને, જ્યાં પ્રેમ વસે છે તે ખુલ્લી જગ્યામાં વારંવાર પાછા ફરવાની તાલીમ આપે છે.",
+            "howItWorks": [
+                "પ્રેમપૂર્ણ જોડાણની ક્ષણ યાદ કરો — કોઈ એવી વ્યક્તિ, ક્ષણ અથવા પ્રકૃતિના દ્રશ્યને યાદ કરો જેને તમે ઊંડો પ્રેમ કરો છો. તે લાગણીની હુંફ અને સલામતી સાથે જોડાઓ.",
+                "હુંફને વિસ્તરવા દો — તમારા હૃદય-ક્ષેત્રમાં પ્રેમને વિસ્તરતો અનુભવો, જે તમારા સમગ્ર શરીરમાં ભરાઈ જાય છે.",
+                "શુભકામનાઓ મોકલો — તમારા પોતાના કલ્યાણની ઇચ્છા કરો, પછી તમારા જીવનના લોકો માટે, પછી સર્વત્ર તમામ જીવો માટે.",
+                "આ હુંફને તમારી સાથે રાખો — ધીમે ધીમે તમારા સામાન્ય દિવસમાં પાછા ફરો, આગળ વધતી વખતે પણ આ ખુલ્લા હૃદયની લાગણી જાળવી રાખો."
+            ],
+            "benefits": [
+                "સ્વ-કેન્દ્રિત પીડા અને ભાવનાત્મક વેદના ઓગાળી નાખે છે.",
+                "કરુણા, સહાનુભૂતિ અને સાચા જોડાણને મજબૂત બનાવે છે.",
+                "રોજિંદા જીવનમાં વધુ આનંદ અને ઉત્સાહ સાથે પાછા ફરવામાં મદદ કરે છે.",
+                "તમારા સમગ્ર અસ્તિત્વમાં સુમેળ લાવે છે — મન અને હૃદયને શાંત કરે છે."
+            ]
+        },
+        "dailyReflection": {
+            "title": "દૈનિક આત્મચિંતન (Daily Reflection)",
+            "tagline": "જાગૃતિ અને કૃતજ્ઞતા સાથે દિવસની પૂર્ણાહુતિ કરો.",
+            "duration": "5–10 મિનિટ",
+            "purpose": "એક સાંજની સાધના જે તમને કરુણા સાથે દિવસ પૂર્ણ કરવામાં મદદ કરે છે. તમને જે બાબતે પોષણ આપ્યું તેનું સન્માન કરો, જેણે પીડા આપી તેને ઓળખો, અને સૂતા પહેલાં બંનેને મુક્ત કરો — જેથી દિવસનો બોજ તમારી રાતમાં ન પ્રવેશે.",
+            "howItWorks": [
+                "શાંતિમાં સ્થિર થાઓ — બેસો અથવા સૂઈ જાઓ. શરીરને હળવું થવા દો.",
+                "ત્રણ ક્ષણો યાદ કરો — આજના દિવસની ત્રણ નાની ક્ષણો જે શાંતિ, આનંદ અથવા નવું શિક્ષણ લાવી હતી.",
+                "સંઘર્ષોને સ્વીકારો — પૂર્વગ્રહ વગર આજના દિવસની પીડાની કોઈપણ ક્ષણને ઓળખો.",
+                "કૃતજ્ઞતા વ્યક્ત કરો — સમગ્ર દિવસ માટે આભાર માનો. તેને મુક્ત કરો. આરામ માટે તૈયાર થાઓ."
+            ],
+            "benefits": [
+                "કૃતજ્ઞતા વધારે છે — તમારી દ્રષ્ટિને સકારાત્મકતા તરફ વાળે છે.",
+                "દિવસની સભાન પૂર્ણાહુતિ કરે છે — જે બોજ હતો તેને છોડી દે છે.",
+                "આરામદાયક ઊંઘ લાવે છે — શાંત મન ઊંડી ઊંઘનું સ્વાગત કરે છે.",
+                "સ્વ-કરુણાનું નિર્માણ કરે છે — કોઈપણ પૂર્વગ્રહ વિના ભૂલોનું નિરીક્ષણ કરો."
+            ]
+        },
+        "detail": {
+            "share": "માર્ગદર્શિકા શેર કરો",
+            "openInYouTube": "YouTube પર ખોલો",
+            "whyPractice": "આ સાધના શા માટે કરવી",
+            "howToDoIt": "તે કેવી રીતે કરવું",
+            "keyBenefits": "મુખ્ય લાભો"
+        },
+        "dailyWisdom": {
+            "title": "આજનું જ્ઞાન",
+            "badge": "દિવસનું જ્ઞાન"
+        },
+        "sections": {
+            "favorites": "તમારા મનપસંદ",
+            "all": "બધી સાધનાઓ"
+        }
+    }
+
+    # 22. seo (2 keys)
+    gu["seo"] = {
+        "practicesTitle": "દૈનિક સાધનાઓ — માર્ગદર્શિત ધ્યાન | AskMukthiGuru",
+        "practicesDescription": "સોલ સિંક, સેરીન માઇન્ડ, બ્યુટીફુલ સ્ટેટ અને દૈનિક ચિંતન — શ્રી પ્રીતાજી અને શ્રી કૃષ્ણજીના ઉપદેશો પર આધારિત ટૂંકી માર્ગદર્શિત સાધનાઓ."
+    }
+
+    # 23. cancelFlow (49 keys)
+    gu["cancelFlow"] = {
+        "dialogTitle": "તમારું એકાઉન્ટ રદ કરો",
+        "dialogDescription": "આપણે વિદાય લઈએ તે પહેલાં એક નાની વાતચીત.",
+        "back": "પાછળ",
+        "optional": "વૈકલ્પિક",
+        "intent": {
+            "title": "તમારી યાત્રા થોભાવો અથવા છોડો",
+            "subtitle": "તમે જાઓ તે પહેલાં, અમે જાણવા માંગીએ છીએ કે અમે તમારી વધુ સારી સેવા કેવી રીતે કરી શકીએ.",
+            "explore": "સાથે રહેવાના વિકલ્પો જુઓ",
+            "definite": "રદ કરવા તરફ આગળ વધો",
+            "stay": "રોકાઓ — હું શીખવાનું ચાલુ રાખવા માંગુ છું"
+        },
+        "survey": {
+            "title": "તમે જઈ રહ્યા છો તેનું મુખ્ય કારણ શું છે?",
+            "subtitle": "તમારો પ્રતિસાદ અમારા આગળના માર્ગને આકાર આપે છે.",
+            "details": "શું તમે બીજું કંઈ શેર કરવા માંગો છો?",
+            "detailsPlaceholder": "તમારા અનુભવ વિશે વધુ શેર કરો...",
+            "continue": "ચાલુ રાખો",
+            "reasons": {
+                "journey_complete": "મારી યાત્રા પૂર્ણ થઈ ગઈ",
+                "too_expensive": "ખૂબ મોંઘું છે",
+                "not_using": "પૂરતો ઉપયોગ કરી રહ્યો નથી",
+                "missing_feature": "કોઈ સુવિધા ખૂટે છે",
+                "found_alternative": "અન્ય વિકલ્પ મળ્યો",
+                "too_complicated": "ખૂબ જટિલ છે",
+                "taking_break": "વિરામ લઈ રહ્યો છું",
+                "technical_issues": "તકનીકી સમસ્યાઓ"
+            },
+            "hints": {
+                "journey_complete": "તમને લાગે છે કે તમે પૂરતું શીખી લીધું છે.",
+                "too_expensive": "કિંમત સંવેદનશીલતા — અમારી પાસે વિકલ્પો હોઈ શકે છે.",
+                "not_using": "તાજેતરમાં ઓછો ઉપયોગ.",
+                "missing_feature": "અમને કહો કે શું ખૂટે છે.",
+                "found_alternative": "અમે જાણવા માંગીએ છીએ કે શું વધુ સારું લાગ્યું.",
+                "too_complicated": "ઇન્ટરફેસ ઘર્ષણ — અમે સરળ બનાવી શકીએ છીએ.",
+                "taking_break": "થોભો અને તમારો ડેટા સાચવી રાખો.",
+                "technical_issues": "ભૂલો અથવા કામગીરી — અમને મદદ કરવા દો."
+            }
+        },
+        "offer": {
+            "decline": "ના આભાર, રદ કરવાનું ચાલુ રાખો"
+        },
+        "confirm": {
+            "title": "તમારું એકાઉન્ટ કાયમ માટે કાઢી નાખવું છે?",
+            "warning": "આ તમારું એકાઉન્ટ અને તમામ સર્વર-સાઇડ ડેટા કાઢી નાખે છે: પ્રોફાઇલ, ચેટ્સ, ધ્યાન સત્રો. તમને તરત જ સાઇન આઉટ કરવામાં આવશે.",
+            "retention": "ડેટા રીટેન્શન",
+            "retentionLabels": {
+                "keep_30_days": "30 દિવસ રાખો",
+                "keep_90_days": "90 દિવસ રાખો",
+                "delete_immediately": "તરત જ કાઢી નાખો"
+            },
+            "retentionHints": {
+                "keep_30_days": "પુનઃસક્રિયકરણ માટે ગ્રેસ પીરિયડ.",
+                "keep_90_days": "લાંબો ગ્રેસ પીરિયડ — ડેટા સુરક્ષિત.",
+                "delete_immediately": "કોઈ ગ્રેસ પીરિયડ નથી; તરત જ કાઢી નાખવામાં આવશે."
+            },
+            "acknowledge": "હું સમજું છું કે આ ક્રિયા અપરિવર્તનીય છે અને મારું એકાઉન્ટ કાયમ માટે કાઢી નાખવામાં આવશે.",
+            "permanent": "કાયમ માટે કાઢી નાખો"
+        },
+        "done": {
+            "savedTitle": "અમને ખૂબ આનંદ છે કે તમે રોકાઈ રહ્યા છો.",
+            "savedBody": "તમારી ઑફર લાગુ કરવામાં આવી છે. જ્યારે પણ તમે તૈયાર હોવ ત્યારે તમારી યાત્રા ચાલુ રાખો.",
+            "cancelledTitle": "તમારું એકાઉન્ટ કાઢી નાખવા માટે શેડ્યૂલ કરવામાં આવ્યું છે",
+            "cancelledBody": "તમારું એકાઉન્ટ {{deletionDate}} ના રોજ કાઢી નાખવામાં આવશે. તમે તે પહેલાં કોઈપણ સમયે પુનઃસક્રિય કરી શકો છો.",
+            "cancelledBodyNoDate": "તમારું એકાઉન્ટ કાઢી નાખવા માટે શેડ્યૂલ કરવામાં આવ્યું છે. તમે તે પહેલાં કોઈપણ સમયે પુનઃસક્રિય કરી શકો છો.",
+            "reactivate": "તમારા ઇમેઇલ પર પુનઃસક્રિયકરણ લિંક મોકલવામાં આવી છે.",
+            "close": "બંધ કરો"
+        }
+    }
+
+    # 24. language (4 keys)
+    gu["language"] = {
+        "searchPlaceholder": "{{count}} ભાષાઓ શોધો…",
+        "translationNotice": "બિન-અંગ્રેજી સંદેશાઓ ગુરુ પાસે મોકલતા પહેલાં આપમેળે અનુવાદિત થાય છે.",
+        "ariaLabel": "પસંદ કરેલ ભાષા: {{name}}. બદલવા માટે ક્લિક કરો.",
+        "supportedCount": "{{count}} ભાષાઓ સમર્થિત છે"
+    }
+
+    # 25. brain (35 keys)
+    gu["brain"] = {
+        "title": "મારા વિચારો (My Reflections)",
+        "subtitle": "તમારા વિચારો, આંતરદ્રષ્ટિ અને પસંદગીઓનો ખાનગી, એન્ક્રિપ્ટેડ લોગ — તમારા માર્ગદર્શનને વ્યક્તિગત બનાવવા માટે વપરાય છે.",
+        "privateMode": "પ્રાઇવેટ મોડ",
+        "privateModeIntro": "પ્રાઇવેટ મોડ ચાલુ છે — આ સત્ર માટે તમારા વિચારોને અનલૉક કરવા માટે તમારો પાસફ્રેઝ દાખલ કરો. તે આ એક વિનંતી સિવાય ક્યાંય મોકલવામાં આવતો નથી, અને ક્યારેય સંગ્રહિત થતો નથી.",
+        "passphrasePlaceholder": "તમારો પાસફ્રેઝ",
+        "unlockButton": "અનલૉક કરો",
+        "addPlaceholder": "યાદ રાખવા જેવું કંઈક — એક વિચાર, લક્ષ્ય, પસંદગી…",
+        "addButton": "ઉમેરો",
+        "emptyState": "હજુ સુધી અહીં કંઈ નથી — જેમ જેમ તમે એપ્લિકેશનનો ઉપયોગ કરશો તેમ તમારા વિચારો દેખાશે, અથવા તમે ઉપર એક ઉમેરી શકો છો.",
+        "forgetTooltip": "આ ભૂલી જાઓ",
+        "exportButton": "નિકાસ કરો",
+        "enablePrivateMode": "પ્રાઇવેટ મોડ સક્ષમ કરો",
+        "deleteEverything": "બધું કાઢી નાખો",
+        "enablePrivateTitle": "પ્રાઇવેટ મોડ સક્ષમ કરો",
+        "enablePrivateWarning": "એકવાર સક્ષમ થઈ ગયા પછી, તમારા વિચારો આ પાસફ્રેઝમાંથી બનાવેલી કી વડે એન્ક્રિપ્ટ થાય છે. અમે તેને ક્યારેય જોઈ શકતા નથી, અને જો તમે તેને ભૂલી જાઓ છો, તો અમારા સહિત કોઈ પણ તમારા વિચારો પુનઃપ્રાપ્ત કરી શકશે નહીં. આ સુરક્ષા ડિઝાઇન દ્વારા છે.",
+        "passphraseChoose": "પાસફ્રેઝ પસંદ કરો (ઓછામાં ઓછા 8 અક્ષરો)",
+        "passphraseConfirm": "પાસફ્રેઝની પુષ્ટિ કરો",
+        "cancel": "રદ કરો",
+        "deleteTitle": "બધા વિચારો કાઢી નાખવા છે?",
+        "deleteWarning": "આ તમારા વિચારોની દરેક આઇટમ માટેની એન્ક્રિપ્શન કીને કાયમ માટે નષ્ટ કરે છે. આ ક્રિયા કોઈના દ્વારા પણ પૂર્વવત્ કરી શકાતી નથી.",
+        "loadError": "તમારા વિચારો લોડ કરી શકાયા નથી",
+        "unavailable": "વિચારો ઉપલબ્ધ નથી",
+        "saved": "તમારા વિચારોમાં સાચવી લીધું",
+        "couldNotSave": "સાચવી શકાયું નથી",
+        "couldNotDelete": "કાઢી શકાયું નથી",
+        "exportFailed": "નિકાસ નિષ્ફળ ગઈ",
+        "passphraseMinLength": "પાસફ્રેઝ ઓછામાં ઓછો 8 અક્ષરોનો હોવો જોઈએ",
+        "passphrasesDontMatch": "પાસફ્રેઝ મેળ ખાતા નથી",
+        "privateModeEnabled": "પ્રાઇવેટ મોડ સક્ષમ છે — હવે અમે પણ તમારા વિચારો વાંચી શકતા નથી.",
+        "couldNotEnablePrivate": "પ્રાઇવેટ મોડ સક્ષમ કરી શકાયો નથી",
+        "permanentlyDeleted": "વિચારો કાયમ માટે કાઢી નાખવામાં આવ્યા છે.",
+        "couldNotDeleteVault": "વોલ્ટ કાઢી શકાયું નથી",
+        "errors": {
+            "notConfigured": "વિચારો માટે બેકએન્ડ ગોઠવેલું હોવું જરૂરી છે.",
+            "signInRequired": "તમારા વિચારો ઍક્સેસ કરવા માટે સાઇન ઇન કરો.",
+            "requestFailed": "વિચારોની વિનંતી નિષ્ફળ ગઈ ({{status}})."
+        }
+    }
+
+    # 26. profileStatTiles (8 keys)
+    gu["profileStatTiles"] = {
+        "sessions": "સત્રો",
+        "minutes": "મિનિટ",
+        "streak": "દિવસોનો ક્રમ",
+        "breaths": "શ્વાસ ચક્ર",
+        "streakDays": "{{days}} દિવસ",
+        "thisWeek": "આ સપ્તાહ",
+        "weekSummary": "આ સપ્તાહે {{minutes}} મિનિટ",
+        "noPracticeThisWeek": "આ અઠવાડિયે કોઈ સાધના નથી — સેરીન માઇન્ડથી શરૂ કરો."
+    }
+
+    # 27. profile (59 keys)
+    gu["profile"] = {
+        "tabs": {
+            "conversations": "વાતચીતો",
+            "profile": "પ્રોફાઇલ",
+            "insights": "આંતરદ્રષ્ટિ",
+            "notes": "નોંધો",
+            "memory": "સ્મૃતિ",
+            "settings": "સેટિંગ્સ",
+            "support": "સહાય"
+        },
+        "personalDetails": {
+            "title": "વ્યક્તિગત વિગતો",
+            "subtitle": "ગુરુને તમારા વિશે જણાવો.",
+            "displayName": "પ્રદર્શિત નામ",
+            "bio": "તમારો માર્ગ અને સંકલ્પ",
+            "language": "પસંદગીની ભાષા",
+            "tone": "ગુરુની શૈલી",
+            "unsavedChanges": "અસાચવેલા ફેરફારો..."
+        },
+        "activitySummary": {
+            "title": "પ્રવૃત્તિ સારાંશ",
+            "subtitle": "ગુરુ સાથે તમારી વાતચીત અને ક્રિયાપ્રતિક્રિયા.",
+            "conversationsStarted": "શરૂ કરેલી વાતચીતો",
+            "meditations": "ધ્યાન સાધનાઓ"
+        },
+        "insights": {
+            "title": "તાજેતરની આંતરદ્રષ્ટિ",
+            "subtitle": "તમારી સાધના, મનોસ્થિતિ અને સંવાદોમાંથી ગૂંથાયેલા પેટર્ન.",
+            "empty": "હજુ સુધી કોઈ આંતરદ્રષ્ટિ નથી. તમારી આધ્યાત્મિક પેટર્ન પ્રગટ કરવા માટે સાધના ચાલુ રાખો."
+        },
+        "conversations": {
+            "title": "વાતચીતો",
+            "subtitle": "તમારા ચેટ ઇતિહાસનું સંચાલન અને સફાઈ કરો.",
+            "keepFor": "વાતચીતો સાચવી રાખો",
+            "empty": "કોઈ વાતચીત નથી.",
+            "deleteAll": "બધી વાતચીતો કાઢી નાખો",
+            "confirmDeleteTitle": "બધી વાતચીતો કાઢી નાખવી છે?",
+            "confirmDeleteMessage": "પુષ્ટિ કરવા માટે DELETE લખો. આ ક્રિયા પૂર્વવત્ કરી શકાતી નથી."
+        },
+        "appearance": {
+            "title": "દેખાવ (Appearance)",
+            "subtitle": "ઇન્ટરફેસ થીમને અનુકૂળ બનાવો."
+        },
+        "audio": {
+            "title": "અવાજ અને ઓડિયો",
+            "subtitle": "ટેક્સ્ટ-ટુ-સ્પીચ પ્લેબેક ગોઠવો.",
+            "enableVoice": "ગુરુ વાણી (અવાજ) સક્ષમ કરો",
+            "enableVoiceSubtitle": "શિક્ષણો અને ઉપદેશો આપમેળે મોટેથી સાંભળો",
+            "speechRate": "બોલવાની ગતિ",
+            "voiceName": "ગુરુ વાણી (મયૂરા - Mayura)",
+            "voiceSubtitle": "ભારતીય ભાષાના ઓડિયો માટે અવાજનું વ્યક્તિત્વ પસંદ કરો."
+        },
+        "reminders": {
+            "title": "રીમાઇન્ડર્સ (સ્મૃતિપત્રો)",
+            "subtitle": "તમારા આધ્યાત્મિક લક્ષ્યો સાથે સુસંગત રહો.",
+            "dailySubtitle": "તમારા આંતરિક કેન્દ્રને શોધવા માટે દૈનિક સૂચના",
+            "scheduledFor": "નિર્ધારિત સમય"
+        },
+        "danger": {
+            "subtitle": "તમારો ડેટા નિકાસ કરો અથવા તમારું એકાઉન્ટ કાયમ માટે કાઢી નાખો.",
+            "clearLocalData": "સ્થાનિક ડેટા સાફ કરવો છે?"
+        },
+        "support": {
+            "title": "સહાય ટીમનો સંપર્ક કરો",
+            "success": "સંદેશ મોકલાઈ ગયો!",
+            "name": "નામ (વૈકલ્પિક)",
+            "email": "તમારું ઇમેઇલ",
+            "category": "શ્રેણી",
+            "subject": "વિષય",
+            "message": "સંદેશ",
+            "attachments": "જોડાણો (Attachments)"
+        },
+        "memory": {
+            "mapTitle": "ચેતના માનચિત્ર (Consciousness Map)",
+            "stateInsights": "સ્થિતિ આંતરદ્રષ્ટિ",
+            "help": "પૅન કરવા ખેંચો · ઝૂમ કરવા સ્ક્રોલ કરો",
+            "heading": "તમારું ચેતના માનચિત્ર",
+            "description": "તમે શેર કરો છો તે દરેક સંવાદ, ચિંતન અને પ્રશ્ન તમારા વિકસતા ચેતના માનચિત્રમાં એક નોડ બને છે."
+        },
+        "cookieBanner": {
+            "description": "અમે તમારા અનુભવને સુધારવા અને સાઇટ ટ્રાફિકનું વિશ્લેષણ કરવા માટે કૂકીઝનો ઉપયોગ કરીએ છીએ. \"સ્વીકારો\" પર ક્લિક કરીને, તમે કૂકીઝના ઉપયોગ માટે સંમતિ આપો છો.",
+            "accept": "સ્વીકારો",
+            "decline": "અસ્વીકાર કરો"
+        }
+    }
+
+    return gu
+
+if __name__ == "__main__":
+    with open("src/locales/en.json", "r", encoding="utf-8") as f:
+        en = json.load(f)
+
+    gu = build_gu_data()
+
+    def flatten(d, prefix=""):
+        items = {}
+        for k, v in d.items():
+            curr = f"{prefix}.{k}" if prefix else k
+            if isinstance(v, dict):
+                items.update(flatten(v, curr))
+            else:
+                items[curr] = v
+        return items
+
+    en_flat = flatten(en)
+    gu_flat = flatten(gu)
+
+    print("EN keys count:", len(en_flat))
+    print("GU keys count:", len(gu_flat))
+
+    missing = sorted(list(set(en_flat.keys()) - set(gu_flat.keys())))
+    extra = sorted(list(set(gu_flat.keys()) - set(en_flat.keys())))
+
+    print(f"Missing in GU: {len(missing)}")
+    for k in missing:
+        print("  MISSING:", k)
+
+    print(f"Extra in GU: {len(extra)}")
+    for k in extra:
+        print("  EXTRA:", k)
+
+    # Check placeholder interpolations
+    mismatched_placeholders = []
+    placeholder_re = re.compile(r"\{\{([a-zA-Z0-9_]+)\}\}")
+    for k in en_flat:
+        if k in gu_flat and isinstance(en_flat[k], str) and isinstance(gu_flat[k], str):
+            en_vars = set(placeholder_re.findall(en_flat[k]))
+            gu_vars = set(placeholder_re.findall(gu_flat[k]))
+            if en_vars != gu_vars:
+                mismatched_placeholders.append((k, en_vars, gu_vars, en_flat[k], gu_flat[k]))
+
+    print(f"Mismatched placeholders: {len(mismatched_placeholders)}")
+    for k, ev, gv, et, gt in mismatched_placeholders:
+        print(f"  {k}: EN vars {ev} vs GU vars {gv}\n    EN: {et}\n    GU: {gt}")
+
+    if len(missing) == 0 and len(extra) == 0 and len(mismatched_placeholders) == 0:
+        print("\nSUCCESS! Perfect 100% key parity (1,077 keys). Writing to src/locales/gu.json...")
+        with open("src/locales/gu.json", "w", encoding="utf-8") as out:
+            json.dump(gu, out, indent=2, ensure_ascii=False)
+            out.write("\n")
+        print("Done!")
+    else:
+        print("\nFix required before writing.")

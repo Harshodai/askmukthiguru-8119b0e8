@@ -370,7 +370,7 @@ class Settings(BaseSettings):
     asr_repetition_penalty: float = 1.0  # >1.0 suppresses decoder loops at decode time
     asr_compression_ratio_threshold: Optional[float] = None  # e.g. 2.4 (whisper default)
     asr_avg_logprob_floor: Optional[float] = None  # e.g. -1.0; below = reject segment
-    asr_no_speech_prob_ceiling: Optional[float] = None  # e.g. 0.6; above = reject segment
+    asr_no_speech_prob_ceiling: Optional[float] = 0.6  # above = reject segment (music/silence-only audio)
 
     # --- LLM Speaker-Role Fallback ---
     # When whisperx diarization is unavailable (MLX-only, cross-process, or cache

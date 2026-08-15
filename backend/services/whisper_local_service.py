@@ -288,6 +288,33 @@ def transcribe_with_whisper(
         except Exception as cache_err:
             logger.debug(f"[{video_id}] whisperx result cache store failed (non-fatal): {cache_err}")
 
+        # mlx-whisper segments carry avg_logprob/no_speech_prob like upstream Whisper,
+        # so the asr_gate confidence floors apply here too (not just whisperx/faster-whisper).
+        # A meditation-music track or silent stretch produces low-confidence text Whisper
+        # otherwise hallucinates as prose; drop those segments before they reach the corpus.
+        segments = result.get("segments") or []
+        if segments:
+            from services.asr_gate import filter_low_confidence_segments
+
+            kept, dropped = filter_low_confidence_segments(segments)
+            if dropped:
+                speech_ratio = len(kept) / len(segments)
+                if speech_ratio < 0.15:
+                    logger.warning(
+                        f"[{video_id}] No speech detected: {dropped}/{len(segments)} segments "
+                        f"above the no-speech-probability ceiling — audio is predominantly "
+                        f"music/silence, nothing to transcribe."
+                    )
+                    # Empty-string sentinel (distinct from None) lets callers like
+                    # audio_transcriber._transcribe_chunks tell "confirmed no speech"
+                    # apart from a genuine transcription failure.
+                    return ""
+                logger.info(
+                    f"[{video_id}] Dropped {dropped}/{len(segments)} low-confidence segments; "
+                    f"reconstructing transcript from {len(kept)} kept segments."
+                )
+                text = " ".join(seg.get("text", "").strip() for seg in kept).strip()
+
         if not text:
             logger.warning(f"[{video_id}] Whisper returned empty transcript")
             return None

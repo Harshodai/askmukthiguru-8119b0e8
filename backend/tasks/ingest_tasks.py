@@ -30,6 +30,32 @@ RETRYABLE_INGEST_ERRORS = (
 )
 
 
+def classify_ingest_error(error: BaseException) -> str:
+    """Classify a failed ingestion as 'no_speech' | 'permanent' | 'transient'.
+
+    Mirrors scripts/ingestion/bulk_ingest_async.py's classify_error so both
+    ingestion paths (host script and Celery task) bucket the same DLQ the
+    same way. no_speech and permanent are not worth auto-retrying; only
+    transient (network/rate-limit/timeout-shaped) errors are.
+    """
+    msg = str(error).lower()
+    if "no speech detected" in msg:
+        return "no_speech"
+    permanent_signals = [
+        "extraction failed",
+        "no transcript",
+        "private video",
+        "video unavailable",
+        "has been removed",
+        "does not exist",
+        "sign in to confirm",
+    ]
+    for sig in permanent_signals:
+        if sig in msg:
+            return "permanent"
+    return "transient"
+
+
 class AsyncTask(Task):
     """Base task with async support via asyncio.run() and failed-job tracking."""
 
@@ -56,7 +82,8 @@ class AsyncTask(Task):
             if isinstance(candidate, str) and candidate:
                 job_id = candidate
         if job_id:
-            update_job_progress(job_id, "failed", error_message=str(exc))
+            category = classify_ingest_error(exc)
+            update_job_progress(job_id, "failed", error_message=f"[{category}] {exc}")
         super().on_failure(exc, task_id, args, kwargs, einfo)
 
     @property

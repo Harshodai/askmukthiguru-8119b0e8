@@ -216,14 +216,25 @@ async def _transcribe_chunks(chunks: List[Path]) -> str:
     from services.whisper_local_service import transcribe_with_whisper
 
     texts: List[str] = []
+    no_speech_chunks = 0
     for i, chunk in enumerate(chunks):
         text = await asyncio.to_thread(transcribe_with_whisper, f"audio_chunk_{i}", str(chunk))
         if text:
             texts.append(text)
+        elif text == "":
+            # Confirmed no-speech (music/silence), distinct from a genuine transcription
+            # failure -- see whisper_local_service.transcribe_with_whisper's "" sentinel.
+            no_speech_chunks += 1
+            logger.info("Chunk %d/%d has no speech (music/silence) (%s)", i + 1, len(chunks), chunk)
         else:
             logger.warning("Whisper returned no transcript for chunk %d/%d (%s)", i + 1, len(chunks), chunk)
 
     if not texts:
+        if no_speech_chunks == len(chunks):
+            raise RuntimeError(
+                "No speech detected in audio -- entire video is music/silence-only, "
+                "no transcribable content"
+            )
         raise RuntimeError("Whisper transcription produced no output for any chunk")
 
     coverage = len(texts) / len(chunks)
