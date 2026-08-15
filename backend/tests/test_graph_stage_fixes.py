@@ -125,6 +125,124 @@ async def test_graph_stage_fast_graph_missing_nodes_fallback():
 
 
 @pytest.mark.asyncio
+async def test_graph_stage_deep_pattern_not_force_fasted():
+    """A CacheCheckStage 'deep' classification (regex-matched comparative
+    query) must not be discarded when the on-device classifier separately
+    guessed tier2_simple -- that discarding routed comparative queries like
+    "difference between Soul Sync and Serene Mind" onto the fast graph,
+    which skips grade_documents/verify_answer/extract_citations entirely.
+    """
+    container = MagicMock()
+
+    mock_fast_graph = AsyncMock()
+    mock_fast_graph.nodes = {"handle_distress_check": {}, "handle_distress": {}}
+    mock_fast_graph.ainvoke.return_value = {"final_answer": "fast answered", "citations": [], "intent": "FACTUAL"}
+
+    mock_deep_graph = AsyncMock()
+    mock_deep_graph.ainvoke.return_value = {"final_answer": "deep answered", "citations": [], "intent": "FACTUAL"}
+
+    container.fast_graph = mock_fast_graph
+    container.standard_graph = mock_deep_graph
+    container.deep_graph = mock_deep_graph
+
+    coordinator = PipelineCoordinator(container)
+    coordinator.coalescer = _DirectCoalescer()
+
+    ctx = PipelineContext(
+        container=container,
+        coordinator=coordinator,
+        request=MagicMock(),
+        user_msg="difference between soul sync and serene mind breathing",
+        preferred_lang="en",
+        meditation_step=0,
+        session_id="sess-1",
+        user={"id": "user-1"},
+        is_benchmark=False,
+    )
+    # CacheCheckStage's intent-blind classifier caught a HEURISTIC_DEEP_PATTERNS
+    # match ("difference between") and resolved "deep".
+    ctx.detected_query_tier = "deep"
+    ctx.state = {
+        "user_msg_en": "difference between soul sync and serene mind breathing",
+        "chat_history_en": [],
+        "memory_context": "",
+        "lang_detection": None,
+        "query_tier": None,
+        "intent": None,
+    }
+
+    with patch("rag.nodes.on_device_intent.classify_with_reason") as mock_classify:
+        # On-device classifier's coarser guess: FACTUAL -> tier2_simple.
+        mock_classify.return_value = ("FACTUAL", "looks like a simple factual question")
+
+        stage = GraphStage()
+        await stage.run(ctx)
+
+        assert mock_deep_graph.ainvoke.called
+        assert not mock_fast_graph.ainvoke.called
+
+
+@pytest.mark.asyncio
+async def test_graph_stage_query_tier_synced_to_selected_graph():
+    """When graph_variant resolves to standard/deep but the on-device
+    classifier already stamped state['query_tier']='tier2_simple', every
+    in-graph gate (grade_documents, verify_answer, retrieval depth) reads
+    state['query_tier'] and would self-bypass real grading/verification on
+    the stale tag. GraphStage must promote it to 'standard' so nodes inside
+    the actually-selected graph behave consistently with graph_variant.
+    """
+    container = MagicMock()
+
+    mock_fast_graph = AsyncMock()
+    mock_fast_graph.nodes = {"handle_distress_check": {}, "handle_distress": {}}
+
+    captured_state = {}
+
+    async def _capture_invoke(state, config=None):
+        captured_state.update(state)
+        return {"final_answer": "deep answered", "citations": [], "intent": "FACTUAL"}
+
+    mock_deep_graph = AsyncMock()
+    mock_deep_graph.ainvoke.side_effect = _capture_invoke
+
+    container.fast_graph = mock_fast_graph
+    container.standard_graph = mock_deep_graph
+    container.deep_graph = mock_deep_graph
+
+    coordinator = PipelineCoordinator(container)
+    coordinator.coalescer = _DirectCoalescer()
+
+    ctx = PipelineContext(
+        container=container,
+        coordinator=coordinator,
+        request=MagicMock(),
+        user_msg="difference between soul sync and serene mind breathing",
+        preferred_lang="en",
+        meditation_step=0,
+        session_id="sess-1",
+        user={"id": "user-1"},
+        is_benchmark=False,
+    )
+    ctx.detected_query_tier = "deep"
+    ctx.state = {
+        "user_msg_en": "difference between soul sync and serene mind breathing",
+        "chat_history_en": [],
+        "memory_context": "",
+        "lang_detection": None,
+        "query_tier": None,
+        "intent": None,
+    }
+
+    with patch("rag.nodes.on_device_intent.classify_with_reason") as mock_classify:
+        mock_classify.return_value = ("FACTUAL", "looks like a simple factual question")
+
+        stage = GraphStage()
+        await stage.run(ctx)
+
+        assert captured_state.get("query_tier") == "standard"
+
+
+@pytest.mark.asyncio
 async def test_nim_service_fallback_ignores_model_param():
     # Instantiate NimService
     nim = NimService()

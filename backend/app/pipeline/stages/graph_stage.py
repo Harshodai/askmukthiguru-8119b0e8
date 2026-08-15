@@ -170,7 +170,18 @@ class GraphStage(Stage):
                 # Fast path: CacheCheckStage already ran select_graph_for_query — reuse result.
                 # Honor the on-device classifier's fast-tier decision; the cache stage runs
                 # before intent classification and can over-classify simple queries.
-                graph_variant = ctx.detected_query_tier if tier_for_graph not in ("fast", "tier2_simple") else "fast"
+                #
+                # Exception: a CacheCheckStage "deep" result comes from a deterministic
+                # regex match (compare/contrast/difference between/relationship between —
+                # see HEURISTIC_DEEP_PATTERNS), a stronger complexity signal than the
+                # on-device classifier's coarse intent-based tier guess. Letting
+                # tier_for_graph="tier2_simple" force "fast" here silently dropped
+                # genuinely comparative/multi-hop queries onto the fast graph, which
+                # skips grade_documents/verify_answer/extract_citations entirely.
+                if ctx.detected_query_tier == "deep":
+                    graph_variant = "deep"
+                else:
+                    graph_variant = ctx.detected_query_tier if tier_for_graph not in ("fast", "tier2_simple") else "fast"
             else:
                 graph_variant = await select_graph_for_query(
                     user_msg_en,
@@ -187,6 +198,18 @@ class GraphStage(Stage):
             # Only set query_tier if on-device didn't already set it
             if "query_tier" not in initial_state or initial_state.get("query_tier") is None:
                 initial_state["query_tier"] = graph_variant
+            elif graph_variant != "fast" and initial_state["query_tier"] in ("fast", "tier2_simple"):
+                # Divergence guard: graph_variant is the tier CacheCheckStage's
+                # intent-blind classifier actually resolved (it catches deep
+                # patterns like "difference between" that the on-device
+                # classifier's coarser FACTUAL/CASUAL guess misses). Every
+                # in-graph gate (grade_documents, retrieval depth,
+                # verify_answer) reads state["query_tier"], not graph_variant
+                # -- left at "tier2_simple" it self-bypasses real grading and
+                # verification even while running the standard/deep graph.
+                # "standard" is the safe promotion: it doesn't trip any
+                # tier4_deep-only gate it shouldn't.
+                initial_state["query_tier"] = "standard"
 
             selected_graph = getattr(container, f"{graph_variant}_graph")
 
