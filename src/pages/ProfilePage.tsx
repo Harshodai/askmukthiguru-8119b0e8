@@ -162,11 +162,19 @@ const ProfilePage = () => {
     setDirty(false);
   }, [profile]);
 
+  const resolveName = (): string => {
+    const raw = profile.displayName || user?.user_metadata?.full_name || '';
+    return raw && raw !== 'Seeker' ? raw : '';
+  };
+
+  const resolveEmail = (): string => {
+    return user?.email || '';
+  };
+
   useEffect(() => {
     if (user || profile) {
-      const raw = profile.displayName || user?.user_metadata?.full_name || '';
-      const resolvedName = raw && raw !== 'Seeker' ? raw : '';
-      const resolvedEmail = user?.email || '';
+      const resolvedName = resolveName();
+      const resolvedEmail = resolveEmail();
       setSupportForm((prev) => ({
         ...prev,
         name: resolvedName || prev.name || '',

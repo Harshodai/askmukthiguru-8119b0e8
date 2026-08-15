@@ -187,10 +187,11 @@ describe('ChatMessage (regression)', () => {
       confidenceScore: 8.4,
       confidenceReason: "Retrieved teaching and answer aligned.",
       answerEvidence: {
+        corpus_id: "test-corpus",
+        model_policy_id: "test-policy",
+        evidence_support_label: "grounded",
+        source_count: 2,
         citations_verified: true,
-        claims: [],
-        unsupported_claims: [],
-        sources_used: ["https://example.com/one", "https://example.com/two"],
       },
     });
     render(<ChatMessage message={message} />, { wrapper });
