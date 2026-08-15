@@ -7045,3 +7045,53 @@ migration." **A mandatory filter on existing data is two changes, not one:
 the filter itself, and a backfill for every record that predates it. Ship
 them in the same PR, or the gap between them is a silent, total outage
 waiting for someone to notice the absence of errors.**
+
+### L-HARDEN-40 — Two fields compared for "is a transition needed" collapse "nothing to transition to" and "already there" into the same false
+
+`useAdminGuard.ts` decided whether a session needed MFA step-up with
+`aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2'`. For a superuser
+with zero enrolled TOTP factors, Supabase reports `nextLevel: 'aal1'` —
+identical to `currentLevel` — because there is nothing to step up *to*, not
+because no step-up is needed. The check read both states as the same
+`false` and let a zero-factor superuser straight into the admin dashboard,
+where every `/api/admin/*` call then 403'd against `require_aal2`
+(auth_service.py), which has no bypass. The dashboard "readily opened" —
+the actual failure was silent and one layer downstream, in API calls the
+guard never asked about. **When a boolean is derived from comparing two
+fields that can each independently sit at the same baseline value ("nothing
+enrolled yet" and "step-up already satisfied" both look like
+`next === current`), enumerate the states explicitly instead of diffing —
+here that meant calling `listFactors()` to separate "needs enrollment" from
+"needs verification" from "already aal2," three states a single equality
+check could not distinguish.**
+
+### L-HARDEN-41 — A log line confirming one dependency's success, immediately followed by a 403, means check the OTHER dependencies in the chain — not that one
+
+Railway logs showed `User ... confirmed as admin via authenticated query`
+on the line directly before `AUDIT GET /api/admin/kpis -> 403`. It reads
+like a contradiction (role check passed, then denied) but isn't: FastAPI
+composes `_require_admin` from multiple `Depends()` — `_check_admin_role`
+succeeding says nothing about `require_aal2`, a sibling dependency in the
+same chain checking a completely different claim (`aal` on the JWT, not
+`is_superuser`). Chasing "why does a confirmed admin get 403'd" inside the
+role-check code would have found nothing, because that code was never the
+one raising. **A 403 immediately after a logged success is not evidence
+against that specific check — multi-dependency auth chains fail closed on
+the first unsatisfied `Depends()`, and the log line you have is only proof
+that ONE of several independent gates passed. Read every dependency in the
+route signature, not just the one that happens to log.**
+
+### L-HARDEN-42 — Backend and frontend on this project deploy through different triggers; a `git push` alone does not redeploy both
+
+Railway backend deploys go through `railway up` (tarball upload of the
+working directory), never through a git webhook — pushing to `main` does
+not touch the running backend at all. The frontend (Lovable-hosted) does
+sync from `main` on push. Mid-session, backend code (book ingestion
+pipeline, aal2 cache-TTL fix) was live in production via `railway up`
+*before* it was ever committed to git — meaning `git log` and "what's
+actually running" diverged for real, deployed, working code, not just
+uncommitted WIP. **Before claiming "pushed, deploy done" on this repo,
+name which half that covers — `git push origin main` deploys the frontend
+only; the backend needs its own explicit `railway up`. Treat "committed"
+and "deployed" as two separate facts to verify per service, not one
+end-to-end guarantee from a single push.**
