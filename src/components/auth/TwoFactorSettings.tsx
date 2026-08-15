@@ -54,9 +54,21 @@ const { t } = useTranslation();
   const startEnroll = async () => {
     setEnrollment(null);
     try {
+      // A previous enroll attempt that was never verified (closed dialog,
+      // wrong code, expired) leaves an unverified factor behind. Supabase
+      // rejects a fresh enroll() with 422 while one exists — and this UI
+      // only ever lists verified factors, so there is no visible way to
+      // clear it. Clean up any stale unverified TOTP factors first so
+      // re-enrolling after a failed attempt always works.
+      const { data: existing } = await supabase.auth.mfa.listFactors();
+      const stale = (existing?.totp ?? []).filter((f) => f.status !== 'verified');
+      for (const f of stale) {
+        await supabase.auth.mfa.unenroll({ factorId: f.id });
+      }
+
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
-        friendlyName: `Authenticator (${new Date().toLocaleDateString()})`,
+        friendlyName: `Authenticator (${new Date().toLocaleString()})`,
       });
       if (error) throw error;
       setEnrollment({
