@@ -62,4 +62,19 @@ describe('meditationMetrics', () => {
     const total = Math.round(series.reduce((s, d) => s + d.seconds, 0) / 60);
     expect(total).toBe(computeMetrics(sessions, NOW).totalMinutes);
   });
+
+  it('renders a full-length flat baseline series when there are no sessions', () => {
+    const series = dailySeries([], 30, NOW);
+    expect(series).toHaveLength(30);
+    expect(series.every((d) => d.seconds === 0 && d.minutes === 0)).toBe(true);
+    // Oldest -> newest, ending on "today".
+    expect(series[29].key).toBe(localDayKey(NOW));
+  });
+
+  it('counts a streak that spans a month boundary', () => {
+    const endOfJuly = new Date(2026, 6, 31, 21, 0); // 31 Jul
+    const firstOfAugust = new Date(2026, 7, 1, 21, 0); // 1 Aug
+    const now = new Date(2026, 7, 1, 23, 0);
+    expect(computeStreak([sit(firstOfAugust, 120), sit(endOfJuly, 120)], now)).toBe(2);
+  });
 });

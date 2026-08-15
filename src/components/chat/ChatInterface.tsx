@@ -1893,11 +1893,7 @@ return (
                 transition={{ delay: 0.18 }}
                 className="w-full px-4"
               >
-                <TeacherGuidancePanel
-                  assistantName={selected?.name}
-                  language={currentLanguage}
-                  onLanguageChange={handleLanguageChange}
-                />
+                <TeacherGuidancePanel assistantName={selected?.name} />
               </motion.div>
               </div>
 
