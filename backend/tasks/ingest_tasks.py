@@ -1,19 +1,14 @@
 """Specialized Celery tasks for the ingestion pipeline.
 
-4 task types routed to separate queues:
-  1. embed_chunks — text chunks → vector embeddings (project's all-MiniLM-L6-v2)
-  2. index_vectors — vectors → Qdrant storage (batch upload, 1000-pt batches)
-  3. orchestrate_ingestion — full pipeline coordinator with job tracking
-  4. ingest_playlist — playlist/channel ingestion via Celery chord
+Task types routed to separate queues:
+  1. orchestrate_ingestion — full pipeline coordinator with job tracking
+  2. ingest_playlist — playlist/channel ingestion via Celery chord
 """
 
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import logging
-import os
-import threading
 from typing import Any, Optional
 
 from httpx import HTTPError
@@ -33,43 +28,6 @@ RETRYABLE_INGEST_ERRORS = (
     OSError,
     HTTPError,
 )
-
-
-# Celery runs one task slot in Railway today, but tasks are still short-lived
-# Python calls. Keep heavyweight model/client state at worker-process scope so
-# repeated tasks do not reload BGE-M3 or create a fresh Qdrant connection pool.
-_worker_embedding_service = None
-_worker_embedding_lock = threading.Lock()
-_worker_qdrant_client = None
-_worker_qdrant_lock = threading.Lock()
-
-
-def _get_worker_embedding_service():
-    global _worker_embedding_service
-    if _worker_embedding_service is None:
-        with _worker_embedding_lock:
-            if _worker_embedding_service is None:
-                from services.embedding_service import EmbeddingService
-                _worker_embedding_service = EmbeddingService()
-    return _worker_embedding_service
-
-
-def _get_worker_qdrant_client():
-    global _worker_qdrant_client
-    if _worker_qdrant_client is None:
-        with _worker_qdrant_lock:
-            if _worker_qdrant_client is None:
-                from qdrant_client import QdrantClient
-                qdrant_url = os.environ.get("QDRANT_URL", "http://qdrant:6333")
-                qdrant_api_key = os.environ.get("QDRANT_API_KEY") or None
-                timeout = float(os.environ.get("QDRANT_TIMEOUT", "30"))
-                _worker_qdrant_client = QdrantClient(
-                    url=qdrant_url,
-                    api_key=qdrant_api_key,
-                    check_compatibility=False,
-                    timeout=timeout,
-                )
-    return _worker_qdrant_client
 
 
 class AsyncTask(Task):
@@ -110,123 +68,6 @@ class AsyncTask(Task):
 
     def run_async(self, coro):
         return self.loop.run_until_complete(coro)
-
-
-@celery_app.task(
-    base=AsyncTask, bind=True,
-    autoretry_for=RETRYABLE_INGEST_ERRORS,
-    retry_kwargs={"max_retries": 3},
-    retry_backoff=True,
-    retry_jitter=True,
-)
-def embed_chunks(self, chunks: list[str], content_hash: str, job_id: str = None) -> dict[str, Any]:
-    """Generate embeddings for text chunks using project's all-MiniLM-L6-v2."""
-    logger.info(f"Embedding {len(chunks)} chunks (hash={content_hash})")
-
-    if job_id:
-        update_job_progress(job_id, "running", progress_pct=60)
-
-    self.update_state(state="STARTED", meta={"progress_pct": 50, "stage": "embedding"})
-
-    try:
-        embedder = _get_worker_embedding_service()
-        result = embedder.encode_batch(chunks)
-        embeddings = result["dense"]
-
-        if hasattr(embeddings, "tolist"):
-            embeddings = embeddings.tolist()
-
-        return {
-            "status": "success",
-            "content_hash": content_hash,
-            "chunk_count": len(chunks),
-            "embedding_dim": len(embeddings[0]) if embeddings else 0,
-            "embeddings": embeddings,
-        }
-    except Exception as exc:
-        logger.error(f"Embedding failed: {exc}")
-        raise
-
-
-@celery_app.task(
-    base=AsyncTask, bind=True,
-    autoretry_for=RETRYABLE_INGEST_ERRORS,
-    retry_kwargs={"max_retries": 3},
-    retry_backoff=True,
-    retry_jitter=True,
-)
-def index_vectors(
-    self,
-    chunks: list[str],
-    embeddings: list[list[float]],
-    content_hash: str,
-    metadata: Optional[dict[str, Any]] = None,
-    job_id: str = None,
-) -> dict[str, Any]:
-    """Index vectors into Qdrant (batch upload, 1000-pt batches)."""
-    logger.info(f"Indexing {len(chunks)} vectors (hash={content_hash})")
-
-    if job_id:
-        update_job_progress(job_id, "running", progress_pct=80)
-
-    self.update_state(state="STARTED", meta={"progress_pct": 70, "stage": "indexing"})
-
-    try:
-        from qdrant_client.http import models as qdrant_models
-
-        client = _get_worker_qdrant_client()
-
-        collection = os.environ.get("QDRANT_COLLECTION", "spiritual_wisdom")
-
-        points = []
-        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-            point_id = hashlib.md5(f"{content_hash}:{i}".encode(), usedforsecurity=False).hexdigest()
-            points.append(
-                qdrant_models.PointStruct(
-                    id=point_id,
-                    vector=embedding,
-                    payload={
-                        "content": chunk,
-                        "chunk_index": i,
-                        "content_hash": content_hash,
-                        "source": (metadata or {}).get("source", ""),
-                        "title": (metadata or {}).get("title", ""),
-                        # Same mandatory CorpusScope/rights-gate fields as
-                        # services/qdrant/indexer.py -- without these every point
-                        # written by this job-queue path is permanently
-                        # unretrievable under searcher.py's mandatory filter.
-                        "tenant_id": settings.default_tenant_id,
-                        "corpus_id": settings.default_corpus_id,
-                        "domain_rights_status": "licensed",
-                    },
-                )
-            )
-
-        # Batch upload — 1000 points per batch for efficiency
-        batch_size = 1000
-        for batch_start in range(0, len(points), batch_size):
-            batch = points[batch_start : batch_start + batch_size]
-            client.upsert(collection_name=collection, points=batch)
-            if job_id:
-                update_job_progress(
-                    job_id,
-                    "running",
-                    progress_pct=80 + int(20 * batch_start / max(len(points), 1)),
-                    chunks_indexed=batch_start + len(batch),
-                )
-
-        if job_id:
-            update_job_progress(job_id, "running", progress_pct=95, chunks_indexed=len(points))
-
-        return {
-            "status": "success",
-            "content_hash": content_hash,
-            "indexed_count": len(points),
-            "collection": collection,
-        }
-    except Exception as exc:
-        logger.error(f"Indexing failed: {exc}")
-        raise
 
 
 @celery_app.task(
