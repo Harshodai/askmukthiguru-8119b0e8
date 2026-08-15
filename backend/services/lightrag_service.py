@@ -83,19 +83,35 @@ class LightRAGService:
         return cls._instance
 
     def __init__(self):
-        self._cache_ttl_seconds = 300  # 5 min TTL
-        # ponytail: bounded TTL cache — a plain dict here never evicted expired
-        # entries (only skipped them on read), so it grew by one entry per
-        # unique query for the life of the process. maxsize caps worst case.
-        self._query_cache: TTLCache = TTLCache(maxsize=2000, ttl=self._cache_ttl_seconds)
-        # TTLCache is NOT thread-safe — concurrent asyncio tasks running in the
-        # thread pool can race on read/write. An RLock serialises all cache
-        # operations without deadlocking (RLock is reentrant).
-        self._cache_lock = threading.RLock()
-        # Provider-agnostic circuit breaker — no dedicated CircuitBreakerProvider
-        # entry for lightrag; from_provider() falls back to default thresholds.
-        self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("lightrag"))
-        get_circuit_breaker_registry().register("lightrag", self._circuit)
+        # __new__ returns the same singleton instance on every call, but Python
+        # still calls __init__ unconditionally after __new__ returns. `_initialized`
+        # is a DIFFERENT flag, set by the async initialize() method once Neo4j/
+        # LightRAG setup completes -- guarding construction with it meant every
+        # LightRAGService() call before the first initialize() completed would
+        # re-run this block, wiping the query cache and creating a fresh circuit
+        # breaker (resetting failure counts/OPEN state). Use a dedicated
+        # construction flag, and take _instance_lock for the check-and-setup so
+        # concurrent first calls can't race on cache/circuit creation either.
+        if getattr(self, "_constructed", False):
+            return
+        with type(self)._instance_lock:
+            if getattr(self, "_constructed", False):
+                return
+
+            self._cache_ttl_seconds = 300  # 5 min TTL
+            # ponytail: bounded TTL cache — a plain dict here never evicted expired
+            # entries (only skipped them on read), so it grew by one entry per
+            # unique query for the life of the process. maxsize caps worst case.
+            self._query_cache: TTLCache = TTLCache(maxsize=2000, ttl=self._cache_ttl_seconds)
+            # TTLCache is NOT thread-safe — concurrent asyncio tasks running in the
+            # thread pool can race on read/write. An RLock serialises all cache
+            # operations without deadlocking (RLock is reentrant).
+            self._cache_lock = threading.RLock()
+            # Provider-agnostic circuit breaker — no dedicated CircuitBreakerProvider
+            # entry for lightrag; from_provider() falls back to default thresholds.
+            self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("lightrag"))
+            get_circuit_breaker_registry().register("lightrag", self._circuit)
+            self._constructed = True
 
     async def initialize(self):
         if self._initialized:

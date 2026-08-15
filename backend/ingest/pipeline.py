@@ -59,6 +59,7 @@ from services.ollama_service import OllamaService
 from services.pii_scanner import redact_pii
 from services.proposition_service import PropositionService
 from services.qdrant_service import QdrantService
+from ingest.sources.youtube_service import YouTubeIngestionService
 from services.whisper_local_service import (
     clear_cached_whisperx_result,
     get_cached_whisperx_result,
@@ -337,6 +338,7 @@ class IngestionPipeline:
         self._contextual_chunker = ContextualChunkingService(self._llm)
         self._neo4j_driver = neo4j_driver
         self._neo4j_driver_accessor = neo4j_driver_accessor
+        self._youtube_service = YouTubeIngestionService()
 
         self._splitter = RecursiveCharacterTextSplitter(
             chunk_size=settings.rag_chunk_size,
@@ -349,6 +351,21 @@ class IngestionPipeline:
             ollama_service=self._llm,
             qdrant_service=self._qdrant,
         )
+
+    async def _try_audio_transcribe_fallback(self, video_id: str) -> Optional[dict]:
+        """Shared Tier-4 fallback: local audio download + transcription.
+
+        YouTubeIngestionService._try_audio_transcribe_fallback already catches
+        its own network/audio/STT failures and returns None -- this catch is
+        defense-in-depth against anything unexpected (e.g. an AttributeError)
+        so _ingest_video/_ingest_video_enhanced keep their existing
+        "extraction failed" error response instead of a raw 500.
+        """
+        try:
+            return await self._youtube_service._try_audio_transcribe_fallback(video_id)
+        except Exception as e:
+            logger.debug("Tier-4 audio-transcribe fallback failed for %s: %s", video_id, e)
+            return None
 
     def _is_url_safe(self, url: str) -> bool:
         """Return False if URL resolves to private, loopback, or link‑local IPs."""
@@ -1021,8 +1038,7 @@ class IngestionPipeline:
         if not result.get("text"):
             # Tier-4: all caption/transcript strategies failed -- fall back to
             # downloading audio and transcribing it locally before giving up.
-            from ingest.sources.youtube_service import YouTubeIngestionService
-            audio_fallback = await YouTubeIngestionService()._try_audio_transcribe_fallback(video_id)
+            audio_fallback = await self._try_audio_transcribe_fallback(video_id)
             if audio_fallback and audio_fallback.get("text"):
                 result = audio_fallback
             else:
@@ -1294,7 +1310,13 @@ class IngestionPipeline:
         self._notify(on_progress, "Extracting audio and diarizing speakers...", 0.2)
         result = fetch_transcript_hybrid(video_id, max_accuracy=True)
         if not result.get("text"):
-            return {"status": "error", "message": "Extraction failed", "source_url": url}
+            # Tier-4: all caption/transcript strategies failed -- fall back to
+            # downloading audio and transcribing it locally before giving up.
+            audio_fallback = await self._try_audio_transcribe_fallback(video_id)
+            if audio_fallback and audio_fallback.get("text"):
+                result = audio_fallback
+            else:
+                return {"status": "error", "message": "Extraction failed", "source_url": url}
 
         raw_text = result["text"]
 

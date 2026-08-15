@@ -100,6 +100,29 @@ class Settings(BaseSettings):
     serene_mind_enabled: bool = True  # Enable/disable Serene Mind distress detection engine
     doctrine_cache_enabled: bool = False  # Default OFF: built-in canned answers lack citations and hurt benchmark quality
 
+    # --- Distress / Serene Mind safety dials ---
+    semantic_distress_threshold: float = Field(default=0.72, ge=0.0, le=1.0)
+    # Count of recent turns with distress_score > semantic_distress_history_score_threshold
+    # required before persistent-distress escalation.
+    semantic_distress_history_score_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+    # Number of recent turns scanned for persistent distress escalation.
+    semantic_distress_rolling_window: int = Field(default=5, gt=0)
+    # Minimum distressed-turn count within rolling_window to escalate to SEVERE.
+    semantic_distress_escalation_count: int = Field(default=3, gt=0)
+    # Fraction of recent proactive-distress turns that must be distressed to trigger a nudge.
+    proactive_distress_frequency_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+
+    # --- Ontology soft-gate validation ---
+    ontology_confidence_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    # Minimum fraction of extracted facts supported by Neo4j for is_valid=True.
+    ontology_validity_confidence_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+
+    # --- Web search result guardrails ---
+    web_search_result_min_score: float = Field(default=0.6, ge=0.0, le=1.0)
+
+    # --- RAPTOR summary faithfulness gate ---
+    raptor_summary_faithfulness_floor: float = Field(default=0.35, ge=0.0, le=1.0)
+
     # --- Feature Flags & Memory Layer ---
     feature_memory_enabled: bool = True
     feature_memory_write: bool = False  # Explicit opt-in until single-memory-plane consent proof exists.
@@ -1093,6 +1116,19 @@ class Settings(BaseSettings):
         if self.raptor_summary_model:  # Explicit override
             return self.raptor_summary_model
         return self.model_for_generation  # Default to generation model
+
+    @model_validator(mode="after")
+    def validate_semantic_distress_escalation(self):
+        """A rolling-window escalation count can't exceed the window itself —
+        a count above the window can never be satisfied, silently disabling
+        persistent-distress escalation."""
+        if self.semantic_distress_escalation_count > self.semantic_distress_rolling_window:
+            raise ValueError(
+                "semantic_distress_escalation_count "
+                f"({self.semantic_distress_escalation_count}) must be <= "
+                f"semantic_distress_rolling_window ({self.semantic_distress_rolling_window})"
+            )
+        return self
 
     @model_validator(mode="after")
     def validate_anon_session_secret(self):

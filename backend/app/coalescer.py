@@ -39,26 +39,31 @@ class _InMemoryCoalescer:
         self._lock_created: dict = {}
         self._results: dict = {}
         self._ttl = ttl
+        # Number of active/queued waiters per key. Used to decide when it is
+        # safe to evict a lock entry; asyncio.Lock.locked() is not enough
+        # because it briefly returns False during handoff between waiters.
+        self._lock_users: dict = {}
 
     def _cleanup(self):
-        now = time.time()
+        now = time.monotonic()
         expired = [k for k, (_, ts) in self._results.items() if now - ts > self._ttl]
         for k in expired:
             self._results.pop(k, None)
-            self._locks.pop(k, None)
-            self._lock_created.pop(k, None)
 
         # A key whose coro_func() always raises never lands in self._results,
-        # so the loop above never sees it -- without this, _locks/_lock_created
-        # grow forever for permanently-failing keys. Only drop unlocked entries
-        # so an in-flight coalesced call is never disturbed.
+        # so the result-expiry loop above never sees it -- without this,
+        # _locks/_lock_created grow forever for permanently-failing keys.
+        # Only drop entries with no active or queued caller, so an in-flight
+        # coalesced call is never disturbed. _lock_users is decremented only
+        # after the async-with block exits, so a waiter handoff still counts.
         stale_locks = [
             k for k, ts in self._lock_created.items()
-            if now - ts > self._ttl and not self._locks.get(k, asyncio.Lock()).locked()
+            if now - ts > self._ttl and self._lock_users.get(k, 0) == 0
         ]
         for k in stale_locks:
             self._locks.pop(k, None)
             self._lock_created.pop(k, None)
+            self._lock_users.pop(k, None)
 
     async def get_or_run(self, key: str, coro_func: typing.Callable[[], typing.Any]):
         self._cleanup()
@@ -68,18 +73,23 @@ class _InMemoryCoalescer:
 
         if key not in self._locks:
             self._locks[key] = asyncio.Lock()
-            self._lock_created[key] = time.time()
+            self._lock_created[key] = time.monotonic()
+            self._lock_users[key] = 0
 
         is_collapsed = self._locks[key].locked()
         if is_collapsed:
             COLLAPSED_REQUESTS.inc()
 
-        async with self._locks[key]:
-            if key in self._results:
-                return self._results[key][0]
-            result = await coro_func()
-            self._results[key] = (result, time.time())
-            return result
+        self._lock_users[key] = self._lock_users.get(key, 0) + 1
+        try:
+            async with self._locks[key]:
+                if key in self._results:
+                    return self._results[key][0]
+                result = await coro_func()
+                self._results[key] = (result, time.monotonic())
+                return result
+        finally:
+            self._lock_users[key] = max(0, self._lock_users.get(key, 1) - 1)
 
 
 class RedisCoalescer:
@@ -121,12 +131,9 @@ class RedisCoalescer:
     ) -> typing.Any:
         tenant_id = TenantContext.get()
         list_key = f"coalesce:{tenant_id}:list:{result_key.split(':')[-1]}"
-        try:
-            # Shielded: if the leader's own request (e.g. an SSE client that
-            # disconnected) gets cancelled, followers waiting on this same
-            # Redis key must not have their shared pipeline run yanked out
-            # from under them.
-            result = await asyncio.shield(coro_func())
+
+        async def _leader_work() -> typing.Any:
+            result = await coro_func()
             try:
                 serialized = self._serialize_result(result)
                 await self._redis.set(result_key, serialized, ex=self._ttl)
@@ -135,8 +142,23 @@ class RedisCoalescer:
             except (TypeError, ValueError) as e:
                 logger.warning(f"Could not serialize coalescer result: {e}")
             return result
-        except Exception:
-            logger.exception("Coalescer pipeline failed")
+
+        # Create one task covering the complete leader operation, including
+        # serialization and Redis result publication. asyncio.shield() means a
+        # cancellation of the CALLER (e.g. an SSE client that disconnected)
+        # only cancels the shield's own await -- not the task itself, which
+        # keeps running so followers still receive the stored result and the
+        # lock is cleaned up only after publication. A bare `await task`
+        # (without shield) would propagate the cancellation straight into the
+        # task, since directly awaiting a task delivers cancellation to it.
+        task: asyncio.Task = asyncio.create_task(_leader_work())
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            try:
+                await task
+            except Exception as e:
+                logger.debug("Suppressed leader-task failure after cancellation: %s", e)
             raise
         finally:
             # Remove lock; keep result for TTL so followers can read it.
