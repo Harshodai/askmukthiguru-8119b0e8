@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
-from app.schemas import ChatRequest, ChatResponse
+from app.schemas import ChatRequest, ChatResponse, MessagePayload
 from app.grounding import grounding_state_for
 from app.sanitization import sanitize_user_input
 from app.security_utils import is_benchmark_request

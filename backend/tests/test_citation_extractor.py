@@ -24,14 +24,14 @@ def test_jaccard_empty() -> None:
 
 @pytest.mark.unit
 def test_with_no_docs_returns_empty() -> None:
-    state = {"answer": "Some answer.", "documents": []}
+    state = {"answer": "Some answer.", "relevant_docs": []}
     result = extract_citations(state)
     assert result == {"citations": []}
 
 
 @pytest.mark.unit
 def test_with_no_answer_returns_empty() -> None:
-    state = {"answer": "", "documents": [{"text": "doc", "metadata": {}}]}
+    state = {"answer": "", "relevant_docs": [{"text": "doc", "metadata": {}}]}
     result = extract_citations(state)
     assert result == {"citations": []}
 
@@ -40,7 +40,7 @@ def test_with_no_answer_returns_empty() -> None:
 def test_extracts_best_matching_doc() -> None:
     state = {
         "answer": "The beautiful state is a state of connection and joy.",
-        "documents": [
+        "relevant_docs": [
             {"text": "The beautiful state is connection, joy, love.", "metadata": {"source": "okf"}},
             {"text": "Irrelevant document about something else entirely.", "metadata": {"source": "other"}},
         ],
@@ -56,7 +56,7 @@ def test_extracts_best_matching_doc() -> None:
 def test_short_sentences_filtered() -> None:
     state = {
         "answer": "Yes.",
-        "documents": [
+        "relevant_docs": [
             {"text": "document about yes", "metadata": {"source": "doc"}},
         ],
     }
