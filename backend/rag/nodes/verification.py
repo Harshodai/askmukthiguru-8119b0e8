@@ -241,8 +241,12 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         if ld_result is None:
             ld_result = await asyncio.to_thread(lettuce_detect.score_faithfulness, question, context, answer)
         faithfulness_score = ld_result["score"]
-        # Strict per-sentence verdict decides pass/fail; score stays for logging only.
-        is_faithful_ld = ld_result["is_faithful"]
+        # Task #41: settings.faithfulness_floor was previously only referenced in
+        # a log/feedback string -- LettuceDetect's strict per-sentence verdict
+        # alone decided is_valid, so a scored-but-under-floor answer (measured:
+        # ~10% of production traffic) still passed. Every branch below reuses
+        # this variable, so gating it here closes the gap for this fast-exit path.
+        is_faithful_ld = ld_result["is_faithful"] and faithfulness_score >= settings.faithfulness_floor
 
         # Only fast-exit when the faithfulness score meets the compulsory CoVe
         # threshold.  Below that threshold the answer is suspect enough to
@@ -291,8 +295,12 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     else:
         logger.info("Combined verify: reusing cached lettuce_detect_result from self-reflection")
     faithfulness_score = ld_result["score"]
-    # Strict per-sentence verdict decides pass/fail; score stays for logging only.
-    is_faithful_ld = ld_result["is_faithful"]
+    # Task #41: settings.faithfulness_floor was previously only referenced in a
+    # log/feedback string -- LettuceDetect's strict per-sentence verdict alone
+    # decided is_valid here and in every downstream fast-exit/short-answer
+    # branch and the final is_valid at the bottom of this function, all of
+    # which reuse this variable. Gating it here closes the gap everywhere.
+    is_faithful_ld = ld_result["is_faithful"] and faithfulness_score >= settings.faithfulness_floor
 
     # Compulsory CoVe: if faithfulness is low enough, fire regardless of tier.
     cove_compulsory_threshold = getattr(settings, "cove_compulsory_threshold", 0.6)

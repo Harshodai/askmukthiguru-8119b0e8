@@ -122,6 +122,7 @@ class PipelineResult:
     proactive_serene_mind: dict | None = None
     faithfulness_score: float = 1.0
     hallucination_flag: bool = False
+    verification: dict | None = None
     answer_relevancy: float = 1.0
     context_precision: float = 1.0
     context_recall: float = 1.0

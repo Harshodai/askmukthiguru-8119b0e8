@@ -135,6 +135,7 @@ class ChatRequestOrchestrator:
             proactive_serene_mind=result.proactive_serene_mind,
             faithfulness_score=result.faithfulness_score,
             hallucination_flag=result.hallucination_flag,
+            verification=result.verification,
             node_timings=result.node_timings,
             audio_url=result.audio_url,
             kg_concept_nodes=result.kg_concept_nodes,

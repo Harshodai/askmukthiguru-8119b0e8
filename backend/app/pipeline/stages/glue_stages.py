@@ -283,6 +283,11 @@ class ResultAssemblyStage(Stage):
             # fall back to the coordinator-derived value only when missing.
             faithfulness_score=graph_result.get("faithfulness_score", response_data.get("faithfulness", 0.0)),
             hallucination_flag=response_data.get("hallucination_flag", False),
+            # verify_answer (rag/nodes/verification.py) already returns this dict in
+            # graph state ({"passed": is_valid, "details": ...}) -- it was never
+            # forwarded past PipelineResult, so ChatResponse.verification was always
+            # null regardless of whether verification actually ran.
+            verification=graph_result.get("verification"),
             answer_relevancy=response_data.get("answer_relevancy", 0.0),
             context_precision=response_data.get("context_precision", 0.0),
             context_recall=response_data.get("context_recall", 0.0),
@@ -323,18 +328,26 @@ class ResultAssemblyStage(Stage):
 
                 compliance_logger = getattr(ctx.container, "compliance_logger", None)
                 if compliance_logger is not None:
-                    compliance_logger.log_interaction(
-                        tenant_id=TenantContext.get() or "default",
-                        user_id=ctx.user_id,
-                        session_id=ctx.session_id or ctx.stable_session_id,
-                        action="generate",
-                        model=ctx.result.model_used or "",
-                        system_prompt="",
-                        user_prompt=ctx.user_msg,
-                        response=ctx.result.final_answer or "",
-                        latency_ms=ctx.result.latency_ms,
-                        status="error" if ctx.last_stage_status == "error" else "ok",
-                    )
+                    interaction_payload = {
+                        "tenant_id": TenantContext.get() or "default",
+                        "user_id": ctx.user_id,
+                        "session_id": ctx.session_id or ctx.stable_session_id,
+                        "action": "generate",
+                        "model": ctx.result.model_used or "",
+                        "system_prompt": "",
+                        "user_prompt": ctx.user_msg,
+                        "response": ctx.result.final_answer or "",
+                        "latency_ms": ctx.result.latency_ms,
+                        "status": "error" if ctx.last_stage_status == "error" else "ok",
+                    }
+                    # The logger's API is synchronous file I/O. Offload it so
+                    # the event loop is not blocked while the audit record is
+                    # written, and keep the write best-effort.
+                    if hasattr(compliance_logger, "log_interaction_async"):
+                        await compliance_logger.log_interaction_async(**interaction_payload)
+                    else:
+                        loop = asyncio.get_running_loop()
+                        await loop.run_in_executor(None, compliance_logger.log_interaction, **interaction_payload)
             except Exception as exc:
                 logger.debug("ComplianceLogger.log_interaction failed: %s", exc)
 
