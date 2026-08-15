@@ -71,7 +71,8 @@ import {
   resetProfile,
   type PrePracticeAnswer,
 } from '@/lib/profileStorage';
-import { getMeditationStats, getMeditationStatsFromDb, loadMeditationSessions, type MeditationStats } from '@/lib/meditationStorage';
+import { getMeditationStats, getMeditationStatsFromDb, getMeditationSessionsFromDb, loadMeditationSessions, type MeditationStats } from '@/lib/meditationStorage';
+import type { NormalizedSession } from '@/lib/meditationMetrics';
 import { loadConversations, deleteConversation, getCurrentConversationId, type Conversation, getMaxConversations, getRetentionDays, setRetentionDays as saveRetentionDays, formatRelativeTime } from '@/lib/chatStorage';
 import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsights';
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
@@ -185,7 +186,14 @@ const ProfilePage = () => {
   }, [tab, setSearchParams]);
 
   const [stats, setStats] = useState<MeditationStats>(() => getMeditationStats());
-  const [sessions, setSessions] = useState(() => loadMeditationSessions());
+  const [sessions, setSessions] = useState<NormalizedSession[]>(() =>
+    loadMeditationSessions().map((s) => ({
+      at: new Date(s.completedAt ?? s.startedAt),
+      durationSeconds: s.durationSeconds ?? 0,
+      breathCycles: s.breathCycles ?? 0,
+      completed: s.completed,
+    })),
+  );
   const [conversationCount, setConversationCount] = useState<number>(0);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [retention, setRetention] = useState<number>(getMaxConversations());
@@ -210,7 +218,9 @@ const ProfilePage = () => {
       }
       // Derive richer insights from local sessions + backend memory (if live).
       const localSessions = loadMeditationSessions();
-      if (!cancelled) setSessions(localSessions);
+      // Chart source: DB for signed-in seekers (works across devices), local otherwise.
+      const chartSessions = await getMeditationSessionsFromDb();
+      if (!cancelled) setSessions(chartSessions);
       let memories: GuruMemory[] = [];
       try {
         const list = await memoryApi.list(1, 50);
