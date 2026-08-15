@@ -43,7 +43,7 @@ describe('useOptionalAuth', () => {
     onAuthStateChangeMock.mockImplementation(((callback: any) => {
       onAuthCallback = callback;
       return { data: { subscription: { unsubscribe: vi.fn() } } };
-    });
+    }) as unknown as () => { data: { subscription: { unsubscribe: ReturnType<typeof vi.fn> } } });
 
     let resolveGetSession: (value: any) => void = () => {};
     const pending = new Promise((resolve) => {
