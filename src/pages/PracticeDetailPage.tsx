@@ -63,9 +63,9 @@ const PracticeDetailPage = () => {
     return (
       <PublicShell title="Practice not found">
         <div className="max-w-2xl mx-auto px-4 py-16 text-center space-y-4">
-          <h2 className="text-xl font-semibold text-foreground">
+          <h1 className="text-xl font-semibold text-foreground">
             We couldn't find that practice
-          </h2>
+          </h1>
           <Button onClick={() => navigate('/practices')}>
             <ArrowLeft className="w-4 h-4 mr-2" /> Back to practices
           </Button>

@@ -148,14 +148,9 @@ class BoundaryChunker:
                     chunks,
                     bounds,
                 )
-                overlap = current_sentences[-self.overlap_sentences :] if self.overlap_sentences else []
-                current_sentences = list(overlap)
-                # Match the incremental accounting (line ~176: +1 separator per
-                # joined sentence) so carried-over overlap lengths stay exact.
-                current_len = sum(len(s) for s in current_sentences) + (
-                    len(current_sentences) - 1 if current_sentences else 0
+                current_sentences, current_len, current_offset = self._carry_overlap(
+                    current_sentences, bounds
                 )
-                current_offset = bounds[-1].start + len(" ".join(overlap)) if overlap else bounds[-1].start
 
             # Start a new chunk at paragraph boundaries if current chunk already meets target
             if (
@@ -170,15 +165,9 @@ class BoundaryChunker:
                     chunks,
                     bounds,
                 )
-                # Carry overlap sentences into next chunk
-                overlap = current_sentences[-self.overlap_sentences :] if self.overlap_sentences else []
-                current_sentences = list(overlap)
-                # Match the incremental accounting (line ~176: +1 separator per
-                # joined sentence) so carried-over overlap lengths stay exact.
-                current_len = sum(len(s) for s in current_sentences) + (
-                    len(current_sentences) - 1 if current_sentences else 0
+                current_sentences, current_len, current_offset = self._carry_overlap(
+                    current_sentences, bounds
                 )
-                current_offset = bounds[-1].start + len(" ".join(overlap)) if overlap else bounds[-1].start
 
             current_sentences.append(sentence)
             current_len += sent_len + (1 if current_len else 0)
@@ -192,14 +181,9 @@ class BoundaryChunker:
                     chunks,
                     bounds,
                 )
-                overlap = current_sentences[-self.overlap_sentences :] if self.overlap_sentences else []
-                current_sentences = list(overlap)
-                # Match the incremental accounting (line ~176: +1 separator per
-                # joined sentence) so carried-over overlap lengths stay exact.
-                current_len = sum(len(s) for s in current_sentences) + (
-                    len(current_sentences) - 1 if current_sentences else 0
+                current_sentences, current_len, current_offset = self._carry_overlap(
+                    current_sentences, bounds
                 )
-                current_offset = bounds[-1].start + len(" ".join(overlap)) if overlap else bounds[-1].start
 
         if current_sentences:
             self._flush_chunk(
@@ -277,6 +261,29 @@ class BoundaryChunker:
         for i in range(0, len(sentence), self.max_size):
             pieces.append(sentence[i:i + self.max_size])
         return pieces
+
+    def _carry_overlap(
+        self, current_sentences: list[str], bounds: list[ChunkBounds]
+    ) -> tuple[list[str], int, int]:
+        """Carry the last `overlap_sentences` into the next chunk, bounded.
+
+        The raw `current_sentences[-overlap_sentences:]` slice was never
+        checked against max_size -- if overlap sentences happen to be large,
+        the very next append (before this new chunk's own max_size check
+        fires) can push the chunk over the limit. Drops overlap sentences
+        from the front of the carried slice, one at a time, until what's
+        carried leaves at least half of max_size free for the next sentence.
+        """
+        just_flushed = bounds[-1] if bounds else None
+        overlap = list(current_sentences[-self.overlap_sentences :]) if self.overlap_sentences else []
+        budget = self.max_size // 2
+        while overlap and (sum(len(s) for s in overlap) + len(overlap) - 1) > budget:
+            overlap.pop(0)
+        current_len = sum(len(s) for s in overlap) + (len(overlap) - 1 if overlap else 0)
+        current_offset = (
+            just_flushed.start + len(" ".join(overlap)) if overlap and just_flushed else (just_flushed.start if just_flushed else 0)
+        )
+        return overlap, current_len, current_offset
 
     @staticmethod
     def _flush_chunk(

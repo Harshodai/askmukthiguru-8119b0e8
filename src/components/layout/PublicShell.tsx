@@ -12,14 +12,9 @@ interface PublicShellProps {
  * Renders the marketing nav and footer but NOT the authenticated sidebar/UserMenu.
  * Auth policy is explicit: this shell never calls useRequireAuth.
  */
-export const PublicShell = ({ children, title }: PublicShellProps) => (
+export const PublicShell = ({ children }: PublicShellProps) => (
   <div className="min-h-dvh bg-background flex flex-col">
     <Navbar />
-    {title && (
-      <div className="sr-only">
-        <h1>{title}</h1>
-      </div>
-    )}
     <main className="flex-1">{children}</main>
     <Footer />
   </div>

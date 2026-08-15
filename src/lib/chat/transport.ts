@@ -225,6 +225,8 @@ export const sendMessage = async (
             retryAfterSeconds: typeof errorData?.retry_after_seconds === 'number'
               ? errorData.retry_after_seconds
               : undefined,
+            quotaRemaining: typeof errorData?.remaining === 'number' ? errorData.remaining : undefined,
+            quotaTotalLimit: typeof errorData?.total_limit === 'number' ? errorData.total_limit : undefined,
           };
         }
       }

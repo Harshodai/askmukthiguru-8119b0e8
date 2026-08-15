@@ -8,7 +8,12 @@ import { recordMetric } from './telemetry';
 import type { MessagePayload, ResponsePreferences, StreamChunk } from './types';
 
 /** Error augmented with HTTP/transport metadata for caller telemetry. */
-type RichError = Error & { status?: number; errorCode?: string };
+type RichError = Error & {
+  status?: number;
+  errorCode?: string;
+  quotaRemaining?: number;
+  quotaTotalLimit?: number;
+};
 
 /**
  * Split an SSE text buffer into complete lines, handling both LF and CRLF
@@ -153,6 +158,8 @@ export async function* sendMessageStreaming(
       const err = new Error(errorDetail);
       (err as RichError).status = response.status;
       (err as RichError).errorCode = httpStatusToErrorCode(response.status, isQuota);
+      if (typeof errorData?.remaining === 'number') (err as RichError).quotaRemaining = errorData.remaining;
+      if (typeof errorData?.total_limit === 'number') (err as RichError).quotaTotalLimit = errorData.total_limit;
       throw err;
     }
   }
@@ -171,6 +178,8 @@ export async function* sendMessageStreaming(
     const error = new Error(errorDetail);
     (error as RichError).status = response.status;
     (error as RichError).errorCode = httpStatusToErrorCode(response.status, isQuota);
+    if (typeof errorData?.remaining === 'number') (error as RichError).quotaRemaining = errorData.remaining;
+    if (typeof errorData?.total_limit === 'number') (error as RichError).quotaTotalLimit = errorData.total_limit;
     throw error;
   }
 

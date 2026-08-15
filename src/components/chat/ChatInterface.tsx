@@ -108,6 +108,7 @@ export const ChatInterface = () => {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isIncognito, setIsIncognito] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [quotaMeta, setQuotaMeta] = useState<{ remaining?: number; totalLimit?: number }>({});
   const [responsePreferences, setResponsePreferences] = useState<ResponsePreferences>(() => loadResponsePreferences());
   const updateResponsePreferences = useCallback((next: ResponsePreferences) => {
     setResponsePreferences(next);
@@ -1268,6 +1269,7 @@ openSereneMind('audio');
           const msgError = buildMessageError(err?.errorCode, err?.message, err?.status);
           if (msgError.kind === 'quota_exceeded') {
             setQuotaExceeded(true);
+            setQuotaMeta({ remaining: err?.quotaRemaining, totalLimit: err?.quotaTotalLimit });
           }
           setMessages((prev) =>
             prev.map((m) =>
@@ -1362,6 +1364,7 @@ openSereneMind('audio');
           : undefined;
         if (responseError?.kind === 'quota_exceeded') {
           setQuotaExceeded(true);
+          setQuotaMeta({ remaining: response.quotaRemaining, totalLimit: response.quotaTotalLimit });
         }
         if (responseError) {
           chatErrorBus.publishFromMessage(responseError);
@@ -1442,7 +1445,13 @@ setIsAwaitingSereneMind(true);
     } catch (error) {
     console.error('Error getting response:', error);
 
-    const errObj = error as { errorCode?: string; status?: number; message?: string };
+    const errObj = error as {
+      errorCode?: string;
+      status?: number;
+      message?: string;
+      quotaRemaining?: number;
+      quotaTotalLimit?: number;
+    };
     const isOffline = !navigator.onLine || String(error).toLowerCase().includes('network') || String(error).toLowerCase().includes('fetch');
     const msgError = buildMessageError(
       errObj?.errorCode || (isOffline ? 'network' : 'unknown'),
@@ -1451,6 +1460,7 @@ setIsAwaitingSereneMind(true);
     );
     if (msgError.kind === 'quota_exceeded') {
       setQuotaExceeded(true);
+      setQuotaMeta({ remaining: errObj?.quotaRemaining, totalLimit: errObj?.quotaTotalLimit });
     }
 
     chatErrorBus.publishFromMessage(msgError);
@@ -2086,7 +2096,7 @@ return (
 
       {!isLandingMode && (
         <div className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]">
-          {quotaExceeded && <QuotaAuthPrompt />}
+          {quotaExceeded && <QuotaAuthPrompt remaining={quotaMeta.remaining} totalLimit={quotaMeta.totalLimit} />}
           <HealingPathCard
             lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
             recommendedCourse={recommendedCourse}

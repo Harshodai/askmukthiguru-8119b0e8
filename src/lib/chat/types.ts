@@ -103,6 +103,9 @@ export interface AIResponse {
   groundingState?: GroundingState;
   /** Seconds the client should wait before retrying (429 responses). */
   retryAfterSeconds?: number;
+  /** Anonymous quota state from a 429 quota_exceeded response, for the "X of Y used" caption. */
+  quotaRemaining?: number;
+  quotaTotalLimit?: number;
 }
 
 /** Shape of the proactive Serene Mind trigger object returned by the backend */
