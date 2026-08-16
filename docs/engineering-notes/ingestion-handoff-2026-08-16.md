@@ -1,5 +1,42 @@
 # Ingestion run handoff — 2026-08-16
 
+## TL;DR for the next agent (read this first)
+
+- **Two jobs vanished without a trace** (`efe9bcdf-...` and `4fca8b01-...`,
+  both the `BMJrDu-folk` test video, submitted at different points). Neither
+  ever appears in `railway logs --service celery-worker | grep -i
+  <job_id>`, not even a "received" line. Both submissions happened shortly
+  before/during a celery-worker redeploy (I redeployed it several times this
+  session for other fixes). **This looks like task loss on worker
+  restart, not a content/logic bug** — `task_acks_late=True` in
+  `backend/celery_config.py` is supposed to redeliver unacked tasks after a
+  worker dies, so this shouldn't happen. Worth investigating directly:
+  is `broker_transport_options={"visibility_timeout": 3600}` (1h) simply too
+  long for redelivery to kick in during this session's testing window, or is
+  something else swallowing the task? **Don't redeploy celery-worker
+  immediately after submitting a test job** — wait for it to actually
+  complete first, or you'll reproduce this.
+- **OpenRouter model fix status: inconclusive, not confirmed either way.**
+  No new 404s seen in the current log window, but no confirmed *successful*
+  completion either — the window only showed 2 tasks "received", still
+  in-flight (model loading), nothing has reached the LLM-call stage yet in
+  view. Needs a longer/re-check.
+- **Transcript quality (raw, pre-Railway-cleaning) — inspected directly,
+  genuinely decent.** Refetched `BMJrDu-folk` locally via
+  `1_fetch_transcripts_local.py` and read the full 9324-char output
+  (auto-captions). Content is real, substantive, on-topic spiritual teaching
+  (presence/past-mind/future-mind material, consistent with this project's
+  Preethaji/Krishnaji corpus). Rough edges expected of auto-captions:
+  `[music]` tags scattered inline, filler words preserved verbatim ("uh",
+  "um"), occasional run-on/repeated phrasing, no punctuation restoration, no
+  `[t=XXs]` timestamp markers (this local-fetch path is deliberately
+  lighter-weight than the full `_ingest_video` pipeline — timestamps only get
+  added by `chunk_youtube_transcript`, which this script doesn't call).
+  **This raw text depends on Railway's `_corrector.correct_transcript()`
+  LLM step to clean it up** — which uses the same `OPENROUTER_GENERATION_MODEL`
+  that was 404ing. If that's still broken, uploaded transcripts will index
+  with the filler words/artifacts intact rather than getting cleaned.
+
 Full-corpus reingestion in progress (20 YouTube playlists,
 `spiritual_wisdom_contextual` collection, `max_accuracy=true`). Prior session
 hit its cost cap mid-run — this doc is the handoff so a fresh agent can pick
