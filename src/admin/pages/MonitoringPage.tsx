@@ -8,7 +8,8 @@ export default function MonitoringPage() {
 
   // Read Grafana URL from environment variables, fallback to local development URL.
   // Add kiosk mode to hide Grafana's sidebar navigation for a cleaner embed experience.
-  const baseGrafanaUrl = import.meta.env.VITE_GRAFANA_URL || "http://localhost:3000";
+  const rawGrafanaUrl = import.meta.env.VITE_GRAFANA_URL || "http://localhost:3000";
+  const baseGrafanaUrl = typeof rawGrafanaUrl === "string" ? rawGrafanaUrl.trim().replace(/\/+$/, "") : "http://localhost:3000";
   const embedUrl = `${baseGrafanaUrl}/d/mukthiguru/mukthi-guru-performance-monitoring?orgId=1&kiosk=tv&theme=dark&refresh=5s&_t=${refreshKey}`;
 
   const handleRefresh = () => {

@@ -23,20 +23,23 @@ type ReviewEntry = {
   body?: string;
 };
 
-function getReviewEntry(entry: Record<string, unknown>): ReviewEntry {
+function getReviewEntry(entry: unknown): ReviewEntry {
+  if (!entry || typeof entry !== "object") return {};
+  const e = entry as Record<string, unknown>;
   return {
-    type: typeof entry.type === "string" ? entry.type : undefined,
-    title: typeof entry.title === "string" ? entry.title : undefined,
-    body: typeof entry.body === "string" ? entry.body : undefined,
+    type: typeof e.type === "string" ? e.type : undefined,
+    title: typeof e.title === "string" ? e.title : undefined,
+    body: typeof e.body === "string" ? e.body : undefined,
   };
 }
 
-function VerifiedBadge({ verified }: { verified?: { by: string; at: string } }) {
-  if (!verified) return <Badge variant="outline" className="text-amber-400 border-amber-500/30">unverified</Badge>;
-  const isHuman = verified.by?.startsWith("human:");
+function VerifiedBadge({ verified }: { verified?: { by?: string; at?: string } }) {
+  if (!verified || !verified.by) return <Badge variant="outline" className="text-amber-400 border-amber-500/30">unverified</Badge>;
+  const isHuman = typeof verified.by === "string" && verified.by.startsWith("human:");
+  const name = typeof verified.by === "string" ? verified.by.replace("human:", "").replace("machine:", "") : "verified";
   return (
     <Badge variant="secondary" className={isHuman ? "text-emerald-400" : "text-blue-400"}>
-      {isHuman ? "✓" : "●"} {verified.by?.replace("human:", "").replace("machine:", "") ?? "verified"}
+      {isHuman ? "✓" : "●"} {name || "verified"}
     </Badge>
   );
 }
@@ -56,11 +59,12 @@ export default function OkfManagerPage() {
     setLoading(true);
     try {
       const res = await listOkfEntries(typeFilter || undefined);
-      setEntries(res.entries);
-      setTotal(res.total);
+      setEntries(Array.isArray(res?.entries) ? res.entries : []);
+      setTotal(typeof res?.total === "number" ? res.total : (res?.entries?.length ?? 0));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load OKF entries");
       setEntries([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -70,7 +74,7 @@ export default function OkfManagerPage() {
     setReviewLoading(true);
     try {
       const items = await listOkfReviewQueue("pending");
-      setReviewItems(items);
+      setReviewItems(Array.isArray(items) ? items : []);
     } catch {
       setReviewItems([]);
     } finally {
@@ -82,7 +86,7 @@ export default function OkfManagerPage() {
     setCompiling(true);
     try {
       const res = await compileOkfIndex();
-      toast.success(`OKF compiled → ${res.path}`);
+      toast.success(`OKF compiled → ${res?.path ?? "index"}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Compile failed");
     } finally {
@@ -93,7 +97,8 @@ export default function OkfManagerPage() {
   async function handleApprove(id: string) {
     try {
       const res = await approveOkfReview(id);
-      toast.success(`Approved → ${res.file.split("/").pop()}`);
+      const fileName = res?.file ? res.file.split("/").pop() : "entry";
+      toast.success(`Approved → ${fileName ?? "entry"}`);
       loadReviewQueue();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Approve failed");
@@ -141,9 +146,9 @@ export default function OkfManagerPage() {
           <TabsTrigger value="entries">Entries ({total})</TabsTrigger>
           <TabsTrigger value="review" className="relative">
             Review Queue
-            {reviewItems.length > 0 && (
+            {(reviewItems ?? []).length > 0 && (
               <span className="ml-1.5 w-5 h-5 rounded-full bg-ojas text-white text-[10px] flex items-center justify-center">
-                {reviewItems.length}
+                {(reviewItems ?? []).length}
               </span>
             )}
           </TabsTrigger>
@@ -167,28 +172,30 @@ export default function OkfManagerPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {entries.length === 0 && !loading ? (
+              {(entries ?? []).length === 0 && !loading ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
                   No entries loaded. Click Refresh.
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {entries.map((e) => (
-                    <div key={e.title} className="border rounded-lg p-3">
+                  {(entries ?? []).map((e, idx) => (
+                    <div key={e?.title ? `${e.title}-${idx}` : `entry-${idx}`} className="border rounded-lg p-3">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <Badge variant="secondary">{e.type}</Badge>
-                        <span className="font-medium">{e.title}</span>
-                        <VerifiedBadge verified={e.verified} />
+                        <Badge variant="secondary">{e?.type ?? "entry"}</Badge>
+                        <span className="font-medium">{e?.title ?? "Untitled"}</span>
+                        <VerifiedBadge verified={e?.verified} />
                       </div>
-                      {e.source && <p className="text-xs text-muted-foreground">{e.source}</p>}
-                      {e.tags.length > 0 && (
+                      {e?.source && <p className="text-xs text-muted-foreground">{e.source}</p>}
+                      {(e?.tags?.length ?? 0) > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {e.tags.map((t) => (
-                            <span key={t} className="text-[10px] px-1.5 py-0.5 bg-muted rounded">{t}</span>
+                          {(e?.tags ?? []).map((t, tIdx) => (
+                            <span key={`${t}-${tIdx}`} className="text-[10px] px-1.5 py-0.5 bg-muted rounded">{t}</span>
                           ))}
                         </div>
                       )}
-                      <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{e.body_preview}</p>
+                      {e?.body_preview && (
+                        <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{e.body_preview}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -200,22 +207,22 @@ export default function OkfManagerPage() {
         <TabsContent value="review">
           <Card>
             <CardHeader>
-              <CardTitle>Pending Review ({reviewItems.length})</CardTitle>
+              <CardTitle>Pending Review ({(reviewItems ?? []).length})</CardTitle>
             </CardHeader>
             <CardContent>
               {reviewLoading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-ojas" />
                 </div>
-              ) : reviewItems.length === 0 ? (
+              ) : (reviewItems ?? []).length === 0 ? (
                 <div className="text-center py-8 space-y-2">
                   <CheckCircle className="w-10 h-10 text-emerald-500/50 mx-auto" />
                   <p className="text-sm text-muted-foreground">No pending entries to review.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {reviewItems.map((item) => {
-                    const entry = getReviewEntry(item.entry_json ?? {});
+                  {(reviewItems ?? []).map((item) => {
+                    const entry = getReviewEntry(item?.entry_json ?? {});
                     return (
                       <div key={item.id} className="border rounded-lg p-4 space-y-3">
                         <div className="flex items-start justify-between gap-4">

@@ -271,7 +271,7 @@ export function ChatComposer({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+                    className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 rounded-full text-muted-foreground hover:text-foreground flex items-center justify-center"
                     aria-label={t('chat.moreActions')}
                   >
                     <Plus className="w-4 h-4" />
@@ -314,7 +314,7 @@ export function ChatComposer({
                 aria-label={isListening ? t('chat.stopRecording') : t('chat.startVoiceInput')}
                 aria-pressed={isListening}
                 title={isListening ? t('chat.stopRecording') : t('chat.startVoiceInput')}
-                className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full transition-all ${
+                className={`min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-full transition-all flex items-center justify-center ${
                   isListening
                     ? 'bg-red-500/15 text-red-500 hover:bg-red-500/25'
                     : 'text-muted-foreground hover:text-foreground'
@@ -335,7 +335,7 @@ export function ChatComposer({
                 type="button"
                 size="icon-sm"
                 onClick={onStop}
-                className="h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20"
+                className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 flex items-center justify-center"
                 aria-label={t('chat.stop')}
                 status="streaming"
               >
@@ -346,7 +346,7 @@ export function ChatComposer({
                 type="submit"
                 size="icon-sm"
                 disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind || isQuotaExceeded}
-                className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-ojas text-white hover:bg-ojas-dark disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all"
+                className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-white hover:bg-ojas-dark disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all flex items-center justify-center"
                 aria-label={t('chat.send') === 'chat.send' ? 'Send message' : t('chat.send')}
               >
                 <Send className="w-4 h-4" />

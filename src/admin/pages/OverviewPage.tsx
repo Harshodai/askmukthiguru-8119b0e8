@@ -23,6 +23,7 @@ import {
 import { AskDataPanel } from "@/admin/components/AskDataPanel";
 import { LiveFeed } from "@/admin/components/LiveFeed";
 import { SeedDemoButton } from "@/admin/components/SeedDemoButton";
+import { EmptyState } from "@/admin/components/EmptyState";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -155,23 +156,27 @@ export default function OverviewPage() {
           <Card className="md:col-span-2">
             <CardHeader><CardTitle className="text-base">Recent queries</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {recentQueries?.map((q) => (
-                <Link
-                  key={q.id}
-                  to={`/admin/queries?trace=${q.id}`}
-                  className="flex items-center justify-between gap-3 text-sm border-b border-border last:border-0 pb-2 hover:bg-muted/40 -mx-2 px-2 rounded-sm"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate">{q.status ?? "unknown"}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {fmtDateTime(q.created_at)} · {q.model?.split("/").pop() || "unknown"}
+              {Array.isArray(recentQueries) && recentQueries.length > 0 ? (
+                recentQueries.map((q) => (
+                  <Link
+                    key={q.id || `${q.created_at}-${q.query_text}`}
+                    to={q.id ? `/admin/queries?trace=${q.id}` : "/admin/queries"}
+                    className="flex items-center justify-between gap-3 text-sm border-b border-border last:border-0 pb-2 hover:bg-muted/40 -mx-2 px-2 rounded-sm"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate">{q.status ?? "unknown"}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {fmtDateTime(q.created_at)} · {(q.model ? q.model.split("/").pop() : "unknown") || "unknown"}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-xs tabular-nums text-muted-foreground">
-                    {fmtMs(q.latency_ms)}
-                  </div>
-                </Link>
-              ))}
+                    <div className="text-xs tabular-nums text-muted-foreground">
+                      {fmtMs(q.latency_ms)}
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <EmptyState title="No recent queries found" />
+              )}
             </CardContent>
           </Card>
           <AskDataPanel kpiContext={kpis ? [
@@ -182,7 +187,7 @@ export default function OverviewPage() {
             `Hallucination rate: ${((kpis.hallucination_rate ?? 0) * 100).toFixed(1)}%`,
             `Serene Mind trigger rate: ${((kpis.serene_mind_trigger_rate ?? 0) * 100).toFixed(1)}%`,
             `Thumbs up rate: ${((kpis.thumbs_up_rate ?? 0) * 100).toFixed(1)}%`,
-            `Estimated cost: ₹${(kpis.estimated_cost_inr ?? kpis.estimated_cost_usd ?? 0).toFixed(4)} INR`,
+            `Estimated cost: ₹${((kpis.estimated_cost_inr ?? kpis.estimated_cost_usd ?? 0) || 0).toFixed(4)} INR`,
             `Error rate: ${((kpis.error_rate ?? 0) * 100).toFixed(2)}%`,
           ].join('\n') : undefined} />
         </TabsContent>
@@ -191,13 +196,15 @@ export default function OverviewPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Top retrieved sources</CardTitle></CardHeader>
             <CardContent className="space-y-1.5">
-              {retr?.sources ? retr.sources.slice(0, 10).map((s: { source: string; count: number; avgFaith: number }) => (
-                <div key={s.source} className="flex items-center justify-between text-sm border-b border-border/40 pb-1.5 last:border-0">
-                  <span className="font-mono text-xs truncate flex-1">{s.source}</span>
-                  <span className="tabular-nums text-xs text-muted-foreground w-20 text-right">{fmtInt(s.count)}</span>
-                  <span className="tabular-nums text-xs w-20 text-right">{fmtPct(s.avgFaith)}</span>
-                </div>
-              )) : (
+              {Array.isArray(retr?.sources) && retr.sources.length > 0 ? (
+                retr.sources.slice(0, 10).map((s: { source: string; count: number; avgFaith: number }, index: number) => (
+                  <div key={s?.source ?? `src-${index}`} className="flex items-center justify-between text-sm border-b border-border/40 pb-1.5 last:border-0">
+                    <span className="font-mono text-xs truncate flex-1">{s?.source ?? "unknown"}</span>
+                    <span className="tabular-nums text-xs text-muted-foreground w-20 text-right">{fmtInt(s?.count ?? 0)}</span>
+                    <span className="tabular-nums text-xs w-20 text-right">{fmtPct(s?.avgFaith ?? 0)}</span>
+                  </div>
+                ))
+              ) : (
                 <div className="text-xs text-muted-foreground py-4 text-center">No source data available</div>
               )}
             </CardContent>
@@ -208,20 +215,24 @@ export default function OverviewPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Lowest-faithfulness responses</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {failures?.map((f) => (
-                <Link
-                  key={f.query_id}
-                  to={`/admin/queries?trace=${f.query_id}`}
-                  className="block border border-border rounded-md p-3 text-sm hover:bg-muted/40"
-                >
-                  <div className="flex items-center gap-2">
-                    <Badge variant="destructive">{fmtPct(f.faithfulness)}</Badge>
-                    <span className="truncate flex-1">{f.query_id}</span>
-                    <span className="text-xs text-muted-foreground">{fmtDateTime(f.created_at)}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">Operational quality review required</div>
-                </Link>
-              ))}
+              {Array.isArray(failures) && failures.length > 0 ? (
+                failures.map((f, index) => (
+                  <Link
+                    key={f?.query_id ?? `fail-${index}`}
+                    to={f?.query_id ? `/admin/queries?trace=${f.query_id}` : "/admin/queries"}
+                    className="block border border-border rounded-md p-3 text-sm hover:bg-muted/40"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Badge variant="destructive">{fmtPct(f?.faithfulness ?? 0)}</Badge>
+                      <span className="truncate flex-1">{f?.query_id ?? "unknown"}</span>
+                      <span className="text-xs text-muted-foreground">{fmtDateTime(f?.created_at)}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">Operational quality review required</div>
+                  </Link>
+                ))
+              ) : (
+                <EmptyState title="No failure cases recorded" />
+              )}
             </CardContent>
           </Card>
         </TabsContent>

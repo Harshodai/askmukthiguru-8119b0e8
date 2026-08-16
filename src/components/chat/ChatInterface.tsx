@@ -2286,11 +2286,11 @@ return (
         <p className="text-foreground text-base leading-relaxed whitespace-pre-wrap break-words px-1 mt-2">
           {pendingStarterPreview}
         </p>
-        <SheetFooter className="flex-row gap-2 mt-4">
-          <Button variant="ghost" className="flex-1" onClick={cancelStarterPreview}>
+        <SheetFooter className="flex-row gap-2 mt-4 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
+          <Button variant="ghost" className="flex-1 min-h-[44px] rounded-xl" onClick={cancelStarterPreview}>
             Cancel
           </Button>
-          <Button className="flex-1" onClick={confirmStarterPreview}>
+          <Button className="flex-1 min-h-[44px] rounded-xl bg-ojas hover:bg-ojas-light text-primary-foreground" onClick={confirmStarterPreview}>
             <Send className="w-4 h-4 mr-2" />
             Send
           </Button>

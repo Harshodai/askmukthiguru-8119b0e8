@@ -58,7 +58,7 @@ export default function TelemetryPage() {
   const [metricType, setMetricType] = useState<string | undefined>();
   const [page, setPage] = useState(0);
 
-  const { data, isLoading } = useTelemetryEvents({
+  const { data, isLoading, isError, error } = useTelemetryEvents({
     user_id: userId || undefined,
     session_id: sessionId || undefined,
     metric_type: metricType,
@@ -80,20 +80,20 @@ export default function TelemetryPage() {
   const hasFilters = !!search || !!userId || !!sessionId || !!metricType;
 
   const handleExportCSV = useCallback(() => {
-    if (!data?.data?.length) return;
-    const rows = data.data;
+    const rows = data?.data ?? [];
+    if (!rows.length) return;
     const headers = ["Time", "User ID", "Session ID", "Message ID", "Metric Type", "Metric Value", "Tags"];
     const csv = [
       headers.join(","),
       ...rows.map((r) =>
         [
-          csvEscape(r.created_at),
-          csvEscape(r.user_id),
-          csvEscape(r.session_id),
-          csvEscape(r.user_message_id),
-          csvEscape(r.metric_type),
-          r.metric_value,
-          csvEscape(JSON.stringify(r.tags ?? {})),
+          csvEscape(r?.created_at),
+          csvEscape(r?.user_id),
+          csvEscape(r?.session_id),
+          csvEscape(r?.user_message_id),
+          csvEscape(r?.metric_type),
+          r?.metric_value != null ? (typeof r.metric_value === "number" ? r.metric_value : csvEscape(r.metric_value)) : "",
+          csvEscape(JSON.stringify(r?.tags ?? {})),
         ].join(","),
       ),
     ].join("\n");
@@ -116,7 +116,7 @@ export default function TelemetryPage() {
             Raw telemetry events — AI response times, token usage, and pipeline latencies.
           </p>
         </div>
-        {data && data.data.length > 0 && (
+        {(data?.data?.length ?? 0) > 0 && (
           <Button variant="outline" size="sm" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-1" />
             Export CSV
@@ -193,6 +193,10 @@ export default function TelemetryPage() {
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+          ) : isError ? (
+            <div className="p-6 text-sm text-destructive">
+              Failed to load telemetry events: {(error as Error)?.message || "Unknown error"}
+            </div>
           ) : !data?.data?.length ? (
             <EmptyState title="No telemetry events match your filters" />
           ) : (
@@ -211,29 +215,31 @@ export default function TelemetryPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.data.map((ev) => (
+                    {(data?.data ?? []).map((ev) => (
                       <TableRow key={ev.id}>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {fmtDateTime(ev.created_at)}
                         </TableCell>
-                        <TableCell className="text-xs font-mono">{ev.metric_type}</TableCell>
+                        <TableCell className="text-xs font-mono">{ev.metric_type ?? "—"}</TableCell>
                         <TableCell className="text-right tabular-nums text-xs">
-                          {ev.metric_type === "ai_response_time"
-                            ? `${ev.metric_value.toFixed(0)}ms`
-                            : ev.metric_value.toLocaleString()}
+                          {typeof ev.metric_value === "number" && !Number.isNaN(ev.metric_value)
+                            ? ev.metric_type === "ai_response_time"
+                              ? `${ev.metric_value.toFixed(0)}ms`
+                              : ev.metric_value.toLocaleString()
+                            : (ev.metric_value ?? "—")}
                         </TableCell>
                         <TableCell className="text-xs max-w-[160px]">
-                          <span className="truncate block" title={JSON.stringify(ev.tags ?? {})}>
-                            {truncate(JSON.stringify(ev.tags ?? {}), 40)}
+                          <span className="truncate block" title={JSON.stringify(ev?.tags ?? {})}>
+                            {truncate(JSON.stringify(ev?.tags ?? {}), 40)}
                           </span>
                         </TableCell>
                         <TableCell className="text-xs font-mono max-w-[100px]">
-                          <span className="truncate block" title={ev.user_message_id}>
-                            {truncate(ev.user_message_id, 16)}
+                          <span className="truncate block" title={ev?.user_message_id ?? ""}>
+                            {truncate(ev?.user_message_id, 16)}
                           </span>
                         </TableCell>
                         <TableCell className="text-xs font-mono max-w-[100px]">
-                          {ev.user_id ? (
+                          {ev?.user_id ? (
                             <span className="truncate block" title={ev.user_id}>
                               {truncate(ev.user_id, 12)}
                             </span>
@@ -242,7 +248,7 @@ export default function TelemetryPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-xs font-mono max-w-[100px]">
-                          {ev.session_id ? (
+                          {ev?.session_id ? (
                             <span className="truncate block" title={ev.session_id}>
                               {truncate(ev.session_id, 12)}
                             </span>
@@ -260,7 +266,7 @@ export default function TelemetryPage() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t border-border">
                   <span className="text-xs text-muted-foreground">
-                    {data.count} total events · page {page + 1} of {totalPages}
+                    {data?.count ?? 0} total events · page {page + 1} of {totalPages}
                   </span>
                   <Pagination>
                     <PaginationContent>

@@ -25,14 +25,17 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Button } from "@/components/ui/button";
 
 export default function RetrievalPage() {
-  const { data, isLoading, error } = useRetrievalHealth();
+  const { data, isLoading, error, refetch } = useRetrievalHealth();
   const { data: empties } = useEmptyRetrievals();
   const { data: dead } = useDeadDocs();
   const { data: sim } = useSimilarityTrend(14);
 
   const backendDown = !!error;
 
-  const simTs = sim?.map((p) => ({ bucket: p.bucket, value: p.avg_top_score })) ?? [];
+  const simTs = (Array.isArray(sim) ? sim : []).map((p) => ({
+    bucket: p?.bucket ?? '',
+    value: typeof p?.avg_top_score === 'number' ? p.avg_top_score : 0,
+  }));
 
   if (backendDown) {
     return (
@@ -56,7 +59,7 @@ export default function RetrievalPage() {
                 Ensure the backend container is healthy and <code className="text-xs bg-muted px-1 py-0.5 rounded">VITE_BACKEND_URL</code> is configured.
               </p>
             </div>
-            <Button variant="outline" onClick={() => window.location.reload()}>
+            <Button variant="outline" onClick={() => refetch()}>
               Retry
             </Button>
           </CardContent>
@@ -108,7 +111,7 @@ export default function RetrievalPage() {
         />
         <KpiCard
           label="Avg top score"
-          value={isLoading ? "…" : (data?.avg_top_score ?? 0).toFixed(3)}
+          value={isLoading ? "…" : (typeof data?.avg_top_score === 'number' ? data.avg_top_score : 0).toFixed(3)}
           tooltip="Average cosine similarity score of the top retrieved document. Higher scores (closer to 1.0) indicate better semantic matches."
         />
       </div>
@@ -139,12 +142,12 @@ export default function RetrievalPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.sources?.length ? (
-                    data.sources.map((s: { source: string; count: number; avgFaith: number }) => (
-                      <TableRow key={s.source}>
-                        <TableCell className="font-mono text-xs">{s.source}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmtInt(s.count)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmtPct(s.avgFaith)}</TableCell>
+                  {Array.isArray(data?.sources) && data.sources.length > 0 ? (
+                    data.sources.map((s: { source: string; count: number; avgFaith: number }, index: number) => (
+                      <TableRow key={s?.source ?? `src-${index}`}>
+                        <TableCell className="font-mono text-xs">{s?.source ?? "unknown"}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtInt(s?.count ?? 0)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtPct(s?.avgFaith ?? 0)}</TableCell>
                       </TableRow>
                     ))
                   ) : (
@@ -163,19 +166,19 @@ export default function RetrievalPage() {
         <TabsContent value="empty">
           <Card>
             <CardContent className="p-3 space-y-2">
-              {!empties?.length ? (
+              {!Array.isArray(empties) || empties.length === 0 ? (
                 <EmptyState title="No empty retrievals" />
               ) : (
-                empties.map((e: { query_id: string; top_score: number; query_text: string; created_at: string }) => (
+                empties.map((e: { query_id: string; top_score: number; query_text: string; created_at: string }, index: number) => (
                   <Link
-                    key={e.query_id}
-                    to={`/admin/queries?trace=${e.query_id}`}
+                    key={e?.query_id ?? `empty-${index}`}
+                    to={e?.query_id ? `/admin/queries?trace=${e.query_id}` : "/admin/queries"}
                     className="block border border-border rounded-md p-3 text-sm hover:bg-muted/40"
                   >
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">top {typeof e.top_score === 'number' ? e.top_score.toFixed(3) : 'N/A'}</Badge>
-                      <span className="flex-1 truncate">{truncate(e.query_text, 80)}</span>
-                      <span className="text-xs text-muted-foreground">{fmtDateTime(e.created_at)}</span>
+                      <Badge variant="outline">top {typeof e?.top_score === 'number' ? e.top_score.toFixed(3) : 'N/A'}</Badge>
+                      <span className="flex-1 truncate">{truncate(e?.query_text ?? '', 80)}</span>
+                      <span className="text-xs text-muted-foreground">{fmtDateTime(e?.created_at)}</span>
                     </div>
                   </Link>
                 ))
@@ -188,12 +191,12 @@ export default function RetrievalPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Sources never retrieved in window</CardTitle></CardHeader>
             <CardContent className="space-y-1.5">
-              {!dead?.length ? (
+              {!Array.isArray(dead) || dead.length === 0 ? (
                 <EmptyState title="Every source was retrieved at least once" />
               ) : (
-                dead.map((d: { source: string }) => (
-                  <div key={d.source} className="text-sm font-mono text-muted-foreground">
-                    {d.source}
+                dead.map((d: { source: string }, index: number) => (
+                  <div key={d?.source ?? `dead-${index}`} className="text-sm font-mono text-muted-foreground">
+                    {d?.source ?? 'unknown'}
                   </div>
                 ))
               )}

@@ -62,7 +62,8 @@ const TIERS = [
 function RingProgress({ pct, color, size = 72 }: { pct: number; color: string; size?: number }) {
   const r = (size - 8) / 2;
   const circ = 2 * Math.PI * r;
-  const dash = circ * (1 - pct / 100);
+  const safePct = typeof pct === 'number' && !isNaN(pct) ? Math.max(0, Math.min(100, pct)) : 0;
+  const dash = circ * (1 - safePct / 100);
   return (
     <svg width={size} height={size} className="rotate-[-90deg]">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={5} />
@@ -95,14 +96,14 @@ function TierCard({
 }) {
   const Icon = tier.icon;
   const available = stats?.available !== false;
-  const size: number | null = typeof stats?.size === 'number' ? stats.size : null;
-  const hits: number | null = typeof stats?.hits === 'number' ? stats.hits : null;
-  const misses: number | null = typeof stats?.misses === 'number' ? stats.misses : null;
+  const size: number | null = typeof stats?.size === 'number' && !isNaN(stats.size) ? stats.size : null;
+  const hits: number | null = typeof stats?.hits === 'number' && !isNaN(stats.hits) ? stats.hits : null;
+  const misses: number | null = typeof stats?.misses === 'number' && !isNaN(stats.misses) ? stats.misses : null;
   const hitRate = hits != null && misses != null && hits + misses > 0
     ? Math.round((hits / (hits + misses)) * 100) : null;
 
   const cleared = result === 'cleared';
-  const errored = result?.startsWith('error');
+  const errored = typeof result === 'string' && result.startsWith('error');
 
   return (
     <motion.div
@@ -284,13 +285,13 @@ function ConfirmModal({ onConfirm, onCancel, pending }: {
   );
 }
 
-// ─── Main page ─────────────────────────────────────────────────────────────
+// ─── Main page ─────────────────────────────────────────────────────
 export default function CachePage() {
   const qc = useQueryClient();
   const [showConfirm, setShowConfirm] = useState(false);
   const [clearResults, setClearResults] = useState<Record<string, string>>({});
 
-  const { data, isLoading, error, dataUpdatedAt } = useQuery<CacheMetrics>({
+  const { data, isLoading, error, dataUpdatedAt, refetch } = useQuery<CacheMetrics>({
     queryKey: ['admin', 'cache-metrics'],
     queryFn: getCacheMetrics,
     refetchInterval: 20_000,
@@ -300,7 +301,7 @@ export default function CachePage() {
   const { mutate: doFlush, isPending } = useMutation({
     mutationFn: clearCache,
     onSuccess: (res) => {
-      setClearResults(res.tiers ?? {});
+      setClearResults(res?.tiers && typeof res.tiers === 'object' ? res.tiers : {});
       setShowConfirm(false);
       qc.invalidateQueries({ queryKey: ['admin', 'cache-metrics'] });
     },
@@ -308,11 +309,11 @@ export default function CachePage() {
   });
 
   const handleRefresh = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ['admin', 'cache-metrics'] });
-  }, [qc]);
+    void refetch();
+  }, [refetch]);
 
-  const tiers = data?.tiers;
-  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : null;
+  const tiers = data?.tiers && typeof data.tiers === 'object' ? data.tiers : undefined;
+  const lastUpdated = dataUpdatedAt && !isNaN(dataUpdatedAt) ? new Date(dataUpdatedAt).toLocaleTimeString() : null;
 
   return (
     <>
@@ -382,10 +383,18 @@ export default function CachePage() {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="flex items-center gap-3 px-5 py-4 rounded-2xl bg-rose-500/8 ring-1 ring-rose-500/20 text-rose-400 text-sm"
+              className="flex items-center justify-between gap-3 px-5 py-4 rounded-2xl bg-rose-500/8 ring-1 ring-rose-500/20 text-rose-400 text-sm"
             >
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              Failed to load cache metrics — backend may be unreachable.
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Failed to load cache metrics — backend may be unreachable.</span>
+              </div>
+              <button
+                onClick={handleRefresh}
+                className="text-xs underline hover:text-rose-300 shrink-0"
+              >
+                Retry
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -431,3 +440,4 @@ export default function CachePage() {
     </>
   );
 }
+

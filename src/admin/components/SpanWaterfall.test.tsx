@@ -15,6 +15,13 @@ describe("SpanWaterfall", () => {
     expect(screen.getByText(/no spans/i)).toBeInTheDocument();
   });
 
+  it("handles null or undefined gracefully without crashing", () => {
+    render(<SpanWaterfall spans={undefined} />);
+    expect(screen.getByText(/no spans/i)).toBeInTheDocument();
+    render(<SpanWaterfall spans={null} />);
+    expect(screen.getAllByText(/no spans/i)).toHaveLength(2);
+  });
+
   it("renders one row per span with name and duration", () => {
     render(<SpanWaterfall spans={spans} />);
     expect(screen.getByText("embed")).toBeInTheDocument();

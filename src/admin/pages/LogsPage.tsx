@@ -14,7 +14,8 @@ import { useQuery } from "@tanstack/react-query";
 import { listLogs } from "@/admin/lib/api";
 import { fmtDateTime } from "@/admin/lib/formatters";
 import { useAdminFilters } from "@/admin/lib/filtersStore";
-import { ChevronDown, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronRight, X, RefreshCw, AlertCircle } from "lucide-react";
+import { EmptyState } from "@/admin/components/EmptyState";
 
 export default function LogsPage() {
   const [level, setLevel] = useState<string | undefined>();
@@ -22,21 +23,25 @@ export default function LogsPage() {
   const [groupedRequestId, setGroupedRequestId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const { filters } = useAdminFilters();
-  const { data } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin", "logs", level, search, filters.from, filters.to],
     queryFn: () => listLogs({ level, search, from: filters.from, to: filters.to }),
     refetchInterval: 5000,
   });
 
   const visible = useMemo(() => {
-    if (!data) return [];
-    if (groupedRequestId) return data.filter((l) => l.request_id === groupedRequestId);
+    if (!Array.isArray(data)) return [];
+    if (groupedRequestId) return data.filter((l) => l?.request_id === groupedRequestId);
     return data;
   }, [data, groupedRequestId]);
 
   const requestCounts = useMemo(() => {
     const m = new Map<string, number>();
-    data?.forEach((l) => m.set(l.request_id, (m.get(l.request_id) ?? 0) + 1));
+    (Array.isArray(data) ? data : []).forEach((l) => {
+      if (l?.request_id) {
+        m.set(l.request_id, (m.get(l.request_id) ?? 0) + 1);
+      }
+    });
     return m;
   }, [data]);
 
@@ -91,59 +96,90 @@ export default function LogsPage() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="font-mono text-xs divide-y divide-border max-h-[60vh] overflow-y-auto">
-            {visible.map((l) => {
-              const isOpen = expanded.has(String(l.id));
-              const hasContext = Object.keys(l.context).length > 0;
-              return (
-                <div key={l.id} className="px-3 py-1.5">
-                  <div className="flex gap-3 items-center">
-                    <button
-                      onClick={() => {
-                        const next = new Set(expanded);
-                        if (isOpen) next.delete(String(l.id));
-                        else next.add(String(l.id));
-                        setExpanded(next);
-                      }}
-                      className="text-muted-foreground"
-                    >
-                      {hasContext ? (isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />) : <span className="inline-block w-3" />}
-                    </button>
-                    <span className="text-muted-foreground tabular-nums shrink-0">
-                      {fmtDateTime(l.created_at)}
-                    </span>
-                    <Badge
-                      variant={
-                        l.level === "error"
-                          ? "destructive"
-                          : l.level === "warn"
-                            ? "outline"
-                            : "secondary"
-                      }
-                      className="h-4 text-[10px]"
-                    >
-                      {l.level}
-                    </Badge>
-                    <span className="flex-1">{l.message}</span>
-                    <button
-                      onClick={() => setGroupedRequestId(l.request_id)}
-                      className="text-muted-foreground hover:text-primary"
-                      title={`Group ${requestCounts.get(l.request_id) ?? 1} log(s) by this request`}
-                    >
-                      {l.request_id}
-                    </button>
+          {isLoading && visible.length === 0 ? (
+            <div className="py-12 flex items-center justify-center text-sm text-muted-foreground gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              Loading logs…
+            </div>
+          ) : isError ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-2 text-sm text-destructive">
+              <AlertCircle className="w-6 h-6" />
+              <p>Failed to load logs</p>
+              <Button variant="outline" size="sm" onClick={() => void refetch()}>
+                Retry
+              </Button>
+            </div>
+          ) : visible.length === 0 ? (
+            <div className="py-8">
+              <EmptyState title="No logs found matching criteria" />
+            </div>
+          ) : (
+            <div className="font-mono text-xs divide-y divide-border max-h-[60vh] overflow-y-auto">
+              {visible.map((l, idx) => {
+                const logId = l?.id != null ? String(l.id) : `log-${idx}`;
+                const isOpen = expanded.has(logId);
+                const hasContext =
+                  l?.context != null &&
+                  typeof l.context === "object" &&
+                  Object.keys(l.context).length > 0;
+
+                return (
+                  <div key={logId} className="px-3 py-1.5 hover:bg-muted/30 transition-colors">
+                    <div className="flex gap-3 items-center">
+                      <button
+                        onClick={() => {
+                          const next = new Set(expanded);
+                          if (isOpen) next.delete(logId);
+                          else next.add(logId);
+                          setExpanded(next);
+                        }}
+                        className="text-muted-foreground"
+                      >
+                        {hasContext ? (
+                          isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />
+                        ) : (
+                          <span className="inline-block w-3" />
+                        )}
+                      </button>
+                      <span className="text-muted-foreground tabular-nums shrink-0">
+                        {fmtDateTime(l?.created_at)}
+                      </span>
+                      <Badge
+                        variant={
+                          l?.level === "error"
+                            ? "destructive"
+                            : l?.level === "warn"
+                              ? "outline"
+                              : "secondary"
+                        }
+                        className="h-4 text-[10px]"
+                      >
+                        {l?.level ?? "info"}
+                      </Badge>
+                      <span className="flex-1 truncate">{l?.message ?? ""}</span>
+                      {l?.request_id && (
+                        <button
+                          onClick={() => setGroupedRequestId(l.request_id)}
+                          className="text-muted-foreground hover:text-primary shrink-0"
+                          title={`Group ${requestCounts.get(l.request_id) ?? 1} log(s) by this request`}
+                        >
+                          {l.request_id}
+                        </button>
+                      )}
+                    </div>
+                    {isOpen && hasContext && (
+                      <pre className="mt-1 ml-6 p-2 bg-muted/30 rounded text-[10px] overflow-x-auto">
+                        {JSON.stringify(l.context, null, 2)}
+                      </pre>
+                    )}
                   </div>
-                  {isOpen && hasContext && (
-                    <pre className="mt-1 ml-6 p-2 bg-muted/30 rounded text-[10px] overflow-x-auto">
-                      {JSON.stringify(l.context, null, 2)}
-                    </pre>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
+

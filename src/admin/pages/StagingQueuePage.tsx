@@ -22,11 +22,12 @@ import {
 import { listStagingQueue, reviewStagingItem, type StagingQueueItem } from "@/admin/lib/api";
 import { fmtDateTime } from "@/admin/lib/formatters";
 import { toast } from "sonner";
-import { ClipboardCheck, Loader2, Check, X, AlertTriangle, HelpCircle } from "lucide-react";
+import { ClipboardCheck, Loader2, Check, X, AlertTriangle, HelpCircle, RefreshCw, AlertCircle } from "lucide-react";
 
 export default function StagingQueuePage() {
   const [items, setItems] = useState<StagingQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   const [selectedItem, setSelectedItem] = useState<StagingQueueItem | null>(null);
   const [notes, setNotes] = useState("");
@@ -34,37 +35,43 @@ export default function StagingQueuePage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    loadStaging();
+    void loadStaging();
   }, [statusFilter]);
 
   async function loadStaging() {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await listStagingQueue(statusFilter);
-      setItems(data);
+      setItems(Array.isArray(data) ? data : []);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to load staging queue");
+      const msg = e instanceof Error ? e.message : "Failed to load staging queue";
+      setLoadError(msg);
+      toast.error(msg);
+      setItems([]);
     } finally {
       setLoading(false);
     }
   }
 
   async function handleReviewSubmit() {
-    if (!selectedItem || !actionType) return;
+    if (!selectedItem?.id || !actionType) return;
     setSubmitting(true);
     try {
       const res = await reviewStagingItem(selectedItem.id, actionType, notes);
-      toast.success(res.message || `Content successfully ${actionType}d`);
+      toast.success(res?.message || `Content successfully ${actionType}d`);
       setSelectedItem(null);
       setNotes("");
       setActionType(null);
-      loadStaging();
+      await loadStaging();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Action failed");
     } finally {
       setSubmitting(false);
     }
   }
+
+  const itemsList = items ?? [];
 
   return (
     <div className="space-y-6">
@@ -74,7 +81,7 @@ export default function StagingQueuePage() {
             <ClipboardCheck className="w-6 h-6 text-primary" /> Data Quality Staging Queue
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Iceberg-style quality staging. Content that falls below the quality threshold ({65}) is held here for manual review.
+            Iceberg-style quality staging. Content that falls below the quality threshold (65) is held here for manual review.
           </p>
         </div>
         <div className="flex gap-2">
@@ -88,14 +95,15 @@ export default function StagingQueuePage() {
             <option value="rejected">Rejected</option>
           </select>
           <Button variant="outline" onClick={loadStaging} disabled={loading}>
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Refresh"}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            <span className="ml-1.5">Refresh</span>
           </Button>
         </div>
       </div>
 
       <Card className="border-primary/20 bg-card">
         <CardHeader>
-          <CardTitle>Staged Submissions ({items.length})</CardTitle>
+          <CardTitle>Staged Submissions ({itemsList.length})</CardTitle>
           <CardDescription>
             Review the deterministic or LLM quality score and reason before manually merging into the knowledge base.
           </CardDescription>
@@ -106,7 +114,15 @@ export default function StagingQueuePage() {
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
               <p className="text-sm text-muted-foreground">Loading staging queue items...</p>
             </div>
-          ) : items.length === 0 ? (
+          ) : loadError ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-2 text-sm text-destructive">
+              <AlertCircle className="w-8 h-8" />
+              <p>{loadError}</p>
+              <Button variant="outline" size="sm" onClick={loadStaging}>
+                Retry
+              </Button>
+            </div>
+          ) : itemsList.length === 0 ? (
             <div className="text-center py-12 text-sm text-muted-foreground flex flex-col items-center justify-center gap-2">
               <HelpCircle className="w-8 h-8 text-muted-foreground/50" />
               No items in the staging queue matching status "{statusFilter}".
@@ -125,35 +141,39 @@ export default function StagingQueuePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item) => (
+                  {itemsList.map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/30">
                       <TableCell className="text-xs whitespace-nowrap">{fmtDateTime(item.created_at)}</TableCell>
-                      <TableCell className="text-xs font-mono max-w-[200px] truncate" title={item.source_url}>
-                        {item.source_url}
+                      <TableCell className="text-xs font-mono max-w-[200px] truncate" title={item.source_url ?? ""}>
+                        {item.source_url ?? "Unknown source"}
                       </TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
                           className={
-                            item.quality_score >= 50
+                            (item.quality_score ?? 0) >= 50
                               ? "border-yellow-500 text-yellow-500 bg-yellow-500/5 font-mono"
                               : "border-red-500 text-red-500 bg-red-500/5 font-mono"
                           }
                         >
-                          {item.quality_score}/100
+                          {item.quality_score ?? 0}/100
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-[250px]">
                         <div className="flex flex-wrap gap-1">
-                          {item.fail_reasons?.map((reason: string, idx: number) => (
-                            <Badge key={idx} variant="secondary" className="text-[10px] py-0 px-1.5 font-normal">
-                              {reason}
-                            </Badge>
-                          )) || <span className="text-xs text-muted-foreground">None</span>}
+                          {(item.fail_reasons ?? []).length > 0 ? (
+                            item.fail_reasons.map((reason: string, idx: number) => (
+                              <Badge key={idx} variant="secondary" className="text-[10px] py-0 px-1.5 font-normal">
+                                {reason}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">None</span>
+                          )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate" title={item.content_preview}>
-                        {item.content_preview}
+                      <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate" title={item.content_preview ?? ""}>
+                        {item.content_preview || <span className="italic">No preview available</span>}
                       </TableCell>
                       {statusFilter === "pending" && (
                         <TableCell className="text-right whitespace-nowrap">
@@ -212,9 +232,9 @@ export default function StagingQueuePage() {
           {selectedItem && (
             <div className="space-y-4 my-2">
               <div className="p-3 bg-muted rounded-lg text-xs space-y-1">
-                <p><strong>Source:</strong> {selectedItem.source_url}</p>
-                <p><strong>Quality Score:</strong> {selectedItem.quality_score}/100</p>
-                <p><strong>Reasons:</strong> {selectedItem.fail_reasons?.join("; ")}</p>
+                <p><strong>Source:</strong> {selectedItem.source_url ?? "Unknown"}</p>
+                <p><strong>Quality Score:</strong> {selectedItem.quality_score ?? 0}/100</p>
+                <p><strong>Reasons:</strong> {(selectedItem.fail_reasons ?? []).join("; ") || "None"}</p>
               </div>
 
               <div className="space-y-2">
@@ -248,3 +268,4 @@ export default function StagingQueuePage() {
     </div>
   );
 }
+

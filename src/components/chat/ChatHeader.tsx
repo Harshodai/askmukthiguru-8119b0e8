@@ -47,7 +47,7 @@ export const ChatHeader = ({
               size="icon"
               variant="ghost"
               onClick={onToggleSidebar}
-              className="hidden sm:flex h-8 w-8"
+              className="hidden sm:flex min-h-[44px] min-w-[44px] sm:h-8 sm:w-8"
               aria-label={sidebarCollapsed ? t('chat.openSidebar') : t('chat.closeSidebar')}
               aria-expanded={!sidebarCollapsed}
               aria-controls="sidebar-panel"
@@ -63,7 +63,7 @@ export const ChatHeader = ({
 
           <Link
             to="/"
-            className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
             title={t('nav.home')}
             aria-label={t('chat.homeAria')}
           >
@@ -76,7 +76,7 @@ export const ChatHeader = ({
               variant="ghost"
               onClick={onOpenMobileMenu}
               data-tour="mobile-menu"
-              className="sm:hidden h-8 w-8"
+              className="sm:hidden min-h-[44px] min-w-[44px] h-9 w-9"
               aria-label={t('chat.openConversations')}
             >
               <PanelLeft className="w-4 h-4" />
@@ -94,7 +94,7 @@ export const ChatHeader = ({
                   variant="ghost"
                   size="sm"
                   onClick={onCloseIncognito}
-                  className="h-7 text-[11px] text-muted-foreground hover:text-foreground px-2"
+                  className="min-h-[44px] sm:h-7 text-[11px] text-muted-foreground hover:text-foreground px-2"
                 >
                   {t('chat.closeIncognito')}
                 </Button>
@@ -127,7 +127,7 @@ export const ChatHeader = ({
               size="icon"
               variant="ghost"
               onClick={onOpenSources}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground relative"
+              className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground relative flex items-center justify-center"
               aria-label={t('chat.openSources', { count: sourcesCount })}
               title={t('chat.viewSources')}
             >
@@ -144,7 +144,7 @@ export const ChatHeader = ({
               size="icon"
               variant="ghost"
               onClick={onExport}
-              className="h-8 w-8 hidden sm:flex text-muted-foreground"
+              className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 hidden sm:flex text-muted-foreground items-center justify-center"
               aria-label={t('chat.exportMarkdown')}
               title={t('chat.exportMarkdown')}
             >

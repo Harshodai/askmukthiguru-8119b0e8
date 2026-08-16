@@ -35,20 +35,26 @@ function useQueueJobs() {
 }
 
 export default function JobsPage() {
-  const { data, isLoading, isError } = useQueueJobs();
-  const jobs = data?.jobs ?? [];
+  const { data, isLoading, isError, error } = useQueueJobs();
+  const jobs = Array.isArray(data?.jobs) ? data.jobs : [];
 
   if (isLoading) {
     return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
   }
 
   if (isError) {
-    return <div className="p-6 text-sm text-red-500">Failed to load queue data</div>;
+    return (
+      <div className="p-6 text-sm text-destructive">
+        Failed to load queue data: {(error as Error)?.message || "Unknown error"}
+      </div>
+    );
   }
 
   const counts: Record<string, number> = { queued: 0, processing: 0, completed: 0, failed: 0, cancelled: 0 };
   for (const j of jobs) {
-    counts[j.status] = (counts[j.status] || 0) + 1;
+    if (j && j.status) {
+      counts[j.status] = (counts[j.status] || 0) + 1;
+    }
   }
 
   return (
@@ -98,16 +104,22 @@ export default function JobsPage() {
               </TableHeader>
               <TableBody>
                 {jobs.map((job: QueueJob) => (
-                  <TableRow key={job.job_id}>
-                    <TableCell className="font-mono text-xs">{job.job_id}</TableCell>
+                  <TableRow key={job?.job_id}>
+                    <TableCell className="font-mono text-xs">{job?.job_id ?? '—'}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={STATUS_COLORS[job.status]}>{job.status}</Badge>
+                      <Badge variant="outline" className={STATUS_COLORS[job?.status] ?? 'bg-muted text-muted-foreground'}>
+                        {job?.status ?? 'unknown'}
+                      </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{job.queue_position ?? '—'}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{job.user_id?.slice(0, 12)}…</TableCell>
-                    <TableCell className="text-xs">{job.is_stream ? 'Stream' : 'Sync'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{job?.queue_position ?? '—'}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {job?.user_id ? `${job.user_id.slice(0, 12)}…` : '—'}
+                    </TableCell>
+                    <TableCell className="text-xs">{job?.is_stream ? 'Stream' : 'Sync'}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {new Date(job.created_at * 1000).toLocaleString()}
+                      {typeof job?.created_at === 'number' && !Number.isNaN(job.created_at)
+                        ? new Date(job.created_at * 1000).toLocaleString()
+                        : '—'}
                     </TableCell>
                   </TableRow>
                 ))}

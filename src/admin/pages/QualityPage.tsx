@@ -62,31 +62,31 @@ export default function QualityPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               {qualityLoading ? (
-                <div className="text-sm text-muted-foreground">Loading…</div>
-              ) : !quality?.disagreements.length ? (
+                <div className="text-sm text-muted-foreground p-4">Loading…</div>
+              ) : !Array.isArray(quality?.disagreements) || quality.disagreements.length === 0 ? (
                 <EmptyState title="No disagreements in this window" />
               ) : (
-                quality.disagreements.map((d) => (
+                quality.disagreements.map((d, index) => (
                   <div
-                    key={d.id}
+                    key={d?.id ?? `disagree-${index}`}
                     className="border border-border rounded-md p-3 text-sm space-y-1"
                   >
                     <div className="flex items-center gap-2">
                       <Badge
-                        variant={d.kind === "judge_good_user_bad" ? "destructive" : "secondary"}
+                        variant={d?.kind === "judge_good_user_bad" ? "destructive" : "secondary"}
                       >
-                        {d.kind === "judge_good_user_bad" ? (
+                        {d?.kind === "judge_good_user_bad" ? (
                           <span className="flex items-center gap-1">judge OK · user <ThumbsDown className="w-3 h-3" /></span>
                         ) : (
                           <span className="flex items-center gap-1">judge <AlertTriangle className="w-3 h-3" /> · user <ThumbsUp className="w-3 h-3" /></span>
                         )}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        Faithfulness {fmtPct(d.faithfulness)}
+                        Faithfulness {fmtPct(d?.faithfulness ?? 0)}
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {truncate(d.response_text, 160)}
+                      {truncate(d?.response_text ?? '', 160)}
                     </div>
                   </div>
                 ))
@@ -100,19 +100,19 @@ export default function QualityPage() {
             <CardHeader><CardTitle className="text-base">Low-confidence responses</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {qualityLoading ? (
-                <div className="text-sm text-muted-foreground">Loading…</div>
-              ) : !quality?.low_confidence.length ? (
+                <div className="text-sm text-muted-foreground p-4">Loading…</div>
+              ) : !Array.isArray(quality?.low_confidence) || quality.low_confidence.length === 0 ? (
                 <EmptyState title="No low-confidence responses" />
               ) : (
-                quality.low_confidence.map((r) => (
+                quality.low_confidence.map((r, index) => (
                   <div
-                    key={r.id}
+                    key={r?.id ?? `lowconf-${index}`}
                     className="border border-border rounded-md p-3 text-sm flex items-center gap-3"
                   >
-                    <Badge variant="outline">{fmtPct(r.confidence)}</Badge>
-                    <span className="flex-1 text-xs">{truncate(r.response_text, 120)}</span>
+                    <Badge variant="outline">{fmtPct(r?.confidence ?? 0)}</Badge>
+                    <span className="flex-1 text-xs">{truncate(r?.response_text ?? '', 120)}</span>
                     <span className="text-xs text-muted-foreground">
-                      {fmtDateTime(r.created_at)}
+                      {fmtDateTime(r?.created_at)}
                     </span>
                   </div>
                 ))
@@ -126,30 +126,30 @@ export default function QualityPage() {
             <CardHeader><CardTitle className="text-base">Safety events</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {safetyLoading ? (
-                <div className="text-sm text-muted-foreground">Loading…</div>
-              ) : !safety?.length ? (
+                <div className="text-sm text-muted-foreground p-4">Loading…</div>
+              ) : !Array.isArray(safety) || safety.length === 0 ? (
                 <EmptyState title="No safety events in this window" />
               ) : (
-                safety.map((e) => (
+                safety.map((e, index) => (
                   <div
-                    key={e.id}
+                    key={e?.id ?? `safety-${index}`}
                     className="border border-border rounded-md p-3 text-sm flex items-center gap-3"
                   >
                     <Badge
                       variant={
-                        e.severity === "high"
+                        e?.severity === "high"
                           ? "destructive"
-                          : e.severity === "medium"
+                          : e?.severity === "medium"
                             ? "secondary"
                             : "outline"
                       }
                     >
-                      {e.severity}
+                      {e?.severity ?? 'unknown'}
                     </Badge>
-                    <Badge variant="outline">{e.type}</Badge>
-                    <span className="flex-1 text-xs italic">"{truncate(e.excerpt, 100)}"</span>
+                    <Badge variant="outline">{e?.type ?? 'event'}</Badge>
+                    <span className="flex-1 text-xs italic">"{truncate(e?.excerpt ?? '', 100)}"</span>
                     <span className="text-xs text-muted-foreground">
-                      {fmtDateTime(e.created_at)}
+                      {fmtDateTime(e?.created_at)}
                     </span>
                   </div>
                 ))
@@ -163,30 +163,30 @@ export default function QualityPage() {
             <CardHeader><CardTitle className="text-base">Reviewer annotations</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {annosLoading ? (
-                <div className="text-sm text-muted-foreground">Loading…</div>
-              ) : !annos?.length ? (
+                <div className="text-sm text-muted-foreground p-4">Loading…</div>
+              ) : !Array.isArray(annos) || annos.length === 0 ? (
                 <EmptyState title="No annotations yet" />
               ) : (
-                annos.map((a) => (
+                annos.map((a, index) => (
                   <div
-                    key={a.id}
+                    key={a?.id ?? `anno-${index}`}
                     className="border border-border rounded-md p-3 text-sm flex items-center gap-3"
                   >
                     <Badge
                       variant={
-                        a.label === "good"
+                        a?.label === "good"
                           ? "secondary"
-                          : a.label === "bad"
+                          : a?.label === "bad"
                             ? "destructive"
                             : "outline"
                       }
                     >
-                      {a.label}
+                      {a?.label ?? 'unlabeled'}
                     </Badge>
-                    <span className="flex-1 text-xs">{a.notes}</span>
-                    {a.promoted_to_golden && <Badge variant="outline">→ golden</Badge>}
+                    <span className="flex-1 text-xs">{a?.notes ?? '—'}</span>
+                    {a?.promoted_to_golden && <Badge variant="outline">→ golden</Badge>}
                     <span className="text-xs text-muted-foreground">
-                      {fmtDateTime(a.created_at)}
+                      {fmtDateTime(a?.created_at)}
                     </span>
                   </div>
                 ))

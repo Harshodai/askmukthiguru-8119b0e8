@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { fmtDateTime } from '@/admin/lib/formatters';
 
 type FeedbackEntry = { messageId: string } & MessageFeedback;
 
@@ -20,26 +21,42 @@ const FeedbackPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const entries = useMemo<FeedbackEntry[]>(() => {
-    const raw = loadAllFeedback();
-    return Object.entries(raw)
-      .map(([messageId, fb]) => ({ messageId, ...fb }))
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    try {
+      const raw = loadAllFeedback();
+      if (!raw || typeof raw !== 'object') return [];
+      return Object.entries(raw)
+        .filter(([messageId, fb]) => Boolean(messageId && fb && typeof fb === 'object'))
+        .map(([messageId, fb]) => ({
+          messageId,
+          vote: fb.vote,
+          tags: Array.isArray(fb.tags) ? fb.tags : [],
+          comment: fb.comment,
+          timestamp: fb.timestamp instanceof Date && !Number.isNaN(fb.timestamp.getTime()) ? fb.timestamp : new Date(fb.timestamp || 0),
+        }))
+        .sort((a, b) => {
+          const timeA = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp || 0).getTime();
+          const timeB = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp || 0).getTime();
+          return (Number.isNaN(timeB) ? 0 : timeB) - (Number.isNaN(timeA) ? 0 : timeA);
+        });
+    } catch {
+      return [];
+    }
   }, []);
 
   const filtered = useMemo(
-    () => (voteFilter === 'all' ? entries : entries.filter((e) => e.vote === voteFilter)),
+    () => (voteFilter === 'all' ? entries : (entries ?? []).filter((e) => e?.vote === voteFilter)),
     [entries, voteFilter],
   );
 
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil((filtered?.length ?? 0) / ITEMS_PER_PAGE));
 
   const paginatedEntries = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filtered.slice(start, start + ITEMS_PER_PAGE);
+    return (filtered ?? []).slice(start, start + ITEMS_PER_PAGE);
   }, [filtered, currentPage]);
 
-  const upCount = entries.filter((e) => e.vote === 'up').length;
-  const downCount = entries.filter((e) => e.vote === 'down').length;
+  const upCount = (entries ?? []).filter((e) => e?.vote === 'up').length;
+  const downCount = (entries ?? []).filter((e) => e?.vote === 'down').length;
 
   return (
     <div className="space-y-6">
@@ -54,7 +71,7 @@ const FeedbackPage = () => {
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">Total Feedback</p>
-          <p className="text-2xl font-bold mt-1">{entries.length}</p>
+          <p className="text-2xl font-bold mt-1">{(entries ?? []).length}</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -92,7 +109,7 @@ const FeedbackPage = () => {
       </div>
 
       {/* Table */}
-      {filtered.length === 0 ? (
+      {(filtered?.length ?? 0) === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           No feedback entries yet. Users can rate guru responses in the chat.
         </div>
@@ -110,10 +127,10 @@ const FeedbackPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {paginatedEntries.map((entry) => (
-                  <tr key={entry.messageId} className="hover:bg-muted/30 transition-colors">
+                {paginatedEntries.map((entry, index) => (
+                  <tr key={entry?.messageId || `fb-${index}`} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3">
-                      {entry.vote === 'up' ? (
+                      {entry?.vote === 'up' ? (
                         <ThumbsUp className="w-4 h-4 text-green-500" />
                       ) : (
                         <ThumbsDown className="w-4 h-4 text-red-500" />
@@ -121,21 +138,25 @@ const FeedbackPage = () => {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
-                        {entry.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
+                        {Array.isArray(entry?.tags) && entry.tags.length > 0 ? (
+                          entry.tags.map((tag, tagIndex) => (
+                            <Badge key={tag || `tag-${tagIndex}`} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 max-w-[200px] truncate text-muted-foreground">
-                      {entry.comment || '—'}
+                      {entry?.comment || '—'}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                      {entry.messageId.slice(0, 10)}…
+                      {typeof entry?.messageId === 'string' ? `${entry.messageId.slice(0, 10)}…` : '—'}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {new Date(entry.timestamp).toLocaleString()}
+                      {entry?.timestamp ? fmtDateTime(entry.timestamp instanceof Date ? entry.timestamp.toISOString() : String(entry.timestamp)) : '—'}
                     </td>
                   </tr>
                 ))}
@@ -144,15 +165,11 @@ const FeedbackPage = () => {
           </div>
 
           {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-3">
-              <p className="text-sm text-muted-foreground">
-                Showing <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to{" "}
-                <span className="font-medium">
-                  {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)}
-                </span>{" "}
-                of <span className="font-medium">{filtered.length}</span> entries
-              </p>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-3">
+            <p className="text-sm text-muted-foreground">
+              Showing {filtered.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0} to {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of {filtered.length} entries
+            </p>
+            {totalPages > 1 && (
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -174,8 +191,8 @@ const FeedbackPage = () => {
                   Next
                 </Button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>

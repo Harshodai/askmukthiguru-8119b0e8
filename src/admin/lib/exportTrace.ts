@@ -14,8 +14,9 @@ function download(filename: string, mime: string, content: string) {
 }
 
 export function exportTraceJSON(trace: QueryTrace): { filename: string; content: string } {
-  const filename = `trace_${trace.query.id}_${Date.now()}.json`;
-  const content = JSON.stringify(trace, null, 2);
+  const traceId = trace?.query?.id ?? "unknown";
+  const filename = `trace_${traceId}_${Date.now()}.json`;
+  const content = JSON.stringify(trace ?? {}, null, 2);
   download(filename, "application/json", content);
   return { filename, content };
 }
@@ -29,14 +30,16 @@ function csvEscape(v: unknown): string {
 
 function rowsToCsv(headers: string[], rows: Array<Record<string, unknown>>): string {
   const head = headers.join(",");
-  const body = rows
-    .map((r) => headers.map((h) => csvEscape(r[h])).join(","))
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const body = safeRows
+    .map((r) => headers.map((h) => csvEscape(r?.[h])).join(","))
     .join("\n");
   return `${head}\n${body}`;
 }
 
 export function exportTraceCSV(trace: QueryTrace): { filename: string; content: string } {
-  const filename = `trace_${trace.query.id}_${Date.now()}.csv`;
+  const traceId = trace?.query?.id ?? "unknown";
+  const filename = `trace_${traceId}_${Date.now()}.csv`;
   const sections: string[] = [];
 
   // Section 1: query metadata
@@ -57,7 +60,7 @@ export function exportTraceCSV(trace: QueryTrace): { filename: string; content: 
         "status",
         "created_at",
       ],
-      [trace.query as unknown as Record<string, unknown>],
+      trace?.query ? [trace.query as unknown as Record<string, unknown>] : [],
     ),
   );
 
@@ -66,15 +69,17 @@ export function exportTraceCSV(trace: QueryTrace): { filename: string; content: 
   sections.push(
     rowsToCsv(
       ["id", "name", "version", "active", "created_at"],
-      [
-        {
-          id: trace.prompt.id,
-          name: trace.prompt.name,
-          version: trace.prompt.version,
-          active: trace.prompt.active,
-          created_at: trace.prompt.created_at,
-        },
-      ],
+      trace?.prompt
+        ? [
+            {
+              id: trace.prompt.id ?? "",
+              name: trace.prompt.name ?? "",
+              version: trace.prompt.version ?? "",
+              active: trace.prompt.active ?? false,
+              created_at: trace.prompt.created_at ?? "",
+            },
+          ]
+        : [],
     ),
   );
 
@@ -83,28 +88,30 @@ export function exportTraceCSV(trace: QueryTrace): { filename: string; content: 
   sections.push(
     rowsToCsv(
       ["id", "name", "start_ms", "duration_ms", "attributes"],
-      trace.spans.map((s) => ({
-        id: s.id,
-        name: s.name,
-        start_ms: s.start_ms,
-        duration_ms: s.duration_ms,
-        attributes: s.attributes,
+      (trace?.spans ?? []).map((s) => ({
+        id: s?.id ?? "",
+        name: s?.name ?? "",
+        start_ms: s?.start_ms ?? 0,
+        duration_ms: s?.duration_ms ?? 0,
+        attributes: s?.attributes ?? {},
       })),
     ),
   );
 
   // Section 4: retrieval
   sections.push("\n# RETRIEVAL");
-  if (trace.retrieval) {
+  if (trace?.retrieval && Array.isArray(trace.retrieval.source_docs)) {
     const r = trace.retrieval;
+    const chunkIds = Array.isArray(r.chunk_ids) ? r.chunk_ids : [];
+    const scores = Array.isArray(r.scores) ? r.scores : [];
     sections.push(
       rowsToCsv(
         ["rank", "chunk_id", "source_doc", "score"],
         r.source_docs.map((src, i) => ({
           rank: i + 1,
-          chunk_id: r.chunk_ids[i] ?? "",
-          source_doc: src,
-          score: r.scores[i] ?? "",
+          chunk_id: chunkIds[i] ?? "",
+          source_doc: src ?? "",
+          score: scores[i] ?? "",
         })),
       ),
     );
@@ -114,7 +121,7 @@ export function exportTraceCSV(trace: QueryTrace): { filename: string; content: 
 
   // Section 5: response + judge
   sections.push("\n# RESPONSE_AND_JUDGE");
-  if (trace.response) {
+  if (trace?.response) {
     const r = trace.response;
     sections.push(
       rowsToCsv(
@@ -131,15 +138,15 @@ export function exportTraceCSV(trace: QueryTrace): { filename: string; content: 
         ],
         [
           {
-            response_id: r.id,
-            faithfulness: r.faithfulness,
-            answer_relevancy: r.answer_relevancy,
-            context_precision: r.context_precision,
-            context_recall: r.context_recall,
-            hallucination_flag: r.hallucination_flag,
-            confidence: r.confidence,
-            judge_reasoning: r.judge_reasoning,
-            response_text: r.response_text,
+            response_id: r?.id ?? "",
+            faithfulness: r?.faithfulness ?? "",
+            answer_relevancy: r?.answer_relevancy ?? "",
+            context_precision: r?.context_precision ?? "",
+            context_recall: r?.context_recall ?? "",
+            hallucination_flag: r?.hallucination_flag ?? false,
+            confidence: r?.confidence ?? "",
+            judge_reasoning: r?.judge_reasoning ?? "",
+            response_text: r?.response_text ?? "",
           },
         ],
       ),
@@ -151,11 +158,11 @@ export function exportTraceCSV(trace: QueryTrace): { filename: string; content: 
   sections.push(
     rowsToCsv(
       ["id", "trigger_name", "metadata", "created_at"],
-      trace.triggers.map((t) => ({
-        id: t.id,
-        trigger_name: t.trigger_name,
-        metadata: t.metadata,
-        created_at: t.created_at,
+      (trace?.triggers ?? []).map((t) => ({
+        id: t?.id ?? "",
+        trigger_name: t?.trigger_name ?? "",
+        metadata: t?.metadata ?? {},
+        created_at: t?.created_at ?? "",
       })),
     ),
   );

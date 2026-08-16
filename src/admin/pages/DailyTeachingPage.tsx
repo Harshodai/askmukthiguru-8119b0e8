@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, Trash2, Eye, Image as ImageIcon, History, CheckCircle2 } from 'lucide-react';
+import { Upload, Trash2, Eye, Image as ImageIcon, History, CheckCircle2, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +26,23 @@ interface TeachingHistoryItem {
   createdAt: string;
 }
 
+const safeFormatDate = (iso?: string | null): string => {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '—';
+  }
+};
+
 const DailyTeachingPage = () => {
   const [caption, setCaption] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -36,62 +53,81 @@ const DailyTeachingPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<TeachingHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchCurrentTeaching();
-    fetchHistory();
+    void fetchCurrentTeaching();
+    void fetchHistory();
   }, []);
 
   const fetchCurrentTeaching = async () => {
-    const { data } = await supabase
-      .from('daily_teachings')
-      .select('id, image_url, caption')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('daily_teachings')
+        .select('id, image_url, caption')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (data) {
-      setCurrentTeaching({
-        id: data.id,
-        imageUrl: data.image_url,
-        caption: data.caption ?? undefined,
-      });
-    } else {
-      setCurrentTeaching(null);
+      if (error) {
+        console.error('Failed to fetch active teaching:', error);
+        return;
+      }
+
+      if (data) {
+        setCurrentTeaching({
+          id: data.id,
+          imageUrl: data.image_url ?? '',
+          caption: data.caption ?? undefined,
+        });
+      } else {
+        setCurrentTeaching(null);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching current teaching:', err);
     }
   };
 
   const fetchHistory = async () => {
     setHistoryLoading(true);
-    const { data, error } = await supabase
-      .from('daily_teachings')
-      .select('id, image_url, caption, created_at')
-      .order('created_at', { ascending: false });
+    setHistoryError(null);
+    try {
+      const { data, error } = await supabase
+        .from('daily_teachings')
+        .select('id, image_url, caption, created_at')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Failed to fetch history:', error);
+      if (error) {
+        console.error('Failed to fetch history:', error);
+        setHistoryError(error.message || 'Failed to fetch history');
+        setHistory([]);
+      } else {
+        setHistory(
+          (data || []).map((item) => ({
+            id: item.id,
+            imageUrl: item.image_url ?? '',
+            caption: item.caption ?? undefined,
+            createdAt: item.created_at ?? new Date().toISOString(),
+          }))
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to fetch history';
+      setHistoryError(msg);
       setHistory([]);
-    } else {
-      setHistory(
-        (data || []).map((item) => ({
-          id: item.id,
-          imageUrl: item.image_url,
-          caption: item.caption ?? undefined,
-          createdAt: item.created_at ?? new Date().toISOString(),
-        }))
-      );
+    } finally {
+      setHistoryLoading(false);
     }
-    setHistoryLoading(false);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) return;
+    if (!file || !file.type?.startsWith('image/') || file.size > 5 * 1024 * 1024) return;
 
     setImageFile(file);
     const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.onload = (ev) => setImagePreview((ev.target?.result as string) || null);
     reader.readAsDataURL(file);
   };
 
@@ -105,7 +141,8 @@ const DailyTeachingPage = () => {
         data: { session },
       } = await supabase.auth.getSession();
 
-      const fileName = `teaching-${Date.now()}.${imageFile.name.split('.').pop()}`;
+      const ext = (imageFile.name?.split('.').pop() || 'jpg').replace(/[^a-zA-Z0-9]/g, '');
+      const fileName = `teaching-${Date.now()}.${ext || 'jpg'}`;
       const { error: uploadError } = await supabase.storage
         .from('daily-teachings')
         .upload(fileName, imageFile, { upsert: true });
@@ -117,7 +154,7 @@ const DailyTeachingPage = () => {
         .getPublicUrl(fileName);
 
       const { error: insertError } = await supabase.from('daily_teachings').insert({
-        image_url: urlData.publicUrl,
+        image_url: urlData?.publicUrl ?? '',
         caption: caption.trim() || null,
         created_by: session?.user?.id ?? null,
       });
@@ -145,33 +182,41 @@ const DailyTeachingPage = () => {
 
   const handleClear = async () => {
     if (!currentTeaching) return;
-    const { error } = await supabase
-      .from('daily_teachings')
-      .delete()
-      .eq('id', currentTeaching.id);
-    if (error) {
-      setError(`Delete failed: ${error.message}`);
-      return;
+    try {
+      const { error } = await supabase
+        .from('daily_teachings')
+        .delete()
+        .eq('id', currentTeaching.id);
+      if (error) {
+        setError(`Delete failed: ${error.message}`);
+        return;
+      }
+      setCurrentTeaching(null);
+      setImagePreview(null);
+      setCaption('');
+      setError(null);
+      await fetchHistory();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to clear teaching');
     }
-    setCurrentTeaching(null);
-    setImagePreview(null);
-    setCaption('');
-    setError(null);
-    await fetchHistory();
   };
 
   const handleDeleteHistoryItem = async (id: string) => {
-    const { error } = await supabase.from('daily_teachings').delete().eq('id', id);
-    if (error) {
-      setError(`Delete failed: ${error.message}`);
-      return;
+    try {
+      const { error } = await supabase.from('daily_teachings').delete().eq('id', id);
+      if (error) {
+        setError(`Delete failed: ${error.message}`);
+        return;
+      }
+      // If we deleted the current one, refresh current too
+      if (currentTeaching?.id === id) {
+        setCurrentTeaching(null);
+      }
+      await fetchHistory();
+      await fetchCurrentTeaching();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete history item');
     }
-    // If we deleted the current one, refresh current too
-    if (currentTeaching?.id === id) {
-      setCurrentTeaching(null);
-    }
-    await fetchHistory();
-    await fetchCurrentTeaching();
   };
 
   return (
@@ -209,12 +254,18 @@ const DailyTeachingPage = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="rounded-lg overflow-hidden border border-border/50 aspect-[16/7]">
-                  <img
-                    src={currentTeaching.imageUrl}
-                    alt="Current teaching"
-                    className="w-full h-full object-cover"
-                  />
+                <div className="rounded-lg overflow-hidden border border-border/50 aspect-[16/7] bg-muted">
+                  {currentTeaching.imageUrl ? (
+                    <img
+                      src={currentTeaching.imageUrl}
+                      alt="Current teaching"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                      No image available
+                    </div>
+                  )}
                 </div>
                 {currentTeaching.caption && (
                   <p className="text-sm text-foreground">{currentTeaching.caption}</p>
@@ -271,7 +322,7 @@ const DailyTeachingPage = () => {
                 />
                 {imagePreview ? (
                   <div className="space-y-2">
-                    <div className="rounded-lg overflow-hidden border border-border/50 aspect-[16/7]">
+                    <div className="rounded-lg overflow-hidden border border-border/50 aspect-[16/7] bg-muted">
                       <img
                         src={imagePreview}
                         alt="Preview"
@@ -288,8 +339,9 @@ const DailyTeachingPage = () => {
                   </div>
                 ) : (
                   <button
+                    type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full border-2 border-dashed border-border/60 rounded-xl p-8 flex flex-col items-center gap-2 hover:border-ojas/40 hover:bg-ojas/5 transition-colors"
+                    className="w-full border-2 border-dashed border-border/60 rounded-xl p-8 flex flex-col items-center gap-2 hover:border-ojas/40 hover:bg-ojas/5 transition-colors cursor-pointer"
                   >
                     <ImageIcon className="w-8 h-8 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">Click to upload an image</span>
@@ -313,7 +365,7 @@ const DailyTeachingPage = () => {
                   className="resize-none"
                 />
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  {caption.length}/200 characters
+                  {(caption ?? '').length}/200 characters
                 </p>
               </div>
 
@@ -331,9 +383,10 @@ const DailyTeachingPage = () => {
               </Button>
 
               {error && (
-                <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
-                  {error}
-                </p>
+                <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -341,26 +394,42 @@ const DailyTeachingPage = () => {
 
         <TabsContent value="history" className="mt-6">
           {historyLoading ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
+            <div className="flex items-center justify-center py-12 text-muted-foreground text-sm gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin" />
               Loading history…
             </div>
-          ) : history.length === 0 ? (
+          ) : historyError ? (
+            <div className="text-center py-12 text-destructive text-sm flex flex-col items-center gap-3">
+              <AlertCircle className="w-8 h-8" />
+              <p>{historyError}</p>
+              <Button variant="outline" size="sm" onClick={fetchHistory} className="gap-1.5">
+                <RefreshCw className="w-3.5 h-3.5" />
+                Retry
+              </Button>
+            </div>
+          ) : (history ?? []).length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm flex flex-col items-center gap-2">
               <History className="w-8 h-8 opacity-50" />
               <p>No past teachings found.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {history.map((item) => (
+              {(history ?? []).map((item) => (
                 <Card key={item.id} className="overflow-hidden">
                   <CardContent className="p-3 flex items-center gap-4">
-                    <div className="w-20 h-14 rounded-md overflow-hidden flex-shrink-0 border border-border/50">
-                      <img
-                        src={item.imageUrl}
-                        alt="Teaching thumbnail"
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
+                    <div className="w-20 h-14 rounded-md overflow-hidden flex-shrink-0 border border-border/50 bg-muted">
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt="Teaching thumbnail"
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-[10px]">
+                          No image
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       {item.caption ? (
@@ -371,13 +440,7 @@ const DailyTeachingPage = () => {
                         <p className="text-sm text-muted-foreground italic">No caption</p>
                       )}
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {new Date(item.createdAt).toLocaleDateString(undefined, {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {safeFormatDate(item.createdAt)}
                       </p>
                     </div>
                     <AlertDialog>
@@ -418,3 +481,4 @@ const DailyTeachingPage = () => {
 };
 
 export default DailyTeachingPage;
+

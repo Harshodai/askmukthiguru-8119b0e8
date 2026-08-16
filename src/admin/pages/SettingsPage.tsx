@@ -78,19 +78,24 @@ const SARVAM_PRICING = [
 ];
 
 function downloadCsv(filename: string, rowsIn: Array<Record<string, unknown>> | unknown[]) {
-  const rows = rowsIn as Array<Record<string, unknown>>;
+  const rows = Array.isArray(rowsIn) ? (rowsIn as Array<Record<string, unknown>>) : [];
   if (!rows.length) {
     toast.error("Nothing to export");
     return;
   }
-  const headers = Object.keys(rows[0]);
+  const firstRow = rows[0] ?? {};
+  const headers = Object.keys(firstRow);
+  if (!headers.length) {
+    toast.error("Nothing to export");
+    return;
+  }
   const escape = (v: unknown) => {
     const s = v == null ? "" : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const csv = [
     headers.join(","),
-    ...rows.map((r: Record<string, unknown>) => headers.map((h) => escape(r[h])).join(",")),
+    ...rows.map((r: Record<string, unknown>) => headers.map((h) => escape(r?.[h])).join(",")),
   ].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
@@ -114,7 +119,7 @@ export default function SettingsPage() {
   useEffect(() => {
     getGlobalSettings()
       .then((data) => {
-        if (data && data.web_search_allowed_domains) {
+        if (data && Array.isArray(data.web_search_allowed_domains)) {
           setAllowedDomains(data.web_search_allowed_domains.join(", "));
         }
       })
@@ -126,7 +131,7 @@ export default function SettingsPage() {
   const handleSaveDomains = async () => {
     setIsSaving(true);
     try {
-      const domainsArray = allowedDomains
+      const domainsArray = (allowedDomains || "")
         .split(",")
         .map((d) => d.trim().toLowerCase())
         .filter((d) => d.length > 0);
@@ -135,8 +140,10 @@ export default function SettingsPage() {
         web_search_allowed_domains: domainsArray
       });
       
-      if (res.status === "success") {
-        setAllowedDomains(res.web_search_allowed_domains.join(", "));
+      if (res && res.status === "success") {
+        if (Array.isArray(res.web_search_allowed_domains)) {
+          setAllowedDomains(res.web_search_allowed_domains.join(", "));
+        }
         toast.success("Web search allowed domains saved successfully!");
       } else {
         toast.error("Failed to save allowed domains");
@@ -164,7 +171,7 @@ export default function SettingsPage() {
           <div>
             <div className="flex justify-between mb-2">
               <span>Telemetry retention (days)</span>
-              <span className="tabular-nums font-medium">{retention[0]}</span>
+              <span className="tabular-nums font-medium">{retention?.[0] ?? 90}</span>
             </div>
             <Slider value={retention} onValueChange={setRetention} min={7} max={365} step={1} />
           </div>
@@ -207,15 +214,15 @@ export default function SettingsPage() {
               downloadCsv(
                 "queries.csv",
                 (queries ?? []).map((q) => ({
-                  id: q.id,
-                  created_at: q.created_at,
-                  model: q.model,
-                  prompt_tokens: q.prompt_tokens,
-                  completion_tokens: q.completion_tokens,
-                  cost: q.cost_estimate,
-                  latency_ms: q.latency_ms,
-                  status: q.status,
-                  query_text: q.query_text,
+                  id: q?.id,
+                  created_at: q?.created_at,
+                  model: q?.model,
+                  prompt_tokens: q?.prompt_tokens,
+                  completion_tokens: q?.completion_tokens,
+                  cost: q?.cost_estimate,
+                  latency_ms: q?.latency_ms,
+                  status: q?.status,
+                  query_text: q?.query_text,
                 })),
               )
             }
@@ -225,7 +232,12 @@ export default function SettingsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => downloadCsv("eval_runs.csv", runs?.map((r) => ({ id: r.id, ...r.summary, started_at: r.started_at })) ?? [])}
+            onClick={() =>
+              downloadCsv(
+                "eval_runs.csv",
+                (runs ?? []).map((r) => ({ id: r?.id, ...(r?.summary ?? {}), started_at: r?.started_at })),
+              )
+            }
           >
             <Download className="h-4 w-4" /> Eval runs CSV
           </Button>
@@ -239,7 +251,7 @@ export default function SettingsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => downloadCsv("model_pricing.csv", pricingRows)}
+            onClick={() => downloadCsv("model_pricing.csv", pricingRows ?? [])}
           >
             <Download className="h-4 w-4" /> Model pricing CSV
           </Button>
@@ -264,7 +276,7 @@ export default function SettingsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pricingRows.map((p) => (
+                {(pricingRows ?? []).map((p) => (
                   <TableRow key={p.model}>
                     <TableCell className="font-mono text-xs">{p.model}</TableCell>
                     <TableCell className="text-right tabular-nums">{p.input}</TableCell>

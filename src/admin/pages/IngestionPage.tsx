@@ -29,8 +29,18 @@ interface IngestionJob {
 }
 
 export default function IngestionPage() {
-  const { data } = useIngestionRuns();
-  const { data: health } = useIngestionHealth();
+  const {
+    data: runs,
+    isLoading: runsLoading,
+    isError: runsError,
+    refetch: refetchRuns,
+  } = useIngestionRuns();
+  const {
+    data: health,
+    isLoading: healthLoading,
+    isError: healthError,
+    refetch: refetchHealth,
+  } = useIngestionHealth();
   const qc = useQueryClient();
 
   // Ingestion form state
@@ -45,10 +55,11 @@ export default function IngestionPage() {
 
   // Poll for active ingestion status
   useEffect(() => {
-    if (Object.keys(activeJobs).length === 0) return;
+    const jobEntries = Object.entries(activeJobs ?? {});
+    if (jobEntries.length === 0) return;
 
-    const hasRunning = Object.values(activeJobs).some(
-      (j) => j.status !== "error" && j.status !== "Complete!" && j.progress !== 1
+    const hasRunning = jobEntries.some(
+      ([, j]) => j && j.status !== "error" && j.status !== "Complete!" && j.progress !== 1
     );
 
     if (!hasRunning) {
@@ -62,18 +73,20 @@ export default function IngestionPage() {
         if (status && typeof status === "object") {
           const mapped: Record<string, IngestionJob> = {};
           for (const [key, val] of Object.entries(status)) {
-            const v = val as { status?: string; message?: string; progress?: number | null };
-            mapped[key] = {
-              status: v.status || v.message || "processing",
-              message: v.message || "",
-              progress: v.progress ?? undefined,
-            };
+            if (val && typeof val === "object") {
+              const v = val as { status?: string; message?: string; progress?: number | null };
+              mapped[key] = {
+                status: v.status || v.message || "processing",
+                message: v.message || "",
+                progress: typeof v.progress === "number" ? v.progress : undefined,
+              };
+            }
           }
-          setActiveJobs((prev) => ({ ...prev, ...mapped }));
+          setActiveJobs((prev) => ({ ...(prev ?? {}), ...mapped }));
 
           // If all jobs are done, invalidate cache
           const allDone = Object.values(mapped).every(
-            (j) => j.progress === 1 || j.status === "error"
+            (j) => j && (j.progress === 1 || j.status === "error")
           );
           if (allDone) {
             qc.invalidateQueries({ queryKey: ["admin", "ingestion"] });
@@ -81,7 +94,7 @@ export default function IngestionPage() {
           }
         }
       } catch {
-        // silent — backend may not be running
+        // silent — backend may not be running or transient network glitch
       }
     }, 2500);
 
@@ -98,9 +111,9 @@ export default function IngestionPage() {
     setSubmitting(true);
     try {
       const res = await submitIngestion(trimmed, maxAccuracy);
-      toast.success(res.message || "Ingestion started");
+      toast.success(res?.message || "Ingestion started");
       setActiveJobs((prev) => ({
-        ...prev,
+        ...(prev ?? {}),
         [trimmed]: { status: "processing", message: "Starting...", progress: 0 },
       }));
       setUrl("");
@@ -115,9 +128,9 @@ export default function IngestionPage() {
     setUploading(true);
     try {
       const res = await uploadDocument(file, maxAccuracy);
-      toast.success(res.message || "Document upload queued");
+      toast.success(res?.message || "Document upload queued");
       setActiveJobs((prev) => ({
-        ...prev,
+        ...(prev ?? {}),
         [`upload:${file.name}`]: { status: "processing", message: "Starting...", progress: 0 },
       }));
     } catch (err) {
@@ -132,13 +145,16 @@ export default function IngestionPage() {
     setBookIngesting(true);
     try {
       const res = await ingestBook();
-      toast.success(`Book ingestion queued. Task ID: ${res.task_id}`);
+      toast.success(`Book ingestion queued. Task ID: ${res?.task_id ?? 'queued'}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to queue book ingestion");
     } finally {
       setBookIngesting(false);
     }
   };
+
+  const activeJobEntries = Object.entries(activeJobs ?? {});
+  const runsList = runs ?? [];
 
   return (
     <div className="space-y-4">
@@ -249,32 +265,32 @@ export default function IngestionPage() {
           </div>
 
           {/* Active Jobs */}
-          {Object.keys(activeJobs).length > 0 && (
+          {activeJobEntries.length > 0 && (
             <div className="mt-4 space-y-2">
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Active Jobs</p>
-              {Object.entries(activeJobs).map(([jobUrl, job]) => (
+              {activeJobEntries.map(([jobUrl, job]) => (
                 <div
                   key={jobUrl}
                   className="flex items-center gap-3 p-3 rounded-lg bg-muted/40 border border-border/40"
                 >
-                  {job.progress === 1 ? (
+                  {job?.progress === 1 ? (
                     <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                  ) : job.status === "error" ? (
+                  ) : job?.status === "error" ? (
                     <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
                   ) : (
                     <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-mono truncate">{jobUrl}</p>
-                    <p className="text-[11px] text-muted-foreground">{job.message || job.status}</p>
+                    <p className="text-[11px] text-muted-foreground">{job?.message || job?.status || "Processing"}</p>
                   </div>
-                  {job.progress !== undefined && job.progress < 1 && job.status !== "error" && (
+                  {job?.progress !== undefined && job.progress < 1 && job.status !== "error" && (
                     <Badge variant="outline" className="text-[10px] tabular-nums">
                       {Math.round(job.progress * 100)}%
                     </Badge>
                   )}
-                  {job.progress === 1 && <Badge variant="secondary">Done</Badge>}
-                  {job.status === "error" && <Badge variant="destructive">Error</Badge>}
+                  {job?.progress === 1 && <Badge variant="secondary">Done</Badge>}
+                  {job?.status === "error" && <Badge variant="destructive">Error</Badge>}
                 </div>
               ))}
             </div>
@@ -307,7 +323,8 @@ export default function IngestionPage() {
             onClick={async () => {
               try {
                 const res = await clearCache();
-                toast.success(`Cache cleared: ${Object.values(res.tiers).join(", ")}`);
+                const tiersList = res?.tiers && typeof res.tiers === "object" ? Object.values(res.tiers).join(", ") : "All tiers";
+                toast.success(`Cache cleared: ${tiersList}`);
                 qc.invalidateQueries();
               } catch (err) {
                 toast.error(err instanceof Error ? err.message : "Failed to clear cache");
@@ -322,58 +339,104 @@ export default function IngestionPage() {
 
       {/* Runs Table */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Runs</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Runs</CardTitle>
+          {(runsError || healthError) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void refetchRuns();
+                void refetchHealth();
+              }}
+              className="gap-1.5 text-xs"
+            >
+              <RefreshCw className="h-3 w-3" /> Retry failed queries
+            </Button>
+          )}
+        </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>When</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead className="text-right">Chunks</TableHead>
-                <TableHead className="text-right">Duration</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data?.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="text-xs">{fmtDateTime(r.created_at)}</TableCell>
-                  <TableCell className="text-xs font-mono">{r.source}</TableCell>
-                  <TableCell className="text-right tabular-nums">{fmtInt(r.chunks_added)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-xs">{fmtMs(r.duration_ms)}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        r.status === "ok" ? "secondary" : r.status === "partial" ? "outline" : "destructive"
-                      }
-                    >
-                      {r.status}
-                    </Badge>
-                    {r.error_log && (
-                      <div className="text-xs text-destructive mt-1">{r.error_log}</div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={async () => {
-                        await triggerReingest(r.source);
-                        qc.invalidateQueries({ queryKey: ["admin", "ingestion"] });
-                        qc.invalidateQueries({ queryKey: ["admin", "ingest-health"] });
-                        toast.success(`Re-ingest queued`);
-                      }}
-                    >
-                      <RefreshCw className="h-3 w-3" /> Re-ingest
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {runsLoading ? (
+            <div className="py-12 flex items-center justify-center text-sm text-muted-foreground gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              Loading runs…
+            </div>
+          ) : runsError ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-2 text-sm text-destructive">
+              <AlertCircle className="w-6 h-6" />
+              <p>Failed to load ingestion runs</p>
+              <Button variant="outline" size="sm" onClick={() => void refetchRuns()}>
+                Retry
+              </Button>
+            </div>
+          ) : runsList.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              No ingestion runs recorded yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>When</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead className="text-right">Chunks</TableHead>
+                    <TableHead className="text-right">Duration</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {runsList.map((r, idx) => (
+                    <TableRow key={r?.id ?? `run-${idx}`}>
+                      <TableCell className="text-xs">{fmtDateTime(r?.created_at)}</TableCell>
+                      <TableCell className="text-xs font-mono max-w-[200px] truncate" title={r?.source ?? ""}>
+                        {r?.source ?? "Unknown"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{fmtInt(r?.chunks_added ?? 0)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-xs">{fmtMs(r?.duration_ms ?? 0)}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            r?.status === "ok" ? "secondary" : r?.status === "partial" ? "outline" : "destructive"
+                          }
+                        >
+                          {r?.status ?? "unknown"}
+                        </Badge>
+                        {r?.error_log && (
+                          <div className="text-xs text-destructive mt-1 max-w-[250px] truncate" title={r.error_log}>
+                            {r.error_log}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={async () => {
+                            if (!r?.source) return;
+                            try {
+                              await triggerReingest(r.source);
+                              qc.invalidateQueries({ queryKey: ["admin", "ingestion"] });
+                              qc.invalidateQueries({ queryKey: ["admin", "ingest-health"] });
+                              toast.success(`Re-ingest queued`);
+                            } catch (err) {
+                              toast.error(err instanceof Error ? err.message : "Failed to queue re-ingest");
+                            }
+                          }}
+                        >
+                          <RefreshCw className="h-3 w-3" /> Re-ingest
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
+

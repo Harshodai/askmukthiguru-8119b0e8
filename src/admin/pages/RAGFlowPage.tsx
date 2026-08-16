@@ -29,7 +29,8 @@ import {
   Sparkles,
   ShieldCheck,
   Search,
-  MessageSquare
+  MessageSquare,
+  AlertCircle
 } from "lucide-react";
 import { fmtMs } from "@/admin/lib/formatters";
 import type { RagFlowGraphNode } from "@/admin/lib/api";
@@ -231,7 +232,7 @@ const NODE_COLUMNS: Record<string, number> = {
 
 export default function RAGFlowPage() {
   const [strategy, setStrategy] = useState<RagStrategy>("standard");
-  const { data: graphData, isLoading, refetch, isFetching } = useRagFlowGraph(strategy);
+  const { data: graphData, isLoading, error, refetch, isFetching } = useRagFlowGraph(strategy);
   const [selectedNode, setSelectedNode] = useState<RagFlowGraphNode | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
@@ -239,11 +240,16 @@ export default function RAGFlowPage() {
 
   // Compute Layout when graphData changes
   useEffect(() => {
-    if (!graphData) return;
+    if (!graphData || !Array.isArray(graphData.nodes) || !Array.isArray(graphData.edges)) {
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
 
     // Group nodes by their column index
     const colGroups: Record<number, string[]> = {};
     graphData.nodes.forEach((node) => {
+      if (!node?.id) return;
       const col = NODE_COLUMNS[node.id] !== undefined ? NODE_COLUMNS[node.id] : 2;
       if (!colGroups[col]) colGroups[col] = [];
       colGroups[col].push(node.id);
@@ -256,26 +262,26 @@ export default function RAGFlowPage() {
 
     // Generate react-flow nodes
     const flowNodes = graphData.nodes.map((node) => {
-      const col = NODE_COLUMNS[node.id] !== undefined ? NODE_COLUMNS[node.id] : 2;
-      const indexInCol = colGroups[col].indexOf(node.id);
-      const colSize = colGroups[col].length;
+      const col = node?.id && NODE_COLUMNS[node.id] !== undefined ? NODE_COLUMNS[node.id] : 2;
+      const indexInCol = node?.id && colGroups[col] ? colGroups[col].indexOf(node.id) : 0;
+      const colSize = colGroups[col]?.length || 1;
       
       // Center column vertically
       const totalColHeight = (colSize - 1) * ySpacing;
       const startY = yOffset + (400 - totalColHeight) / 2;
       
       const x = xOffset + col * xSpacing;
-      const y = startY + indexInCol * ySpacing;
+      const y = startY + Math.max(0, indexInCol) * ySpacing;
 
-      const descInfo = NODE_DESCRIPTIONS[node.id] || { title: node.label, desc: "RAG pipeline execution node.", category: "Retrieval" };
+      const descInfo = (node?.id && NODE_DESCRIPTIONS[node.id]) || { title: node?.label || node?.id || "Node", desc: "RAG pipeline execution node.", category: "Retrieval" };
       const styles = CATEGORY_STYLES[descInfo.category] || CATEGORY_STYLES["Retrieval"];
 
       // Dynamic warning borders for slow nodes
-      const isSlow = node.avg_latency_ms > 1500;
+      const isSlow = (node?.avg_latency_ms ?? 0) > 1500;
       const latencyBorder = isSlow ? "border-rose-500/80 shadow-[0_0_15px_rgba(239,68,68,0.2)]" : styles.border;
 
       return {
-        id: node.id,
+        id: node?.id ?? "unknown-node",
         position: { x, y },
         type: "default",
         data: {
@@ -285,14 +291,14 @@ export default function RAGFlowPage() {
                 <span className={`text-xs font-semibold uppercase tracking-wider ${styles.text}`}>
                   {descInfo.category}
                 </span>
-                {node.avg_latency_ms > 0 && (
+                {(node?.avg_latency_ms ?? 0) > 0 && (
                   <Badge variant={isSlow ? "destructive" : "secondary"} className="h-4 px-1.5 text-[10px]">
                     {fmtMs(node.avg_latency_ms)}
                   </Badge>
                 )}
               </div>
               <h3 className="font-semibold text-sm truncate text-foreground">{descInfo.title}</h3>
-              {node.invocation_count > 0 && (
+              {(node?.invocation_count ?? 0) > 0 && (
                 <div className="text-[10px] text-muted-foreground mt-1 flex items-center justify-between">
                   <span>Invocations:</span>
                   <span className="font-mono">{node.invocation_count}</span>
@@ -310,14 +316,14 @@ export default function RAGFlowPage() {
     // Generate react-flow edges
     const flowEdges = graphData.edges.map((edge) => {
       // Find latency if edge source matches any node's avg latency
-      const srcNode = graphData.nodes.find((n) => n.id === edge.source);
-      const isSlowPath = srcNode && srcNode.avg_latency_ms > 1500;
+      const srcNode = graphData.nodes?.find((n) => n?.id === edge?.source);
+      const isSlowPath = srcNode && (srcNode.avg_latency_ms ?? 0) > 1500;
       
       return {
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        animated: edge.animated,
+        id: edge?.id ?? `${edge?.source}-${edge?.target}`,
+        source: edge?.source ?? "",
+        target: edge?.target ?? "",
+        animated: edge?.animated ?? false,
         style: {
           stroke: isSlowPath ? "rgba(239, 68, 68, 0.45)" : "rgba(156, 163, 175, 0.3)",
           strokeWidth: isSlowPath ? 2.5 : 1.5,
@@ -336,7 +342,7 @@ export default function RAGFlowPage() {
 
     // Keep active selection in sync if it exists
     if (selectedNode) {
-      const updatedNode = graphData.nodes.find((n) => n.id === selectedNode.id);
+      const updatedNode = graphData.nodes?.find((n) => n?.id === selectedNode.id);
       if (updatedNode) {
         setSelectedNode(updatedNode);
       }
@@ -344,13 +350,15 @@ export default function RAGFlowPage() {
   }, [graphData]);
 
   const onNodeClick = (_: ReactMouseEvent, node: FlowNode) => {
-    setSelectedNode(node.data.raw);
+    if (node?.data?.raw) {
+      setSelectedNode(node.data.raw);
+    }
   };
 
   const selectedNodeDesc = useMemo(() => {
-    if (!selectedNode) return null;
+    if (!selectedNode?.id) return null;
     return NODE_DESCRIPTIONS[selectedNode.id] || {
-      title: selectedNode.label,
+      title: selectedNode.label || selectedNode.id,
       desc: "No description available for this custom node.",
       category: "Custom"
     };
@@ -400,7 +408,20 @@ export default function RAGFlowPage() {
       <div className="flex-1 min-h-0 grid lg:grid-cols-4 gap-4">
         {/* Main Flow Canvas */}
         <Card className="lg:col-span-3 h-full overflow-hidden border border-border bg-card/50 flex flex-col relative">
-          {isLoading ? (
+          {error ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-destructive gap-3">
+              <div className="flex items-center gap-2 font-medium">
+                <AlertCircle className="h-5 w-5" />
+                Failed to load RAG flow graph
+              </div>
+              <p className="text-xs text-muted-foreground max-w-sm">
+                Could not retrieve pipeline graph structure. Verify backend service is healthy.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            </div>
+          ) : isLoading ? (
             <div className="flex-1 flex items-center justify-center text-muted-foreground gap-2">
               <RefreshCw className="h-5 w-5 animate-spin text-primary" />
               Loading strategy graph structure...
@@ -496,7 +517,7 @@ export default function RAGFlowPage() {
                         <Clock className="h-3 w-3 text-primary" /> Avg Latency
                       </div>
                       <div className="text-lg font-bold font-mono mt-1 text-foreground">
-                        {fmtMs(selectedNode.avg_latency_ms)}
+                        {fmtMs(selectedNode?.avg_latency_ms ?? 0)}
                       </div>
                     </div>
 
@@ -505,26 +526,26 @@ export default function RAGFlowPage() {
                         <Database className="h-3 w-3 text-emerald-500" /> Invocations
                       </div>
                       <div className="text-lg font-bold font-mono mt-1 text-foreground">
-                        {selectedNode.invocation_count}
+                        {selectedNode?.invocation_count ?? 0}
                       </div>
                     </div>
                   </div>
 
                   {/* Latency Threshold Indicator */}
-                  {selectedNode.avg_latency_ms > 0 && (
+                  {(selectedNode?.avg_latency_ms ?? 0) > 0 && (
                     <div className="space-y-1">
                       <div className="flex justify-between text-[10px] text-muted-foreground">
                         <span>Latency Status:</span>
-                        <span className={selectedNode.avg_latency_ms > 1500 ? "text-rose-500 font-semibold" : "text-emerald-500"}>
-                          {selectedNode.avg_latency_ms > 1500 ? "Degraded (Slow)" : "Optimal"}
+                        <span className={(selectedNode?.avg_latency_ms ?? 0) > 1500 ? "text-rose-500 font-semibold" : "text-emerald-500"}>
+                          {(selectedNode?.avg_latency_ms ?? 0) > 1500 ? "Degraded (Slow)" : "Optimal"}
                         </span>
                       </div>
                       <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                         <div 
                           className={`h-full rounded-full transition-all duration-500 ${
-                            selectedNode.avg_latency_ms > 1500 ? "bg-rose-500" : "bg-emerald-500"
+                            (selectedNode?.avg_latency_ms ?? 0) > 1500 ? "bg-rose-500" : "bg-emerald-500"
                           }`}
-                          style={{ width: `${Math.min((selectedNode.avg_latency_ms / 3000) * 100, 100)}%` }}
+                          style={{ width: `${Math.min(((selectedNode?.avg_latency_ms ?? 0) / 3000) * 100, 100)}%` }}
                         />
                       </div>
                     </div>

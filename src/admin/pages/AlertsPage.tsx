@@ -15,10 +15,11 @@ import { upsertAlertRule } from "@/admin/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertRuleBuilder } from "@/admin/components/AlertRuleBuilder";
 import { EmptyState } from "@/admin/components/EmptyState";
+import { toast } from "sonner";
 
 export default function AlertsPage() {
-  const { data: rules, isLoading: rulesLoading } = useAlertRules();
-  const { data: events, isLoading: eventsLoading } = useAlertEvents();
+  const { data: rules, isLoading: rulesLoading, isError: rulesIsError, error: rulesError } = useAlertRules();
+  const { data: events, isLoading: eventsLoading, isError: eventsIsError, error: eventsError } = useAlertEvents();
   const qc = useQueryClient();
 
   return (
@@ -38,29 +39,37 @@ export default function AlertsPage() {
         <CardContent className="space-y-2">
           {rulesLoading ? (
             <div className="text-sm text-muted-foreground">Loading…</div>
+          ) : rulesIsError ? (
+            <div className="text-sm text-destructive">
+              Failed to load alert rules: {(rulesError as Error)?.message || "Unknown error"}
+            </div>
           ) : !rules?.length ? (
             <EmptyState title="No alert rules configured" />
           ) : (
-            rules.map((r) => (
-            <div
-              key={r.id}
-              className="border border-border rounded-md p-3 text-sm flex items-center gap-3"
-            >
-              <div className="flex-1">
-                <div className="font-medium">{r.name}</div>
-                <div className="text-xs text-muted-foreground font-mono">
-                  {r.metric} {r.comparator} {r.threshold} (window {r.window_minutes}m → {r.channel}:{" "}
-                  {r.target})
+            (rules ?? []).map((r) => (
+              <div
+                key={r.id}
+                className="border border-border rounded-md p-3 text-sm flex items-center gap-3"
+              >
+                <div className="flex-1">
+                  <div className="font-medium">{r.name ?? "Unnamed rule"}</div>
+                  <div className="text-xs text-muted-foreground font-mono">
+                    {r.metric ?? "metric"} {r.comparator ?? "="} {r.threshold ?? 0} (window {r.window_minutes ?? 0}m → {r.channel ?? "log"}:{" "}
+                    {r.target ?? "—"})
+                  </div>
                 </div>
+                <Switch
+                  checked={!!r.active}
+                  onCheckedChange={async (v) => {
+                    try {
+                      await upsertAlertRule({ ...r, active: v });
+                      qc.invalidateQueries({ queryKey: ["admin", "alert-rules"] });
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Failed to update alert rule");
+                    }
+                  }}
+                />
               </div>
-              <Switch
-                checked={r.active}
-                onCheckedChange={async (v) => {
-                  await upsertAlertRule({ ...r, active: v });
-                  qc.invalidateQueries({ queryKey: ["admin", "alert-rules"] });
-                }}
-              />
-            </div>
             ))
           )}
         </CardContent>
@@ -71,6 +80,10 @@ export default function AlertsPage() {
         <CardContent className="p-0">
           {eventsLoading ? (
             <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+          ) : eventsIsError ? (
+            <div className="p-6 text-sm text-destructive">
+              Failed to load alert events: {(eventsError as Error)?.message || "Unknown error"}
+            </div>
           ) : !events?.length ? (
             <EmptyState title="No alerts fired yet" />
           ) : (
@@ -84,11 +97,15 @@ export default function AlertsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {events.map((e) => (
+                {(events ?? []).map((e) => (
                   <TableRow key={e.id}>
                     <TableCell className="text-xs">{fmtDateTime(e.fired_at)}</TableCell>
-                    <TableCell>{e.rule_name}</TableCell>
-                    <TableCell className="text-right tabular-nums">{e.value.toFixed(3)}</TableCell>
+                    <TableCell>{e.rule_name ?? "Unnamed rule"}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {typeof e.value === "number" && !Number.isNaN(e.value)
+                        ? e.value.toFixed(3)
+                        : (e.value ?? "—")}
+                    </TableCell>
                     <TableCell>
                       {e.resolved_at ? (
                         <Badge variant="secondary">resolved</Badge>

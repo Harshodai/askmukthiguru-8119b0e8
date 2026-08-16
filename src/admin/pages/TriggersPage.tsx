@@ -19,6 +19,7 @@ import { fmtInt } from "@/admin/lib/formatters";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { EmptyState } from "@/admin/components/EmptyState";
+import { AlertCircle, RefreshCw } from "lucide-react";
 
 const TRIGGER_COLORS: Record<string, string> = {
   serene_mind: "hsl(var(--primary))",
@@ -29,17 +30,37 @@ const TRIGGER_COLORS: Record<string, string> = {
   guru_handoff: "hsl(var(--prana-blue))",
 };
 
+const safeFormatBucket = (bucket?: string | null): string => {
+  if (!bucket) return '—';
+  try {
+    const d = new Date(bucket);
+    if (isNaN(d.getTime())) return String(bucket);
+    return format(d, "MMM d");
+  } catch {
+    return String(bucket);
+  }
+};
+
 export default function TriggersPage() {
-  const { data: triggers, isLoading: triggersLoading } = useTriggers();
-  const { data: trend, isLoading: trendLoading } = useTriggerTrend(14);
+  const { data: triggers, isLoading: triggersLoading, isError: triggersError, refetch: refetchTriggers } = useTriggers();
+  const { data: trend, isLoading: trendLoading, isError: trendError, refetch: refetchTrend } = useTriggerTrend(14);
 
   const counts = useMemo(() => {
     const map = new Map<string, number>();
-    triggers?.forEach((t) => map.set(t.trigger_name, (map.get(t.trigger_name) ?? 0) + 1));
+    (triggers ?? []).forEach((t) => {
+      if (t?.trigger_name) {
+        map.set(t.trigger_name, (map.get(t.trigger_name) ?? 0) + 1);
+      }
+    });
     return Array.from(map.entries()).map(([name, count]) => ({ name, count }));
   }, [triggers]);
 
-  const trendData = trend?.map((p) => ({ ...p, label: format(new Date(p.bucket), "MMM d") })) ?? [];
+  const trendData = useMemo(() => {
+    return (trend ?? []).map((p) => ({
+      ...p,
+      label: safeFormatBucket(p?.bucket),
+    }));
+  }, [trend]);
 
   return (
     <div className="space-y-4">
@@ -55,10 +76,17 @@ export default function TriggersPage() {
           <CardHeader><CardTitle className="text-base">By type (window)</CardTitle></CardHeader>
           <CardContent>
             {triggersLoading ? (
-              <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">
+              <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin" />
                 Loading…
               </div>
-            ) : !counts.length ? (
+            ) : triggersError ? (
+              <div className="h-[240px] flex flex-col items-center justify-center gap-2 text-sm text-destructive">
+                <AlertCircle className="w-6 h-6" />
+                <p>Failed to load trigger statistics</p>
+                <Button variant="outline" size="sm" onClick={() => void refetchTriggers()}>Retry</Button>
+              </div>
+            ) : counts.length === 0 ? (
               <EmptyState title="No triggers fired in this window" />
             ) : (
               <ResponsiveContainer width="100%" height={240}>
@@ -88,7 +116,7 @@ export default function TriggersPage() {
               <Badge className="text-lg px-3 py-1">
                 {triggersLoading
                   ? "…"
-                  : fmtInt(triggers?.filter((t) => t.trigger_name === "serene_mind").length ?? 0)}
+                  : fmtInt((triggers ?? []).filter((t) => t?.trigger_name === "serene_mind").length)}
               </Badge>
               <div className="text-sm text-muted-foreground flex-1">
                 Times the Serene Mind meditation was offered in the selected window.
@@ -105,10 +133,17 @@ export default function TriggersPage() {
         <CardHeader><CardTitle className="text-base">14-day stacked trend</CardTitle></CardHeader>
         <CardContent>
           {trendLoading ? (
-            <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
+            <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground gap-2">
+              <RefreshCw className="w-4 h-4 animate-spin" />
               Loading…
             </div>
-          ) : !trendData.length ? (
+          ) : trendError ? (
+            <div className="h-[300px] flex flex-col items-center justify-center gap-2 text-sm text-destructive">
+              <AlertCircle className="w-6 h-6" />
+              <p>Failed to load trigger trend</p>
+              <Button variant="outline" size="sm" onClick={() => void refetchTrend()}>Retry</Button>
+            </div>
+          ) : trendData.length === 0 ? (
             <EmptyState title="No trigger trend data for this window" />
           ) : (
             <ResponsiveContainer width="100%" height={300}>
@@ -144,3 +179,4 @@ export default function TriggersPage() {
     </div>
   );
 }
+

@@ -31,7 +31,7 @@ export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (q.trim()) ask(q.trim(), kpiContext);
+            if (q && q.trim()) ask(q.trim(), kpiContext);
           }}
           className="flex gap-2"
         >
@@ -47,7 +47,7 @@ export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
         </form>
 
         <div className="flex flex-wrap gap-1.5">
-          {examples.map((e) => (
+          {(examples ?? []).map((e) => (
             <Button
               key={e}
               variant="outline"
@@ -72,12 +72,14 @@ export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
         )}
 
         {error && (
-          <div className="text-xs text-destructive bg-destructive/10 rounded p-2">{error}</div>
+          <div className="text-xs text-destructive bg-destructive/10 rounded p-2">
+            {typeof error === "string" ? error : (error as { message?: string })?.message || "An error occurred"}
+          </div>
         )}
 
         {result && !loading && (
-          <div className="text-sm text-foreground bg-muted/40 rounded-lg p-3 leading-relaxed border border-border/40">
-            {result}
+          <div className="text-sm text-foreground bg-muted/40 rounded-lg p-3 leading-relaxed border border-border/40 whitespace-pre-wrap">
+            {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
           </div>
         )}
       </CardContent>

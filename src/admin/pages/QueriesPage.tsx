@@ -25,7 +25,7 @@ import { useQueries, usePromptVersions, useModels } from "@/admin/hooks/useAdmin
 import { fmtDateTime, fmtMs, truncate } from "@/admin/lib/formatters";
 import { TraceDrawer } from "@/admin/components/TraceDrawer";
 import { EmptyState } from "@/admin/components/EmptyState";
-import { Search, X, Info } from "lucide-react";
+import { Search, X, Info, AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface QueryItem {
@@ -66,7 +66,7 @@ export default function QueriesPage() {
 
   const { data: prompts } = usePromptVersions();
   const { data: models } = useModels();
-  const { data, isLoading } = useQueries({
+  const { data, isLoading, isError, refetch } = useQueries({
     search,
     promptVersionId,
     model,
@@ -75,24 +75,27 @@ export default function QueriesPage() {
   });
 
   const sortedData = useMemo(() => {
-    if (!data) return [];
+    if (!data || !Array.isArray(data)) return [];
     return [...data].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
-        case "created_at":
-          cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "created_at": {
+          const tA = a?.created_at ? new Date(a.created_at).getTime() : 0;
+          const tB = b?.created_at ? new Date(b.created_at).getTime() : 0;
+          cmp = (Number.isNaN(tA) ? 0 : tA) - (Number.isNaN(tB) ? 0 : tB);
           break;
+        }
         case "latency_ms":
-          cmp = (a.latency_ms ?? 0) - (b.latency_ms ?? 0);
+          cmp = (a?.latency_ms ?? 0) - (b?.latency_ms ?? 0);
           break;
         case "query_text":
-          cmp = a.query_text.localeCompare(b.query_text);
+          cmp = (a?.query_text ?? "").localeCompare(b?.query_text ?? "");
           break;
         case "model":
-          cmp = (a.model ?? "unknown").localeCompare(b.model ?? "unknown");
+          cmp = (a?.model ?? "unknown").localeCompare(b?.model ?? "unknown");
           break;
         case "status":
-          cmp = a.status.localeCompare(b.status);
+          cmp = (a?.status ?? "").localeCompare(b?.status ?? "");
           break;
         default:
           cmp = 0;
@@ -103,8 +106,8 @@ export default function QueriesPage() {
 
   const promptLabel = (id: string | null | undefined) => {
     if (!id) return "v0 (default)";
-    const p = prompts?.find((p) => p.id === id);
-    return p ? `${p.name} v${p.version}` : id.slice(0, 8);
+    const p = Array.isArray(prompts) ? prompts.find((p) => p?.id === id) : undefined;
+    return p ? `${p?.name ?? 'Prompt'} v${p?.version ?? '0'}` : (typeof id === 'string' ? id.slice(0, 8) : String(id));
   };
 
   const clearFilters = () => {
@@ -166,9 +169,9 @@ export default function QueriesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All prompts</SelectItem>
-                {prompts?.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} v{p.version} {p.active && "·active"}
+                {Array.isArray(prompts) && prompts.map((p) => (
+                  <SelectItem key={p?.id ?? 'unknown'} value={p?.id ?? 'unknown'}>
+                    {p?.name ?? 'Prompt'} v{p?.version ?? '0'} {p?.active && "·active"}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -186,17 +189,17 @@ export default function QueriesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All models</SelectItem>
-                {models?.map((m) => {
+                {Array.isArray(models) && models.map((m) => {
                   interface ModelObject {
                     id?: string;
                     name?: string;
                     provider?: string;
                   }
-                  const val = typeof m === 'string' ? m : (m as ModelObject).id ?? String(m);
-                  const label = typeof m === 'string' ? m : `${(m as ModelObject).name ?? val} (${(m as ModelObject).provider ?? ''})`.trim();
+                  const val = typeof m === 'string' ? m : (m as ModelObject)?.id ?? String(m ?? '');
+                  const label = typeof m === 'string' ? m : `${(m as ModelObject)?.name ?? val} (${(m as ModelObject)?.provider ?? ''})`.trim();
                   return (
-                    <SelectItem key={val} value={val}>
-                      {label}
+                    <SelectItem key={val || 'unknown-model'} value={val || 'unknown-model'}>
+                      {label || 'Unknown model'}
                     </SelectItem>
                   );
                 })}
@@ -255,7 +258,20 @@ export default function QueriesPage() {
 
       <Card>
         <CardContent className="p-0">
-          {isLoading ? (
+          {isError ? (
+            <div className="p-8 text-center text-sm text-destructive flex flex-col items-center justify-center gap-3">
+              <div className="flex items-center gap-2 font-medium">
+                <AlertCircle className="h-4 w-4" />
+                Failed to load queries from backend
+              </div>
+              <p className="text-xs text-muted-foreground max-w-sm">
+                Could not retrieve query traces. Verify backend connectivity and try again.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            </div>
+          ) : isLoading ? (
             <div className="p-6 text-sm text-muted-foreground">Loading…</div>
           ) : !sortedData.length ? (
             <EmptyState title="No queries match your filters" />
@@ -272,24 +288,24 @@ export default function QueriesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedData.map((q) => (
+                {sortedData.map((q, index) => (
                   <TableRow
-                    key={q.id}
+                    key={q?.id || `query-${q?.created_at}-${index}`}
                     className="cursor-pointer"
-                    onClick={() => setOpenId(q.id)}
+                    onClick={() => q?.id && setOpenId(q.id)}
                   >
                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {fmtDateTime(q.created_at)}
+                      {fmtDateTime(q?.created_at)}
                     </TableCell>
-                    <TableCell>{truncate(q.query_text, 60)}</TableCell>
-                    <TableCell className="text-xs font-mono">{q.model?.split("/").pop() || "unknown"}</TableCell>
-                    <TableCell className="text-xs">{promptLabel(q.prompt_version_id)}</TableCell>
+                    <TableCell>{truncate(q?.query_text, 60)}</TableCell>
+                    <TableCell className="text-xs font-mono">{(q?.model ? q.model.split("/").pop() : "unknown") || "unknown"}</TableCell>
+                    <TableCell className="text-xs">{promptLabel(q?.prompt_version_id)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-col items-end gap-1">
-                        <span className="tabular-nums text-xs font-mono">{fmtMs(q.latency_ms)}</span>
-                        {((q as ChatQuery & { spans?: TraceSpan[] }).spans?.length ?? 0) > 0 && (
+                        <span className="tabular-nums text-xs font-mono">{fmtMs(q?.latency_ms)}</span>
+                        {Array.isArray((q as ChatQuery & { spans?: TraceSpan[] })?.spans) && ((q as ChatQuery & { spans?: TraceSpan[] }).spans?.length ?? 0) > 0 && (
                           <div className="flex h-1.5 w-24 rounded-full overflow-hidden bg-muted">
-                            {((q as ChatQuery & { spans?: TraceSpan[] }).spans ?? []).map((span, index) => {
+                            {((q as ChatQuery & { spans?: TraceSpan[] }).spans ?? []).map((span, spanIndex) => {
                               const colors: Record<string, string> = {
                                 guardrails_in: "bg-slate-400",
                                 embed: "bg-sky-400",
@@ -299,13 +315,13 @@ export default function QueriesPage() {
                                 judge: "bg-amber-500",
                                 guardrails_out: "bg-slate-400",
                               };
-                              const pct = Math.max(2, ((span.duration_ms ?? 0) / (q.latency_ms || 1)) * 100);
+                              const pct = Math.max(2, ((span?.duration_ms ?? 0) / (q?.latency_ms || 1)) * 100);
                               return (
                                 <div
-                                  key={span.id ?? `${span.name ?? "span"}-${index}`}
-                                  className={colors[span.name ?? ""] || "bg-gray-400"}
+                                  key={span?.id ?? `${span?.name ?? "span"}-${spanIndex}`}
+                                  className={colors[span?.name ?? ""] || "bg-gray-400"}
                                   style={{ width: `${pct}%` }}
-                                  title={`${span.name}: ${span.duration_ms}ms`}
+                                  title={`${span?.name ?? "span"}: ${span?.duration_ms ?? 0}ms`}
                                 />
                               );
                             })}
@@ -314,9 +330,9 @@ export default function QueriesPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {q.status === "ok" ? (
+                      {q?.status === "ok" ? (
                         <Badge variant="secondary">ok</Badge>
-                      ) : q.status === "error" ? (
+                      ) : q?.status === "error" ? (
                         <Badge variant="destructive">error</Badge>
                       ) : (
                         <Badge>blocked</Badge>

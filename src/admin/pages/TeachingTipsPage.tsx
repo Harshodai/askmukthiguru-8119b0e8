@@ -1,14 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Quote, RefreshCw } from 'lucide-react';
+import { Quote, RefreshCw, AlertCircle } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getWisdomTips, regenerateWisdomTips, type WisdomTipsPayload } from '@/admin/lib/api';
 
-const daysUntil = (iso: string): number => {
-  const ms = new Date(iso).getTime() - Date.now();
+const daysUntil = (iso?: string | null): number => {
+  if (!iso) return 0;
+  const time = new Date(iso).getTime();
+  if (isNaN(time)) return 0;
+  const ms = time - Date.now();
   return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+};
+
+const safeDateTime = (iso?: string | null): string => {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+  } catch {
+    return '—';
+  }
 };
 
 type LoadState = 'loading' | 'ready' | 'unavailable' | 'error';
@@ -42,13 +55,16 @@ export default function TeachingTipsPage() {
       const data = await regenerateWisdomTips();
       setPayload(data);
       setState('ready');
-      setStatusMessage(`Regenerated ${data.tips.length} tips — next auto-refresh in ${daysUntil(data.expires_at)}d.`);
+      const count = (data?.tips ?? []).length;
+      setStatusMessage(`Regenerated ${count} tips — next auto-refresh in ${daysUntil(data?.expires_at)}d.`);
     } catch (err) {
       setStatusMessage(err instanceof Error ? err.message : 'Regeneration failed');
     } finally {
       setRegenerating(false);
     }
   };
+
+  const tips = payload?.tips ?? [];
 
   return (
     <div className="space-y-4">
@@ -71,8 +87,8 @@ export default function TeachingTipsPage() {
         <CardContent className="space-y-3">
           {payload && state === 'ready' && (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <Badge variant="outline">{payload.tips.length} tips</Badge>
-              <span>Generated {new Date(payload.generated_at).toLocaleString()}</span>
+              <Badge variant="outline">{tips.length} tips</Badge>
+              <span>Generated {safeDateTime(payload.generated_at)}</span>
               <span>·</span>
               <span>Next auto-refresh in {daysUntil(payload.expires_at)}d</span>
             </div>
@@ -88,30 +104,41 @@ export default function TeachingTipsPage() {
             </p>
           )}
           {state === 'error' && (
-            <p className="text-sm text-destructive">Could not load tips. Check the backend and try again.</p>
+            <div className="flex items-center gap-3 text-sm text-destructive py-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>Could not load tips. Check the backend and try again.</span>
+              <Button variant="outline" size="sm" onClick={() => void load()} className="ml-auto">
+                Retry
+              </Button>
+            </div>
           )}
 
           {state === 'ready' && payload && (
-            <ul className="grid gap-3 md:grid-cols-2">
-              {payload.tips.map((tip) => (
-                <li key={tip.id}>
-                  <Card className="h-full border-ojas/20">
-                    <CardContent className="pt-4 space-y-2">
-                      <p className="font-serif italic text-sm leading-relaxed">“{tip.text}”</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        🪷 {tip.teacher}
-                        {tip.source && tip.source !== 'curated' && (
-                          <span className="ml-1 opacity-70">· {tip.source}</span>
-                        )}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </li>
-              ))}
-            </ul>
+            tips.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">No tips found. Click Regenerate Tips to create new ones.</p>
+            ) : (
+              <ul className="grid gap-3 md:grid-cols-2">
+                {tips.map((tip, idx) => (
+                  <li key={tip.id ?? `tip-${idx}`}>
+                    <Card className="h-full border-ojas/20">
+                      <CardContent className="pt-4 space-y-2">
+                        <p className="font-serif italic text-sm leading-relaxed">“{tip.text ?? ''}”</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          🪷 {tip.teacher ?? 'Guide'}
+                          {tip.source && tip.source !== 'curated' && (
+                            <span className="ml-1 opacity-70">· {tip.source}</span>
+                          )}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </li>
+                ))}
+              </ul>
+            )
           )}
         </CardContent>
       </Card>
     </div>
   );
 }
+

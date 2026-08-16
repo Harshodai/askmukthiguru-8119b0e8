@@ -47,7 +47,7 @@ export function TraceDrawer({ queryId, onClose }: Props) {
           <div className="text-sm text-muted-foreground py-10 text-center">Loading…</div>
         ) : error ? (
           <div className="text-sm text-destructive py-10 text-center">
-            Failed to load trace: {(error as Error).message}
+            Failed to load trace: {(error as Error)?.message || "Unknown error"}
           </div>
         ) : !trace || !trace.query ? (
           <div className="text-sm text-muted-foreground py-10 text-center">
@@ -59,20 +59,24 @@ export function TraceDrawer({ queryId, onClose }: Props) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium leading-snug">
-                  {trace.query.query_text ?? "(no query text)"}
+                  {trace.query?.query_text ?? "(no query text)"}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                  <span>{trace.query.created_at ? fmtDateTime(trace.query.created_at) : "—"}</span>
-                  <span className="font-mono">{trace.query.id}</span>
-                  <button
-                    className="hover:text-foreground inline-flex items-center gap-1"
-                    onClick={() => {
-                      navigator.clipboard.writeText(trace.query.id);
-                      toast.success("Query ID copied");
-                    }}
-                  >
-                    <Copy className="h-3 w-3" /> copy
-                  </button>
+                  <span>{trace.query?.created_at ? fmtDateTime(trace.query.created_at) : "—"}</span>
+                  <span className="font-mono">{trace.query?.id ?? "—"}</span>
+                  {trace.query?.id && (
+                    <button
+                      className="hover:text-foreground inline-flex items-center gap-1"
+                      onClick={() => {
+                        if (trace.query?.id) {
+                          navigator.clipboard.writeText(trace.query.id);
+                          toast.success("Query ID copied");
+                        }
+                      }}
+                    >
+                      <Copy className="h-3 w-3" /> copy
+                    </button>
+                  )}
                 </div>
               </div>
               <DropdownMenu>
@@ -109,8 +113,8 @@ export function TraceDrawer({ queryId, onClose }: Props) {
             {/* Span waterfall */}
             <section>
               <h3 className="text-sm font-medium mb-2">Span waterfall</h3>
-              {trace.spans && trace.spans.length > 0 ? (
-                <SpanWaterfall spans={trace.spans} />
+              {(trace.spans?.length ?? 0) > 0 ? (
+                <SpanWaterfall spans={trace.spans ?? []} />
               ) : (
                 <div className="text-xs text-muted-foreground">No spans recorded.</div>
               )}
@@ -129,18 +133,18 @@ export function TraceDrawer({ queryId, onClose }: Props) {
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Model</div>
-                <div className="font-mono text-xs">{trace.query.model || "unknown"}</div>
+                <div className="font-mono text-xs">{trace.query?.model || "unknown"}</div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Tokens</div>
                 <div className="tabular-nums">
-                  {trace.query.prompt_tokens ?? 0} in · {trace.query.completion_tokens ?? 0} out
+                  {trace.query?.prompt_tokens ?? 0} in · {trace.query?.completion_tokens ?? 0} out
                 </div>
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Cost · Latency</div>
                 <div className="tabular-nums">
-                  {fmtUsd(trace.query.cost_estimate)} · {fmtMs(trace.query.latency_ms)}
+                  {fmtUsd(trace.query?.cost_estimate)} · {fmtMs(trace.query?.latency_ms)}
                 </div>
               </div>
             </section>
@@ -182,7 +186,7 @@ export function TraceDrawer({ queryId, onClose }: Props) {
               <h3 className="text-sm font-medium mb-2">Retrieved chunks</h3>
               {trace.retrieval?.source_docs && trace.retrieval.source_docs.length > 0 ? (
                 <div className="space-y-1.5 text-xs">
-                  {trace.retrieval.source_docs.map((src: string, i: number) => (
+                  {(trace.retrieval.source_docs ?? []).map((src: string, i: number) => (
                     <div
                       key={i}
                       className="flex items-center gap-2 border border-border rounded px-2 py-1"
@@ -190,9 +194,11 @@ export function TraceDrawer({ queryId, onClose }: Props) {
                       <Badge variant="outline" className="text-[10px] h-5">
                         #{i + 1}
                       </Badge>
-                      <span className="font-mono truncate flex-1">{truncate(src, 60)}</span>
+                      <span className="font-mono truncate flex-1">{truncate(src ?? "", 60)}</span>
                       <span className="tabular-nums text-muted-foreground">
-                        {trace.retrieval?.scores?.[i]?.toFixed(3) || "0.000"}
+                        {typeof trace.retrieval?.scores?.[i] === "number" && !Number.isNaN(trace.retrieval.scores[i])
+                          ? trace.retrieval.scores[i].toFixed(3)
+                          : (trace.retrieval?.scores?.[i] ?? "0.000")}
                       </span>
                     </div>
                   ))}
@@ -229,17 +235,17 @@ export function TraceDrawer({ queryId, onClose }: Props) {
             </section>
 
             {/* Triggers + feedback */}
-            {((trace.triggers && trace.triggers.length > 0) || trace.feedback) && (
+            {(((trace.triggers?.length ?? 0) > 0) || !!trace.feedback) && (
               <>
                 <Separator />
                 <section className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <div className="text-xs text-muted-foreground mb-1">Triggers</div>
-                    {trace.triggers && trace.triggers.length ? (
+                    {(trace.triggers?.length ?? 0) > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {trace.triggers.map((t: { id: string; trigger_name?: string; trigger_type?: string }) => (
-                          <Badge key={t.id} variant="secondary">
-                            {t.trigger_name ?? t.trigger_type ?? "trigger"}
+                        {(trace.triggers ?? []).map((t: { id?: string; trigger_name?: string; trigger_type?: string }, idx: number) => (
+                          <Badge key={t?.id ?? idx} variant="secondary">
+                            {t?.trigger_name ?? t?.trigger_type ?? "trigger"}
                           </Badge>
                         ))}
                       </div>
