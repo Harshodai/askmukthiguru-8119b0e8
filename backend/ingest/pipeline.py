@@ -1351,7 +1351,13 @@ class IngestionPipeline:
             if audio_fallback and audio_fallback.get("text"):
                 result = audio_fallback
             else:
-                return {"status": "error", "message": "Extraction failed", "source_url": url}
+                # Diarization/Whisper fallback both failed (e.g. Railway's
+                # yt-dlp has no JS runtime and gets bot-blocked). Fall back to
+                # plain auto-captions rather than losing the video: ingestion
+                # proceeds without diarization instead of not at all.
+                result = fetch_transcript_hybrid(video_id, max_accuracy=False)
+                if not result.get("text"):
+                    return {"status": "error", "message": "Extraction failed", "source_url": url}
 
         raw_text = result["text"]
 
