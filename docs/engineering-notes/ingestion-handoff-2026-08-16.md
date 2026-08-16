@@ -41,18 +41,37 @@ CLI status label showed "Deploy failed" but its own deploy logs show a clean
 boot and live 200s including `/api/health` — treat that label as a known CLI
 display flake, not a real failure, unless fresh logs say otherwise.
 
-## Known issue — NOT fixed, root cause only mitigated
+## yt-dlp bot-block / JS-runtime fix (commit `173d6abb`, deployed)
 
-Railway's `celery-worker` container's yt-dlp cannot download audio:
-`ERROR: [youtube] <id>: Sign in to confirm you're not a bot` plus
-`No supported JavaScript runtime could be found` (no `deno` in the image).
-This breaks the Tier-4 Whisper/audio-fallback path entirely on Railway.
-Item 4 above stops this from losing videos outright (falls back to
-auto-captions), but any video with **zero** captions of any kind (manual or
-auto) will still fail — nothing can be done for those without fixing yt-dlp's
-environment (install a JS runtime in `backend/Dockerfile.railway`, and/or
-configure yt-dlp cookies to dodge the bot-block). Out of scope for this
-session; worth a dedicated pass if failure volume stays high.
+Root cause found via web search + code audit: `youtube_loader.py`'s
+Python-API yt-dlp calls already carry `_get_js_runtime_opts()` /
+`_get_cookies_opts()` and multi-client player spoofing (`android`,
+`android_vr`, `tv_simply`, `tv_embedded`, `mweb`, `web`, `ios`) — but
+`ingest/audio_transcriber.py::download_audio_stream` (the Tier-4 Whisper
+fallback, invoked via a raw `yt-dlp` CLI subprocess) had none of that
+hardening. `nodejs` is already installed in `backend/Dockerfile.railway`
+(`apt-get install ... nodejs`) — yt-dlp just wasn't told to use it (it only
+probes `deno` by default). Ported the same `--js-runtimes`,
+`--extractor-args player_client=...`, and cookie-passthrough hardening to
+this call site. No Dockerfile change needed — reused what was already
+installed.
+
+**Status: deployed, not yet confirmed effective.** New celery-worker booted
+at `08:59:25` (hostname `c0f200be2a38`, concurrency:2) with this fix. No
+bot-block errors seen in the ~30s since, but that's too short to conclude
+anything — the fix needs to actually reach a Tier-4 audio-download attempt to
+prove out. **Next agent: grep celery-worker logs after this timestamp for
+`Sign in to confirm` / `Audio download failed` / `Council: Both sources
+failed` — if those are gone, the fix worked; if they persist, YouTube's
+IP-reputation-based bot-block on Railway's datacenter IP is bigger than
+client-spoofing can beat, and the real fix is `YOUTUBE_COOKIES_B64` (base64
+a real `cookies.txt` exported from an authenticated browser session, set as
+a Railway env var — `_get_cookies_opts()` in `youtube_loader.py` already
+reads it, this is the one missing piece and needs a human to export cookies,
+not something an agent can source itself).**
+
+Regardless: any video with **zero** captions of any kind (manual or auto)
+will still fail — nothing can be done for those short of cookies working.
 
 ## Pending — needs a human click, not something an agent can do
 
@@ -72,7 +91,20 @@ railway status                                    # service health at a glance
 railway logs --service celery-worker | tail -100   # live worker activity
 railway logs --service celery-worker | grep -iE "error|failed|traceback" | tail -60
 railway logs --service askmukthiguru-8119b0e8 | tail -60
+
+# Verify the yt-dlp bot-block fix (see section above) actually worked:
+railway logs --service celery-worker | grep -iE "Sign in to confirm|Audio download failed|Council: Both sources failed" | tail -20
 ```
+
+Note on `railway status`: this session repeatedly saw it label a deploy
+"Deploy failed" immediately after `railway up`, while the deploy's own build
++ deploy logs showed a clean build, successful healthcheck, and live traffic
+being served. Confirmed at least twice by checking `railway logs -b
+<deployment-id>` and the boot banner in `railway logs --service <name>` after
+waiting ~1-2 min — the label appears to be a CLI/dashboard display lag, not a
+real failure, but ALWAYS verify against actual logs (new boot banner /
+`concurrency:` line / fresh `ForkPoolWorker` hostname) rather than trusting
+the status label at face value.
 
 Signal that ingestion is actively progressing (not stuck): new
 `ForkPoolWorker-N` process numbers appearing over time in celery-worker logs
