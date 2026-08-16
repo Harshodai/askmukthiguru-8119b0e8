@@ -113,7 +113,9 @@ async def ingest_endpoint(
         from tasks.ingest_tasks import ingest_playlist
         # Pass job_id as Celery task_id so /ingest/status/{task_id} can match ingest_jobs.id
         dispatch_kwargs = {"task_id": job_id} if job_id else {}
-        task = ingest_playlist.apply_async(args=[url, "en", tags, job_id], **dispatch_kwargs)
+        task = ingest_playlist.apply_async(
+            args=[url, "en", tags, job_id, ingest_body.max_accuracy], **dispatch_kwargs
+        )
         return IngestResponse(
             status="processing",
             message=f"Playlist ingestion queued via Celery. Job ID: {job_id or 'N/A'}",

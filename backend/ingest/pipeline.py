@@ -1067,7 +1067,15 @@ class IngestionPipeline:
             audio_fallback = await self._try_audio_transcribe_fallback(video_id)
             if audio_fallback and audio_fallback.get("text"):
                 result = audio_fallback
-            else:
+            elif max_accuracy:
+                # max_accuracy forced auto-captions off (allow_auto=not max_accuracy)
+                # and the Whisper/yt-dlp audio fallback just failed too (Railway has
+                # no yt-dlp JS runtime and gets bot-blocked by YouTube). Retrying
+                # without max_accuracy admits auto-captions as a last resort so the
+                # video is degraded, not lost outright.
+                result = fetch_transcript_hybrid(video_id, title="", max_accuracy=False)
+
+            if not result.get("text"):
                 return {
                     "status": "error",
                     "message": f"Could not extract transcript: {result.get('error', 'unknown')}",

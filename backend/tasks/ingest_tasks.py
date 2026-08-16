@@ -281,7 +281,7 @@ def ingest_document_task(
     retry_backoff=True,
     retry_jitter=True,
 )
-def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optional[list[str]] = None, job_id: str = None) -> dict[str, Any]:
+def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optional[list[str]] = None, job_id: str = None, max_accuracy: bool = True) -> dict[str, Any]:
     """Process a playlist: extract video URLs, create ingest_jobs for each, and chain them as a Celery chord."""
     from ingest.youtube_loader import get_playlist_video_urls
     from celery import chord
@@ -338,6 +338,7 @@ def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optiona
                     "metadata": metadata,
                     "job_id": child_job_id,
                     "tags": tags,
+                    "max_accuracy": max_accuracy,
                 }
             )
         )
