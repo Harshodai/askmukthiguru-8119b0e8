@@ -1247,7 +1247,14 @@ openSereneMind('audio');
           }
         }
       } catch (streamErr) {
-        const err = streamErr as { name?: string; errorCode?: string; status?: number; message?: string };
+        const err = streamErr as {
+          name?: string;
+          errorCode?: string;
+          status?: number;
+          message?: string;
+          quotaRemaining?: number;
+          quotaTotalLimit?: number;
+        };
         const wasAborted =
           err?.name === 'AbortError' || streamControllerRef.current?.signal.aborted;
         if (wasAborted) {
