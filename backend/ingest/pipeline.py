@@ -415,6 +415,36 @@ class IngestionPipeline:
         active_version = self._resolve_active_source_version(source_identity, source_version)
         return f"{self._corpus_id}:v{active_version}:{source_identity}"
 
+    def _persist_raw_corpus(
+        self, content_hash: str, source_url: str, raw_text: str, source_type: str
+    ) -> None:
+        """Persist the as-fetched text (pre-clean, pre-chunk) so reingestion never
+        needs to re-hit YouTube/PDF sources — transcripts vanish, get taken down,
+        or the extraction API changes; this is the durable copy of what we saw."""
+        from datetime import datetime, timezone
+
+        raw_dir = Path("data/raw_corpus")
+        raw_path = raw_dir / f"{content_hash}.json"
+        if raw_path.exists():
+            return
+        try:
+            raw_dir.mkdir(parents=True, exist_ok=True)
+            raw_path.write_text(
+                json.dumps(
+                    {
+                        "content_hash": content_hash,
+                        "source_url": source_url,
+                        "source_type": source_type,
+                        "raw_text": raw_text,
+                        "fetched_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+        except OSError as e:
+            logger.warning(f"Raw corpus persist skipped for {source_url}: {e}")
+
 
     def _resolve_active_source_version(
         self, source_identity: str, fallback_version: int = 1
@@ -599,6 +629,9 @@ class IngestionPipeline:
                     if not text.strip():
                         raise ValueError("PDF contains no readable text")
 
+                    pdf_content_hash = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
+                    self._persist_raw_corpus(pdf_content_hash, url, text, "pdf")
+
                     # Data Quality Gate
                     quality_res = await self._auditor.run(text, url)
                     if not quality_res.passed:
@@ -725,6 +758,7 @@ class IngestionPipeline:
         video_speaker = result.get("speaker", "Unknown")
 
         content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
+        self._persist_raw_corpus(content_hash, url, raw_text, "social_video")
         checkpoint = IngestionCheckpoint()
         if checkpoint.is_processed(self._checkpoint_key(content_hash)):
             self._notify(on_progress, "Content already processed. Skipping.", 1.0)
@@ -882,23 +916,15 @@ class IngestionPipeline:
         self._notify(on_progress, "Extracting structure, entities, and atomic facts...", 0.25)
         hyper_extract_result = self._enrich_text(clean_text)
 
-        # Step 2: Chunk (Hierarchical or Standard)
-        self._notify(on_progress, "Chunking and indexing...", 0.3)
-        extra_metadatas = None
-        if max_accuracy:
-            # Phase 2 Improvement: Parent-Child Hierarchical Chunking
-            self._notify(on_progress, "Generating hierarchical parent-child chunks...", 0.4)
-            final_chunks, extra_metadatas = self._hierarchical_split(
-                clean_text, title=title, speaker=speaker, topic=topic
-            )
-            chunks = final_chunks  # For RAPTOR later
-        else:
-            chunks = self._split_text(clean_text, title=title, speaker=speaker, topic=topic)
-
-            # Step 3: Document Augmentation (only for standard mode to avoid blowing up child chunk tokens)
-            # Pass clean_text as full_document so ContextualChunkingService can prepend situating context
-            self._notify(on_progress, "Augmenting chunks...", 0.5)
-            final_chunks = await self._augment_chunks(chunks, full_document=clean_text)
+        # Step 2: Parent-Child Hierarchical Chunking — unconditional (structural,
+        # no LLM calls; only Sarvam STT diarization is gated behind max_accuracy).
+        # Each child chunk already carries its parent context prepended, which is
+        # why this branch skips the separate LLM-based _augment_chunks step below.
+        self._notify(on_progress, "Generating hierarchical parent-child chunks...", 0.4)
+        final_chunks, extra_metadatas = self._hierarchical_split(
+            clean_text, title=title, speaker=speaker, topic=topic
+        )
+        chunks = final_chunks  # For RAPTOR later
 
         if not final_chunks:
             return {"status": "error", "message": "No meaningful chunks", "source_url": source_url}
@@ -946,7 +972,7 @@ class IngestionPipeline:
                 }
                 for c in chunks
             ]
-            if max_accuracy and getattr(settings, "raptor_parent_summaries_enabled", False):
+            if getattr(settings, "raptor_parent_summaries_enabled", False):
                 self._notify(on_progress, "Summarizing parent chunks for RAPTOR...", 0.87)
                 chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
             summaries_count = await self._raptor.build_tree(chunk_dicts)
@@ -1065,6 +1091,7 @@ class IngestionPipeline:
                 result["language"] = enriched["language"]
 
         content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
+        self._persist_raw_corpus(content_hash, url, raw_text, "youtube_video")
         checkpoint = IngestionCheckpoint()
         if checkpoint.is_processed(self._checkpoint_key(content_hash, source_version)):
             self._notify(on_progress, "Video content already processed. Skipping.", 1.0)
@@ -1122,25 +1149,25 @@ class IngestionPipeline:
         video_topic = result.get("topic", "Spiritual")
         video_language = result.get("language") or None
 
-        extra_metadatas = None
-        if max_accuracy:
-            self._notify(on_progress, "Generating hierarchical parent-child chunks...", 0.6)
-            final_chunks, extra_metadatas = self._hierarchical_split(
-                clean_text, title=video_title, speaker=video_speaker, topic=video_topic
-            )
-            chunks = final_chunks
-        else:
-            yt_chunks = chunk_youtube_transcript(
-                video_id,
-                clean_text,
-                chunk_size=settings.rag_chunk_size,
-                chunk_overlap=settings.rag_chunk_overlap,
-                languages=settings.transcript_languages_list,
-            )
-            chunks = [c["text"] for c in yt_chunks]
+        # Recover per-segment [t=XXs] timestamp markers before hierarchical
+        # splitting, so citations can still deep-link into the video — plain
+        # clean_text has no timing info once joined into one block.
+        yt_chunks = chunk_youtube_transcript(
+            video_id,
+            clean_text,
+            chunk_size=settings.rag_chunk_size,
+            chunk_overlap=settings.rag_chunk_overlap,
+            languages=settings.transcript_languages_list,
+        )
+        marked_text = "\n\n".join(c["text"] for c in yt_chunks) if yt_chunks else clean_text
 
-            self._notify(on_progress, "Augmenting chunks with potential questions...", 0.6)
-            final_chunks = await self._augment_chunks(chunks, full_document=clean_text)
+        # Parent-Child Hierarchical Chunking — unconditional (structural, no LLM
+        # calls; only Sarvam STT diarization is gated behind max_accuracy).
+        self._notify(on_progress, "Generating hierarchical parent-child chunks...", 0.6)
+        final_chunks, extra_metadatas = self._hierarchical_split(
+            marked_text, title=video_title, speaker=video_speaker, topic=video_topic
+        )
+        chunks = final_chunks
 
         if not final_chunks:
             return {
@@ -1210,7 +1237,7 @@ class IngestionPipeline:
                 }
                 for c in chunks
             ]
-            if max_accuracy and getattr(settings, "raptor_parent_summaries_enabled", False):
+            if getattr(settings, "raptor_parent_summaries_enabled", False):
                 self._notify(on_progress, "Summarizing parent chunks for RAPTOR...", 0.82)
                 chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
             summaries_count = await self._raptor.build_tree(chunk_dicts)
@@ -1321,6 +1348,7 @@ class IngestionPipeline:
         raw_text = result["text"]
 
         content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
+        self._persist_raw_corpus(content_hash, url, raw_text, "youtube_video_enhanced")
         checkpoint = IngestionCheckpoint()
         if checkpoint.is_processed(self._checkpoint_key(content_hash, source_version)):
             self._notify(on_progress, "Video content already processed. Skipping.", 1.0)
@@ -1828,7 +1856,7 @@ class IngestionPipeline:
                         }
                         for c in chunks
                     ]
-                    if max_accuracy and getattr(settings, "raptor_parent_summaries_enabled", False):
+                    if getattr(settings, "raptor_parent_summaries_enabled", False):
                         chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
                     summaries_count = await self._raptor.build_tree(chunk_dicts)
 

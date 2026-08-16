@@ -82,6 +82,8 @@ qdrant_data/
 models/**/*.bin
 data/**/*.bin
 data/ingest_checkpoint.json
+data/raw_corpus/
+backend/data/raw_corpus/
 hf_model_cache/
 data/gptcache/
 data/lightrag/kv_store_*.json

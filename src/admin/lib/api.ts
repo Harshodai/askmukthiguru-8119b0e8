@@ -521,6 +521,38 @@ export async function getIngestionStatus() {
   return fetchWithAuth('/api/ingest/status');
 }
 
+// Multipart upload — bypasses fetchWithAuth's forced JSON content-type so the
+// browser can set the multipart boundary itself.
+export async function uploadDocument(file: File, maxAccuracy: boolean = false) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('max_accuracy', String(maxAccuracy));
+  formData.append('tags', 'general');
+
+  const response = await fetch(`${BACKEND_URL}/api/ingest/upload`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Admin access required or session expired');
+    }
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail || `API error: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function ingestBook(): Promise<{ status: string; task_id: string; collection: string }> {
+  return fetchWithAuth('/api/admin/ingest/book', { method: 'POST' });
+}
+
 // ── Admin write actions (real backend endpoints) ─────────────────────────────
 export async function promoteAdmin(email: string): Promise<{ ok: boolean; message?: string; user_id?: string }> {
   return fetchWithAuth('/api/admin/admins/promote', {

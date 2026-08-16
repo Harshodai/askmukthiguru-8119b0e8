@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useIngestionRuns, useIngestionHealth } from "@/admin/hooks/useAdminData";
-import { triggerReingest, submitIngestion, getIngestionStatus, clearCache } from "@/admin/lib/api";
+import { triggerReingest, submitIngestion, getIngestionStatus, clearCache, uploadDocument, ingestBook } from "@/admin/lib/api";
 import { KpiCard } from "@/admin/components/KpiCard";
 import {
   Table,
@@ -37,8 +37,11 @@ export default function IngestionPage() {
   const [url, setUrl] = useState("");
   const [maxAccuracy, setMaxAccuracy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [bookIngesting, setBookIngesting] = useState(false);
   const [activeJobs, setActiveJobs] = useState<Record<string, IngestionJob>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Poll for active ingestion status
   useEffect(() => {
@@ -105,6 +108,35 @@ export default function IngestionPage() {
       toast.error(err instanceof Error ? err.message : "Failed to start ingestion");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const res = await uploadDocument(file, maxAccuracy);
+      toast.success(res.message || "Document upload queued");
+      setActiveJobs((prev) => ({
+        ...prev,
+        [`upload:${file.name}`]: { status: "processing", message: "Starting...", progress: 0 },
+      }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to upload document");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleBookIngest = async () => {
+    setBookIngesting(true);
+    try {
+      const res = await ingestBook();
+      toast.success(`Book ingestion queued. Task ID: ${res.task_id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to queue book ingestion");
+    } finally {
+      setBookIngesting(false);
     }
   };
 
@@ -185,6 +217,36 @@ export default function IngestionPage() {
               </Label>
             </div>
           </form>
+
+          <div className="mt-4 pt-4 border-t border-border/40 flex flex-wrap items-center gap-3">
+            <Label htmlFor="ingest-file-upload" className="text-xs text-muted-foreground shrink-0">
+              Or upload a PDF directly
+            </Label>
+            <input
+              id="ingest-file-upload"
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              disabled={uploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileUpload(file);
+              }}
+              className="text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80 file:cursor-pointer disabled:opacity-50"
+            />
+            {uploading && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="ml-auto gap-2"
+              disabled={bookIngesting}
+              onClick={handleBookIngest}
+            >
+              {bookIngesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              Re-ingest Four Sacred Secrets Book
+            </Button>
+          </div>
 
           {/* Active Jobs */}
           {Object.keys(activeJobs).length > 0 && (

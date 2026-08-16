@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -149,6 +149,78 @@ async def ingest_endpoint(
         status="processing",
         message=f"Ingestion queued via Celery. Job ID: {job_id or 'N/A'}",
         source_url=url,
+        job_id=job_id,
+    )
+
+
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25MB
+
+
+@router.post("/ingest/upload", response_model=IngestResponse)
+@limiter.limit("5/minute")
+async def ingest_upload_endpoint(
+    request: Request,
+    file: UploadFile = File(...),
+    max_accuracy: bool = Form(False),
+    tags: str = Form("general"),
+    user: dict = Depends(require_aal2),
+    container: ServiceContainer = Depends(get_container),
+    _tenant=Depends(set_tenant_from_request),
+) -> IngestResponse:
+    """Upload a PDF directly (no public URL required) and ingest it (Admin only)."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    filename = file.filename or "upload.pdf"
+    if not filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF uploads are supported")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit")
+
+    import fitz
+
+    try:
+        with fitz.open(stream=content, filetype="pdf") as doc:
+            pages_text = [p.get_text().strip() for p in doc if p.get_text().strip()]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse PDF: {e}")
+
+    text = "\n\n".join(pages_text)
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="PDF contains no readable text")
+
+    title = filename.rsplit(".", 1)[0].replace("-", " ").replace("_", " ").title()
+    tag_list = list({t.strip().lower() for t in tags.split(",") if t.strip()}) or ["general"]
+    source_url = f"upload:{filename}"
+
+    job_id = None
+    if container.supabase_client:
+        try:
+            resp = container.supabase_client.table("ingest_jobs").insert({
+                "source_url": source_url,
+                "status": "pending",
+                "progress_pct": 0,
+            }).execute()
+            if resp.data:
+                job_id = resp.data[0]["id"]
+        except Exception as e:
+            logger.warning(f"Failed to create job in Supabase: {e}")
+
+    from tasks.ingest_tasks import ingest_document_task
+    dispatch_kwargs = {"task_id": job_id} if job_id else {}
+    ingest_document_task.apply_async(
+        args=[text, source_url, title, tag_list, max_accuracy, job_id],
+        **dispatch_kwargs,
+    )
+
+    return IngestResponse(
+        status="processing",
+        message=f"Document ingestion queued via Celery. Job ID: {job_id or 'N/A'}",
+        source_url=source_url,
         job_id=job_id,
     )
 

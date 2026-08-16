@@ -99,6 +99,7 @@ celery_app.conf.task_queues = task_queues
 
 celery_app.conf.task_routes = {
     "tasks.ingest_tasks.orchestrate_ingestion": {"queue": "ingestion"},
+    "tasks.ingest_tasks.ingest_document_task": {"queue": "ingestion"},
     "tasks.ingest_tasks.ingest_playlist": {"queue": "ingestion"},
     "tasks.ingest_tasks.playlist_complete": {"queue": "ingestion"},
     "tasks.okf_compile_tasks.compile_okf_index": {"queue": "okf"},

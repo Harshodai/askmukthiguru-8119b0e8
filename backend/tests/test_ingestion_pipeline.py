@@ -107,7 +107,7 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
 
 
 def test_ingest_raw_text_metadata_propagation(mock_pipeline, monkeypatch):
-    """Contextual chunking path must persist source_version, ingested_at, authority_tier."""
+    """Hierarchical parent-child chunking path must persist source_version, ingested_at, authority_tier."""
     from app.config import settings
 
     monkeypatch.setattr(settings, "use_adaptive_chunking", False)
@@ -161,8 +161,9 @@ def test_ingest_raw_text_metadata_propagation(mock_pipeline, monkeypatch):
     assert metadata_list[0]["source_version"] == 2
     assert metadata_list[0]["authority_tier"] == "primary"
     assert "ingested_at" in metadata_list[0]
-    # Contextual enrichment ran because full_document is supplied
-    assert chunk_texts[0].startswith("[Context:")
+    # Hierarchical parent-child chunking runs unconditionally now (no LLM
+    # augmentation gate) — child chunks carry a [Source: ...] prefix.
+    assert chunk_texts[0].startswith("[Source:")
 
 
 def test_ingest_video_audio_fallback_enriches_missing_metadata(mock_pipeline, monkeypatch):

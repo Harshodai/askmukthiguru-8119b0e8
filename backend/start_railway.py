@@ -192,7 +192,7 @@ if __name__ == "__main__":
             "-A", "celery_config",
             "worker",
             "-Q", "ingestion,embedding,indexing,okf,memory",
-            "--concurrency=1",
+            f"--concurrency={os.environ.get('CELERY_CONCURRENCY', '2')}",
             "--without-gossip",
             "--without-mingle",
             "--without-heartbeat",

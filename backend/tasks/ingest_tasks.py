@@ -211,6 +211,76 @@ def orchestrate_ingestion(
     retry_backoff=True,
     retry_jitter=True,
 )
+def ingest_document_task(
+    self,
+    text: str,
+    source_url: str,
+    title: str,
+    tags: Optional[list[str]] = None,
+    max_accuracy: bool = False,
+    job_id: str = None,
+) -> dict[str, Any]:
+    """Ingest already-extracted document text (e.g. an uploaded PDF) through the
+    full pipeline: hierarchical chunking, embed, Qdrant, RAPTOR, LightRAG, OKF."""
+    logger.info(f"Ingesting uploaded document: {source_url}")
+
+    if job_id:
+        update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)
+
+    def progress_cb(msg: str, pct: float):
+        if job_id:
+            update_job_progress(job_id, "running", progress_pct=int(10 + pct * 80))
+
+    try:
+        from app.dependencies import get_container
+        container = get_container()
+
+        result = self.run_async(
+            container.ingestion.ingest_raw_text(
+                text=text,
+                source_url=source_url,
+                title=title,
+                content_type="document",
+                max_accuracy=max_accuracy,
+                on_progress=progress_cb,
+                tags=tags or ["general"],
+            )
+        )
+
+        if isinstance(result, dict) and result.get("status") == "error":
+            raise RuntimeError(result.get("message", "Ingestion failed"))
+
+        chunks_indexed = result.get("chunks_indexed", 0) if isinstance(result, dict) else 0
+
+        if job_id:
+            update_job_progress(job_id, "completed", progress_pct=100, chunks_indexed=chunks_indexed)
+
+        try:
+            container.exact_cache.invalidate_all()
+            container.semantic_cache.invalidate_all()
+        except Exception as cache_e:
+            logger.warning(f"Failed to invalidate cache: {cache_e}")
+
+        return {
+            "status": "success",
+            "source_url": source_url,
+            "indexing": {"count": chunks_indexed},
+            "result": result,
+        }
+    except Exception as exc:
+        logger.error(f"Document ingestion failed for {source_url}: {exc}")
+        if job_id:
+            update_job_progress(job_id, "failed", error_message=str(exc))
+        raise
+
+
+@celery_app.task(
+    base=AsyncTask, bind=True,
+    autoretry_for=RETRYABLE_INGEST_ERRORS,
+    retry_kwargs={"max_retries": 2},
+    retry_backoff=True,
+    retry_jitter=True,
+)
 def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optional[list[str]] = None, job_id: str = None) -> dict[str, Any]:
     """Process a playlist: extract video URLs, create ingest_jobs for each, and chain them as a Celery chord."""
     from ingest.youtube_loader import get_playlist_video_urls
