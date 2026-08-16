@@ -1,0 +1,35 @@
+# Minimal image for scripts/ingestion/fetch_and_forward_to_railway.py.
+# Deliberately tiny — no Qdrant/Neo4j/ML deps, just yt-dlp + youtube-transcript-api + httpx.
+# The whole point is to run this on YOUR machine (residential IP), not Railway.
+#
+# Two-phase local ingestion: fetch transcripts here (residential IP), then
+# upload the .md files to Railway once you have an admin token. Same image,
+# two scripts — pick which one to run at `docker run` time.
+#
+# Build:  docker build -f scripts/ingestion/Dockerfile.local-fetch -t mg-local-fetch scripts/ingestion/
+#         (context is scripts/ingestion/ itself — repo-root .dockerignore excludes scripts/*
+#          from the main image's build context, so this one deliberately doesn't use it)
+#
+# Phase 1 (no token needed):
+#   docker run --rm -v "$(pwd)/scripts/ingestion:/data" mg-local-fetch \
+#     1_fetch_transcripts_local.py --limit 3
+#
+# Phase 2 (needs MUKTHI_ADMIN_TOKEN — see that script's docstring):
+#   docker run --rm -e MUKTHI_ADMIN_TOKEN -v "$(pwd)/scripts/ingestion:/data" mg-local-fetch \
+#     2_upload_transcripts_to_railway.py --limit 3
+FROM python:3.12-slim
+
+WORKDIR /app
+COPY requirements-local-fetch.txt .
+RUN pip install --no-cache-dir -r requirements-local-fetch.txt
+
+COPY 1_fetch_transcripts_local.py 2_upload_transcripts_to_railway.py .
+RUN mkdir -p /data
+
+# transcripts/ and state files live in the mounted /data volume so runs are
+# resumable across containers.
+ENV PYTHONUNBUFFERED=1
+ENV MUKTHI_STATE_DIR=/data
+ENV MUKTHI_TRANSCRIPTS_DIR=/data/transcripts
+ENTRYPOINT ["python3"]
+CMD ["1_fetch_transcripts_local.py", "--help"]

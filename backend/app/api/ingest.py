@@ -155,6 +155,81 @@ async def ingest_endpoint(
     )
 
 
+class RawTextIngestRequest(BaseModel):
+    """Body for submitting already-fetched text (e.g. a transcript fetched
+    locally, off Railway's blocked/rate-limited IP) for the rest of the
+    pipeline: chunk, embed, Qdrant, RAPTOR, LightRAG, OKF."""
+
+    text: str = Field(..., description="Already-fetched raw text (transcript, article, etc.)")
+    source_url: str = Field(..., description="Original source URL — used for dedup/citation")
+    title: str = Field(default="", description="Title for the content")
+    tags: list[str] = Field(default=["general"])
+    max_accuracy: bool = Field(default=True)
+
+
+MAX_RAW_TEXT_CHARS = 2_000_000  # ~2MB of text — a single video transcript is a few KB-100KB
+
+
+@router.post("/ingest/raw-text", response_model=IngestResponse)
+@limiter.limit("20/minute")
+async def ingest_raw_text_endpoint(
+    request: Request,
+    body: RawTextIngestRequest,
+    user: dict = Depends(require_aal2),
+    container: ServiceContainer = Depends(get_container),
+    _tenant=Depends(set_tenant_from_request),
+) -> IngestResponse:
+    """Ingest pre-fetched text directly — the receiving half of a split
+    pipeline where transcript-fetching runs locally (residential IP, not
+    subject to Railway's datacenter-IP bot-block) and the rest of the
+    pipeline (chunk/embed/Qdrant/RAPTOR/LightRAG/OKF) runs here. Admin only."""
+    if not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text cannot be empty")
+    if len(text) > MAX_RAW_TEXT_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"text exceeds {MAX_RAW_TEXT_CHARS // 1_000_000}MB limit",
+        )
+
+    source_url = body.source_url.strip()
+    if not source_url:
+        raise HTTPException(status_code=400, detail="source_url cannot be empty")
+
+    title = body.title.strip() or source_url
+    tag_list = list({t.strip().lower() for t in body.tags if t and t.strip()}) or ["general"]
+
+    job_id = None
+    if container.supabase_client:
+        try:
+            resp = container.supabase_client.table("ingest_jobs").insert({
+                "source_url": source_url,
+                "status": "pending",
+                "progress_pct": 0,
+            }).execute()
+            if resp.data:
+                job_id = resp.data[0]["id"]
+        except Exception as e:
+            logger.warning(f"Failed to create job in Supabase: {e}")
+
+    from tasks.ingest_tasks import ingest_document_task
+    dispatch_kwargs = {"task_id": job_id} if job_id else {}
+    ingest_document_task.apply_async(
+        args=[text, source_url, title, tag_list, body.max_accuracy, job_id],
+        **dispatch_kwargs,
+    )
+
+    return IngestResponse(
+        status="processing",
+        message=f"Raw text ingestion queued via Celery. Job ID: {job_id or 'N/A'}",
+        source_url=source_url,
+        job_id=job_id,
+    )
+
+
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25MB
 
 

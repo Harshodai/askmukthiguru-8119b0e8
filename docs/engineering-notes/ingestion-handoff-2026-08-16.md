@@ -41,6 +41,154 @@ CLI status label showed "Deploy failed" but its own deploy logs show a clean
 boot and live 200s including `/api/health` — treat that label as a known CLI
 display flake, not a real failure, unless fresh logs say otherwise.
 
+## OPENROUTER_GENERATION_MODEL 404 — biggest single finding, fixed live (no commit, Railway env var)
+
+**This was silently killing almost every video in the run, independent of
+the yt-dlp issue.** Live celery logs showed every successfully-transcribed
+video getting auto-rejected:
+
+```
+Content rejected by Data Quality Gate: score 40/100. Reasons: QUALITY_UNKNOWN:
+LLM scoring unavailable: Client error '404 Not Found' for url
+'https://openrouter.ai/api/v1/chat/completions'
+OpenRouter call failed during correction (model=meta-llama/llama-3.3-70b-instruct:free)
+```
+
+Root cause: `meta-llama/llama-3.3-70b-instruct:free` no longer exists in
+OpenRouter's catalog — confirmed via `curl -s https://openrouter.ai/api/v1/models`,
+the `:free` tier of that model was discontinued (the paid
+`meta-llama/llama-3.3-70b-instruct`, no `:free` suffix, still exists, but
+that costs money — against this project's $0-budget rule). Every call using
+this model 404s: transcript correction, quality scoring, and — since
+`OPENROUTER_GENERATION_MODEL` is very likely the same var driving live chat
+answer generation, not just ingestion — **possibly live chat too**.
+
+**Fix applied**: `railway variable set "OPENROUTER_GENERATION_MODEL=openai/gpt-oss-20b:free" --service <name>`
+on both `askmukthiguru-8119b0e8` and `celery-worker` (confirmed present in
+OpenRouter's live catalog, Apache-2.0, general-purpose 20B instruction model).
+Both services auto-rebuilt on the var change.
+
+**Next agent — verify, don't assume**:
+1. `railway logs --service celery-worker | grep -i "openrouter.ai/api/v1/chat/completions"` —
+   confirm no more 404s, and no NEW errors with the replacement model.
+2. Re-check a video that was previously rejected (any playlist video ID from
+   the "0 chunks" pattern in earlier logs) or the `BMJrDu-folk` test video —
+   does it now get `chunks_indexed > 0` and `status: success` instead of
+   `status: rejected`?
+3. **Spot-check live chat is not broken**: send a real message through the
+   chat UI (not admin), confirm a real generated answer comes back — not an
+   error, not a fallback/degraded response. If `OPENROUTER_GENERATION_MODEL`
+   really is shared with the chat path, this bug may have been live in
+   production chat, not just ingestion — worth confirming and flagging to the
+   user with urgency if so.
+4. Also worth checking `OPENROUTER_GENERATION_MODEL_FALLBACK=google/gemini-2.5-flash`
+   (found while investigating, not touched) — a fallback var exists but the
+   404s weren't caught by it, meaning the failover logic either isn't wired to
+   this specific call site or isn't triggering on 404s specifically. Not
+   chased further this session — worth checking `services/model_failover.py`
+   / wherever `OPENROUTER_GENERATION_MODEL_FALLBACK` is actually read, if any.
+
+## youtube-transcript-api proxy gap — found, NOT fixable by an agent
+
+Separate from yt-dlp's bot-block: `youtube-transcript-api` (used for Tier-1/2
+manual+auto caption fetch, `ingest/youtube_loader.py:_fetch_youtube_captions_api`)
+is also subject to YouTube blocking/rate-limiting requests from cloud/datacenter
+IPs (confirmed via web search — this is a known, common failure mode for any
+server-hosted use of this library, distinct from bot-block and from PoToken
+requirements). The codebase already has proxy support wired:
+`_apply_proxy()` in `ingest/youtube_loader.py` reads `WEBSHARE_PROXY_URL` and
+sets `HTTP_PROXY`/`HTTPS_PROXY` — **but no such variable is set on Railway**
+(confirmed via `railway variable list --service celery-worker --kv | grep -i proxy`,
+empty). This is likely why more videos than expected fall through to the
+broken Tier-3/4 yt-dlp path in the first place, instead of succeeding cleanly
+at Tier-1/2 captions.
+
+**This needs a Webshare (or equivalent) proxy account — signup and payment
+info, something only the user can do, not fixable by an agent.** If the user
+sets one up: set `WEBSHARE_PROXY_URL` on both Railway services, no code
+change needed, `_apply_proxy()` already picks it up.
+
+## Split-pipeline architecture — local transcript fetch, Railway does the rest (TWO PHASES)
+
+Built this session as a workaround for both IP-block problems above: fetch
+transcripts from a residential IP (bypasses the whole class of
+datacenter-IP-block problems), then separately upload the raw text to
+Railway for everything downstream (chunk, embed, Qdrant, RAPTOR, LightRAG,
+OKF) — which already works fine there, the blocking only happens on the
+fetch step.
+
+**Deliberately two separate phases/scripts, not one combined script** — the
+user explicitly asked for this after an initial combined version, and it's a
+real improvement: fetching 20 playlists can take a long time, and a Supabase
+admin token expires in ~1h, so gating the whole fetch run on a live token was
+fragile. Splitting means Phase 1 needs no token at all; only the fast Phase 2
+(upload) does.
+
+**Explicitly NOT using Apify** (`scripts/ingestion/extract_transcripts.py`,
+a pre-existing paid-third-party-API transcript extractor already in this
+repo) — user's explicit instruction. Kept as a flag/reference only: the new
+scripts' output `.md` format deliberately matches `extract_transcripts.py`'s
+`write_md()` format (`# Title`, `**Video ID:**`, `**URL:**`, `## Transcript`)
+so either tool's output is interchangeable with Phase 2's uploader, but the
+new scripts use `youtube_transcript_api` — $0, no third-party account needed
+(matches the project's $0-budget rule; Apify is small-but-nonzero cost and
+needs a signup/token).
+
+**New pieces:**
+- `POST /api/ingest/raw-text` (`backend/app/api/ingest.py`) — admin-only
+  (`require_aal2`), takes `{text, source_url, title, tags, max_accuracy}`
+  JSON, dispatches the same `ingest_document_task` the PDF-upload feature
+  uses. The receiving end, lives on Railway.
+- `scripts/ingestion/1_fetch_transcripts_local.py` — **Phase 1**. No admin
+  token needed. Expands playlists via a flat `yt-dlp` extract (metadata
+  only, no download), fetches manual-then-auto captions via
+  `youtube_transcript_api`, writes one `.md` file per video to
+  `scripts/ingestion/transcripts/` (gitignored). Resumable — skips videos
+  that already have a `.md` file.
+- `scripts/ingestion/2_upload_transcripts_to_railway.py` — **Phase 2**. Reads
+  every `.md` in `scripts/ingestion/transcripts/`, parses out video_id/url/
+  title/transcript text, POSTs each to `/api/ingest/raw-text`. Resumable via
+  `scripts/ingestion/upload_state.json` (gitignored).
+- `scripts/ingestion/Dockerfile.local-fetch` + `requirements-local-fetch.txt`
+  — one minimal image (no ML/DB deps, just yt-dlp + youtube-transcript-api +
+  httpx) runs either phase by passing the script name as the docker command.
+
+**Verified this session** (both bare-Python and Docker):
+- `docker build -f scripts/ingestion/Dockerfile.local-fetch -t mg-local-fetch scripts/ingestion/` — succeeds.
+- Phase 1 actually fetched the real `BMJrDu-folk` transcript (9324 chars, auto-captions) both via bare Python (`backend/.venv/bin/python3 scripts/ingestion/1_fetch_transcripts_local.py --url ...`) and inside the Docker container with a mounted volume — both wrote a correctly-formatted `.md` file, and the resume-skip logic correctly detected the already-fetched file on a second run.
+- Phase 2's `parse_transcript_md()` correctly extracted video_id/url/title/text back out of that real fetched file (verified via direct function call — the actual upload POST was NOT tested, no admin token available in this sandbox).
+- **Not yet verified**: the full fetch → upload → Railway `/api/ingest/raw-text` → `ingest_document_task` → Qdrant round trip, and whether it actually runs successfully from the *user's actual home machine* (this session's sandbox network worked, which is a good sign but not the same environment).
+
+**How the user runs it:**
+```bash
+# Phase 1 — no token needed, run from anywhere:
+python3 scripts/ingestion/1_fetch_transcripts_local.py --limit 3   # test 3 videos first
+# ...or via Docker:
+docker build -f scripts/ingestion/Dockerfile.local-fetch -t mg-local-fetch scripts/ingestion/
+docker run --rm -v "$(pwd)/scripts/ingestion:/data" mg-local-fetch \
+  1_fetch_transcripts_local.py --limit 3
+
+# Once transcripts/ looks right, get an admin token (expires ~1h, re-copy if
+# stale): log into askmukthiguru.lovable.app as admin, DevTools ->
+# Application -> Local Storage -> "sb-<project-ref>-auth-token" key -> copy
+# the "access_token" field out of that JSON value.
+export MUKTHI_ADMIN_TOKEN="<paste it>"
+
+# Phase 2 — upload:
+python3 scripts/ingestion/2_upload_transcripts_to_railway.py --limit 3
+# ...or via Docker:
+docker run --rm -e MUKTHI_ADMIN_TOKEN -v "$(pwd)/scripts/ingestion:/data" mg-local-fetch \
+  2_upload_transcripts_to_railway.py --limit 3
+
+# Once both test batches look right in the admin dashboard, drop --limit on
+# Phase 1 to fetch the full 20 playlists, then run Phase 2 (no --limit) to
+# upload everything. Both phases are safe to re-run/interrupt.
+```
+
+**Next agent**: check the actual upload round trip once the user has run
+Phase 2 for real — `railway logs --service celery-worker | grep -i
+"<video_id>"` the same way as the rest of this doc.
+
 ## yt-dlp bot-block / JS-runtime fix (commit `173d6abb`, deployed)
 
 Root cause found via web search + code audit: `youtube_loader.py`'s
