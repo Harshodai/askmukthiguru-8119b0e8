@@ -140,6 +140,10 @@ def download_audio_stream(url: str, out_dir: Path, timeout: int = 1800) -> Path:
     cmd += [
         "--extractor-args",
         "youtube:player_client=android,android_vr,tv_simply,tv_embedded,mweb,web,ios",
+        "--sleep-requests",
+        "1",
+        "--sleep-interval",
+        "2",
     ]
     try:
         from ingest.youtube_loader import _get_cookies_opts
