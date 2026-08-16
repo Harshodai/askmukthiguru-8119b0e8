@@ -45,35 +45,7 @@ export const LANGUAGES: Language[] = MASTER_LANGUAGES.filter((lang) => {
   return ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'ur', 'pa', 'or', 'as', 'sa'].includes(lang.code);
 });
 
-/**
- * Flag emoji per language code. Used to make the pill visually rich.
- * A few rare scheduled languages share the 🇮🇳 flag.
- */
-export const LANGUAGE_FLAGS: Record<string, string> = {
-  en:  '🇮🇳',
-  hi:  '🇮🇳',
-  bn:  '🇮🇳',
-  te:  '🇮🇳',
-  mr:  '🇮🇳',
-  ta:  '🇮🇳',
-  ur:  '🇮🇳',
-  gu:  '🇮🇳',
-  kn:  '🇮🇳',
-  ml:  '🇮🇳',
-  or:  '🇮🇳',
-  pa:  '🇮🇳',
-  as:  '🇮🇳',
-  mai: '🇮🇳',
-  sa:  '🇮🇳',
-  ks:  '🇮🇳',
-  ne:  '🇳🇵',
-  sd:  '🇮🇳',
-  kok: '🇮🇳',
-  doi: '🇮🇳',
-  mni: '🇮🇳',
-  sat: '🇮🇳',
-  brx: '🇮🇳',
-};
+
 
 /**
  * Short display label for the pill (≤ 6 chars). For English show "EN";
@@ -313,27 +285,34 @@ export const LanguageSelector = ({
             onClick={() => handleLanguageChange(lang.code)}
             onFocus={() => setFocusedIndex(idx)}
             tabIndex={isFocused ? 0 : -1}
-            className={`w-full px-3 py-3 text-left hover:bg-ojas/10 transition-colors flex items-center gap-3 ${
+            className={`w-full min-h-[48px] px-3 py-2 text-left hover:bg-ojas/10 transition-colors flex items-center gap-3 ${
               isSelected ? 'bg-ojas/15' : ''
             } ${isFocused ? 'ring-1 ring-ojas/50 bg-ojas/10' : ''}`}
             role="option"
             aria-selected={isSelected}
           >
-            <div className="flex-1 min-w-0 flex items-baseline gap-2 flex-wrap">
+            <div
+              className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                isSelected ? 'bg-ojas/20 text-ojas' : 'bg-muted/60 text-muted-foreground'
+              }`}
+            >
+              <Globe className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
               <span
-                className={`font-semibold truncate ${
-                  lang.code === 'en' ? 'text-base' : 'text-lg'
+                className={`block font-medium truncate ${
+                  lang.code === 'en' ? 'text-sm' : 'text-base'
                 } ${isSelected ? 'text-ojas' : 'text-foreground'}`}
                 lang={lang.bcp47}
               >
                 {lang.native}
               </span>
-              <span className="text-muted-foreground text-sm truncate">
+              <span className="block text-xs text-muted-foreground truncate">
                 {lang.name}
               </span>
             </div>
             {isSelected && (
-              <span className="w-2 h-2 rounded-full bg-ojas flex-shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-ojas flex-shrink-0" />
             )}
           </button>
         );
@@ -342,7 +321,6 @@ export const LanguageSelector = ({
   );
 
   if (compact) {
-    const flag = LANGUAGE_FLAGS[selectedLanguage] ?? '🌐';
     const lang = LANGUAGES.find((l) => l.code === selectedLanguage);
     const label = lang ? pillLabel(lang) : selectedLanguage.toUpperCase();
     const isNonEnglish = selectedLanguage !== 'en';
@@ -441,7 +419,7 @@ export const LanguageSelector = ({
             if (!isOpen) updatePosition();
             setIsOpen(!isOpen);
           }}
-          className="flex items-center gap-2 px-3 py-2 min-h-[44px] rounded-full bg-card hover:bg-ojas/10 border border-border hover:border-ojas/30 transition-all text-sm shadow-sm"
+          className="flex items-center gap-2 px-3 py-2 min-h-[44px] min-w-[44px] rounded-full bg-card hover:bg-ojas/10 border border-border hover:border-ojas/30 transition-all text-sm shadow-sm"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           aria-haspopup="listbox"
@@ -473,7 +451,7 @@ export const LanguageSelector = ({
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
                 ref={popoverRef}
-                className="fixed w-72 max-w-[calc(100vw-2rem)] flex flex-col bg-popover border border-border rounded-xl shadow-2xl z-[100] overflow-hidden"
+                className="fixed w-72 max-w-[calc(100vw-2rem)] flex flex-col bg-popover border border-border rounded-2xl shadow-2xl z-[100] overflow-hidden"
                 style={{ bottom: coords.bottom, left: coords.left, maxHeight: Math.min(320, coords.maxHeight) }}
                 role="listbox"
                 aria-label="Select language"

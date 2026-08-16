@@ -55,7 +55,7 @@ export const ChatEmptyState = ({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2, duration: 0.5 }}
-      className={`bg-gradient-to-b from-gray-950/5 via-background to-gray-950/5 max-w-lg mx-auto text-center grid gap-3 w-full ${
+      className={`max-w-lg mx-auto text-center grid gap-3 w-full ${
         lastConvo && teaching?.caption ? 'md:grid-cols-5' : 'grid-cols-1'
       }`}
     >
@@ -65,35 +65,31 @@ export const ChatEmptyState = ({
           onClick={() => onResume(lastConvo)}
           whileHover={{ y: -2 }}
           transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          className={`group relative text-left rounded-2xl border border-ojas/30 bg-gradient-to-br from-card/80 to-ojas/[0.04] hover:border-ojas/60 backdrop-blur-md p-5 transition-all shadow-sm hover:shadow-lg hover:shadow-ojas/10 overflow-hidden ${
+          className={`group relative text-left rounded-2xl border border-hairline bg-card hover:border-ojas/40 p-4 transition-all shadow-sm hover:shadow-md overflow-hidden ${
             teaching?.caption ? 'md:col-span-3' : ''
           }`}
           aria-label={t('chat.continueLast')}
         >
-          <div
-            aria-hidden
-            className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-ojas/0 via-ojas/70 to-ojas/0 opacity-60 group-hover:opacity-100 transition-opacity"
-          />
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-full bg-ojas/15 flex items-center justify-center">
-              <History className="w-3.5 h-3.5 text-ojas" />
+            <div className="w-6 h-6 rounded-full bg-ojas/10 flex items-center justify-center">
+              <History className="w-3 h-3 text-ojas" />
             </div>
-            <span className="text-[10px] font-semibold text-ojas uppercase tracking-[0.15em]">
+            <span className="text-[10px] font-semibold text-ojas uppercase tracking-wider">
               {t('chat.continueLeftOff')}
             </span>
-            <span className="text-[10px] text-foreground/45 ml-auto tabular-nums">
+            <span className="text-[10px] text-muted-foreground ml-auto tabular-nums">
               {formatRelative(lastConvo.updatedAt, t)}
             </span>
           </div>
-          <p className="text-[15px] text-foreground/90 font-sans leading-relaxed line-clamp-2 mb-3">
+          <p className="text-sm text-foreground/90 leading-relaxed line-clamp-2 mb-3">
             {lastConvo.preview || t('chat.resumeLast')}
           </p>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-[11px] text-foreground/55">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <MessageSquare className="w-3 h-3" />
               <span>{userMessageCount} {t('common.message', { count: userMessageCount })}</span>
             </div>
-            <div className="flex items-center gap-1 text-xs font-medium text-ojas group-hover:gap-2 transition-all">
+            <div className="flex items-center gap-1 text-xs font-medium text-ojas group-hover:gap-1.5 transition-all">
               {t('chat.resume')} <ArrowRight className="w-3.5 h-3.5" />
             </div>
           </div>
@@ -106,20 +102,20 @@ export const ChatEmptyState = ({
           onClick={onOpenTeaching}
           whileHover={{ y: -2 }}
           transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          className={`group relative text-left rounded-2xl border border-ojas/30 bg-gradient-to-br from-ojas/[0.08] to-ojas/[0.02] hover:border-ojas/60 backdrop-blur-md p-5 transition-all shadow-sm hover:shadow-lg hover:shadow-ojas/10 overflow-hidden ${
+          className={`group relative text-left rounded-2xl border border-hairline bg-card hover:border-ojas/40 p-4 transition-all shadow-sm hover:shadow-md overflow-hidden ${
             lastConvo ? 'md:col-span-2' : ''
           }`}
           aria-label={t('chat.openTeaching')}
         >
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-full bg-ojas/15 flex items-center justify-center">
-              <Sparkles className="w-3.5 h-3.5 text-ojas animate-pulse" />
+            <div className="w-6 h-6 rounded-full bg-ojas/10 flex items-center justify-center">
+              <Sparkles className="w-3 h-3 text-ojas" />
             </div>
-            <span className="text-[10px] font-semibold text-ojas uppercase tracking-[0.15em]">
+            <span className="text-[10px] font-semibold text-ojas uppercase tracking-wider">
               {t('chat.todaysTeaching')}
             </span>
           </div>
-          <p className="text-[14px] text-foreground/85 font-serif italic leading-relaxed line-clamp-3">
+          <p className="text-[13px] text-foreground/80 font-serif italic leading-relaxed line-clamp-3">
             &ldquo;{teaching.caption}&rdquo;
           </p>
         </motion.button>

@@ -130,15 +130,15 @@ const { t } = useTranslation();
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
+      <CardHeader className="pb-4">
         <div className="flex items-center gap-2">
           {factors.length > 0 ? (
             <ShieldCheck className="w-5 h-5 text-prana" />
           ) : (
             <Shield className="w-5 h-5 text-muted-foreground" />
           )}
-          <CardTitle className="text-lg">Two-factor authentication</CardTitle>
+          <CardTitle className="text-lg font-serif font-semibold text-foreground">Two-factor authentication</CardTitle>
         </div>
         <CardDescription>
           Add an extra layer of protection. You'll enter a 6-digit code from your authenticator app at sign-in.
@@ -154,12 +154,12 @@ const { t } = useTranslation();
         {!loading && factors.length > 0 && (
           <div className="space-y-2">
             {factors.map((f) => (
-              <div key={f.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/40">
+              <div key={f.id} className="flex items-center justify-between p-3 rounded-xl border border-hairline bg-card">
                 <div>
                   <p className="text-sm font-medium">{f.friendly_name || 'Authenticator app'}</p>
                   <p className="text-xs text-muted-foreground">TOTP · {f.status}</p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => removeFactor(f.id)} className="text-destructive hover:text-destructive">
+                <Button variant="ghost" size="sm" onClick={() => removeFactor(f.id)} className="text-destructive hover:text-destructive rounded-lg">
                   <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Remove
                 </Button>
               </div>
@@ -168,7 +168,7 @@ const { t } = useTranslation();
         )}
 
         {!loading && !enrollment && (
-          <Button onClick={startEnroll} className="bg-ojas hover:bg-ojas-light text-primary-foreground">
+          <Button onClick={startEnroll} className="min-h-[44px] rounded-xl bg-ojas hover:bg-ojas-light text-primary-foreground shadow-sm">
             {factors.length > 0 ? 'Add another device' : 'Enable two-factor'}
           </Button>
         )}

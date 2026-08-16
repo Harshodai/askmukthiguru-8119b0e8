@@ -147,7 +147,7 @@ export const MobileConversationSheet = ({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border rounded-t-3xl max-h-[88vh] flex flex-col overflow-hidden shadow-xl"
+            className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border rounded-t-3xl max-h-[88dvh] flex flex-col overflow-hidden shadow-xl"
           >
             {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
@@ -173,7 +173,7 @@ export const MobileConversationSheet = ({
                 <button
                   onClick={onClose}
                   aria-label="Close menu"
-                  className="p-2 rounded-full hover:bg-muted transition-colors"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 rounded-full hover:bg-muted transition-colors"
                 >
                   <X className="w-5 h-5 text-muted-foreground" />
                 </button>
@@ -183,7 +183,7 @@ export const MobileConversationSheet = ({
               <div className="flex gap-1 mt-3 p-1 bg-muted/60 rounded-xl">
                 <button
                   onClick={() => setActiveTab('chat')}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 min-h-[44px] flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                     activeTab === 'chat'
                       ? 'bg-card text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -195,7 +195,7 @@ export const MobileConversationSheet = ({
                 <button
                   onClick={() => setActiveTab('explore')}
                   data-tour="mobile-explore-tab"
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 min-h-[44px] flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                     activeTab === 'explore'
                       ? 'bg-card text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -208,7 +208,7 @@ export const MobileConversationSheet = ({
             </div>
 
             {/* Tab content — scrollable */}
-            <div className="flex-1 overflow-y-auto scrollbar-spiritual pb-[env(safe-area-inset-bottom,16px)]">
+            <div className="flex-1 overflow-y-auto scrollbar-spiritual pb-[calc(1rem+env(safe-area-inset-bottom,0px))] momentum-scroll touch-manipulation">
               <AnimatePresence mode="wait">
                 {activeTab === 'chat' ? (
                   <motion.div
@@ -225,7 +225,7 @@ export const MobileConversationSheet = ({
                     {/* New Conversation */}
                     <button
                       onClick={() => { onNewConversation(); onClose(); }}
-                      className="w-full flex items-center gap-3 p-4 rounded-xl bg-ojas/10 border border-ojas/20 hover:border-ojas/40 hover:bg-ojas/15 transition-all group"
+                      className="w-full min-h-[48px] flex items-center gap-3 p-4 rounded-xl bg-ojas/10 border border-ojas/20 hover:border-ojas/40 hover:bg-ojas/15 transition-all group"
                     >
                       <div className="w-9 h-9 rounded-full bg-ojas/20 flex items-center justify-center group-hover:bg-ojas/30 transition-colors flex-shrink-0">
                         <Plus className="w-4 h-4 text-ojas" />
@@ -255,7 +255,7 @@ export const MobileConversationSheet = ({
                                     role="button"
                                     tabIndex={0}
                                     aria-label={`Open conversation: ${conv.preview || 'New conversation'}`}
-                                    className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas ${
+                                    className={`min-h-[48px] flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas ${
                                       conv.id === currentConversationId
                                         ? 'bg-ojas/15 border border-ojas/30'
                                         : 'bg-muted/30 hover:bg-muted/50 border border-transparent'
@@ -280,7 +280,7 @@ export const MobileConversationSheet = ({
                                     <button
                                       onClick={(e) => handleDeleteConversation(conv.id, e)}
                                       aria-label="Delete conversation"
-                                      className="p-1.5 rounded-full opacity-0 group-hover:opacity-60 hover:!opacity-100 active:opacity-100 hover:bg-destructive/20 transition-all"
+                                      className="min-w-[44px] min-h-[44px] flex items-center justify-center p-1.5 rounded-full opacity-0 group-hover:opacity-60 hover:!opacity-100 active:opacity-100 hover:bg-destructive/20 transition-all"
                                     >
                                       <Trash2 className="w-3.5 h-3.5 text-destructive" />
                                     </button>
@@ -316,7 +316,7 @@ export const MobileConversationSheet = ({
                           key={id}
                           onClick={onClick}
                           data-tour={tour}
-                          className={`flex flex-col items-start gap-2 p-3.5 rounded-2xl border transition-all text-left ${
+                          className={`min-h-[56px] flex flex-col items-start gap-2 p-3.5 rounded-2xl border transition-all text-left ${
                             color === 'amber'
                               ? 'bg-amber-950/10 border-amber-600/20 hover:bg-amber-950/20 hover:border-amber-600/40'
                               : 'bg-muted/40 border-border/40 hover:bg-ojas/10 hover:border-ojas/30'

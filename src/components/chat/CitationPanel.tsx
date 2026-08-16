@@ -76,8 +76,8 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full sm:max-w-lg p-0">
-        <SheetHeader className="px-5 pt-5 pb-3 border-b">
+      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
+        <SheetHeader className="px-5 pt-5 pb-3 pr-14 border-b flex-shrink-0">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
               <LinkIcon className="w-5 h-5 text-ojas" />
@@ -85,7 +85,7 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
             </SheetTitle>
           </div>
         </SheetHeader>
-        <ScrollArea className="h-[calc(100vh-80px)] p-5">
+        <ScrollArea className="flex-1 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))]">
           {citations.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <LinkIcon className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
@@ -106,10 +106,10 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                           href={c.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm font-medium text-ojas hover:underline flex items-center gap-1"
+                          className="text-sm font-medium text-ojas hover:underline inline-flex items-center gap-1.5 min-h-[44px] py-1"
                         >
-                          {c.title || getDomain(c.url)}
-                          <ExternalLink className="w-3 h-3" />
+                          <span className="truncate">{c.title || getDomain(c.url)}</span>
+                          <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
                         </a>
                         <p className="text-xs text-muted-foreground mt-0.5">{getDomain(c.url)}</p>
                         {c.quote && (
@@ -128,7 +128,7 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                                 href={c.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="block rounded-lg overflow-hidden border group transition-colors"
+                                className="block rounded-lg overflow-hidden border group transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas"
                               >
                                 <div className="relative aspect-video bg-black/10">
                                   <img
@@ -143,9 +143,9 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                                     </div>
                                   </div>
                                 </div>
-                                <div className="p-2 bg-background border-t">
-                                  <p className="text-xs font-medium text-ojas flex items-center gap-1">
-                                    <Youtube className="w-3 h-3 text-red-500" />
+                                <div className="p-2.5 bg-background border-t flex items-center min-h-[44px]">
+                                  <p className="text-xs font-medium text-ojas flex items-center gap-1.5">
+                                    <Youtube className="w-4 h-4 text-red-500" />
                                     Watch on YouTube
                                   </p>
                                 </div>

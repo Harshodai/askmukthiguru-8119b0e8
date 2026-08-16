@@ -388,23 +388,21 @@ const ProfilePage = () => {
     <AppShell title={isOnboarding ? "Welcome, Seeker" : "My Profile"}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 safe-x">
         {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
-        {/* ── Profile hero: avatar, name, email, streak, level — calm, spiritual, generous ── */}
         {!isOnboarding && (
-          <div className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur-md p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
-            <div className="relative group shrink-0">
-              <div className="absolute inset-0 rounded-full bg-ojas/15 blur-lg opacity-80 group-hover:scale-105 transition-transform duration-500" />
-              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 ring-2 ring-ojas/30 shadow-md relative">
+          <div className="rounded-2xl border border-hairline bg-card p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+            <div className="relative shrink-0">
+              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 ring-1 ring-border relative">
                 {(profile.avatarDataUrl || profile.avatarUrl) ? (
                   <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
                 ) : null}
-                <AvatarFallback className="bg-gradient-to-br from-ojas/20 to-ojas/5 text-ojas text-2xl font-serif font-bold">
+                <AvatarFallback className="bg-muted text-foreground text-2xl font-serif font-semibold">
                   {getInitials(profile.displayName)}
                 </AvatarFallback>
               </Avatar>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 aria-label="Change profile photo"
-                className="absolute bottom-0 right-0 min-w-[36px] min-h-[36px] p-2 rounded-full bg-ojas text-primary-foreground shadow-lg hover:scale-110 active:scale-95 transition-all flex items-center justify-center"
+                className="absolute bottom-0 right-0 min-w-[44px] min-h-[44px] flex items-center justify-center p-2.5 rounded-full bg-ojas text-primary-foreground shadow-sm hover:bg-ojas-light transition-all"
               >
                 <Camera className="w-4 h-4" />
               </button>
@@ -414,7 +412,7 @@ const ProfilePage = () => {
                 <h1 className="text-2xl sm:text-3xl font-serif font-semibold text-foreground tracking-tight truncate">
                   {profile.displayName || 'Seeker'}
                 </h1>
-                <Badge variant="outline" className="bg-ojas/10 text-ojas border-ojas/30 capitalize text-xs px-2.5 py-0.5">
+                <Badge variant="outline" className="bg-ojas/10 text-ojas border-hairline capitalize text-xs px-2.5 py-0.5">
                   <Sparkles className="w-3 h-3 mr-1 text-ojas" />
                   {profile.familiarityLevel || 'Seeker'}
                 </Badge>
@@ -424,13 +422,13 @@ const ProfilePage = () => {
               </p>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-1">
                 {stats && stats.streakDays > 0 && (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ojas/10 border border-ojas/20 text-xs text-ojas font-medium">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ojas/10 border border-hairline text-xs text-ojas font-medium">
                     <Flame className="w-3.5 h-3.5" />
                     <span>{stats.streakDays}-day streak</span>
                   </div>
                 )}
                 {stats && stats.totalMinutes > 0 && (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border/60 text-xs text-muted-foreground font-medium">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-hairline text-xs text-muted-foreground font-medium">
                     <Clock className="w-3.5 h-3.5 text-ojas" />
                     <span>{stats.totalMinutes} min practiced</span>
                   </div>
@@ -444,42 +442,38 @@ const ProfilePage = () => {
           <Tabs value={tab} onValueChange={setTab} className="w-full">
             {/* ── Scrollable tab rail — generous touch targets and sacred minimal background ── */}
             <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto momentum-scroll no-tap-highlight">
-              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-7 gap-1.5 mb-8 bg-muted/60 backdrop-blur-md ring-1 ring-border/40 p-1.5 rounded-full">
-                <TabsTrigger value="conversations" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
-                <TabsTrigger value="profile" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
-                <TabsTrigger value="stats" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
-                <TabsTrigger value="notes" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.notes', 'Notes')}</TabsTrigger>
-                <TabsTrigger value="memory" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
-                <TabsTrigger value="settings" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
-                <TabsTrigger value="support" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-ojas data-[state=active]:to-ojas-light data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">{t('profile.tabs.support', 'Support')}</TabsTrigger>
+              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-7 gap-1.5 mb-8 bg-muted/50 ring-1 ring-border/30 p-1.5 rounded-full">
+                <TabsTrigger value="conversations" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
+                <TabsTrigger value="profile" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
+                <TabsTrigger value="stats" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
+                <TabsTrigger value="notes" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.notes', 'Notes')}</TabsTrigger>
+                <TabsTrigger value="memory" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
+                <TabsTrigger value="settings" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
+                <TabsTrigger value="support" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.support', 'Support')}</TabsTrigger>
               </TabsList>
             </div>
 
             <TabsContent value="profile" className="space-y-6 mt-0">
-              <Card className="bg-card/60 backdrop-blur-xl ring-1 ring-border/30 shadow-sm rounded-2xl">
-                <CardHeader className="border-l-2 border-ojas pl-5 py-4">
-                  <CardTitle className="text-lg font-sacred">Personal Details</CardTitle>
+              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Personal Details</CardTitle>
                   <CardDescription>Tell the Guru about yourself and your spiritual focus.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 p-5 sm:p-7">
                   <div className="flex flex-col sm:flex-row items-center gap-6 pb-2">
-                    <div className="relative group shrink-0">
-                      {/* Aura glow behind */}
-                      <div className="absolute inset-0 rounded-full bg-ojas/10 blur-md opacity-85 group-hover:scale-110 transition-transform duration-500" />
-                      <div className="w-24 h-24 rounded-full p-[2.5px] bg-gradient-to-tr from-ojas via-ojas-light to-ojas-dark shadow-xl relative">
-                        <Avatar className="w-full h-full border-none">
-                          {(profile.avatarDataUrl || profile.avatarUrl) ? (
-                            <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
-                          ) : null}
-                          <AvatarFallback className="bg-background text-ojas text-xl font-bold font-sacred">
-                            {getInitials(profile.displayName)}
-                          </AvatarFallback>
-                        </Avatar>
-                      </div>
+                    <div className="relative shrink-0">
+                      <Avatar className="w-20 h-20 sm:w-24 sm:h-24 ring-1 ring-border relative">
+                        {(profile.avatarDataUrl || profile.avatarUrl) ? (
+                          <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
+                        ) : null}
+                        <AvatarFallback className="bg-muted text-foreground text-xl font-serif font-semibold">
+                          {getInitials(profile.displayName)}
+                        </AvatarFallback>
+                      </Avatar>
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         aria-label="Change profile photo"
-                        className="absolute bottom-0 right-0 min-w-[36px] min-h-[36px] p-2 rounded-full bg-ojas text-primary-foreground shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
+                        className="absolute bottom-0 right-0 min-w-[44px] min-h-[44px] flex items-center justify-center p-2.5 rounded-full bg-ojas text-primary-foreground shadow-sm hover:bg-ojas-light transition-all"
                       >
                         <Camera className="w-4 h-4" />
                       </button>
@@ -591,7 +585,7 @@ const ProfilePage = () => {
                   <div
                     data-testid="guidance-preview"
                     aria-live="polite"
-                    className="rounded-2xl border border-ojas/20 bg-gradient-to-br from-ojas/[0.08] via-card to-card px-4 py-3.5"
+                    className="rounded-2xl border border-hairline bg-muted/30 px-4 py-3.5"
                   >
                     <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                       <Sparkles className="h-4 w-4 text-ojas" aria-hidden="true" />
@@ -617,10 +611,10 @@ const ProfilePage = () => {
                 </CardContent>
               </Card>
 
-              <div className="flex items-center justify-between gap-4 sticky bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] z-20 bg-background/85 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-border/50 shadow-xl">
+              <div className="flex items-center justify-between gap-4 sticky bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] z-20 bg-card/90 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-hairline shadow-md">
                 <div className="hidden sm:block">
                   {dirty ? (
-                    <p className="text-xs text-ojas font-medium animate-pulse flex items-center gap-1.5">
+                    <p className="text-xs text-ojas font-medium flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-ojas inline-block" />
                       Unsaved changes
                     </p>
@@ -631,7 +625,7 @@ const ProfilePage = () => {
                 <Button
                   onClick={handleSave}
                   disabled={!dirty}
-                  className="w-full sm:w-auto min-h-[44px] h-11 px-8 bg-ojas hover:bg-ojas-light text-primary-foreground shadow-lg shadow-ojas/20 gap-2 font-medium rounded-xl"
+                  className="w-full sm:w-auto min-h-[44px] h-11 px-8 bg-ojas hover:bg-ojas-light text-primary-foreground shadow-sm gap-2 font-medium rounded-xl"
                 >
                   <Save className="w-4 h-4" />
                   {isOnboarding ? "Complete Onboarding" : "Save Changes"}
@@ -642,37 +636,9 @@ const ProfilePage = () => {
             <TabsContent value="stats" className="space-y-6 mt-0">
               <ProfileStatTiles stats={stats} sessions={sessions} />
 
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Activity Summary</CardTitle>
-                  <CardDescription>Your interactions with the Guru.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30">
-                    <div className="w-12 h-12 rounded-full bg-ojas/10 flex items-center justify-center text-ojas">
-                      <MessageCircle className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">{conversationCount}</p>
-                      <p className="text-xs text-muted-foreground">Conversations started</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30">
-                    <div className="w-12 h-12 rounded-full bg-prana/10 flex items-center justify-center text-prana">
-                      <TrendingUp className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">{stats.totalSessions}</p>
-                      <p className="text-xs text-muted-foreground">Meditation practices</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Journey Overview</CardTitle>
+              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Journey Overview</CardTitle>
                   <CardDescription>Your path across conversations, practice, and healing.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -697,7 +663,7 @@ const ProfilePage = () => {
                         <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Flame className="w-3.5 h-3.5" />
-                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium">Conversations</span>
+                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">Conversations</span>
                           </div>
                           <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
                             {metrics.totalConversations}
@@ -706,7 +672,7 @@ const ProfilePage = () => {
                         <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <MessageCircle className="w-3.5 h-3.5" />
-                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium">Messages</span>
+                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">Messages</span>
                           </div>
                           <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
                             {metrics.totalMessages}
@@ -715,7 +681,7 @@ const ProfilePage = () => {
                         <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Clock className="w-3.5 h-3.5" />
-                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium">Meditation</span>
+                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">Meditation</span>
                           </div>
                           <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
                             {Math.round(metrics.totalMeditationMinutes)}m
@@ -724,7 +690,7 @@ const ProfilePage = () => {
                         <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Target className="w-3.5 h-3.5" />
-                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium">Course progress</span>
+                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">Course progress</span>
                           </div>
                           <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
                             {metrics.courseCompletionPercent}%
@@ -754,7 +720,7 @@ const ProfilePage = () => {
 
               {/* Wisdom of the Day */}
               {dailyTeaching && (
-                <Card className="overflow-hidden border border-ojas/20 bg-card/80 backdrop-blur-lg">
+                <Card className="overflow-hidden rounded-2xl border border-hairline bg-card shadow-sm">
                   <div className="flex flex-col sm:flex-row">
                     <div className="relative w-full sm:w-1/3 aspect-[16/10] sm:aspect-auto sm:min-h-[160px] overflow-hidden bg-muted/20">
                       <img
@@ -768,7 +734,7 @@ const ProfilePage = () => {
                     <div className="flex-1 p-5 flex flex-col justify-center">
                       <div className="flex items-center gap-1.5 mb-2">
                         <Sparkles className="w-3.5 h-3.5 text-ojas" />
-                        <span className="text-[10px] font-semibold text-ojas uppercase tracking-widest">
+                        <span className="text-[10px] font-semibold text-ojas uppercase tracking-[0.14em]">
                           Wisdom of the Day
                         </span>
                       </div>
@@ -782,9 +748,9 @@ const ProfilePage = () => {
                 </Card>
               )}
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Recent Insights</CardTitle>
+              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Recent Insights</CardTitle>
                   <CardDescription>Patterns woven from your practice, mood, and conversations.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -793,10 +759,10 @@ const ProfilePage = () => {
                       {personalInsights.map((insight, idx) => (
                         <div
                           key={`${insight.kind}-${idx}`}
-                          className="p-4 rounded-lg bg-ojas/5 border border-ojas/10 flex gap-3"
+                          className="p-4 rounded-xl bg-muted/30 border border-hairline flex gap-3"
                         >
-                          <Sparkles className="w-5 h-5 text-ojas shrink-0" />
-                          <p className="text-sm text-foreground/80 italic leading-relaxed">
+                          <Sparkles className="w-4 h-4 text-ojas shrink-0 mt-0.5" />
+                          <p className="text-sm text-foreground/90 italic leading-relaxed">
                             {insight.text}
                           </p>
                         </div>
@@ -808,7 +774,7 @@ const ProfilePage = () => {
                         <Target className="w-6 h-6" />
                       </div>
                       <p className="text-sm text-muted-foreground">No insights yet. Continue your practices to reveal your spiritual patterns.</p>
-                      <Button variant="outline" size="sm" onClick={() => navigate('/practices')} className="mt-2">
+                      <Button variant="outline" size="sm" onClick={() => navigate('/practices')} className="mt-2 rounded-xl border-hairline">
                         Start a practice <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                       </Button>
                     </div>
@@ -822,9 +788,9 @@ const ProfilePage = () => {
             </TabsContent>
 
             <TabsContent value="conversations" className="space-y-6 mt-0">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Conversations</CardTitle>
+              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Conversations</CardTitle>
                   <CardDescription>Manage and prune your chat history.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -838,7 +804,7 @@ const ProfilePage = () => {
                         max={365}
                         value={retentionDays}
                         onChange={e => setRetentionDays_(Math.max(1, Math.min(365, parseInt(e.target.value) || 90)))}
-                        className="w-20"
+                        className="w-20 rounded-xl"
                       />
                       <span className="text-sm text-muted-foreground">days</span>
                     </div>
@@ -849,10 +815,10 @@ const ProfilePage = () => {
                           key={d}
                           type="button"
                           onClick={() => setRetentionDays_(d)}
-                          className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                          className={`px-3 py-1 rounded-full text-xs font-medium border border-hairline transition-colors ${
                             retentionDays === d
                               ? 'bg-ojas/20 border-ojas text-ojas'
-                              : 'border-border text-muted-foreground hover:border-ojas/50'
+                              : 'text-muted-foreground hover:border-ojas/50'
                           }`}
                         >
                           {d === 365 ? '1 yr' : `${d}d`}
@@ -867,6 +833,7 @@ const ProfilePage = () => {
                       onValueChange={([v]) => setRetentionDays_(Math.max(1, Math.min(365, v)))}
                     />
                     <Button
+                      className="rounded-xl"
                       onClick={async () => {
                         saveRetentionDays(retentionDays);
                         setConversations(await loadConversations());
@@ -882,12 +849,12 @@ const ProfilePage = () => {
                   ) : (
                     <ul className="space-y-2">
                       {conversations.map(conv => (
-                        <li key={conv.id} className="flex items-center justify-between p-2 border rounded">
-                          <div className="flex-1">
-                            <p className="font-medium">{conv.preview || 'Untitled'}</p>
+                        <li key={conv.id} className="flex items-center justify-between p-3 border border-hairline rounded-xl bg-card hover:bg-muted/20 transition-colors">
+                          <div className="flex-1 min-w-0 pr-3">
+                            <p className="font-medium truncate">{conv.preview || 'Untitled'}</p>
                             <p className="text-xs text-muted-foreground">{formatRelativeTime(conv.updatedAt)}</p>
                           </div>
-                          <Button variant="ghost" size="sm" onClick={async () => { await deleteConversation(conv.id); setConversations(prev => prev.filter(c => c.id !== conv.id)); setConversationCount(prev => Math.max(0, prev - 1)); }} aria-label={`Delete conversation: ${conv.preview || 'Untitled'}`}>
+                          <Button variant="ghost" size="sm" onClick={async () => { await deleteConversation(conv.id); setConversations(prev => prev.filter(c => c.id !== conv.id)); setConversationCount(prev => Math.max(0, prev - 1)); }} aria-label={`Delete conversation: ${conv.preview || 'Untitled'}`} className="rounded-lg">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </li>
@@ -897,9 +864,9 @@ const ProfilePage = () => {
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="mt-4">Delete all conversations</Button>
+                      <Button variant="destructive" className="mt-4 rounded-xl">Delete all conversations</Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent>
+                    <AlertDialogContent className="rounded-2xl">
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete all conversations?</AlertDialogTitle>
                         <AlertDialogDescription>
@@ -907,10 +874,10 @@ const ProfilePage = () => {
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <div className="py-2">
-                        <Input value={deleteAllConfirm} onChange={e => setDeleteAllConfirm(e.target.value)} placeholder="Type DELETE to confirm" />
+                        <Input value={deleteAllConfirm} onChange={e => setDeleteAllConfirm(e.target.value)} placeholder="Type DELETE to confirm" className="rounded-xl" />
                       </div>
                       <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setDeleteAllConfirm('')}>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel onClick={() => setDeleteAllConfirm('')} className="rounded-xl">Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={async () => {
                           if (deleteAllConfirm.trim().toUpperCase() === 'DELETE') {
                             const currentId = await getCurrentConversationId();
@@ -923,7 +890,7 @@ const ProfilePage = () => {
                             setDeleteAllConfirm('');
                             toast({ title: 'All conversations deleted' });
                           }
-                        }} disabled={deleteAllConfirm.trim().toUpperCase() !== 'DELETE'}>Confirm</AlertDialogAction>
+                        }} disabled={deleteAllConfirm.trim().toUpperCase() !== 'DELETE'} className="rounded-xl">Confirm</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -938,7 +905,7 @@ const ProfilePage = () => {
 
             <TabsContent value="settings" className="space-y-6 mt-0">
               {setupMfaRedirect && (
-                <Alert>
+                <Alert className="rounded-2xl border border-hairline">
                   <AlertDescription>
                     Admin access requires two-factor authentication. Set it up below, then you'll be sent back automatically.
                   </AlertDescription>
@@ -947,9 +914,9 @@ const ProfilePage = () => {
               <TwoFactorSettings
                 onEnrolled={setupMfaRedirect ? () => navigate(setupMfaRedirect, { replace: true }) : undefined}
               />
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Appearance</CardTitle>
+              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Appearance</CardTitle>
                   <CardDescription>Customize the interface theme.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -962,10 +929,10 @@ const ProfilePage = () => {
                           applyThemeNow(t.value);
                         }}
                         className={cn(
-                          "flex flex-col items-center gap-2 p-3 rounded-xl border transition-all",
+                          "flex flex-col items-center gap-2 p-3 rounded-xl border border-hairline transition-all min-h-[44px]",
                           form.theme === t.value
                             ? "bg-ojas/5 border-ojas text-ojas ring-1 ring-ojas/30"
-                            : "bg-card border-border hover:border-border-hover text-muted-foreground"
+                            : "bg-card hover:bg-muted/30 text-muted-foreground hover:text-foreground"
                         )}
                       >
                         <t.icon className="w-5 h-5" />
@@ -976,9 +943,9 @@ const ProfilePage = () => {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Voice & Audio</CardTitle>
+              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Voice & Audio</CardTitle>
                   <CardDescription>Configure Text-to-Speech playback.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -1022,7 +989,7 @@ const ProfilePage = () => {
                         <Label>Guru Voice (Mayura)</Label>
                         <p className="text-xs text-muted-foreground">Choose the voice personality for Indic language audio.</p>
                         <Select value={normalizeVoice(form.preferredVoice)} onValueChange={(v) => patch('preferredVoice', v)}>
-                          <SelectTrigger>
+                          <SelectTrigger className="rounded-xl min-h-[44px]">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1040,9 +1007,9 @@ const ProfilePage = () => {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Reminders</CardTitle>
+              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Reminders</CardTitle>
                   <CardDescription>Stay consistent with your spiritual goals.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -1077,7 +1044,7 @@ const ProfilePage = () => {
                     <div className="space-y-4 pt-2">
                       <div className="flex justify-between items-center">
                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">Scheduled for</Label>
-                        <Badge variant="outline" className="text-ojas border-ojas/30 bg-ojas/5">
+                        <Badge variant="outline" className="text-ojas border-hairline bg-ojas/5">
                           {formatTime(form.reminderTimeMinutes)}
                         </Badge>
                       </div>
@@ -1092,7 +1059,7 @@ const ProfilePage = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-8 text-[11px] gap-2"
+                          className="h-8 text-[11px] gap-2 rounded-xl border-hairline"
                           onClick={() => fireTestReminder(toast)}
                         >
                           <Bell className="w-3.5 h-3.5" /> Send test reminder
@@ -1103,145 +1070,143 @@ const ProfilePage = () => {
                 </CardContent>
               </Card>
 
-              <Card className="border-destructive/20 bg-destructive/5">
-                <CardHeader>
-                  <CardTitle className="text-lg text-destructive flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5" /> Danger Zone
-                  </CardTitle>
-                  <CardDescription>Export your data, or permanently delete your account.</CardDescription>
+              {/* Demarcated Account & Data Section */}
+              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-serif font-semibold text-foreground">Account & Data</CardTitle>
+                  <CardDescription>Export your data, clear local history, or delete your account.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button variant="outline" className="flex-1 gap-2" onClick={handleExport}>
-                      <Download className="w-4 h-4" /> Export Local Data
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1 gap-2"
-                      onClick={async () => {
-                        try {
-                          const { data: { session } } = await supabase.auth.getSession();
-                          if (!session) return toast({ title: 'Sign in first', variant: 'destructive' });
-                          const { data, error } = await supabase.functions.invoke('export-my-data');
-                          if (error) throw error;
-                          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `askmukthiguru-cloud-export-${new Date().toISOString().slice(0, 10)}.json`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                          toast({ title: 'Cloud data exported' });
-                        } catch (e) {
-                          toast({ title: 'Export failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
-                        }
-                      }}
-                    >
-                      <Download className="w-4 h-4" /> Export Cloud Data
-                    </Button>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <h4 className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">Export Data</h4>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button variant="outline" className="flex-1 gap-2 rounded-xl min-h-[44px] border-hairline" onClick={handleExport}>
+                        <Download className="w-4 h-4" /> Export Local Data
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1 gap-2 rounded-xl min-h-[44px] border-hairline"
+                        onClick={async () => {
+                          try {
+                            const { data: { session } } = await supabase.auth.getSession();
+                            if (!session) return toast({ title: 'Sign in first', variant: 'destructive' });
+                            const { data, error } = await supabase.functions.invoke('export-my-data');
+                            if (error) throw error;
+                            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `askmukthiguru-cloud-export-${new Date().toISOString().slice(0, 10)}.json`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            toast({ title: 'Cloud data exported' });
+                          } catch (e) {
+                            toast({ title: 'Export failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                          }
+                        }}
+                      >
+                        <Download className="w-4 h-4" /> Export Cloud Data
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" className="flex-1 gap-2">
-                          <Trash2 className="w-4 h-4" /> Clear Local Data
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Clear local data?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Erases this device's profile, chat history, meditation stats, response
-                            preferences, and your saved memories. Your account remains. This cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDeleteEverything} className="bg-destructive hover:bg-destructive/90">
-                            Clear
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                  <div className="pt-4 border-t border-hairline space-y-3">
+                    <h4 className="text-[10px] uppercase tracking-[0.14em] font-medium text-destructive/80">Danger Zone</h4>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" className="flex-1 gap-2 rounded-xl min-h-[44px] border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive">
+                            <Trash2 className="w-4 h-4" /> Clear Local Data
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-2xl">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Clear local data?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Erases this device's profile, chat history, meditation stats, response
+                              preferences, and your saved memories. Your account remains. This cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteEverything} className="bg-destructive hover:bg-destructive/90 rounded-xl">
+                              Clear
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
 
-                    <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="destructive" className="flex-1 gap-2">
-                          <Trash2 className="w-4 h-4" /> Delete Account
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>{t('cancelFlow.dialogTitle', 'Cancel your account')}</DialogTitle>
-                          <DialogDescription>
-                            {t('cancelFlow.dialogDescription', 'A short retention flow before we say goodbye.')}
-                          </DialogDescription>
-                        </DialogHeader>
-                        {cancelOpen && (
-                          <CancelFlow
-                            onComplete={async ({ saved, retention }) => {
-                              setCancelOpen(false);
-                              if (saved) {
-                                toast({ title: 'Offer applied', description: 'Glad you are staying.' });
-                                return;
-                              }
-                              // Cancellation confirmed. Distinguish immediate
-                              // deletion from grace-period retention: only
-                              // delete_immediately tears down local data + signs
-                              // out now; keep_30_days / keep_90_days schedule a
-                              // future deletion the user can reactivate from.
-                              if (retention === 'delete_immediately') {
-                                try {
-                                  const { error } = await supabase.functions.invoke('delete-my-account', { method: 'POST' });
-                                  if (error) throw error;
-                                  deleteAllData();
-                                  resetProfile();
-                                  await supabase.auth.signOut();
-                                  toast({ title: 'Account deleted' });
-                                  navigate('/', { replace: true });
-                                } catch (e) {
-                                  toast({ title: 'Sign-out failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="destructive" className="flex-1 gap-2 rounded-xl min-h-[44px]">
+                            <Trash2 className="w-4 h-4" /> Delete Account
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md rounded-2xl">
+                          <DialogHeader>
+                            <DialogTitle>{t('cancelFlow.dialogTitle', 'Cancel your account')}</DialogTitle>
+                            <DialogDescription>
+                              {t('cancelFlow.dialogDescription', 'A short retention flow before we say goodbye.')}
+                            </DialogDescription>
+                          </DialogHeader>
+                          {cancelOpen && (
+                            <CancelFlow
+                              onComplete={async ({ saved, retention }) => {
+                                setCancelOpen(false);
+                                if (saved) {
+                                  toast({ title: 'Offer applied', description: 'Glad you are staying.' });
+                                  return;
                                 }
-                              } else {
-                                // Grace period: sign out without local teardown so
-                                // the user can reactivate before the deletion date.
-                                try {
-                                  await supabase.auth.signOut();
-                                  toast({
-                                    title: 'Deletion scheduled',
-                                    description: 'Your account is scheduled for deletion. You can reactivate anytime before the deletion date.',
-                                  });
-                                  navigate('/', { replace: true });
-                                } catch (e) {
-                                  toast({ title: 'Sign-out failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                                if (retention === 'delete_immediately') {
+                                  try {
+                                    const { error } = await supabase.functions.invoke('delete-my-account', { method: 'POST' });
+                                    if (error) throw error;
+                                    deleteAllData();
+                                    resetProfile();
+                                    await supabase.auth.signOut();
+                                    toast({ title: 'Account deleted' });
+                                    navigate('/', { replace: true });
+                                  } catch (e) {
+                                    toast({ title: 'Sign-out failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                                  }
+                                } else {
+                                  try {
+                                    await supabase.auth.signOut();
+                                    toast({
+                                      title: 'Deletion scheduled',
+                                      description: 'Your account is scheduled for deletion. You can reactivate anytime before the deletion date.',
+                                    });
+                                    navigate('/', { replace: true });
+                                  } catch (e) {
+                                    toast({ title: 'Sign-out failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+                                  }
                                 }
-                              }
-                            }}
-                            onClose={() => setCancelOpen(false)}
-                          />
-                        )}
-                      </DialogContent>
-                    </Dialog>
+                              }}
+                              onClose={() => setCancelOpen(false)}
+                            />
+                          )}
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground pt-1">
+                      Need help debugging access?{' '}
+                      <a href="/auth/diagnostics" className="text-ojas hover:underline">
+                        Open auth diagnostics
+                      </a>
+                    </p>
                   </div>
-
-                  <p className="text-[11px] text-muted-foreground pt-1">
-                    Need help debugging access?{' '}
-                    <a href="/auth/diagnostics" className="text-ojas hover:underline">
-                      Open auth diagnostics
-                    </a>
-                  </p>
                 </CardContent>
               </Card>
             </TabsContent>
 
             <TabsContent value="support" className="space-y-6 mt-0">
-              <Card>
-                <CardHeader>
+              <Card className="rounded-2xl border border-hairline bg-card shadow-sm">
+                <CardHeader className="pb-4">
                   <div className="flex items-center gap-3">
-                    <Mail className="h-6 w-6 text-ojas" />
+                    <Mail className="h-5 w-5 text-ojas" />
                     <div>
-                      <CardTitle className="text-lg">Contact Support</CardTitle>
+                      <CardTitle className="text-lg font-serif font-semibold text-foreground">Contact Support</CardTitle>
                       <CardDescription>
                         Have a question, feedback, or run into an issue? We are here to help.
                       </CardDescription>
@@ -1252,11 +1217,11 @@ const ProfilePage = () => {
                   {supportSent ? (
                     <div className="flex flex-col items-center justify-center py-8 text-center space-y-3">
                       <CheckCircle2 className="h-12 w-12 text-prana" />
-                      <p className="text-lg font-medium">Message sent!</p>
+                      <p className="text-lg font-medium font-serif">Message sent!</p>
                       <p className="text-sm text-muted-foreground max-w-sm">
                         We will get back to you within 24&ndash;48 hours. For urgent matters, please include &quot;URGENT&quot; in your subject line.
                       </p>
-                      <Button variant="outline" className="mt-4" onClick={() => setSupportSent(false)}>
+                      <Button variant="outline" className="mt-4 rounded-xl border-hairline" onClick={() => setSupportSent(false)}>
                         Send another message
                       </Button>
                     </div>
@@ -1265,34 +1230,33 @@ const ProfilePage = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label htmlFor="s-name">Name <span className="text-muted-foreground">(optional)</span></Label>
-                          <Input id="s-name" value={supportForm.name} onChange={e => setSupportForm(p => ({ ...p, name: e.target.value }))} placeholder="Your name" disabled={!!resolveName()} />
+                          <Input id="s-name" value={supportForm.name} onChange={e => setSupportForm(p => ({ ...p, name: e.target.value }))} placeholder="Your name" disabled={!!resolveName()} className="min-h-[44px] rounded-xl" />
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="s-email">Your Email <span className="text-destructive">*</span></Label>
-                          <Input id="s-email" type="email" value={supportForm.email} onChange={e => setSupportForm(p => ({ ...p, email: e.target.value }))} placeholder="you@example.com" required disabled={!!resolveEmail()} />
+                          <Input id="s-email" type="email" value={supportForm.email} onChange={e => setSupportForm(p => ({ ...p, email: e.target.value }))} placeholder="you@example.com" required disabled={!!resolveEmail()} className="min-h-[44px] rounded-xl" />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label htmlFor="s-category">Category</Label>
-                          <select id="s-category" value={supportForm.category} onChange={e => setSupportForm(p => ({ ...p, category: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                          <select id="s-category" value={supportForm.category} onChange={e => setSupportForm(p => ({ ...p, category: e.target.value }))} className="flex min-h-[44px] h-11 w-full rounded-xl border border-hairline bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                             {supportCategories.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="s-subject">Subject <span className="text-destructive">*</span></Label>
-                          <Input id="s-subject" value={supportForm.subject} onChange={e => setSupportForm(p => ({ ...p, subject: e.target.value }))} placeholder="Brief summary" required />
+                          <Input id="s-subject" value={supportForm.subject} onChange={e => setSupportForm(p => ({ ...p, subject: e.target.value }))} placeholder="Brief summary" required className="min-h-[44px] rounded-xl" />
                         </div>
                       </div>
 
                       <div className="space-y-1.5">
                         <Label htmlFor="s-message">Message <span className="text-destructive">*</span></Label>
-                        <Textarea id="s-message" value={supportForm.message} onChange={e => setSupportForm(p => ({ ...p, message: e.target.value }))} placeholder="Describe your issue, feedback, or request in detail. Include what you were doing, what you expected, and what happened." className="min-h-[140px] resize-none" required />
+                        <Textarea id="s-message" value={supportForm.message} onChange={e => setSupportForm(p => ({ ...p, message: e.target.value }))} placeholder="Describe your issue, feedback, or request in detail. Include what you were doing, what you expected, and what happened." className="min-h-[140px] resize-none rounded-xl" required />
                       </div>
 
-
-                      <div className="bg-muted/40 rounded-lg p-4 space-y-2">
+                      <div className="bg-muted/30 border border-hairline rounded-xl p-4 space-y-2">
                         <h4 className="text-sm font-medium flex items-center gap-2">
                           <Bug className="h-4 w-4 text-ojas" />
                           Before reaching out
@@ -1304,11 +1268,11 @@ const ProfilePage = () => {
                         </ul>
                       </div>
 
-                      <div className="flex items-center justify-between pt-2">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                         <p className="text-xs text-muted-foreground">
                           Or email us directly at <a href="mailto:kharshaengineer@gmail.com" className="underline hover:text-foreground">kharshaengineer@gmail.com</a>
                         </p>
-                        <Button type="submit" disabled={supportLoading}>
+                        <Button type="submit" disabled={supportLoading} className="w-full sm:w-auto min-h-[44px] rounded-xl bg-ojas hover:bg-ojas-light text-primary-foreground">
                           {supportLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Mail className="h-4 w-4 mr-1" />}
                           {supportLoading ? 'Sending...' : 'Send Message'}
                         </Button>

@@ -90,8 +90,23 @@ describe('LanguageSelector (regression)', () => {
     expect(screen.getByLabelText('Stop recording')).toBeInTheDocument();
   });
 
-  it('shows speaking animation when isSpeaking is true', () => {
-    render(<LanguageSelector value="en" ttsEnabled isSpeaking onTtsToggle={vi.fn()} />);
-    expect(screen.getByLabelText('Disable voice output')).toBeInTheDocument();
+  it('renders compact mode with globe icon and short native label', () => {
+    render(<LanguageSelector value="hi" compact />);
+    expect(screen.getByText('हिन्')).toBeInTheDocument();
+  });
+
+  it('renders language options with role="option" and aria-selected state', () => {
+    render(<LanguageSelector value="en" />);
+    const globeButton = screen.getByRole('button', { expanded: false });
+    fireEvent.click(globeButton);
+
+    const options = screen.getAllByRole('option');
+    expect(options.length).toBe(LANGUAGES.length);
+
+    const enOption = options.find((opt) => opt.textContent?.includes('English'));
+    expect(enOption).toHaveAttribute('aria-selected', 'true');
+
+    const hiOption = options.find((opt) => opt.textContent?.includes('Hindi'));
+    expect(hiOption).toHaveAttribute('aria-selected', 'false');
   });
 });

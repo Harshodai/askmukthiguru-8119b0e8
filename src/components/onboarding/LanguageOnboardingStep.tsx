@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Sparkles, Globe, Languages } from 'lucide-react';
+import { Sparkles, Globe } from 'lucide-react';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
 
 interface LanguageOnboardingStepProps {
@@ -46,6 +46,8 @@ export const LanguageOnboardingStep = ({ onComplete }: LanguageOnboardingStepPro
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.4 }}
           className="w-full space-y-1.5 mb-8"
+          role="listbox"
+          aria-label={t('onboarding.language.title')}
         >
           {LANGUAGES.map((lang, index) => {
             const isSelected = selected === lang.code;
@@ -56,6 +58,8 @@ export const LanguageOnboardingStep = ({ onComplete }: LanguageOnboardingStepPro
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.05 * index + 0.25, duration: 0.25 }}
                 onClick={() => setSelected(lang.code)}
+                role="option"
+                aria-selected={isSelected}
                 className={`w-full min-h-[48px] flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all border ${
                   isSelected
                     ? 'bg-ojas/10 border-ojas/40 shadow-sm'
@@ -72,8 +76,9 @@ export const LanguageOnboardingStep = ({ onComplete }: LanguageOnboardingStepPro
                 <div className="flex-1 min-w-0">
                   <span
                     className={`block font-medium truncate ${
-                      isSelected ? 'text-ojas' : 'text-foreground'
-                    }`}
+                      lang.code === 'en' ? 'text-sm' : 'text-base'
+                    } ${isSelected ? 'text-ojas' : 'text-foreground'}`}
+                    lang={lang.bcp47}
                   >
                     {lang.native}
                   </span>
