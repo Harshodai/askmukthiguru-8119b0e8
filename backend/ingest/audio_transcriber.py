@@ -128,9 +128,28 @@ def download_audio_stream(url: str, out_dir: Path, timeout: int = 1800) -> Path:
         "0",
         "-o",
         str(template),
-        "--",
-        url,
     ]
+
+    # Same hardening youtube_loader.py's Python-API calls already carry, ported
+    # to this raw-CLI subprocess call: without it, headless servers (Railway
+    # has no browser for cookies, and only probes deno by default even though
+    # node is installed) hit "Sign in to confirm you're not a bot" and
+    # "No supported JavaScript runtime could be found" on every video.
+    if shutil.which("node") or shutil.which("deno"):
+        cmd += ["--js-runtimes", "node" if shutil.which("node") else "deno"]
+    cmd += [
+        "--extractor-args",
+        "youtube:player_client=android,android_vr,tv_simply,tv_embedded,mweb,web,ios",
+    ]
+    try:
+        from ingest.youtube_loader import _get_cookies_opts
+        cookiefile = _get_cookies_opts().get("cookiefile")
+        if cookiefile:
+            cmd += ["--cookies", cookiefile]
+    except Exception as e:
+        logger.debug(f"Cookie lookup skipped for audio download: {e}")
+
+    cmd += ["--", url]
     _run_subprocess(cmd, timeout=timeout)
 
     files = sorted(out_dir.glob("audio_source.*"))
