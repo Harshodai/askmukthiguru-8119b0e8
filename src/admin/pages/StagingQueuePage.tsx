@@ -162,7 +162,7 @@ export default function StagingQueuePage() {
                       <TableCell className="max-w-[250px]">
                         <div className="flex flex-wrap gap-1">
                           {(item.fail_reasons ?? []).length > 0 ? (
-                            item.fail_reasons.map((reason: string, idx: number) => (
+                            (item.fail_reasons ?? []).map((reason: string, idx: number) => (
                               <Badge key={idx} variant="secondary" className="text-[10px] py-0 px-1.5 font-normal">
                                 {reason}
                               </Badge>
