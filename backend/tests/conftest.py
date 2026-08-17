@@ -55,6 +55,8 @@ os.environ["BENCHMARK_SECRET"] = os.environ.get("BENCHMARK_SECRET", "test-benchm
 # Ensure JWT_SECRET is set for import-time validation
 os.environ["JWT_SECRET"] = os.environ.get("JWT_SECRET", "mock_jwt_secret_for_testing_12345")
 os.environ["SARVAM_API_KEY"] = os.environ.get("SARVAM_API_KEY", "mock_sarvam_key_for_testing")
+# Deterministic test-only server KEK; production must provide its own secret.
+os.environ["BRAIN_KEK"] = os.environ.get("BRAIN_KEK", "dGVzdC1vcGVyYXRvci1rZWstMzItYnl0ZXMteHh4eHg=")
 
 from dotenv import load_dotenv
 

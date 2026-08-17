@@ -50,6 +50,10 @@ class Settings(BaseSettings):
 
     # --- Sarvam Cloud API ---
     sarvam_api_key: str = ""  # API subscription key from dashboard.sarvam.ai
+    # Server-side key-encryption key for Mode-A Second Brain vaults. Keep unset
+    # only when the feature is disabled; production must provide a valid
+    # base64url-encoded 32-byte value.
+    brain_kek: Optional[str] = None
     sarvam_cloud_model: str = "sarvam-30b"  # Main generation model — any Sarvam model works (sarvam-30b, sarvam-105b, sarvam-m)
     sarvam_cloud_classify_model: str = (
         "sarvam-30b"  # Classification model — can be same or different from generation model
@@ -780,6 +784,8 @@ class Settings(BaseSettings):
     graphrag_fusion_enabled: bool = Field(default=False, description="Enable GraphRAG fusion (multi-hop vector+KG)")
     graphrag_max_hops: int = Field(default=2, gt=0, le=5)
     graphrag_token_budget: int = Field(default=4000, gt=0, le=8000)
+    graphrag_max_concurrent_traversals: int = Field(default=4, ge=1, le=32)
+    graphrag_aggregate_timeout_seconds: float = Field(default=12.0, gt=0.0, le=60.0)
 
     @model_validator(mode="after")
     def validate_graphrag_token_budget(self):
@@ -843,6 +849,8 @@ class Settings(BaseSettings):
     web_ingest_max_dom_chars: int = Field(default=500_000, ge=10_000, le=2_000_000)
     ingest_url_max_retries: int = Field(default=2, ge=0, le=10)
     ingest_url_retry_delay: int = Field(default=30, ge=1, le=3600)
+    ingest_allowed_domains: str = "youtube.com,youtu.be,instagram.com,tiktok.com,twitter.com,x.com"
+    ingest_max_download_bytes: int = Field(default=200 * 1024 * 1024, ge=1 * 1024 * 1024, le=2 * 1024 * 1024 * 1024)
     ingest_url_soft_time_limit: int = Field(default=120, ge=30, le=600)
     ingest_url_time_limit: int = Field(default=180, ge=60, le=900)
 
@@ -1086,6 +1094,13 @@ class Settings(BaseSettings):
         return [lang.strip() for lang in self.ocr_languages.split(",") if lang.strip()]
 
     @property
+    def ingest_allowed_domains_list(self) -> list[str]:
+        """Parse source-controlled ingestion host allowlist."""
+        if not self.ingest_allowed_domains or not self.ingest_allowed_domains.strip():
+            return []
+        return [d.strip().lower().lstrip(".") for d in self.ingest_allowed_domains.split(",") if d.strip()]
+
+    @property
     def web_search_allowed_domains_list(self) -> list[str]:
         """Parse comma-separated web search allowed domains into a list."""
         if not self.web_search_allowed_domains or not self.web_search_allowed_domains.strip():
@@ -1195,6 +1210,25 @@ class Settings(BaseSettings):
             self.anon_session_hmac_secret = "anon_hmac_" + hashlib.sha256(
                 (base + "::anon_session").encode()
             ).hexdigest()
+        return self
+
+    @model_validator(mode="after")
+    def validate_runtime_backend_contract(self):
+        """Reject ambiguous or unsafe runtime backend combinations early."""
+        if self.embedding_backend not in {"flagembedding", "onnx_int8"}:
+            raise ValueError(
+                "embedding_backend must be one of: flagembedding, onnx_int8"
+            )
+        if self.reranker_backend not in {"flagembedding", "onnx_int8"}:
+            raise ValueError(
+                "reranker_backend must be one of: flagembedding, onnx_int8"
+            )
+        if self.embedding_dimension <= 0:
+            raise ValueError("embedding_dimension must be positive")
+        if self.is_production and self.enable_test_auth:
+            # Fail safe: production never registers the benchmark strategy even
+            # when a stale environment variable is present.
+            self.enable_test_auth = False
         return self
 
     @model_validator(mode="after")
