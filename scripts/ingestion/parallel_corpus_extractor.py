@@ -91,6 +91,29 @@ PROGRESS_FILE = SCRIPT_DIR / "parallel_run_progress.json"
 
 DEFAULT_LANGUAGES = ["en", "hi", "te", "kn", "ta", "mr"]
 
+
+def resolve_node_path() -> str:
+    """Resolve Node.js executable path from NODE_PATH env or PATH."""
+    env_node = os.environ.get("NODE_PATH")
+    if env_node:
+        env_node_path = Path(env_node)
+        if env_node_path.is_dir():
+            candidate = env_node_path / "node"
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                return str(candidate)
+        elif env_node_path.is_file() and os.access(env_node_path, os.X_OK):
+            return str(env_node_path)
+
+    for path_dir in os.environ.get("PATH", "").split(os.pathsep):
+        candidate = Path(path_dir) / "node"
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+
+    raise FileNotFoundError("Node.js executable not found. Set NODE_PATH or ensure 'node' is on PATH.")
+
+
+NODE_PATH = resolve_node_path()
+
 # 20 Canonical Ekam Playlists
 PLAYLIST_URLS = [
     "https://www.youtube.com/playlist?list=PLOVU2e0ZosYDt1cdrKnT1AZs4UHpFU5wo",
@@ -287,7 +310,19 @@ class VideoProcessor:
         if YouTubeTranscriptApi is not None:
             try:
                 api = YouTubeTranscriptApi()
-                t_list = api.list(video_id)
+                t_list = None
+                for attempt in range(3):
+                    try:
+                        t_list = api.list(video_id)
+                        break
+                    except Exception as e:
+                        if "429" in str(e) or "Too Many Requests" in str(e):
+                            if attempt == 2:
+                                raise
+                            time.sleep(10 * (attempt + 1))
+                        else:
+                            raise
+                
                 snippets = None
                 source_tier = None
                 lang_used = "en"
@@ -364,9 +399,13 @@ class VideoProcessor:
                     "subtitleslangs": DEFAULT_LANGUAGES,
                     "subtitlesformat": "vtt/srt/best",
                     "outtmpl": f"{tmp_dir}/subs",
-                    "js_runtimes": {"node": {"path": "/opt/homebrew/opt/node@22/bin/node"}},
+                    "js_runtimes": {"node": {"path": NODE_PATH}},
                     "quiet": True,
                     "no_warnings": True,
+                    "sleep_interval_requests": 2.0,
+                    "sleep_interval": 5.0,
+                    "max_sleep_interval": 15.0,
+                    "extractor_retries": 3,
                 }
                 if self.cookies_from_browser:
                     ydl_opts["cookiesfrombrowser"] = (self.cookies_from_browser, None, None, None)
@@ -426,13 +465,17 @@ class VideoProcessor:
         if enable_whisper_fallback and FASTER_WHISPER_AVAILABLE and yt_dlp is not None:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 ydl_opts = {
-                    "format": "ba/b",
+                    "format": "bestaudio/best",
                     "outtmpl": f"{tmp_dir}/audio.%(ext)s",
                     "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "128"}],
-                    "js_runtimes": {"node": {"path": "/opt/homebrew/opt/node@22/bin/node"}},
+                    "js_runtimes": {"node": {"path": NODE_PATH}},
                     "quiet": True,
                     "no_warnings": True,
                     "downloader_args": {"ffmpeg_i": ["-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5"]},
+                    "sleep_interval_requests": 2.0,
+                    "sleep_interval": 5.0,
+                    "max_sleep_interval": 15.0,
+                    "extractor_retries": 3,
                 }
                 if self.cookies_from_browser:
                     ydl_opts["cookiesfrombrowser"] = (self.cookies_from_browser, None, None, None)
