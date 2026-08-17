@@ -180,7 +180,7 @@ _BLOCK_RESPONSES = {
         "I care about your wellbeing deeply. Mukthi Guru is a spiritual guide and cannot provide "
         "medical or psychiatric advice, diagnoses, or prescriptions. Spiritual practices are strictly "
         "complementary and are NEVER a substitute for professional healthcare, therapy, or medication. "
-        "Please consult a qualified doctor or mental health professional. 🙏"
+        "Please consult a qualified healthcare professional, doctor, or mental health professional. 🙏"
     ),
     "explicit": "Let's keep our conversation centered on spiritual growth, inner peace, and the Beautiful State. 🙏",
     "financial_advice": (
