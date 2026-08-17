@@ -276,3 +276,14 @@ artifacts/video-review/
 .codebase-memory/
 .temp_release_evidence/*
 .tmp_release_evidence/*
+
+# Local YouTube Ingestion Corpus and progress files
+scripts/ingestion/corpus/
+scripts/ingestion/audit_batch_*.json
+scripts/ingestion/parallel_run_progress.json
+scripts/ingestion/manifest.json
+scripts/ingestion/pilot_fixtures.json
+scripts/ingestion/transcript_full_table.json
+scripts/ingestion/transcript_summary.json
+scripts/ingestion/transcript_summary_text.txt
+scripts/ingestion/video_analysis/

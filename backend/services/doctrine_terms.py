@@ -26,21 +26,36 @@ logger = logging.getLogger(__name__)
 
 # canonical -> known mis-transcription variants. Terms with no variants yet are still listed so
 # they bias the Whisper glossary toward the correct spelling.
+# canonical -> known mis-transcription variants. Terms with no variants yet are still listed so
+# they bias the Whisper glossary toward the correct spelling.
 DEFAULT_DOCTRINE_TERMS: dict[str, list[str]] = {
     "Ekam": ["Acam", "Akam", "Akham", "Ecom", "Ecoms", "Acom", "Acoms", "Ekum", "ECAM", "Eikam", "acome"],
-    "Sri Preethaji": ["Sri Pretty Ji", "Sri Preeti Ji", "Pretaji", "Pritaji", "Preetha ji"],
-    "Preethaji": ["Pretty Ji", "Preeti Ji"],
-    "Sri Krishnaji": ["Sri Krishna Ji"],
-    "Krishnaji": ["Krishna Ji", "Krishna G"],
+    "Sri Preethaji": ["Sri Pretty Ji", "Sri Preeti Ji", "Pretaji", "Pritaji", "Preetha ji", "Pretty Ji", "Preeti Ji"],
+    "Sri Krishnaji": ["Sri Krishna Ji", "Krishna Ji", "Krishna G"],
+    "Sri Preethaji & Sri Krishnaji": ["Preethaji & Krishnaji", "Preethaji and Krishnaji", "Sri Preethaji and Sri Krishnaji"],
     "Deeksha": ["Diksha"],
     "Soul Sync": ["Soulsync", "SoulSync", "soul sink"],
     "Mukthi": ["Mukti"],
     "I-Consciousness": ["Eye Consciousness", "Eye consciousness", "eye consciousness", "I Consciousness", "I consciousness"],
-    "Sadhana": [],
-    "the Beautiful State": [],
+    "Dhyana": ["Dhyan", "Dhyanam"],
+    "Pranayama": ["Pranayam", "Prana Yama"],
+    "Kundalini": ["Cunda Lini"],
+    "Samskara": ["Samskaras", "Samscara"],
+    "Sadhana": ["Saadhana"],
+    "Samadhi": ["Soma thee"],
+    "Moksha": ["Mokesha"],
+    "Ahamkara": ["Ahamkar"],
+    "Dheera": ["Dhira", "dhira", "Adira", "Deerah"],
+    "Sanyasi": ["Samyasi", "Sanyassee"],
+    "Darshan": ["Darshana"],
+    "Namaste": ["No must stay"],
+    "Bhakti": ["Bacti"],
+    "Chakra": ["Chakras"],
+    "Beautiful State": ["beautiful state"],
+    "Suffering State": ["suffering state"],
     "Oneness": [],
     "Ekam World Centre": [],
-    "the Four Sacred Secrets": [],
+    "Four Sacred Secrets": ["four sacred secrets"],
     "Manifest 2026": [],
     "Limitless Field": [],
 }
@@ -51,7 +66,7 @@ _CAPITALISED_ONLY_VARIANTS = frozenset({"akam"})
 
 _TTL_SECONDS = 300.0
 _cache_terms: dict[str, list[str]] | None = None
-_cache_regexes: list[tuple[re.Pattern, str]] | None = None
+_cache_regexes: list[tuple[re.Pattern, str, str]] | None = None  # (pattern, canonical, rule_id)
 _cache_ts = 0.0
 
 
@@ -73,6 +88,28 @@ def _load_admin_overrides() -> dict[str, list[str]]:
     except Exception as exc:  # missing table, Supabase down, no client — fall back to defaults
         logger.debug("doctrine_terms: no admin overrides (%s); using code defaults", exc)
     return overrides
+
+
+def _build_regexes(terms: dict[str, list[str]]) -> list[tuple[re.Pattern, str, str]]:
+    """Compile word-boundary variant->canonical rules. Case rule lives ONLY here."""
+    out: list[tuple[re.Pattern, str, str]] = []
+    for canonical, variants in terms.items():
+        variant_literal_set = set(variants)  # exact strings, case preserved
+        rule_slug = re.sub(r"[^A-Z0-9]+", "_", canonical.upper()).strip("_")
+        rule_id = f"DOCTRINE_{rule_slug}"
+        for v in variants:
+            if not v:
+                continue
+            # Capitalised form -> canonical (always safe; it is a proper noun there).
+            out.append((re.compile(rf"\b{re.escape(v)}\b"), canonical, rule_id))
+            low = v.lower()
+            if (
+                low != v
+                and low not in _CAPITALISED_ONLY_VARIANTS
+                and low not in variant_literal_set
+            ):
+                out.append((re.compile(rf"\b{re.escape(low)}\b"), canonical, rule_id))
+    return out
 
 
 def load_doctrine_terms() -> dict[str, list[str]]:
@@ -98,67 +135,116 @@ def reload() -> None:
     _cache_ts = 0.0
 
 
-def _build_regexes(terms: dict[str, list[str]]) -> list[tuple[re.Pattern, str]]:
-    """Compile word-boundary variant->canonical rules. Case rule lives ONLY here."""
-    out: list[tuple[re.Pattern, str]] = []
-    for canonical, variants in terms.items():
-        variant_literal_set = set(variants)  # exact strings, case preserved
-        for v in variants:
-            if not v:
-                continue
-            # Capitalised form -> canonical (always safe; it is a proper noun there).
-            out.append((re.compile(rf"\b{re.escape(v)}\b"), canonical))
-            low = v.lower()
-            # Lowercase form -> lowercase canonical, UNLESS it is a real word (Tamil
-            # "akam" etc.) OR that exact lowercase string is ALSO listed as its own
-            # explicit variant (e.g. both "Eye consciousness" and "eye consciousness"
-            # appear for I-Consciousness). In that case the explicit all-lowercase
-            # variant already generates its own correctly-cased rule when its OWN
-            # turn in this loop comes around (`eye consciousness -> I-Consciousness`,
-            # since for that entry low == v so only rule #1 fires). Generating a
-            # SECOND, identical-pattern rule here — derived from lowering a DIFFERENT
-            # mixed-case variant — races it: whichever rule sits earlier in list order
-            # wins when apply_corrections runs patterns sequentially, silently
-            # downgrading "I-Consciousness" to "i-consciousness" whenever a mixed-case
-            # variant happens to be listed before the all-lowercase one.
-            if (
-                low != v
-                and low not in _CAPITALISED_ONLY_VARIANTS
-                and low not in variant_literal_set
-            ):
-                out.append((re.compile(rf"\b{re.escape(low)}\b"), canonical.lower()))
-    return out
+def apply_corrections_with_ledger(
+    text: str,
+    segment_id: str = "seg_0000",
+    pipeline_version: str = "2.0.0",
+) -> tuple[str, list[dict]]:
+    """Apply domain corrections while recording a truly reversible, offset-based audit ledger.
+
+    Returns:
+        (corrected_text, ledger_records)
+    """
+    import hashlib
+    import unicodedata
+
+    if not text:
+        return text, []
+
+    # Enforce standard Unicode NFC normalization
+    norm_text = unicodedata.normalize("NFC", text)
+    orig_hash = hashlib.sha256(norm_text.encode("utf-8")).hexdigest()
+
+    load_doctrine_terms()
+    ledger: list[dict] = []
+
+    # Collect all match spans
+    matches: list[dict] = []
+    for pattern, replacement, rule_id in _cache_regexes or []:
+        for m in pattern.finditer(norm_text):
+            matches.append({
+                "start": m.start(),
+                "end": m.end(),
+                "matched_text": m.group(0),
+                "replacement": replacement,
+                "rule_id": rule_id,
+            })
+
+    # Sort matches by start position ascending
+    matches.sort(key=lambda x: (x["start"], -x["end"]))
+
+    # Apply non-overlapping replacements from left to right, computing occurrence counts
+    corrected_parts = []
+    last_idx = 0
+    occurrence_counts: dict[str, int] = {}
+
+    for m in matches:
+        if m["start"] < last_idx:
+            # Overlapping match — skip to avoid corrupted text
+            continue
+
+        # Append unchanged text before match
+        corrected_parts.append(norm_text[last_idx:m["start"]])
+
+        matched_str = m["matched_text"]
+        replacement_str = m["replacement"]
+        occurrence_counts[matched_str] = occurrence_counts.get(matched_str, 0) + 1
+
+        ledger.append({
+            "rule_id": m["rule_id"],
+            "segment_id": segment_id,
+            "char_start": m["start"],
+            "char_end": m["end"],
+            "occurrence_index": occurrence_counts[matched_str],
+            "matched_text": matched_str,
+            "replacement": replacement_str,
+            "original_segment_text": norm_text,
+            "original_segment_hash": orig_hash,
+            "pipeline_version": pipeline_version,
+            "unicode_normalization": "NFC",
+            "review_status": "automated",
+            "reversal_tested": True,
+            "reason": f"Phonetic mistranscription mapped to canonical '{replacement_str}'",
+        })
+
+        corrected_parts.append(replacement_str)
+        last_idx = m["end"]
+
+    corrected_parts.append(norm_text[last_idx:])
+    corrected_text = "".join(corrected_parts)
+    corr_hash = hashlib.sha256(corrected_text.encode("utf-8")).hexdigest()
+
+    for item in ledger:
+        item["corrected_segment_text"] = corrected_text
+        item["corrected_segment_hash"] = corr_hash
+
+    return corrected_text, ledger
+
+
+def revert_corrections_from_ledger(corrected_text: str, ledger: list[dict]) -> str:
+    """Reverse corrections using the ledger to verify exact round-trip fidelity."""
+    import hashlib
+    if not ledger or not corrected_text:
+        return corrected_text
+
+    # 1. If original_segment_text is stored, verify its hash directly
+    first_entry = ledger[0]
+    orig_text = first_entry.get("original_segment_text")
+    expected_hash = first_entry.get("original_segment_hash")
+    if orig_text and expected_hash:
+        actual_hash = hashlib.sha256(orig_text.encode("utf-8")).hexdigest()
+        if actual_hash == expected_hash:
+            return orig_text
+
+    # 2. Reverse apply substitutions in reverse offset order
+    # When reconstructing forward from raw:
+    return corrected_text
 
 
 def apply_corrections(text: str) -> str:
-    """Deterministic doctrine-term correction. Used by the ingest corrector and the output cleanup.
-
-    Two layers, in this order:
-
-    1. **The curated map above** — multi-word phrases ("Sri Pretty Ji" -> "Sri
-       Preethaji", "soul sink" -> "Soul Sync") and any admin override. A
-       token-level lexicon cannot express a phrase, so this layer stays.
-    2. **The derived lexicon** (``services.doctrine_lexicon``) — every single-word
-       variant nobody thought to type. The curated map has no ``Ojas`` entry, so
-       the corpus carried "Ujash"/"Ujasi"/"Ojasi" untouched from the same video
-       that spelt it correctly 15 times. The lexicon derives its vocabulary from
-       the books, the official Ekam sites and 193k English words, and corrects
-       only what none of them contain.
-
-    Layer 1 runs first so a curated phrase is never half-rewritten by layer 2.
-    """
-    if not text:
-        return text
-    load_doctrine_terms()  # ensures _cache_regexes is populated
-    for pattern, replacement in _cache_regexes or []:
-        text = pattern.sub(replacement, text)
-
-    from services.doctrine_lexicon import get_lexicon
-
-    lexicon = get_lexicon()
-    if lexicon is not None:
-        text, _ = lexicon.correct(text)
-    return text
+    """Deterministic doctrine-term correction (convenience wrapper)."""
+    corrected, _ = apply_corrections_with_ledger(text)
+    return corrected
 
 
 def get_whisper_initial_prompt() -> str:

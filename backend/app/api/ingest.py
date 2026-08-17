@@ -163,15 +163,21 @@ class RawTextIngestRequest(BaseModel):
     text: str = Field(..., description="Already-fetched raw text (transcript, article, etc.)")
     source_url: str = Field(..., description="Original source URL — used for dedup/citation")
     title: str = Field(default="", description="Title for the content")
+    speaker: str = Field(default="Sri Preethaji & Sri Krishnaji", description="Speaker attribution")
     tags: list[str] = Field(default=["general"])
     max_accuracy: bool = Field(default=True)
+    quality_state: str = Field(default="trusted", description="Quality state: must be 'trusted' or 'trusted_after_review'")
+    transcript_hash: Optional[str] = Field(default=None, description="SHA-256 hash of transcript text")
+    artifact_manifest_hash: Optional[str] = Field(default=None, description="Corpus artifact manifest hash")
+    pipeline_version: str = Field(default="2.0.0", description="Pipeline version")
+    idempotency_key: Optional[str] = Field(default=None, description="Idempotency key: sha256(canonical_json(video_id, hash, version))")
 
 
 MAX_RAW_TEXT_CHARS = 2_000_000  # ~2MB of text — a single video transcript is a few KB-100KB
 
 
 @router.post("/ingest/raw-text", response_model=IngestResponse)
-@limiter.limit("20/minute")
+@limiter.limit("120/minute")
 async def ingest_raw_text_endpoint(
     request: Request,
     body: RawTextIngestRequest,
@@ -185,6 +191,13 @@ async def ingest_raw_text_endpoint(
     pipeline (chunk/embed/Qdrant/RAPTOR/LightRAG/OKF) runs here. Admin only."""
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
+
+    # Hard Quality Gate: Reject untrusted transcripts
+    if body.quality_state not in ["trusted", "trusted_after_review"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Untrusted quality state '{body.quality_state}'. Only 'trusted' or 'trusted_after_review' transcripts may be ingested.",
+        )
 
     text = body.text.strip()
     if not text:
@@ -200,11 +213,26 @@ async def ingest_raw_text_endpoint(
         raise HTTPException(status_code=400, detail="source_url cannot be empty")
 
     title = body.title.strip() or source_url
+    speaker = (body.speaker or "Sri Preethaji & Sri Krishnaji").strip()
     tag_list = list({t.strip().lower() for t in body.tags if t and t.strip()}) or ["general"]
 
     job_id = None
     if container.supabase_client:
         try:
+            # Idempotency check: look up existing job with matching source_url
+            if body.idempotency_key:
+                existing = container.supabase_client.table("ingest_jobs").select("id, status").eq(
+                    "source_url", source_url
+                ).execute()
+                for row in getattr(existing, "data", []) or []:
+                    if row.get("status") in ["success", "completed"]:
+                        return IngestResponse(
+                            status="already_processed",
+                            message=f"Already processed via idempotency key: {body.idempotency_key}",
+                            source_url=source_url,
+                            job_id=row.get("id"),
+                        )
+
             resp = container.supabase_client.table("ingest_jobs").insert({
                 "source_url": source_url,
                 "status": "pending",
@@ -218,7 +246,7 @@ async def ingest_raw_text_endpoint(
     from tasks.ingest_tasks import ingest_document_task
     dispatch_kwargs = {"task_id": job_id} if job_id else {}
     ingest_document_task.apply_async(
-        args=[text, source_url, title, tag_list, body.max_accuracy, job_id],
+        args=[text, source_url, title, tag_list, body.max_accuracy, job_id, speaker],
         **dispatch_kwargs,
     )
 

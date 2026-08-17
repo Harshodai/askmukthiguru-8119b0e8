@@ -219,10 +219,11 @@ def ingest_document_task(
     tags: Optional[list[str]] = None,
     max_accuracy: bool = False,
     job_id: str = None,
+    speaker: str = "Unknown",
 ) -> dict[str, Any]:
-    """Ingest already-extracted document text (e.g. an uploaded PDF) through the
+    """Ingest already-extracted document text (e.g. an uploaded PDF or local transcript) through the
     full pipeline: hierarchical chunking, embed, Qdrant, RAPTOR, LightRAG, OKF."""
-    logger.info(f"Ingesting uploaded document: {source_url}")
+    logger.info(f"Ingesting uploaded document: {source_url} (Speaker: {speaker})")
 
     if job_id:
         update_job_progress(job_id, "running", progress_pct=10, worker_id=self.request.hostname)
@@ -240,6 +241,7 @@ def ingest_document_task(
                 text=text,
                 source_url=source_url,
                 title=title,
+                speaker=speaker or "Unknown",
                 content_type="document",
                 max_accuracy=max_accuracy,
                 on_progress=progress_cb,

@@ -181,7 +181,16 @@ needs a signup/token).
   only, no download), fetches manual-then-auto captions via
   `youtube_transcript_api`, writes one `.md` file per video to
   `scripts/ingestion/transcripts/` (gitignored). Resumable — skips videos
-  that already have a `.md` file.
+  that already have a `.md` file. **Enhancements in this session:**
+  - `strip_bracketed_tags()` removes `[music]`, `[applause]`, `[laughter]`
+    and similar bracketed annotations from auto-captions.
+  - `has_speech()` detects if transcript contains actual spoken language
+    (30+ word threshold after tag stripping), enabling audio-only video
+    identification and downstream skipping.
+  - `**Speech Status:** speech` / `no_speech` field added to `.md` frontmatter
+    for downstream pipeline awareness.
+  - Jittered delays (`time.sleep(args.delay + random.uniform(0, 0.5))`)
+    between videos to avoid YouTube rate limits / datacenter IP blocking.
 - `scripts/ingestion/2_upload_transcripts_to_railway.py` — **Phase 2**. Reads
   every `.md` in `scripts/ingestion/transcripts/`, parses out video_id/url/
   title/transcript text, POSTs each to `/api/ingest/raw-text`. Resumable via
@@ -195,24 +204,28 @@ needs a signup/token).
 - Phase 1 actually fetched the real `BMJrDu-folk` transcript (9324 chars, auto-captions) both via bare Python (`backend/.venv/bin/python3 scripts/ingestion/1_fetch_transcripts_local.py --url ...`) and inside the Docker container with a mounted volume — both wrote a correctly-formatted `.md` file, and the resume-skip logic correctly detected the already-fetched file on a second run.
 - Phase 2's `parse_transcript_md()` correctly extracted video_id/url/title/text back out of that real fetched file (verified via direct function call — the actual upload POST was NOT tested, no admin token available in this sandbox).
 - **Not yet verified**: the full fetch → upload → Railway `/api/ingest/raw-text` → `ingest_document_task` → Qdrant round trip, and whether it actually runs successfully from the *user's actual home machine* (this session's sandbox network worked, which is a good sign but not the same environment).
+- **Phase 0 end-to-end test** (new): `python3 scripts/ingestion/1_fetch_transcripts_local.py --limit 3` successfully fetched 3 videos from the first 2 playlists, all with `Speech Status: speech` detected, 2700-6900 chars each, bracketed tag stripping functional, and jittered delays working.
+- **Phase 0 end-to-end test** (new): `python3 scripts/ingestion/1_fetch_transcripts_local.py --limit 3` successfully fetched 3 videos from the first 2 playlists, all with `Speech Status: speech` detected, 2700-6900 chars each, bracketed tag stripping functional, and jittered delays working.
 
-**How the user runs it:**
-```bash
-# Phase 1 — no token needed, run from anywhere:
-python3 scripts/ingestion/1_fetch_transcripts_local.py --limit 3   # test 3 videos first
-# ...or via Docker:
-docker build -f scripts/ingestion/Dockerfile.local-fetch -t mg-local-fetch scripts/ingestion/
-docker run --rm -v "$(pwd)/scripts/ingestion:/data" mg-local-fetch \
-  1_fetch_transcripts_local.py --limit 3
+**Deferred enhancements (P1/P2):
+- P1: Pre-upload validation — validate `.md` format before POST to Railway; prevents wasted API calls on corrupted files.
+- P1: State file versioning — add `version: "1.1"` field and `stats` section to `upload_state.json` for future upgrade compatibility.
+- P2: DLQ/reprocess flag (`--reprocess-dlq`) — re-process only failed videos from previous runs without re-processing successes.
+- P2: Concurrency bump — increase `CELERY_CONCURRENCY` from 2 to 3 after verifying memory headroom via `railway service-metrics --service askmukthiguru-8119b0e8 --measurements MEMORY_USAGE_GB`.
+
+**Not yet verified**: the full fetch → upload → Railway `/api/ingest/raw-text` → `ingest_document_task` → Qdrant round trip, and whether it actually runs successfully from the *user's actual home machine* (this session's sandbox network worked, which is a good sign but not the same environment).
+python3 scripts/ingestion/1_fetch_transcripts_local.py                 # all 20 playlists
+python3 scripts/ingestion/1_fetch_transcripts_local.py --limit 3       # first 3 videos, for testing
+python3 scripts/ingestion/1_fetch_transcripts_local.py --url "https://www.youtube.com/watch?v=BMJrDu-folk"
 
 # Once transcripts/ looks right, get an admin token (expires ~1h, re-copy if
 # stale): log into askmukthiguru.lovable.app as admin, DevTools ->
 # Application -> Local Storage -> "sb-<project-ref>-auth-token" key -> copy
 # the "access_token" field out of that JSON value.
-export MUKTHI_ADMIN_TOKEN="<paste it>"
 
 # Phase 2 — upload:
-python3 scripts/ingestion/2_upload_transcripts_to_railway.py --limit 3
+python3 scripts/ingestion/2_upload_transcripts_to_railway.py              # all fetched .md files
+python3 scripts/ingestion/2_upload_transcripts_to_railway.py --limit 3    # first 3, for testing
 # ...or via Docker:
 docker run --rm -e MUKTHI_ADMIN_TOKEN -v "$(pwd)/scripts/ingestion:/data" mg-local-fetch \
   2_upload_transcripts_to_railway.py --limit 3
