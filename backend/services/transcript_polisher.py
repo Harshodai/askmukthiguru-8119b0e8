@@ -99,7 +99,11 @@ async def polish_transcript(
             )
             return f"{first_half}\n\n{second_half}"
 
-        return polished_text
+        try:
+            from services.doctrine_terms import apply_corrections
+            return apply_corrections(polished_text)
+        except Exception:
+            return polished_text
 
     except Exception as e:
         logger.warning("Transcript polish failed (returning raw text): %s", e)

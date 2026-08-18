@@ -137,6 +137,15 @@ async def safe_lightrag_insert(
 
     If a chunk fails after retries, it is persistently recorded in the state.
     """
+    import unicodedata
+    full_text = full_text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+    full_text = unicodedata.normalize("NFC", full_text).strip()
+    try:
+        from services.doctrine_terms import apply_corrections
+        full_text = apply_corrections(full_text)
+    except Exception as e:
+        logger.debug(f"apply_corrections in safe_lightrag_insert skipped: {e}")
+
     chunks = chunk_text(full_text)
     total = len(chunks)
     logger.info(
@@ -266,6 +275,15 @@ def ingest_book_to_qdrant(json_path: str):
             summary = node.get("summary", "").strip()
 
             if text:
+                import unicodedata
+                text = text.replace("\x00", "")
+                text = unicodedata.normalize("NFC", text).strip()
+                try:
+                    from services.doctrine_terms import apply_corrections
+                    text = apply_corrections(text)
+                except Exception:
+                    pass
+
                 parent_id = str(uuid.uuid4())
                 child_paragraphs = child_splitter.split_text(text)
                 header = f"[Source: The_Four_Sacred_Secrets.pdf | Chapter: {context_title}]\n"
@@ -292,6 +310,15 @@ def ingest_book_to_qdrant(json_path: str):
                     )
 
             if summary:
+                import unicodedata
+                summary = summary.replace("\x00", "")
+                summary = unicodedata.normalize("NFC", summary).strip()
+                try:
+                    from services.doctrine_terms import apply_corrections
+                    summary = apply_corrections(summary)
+                except Exception:
+                    pass
+
                 header = (
                     f"[Source: The_Four_Sacred_Secrets.pdf | Chapter Summary: {context_title}]\n"
                 )
@@ -447,7 +474,21 @@ async def fetch_transcript_text(video_id: str) -> str:
             None, lambda: fetch_transcript_hybrid(video_id, max_accuracy=True)
         )
         if res and res.get("text"):
-            return res["text"]
+            raw_text = res["text"]
+            try:
+                from services.doctrine_terms import apply_corrections_with_ledger
+
+                corr_text, ledger = apply_corrections_with_ledger(
+                    raw_text, segment_id=f"{video_id}_whisper"
+                )
+                if ledger:
+                    logger.info(
+                        f"[{video_id}] Applied {len(ledger)} doctrine term corrections to fetched transcript"
+                    )
+                return corr_text
+            except Exception as _ce:
+                logger.debug(f"apply_corrections_with_ledger fallback: {_ce}")
+                return raw_text
     except Exception as e:
         logger.error(f"fetch_transcript_hybrid failed for {video_id}: {e}")
 
@@ -834,6 +875,18 @@ async def main():
                         corrected_text = await pipeline._corrector.correct_transcript(
                             sanitized_text, url
                         )
+                        try:
+                            from services.doctrine_terms import apply_corrections_with_ledger
+
+                            corrected_text, ledger = apply_corrections_with_ledger(
+                                corrected_text, segment_id=f"{vid}_lightrag"
+                            )
+                            if ledger:
+                                logger.info(
+                                    f"[{vid}] LightRAG transcript ledger recorded {len(ledger)} corrections"
+                                )
+                        except Exception as _ce:
+                            logger.debug(f"apply_corrections_with_ledger in LightRAG step: {_ce}")
                         source_name = f"YouTube Video: {title} (URL: {url})"
                         await safe_lightrag_insert(
                             lightrag_service=container.lightrag,

@@ -1,0 +1,601 @@
+{
+  "package_count": 745,
+  "nonempty_package_count": 657,
+  "empty_or_incomplete_count": 88,
+  "package_ok_count": 745,
+  "issue_package_count": 0,
+  "warning_package_count": 166,
+  "quality_state_counts": {
+    "needs_review": 652,
+    "unavailable": 45,
+    "dead_lettered": 43,
+    "sound_only": 5
+  },
+  "quality_score": {
+    "min": 0.0,
+    "median": 0.7,
+    "mean": 0.5893,
+    "max": 0.7,
+    "counts": {
+      "0.5": 38,
+      "0.7": 566,
+      "0.0": 88,
+      "0.45": 53
+    }
+  },
+  "coverage_ratio": {
+    "min": 0.0,
+    "median": 0.9637806551703563,
+    "mean": 0.8267,
+    "max": 1.0
+  },
+  "paragraph_median_chars": {
+    "min": 3,
+    "median": 396,
+    "mean": 510.44,
+    "max": 4266
+  },
+  "manifest_artifact_hash_mismatch_packages": 0,
+  "manifest_raw_hash_mismatch_packages": 0,
+  "low_token_overlap_packages": 0,
+  "timestamp_like_transcript_packages": 0,
+  "paragraph_target_warning_packages": 166,
+  "correction_count_total": 1064,
+  "correction_warning_packages": 0,
+  "top_issue_counts": {},
+  "top_warning_counts": {
+    "most_paragraphs_outside_300_500_chars": 166
+  },
+  "highest_risk_packages": [
+    {
+      "video_id": "JYqlxlBZHc4",
+      "quality_score": 0.45,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7464983838694782,
+      "segment_count": 42
+    },
+    {
+      "video_id": "MX7tos4L1jQ",
+      "quality_score": 0.45,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.8695652173913044,
+      "segment_count": 48
+    },
+    {
+      "video_id": "U23yKxWbIcI",
+      "quality_score": 0.45,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9759633934192091,
+      "segment_count": 233
+    },
+    {
+      "video_id": "a_qokyTjobo",
+      "quality_score": 0.45,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.888175162315237,
+      "segment_count": 18
+    },
+    {
+      "video_id": "kf-IuHxVN7g",
+      "quality_score": 0.45,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9211317459470996,
+      "segment_count": 186
+    },
+    {
+      "video_id": "omDPxlDqDs0",
+      "quality_score": 0.45,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7722073824140462,
+      "segment_count": 94
+    },
+    {
+      "video_id": "qajcmg64VNI",
+      "quality_score": 0.45,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9636209813874789,
+      "segment_count": 14
+    },
+    {
+      "video_id": "rKoXeKg0y1Q",
+      "quality_score": 0.45,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9667004015539813,
+      "segment_count": 31
+    },
+    {
+      "video_id": "tix59qHbyrI",
+      "quality_score": 0.45,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.8927585104218146,
+      "segment_count": 12
+    },
+    {
+      "video_id": "vLCsNfcbWqs",
+      "quality_score": 0.45,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.2844940294604723,
+      "segment_count": 6
+    },
+    {
+      "video_id": "-0O6WmxU3pw",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.23752969121140144,
+      "segment_count": 1
+    },
+    {
+      "video_id": "453IrXoe_Ug",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.545320197044335,
+      "segment_count": 1
+    },
+    {
+      "video_id": "5hNCT4duOgc",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7291328353361481,
+      "segment_count": 5
+    },
+    {
+      "video_id": "CKBwY7odu1E",
+      "quality_score": 0.5,
+      "quality_state": "sound_only",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9727463312368972,
+      "segment_count": 1
+    },
+    {
+      "video_id": "COmWEGiu9Hg",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7745781484135772,
+      "segment_count": 33
+    },
+    {
+      "video_id": "G_soqEsZRU8",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7668593448940269,
+      "segment_count": 24
+    },
+    {
+      "video_id": "OuDAdSnFtbw",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.6200799115871801,
+      "segment_count": 12
+    },
+    {
+      "video_id": "RMpAflHYP2g",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.659106529209622,
+      "segment_count": 4
+    },
+    {
+      "video_id": "UrVvSqKYU8c",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7351635355474128,
+      "segment_count": 50
+    },
+    {
+      "video_id": "WhYY6IKaiVI",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7418244406196214,
+      "segment_count": 4
+    },
+    {
+      "video_id": "dQw77H27GMY",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.08659079663532904,
+      "segment_count": 1
+    },
+    {
+      "video_id": "gqN5tl1Kwpg",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7644362969752521,
+      "segment_count": 8
+    },
+    {
+      "video_id": "hfOFmTBWTSQ",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.4963608504117985,
+      "segment_count": 1
+    },
+    {
+      "video_id": "md0y8j1SxBk",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.783994032395567,
+      "segment_count": 26
+    },
+    {
+      "video_id": "nHDXMZLLQyY",
+      "quality_score": 0.5,
+      "quality_state": "sound_only",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.06139363552645042,
+      "segment_count": 1
+    },
+    {
+      "video_id": "oqacXWT14ic",
+      "quality_score": 0.5,
+      "quality_state": "sound_only",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.3555166374781085,
+      "segment_count": 10
+    },
+    {
+      "video_id": "tCWfCISvo5k",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.6398750045419859,
+      "segment_count": 131
+    },
+    {
+      "video_id": "tMaJzikpfeY",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7272135416666666,
+      "segment_count": 7
+    },
+    {
+      "video_id": "tl2Ek-QakME",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7723537941034316,
+      "segment_count": 8
+    },
+    {
+      "video_id": "u5JpxwG34bE",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7723993558776167,
+      "segment_count": 65
+    },
+    {
+      "video_id": "w1U9nHF3H5o",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7567147816553994,
+      "segment_count": 22
+    },
+    {
+      "video_id": "zs_JKa0cVsY",
+      "quality_score": 0.5,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.7927986602158537,
+      "segment_count": 43
+    },
+    {
+      "video_id": "-LK01oo7MAw",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.8477366255144032,
+      "segment_count": 1
+    },
+    {
+      "video_id": "-vboUHsZ2KM",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.994535519125683,
+      "segment_count": 1
+    },
+    {
+      "video_id": "0poMFCoAhkM",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 1.0,
+      "segment_count": 4
+    },
+    {
+      "video_id": "0u9oe-5HPmk",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9081227149896678,
+      "segment_count": 10
+    },
+    {
+      "video_id": "1w-IStuMl3M",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.8102292953617424,
+      "segment_count": 53
+    },
+    {
+      "video_id": "2DLb6hDIhmg",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9644371814326292,
+      "segment_count": 36
+    },
+    {
+      "video_id": "2X0BCy1bRcU",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9506362001199121,
+      "segment_count": 21
+    },
+    {
+      "video_id": "3EqnSkAzfIg",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9433962264150942,
+      "segment_count": 1
+    },
+    {
+      "video_id": "3HytZ8tSiYE",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9672990063233965,
+      "segment_count": 27
+    },
+    {
+      "video_id": "3RyCldrCxL8",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.882122848484488,
+      "segment_count": 231
+    },
+    {
+      "video_id": "4_Fqfew1PRk",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9601729106628242,
+      "segment_count": 25
+    },
+    {
+      "video_id": "5hOsWGYAHFg",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 1.0,
+      "segment_count": 1
+    },
+    {
+      "video_id": "6EHw_0gYD5w",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9919323857087975,
+      "segment_count": 6
+    },
+    {
+      "video_id": "6SGdA1xnd4A",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9095349429384944,
+      "segment_count": 44
+    },
+    {
+      "video_id": "6YexvWyPC6k",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.8551195246649165,
+      "segment_count": 29
+    },
+    {
+      "video_id": "7Pfat_DztMI",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.8708695317905742,
+      "segment_count": 74
+    },
+    {
+      "video_id": "81fCD_f4exU",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.8590886161089625,
+      "segment_count": 47
+    },
+    {
+      "video_id": "8CgS_ANm26Y",
+      "quality_score": 0.7,
+      "quality_state": "needs_review",
+      "issues": [],
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars"
+      ],
+      "coverage_ratio": 0.9769538570632629,
+      "segment_count": 26
+    }
+  ]
+}

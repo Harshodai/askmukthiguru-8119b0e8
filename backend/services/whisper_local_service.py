@@ -467,32 +467,17 @@ def score_transcript(text: str, video_id: str = "") -> float:
     punct_score = min(punct_ratio / 3.0, 1.0) * 0.3
 
     # 3. Domain term score (up to 0.2)
-    domain_terms = [
-        "enlighten",
-        "consciousness",
-        "meditation",
-        "awareness",
-        "liberation",
-        "freedom",
-        "mind",
-        "suffering",
-        "joy",
-        "presence",
-        "spiritual",
-        "mukthi",
-        "preethaji",
-        "krishnaji",
-        "ekam",
-        "dharma",
-        "karma",
-        "awakening",
-        "wisdom",
-        "inner",
-        "beautiful state",
-        "suffering state",
-        "soul sync",
-    ]
-    found = sum(1 for t in domain_terms if re.search(t, text, re.IGNORECASE))
+    try:
+        from ingest.quality_gate import _spiritual_keywords
+        domain_terms = list(_spiritual_keywords())
+    except Exception:
+        domain_terms = [
+            "enlighten", "consciousness", "meditation", "awareness", "liberation",
+            "freedom", "mind", "suffering", "joy", "presence", "spiritual",
+            "mukthi", "preethaji", "krishnaji", "ekam", "dharma", "karma",
+            "awakening", "wisdom", "inner", "beautiful state", "suffering state", "soul sync",
+        ]
+    found = sum(1 for t in domain_terms if re.search(r"\b" + re.escape(t) + r"\b", text, re.IGNORECASE))
     domain_score = min(found / 8, 1.0) * 0.2
 
     # 4. Repetition penalty (up to -0.1)

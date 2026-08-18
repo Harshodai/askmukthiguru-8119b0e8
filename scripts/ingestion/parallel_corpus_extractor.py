@@ -112,7 +112,15 @@ def resolve_node_path() -> str:
     raise FileNotFoundError("Node.js executable not found. Set NODE_PATH or ensure 'node' is on PATH.")
 
 
-NODE_PATH = resolve_node_path()
+NODE_PATH: Optional[str] = None
+
+
+def get_node_path() -> str:
+    """Resolve Node.js executable path lazily, once, when yt-dlp JS processing starts."""
+    global NODE_PATH
+    if NODE_PATH is None:
+        NODE_PATH = resolve_node_path()
+    return NODE_PATH
 
 # 20 Canonical Ekam Playlists
 PLAYLIST_URLS = [
@@ -399,7 +407,7 @@ class VideoProcessor:
                     "subtitleslangs": DEFAULT_LANGUAGES,
                     "subtitlesformat": "vtt/srt/best",
                     "outtmpl": f"{tmp_dir}/subs",
-                    "js_runtimes": {"node": {"path": NODE_PATH}},
+                    "js_runtimes": {"node": {"path": get_node_path()}},
                     "quiet": True,
                     "no_warnings": True,
                     "sleep_interval_requests": 2.0,
@@ -468,7 +476,7 @@ class VideoProcessor:
                     "format": "bestaudio/best",
                     "outtmpl": f"{tmp_dir}/audio.%(ext)s",
                     "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "128"}],
-                    "js_runtimes": {"node": {"path": NODE_PATH}},
+                    "js_runtimes": {"node": {"path": get_node_path()}},
                     "quiet": True,
                     "no_warnings": True,
                     "downloader_args": {"ffmpeg_i": ["-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5"]},

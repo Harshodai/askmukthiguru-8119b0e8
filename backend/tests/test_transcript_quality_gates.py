@@ -198,3 +198,47 @@ def test_artifact_manifest_structure_and_hashing(tmp_path):
     assert data["artifacts"]["canonical_segments.json"]["byte_size"] > 0
     assert len(data["artifacts"]["canonical_segments.json"]["sha256"]) == 64
 
+
+def test_corpus_engine_record_dead_letter(tmp_path):
+    """Verify that CorpusEngine records dead-lettered / private / rate-limited videos cleanly without exceptions."""
+    engine = CorpusEngine(corpus_root=tmp_path / "corpus", projection_dir=tmp_path / "transcripts")
+    manifest = engine.record_dead_letter(
+        video_info={"video_id": "dead_vid_01", "title": "Private Video"},
+        reason="Video is private or removed from YouTube",
+        quality_state="dead_lettered",
+        raw_error="HTTP 403 Forbidden: Sign in to confirm you're not a bot",
+    )
+
+    assert manifest.quality_state == "dead_lettered"
+    assert manifest.canonical_segment_count == 0
+
+    v_dir = tmp_path / "corpus" / "dead_vid_01"
+    assert (v_dir / "quality_report.json").exists()
+    assert (v_dir / "review_record.json").exists()
+    assert (v_dir / "artifact_manifest.json").exists()
+    assert (v_dir / "canonical_segments.json").exists()
+    assert (v_dir / "manifest.json").exists()
+
+    q_data = json.loads((v_dir / "quality_report.json").read_text())
+    assert q_data["quality_state"] == "dead_lettered"
+    assert q_data["quality_score"] == 0.0
+
+    rev_data = json.loads((v_dir / "review_record.json").read_text())
+    assert rev_data["quality_state"] == "dead_lettered"
+    assert "Video is private" in rev_data["reason"]
+
+
+def test_corpus_engine_process_and_package_empty_or_failed_video(tmp_path):
+    """Verify process_and_package_video handles None raw_source_path and empty segments gracefully."""
+    engine = CorpusEngine(corpus_root=tmp_path / "corpus", projection_dir=tmp_path / "transcripts")
+    manifest = engine.process_and_package_video(
+        video_info={"video_id": "failed_vid_02", "title": "Empty Segments Video"},
+        segments=[],
+        raw_source_path=None,
+        raw_source_hash="",
+    )
+
+    assert manifest.quality_state == "dead_lettered"
+    v_dir = tmp_path / "corpus" / "failed_vid_02"
+    assert (v_dir / "review_record.json").exists()
+    assert (v_dir / "quality_report.json").exists()

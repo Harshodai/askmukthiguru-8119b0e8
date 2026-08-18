@@ -277,7 +277,7 @@ class CorpusEngine:
         has_speech_words = bool(re.search(r"[\w]{3,}", full_text, re.UNICODE))
         if not has_speech_words or total_segment_duration == 0:
             quality_state: QualityState = "sound_only"
-            score = 0.5
+            score = 0.0
             return QualityReport(
                 video_id=video_id,
                 quality_state=quality_state,
@@ -354,12 +354,139 @@ class CorpusEngine:
             },
         )
 
+    def record_dead_letter(
+        self,
+        video_info: dict[str, Any],
+        reason: str,
+        quality_state: QualityState = "dead_lettered",
+        raw_error: Optional[str] = None,
+        duration_seconds: float = 0.0,
+    ) -> VideoCorpusManifest:
+        """Handle dead-lettered / private / rate-limited videos without throwing unhandled exceptions.
+
+        Creates structured artifacts (quality_report.json, review_record.json,
+        canonical_segments.json, correction_ledger.json, transcript.md, artifact_manifest.json, manifest.json)
+        with quality_state set to 'dead_lettered' or 'unavailable'.
+        """
+        video_id = video_info.get("video_id") or "unknown_video"
+        v_dir = self.get_video_dir(video_id)
+        title = video_info.get("title") or video_id
+        source_url = video_info.get("url") or f"https://www.youtube.com/watch?v={video_id}"
+        flags = [reason]
+        if raw_error:
+            flags.append(f"error_detail: {raw_error}")
+
+        q_report = QualityReport(
+            video_id=video_id,
+            quality_state=quality_state,
+            quality_score=0.0,
+            duration_seconds=duration_seconds,
+            speech_interval_coverage_estimate=0.0,
+            flags=flags,
+            metrics_details={"error": reason, "raw_error": raw_error or ""},
+        )
+
+        md_content = (
+            f"# {title}\n\n"
+            f"**Video ID:** `{video_id}`\n"
+            f"**URL:** {source_url}\n"
+            f"**Quality State:** {quality_state}\n"
+            f"**Quality Score:** 0.00\n"
+            f"**Status Reason:** {reason}\n"
+            f"**Pipeline Version:** {PIPELINE_VERSION}\n"
+            f"**Fetched:** {datetime.now(timezone.utc).isoformat()}\n\n"
+            f"## Status\n\nVideo unavailable or extraction failed: {reason}\n"
+        )
+        transcript_hash = compute_sha256(md_content)
+        manifest_hash = compute_canonical_manifest_hash(video_id, transcript_hash)
+
+        seg_file = v_dir / "canonical_segments.json"
+        seg_file.write_text(json.dumps({"video_id": video_id, "segments": []}, indent=2))
+
+        q_file = v_dir / "quality_report.json"
+        q_file.write_text(q_report.model_dump_json(indent=2))
+
+        ledg_file = v_dir / "correction_ledger.json"
+        ledg_file.write_text(json.dumps([], indent=2))
+
+        t_file = v_dir / "transcript.md"
+        t_file.write_text(md_content, encoding="utf-8")
+
+        rev = ReviewRecord(
+            video_id=video_id,
+            quality_state=quality_state,
+            reason=reason,
+            action_required=f"Inspect video status on YouTube ({reason})",
+            replay_command=f"python3 scripts/ingestion/1_fetch_transcripts_local.py --video-id {video_id}",
+        )
+        (v_dir / "review_record.json").write_text(rev.model_dump_json(indent=2))
+
+        artifacts_dict = {
+            "canonical_segments.json": ArtifactEntry(
+                rel_path="canonical_segments.json",
+                byte_size=seg_file.stat().st_size,
+                mime_type="application/json",
+                sha256=compute_sha256(seg_file.read_bytes()),
+            ),
+            "quality_report.json": ArtifactEntry(
+                rel_path="quality_report.json",
+                byte_size=q_file.stat().st_size,
+                mime_type="application/json",
+                sha256=compute_sha256(q_file.read_bytes()),
+            ),
+            "correction_ledger.json": ArtifactEntry(
+                rel_path="correction_ledger.json",
+                byte_size=ledg_file.stat().st_size,
+                mime_type="application/json",
+                sha256=compute_sha256(ledg_file.read_bytes()),
+            ),
+            "transcript.md": ArtifactEntry(
+                rel_path="transcript.md",
+                byte_size=t_file.stat().st_size,
+                mime_type="text/markdown",
+                sha256=compute_sha256(t_file.read_bytes()),
+            ),
+        }
+
+        art_manifest = ArtifactManifest(
+            manifest_version="2.0.0",
+            pipeline_version=PIPELINE_VERSION,
+            video_id=video_id,
+            source_url=source_url,
+            final_quality_state=quality_state,
+            quality_score=0.0,
+            manifest_hash=manifest_hash,
+            raw_source_attempts=[{
+                "tier": "unavailable",
+                "raw_path": "none",
+                "sha256": "",
+                "status": "failed",
+                "reason": reason,
+            }],
+            artifacts=artifacts_dict,
+        )
+        (v_dir / "artifact_manifest.json").write_text(art_manifest.model_dump_json(indent=2))
+
+        manifest = VideoCorpusManifest(
+            video_id=video_id,
+            title=title,
+            duration_seconds=duration_seconds,
+            source_url=source_url,
+            playlist_urls=video_info.get("playlist_urls", []),
+            raw_source_hashes={},
+            canonical_segment_count=0,
+            quality_state=quality_state,
+            manifest_hash=manifest_hash,
+        )
+        (v_dir / "manifest.json").write_text(manifest.model_dump_json(indent=2))
+        return manifest
+
     def process_and_package_video(
         self,
         video_info: dict[str, Any],
         segments: list[CanonicalSegment],
-        raw_source_path: Path,
-        raw_source_hash: str,
+        raw_source_path: Optional[Path] = None,
+        raw_source_hash: str = "",
         duration_seconds: float = 0.0,
         asr_comparison_text: Optional[str] = None,
     ) -> VideoCorpusManifest:
@@ -514,6 +641,13 @@ class CorpusEngine:
             ),
         }
 
+        raw_rel_path = "none"
+        if raw_source_path:
+            try:
+                raw_rel_path = str(raw_source_path.relative_to(v_dir))
+            except Exception:
+                raw_rel_path = str(raw_source_path)
+
         art_manifest = ArtifactManifest(
             manifest_version="2.0.0",
             pipeline_version=PIPELINE_VERSION,
@@ -524,22 +658,23 @@ class CorpusEngine:
             manifest_hash=manifest_hash,
             raw_source_attempts=[{
                 "tier": corrected_segments[0].source_tier if corrected_segments else "unknown",
-                "raw_path": str(raw_source_path.relative_to(v_dir)),
+                "raw_path": raw_rel_path,
                 "sha256": raw_source_hash,
-                "status": "success",
+                "status": "success" if corrected_segments else "failed",
             }],
             artifacts=artifacts_dict,
         )
         (v_dir / "artifact_manifest.json").write_text(art_manifest.model_dump_json(indent=2))
 
         # Legacy manifest for backwards compatibility
+        raw_source_hashes = {str(raw_source_path): raw_source_hash} if raw_source_path else {}
         manifest = VideoCorpusManifest(
             video_id=video_id,
             title=title,
             duration_seconds=duration_seconds,
             source_url=source_url,
             playlist_urls=video_info.get("playlist_urls", []),
-            raw_source_hashes={str(raw_source_path): raw_source_hash},
+            raw_source_hashes=raw_source_hashes,
             canonical_segment_count=len(corrected_segments),
             quality_state=q_report.quality_state,
             manifest_hash=manifest_hash,

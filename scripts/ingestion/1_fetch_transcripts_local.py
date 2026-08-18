@@ -588,6 +588,10 @@ def write_transcript_md(video: dict, text: str, method: str) -> Path:
     speech_status = "speech" if has_speech(text) else "no_speech"
     language = video.get("language") or "en"
 
+    import unicodedata
+    clean_body = unicodedata.normalize("NFC", (text or "").replace("\x00", "")).strip()
+    clean_body = apply_doctrine_corrections(clean_body)
+
     content = (
         f"# {title}\n\n"
         f"**Video ID:** `{video['video_id']}`\n"
@@ -598,7 +602,7 @@ def write_transcript_md(video: dict, text: str, method: str) -> Path:
         f"**Method:** {method}\n"
         f"**Fetched:** {datetime.now(timezone.utc).isoformat()}\n\n"
         f"**Speech Status:** {speech_status}\n\n"
-        f"## Transcript\n\n{text}\n"
+        f"## Transcript\n\n{clean_body}\n"
     )
     path.write_text(content, encoding="utf-8")
     return path
@@ -618,6 +622,13 @@ def apply_doctrine_corrections(text: str) -> str:
         pass
     return text
 
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_INGEST_DIR = Path(__file__).resolve().parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+if str(_INGEST_DIR) not in sys.path:
+    sys.path.insert(0, str(_INGEST_DIR))
 
 try:
     from scripts.ingestion.corpus_engine import (

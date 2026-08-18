@@ -521,6 +521,10 @@ def split_text_into_chunks(text, max_chars=3000, overlap=500):
 def flatten_tree_for_ingestion(nodes, parent_title="", cluster_id=1):
     """Recursively flatten the tree structure into chunk items for Qdrant."""
     chunks = []
+    try:
+        from services.doctrine_terms import apply_corrections_with_ledger
+    except ImportError:
+        apply_corrections_with_ledger = None
 
     for node in nodes:
         title = node.get("title", "")
@@ -528,10 +532,15 @@ def flatten_tree_for_ingestion(nodes, parent_title="", cluster_id=1):
             f"{parent_title} > {title}" if parent_title and title else (title or parent_title)
         )
 
-        text = node.get("text", "").strip()
-        summary = node.get("summary", "").strip()
+        import unicodedata
+        text = unicodedata.normalize("NFC", (node.get("text") or "").replace("\x00", "")).strip()
+        summary = unicodedata.normalize("NFC", (node.get("summary") or "").replace("\x00", "")).strip()
 
         if text:
+            if apply_corrections_with_ledger:
+                text, _ = apply_corrections_with_ledger(
+                    text, segment_id=f"node_{node.get('node_id', '')}_text"
+                )
             # Split large sections into smaller overlapping chunks for 10/10 confidence retrieval
             sub_chunks = split_text_into_chunks(text, max_chars=4000, overlap=800)
             for i, sub_text in enumerate(sub_chunks):
@@ -554,6 +563,10 @@ def flatten_tree_for_ingestion(nodes, parent_title="", cluster_id=1):
                 )
 
         if summary:
+            if apply_corrections_with_ledger:
+                summary, _ = apply_corrections_with_ledger(
+                    summary, segment_id=f"node_{node.get('node_id', '')}_sum"
+                )
             chunks.append(
                 {
                     "text": summary,

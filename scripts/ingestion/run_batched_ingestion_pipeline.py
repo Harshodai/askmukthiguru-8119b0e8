@@ -146,6 +146,19 @@ def run_pipeline(
         grand_fetched += ok_c
         grand_failed += fail_c
 
+        # Step A.5: Autonomous Ingestion Subagent Review & Manifest Sealing
+        try:
+            from scripts.ingestion.ingestion_subagent import IngestionSubagent
+            subagent = IngestionSubagent()
+            corpus_base = REPO_ROOT / "scripts" / "ingestion" / "corpus"
+            for v_id in vids:
+                pkg_path = corpus_base / v_id
+                if pkg_path.is_dir():
+                    res = subagent.review_and_seal_package(pkg_path)
+                    print(f"  🤖 [subagent] Audited {v_id}: status={res.status}, ledger_entries={res.ledger_entries_count}")
+        except Exception as e:
+            print(f"  ⚠️ [subagent] Subagent review warning: {e}")
+
         # Step B: Immediate Batch Upload to Railway for this playlist
         target_md_files = [TRANSCRIPTS_DIR / f"{v_id}.md" for v_id in vids if (TRANSCRIPTS_DIR / f"{v_id}.md").exists()]
         print(f"\n📤 [Playlist {p_idx}/{total_playlists}] Pushing {len(target_md_files)} transcript(s) to Railway...")

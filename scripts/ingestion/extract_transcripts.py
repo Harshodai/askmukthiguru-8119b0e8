@@ -41,6 +41,16 @@ import time
 import traceback
 from pathlib import Path
 
+# ── Backend Import for Doctrine Terms & Corrections ──────────
+BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+
+try:
+    from services.doctrine_terms import apply_corrections_with_ledger
+except ImportError:
+    apply_corrections_with_ledger = None
+
 # ─────────────────────────────────────────────
 # DEPENDENCY CHECKS
 # ─────────────────────────────────────────────
@@ -1209,6 +1219,11 @@ def build_plain_text(item):
 
     # 3. Collapse whitespace
     text = re.sub(r"\s+", " ", text).strip()
+
+    # 4. UTF-8 safety & normalization
+    import unicodedata
+    text = text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+    text = unicodedata.normalize("NFC", text)
     return text
 
 
@@ -1762,6 +1777,11 @@ def _process_results(results, was_aborted, batch, state, transcripts_data, alrea
 
                 # ── Transcript is COMPLETE — proceed with punctuation & write ──
                 plain = restore_punctuation(plain, vid)
+                correction_ledger = []
+                if apply_corrections_with_ledger:
+                    plain, correction_ledger = apply_corrections_with_ledger(plain, segment_id=f"{vid}_full")
+                    if correction_ledger:
+                        print(f"  📝 Applied {len(correction_ledger)} doctrine term corrections to {vid}")
                 try:
                     path = write_md(vid, title, channel, date, "", plain, language)
                     print(f"  ✅ {vid} ({language}) → {path.name} [VALIDATED]")
@@ -1788,6 +1808,7 @@ def _process_results(results, was_aborted, batch, state, transcripts_data, alrea
                     "total_seconds": item.get("total_seconds", 0),
                     "captions": plain,
                     "timestamped": item.get("timestamped", []),
+                    "correction_ledger": correction_ledger,
                     "url": f"https://www.youtube.com/watch?v={vid}",
                 }
             else:

@@ -107,6 +107,9 @@ def build_audit_reports():
                 all_videos_dict[vid]["playlist_urls"].append(p_url)
 
     # Backfill from progress_file
+    # Progress metadata carries no playlist membership, so backfilled videos
+    # get empty playlist lists ("unknown" membership) and are excluded from
+    # playlist rollups rather than being falsely attributed to playlist 1.
     for vid, cinfo in completed_dict.items():
         if vid not in all_videos_dict:
             all_videos_dict[vid] = {
@@ -115,8 +118,8 @@ def build_audit_reports():
                 "title": cinfo.get("title", ""),
                 "uploader": "Ekam / O&O Academy",
                 "duration_seconds": 0.0,
-                "playlist_indices": [1],
-                "playlist_urls": [PLAYLIST_URLS[0]],
+                "playlist_indices": [],
+                "playlist_urls": [],
             }
 
     for vid, finfo in failed_dict.items():
@@ -127,8 +130,8 @@ def build_audit_reports():
                 "title": finfo.get("title", ""),
                 "uploader": "Ekam / O&O Academy",
                 "duration_seconds": 0.0,
-                "playlist_indices": [1],
-                "playlist_urls": [PLAYLIST_URLS[0]],
+                "playlist_indices": [],
+                "playlist_urls": [],
             }
 
     print(f"✨ Total unique videos consolidated: {len(all_videos_dict)}")
@@ -137,15 +140,19 @@ def build_audit_reports():
     all_rows = []
     processed_rows = []
     failed_rows = []
+    pending_unknown_rows = []
 
-    for vid, vmeta in sorted(all_videos_dict.items(), key=lambda x: (x[1]["playlist_indices"][0], x[0])):
+    for vid, vmeta in sorted(
+        all_videos_dict.items(),
+        key=lambda x: (x[1]["playlist_indices"][0] if x[1]["playlist_indices"] else float("inf"), x[0]),
+    ):
         v_dir = CORPUS_DIR / vid
         manifest_file = v_dir / "artifact_manifest.json"
         quality_file = v_dir / "quality_report.json"
         transcript_file = v_dir / "transcript.md"
         segments_file = v_dir / "canonical_segments.json"
 
-        p_idx_str = ", ".join(str(i) for i in vmeta.get("playlist_indices", [1]))
+        p_idx_str = ", ".join(str(i) for i in vmeta.get("playlist_indices", []))
         title = vmeta.get("title", "") or (completed_dict.get(vid, {}).get("title") or failed_dict.get(vid, {}).get("title") or "Unknown Title")
         yt_link = f"https://www.youtube.com/watch?v={vid}"
 
@@ -248,7 +255,10 @@ def build_audit_reports():
                 "Manifest SHA256": "N/A",
                 "Error / Failure Note": err_reason,
             }
-            failed_rows.append(row)
+            if status == "DEAD_LETTERED":
+                failed_rows.append(row)
+            else:
+                pending_unknown_rows.append(row)
             all_rows.append(row)
 
     # 4. Playlist level rollup stats
@@ -273,11 +283,20 @@ def build_audit_reports():
     df_all = pd.DataFrame(all_rows)
     df_proc = pd.DataFrame(processed_rows)
     df_fail = pd.DataFrame(failed_rows)
+    df_pending_unknown = pd.DataFrame(pending_unknown_rows)
     df_playlist = pd.DataFrame(playlist_stats)
 
     # 6. Save Excel Workbooks
     excel_main = INGESTION_DIR / "mukthi_guru_full_corpus_20_playlists_audit.xlsx"
     excel_failed = INGESTION_DIR / "dead_lettered_videos_88.xlsx"
+
+    sheet_rows = {
+        "Playlists_Summary": len(playlist_stats),
+        "All_Videos_745": len(all_rows),
+        "Processed_651": len(processed_rows),
+        "Dead_Lettered_88": len(failed_rows),
+        "Pending_Unknown": len(pending_unknown_rows),
+    }
 
     print(f"📊 Writing multi-sheet Excel report: {excel_main}")
     with pd.ExcelWriter(excel_main, engine="xlsxwriter") as writer:
@@ -285,11 +304,15 @@ def build_audit_reports():
         df_all.to_excel(writer, sheet_name="All_Videos_745", index=False)
         df_proc.to_excel(writer, sheet_name="Processed_651", index=False)
         df_fail.to_excel(writer, sheet_name="Dead_Lettered_88", index=False)
+        df_pending_unknown.to_excel(writer, sheet_name="Pending_Unknown", index=False)
 
         for sheet_name in writer.sheets:
             worksheet = writer.sheets[sheet_name]
             worksheet.freeze_panes(1, 0)
-            worksheet.autofilter(0, 0, len(all_rows), 14)
+            n_rows = sheet_rows.get(sheet_name, len(all_rows))
+            n_cols = 7 if sheet_name == "Playlists_Summary" else 16
+            if n_rows > 0:
+                worksheet.autofilter(0, 0, n_rows, n_cols - 1)
 
     print(f"📊 Writing dead-lettered Excel report: {excel_failed}")
     with pd.ExcelWriter(excel_failed, engine="xlsxwriter") as writer:

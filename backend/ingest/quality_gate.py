@@ -35,13 +35,20 @@ def _spiritual_keywords() -> frozenset[str]:
     return frozenset([
         "beautiful state", "suffering state", "surrender", "oneness", "consciousness",
         "ekam", "deeksha", "soul sync", "four sacred secrets", "preethaji", "krishnaji",
+        "sri preethaji", "sri krishnaji", "sri bhagavan", "sri amma", "sri amma bhagavan",
+        "anandagiri", "sparsha deeksha", "smarana deeksha", "prana deeksha", "netra deeksha",
+        "ojas", "hiranyagarbha", "brahmarandhra", "namaskara mudra", "saptapadi",
+        "hamsa soham ekam", "vastu purusha mandala", "matra shastra", "neelakantha",
+        "nagabharana", "ajna chakra", "sat-chit-ananda", "shivaratri", "antaryamin",
+        "sthitha pragna", "ekam tapas", "ekam sattva", "ekam mithra", "ekam dhyana",
+        "ekam mukthi", "ekam siddha", "ekam arogya", "ekam abhyasa", "moola mantra",
         "meditation", "dharma", "karma", "moksha", "atma", "brahman", "samsara",
         "guru", "sadhna", "sadhana", "mahavakya", "satsang", "sankalpa", "vairagya",
         "bhakti", "jnana", "kriya", "mantra", "maya", "jeevan mukta", "paramatma",
-        "enlightenment", "liberation", "spiritual", "consciousness", "awakening",
-        "mindfulness", "inner peace", "divine", "sacred", "soul", "awareness",
-        "presence", "stillness", "silence", "transformation", "healing", "devotion",
-        "bliss", "gratitude", "compassion", "love", "peace", "unity", "presence",
+        "enlightenment", "liberation", "spiritual", "awakening", "mindfulness",
+        "inner peace", "divine", "sacred", "soul", "awareness", "presence",
+        "stillness", "silence", "transformation", "healing", "devotion", "bliss",
+        "gratitude", "compassion", "love", "peace", "unity",
     ])
 
 
@@ -400,14 +407,32 @@ class DataQualityGate:
         self,
         llm_service: Optional[Any] = None,
         supabase_client: Optional[Any] = None,
-        quality_threshold: int = DEFAULT_THRESHOLD,
-        enabled: bool = True,
+        quality_threshold: Optional[int] = None,
+        enabled: Optional[bool] = None,
     ):
+        from app.config import settings
         self._llm_scorer = LLMQualityScorer(llm_service) if llm_service else None
         self._staging = StagingQueue(supabase_client)
         self._deterministic = DeterministicChecker()
-        self._threshold = quality_threshold
-        self._enabled = enabled
+        raw_threshold = getattr(settings, "data_quality_threshold", None)
+        if raw_threshold is None:
+            raw_threshold = getattr(settings, "quality_gate_threshold", None)
+        if raw_threshold is None:
+            raw_threshold = self.DEFAULT_THRESHOLD
+        self._threshold = (
+            quality_threshold
+            if quality_threshold is not None
+            else int(raw_threshold)
+        )
+        raw_enabled = getattr(settings, "data_audit_enabled", None)
+        if raw_enabled is None:
+            raw_enabled = True
+        self._enabled = (
+            enabled
+            if enabled is not None
+            else bool(raw_enabled)
+        )
+
 
     async def run(self, text: str, source_url: str = "") -> QualityResult:
         """
