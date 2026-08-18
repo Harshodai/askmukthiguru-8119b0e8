@@ -18,18 +18,9 @@ export default function KnowledgeGraphPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 relative">
-      {/* Ambient orbs */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -top-20 right-0 w-80 h-80 rounded-full bg-amber-400/10 blur-3xl" />
-      </div>
-
       <header className="relative border-b border-border/40 backdrop-blur-md bg-background/60 sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
-            <div className="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-amber-400/20 border border-primary/20 shadow-sm">
-              <Sparkles className="w-5 h-5 text-primary" />
-            </div>
             <div className="min-w-0">
               <h1 className="font-sacred text-2xl sm:text-3xl text-foreground leading-tight truncate">
                 {t('kg.title', 'Wisdom Map')}
