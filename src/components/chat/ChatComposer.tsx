@@ -299,7 +299,7 @@ export function ChatComposer({
                     </DropdownMenuItem>
                   )}
                   {actionCapabilities.textAttachments && (
-                    <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                    <DropdownMenuItem disabled={isUploading} onClick={() => fileInputRef.current?.click()}>
                       <FileText className="w-4 h-4 mr-2 text-ojas" />
                       {isUploading ? 'Processing attachment…' : 'Attach media or document'}
                     </DropdownMenuItem>
@@ -353,7 +353,7 @@ export function ChatComposer({
               <PromptInputSubmit
                 type="submit"
                 size="icon-sm"
-                disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind || isQuotaExceeded}
+                disabled={!inputValue.trim() || isTyping || isStreaming || isAwaitingSereneMind || isQuotaExceeded || isUploading}
                 className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-white hover:bg-ojas-dark disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all flex items-center justify-center"
                 aria-label={t('chat.send') === 'chat.send' ? 'Send message' : t('chat.send')}
               >
