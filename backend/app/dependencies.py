@@ -38,7 +38,7 @@ from app.builder import ContainerBuilder
 
 # Re-exported for legacy callers that touched health/cleanup internals.
 from app.health import ContainerHealthChecker
-from app.lifecycle import ContainerLifecycle, close_container
+from app.lifecycle import ContainerLifecycle, close_container, close_container_async
 
 import logging
 
@@ -81,13 +81,25 @@ def startup() -> None:
 
 
 def shutdown() -> None:
-    """Cleanup on application shutdown - releases service resources."""
+    """Cleanup on synchronous shutdown callers."""
     global _container
     with _container_lock:
-        if _container is not None:
-            _container.close()
-            _container = None
+        container = _container
+        _container = None
+    if container is not None:
+        close_container(container)
     logger.info("Service container shutdown")
+
+
+async def async_shutdown() -> None:
+    """Cleanup on async application shutdown, awaiting service resources."""
+    global _container
+    with _container_lock:
+        container = _container
+        _container = None
+    if container is not None:
+        await close_container_async(container)
+    logger.info("Async service container shutdown")
 
 
 __all__ = [
@@ -102,6 +114,7 @@ __all__ = [
     "get_container",
     "startup",
     "shutdown",
+    "async_shutdown",
     "startup_complete",
     "startup_error",
 ]

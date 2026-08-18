@@ -58,7 +58,7 @@ except Exception:
 
 from app.config import settings
 from app.context import correlation_id_var
-from app.dependencies import ServiceContainer, get_container, shutdown, startup
+from app.dependencies import ServiceContainer, async_shutdown, get_container, startup
 from app.metrics import REQUEST_COUNT
 from app.observability import init_observability
 from app.security_utils import TTLRateLimiter, ExponentialBackoffRateLimiter, RedisBackedRateLimiter, validate_correlation_id, build_csp
@@ -742,7 +742,7 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("MemoryServiceV2 shutdown cleanup error: %s", exc)
 
-    shutdown()
+    await async_shutdown()
 
 
 # === App Creation ===

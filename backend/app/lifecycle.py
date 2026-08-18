@@ -19,6 +19,8 @@ container's close() method delegates here.
 Design Pattern: Singleton Container + thread-safe initialization.
 """
 
+import asyncio
+import inspect
 import logging
 import threading
 
@@ -27,7 +29,7 @@ from app.container import ServiceContainer
 logger = logging.getLogger(__name__)
 
 
-def close_container(container: ServiceContainer) -> None:
+async def close_container_async(container: ServiceContainer) -> None:
     """
     Explicitly release resources held by services.
 
@@ -56,7 +58,9 @@ def close_container(container: ServiceContainer) -> None:
             method = getattr(svc, method_name, None)
             if callable(method):
                 try:
-                    method()
+                    result = method()
+                    if inspect.isawaitable(result):
+                        await result
                     logger.debug(f"Closed {name} via {method_name}()")
                 except Exception as exc:
                     logger.warning(f"Error closing {name}.{method_name}(): {exc}")
@@ -64,13 +68,26 @@ def close_container(container: ServiceContainer) -> None:
 
     if container._neo4j_driver is not None:
         try:
-            container._neo4j_driver.close()
+            result = container._neo4j_driver.close()
+            if inspect.isawaitable(result):
+                await result
             logger.debug("Closed shared neo4j_driver")
         except Exception as exc:
             logger.warning(f"Error closing shared neo4j_driver: {exc}")
         container._neo4j_driver = None
 
     logger.info("All services closed")
+
+
+def close_container(container: ServiceContainer) -> None:
+    """Synchronously close a container for legacy non-async callers."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(close_container_async(container))
+    else:
+        loop.create_task(close_container_async(container))
+        logger.debug("Scheduled asynchronous container cleanup on the running event loop")
 
 
 class ContainerLifecycle:
@@ -101,7 +118,7 @@ class ContainerLifecycle:
     async def shutdown(self, container: ServiceContainer | None = None) -> None:
         """Cleanup on application shutdown — releases service resources."""
         if container is not None:
-            close_container(container)
+            await close_container_async(container)
             logger.info("Service container shutdown (explicit instance)")
             return
 
