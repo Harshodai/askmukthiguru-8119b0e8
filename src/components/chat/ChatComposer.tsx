@@ -1,5 +1,9 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  CHAT_MAX_SINGLE_ATTACHMENT_BYTES,
+  formatMegabytes,
+} from '@/lib/chat/attachmentLimits';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -104,16 +108,15 @@ export function ChatComposer({
 
   const actionCapabilities = capabilities ?? { sereneMind: true, guidedMeditation: true, textAttachments: true, voiceInput: true };
   const hasMoreActions = actionCapabilities.sereneMind || actionCapabilities.guidedMeditation || actionCapabilities.textAttachments;
-  const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024; // 2 MB cap for chat text files
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > MAX_ATTACHMENT_BYTES) {
+    if (file.size > CHAT_MAX_SINGLE_ATTACHMENT_BYTES) {
       toast?.({
         title: t('chat.attachmentTooLarge') === 'chat.attachmentTooLarge' ? 'Attachment too large' : t('chat.attachmentTooLarge'),
-        description: t('chat.attachmentSizeHint') === 'chat.attachmentSizeHint' ? 'Please choose a text file under 2 MB.' : t('chat.attachmentSizeHint'),
+        description: t('chat.attachmentSizeHint') === 'chat.attachmentSizeHint' ? `Please choose a text file under ${formatMegabytes(CHAT_MAX_SINGLE_ATTACHMENT_BYTES)}.` : t('chat.attachmentSizeHint'),
         variant: 'destructive',
       });
       e.target.value = '';

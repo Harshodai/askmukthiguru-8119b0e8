@@ -7,7 +7,7 @@ import re
 
 import asyncio
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -779,7 +779,7 @@ async def ask_admin_question(
     dynamic_context = []
     
     try:
-        now_dt = datetime.now(UTC)
+        now_dt = datetime.now(timezone.utc)
         from_date = (now_dt - timedelta(days=30)).isoformat()
         to_date = now_dt.isoformat()
         

@@ -150,6 +150,13 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
     setData(null);
 
     const requestId = ++activeReqRef.current;
+    demoTimerRef.current = window.setTimeout(() => {
+      if (requestId !== activeReqRef.current) return;
+      setData(DEMO_DATA);
+      setIsDemo(true);
+      setError(null);
+      setLoading(false);
+    }, 2500);
     try {
       const { endpoint } = getAIConfig();
       const baseUrl = (endpoint ?? '').replace(/\/api\/chat\/?$/, '');
@@ -166,6 +173,10 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       const json = (await res.json()) as Subgraph;
 
       if (requestId !== activeReqRef.current) return;
+      if (demoTimerRef.current) {
+        clearTimeout(demoTimerRef.current);
+        demoTimerRef.current = null;
+      }
       if (!json.nodes || json.nodes.length === 0) {
         setData(null);
         setIsDemo(false);
@@ -179,14 +190,23 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       setZoom(1);
     } catch (err) {
       if (requestId !== activeReqRef.current) return;
+      if (demoTimerRef.current) {
+        clearTimeout(demoTimerRef.current);
+        demoTimerRef.current = null;
+      }
       const message = err instanceof Error ? err.message : String(err);
-      setData(null);
-      setIsDemo(false);
-      setError(t('kg.errorLoading', { error: message }));
+      setData(DEMO_DATA);
+      setIsDemo(true);
+      setError(null);
+      console.warn('[Wisdom Map] live graph unavailable; showing demo data', message);
       setPan({ x: 0, y: 0 });
       setZoom(1);
     } finally {
       if (requestId === activeReqRef.current) {
+        if (demoTimerRef.current) {
+          clearTimeout(demoTimerRef.current);
+          demoTimerRef.current = null;
+        }
         setLoading(false);
       }
     }
@@ -530,10 +550,10 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
         <span className="ml-1 italic font-sans opacity-85">{t('kg.help', 'Drag to pan · scroll to zoom · double-click node to pin')}</span>
       </div>
 
-      {error && (
+      {error && !isDemo && (
         <div className="text-sm text-destructive">
           {error}
-          {!isDemo && data === null && (
+          {data === null && (
             <button
               type="button"
               onClick={() => {
@@ -551,8 +571,15 @@ export const KGConceptMap = ({ initialQuery = '' }: { initialQuery?: string }) =
       )}
 
       {isDemo && data && (
-        <div className="text-sm text-muted-foreground text-center italic font-sans">
-          {t('kg.showingDemo')}
+        <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground text-center font-sans">
+          <span>{t('kg.showingDemo', 'Live wisdom map is unavailable — showing a guided example.')}</span>
+          <button
+            type="button"
+            onClick={() => void fetchSubgraph(submitted || 'beautiful state')}
+            className="inline-flex items-center rounded-md bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          >
+            {t('kg.retryLive', 'Retry live map')}
+          </button>
         </div>
       )}
 

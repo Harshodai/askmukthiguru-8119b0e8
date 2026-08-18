@@ -10,6 +10,7 @@ Design Patterns:
 Supports: English, Hindi, Telugu (configurable via OCR_LANGUAGES env var)
 Runs on CPU to leave GPU free for the LLM.
 """
+from __future__ import annotations
 
 import asyncio
 import ipaddress

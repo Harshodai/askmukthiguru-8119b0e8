@@ -24,6 +24,12 @@ import { chatErrorBus } from '@/lib/chatErrorBus';
 import { buildGreeting, buildGreetingSubline } from '@/lib/greeting';
 import { useVisitContext } from '@/hooks/useVisitContext';
 import { useTranslation } from 'react-i18next';
+import {
+  CHAT_MAX_ATTACHMENTS,
+  CHAT_MAX_SINGLE_ATTACHMENT_BYTES,
+  CHAT_MAX_TOTAL_ATTACHMENT_BYTES,
+  formatMegabytes,
+} from '@/lib/chat/attachmentLimits';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
 
@@ -95,8 +101,6 @@ const STARTER_CARDS = [
 
 const STARTER_SUGGESTIONS = STARTER_CARDS.map((c) => c.promptKey);
 
-const MAX_ATTACHMENTS = 5;
-const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
 const PASTE_ATTACHMENT_THRESHOLD = 2000;
 
 export const ChatInterface = () => {
@@ -185,19 +189,27 @@ export const ChatInterface = () => {
   const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string; content: string }[]>([]);
 
   const handleAddFile = useCallback((file: { name: string; content: string }): boolean => {
-    if (attachedFiles.length >= MAX_ATTACHMENTS) {
+    if (attachedFiles.length >= CHAT_MAX_ATTACHMENTS) {
       toast({
         title: "Attachment Limit Reached",
-        description: `You can upload a maximum of ${MAX_ATTACHMENTS} files.`,
+        description: `You can upload a maximum of ${CHAT_MAX_ATTACHMENTS} files.`,
         variant: "destructive"
       });
       return false;
     }
     const currentSize = attachedFiles.reduce((sum, f) => sum + f.content.length, 0);
-    if (currentSize + file.content.length > MAX_ATTACHMENT_BYTES) {
+    if (file.content.length > CHAT_MAX_SINGLE_ATTACHMENT_BYTES) {
+      toast({
+        title: 'Attachment Too Large',
+        description: `Each text attachment must be under ${formatMegabytes(CHAT_MAX_SINGLE_ATTACHMENT_BYTES)}.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+    if (currentSize + file.content.length > CHAT_MAX_TOTAL_ATTACHMENT_BYTES) {
       toast({
         title: "File Too Large",
-        description: `Total attachment size cannot exceed ${MAX_ATTACHMENT_BYTES / (1024 * 1024)} MB.`,
+        description: `Total attachment size cannot exceed ${formatMegabytes(CHAT_MAX_TOTAL_ATTACHMENT_BYTES)}.`,
         variant: "destructive"
       });
       return false;
@@ -1273,7 +1285,10 @@ openSereneMind('audio');
           toast({ title: 'Connection interrupted', description: 'Response may be incomplete.' });
           streamingWorked = true;
         } else {
-          const msgError = buildMessageError(err?.errorCode, err?.message, err?.status);
+          const streamDetail = err?.message ?? '';
+          const streamOffline = !navigator.onLine || /network|fetch|failed to fetch|load failed/i.test(streamDetail);
+          const streamErrorCode = err?.errorCode || (streamOffline ? 'network' : undefined);
+          const msgError = buildMessageError(streamErrorCode, err?.message, err?.status);
           if (msgError.kind === 'quota_exceeded') {
             setQuotaExceeded(true);
             setQuotaMeta({ remaining: err?.quotaRemaining, totalLimit: err?.quotaTotalLimit });

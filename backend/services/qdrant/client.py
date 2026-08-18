@@ -17,11 +17,19 @@ from qdrant_client.http.models import (
     ScalarType,
     SparseIndexParams,
     SparseVectorParams,
-    TurboQuantBitSize,
-    TurboQuantization,
-    TurboQuantQuantizationConfig,
     VectorParams,
 )
+
+try:
+    from qdrant_client.http.models import (
+        TurboQuantBitSize,
+        TurboQuantization,
+        TurboQuantQuantizationConfig,
+    )
+except ImportError:  # Older qdrant-client versions do not expose TurboQuant.
+    TurboQuantBitSize = None
+    TurboQuantization = None
+    TurboQuantQuantizationConfig = None
 
 from app.config import settings
 
@@ -135,6 +143,11 @@ class QdrantClientManager:
                 binary=BinaryQuantizationConfig(always_ram=True)
             )
         if q.startswith("turboquant_"):
+            if TurboQuantBitSize is None or TurboQuantization is None or TurboQuantQuantizationConfig is None:
+                raise RuntimeError(
+                    "TurboQuant requires a qdrant-client version exposing TurboQuant models. "
+                    "Use scalar_int8 or binary with the installed client."
+                )
             bit_map = {
                 "turboquant_1bit": TurboQuantBitSize.BITS1,
                 "turboquant_2bit": TurboQuantBitSize.BITS2,
