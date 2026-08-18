@@ -6,7 +6,7 @@ import { PrePracticeGate } from '@/components/chat/PrePracticeGate';
 import { useOptionalAuth } from '@/hooks/useOptionalAuth';
 import { useBackendHealth } from '@/hooks/useBackendHealth';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { Loader2, MonitorCheck, ArrowRight } from 'lucide-react';
+import { Loader2, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,

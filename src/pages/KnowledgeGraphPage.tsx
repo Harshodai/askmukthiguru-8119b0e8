@@ -2,7 +2,7 @@ import { KGConceptMap } from '@/components/kg/KGConceptMap';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { returnToOrigin } from '@/lib/workspaceNavigation';
 import { useTranslation } from 'react-i18next';
-import { X, Sparkles } from 'lucide-react';
+import { X } from 'lucide-react';
 
 // Public — Wisdom Map is a discovery surface, no auth gate.
 export default function KnowledgeGraphPage() {
