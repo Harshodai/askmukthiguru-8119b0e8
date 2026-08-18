@@ -35,7 +35,7 @@ import { ChatErrorBanner } from './ChatErrorBanner';
 
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, uploadChatAttachment, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
 import type { LiveLogisticsEvent, GuidancePlan, AnswerEvidence, GroundingState } from '@/lib/chat/types';
 import { getCourse } from '@/lib/healingCourses';
 import { memoryApi } from '@/lib/memoryApi';
@@ -188,7 +188,7 @@ export const ChatInterface = () => {
   const [inputValue, setInputValue] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string; content: string }[]>([]);
 
-  const handleAddFile = useCallback((file: { name: string; content: string }): boolean => {
+  const handleAddFile = useCallback(async (file: File | { name: string; content: string }): Promise<boolean> => {
     if (attachedFiles.length >= CHAT_MAX_ATTACHMENTS) {
       toast({
         title: "Attachment Limit Reached",
@@ -197,19 +197,31 @@ export const ChatInterface = () => {
       });
       return false;
     }
+
+    let name: string;
+    let content: string;
+    if (typeof File !== 'undefined' && file instanceof File) {
+      const processed = await uploadChatAttachment(file, getAIConfig().language || 'en');
+      name = file.name;
+      content = processed.attachment_context;
+    } else {
+      name = file.name;
+      content = file.content;
+    }
+
     const currentSize = attachedFiles.reduce((sum, f) => sum + f.content.length, 0);
-    if (file.content.length > CHAT_MAX_SINGLE_ATTACHMENT_BYTES) {
+    if (content.length > CHAT_MAX_SINGLE_ATTACHMENT_BYTES) {
       toast({
         title: 'Attachment Too Large',
-        description: `Each text attachment must be under ${formatMegabytes(CHAT_MAX_SINGLE_ATTACHMENT_BYTES)}.`,
+        description: `Each extracted attachment must be under ${formatMegabytes(CHAT_MAX_SINGLE_ATTACHMENT_BYTES)}.`,
         variant: 'destructive',
       });
       return false;
     }
-    if (currentSize + file.content.length > CHAT_MAX_TOTAL_ATTACHMENT_BYTES) {
+    if (currentSize + content.length > CHAT_MAX_TOTAL_ATTACHMENT_BYTES) {
       toast({
         title: "File Too Large",
-        description: `Total attachment size cannot exceed ${formatMegabytes(CHAT_MAX_TOTAL_ATTACHMENT_BYTES)}.`,
+        description: `Total attachment context cannot exceed ${formatMegabytes(CHAT_MAX_TOTAL_ATTACHMENT_BYTES)}.`,
         variant: "destructive"
       });
       return false;
@@ -218,8 +230,8 @@ export const ChatInterface = () => {
       ...prev,
       {
         id: Math.random().toString(36).substring(2, 9),
-        name: file.name,
-        content: file.content
+        name,
+        content,
       }
     ]);
     return true;
@@ -882,13 +894,14 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
       }
     }
 
-    // Prepend attached text file content to RAG prompt
-    if (attachedFiles.length > 0) {
-      const filesContext = attachedFiles
+    // Keep uploaded material separate from the user question. The backend treats
+    // it as bounded, untrusted evidence instead of mixing it into personal memory.
+    const attachmentContext = attachedFiles.length > 0
+      ? attachedFiles
         .map(f => `[Attached File: ${f.name}]\n${f.content}`)
-        .join('\n\n');
-      textForAI = `${filesContext}\n\n${textForAI}`;
-    }
+        .join('\n\n')
+        .slice(0, 8000)
+      : undefined;
 
     // The AI-bound text may differ (translated)
     const aiText = textForAI;
@@ -911,7 +924,8 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
 
     // Check cache first — use aiText (translated) as the cache key so identical
     // questions in different scripts deduplicate properly.
-    const allMsgs = [...messageHistory, { role: 'user' as const, content: aiText }];
+    const cacheInput = attachmentContext ? `${aiText}\n${attachmentContext}` : aiText;
+    const allMsgs = [...messageHistory, { role: 'user' as const, content: cacheInput }];
     const cacheKey = `${currentLanguage}:${hashMessages(allMsgs)}`;
     const cached = options.bypassCache ? null : getCachedResponse(cacheKey);
 
@@ -1003,6 +1017,7 @@ const PASTE_ATTACHMENT_THRESHOLD = 2000;
           undefined,
           undefined,
           responsePreferences,
+          attachmentContext,
         );
 
         // Show pipeline thinking pills — start with Safety check active immediately to eliminate blank gap

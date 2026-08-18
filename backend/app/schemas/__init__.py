@@ -80,6 +80,14 @@ class ChatRequest(BaseModel):
         default=None,
         description="Optional assistant context to scope persona and retrieval",
     )
+    attachment_context: Optional[str] = Field(
+        default=None,
+        max_length=8000,
+        description=(
+            "Ephemeral, pre-extracted evidence from user attachments. The upload route "
+            "returns this value; it is never persisted or indexed automatically."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod

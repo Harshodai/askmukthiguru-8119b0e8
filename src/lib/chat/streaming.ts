@@ -49,6 +49,7 @@ export async function* sendMessageStreaming(
   /** Stable id of the previous assistant message (if any) — for telemetry context. */
   lastMessageId?: string,
   responsePreferences?: ResponsePreferences,
+  attachmentContext?: string,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = getCurrentConfig();
 
@@ -83,6 +84,7 @@ export async function* sendMessageStreaming(
       ? { last_serene_mind_at: lastSereneMindAt / 1000 }
       : {}),
     ...(seekerContext ? { seeker_context: seekerContext } : {}),
+    ...(attachmentContext ? { attachment_context: attachmentContext.slice(0, 8000) } : {}),
     ...buildAssistantContext(),
   });
 

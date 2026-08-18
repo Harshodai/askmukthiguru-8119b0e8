@@ -198,6 +198,12 @@ Populate key environment variables in `backend/.env`:
 
 ---
 
+## Ephemeral chat attachments
+
+The chat composer accepts text and office documents (`.txt`, Markdown, CSV/TSV, JSON, XML, HTML, YAML, DOCX, PPTX, XLSX), PDFs, images, audio, and video. Each selected file is sent to `POST /api/chat/upload`, where the backend applies a 10 MB per-file cap and 50 MB combined cap, extracts bounded evidence using PDF/OOXML text extraction, OCR, or local Whisper transcription, and returns an `attachment_context` value for the next chat turn. Upload bytes are not persisted or indexed automatically. The subsequent `/api/chat` or `/api/chat/stream` request carries that context separately from `user_message`; the RAG generation prompt marks it as untrusted evidence and shared caches/coalescing are bypassed or scoped by an attachment digest.
+
+The upload path is intentionally an extraction MVP, not a corpus-ingestion shortcut. Durable indexing, page/frame citations, malware scanning, resumable uploads, and asynchronous job status remain separate production hardening work and require explicit design before enabling persistence.
+
 ## License & Author
 
 Developed by Harshodai Kolluru. Built with AI pair-programming assistance (Anthropic Claude, Google Gemini, GitHub Copilot, and Lovable).

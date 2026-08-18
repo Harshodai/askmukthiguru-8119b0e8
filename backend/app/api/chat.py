@@ -11,10 +11,11 @@ import time
 from functools import wraps
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.config import settings
+from app.chat_uploads import MAX_SINGLE_BYTES, extract_chat_attachments
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
 from app.schemas import ChatRequest, ChatResponse, MessagePayload
@@ -36,6 +37,41 @@ from services.tenant_context import TenantContext, set_tenant_from_request
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Chat"])
+
+
+@router.post("/chat/upload")
+@limiter.limit("10/minute")
+async def chat_upload_endpoint(
+    request: Request,
+    files: list[UploadFile] = File(...),
+    language_code: Optional[str] = Form(None),
+    container: ServiceContainer = Depends(get_container),
+):
+    """Extract bounded evidence for the next chat turn without persisting uploads."""
+    if not files:
+        raise HTTPException(status_code=422, detail="At least one attachment is required.")
+    if len(files) > 5:
+        raise HTTPException(status_code=413, detail="A maximum of 5 attachments is allowed.")
+
+    uploads: list[tuple[str, str, bytes]] = []
+    for upload in files:
+        if upload.size is not None and upload.size > MAX_SINGLE_BYTES:
+            raise HTTPException(status_code=413, detail="Each attachment must be 10MB or smaller.")
+        payload = await upload.read(MAX_SINGLE_BYTES + 1)
+        if len(payload) > MAX_SINGLE_BYTES:
+            raise HTTPException(status_code=413, detail="Each attachment must be 10MB or smaller.")
+        if not payload:
+            raise HTTPException(status_code=422, detail="Empty attachments are not supported.")
+        uploads.append((upload.filename or "attachment", upload.content_type or "", payload))
+
+    try:
+        return await extract_chat_attachments(
+            uploads,
+            language=language_code,
+            ocr_service=getattr(container, "ocr", None),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
 
 
 # ---------------------------------------------------------------------------

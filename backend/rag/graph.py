@@ -242,6 +242,7 @@ def create_initial_state(
         user_id=None,
         detected_language="en",
         memory_context="",
+        attachment_context=None,
         ab_model="primary",
         query_tier=None,
         model_used=None,

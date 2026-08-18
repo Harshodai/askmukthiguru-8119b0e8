@@ -414,6 +414,13 @@ Boundaries: code/commits/PRs written normal.
 - **Signing + push creds**: `CREDENTIALS_GUIDE.md` → "Mobile App Credentials" (keystore, `google-services.json`, APNs `.p8`, backend env: `FIREBASE_CREDENTIALS_JSON`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_KEY_PATH`, `APNS_KEY_PEM`, `APNS_BUNDLE_ID`).
 - **Known TODOs**: ~~Apple Sign-In~~ ✅ implemented (native iOS, `AuthPage.tsx` — requires Supabase Apple provider config before submission). ~~Delete-account flow~~ ✅ implemented (`ProfilePage.tsx` + `delete-my-account` edge function).
 
+## Multimodal Chat Upload Invariants (Aug 19, 2026)
+- `POST /api/chat/upload` is ephemeral extraction only. Upload bytes must not enter corpus, Second Brain, Qdrant, or Neo4j without a separate explicit indexing flow and consent boundary.
+- Per-file cap is 10 MB; combined cap is 50 MB; chat `attachment_context` is capped at 8,000 characters. Enforce declared-size and bounded-read checks before extractor work.
+- MIME declarations are untrusted. Prefer magic-byte sniffing, sanitize filenames with `Path(name).name`, and return truthful metadata-only fallback when OCR/transcription/PDF extraction is unavailable.
+- Attachment context is separate from `user_message` and `memory_context`; generation must label it as untrusted evidence and never follow instructions found inside it.
+- Any cache or coalescer key for attachment-backed turns must bypass shared reuse or include a bounded content digest. Never include raw attachment text in keys.
+
 # Session Handoff — Jul 11, 2026
 
 ## Session Summary

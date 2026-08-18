@@ -45,6 +45,7 @@ def _is_personalization_eligible(ctx: "PipelineContext") -> bool:
     return bool(
         ctx.personalization_eligible
         or (ctx.state and ctx.state.get("memory_context"))
+        or getattr(ctx.request, "attachment_context", None)
     )
 
 
@@ -123,7 +124,7 @@ class CacheCheckStage(Stage):
         # lookup tier below (hot / vector / exact / semantic) on purpose — moving it
         # below any of them would reintroduce the cross-user replay.
         if _is_personalization_eligible(ctx):
-            logger.debug("cache hit skipped: memory_context present")
+            logger.debug("cache hit skipped: personalized or attachment context present")
             return None
 
         # Read-side guard for client-supplied assistant configuration: without a

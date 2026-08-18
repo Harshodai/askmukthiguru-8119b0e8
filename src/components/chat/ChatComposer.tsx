@@ -33,7 +33,7 @@ interface ChatComposerProps {
   inputValue: string;
   inputRef: React.RefObject<HTMLTextAreaElement | null>;
   attachedFiles: { id: string; name: string; content: string }[];
-  onAddFile: (file: { name: string; content: string }) => void;
+  onAddFile: (file: File | { name: string; content: string }) => void | Promise<boolean>;
   onRemoveFile: (id: string) => void;
   onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
@@ -105,33 +105,38 @@ export function ChatComposer({
   const { t } = useTranslation();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = React.useState(false);
 
   const actionCapabilities = capabilities ?? { sereneMind: true, guidedMeditation: true, textAttachments: true, voiceInput: true };
   const hasMoreActions = actionCapabilities.sereneMind || actionCapabilities.guidedMeditation || actionCapabilities.textAttachments;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.size > CHAT_MAX_SINGLE_ATTACHMENT_BYTES) {
       toast?.({
         title: t('chat.attachmentTooLarge') === 'chat.attachmentTooLarge' ? 'Attachment too large' : t('chat.attachmentTooLarge'),
-        description: t('chat.attachmentSizeHint') === 'chat.attachmentSizeHint' ? `Please choose a text file under ${formatMegabytes(CHAT_MAX_SINGLE_ATTACHMENT_BYTES)}.` : t('chat.attachmentSizeHint'),
+        description: t('chat.attachmentSizeHint') === 'chat.attachmentSizeHint' ? `Please choose a file under ${formatMegabytes(CHAT_MAX_SINGLE_ATTACHMENT_BYTES)}.` : t('chat.attachmentSizeHint'),
         variant: 'destructive',
       });
       e.target.value = '';
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (content) {
-        onAddFile({ name: file.name, content });
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
+    setIsUploading(true);
+    try {
+      await onAddFile(file);
+    } catch (error) {
+      toast?.({
+        title: 'Attachment processing failed',
+        description: error instanceof Error ? error.message : 'Please try another file.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
   };
 
   const showThinking =
@@ -206,7 +211,7 @@ export function ChatComposer({
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
-          accept=".txt"
+          accept=".txt,.md,.markdown,.csv,.tsv,.json,.log,.xml,.html,.htm,.yaml,.yml,.pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.bmp,.mp3,.wav,.m4a,.ogg,.flac,.webm,.mp4,.mov,.avi,.mkv"
           className="hidden"
         />
 
@@ -296,7 +301,7 @@ export function ChatComposer({
                   {actionCapabilities.textAttachments && (
                     <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
                       <FileText className="w-4 h-4 mr-2 text-ojas" />
-                      {t('chat.attachTextFile') === 'chat.attachTextFile' ? 'Attach Text File' : t('chat.attachTextFile')}
+                      {isUploading ? 'Processing attachment…' : 'Attach media or document'}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>

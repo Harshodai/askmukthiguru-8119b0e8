@@ -24,6 +24,7 @@ const buildRequestBody = (
   seekerContext: string | undefined,
   incognito: boolean,
   responsePreferences?: ResponsePreferences,
+  attachmentContext?: string,
 ) => {
   const date = new Date();
   const timeZone = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata' : 'Asia/Kolkata';
@@ -59,8 +60,52 @@ const buildRequestBody = (
       ? { last_serene_mind_at: lastSereneMindAt / 1000 }
       : {}),
     ...(seekerContext ? { seeker_context: seekerContext } : {}),
+    ...(attachmentContext ? { attachment_context: attachmentContext.slice(0, 8000) } : {}),
     ...buildAssistantContext(),
   });
+};
+
+export interface ChatUploadResult {
+  attachment_context: string;
+  attachments: Array<{
+    name: string;
+    mime_type: string;
+    size_bytes: number;
+    sha256: string;
+    status: string;
+    context: string;
+  }>;
+  ephemeral: boolean;
+  retention_seconds: number;
+}
+
+export const uploadChatAttachment = async (
+  file: File,
+  language?: string,
+): Promise<ChatUploadResult> => {
+  const { endpoint } = getCurrentConfig();
+  if (!endpoint) throw new Error('Chat upload is not configured');
+  const uploadEndpoint = endpoint.replace(/\/api\/chat\/?$/, '/api/chat/upload');
+  const token = await getAccessToken();
+  const form = new FormData();
+  form.append('files', file, file.name);
+  if (language) form.append('language_code', language);
+  const response = await fetch(uploadEndpoint, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!response.ok) {
+    let detail = `Upload failed: ${response.status}`;
+    try {
+      const body = await response.json();
+      if (typeof body?.detail === 'string') detail = body.detail;
+    } catch {
+      // Keep status-based error when server response is not JSON.
+    }
+    throw new Error(detail);
+  }
+  return response.json() as Promise<ChatUploadResult>;
 };
 
 export const sendMessage = async (
@@ -76,6 +121,7 @@ export const sendMessage = async (
   userMessageId?: string,
   lastMessageId?: string,
   responsePreferences?: ResponsePreferences,
+  attachmentContext?: string,
 ): Promise<AIResponse> => {
   const { provider, endpoint, systemPrompt } = getCurrentConfig();
 
@@ -100,6 +146,7 @@ export const sendMessage = async (
       seekerContext,
       incognito,
       responsePreferences,
+      attachmentContext,
     );
 
     const controller = new AbortController();

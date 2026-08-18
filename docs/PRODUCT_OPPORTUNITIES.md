@@ -255,6 +255,10 @@ requirements.txt (no deps)
 - Release-readiness document `docs/RELEASE_READINESS_2026_07_30.md` (Railway + Lovable decision + rollback).
 - Langhanam unified guru voice (default-off, benchmark-gated).
 
+## Multimodal retrieval follow-ups (Aug 19, 2026)
+
+The current release adds an ephemeral extraction MVP at `POST /api/chat/upload` for documents, PDFs, images, audio, and video. The next production-quality increment should introduce an asynchronous artifact lifecycle with malware scanning, resumable upload state, page/frame/segment evidence offsets, modality-specific vector fields, explicit consented persistence, tenant-scoped deletion, and competency-question evaluation for each modality. Audio and video should remain transcript-plus-timestamp evidence until a reliable media-aware retrieval index exists. No durable file search or corpus ingestion should be implied by the chat attachment affordance.
+
 ## Technical Debt / Follow-ups
 
 - Flip `langhanam_voice_enabled` after a live-LLM benchmark run (OpenRouter key 403 locally).

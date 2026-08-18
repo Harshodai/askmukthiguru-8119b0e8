@@ -279,6 +279,14 @@ Memory notes:
 
 ---
 
+### Chat attachments and evidence boundary
+
+The composer accepts documents, PDFs, images, audio, and video. It sends each file to `POST /api/chat/upload` as multipart form data rather than embedding bytes in JSON. The route enforces five files maximum, a 10 MB per-file cap, and a 50 MB combined cap; it returns bounded `attachment_context` plus extraction metadata. Extraction is ephemeral: text/OOXML/PDF extraction, OCR, and local Whisper transcription run in temporary files, which are deleted before the response, and no upload is written to the corpus, Second Brain, Qdrant, or Neo4j automatically.
+
+The next `/api/chat` or `/api/chat/stream` request carries `attachment_context` as a separate field capped at 8,000 characters. `GraphStage` places it in `GraphState.attachment_context`; generation wraps it in an explicit untrusted-evidence fence and never treats it as personal memory. Cache reads/writes are bypassed for attachment-backed requests, and graph coalescing includes a bounded SHA-256 attachment digest. Unsupported or failed extraction produces a truthful metadata-only notice rather than inferred media content.
+
+The MVP intentionally does not claim page-level PDF citations, frame-level video citations, malware scanning, resumable uploads, or durable file search. Those capabilities require a separate asynchronous artifact/index lifecycle and explicit user consent.
+
 ## 7. Daily Teaching lifecycle
 
 ```

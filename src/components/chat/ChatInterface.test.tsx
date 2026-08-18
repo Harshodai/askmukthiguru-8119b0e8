@@ -217,6 +217,7 @@ describe('ChatInterface', () => {
           includeReflection: true,
           actionDepth: 'one_step',
         }),
+        undefined,
       );
     });
 
