@@ -52,7 +52,7 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
             description: `${p.title} has been ${isFavorited ? 'removed from' : 'added to'} your list.`,
           });
         }}
-        className="absolute top-4 right-4 z-10 p-2 rounded-full bg-background/80 backdrop-blur-md hover:bg-background transition-colors ring-1 ring-border/20"
+        className="absolute top-3 right-3 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-background/80 backdrop-blur-md hover:bg-background transition-colors ring-1 ring-border/20"
       >
         <Star
           className={cn(
@@ -65,7 +65,7 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
         <Card className={cn(
           "h-full p-6 transition-all duration-500 hover:shadow-2xl ring-1 hover:-translate-y-1 bg-card/40 backdrop-blur-xl",
           A.ring,
-          isSereneMind ? "bg-gradient-to-br from-ojas/[0.08] via-card/50 to-card/30 hover:ring-ojas/50 shadow-[0_4px_30px_rgba(245,158,11,0.06)]" : "hover:ring-white/10"
+          isSereneMind ? "bg-gradient-to-br from-ojas/[0.08] via-card/50 to-card/30 hover:ring-ojas/50" : "hover:ring-white/10"
         )}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
             <div className={cn(
@@ -151,12 +151,9 @@ const PracticesPage = () => {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="mb-10"
           >
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-4 h-4 text-ojas animate-pulse" />
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Today&apos;s Wisdom
-              </h2>
-            </div>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Today&apos;s Wisdom
+            </h2>
             <Card className="overflow-hidden border border-ojas/20 bg-card/80 shadow-xl backdrop-blur-lg">
               <div className="flex flex-col md:flex-row">
                 {/* Image side */}

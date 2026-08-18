@@ -40,30 +40,19 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 
 const NAV = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/admin/queries", label: "Queries", icon: MessagesSquare },
-  { to: "/admin/quality", label: "Quality", icon: ShieldCheck },
-  { to: "/admin/retrieval", label: "Retrieval", icon: Database },
-  { to: "/admin/data-sources", label: "Data Sources", icon: BarChart3 },
+  { to: "/admin/queries", label: "Query Insights", icon: MessagesSquare },
+  { to: "/admin/data-sources", label: "Data Sources", icon: Database },
   { to: "/admin/rag-flow", label: "RAG Flow", icon: Network },
-  { to: "/admin/feedback", label: "Feedback", icon: ThumbsUp },
-  { to: "/admin/daily-teaching", label: "Daily Teaching", icon: Image },
-  { to: "/admin/teaching-tips", label: "Teaching Tips", icon: Quote },
-  { to: "/admin/triggers", label: "Triggers", icon: Activity },
-  { to: "/admin/topics", label: "Topics", icon: Sparkles },
-  { to: "/admin/prompts", label: "Prompts", icon: FileText },
-  { to: "/admin/evals", label: "Evals", icon: ClipboardCheck },
-  { to: "/admin/queue", label: "Queue", icon: ListOrdered },
+  { to: "/admin/content", label: "Content", icon: BookOpen },
+  { to: "/admin/evals", label: "Evaluation", icon: ClipboardCheck },
   { to: "/admin/ingestion", label: "Ingestion", icon: Boxes },
-  { to: "/admin/cache", label: "Cache", icon: Layers },
-  { to: "/admin/logs", label: "Logs", icon: ScrollText },
-
-  { to: "/admin/telemetry", label: "Telemetry", icon: Activity },
-  { to: "/admin/monitoring", label: "Monitoring", icon: LineChart },
-  { to: "/admin/alerts", label: "Alerts", icon: Bell },
+  { to: "/admin/telemetry", label: "Observability", icon: Activity },
+  { to: "/admin/alerts", label: "Reliability", icon: Bell },
+  { to: "/admin/feedback", label: "Feedback", icon: ThumbsUp },
   { to: "/admin/settings", label: "Settings", icon: Settings },
   { to: "/admin/admins", label: "Admins", icon: Users },
-  { to: "/admin/okf", label: "OKF", icon: BookOpen },
 ];
+
 
 export function AdminShell() {
 const { t } = useTranslation();

@@ -2,6 +2,7 @@ import { useEffect, Suspense, type ComponentType, type ReactNode } from "react";
 import { lazyWithRetry, preloadCriticalRoutes } from "@/lib/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
+import { GroupedPage } from "@/admin/pages/GroupedPage";
 import { Capacitor } from "@capacitor/core";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -224,29 +225,67 @@ const App = () => {
                   <Suspense fallback={<BrandedSpinner />}><AdminShell /></Suspense>
                 }>
                   <Route index element={<AdminRoute><OverviewPage /></AdminRoute>} />
-                  <Route path="queries" element={<AdminRoute><QueriesPage /></AdminRoute>} />
-                  <Route path="quality" element={<AdminRoute><QualityPage /></AdminRoute>} />
-                  <Route path="retrieval" element={<AdminRoute><RetrievalPage /></AdminRoute>} />
-                  <Route path="daily-teaching" element={<AdminRoute><DailyTeachingPage /></AdminRoute>} />
-                  <Route path="teaching-tips" element={<AdminRoute><TeachingTipsPage /></AdminRoute>} />
-                  <Route path="triggers" element={<AdminRoute><TriggersPage /></AdminRoute>} />
-                  <Route path="topics" element={<AdminRoute><TopicsPage /></AdminRoute>} />
-                  <Route path="prompts" element={<AdminRoute><PromptsPage /></AdminRoute>} />
-                  <Route path="evals" element={<AdminRoute><EvalsPage /></AdminRoute>} />
-                  <Route path="queue" element={<AdminRoute><JobsPage /></AdminRoute>} />
-                  <Route path="ingestion" element={<AdminRoute><IngestionPage /></AdminRoute>} />
+
+                  {/* Query Insights: queries · retrieval · quality */}
+                  <Route path="queries" element={<AdminRoute><GroupedPage tabs={[
+                    { id: 'queries', label: 'Queries', Component: QueriesPage },
+                    { id: 'retrieval', label: 'Retrieval', Component: RetrievalPage },
+                    { id: 'quality', label: 'Quality', Component: QualityPage },
+                  ]} /></AdminRoute>} />
+                  <Route path="retrieval" element={<Navigate to="/admin/queries?tab=retrieval" replace />} />
+                  <Route path="quality" element={<Navigate to="/admin/queries?tab=quality" replace />} />
+
+                  {/* Content CMS: teachings · tips · topics · OKF */}
+                  <Route path="content" element={<AdminRoute><GroupedPage tabs={[
+                    { id: 'daily-teaching', label: 'Daily Teaching', Component: DailyTeachingPage },
+                    { id: 'teaching-tips', label: 'Teaching Tips', Component: TeachingTipsPage },
+                    { id: 'topics', label: 'Topics', Component: TopicsPage },
+                    { id: 'okf', label: 'OKF', Component: OkfManagerPage },
+                  ]} /></AdminRoute>} />
+                  <Route path="daily-teaching" element={<Navigate to="/admin/content" replace />} />
+                  <Route path="teaching-tips" element={<Navigate to="/admin/content?tab=teaching-tips" replace />} />
+                  <Route path="topics" element={<Navigate to="/admin/content?tab=topics" replace />} />
+                  <Route path="okf" element={<Navigate to="/admin/content?tab=okf" replace />} />
+
+                  {/* Evaluation: evals · prompts */}
+                  <Route path="evals" element={<AdminRoute><GroupedPage tabs={[
+                    { id: 'evals', label: 'Eval Runs', Component: EvalsPage },
+                    { id: 'prompts', label: 'Prompts', Component: PromptsPage },
+                  ]} /></AdminRoute>} />
+                  <Route path="prompts" element={<Navigate to="/admin/evals?tab=prompts" replace />} />
+
+                  {/* Reliability: alerts · triggers */}
+                  <Route path="alerts" element={<AdminRoute><GroupedPage tabs={[
+                    { id: 'alerts', label: 'Alerts', Component: AlertsPage },
+                    { id: 'triggers', label: 'Triggers', Component: TriggersPage },
+                  ]} /></AdminRoute>} />
+                  <Route path="triggers" element={<Navigate to="/admin/alerts?tab=triggers" replace />} />
+
+                  {/* Ingestion ops: pipeline · queue · cache */}
+                  <Route path="ingestion" element={<AdminRoute><GroupedPage tabs={[
+                    { id: 'ingestion', label: 'Pipeline', Component: IngestionPage },
+                    { id: 'queue', label: 'Queue', Component: JobsPage },
+                    { id: 'cache', label: 'Cache', Component: CachePage },
+                  ]} /></AdminRoute>} />
+                  <Route path="queue" element={<Navigate to="/admin/ingestion?tab=queue" replace />} />
+                  <Route path="cache" element={<Navigate to="/admin/ingestion?tab=cache" replace />} />
+
+                  {/* Observability: telemetry · logs · monitoring */}
+                  <Route path="telemetry" element={<AdminRoute><GroupedPage tabs={[
+                    { id: 'telemetry', label: 'Telemetry', Component: TelemetryPage },
+                    { id: 'logs', label: 'Logs', Component: LogsPage },
+                    { id: 'monitoring', label: 'Monitoring', Component: MonitoringPage },
+                  ]} /></AdminRoute>} />
+                  <Route path="logs" element={<Navigate to="/admin/telemetry?tab=logs" replace />} />
+                  <Route path="monitoring" element={<Navigate to="/admin/telemetry?tab=monitoring" replace />} />
+
                   <Route path="data-sources" element={<AdminRoute><DataSourcesPage /></AdminRoute>} />
-                  <Route path="logs" element={<AdminRoute><LogsPage /></AdminRoute>} />
-                  <Route path="telemetry" element={<AdminRoute><TelemetryPage /></AdminRoute>} />
-                  <Route path="monitoring" element={<AdminRoute><MonitoringPage /></AdminRoute>} />
-                  <Route path="alerts" element={<AdminRoute><AlertsPage /></AdminRoute>} />
+                  <Route path="rag-flow" element={<AdminRoute><RAGFlowPage /></AdminRoute>} />
+                  <Route path="feedback" element={<AdminRoute><FeedbackPage /></AdminRoute>} />
                   <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
                   <Route path="admins" element={<AdminRoute><AdminsPage /></AdminRoute>} />
-                  <Route path="feedback" element={<AdminRoute><FeedbackPage /></AdminRoute>} />
-                  <Route path="okf" element={<AdminRoute><OkfManagerPage /></AdminRoute>} />
-                  <Route path="rag-flow" element={<AdminRoute><RAGFlowPage /></AdminRoute>} />
-                  <Route path="cache" element={<AdminRoute><CachePage /></AdminRoute>} />
                   <Route path="self-check" element={<AdminRoute><AdminSelfCheckPage /></AdminRoute>} />
+
                 </Route>
               </>
             )}

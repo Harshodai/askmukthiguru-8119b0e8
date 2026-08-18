@@ -6,7 +6,7 @@ import { PrePracticeGate } from '@/components/chat/PrePracticeGate';
 import { useOptionalAuth } from '@/hooks/useOptionalAuth';
 import { useBackendHealth } from '@/hooks/useBackendHealth';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { Loader2, MonitorCheck, ArrowRight } from 'lucide-react';
+import { Loader2, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
@@ -169,9 +169,6 @@ const ChatPage = () => {
       <Dialog open={showContinuePrompt} onOpenChange={setShowContinuePrompt}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="gap-2">
-            <div className="mx-auto w-12 h-12 rounded-full bg-ojas/10 flex items-center justify-center mb-2">
-              <MonitorCheck className="w-6 h-6 text-ojas" />
-            </div>
             <DialogTitle className="text-center">{t('chat.continueTitle')}</DialogTitle>
             <DialogDescription className="text-center">
               {t('chat.continueDescription')}
