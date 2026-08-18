@@ -54,6 +54,8 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from pydantic import SecretStr
+
 from app.config import settings
 
 try:  # package import (services.second_brain)
@@ -137,8 +139,13 @@ class SecondBrainService:
         self._llm = llm_service
         self._qdrant = qdrant_client  # a vault_index.VaultIndex, or None
         self._server_kek: Optional[bytes] = None
-        if hasattr(settings, "brain_kek") and settings.brain_kek:
-            self._server_kek = derive_server_kek(str(settings.brain_kek))
+        kek_val = getattr(settings, "brain_kek", None)
+        if isinstance(kek_val, SecretStr):
+            kek_val = kek_val.get_secret_value()
+        if not kek_val:
+            kek_val = os.environ.get("BRAIN_KEK")
+        if kek_val:
+            self._server_kek = derive_server_kek(str(kek_val))
 
     # ------------------------------------------------------------------
     # Key management

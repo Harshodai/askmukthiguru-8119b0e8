@@ -107,7 +107,16 @@ class AnonQuotaService:
                 self._adapter = adapter
             except Exception as exc:
                 logger.warning(f"AnonQuota: Redis adapter failed ({exc}), falling back to in-memory")
-                self._adapter = AnonQuotaMemoryAdapter()
+                try:
+                    from app.metrics import ANON_QUOTA_DEGRADED_MODE
+                    ANON_QUOTA_DEGRADED_MODE.labels(event="cold_start_fallback").inc()
+                except Exception:
+                    pass
+                # Cold-start fallback enforces the conservative degraded limit,
+                # matching the Redis adapter's mid-session degradation.
+                degraded_limit = int(getattr(settings, "anon_quota_degraded_limit", 3))
+                self._adapter = AnonQuotaMemoryAdapter(max_sessions=500, max_limit=degraded_limit)
+
             finally:
                 if client is not None and adapter is None:
                     try:

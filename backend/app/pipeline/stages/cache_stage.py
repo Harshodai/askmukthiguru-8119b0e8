@@ -18,6 +18,7 @@ from app.constants import is_graceful_degradation
 from app.metrics import CACHE_OPERATIONS, REQUEST_COUNT, SEARCH_LATENCY_MS, SEARCH_PATH_TOTAL
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
+from app.release_manifest import get_release_manifest
 from services.hot_cache import hot_cache
 
 if TYPE_CHECKING:
@@ -189,6 +190,7 @@ class CacheCheckStage(Stage):
                 model_provider=None,
                 route_decision="hot_cache",
                 cache_hit=True,
+                release_manifest=get_release_manifest().to_dict(),
             )
             ctx.last_stage_status = "cached"
             return result
@@ -218,6 +220,7 @@ class CacheCheckStage(Stage):
                     model_provider=None,
                     route_decision="vector_cache_p90",
                     cache_hit=True,
+                    release_manifest=get_release_manifest().to_dict(),
                 )
                 ctx.last_stage_status = "cached"
                 return result
@@ -251,6 +254,7 @@ class CacheCheckStage(Stage):
                 model_provider=None,
                 route_decision="semantic_cache",
                 cache_hit=True,
+                release_manifest=get_release_manifest().to_dict(),
             )
             ctx.last_stage_status = "cached"
             return result

@@ -51,11 +51,13 @@ describe('KGConceptMap', () => {
     expect(screen.getByText(/example map/i)).toBeInTheDocument();
   });
 
-  it('shows error on fetch failure and keeps data null', async () => {
+  it('falls back to demo data on fetch failure and offers a live-map retry', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 500 })));
     renderWithI18n(<KGConceptMap initialQuery="fail" />);
-    await waitFor(() => expect(screen.getByText(/couldn't load graph/i)).toBeInTheDocument());
-    expect(screen.queryByLabelText('Beautiful State')).not.toBeInTheDocument();
+    await act(async () => { await Promise.resolve(); });
+    await advanceSimulation();
+    await waitFor(() => expect(screen.getByLabelText('Beautiful State')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /retry live map/i })).toBeInTheDocument();
   });
 
   it('does not contain off-brand Krishnamurti node in demo data', () => {

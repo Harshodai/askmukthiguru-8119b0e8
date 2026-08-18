@@ -80,6 +80,12 @@ def clean_transcript(text: str) -> str:
     if not text:
         return ""
 
+    import unicodedata
+
+    # Strip null bytes and special LLM delimiter tokens
+    text = text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+    text = unicodedata.normalize("NFC", text)
+
     original_len = len(text)
 
     # Step 1: Remove noise patterns
@@ -162,35 +168,19 @@ def clean_for_embedding(text: str) -> str:
 
 def normalize_spiritual_terms(text: str) -> str:
     """
-    Normalize alternate spellings/forms of spiritual terms to canonical forms.
+    Normalize alternate spellings and phonetic ASR errors to canonical forms.
 
-    Uses the project's DOCTRINE_SYNONYMS map so that queries and indexed chunks
-    share a common vocabulary, improving retrieval recall.
-
-    Example:
-        "preethaji and krishna ji spoke about dhyan" ->
-        "sri preethaji and sri krishnaji spoke about meditation"
-
-    Only whole-word replacements are performed to avoid accidental overwrites.
+    Uses services.doctrine_terms.apply_corrections as the canonical single source
+    of truth (including doctrine_lexicon phonetic gates). Does NOT rewrite natural
+    English synonyms (e.g. 'letting go' or 'spiritual guide') so the original spoken
+    meaning is strictly preserved.
     """
     if not text:
         return ""
 
-    # Build a mapping from each alternate form to the canonical term.
-    # Prefer longer alternates first to avoid partial replacements.
-    replacements: list[tuple[str, str]] = []
-    for canonical, alternates in DOCTRINE_SYNONYMS.items():
-        for alt in alternates:
-            if alt != canonical:
-                replacements.append((alt, canonical))
-
-    # Sort by length descending so multi-word phrases are matched before sub-phrases
-    replacements.sort(key=lambda pair: len(pair[0]), reverse=True)
-
-    # Replace alternates with canonical forms, but be careful not to replace an
-    # already-canonical term with itself. We use word-boundary aware matching.
-    for alt, canonical in replacements:
-        pattern = r"(?i)\b" + re.escape(alt) + r"\b"
-        text = re.sub(pattern, canonical, text)
-
-    return text
+    try:
+        from services.doctrine_terms import apply_corrections
+        return apply_corrections(text)
+    except Exception as e:
+        logger.debug("Failed to apply doctrine_terms corrections: %s", e)
+        return text

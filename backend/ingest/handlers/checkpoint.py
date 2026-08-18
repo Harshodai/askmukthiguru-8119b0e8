@@ -239,7 +239,7 @@ class IngestionCheckpoint:
         # to the local-file fallback during an earlier outage of either store.
         # Reload the on-disk state so writes from other instances are visible.
         self.data = self._load()
-        self.processed_chunks = set(self.data.keys())
+        self.processed_chunks = self._load_processed_chunks()
         return self._qualify_chunk_id(chunk_id) in self.processed_chunks
 
     def prune_stale_entries(self, active_hashes: list[str]):

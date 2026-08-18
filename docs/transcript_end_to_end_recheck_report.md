@@ -38,7 +38,7 @@ The correction inventory is intentionally a candidate/review inventory rather th
 
 The quality-state distribution is now explicit and operationally useful. The 45 unavailable and 43 dead-lettered packages are no longer malformed empty directories; they are classified outcomes that downstream ingestion can exclude deterministically. The 652 `needs_review` packages remain conservatively gated because they are not promoted to trusted status without review evidence. The five `sound_only` packages are valid repository states and should be handled according to the project’s sound-only policy.
 
-The score distribution includes 566 packages at 0.70, 53 at 0.45, 38 at 0.50, and 88 at 0.00 for unavailable/dead-lettered outcomes. These scores are deterministic pipeline outputs, not calibrated WER. External research remains relevant: WER can understate meaning-changing errors and proper-noun failures, while contemporary ASR corpora use independent alignment and multidimensional quality filtering [1] [2] [3].
+The score distribution includes 566 packages at 0.70, 53 at 0.45, 38 at 0.50, and 88 at 0.00 for unavailable/dead-lettered outcomes. These scores are deterministic pipeline outputs, not calibrated WER. External research remains relevant: WER can understate meaning-changing errors and proper-noun failures, while contemporary ASR corpora use independent alignment and multidimensional quality filtering [2] [3].
 
 ## Remaining Warnings
 

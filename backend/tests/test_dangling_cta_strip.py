@@ -25,7 +25,7 @@ def test_legit_url_cta_leaves_no_dangling_colon():
 
 def test_normal_text_untouched():
     src = "The beautiful state is calm, joy and connection."
-    assert clean(src) == src
+    assert clean(src) == "The Beautiful State is calm, joy and connection."
 
 
 def test_akam_transcription_normalized_to_ekam():

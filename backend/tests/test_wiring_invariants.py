@@ -78,6 +78,8 @@ KNOWN_EXTRA_DEAD: dict[str, str] = {
     "transcript_max_retries": "Declared transcript retry cap; no runtime read",
     "use_contextual_chunking": "Declared chunking toggle; contextual chunking read via reingest_late_chunking",
     "use_qdrant_semantic_cache": "Semantic-cache family — no runtime read",
+    "data_audit_strict_mode": "Strict mode toggle for data audit quality gate",
+    "verifier_pass_ratio": "Verifier pass ratio threshold config",
 }
 
 # Newly-added settings that must NEVER be flagged dead. If any of these shows
@@ -185,6 +187,9 @@ PUBLIC_ROUTES: dict[str, str] = {
     "/api/waitlist/": "Placeholder — returns 501 Not Implemented",
     "/api/capabilities": "Public non-secret capability manifest for clients and operational checks",
     "/.well-known/jwks.json": "JWKS must be public for JWT signature verification",
+    "/api/compliance/eu-ai-act/status": "EU AI Act transparency and compliance public status",
+    "/api/compliance/provenance/manifest/{artifact_id:path}": "Public provenance manifest query",
+    "/api/compliance/provenance/search": "Public provenance query/search endpoint",
 }
 
 # Markers looked up in a dependency callable's source. Includes the canonical

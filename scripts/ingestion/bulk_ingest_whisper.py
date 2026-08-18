@@ -138,8 +138,14 @@ async def safe_lightrag_insert(
     If a chunk fails after retries, it is persistently recorded in the state.
     """
     import unicodedata
-    full_text = full_text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+    full_text = (
+        full_text.replace("\x00", "")
+        .replace("<|begin_of_text|>", " ")
+        .replace("<|eot_id|>", " ")
+        .replace("<|end_of_text|>", " ")
+    )
     full_text = unicodedata.normalize("NFC", full_text).strip()
+    full_text = " ".join(full_text.split())
     try:
         from services.doctrine_terms import apply_corrections
         full_text = apply_corrections(full_text)

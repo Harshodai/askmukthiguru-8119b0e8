@@ -85,13 +85,14 @@ async def test_ingestion_deduplication(tmp_path, monkeypatch):
     embedder = MagicMock()
     ollama = MagicMock()
     pipeline = IngestionPipeline(qdrant, embedder, ollama)
+    pipeline._auditor.run = AsyncMock(return_value=MagicMock(passed=True, score=90, reasons=[]))
     
     pipeline._split_text = MagicMock(return_value=["chunk1", "chunk2"])
     pipeline._augment_chunks = AsyncMock(return_value=["aug1", "aug2"])
     pipeline._embed_and_index = MagicMock(return_value=2)
     pipeline._raptor.build_tree = AsyncMock(return_value=1)
     
-    text = "Hello world! This is a test spiritual teaching."
+    text = "Hello world! This is a comprehensive test spiritual teaching on the Beautiful State and inner stillness."
     
     res1 = await pipeline.ingest_raw_text(text, "url1", "title1")
     assert res1["status"] == "success"

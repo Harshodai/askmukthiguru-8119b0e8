@@ -145,6 +145,10 @@ class GraphRAGFusion:
         token_budget: int = 4000,
         vector_top_k: int = 8,
         enable_graph: bool = True,
+        max_concurrency: int = 4,
+        per_traversal_timeout: float = 5.0,
+        total_timeout: float = 10.0,
+        semaphore: Optional[asyncio.Semaphore] = None,
     ) -> None:
         self._vector = vector_search
         self._entities = resolve_entities
@@ -156,27 +160,111 @@ class GraphRAGFusion:
         self.token_budget = token_budget
         self.vector_top_k = vector_top_k
         self.enable_graph = enable_graph
+        self.max_concurrency = max(1, int(max_concurrency))
+        self.per_traversal_timeout = float(per_traversal_timeout)
+        self.total_timeout = float(total_timeout)
+        self._injected_semaphore = semaphore
+        # Lazily-created semaphores keyed by id(running loop): asyncio.Semaphore
+        # is bound to the loop it was created on, so a shared semaphore built on
+        # loop A raises RuntimeError when acquired from loop B. One per loop.
+        self._semaphores: dict[int, asyncio.Semaphore] = {}
+
+    def _get_semaphore(self) -> asyncio.Semaphore:
+        if self._injected_semaphore is not None:
+            return self._injected_semaphore
+        key = id(asyncio.get_running_loop())
+        sem = self._semaphores.get(key)
+        if sem is None:
+            sem = asyncio.Semaphore(self.max_concurrency)
+            self._semaphores[key] = sem
+        return sem
 
     async def retrieve(self, question: str) -> FusedContext:
-        """Run both channels concurrently, fuse, budget, return."""
-        vector_task = asyncio.create_task(self._safe_vector(question))
-        graph_task = asyncio.create_task(self._safe_graph(question))
-        vector_hits, (graph_hits, entities) = await asyncio.gather(vector_task, graph_task)
+        """Run both channels concurrently, fuse, budget, return with concurrency bounds & deadlines.
 
-        fused = reciprocal_rank_fusion(vector_hits, graph_hits)
-        bounded = self._budget(fused)
-        return FusedContext(
-            items=bounded,
-            total_tokens=sum(i.token_estimate for i in bounded),
-            multi_hop=any(i.provenance.get("hop", 0) > 0 for i in bounded),
-            entities_touched=entities,
-        )
+        The ``total_timeout`` deadline starts when ``retrieve`` is entered, so a
+        busy concurrency pool cannot push a retrieval past its deadline: slot
+        acquisition is bounded by the remaining time, and a retrieval that
+        cannot acquire a slot in time degrades to an empty context instead of
+        hanging. Once the slot is acquired, behavior is unchanged.
+        """
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + self.total_timeout
+        sem = self._get_semaphore()
+
+        try:
+            await asyncio.wait_for(
+                sem.acquire(),
+                timeout=max(0.0, deadline - loop.time()),
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "GraphRAG retrieval deadline (%.1fs) expired while waiting for a concurrency slot",
+                self.total_timeout,
+            )
+            return FusedContext(items=[], total_tokens=0, multi_hop=False, entities_touched=[])
+
+        try:
+            vector_task = asyncio.create_task(self._safe_vector(question))
+            graph_task = asyncio.create_task(self._safe_graph(question))
+            vector_hits: list[dict] = []
+            graph_hits: list[dict] = []
+            entities: list[str] = []
+
+            try:
+                vector_hits, (graph_hits, entities) = await asyncio.wait_for(
+                    asyncio.gather(vector_task, graph_task),
+                    timeout=max(0.0, deadline - loop.time()),
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "GraphRAG retrieval aggregate deadline (%.1fs) exceeded, cancelling outstanding subtasks",
+                    self.total_timeout,
+                )
+                # Cancel outstanding subtasks if aggregate deadline expires
+                for task in (vector_task, graph_task):
+                    if not task.done():
+                        task.cancel()
+
+                # Safe partial result or documented degraded path on timeout rather than hanging
+                if vector_task.done() and not vector_task.cancelled():
+                    try:
+                        vector_hits = vector_task.result()
+                    except Exception as exc:
+                        logger.debug("vector task error during partial recovery: %s", exc)
+                        vector_hits = []
+
+                if graph_task.done() and not graph_task.cancelled():
+                    try:
+                        res = graph_task.result()
+                        if isinstance(res, tuple) and len(res) == 2:
+                            graph_hits, entities = res
+                    except Exception as exc:
+                        logger.debug("graph task error during partial recovery: %s", exc)
+                        graph_hits, entities = [], []
+
+            fused = reciprocal_rank_fusion(vector_hits, graph_hits)
+            bounded = self._budget(fused)
+            return FusedContext(
+                items=bounded,
+                total_tokens=sum(i.token_estimate for i in bounded),
+                multi_hop=any(i.provenance.get("hop", 0) > 0 for i in bounded),
+                entities_touched=entities,
+            )
+        finally:
+            sem.release()
 
     # ---- channels ----
 
     async def _safe_vector(self, question: str) -> list[dict]:
         try:
-            return await self._vector(question, self.vector_top_k)
+            return await asyncio.wait_for(
+                self._vector(question, self.vector_top_k),
+                timeout=self.per_traversal_timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("vector channel timed out after %.1fs", self.per_traversal_timeout)
+            return []
         except Exception as exc:
             logger.warning("vector channel failed: %s", exc)
             return []
@@ -185,11 +273,20 @@ class GraphRAGFusion:
         if not self.enable_graph:
             return [], []
         try:
-            entities = await self._entities(question)
+            entities = await asyncio.wait_for(
+                self._entities(question),
+                timeout=self.per_traversal_timeout,
+            )
             if not entities:
                 return [], []
-            hits = await self._graph(entities, self.max_hops)
+            hits = await asyncio.wait_for(
+                self._graph(entities, self.max_hops),
+                timeout=self.per_traversal_timeout,
+            )
             return hits, entities
+        except asyncio.TimeoutError:
+            logger.warning("graph channel timed out after %.1fs", self.per_traversal_timeout)
+            return [], []
         except Exception as exc:
             logger.warning("graph channel failed: %s", exc)
             return [], []

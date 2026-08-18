@@ -20,6 +20,7 @@ from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
 from app.schemas import ChatRequest, ChatResponse, MessagePayload
 from app.grounding import grounding_state_for
+from app.release_manifest import get_release_manifest
 from app.sanitization import sanitize_user_input
 from app.security_utils import is_benchmark_request
 from rag.memory import build_memory_context
@@ -556,6 +557,7 @@ async def chat_v2_endpoint(
             else asdict(result.guidance_plan)
         ),
         grounding_state=grounding_state_for(result),
+        release_manifest=getattr(result, "release_manifest", None) or get_release_manifest().to_dict(),
     )
 
 

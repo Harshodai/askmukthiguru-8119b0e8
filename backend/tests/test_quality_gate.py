@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from ingest.quality_gate import DataQualityGate
+from rag.states import GraphState
 from services.doctrine_service import DoctrineService
 from services.okf_quality_filter import OKFQualityFilter
 from tasks.ingest_tasks import ingest_playlist, playlist_complete
@@ -252,3 +253,151 @@ def test_llm_quality_malformed_json_is_explicit_unknown():
     score, reasons = LLMQualityScorer(object())._parse_json_response("not-json")
     assert score == 0
     assert any(reason.startswith("QUALITY_UNKNOWN:") for reason in reasons)
+
+
+@pytest.mark.asyncio
+async def test_cove_thresholds_and_verdicts(monkeypatch):
+    from rag.nodes.verification import _cove_subquestion_check
+
+    class MockOllama:
+        def __init__(self, answer_yes_count=2, total_sq=3):
+            self.answer_yes_count = answer_yes_count
+            self.total_sq = total_sq
+            self.call_idx = 0
+
+        async def generate(self, system_prompt, user_prompt, **kwargs):
+            if "factual verification sub-questions" in system_prompt:
+                return "Sub question 1?\nSub question 2?\nSub question 3?"
+            # For verification answers
+            self.call_idx += 1
+            if self.call_idx <= self.answer_yes_count:
+                return "yes, supported"
+            return "no, not mentioned"
+
+    # Test supported verdict (ratio 3/3 >= 0.8)
+    ollama_full = MockOllama(answer_yes_count=3, total_sq=3)
+    res_full = await _cove_subquestion_check("Q", "A", "Context", ollama_full)
+    assert res_full["passed"] is True
+    assert res_full["verdict"] == "supported"
+    assert res_full["ratio"] == 1.0
+
+    # Test partially_supported verdict (ratio 2/3 = 0.67, >= 0.5 and < 0.8)
+    ollama_partial = MockOllama(answer_yes_count=2, total_sq=3)
+    res_partial = await _cove_subquestion_check("Q", "A", "Context", ollama_partial)
+    assert res_partial["passed"] is True
+    assert res_partial["verdict"] == "partially_supported"
+    assert 0.65 < res_partial["ratio"] < 0.7
+
+    # Test unsupported verdict (ratio 1/3 = 0.33, < 0.5)
+    ollama_unsupported = MockOllama(answer_yes_count=1, total_sq=3)
+    res_unsupported = await _cove_subquestion_check("Q", "A", "Context", ollama_unsupported)
+    assert res_unsupported["passed"] is False
+    assert res_unsupported["verdict"] == "unsupported"
+
+
+@pytest.mark.asyncio
+async def test_verify_answer_preserves_cove_pass_ratio(monkeypatch):
+    """Finding #12: computed CoVe ratio must be preserved in verification state, not forced to 1.0 on pass."""
+    import rag.nodes.verification as verification
+    import rag.nodes as nodes
+
+    # Force the code path that runs _cove_subquestion_check.
+    monkeypatch.setattr(verification.settings, "rag_cove_disabled", False)
+    monkeypatch.setattr(verification.settings, "rag_parallel_verify", False)
+    monkeypatch.setattr(verification.settings, "cove_compulsory_threshold", 0.5)
+
+    mock_ollama = AsyncMock()
+    # First generate: sub-questions; then verification answers.
+    mock_ollama.generate.side_effect = [
+        "Sub question 1?\nSub question 2?\nSub question 3?",
+        "yes",
+        "yes",
+        "no",
+    ]
+
+    mock_embedder = MagicMock()
+    mock_qdrant = MagicMock()
+    mock_lightrag = MagicMock()
+    nodes.init_services(
+        ollama=mock_ollama,
+        embedder=mock_embedder,
+        qdrant=mock_qdrant,
+        lightrag=mock_lightrag,
+    )
+    nodes._llm_gateway = None
+
+    mock_ld = MagicMock()
+    mock_ld.score_faithfulness.return_value = {
+        "is_faithful": False,
+        "score": 0.4,
+        "details": "Low faithfulness triggers CoVe.",
+        "unsupported_sentences": ["unverified"],
+    }
+    nodes._lettuce_detect = mock_ld
+
+    state = GraphState(
+        question="Q",
+        chat_history=[],
+        request_id="test-cove-ratio",
+        intent="FACTUAL",
+        documents=[],
+        reranked_docs=[],
+        hyde_text=None,
+        relevant_docs=[
+            {
+                "text": "Doctrine text. " * 100,
+                "source_url": "url1",
+            }
+        ],
+        grading_reasons=[],
+        rewrite_count=0,
+        rewritten_query=None,
+        sub_queries=["Q"],
+        is_complex=True,
+        selected_clusters=[],
+        hints=[],
+        answer="A" * 200,
+        citations=[],
+        is_faithful=None,
+        needs_correction=False,
+        reflection_feedback=None,
+        verification=None,
+        confidence_score=None,
+        input_blocked=False,
+        output_blocked=False,
+        block_reason=None,
+        meditation_step=0,
+        meditation_response=None,
+        final_answer=None,
+        error=None,
+        context_layers=None,
+        citation_reasoning={},
+        metrics={},
+        user_id=None,
+        detected_language="en",
+        memory_context="",
+        ab_model="primary",
+        query_tier="standard",
+    )
+
+    result = await nodes.verify_answer(state)
+
+    # CoVe partial pass (2/3) means claim_verification_passed is True, but
+    # is_faithful_ld remains False because faithfulness_score < floor, so
+    # final passed is False. The key assertion is that the *computed* ratio is
+    # preserved in verification state, not forced to 1.0 when claim passes.
+    assert result["verification"]["cove_pass_ratio"] == pytest.approx(2 / 3, abs=1e-3)
+    assert "0.67" in result["verification"]["details"]
+    # Ensure ratio is not the old hard-coded 1.0-for-pass value.
+    assert result["verification"]["cove_pass_ratio"] != 1.0
+
+
+def test_quality_gate_reads_settings_defaults(monkeypatch):
+    from app.config import settings as app_settings
+    monkeypatch.setattr(app_settings, "data_quality_threshold", 65)
+    monkeypatch.setattr(app_settings, "data_audit_enabled", True)
+
+    from ingest.quality_gate import DataQualityGate
+    gate = DataQualityGate()
+    assert gate._threshold == 65
+    assert gate._enabled is True

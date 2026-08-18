@@ -147,10 +147,13 @@ Supabase anon key is rotated). Non-secret: `VITE_BACKEND_URL`,
 `REDIS_PASSWORD`, `SARVAM_API_KEY`, `SUPABASE_ANON_KEY`, `SUPABASE_KEY`.
 
 **`backend/.env.prod`** — secret-bearing vars (production):
-`ANTHROPIC_API_KEY`, `BENCHMARK_SECRET`, `CSRF_SECRET`, `EMERGENT_LLM_KEY`,
-`JWT_SECRET`, `KRUTRIM_API_KEY`, `NEO4J_PASSWORD`, `OPENROUTER_API_KEY`,
-`REDIS_PASSWORD`, `SARVAM_API_KEY`, `SUPABASE_ANON_KEY`, `SUPABASE_KEY`,
+`ANTHROPIC_API_KEY`, `ANON_SESSION_HMAC_SECRET`, `BENCHMARK_SECRET`, `CSRF_SECRET`,
+`EMERGENT_LLM_KEY`, `JWT_SECRET`, `KRUTRIM_API_KEY`, `NEO4J_PASSWORD`,
+`NIM_API_KEY`, `OPENROUTER_API_KEY`, `QDRANT_API_KEY`, `REDIS_PASSWORD`,
+`SARVAM_API_KEY`, `SUPABASE_ANON_KEY`, `SUPABASE_KEY`, `SUPABASE_SERVICE_KEY`,
 `VITE_SUPABASE_PUBLISHABLE_KEY`.
+- `HF_TOKEN` — only if Hugging Face gated-model downloads are enabled; otherwise mark as **not configured**.
+- `GOOGLE_CLIENT_SECRET` / `FACEBOOK_CLIENT_SECRET` — only if the respective OAuth provider is enabled in Supabase Auth; otherwise mark as **not configured**.
 (Non-secret `*_TOKEN`/`*_KEY` vars that are tuning knobs, not credentials:
 `ANTHROPIC_EXTENDED_THINKING_BUDGET_TOKENS`, `ANTHROPIC_GATEWAY_MAX_TOKENS`,
 `CSRF_TOKEN_TTL`, `LLM_GATEWAY_MAX_TOKENS`, `MAX_TOKENS_PER_REQUEST`,
@@ -161,96 +164,92 @@ skipping.)
 > name / token-count knob), `_PASSWORD`, or `_TOKEN` (and is not a TTL /
 > count), treat it as a credential and rotate it. When in doubt, rotate.
 
-#### D2. Rotation procedures (per service)
+#### D2. Rotation Procedures & Dependency Ordering
 
-- [ ] **D2.1 Supabase** (project `ozmjeuqbholoxypfxixb` — dashboard):
-      - **`SUPABASE_KEY` (service_role)** — Settings → API → rotate
-        `service_role` key. Update `backend/.env`, `backend/.env.prod`,
-        root `.env`. This is the highest-impact rotation — service_role
-        bypasses RLS. **Rotate first.**
-      - **`SUPABASE_ANON_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY`** —
-        Settings → API → rotate `anon`/publishable key. Update root
-        `.env`, `.env.local`, `.env.production`, `backend/.env`,
-        `backend/.env.prod`, and Railway service vars.
-      - **`JWT_SECRET`** — Settings → API → JWT Settings → rotate. ⚠️ This
-        invalidates all existing user sessions (force re-login). Coordinate
-        with a maintenance window. Update root `.env`, `backend/.env`,
-        `backend/.env.prod`, Railway.
-- [ ] **D2.2 Railway** (`resilient-embrace` / `askmukthiguru-8119b0e8`,
-      env `production`): for each rotated var, set it via
-      `railway variables --kv "KEY=value"` (or dashboard) and redeploy.
-      Vars to update after Supabase + provider rotations below:
-      `SUPABASE_KEY`, `SUPABASE_ANON_KEY`, `JWT_SECRET`,
-      `OPENROUTER_API_KEY`, `NIM_API_KEY`, `SARVAM_API_KEY`,
-      `ANTHROPIC_API_KEY`, `KRUTRIM_API_KEY`, `EMERGENT_LLM_KEY`,
-      `HF_TOKEN`, `REDIS_PASSWORD`, `NEO4J_PASSWORD`,
-      `GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_SECRET`, `BENCHMARK_SECRET`,
-      `CSRF_SECRET`.
-- [ ] **D2.3 OpenRouter** — https://openrouter.ai/keys → revoke old key,
-      create new → update `OPENROUTER_API_KEY` everywhere + Railway.
-- [ ] **D2.4 Sarvam AI** — https://dashboard.sarvam.ai → rotate API key →
-      update `SARVAM_API_KEY` everywhere + Railway.
-- [ ] **D2.5 NIM** (NVIDIA) — https://build.nvidia.com → rotate → update
-      `NIM_API_KEY` everywhere + Railway.
-- [ ] **D2.6 Anthropic** — https://console.anthropic.com → rotate →
-      update `ANTHROPIC_API_KEY` in `backend/.env.prod` + Railway.
-- [ ] **D2.7 Krutrim** — provider dashboard → rotate → update
-      `KRUTRIM_API_KEY` in `backend/.env.prod` + Railway.
-- [ ] **D2.8 Emergent LLM** — provider dashboard → rotate → update
-      `EMERGENT_LLM_KEY` in `backend/.env.prod` + Railway.
-- [ ] **D2.9 Hugging Face** — https://huggingface.co/settings/tokens →
-      revoke + recreate (read scope is enough) → update `HF_TOKEN`
-      everywhere + Railway.
-- [ ] **D2.10 Google OAuth** — Google Cloud Console → APIs & Services →
-      Credentials → rotate the OAuth client secret → update
-      `GOOGLE_CLIENT_SECRET` everywhere + Railway. Also rotate
-      `GOOGLE_CLIENT_ID` only if you recreate the client (usually the ID
-      is stable; the secret rotates).
-- [ ] **D2.11 Facebook OAuth** — Meta for Developers → App Settings →
-      rotate client secret → update `FACEBOOK_CLIENT_SECRET` everywhere
-      + Railway.
-- [ ] **D2.12 Redis** — rotate `REDIS_PASSWORD`: change the Redis config
-      (Railway Redis service or local `redis.conf`) and update `REDIS_URL`
-      / `REDIS_PASSWORD` everywhere. Restart Redis and all clients.
-- [ ] **D2.13 Neo4j** — rotate `NEO4J_PASSWORD`: `ALTER CURRENT USER SET
-      PASSWORD FROM 'old' TO 'new'` (or recreate the user) → update
-      `NEO4J_PASSWORD` everywhere + Railway.
-- [ ] **D2.14 SMTP** (if `SMTP_PASSWORD` is live) — rotate at your SMTP
-      provider → update `SMTP_PASSWORD` in `backend/.env`.
-- [ ] **D2.15 YouTube OAuth session** (`cookies.txt`) — the file is
-      deleted in C4. Sign out of the YouTube account everywhere, then
-      re-authenticate the ingestion service (`scripts/` YouTube ingestion)
-      with a fresh OAuth token. Confirm the ingestion service resumes
-      pulling transcripts under the new token.
-- [ ] **D2.16 Benchmark / CSRF / local-only** — `BENCHMARK_SECRET` and
-      `CSRF_SECRET`: regenerate (`python3 -c "import secrets;print(secrets.token_urlsafe(32))"`)
-      and update everywhere. These are local-only / non-prod guardrails but
-      rotate them for hygiene.
-- [ ] **D2.17 Keychain** — `KEYCHAIN_PASS` is a local macOS keychain
-      password used by dev tooling. Rotate only if you suspect compromise;
-      otherwise leave (it is not in any prod env).
-- [ ] **D2.18 Ollama** — `OLLAMA_API_KEY` is only a credential if a remote
-      Ollama Cloud endpoint is configured (`OLLAMA_BASE_URL` points to a
-      non-localhost host). If localhost-only, it is not a remote secret —
-      mark it non-credential in the D1 inventory and skip. If a remote
-      endpoint is configured, rotate at the Ollama Cloud provider → update
-      `OLLAMA_API_KEY` in `backend/.env` + Railway.
+Rotate secrets in the following strict dependency order. **Stage 1 stores do not all support native zero-downtime dual-credential rotation** — apply the provider-specific overlap plan below to avoid service interruption.
 
-### Phase E — Verify
+```
+[Stage 1: Databases & Stores]  -->  [Stage 2: Backend Core Auth]  -->  [Stage 3: Upstream AI APIs]  -->  [Stage 4: Frontend / Clients]
+(Postgres, Redis, Neo4j, Qdrant)    (JWT, Anon HMAC, CSRF, Service)      (Sarvam, OpenRouter, NIM)         (SSO, Publishable Keys)
+```
 
-- [ ] **E1.** `bash scripts/security/verify_no_pii_dumps.sh .` → exit 0
-      (INV-6 satisfied).
-- [ ] **E2.** `git status` shows no dump files (they are gone, not just
-      gitignored).
-- [ ] **E3.** Backend health: `curl https://<prod>/api/health` returns
-      `ready: true` after Railway redeploy with the new secrets.
-- [ ] **E4.** Auth smoke test: a real user can sign in (JWT_SECRET
-      rotation forced logout; confirm re-login works).
-- [ ] **E5.** Chat smoke test: a real query returns doctrine (Supabase
-      service_role key works; Qdrant/Neo4j reads succeed).
-- [ ] **E6.** Confirm encrypted backups decrypt: `age -d -i
-      ~/keys/askmukthiguru-backup.key backups/encrypted/neo4j.dump.age |
-      head -c 16 | xxd` produces bytes (not an error).
+- [ ] **D2.1 Databases & Persistence (Stage 1) — overlap/rollback plan:**
+      - **Supabase keys** (rotate in this order; the rotation model differs between the two key families):
+        1. **`SUPABASE_SERVICE_KEY`** (service_role, highest privilege) — Supabase dashboard: Project Settings → API → Project API keys → regenerate **service role** key. This key bypasses RLS; keep it backend-only.
+           - Update in `backend/.env.prod` and Railway production variables **only**.
+           - Verify backend writes still succeed (`/api/health`, one admin/RPC write) before revoking the old service key.
+        2. **`SUPABASE_KEY`** (service_role alias used by backend scripts/tests) — same service role key as above, or a dedicated service role copy if scripts need isolation.
+           - Update in root `.env`, `backend/.env`, `backend/.env.prod`, plus any one-off scripts (`scripts/ops/prune_retention.py`, `backend/scripts/seed_admin.py`, `backend/scripts/verify_rls_policies.py`).
+           - **Note:** `SUPABASE_SERVICE_KEY` is the preferred production name; `SUPABASE_KEY` is the legacy fallback. Rotate both to the same new value unless you deliberately maintain separate roles.
+        3. **`SUPABASE_ANON_KEY`** (publishable/anon key, public-facing) — Supabase dashboard: Project Settings → API → Project API keys → regenerate **anon/public** key.
+           - Update in frontend `.env.*` (`VITE_SUPABASE_PUBLISHABLE_KEY`), root `.env`, `backend/.env`, `backend/.env.prod`, and all Supabase Edge Functions (`supabase/functions/*/index.ts`) that create a `SupabaseClient` with `Deno.env.get("SUPABASE_ANON_KEY")`.
+           - **Rebuild and redeploy the frontend** — the new bundle embeds the key (`VITE_SUPABASE_PUBLISHABLE_KEY` is baked in at build time). Purge CDN/browser caches or set cache-busting headers so clients fetch the new bundle; reload/restart alone is insufficient.
+           - This invalidates existing anon-signed requests; clients pick up the new key only from the freshly served bundle.
+        - **Legacy JWT-based keys (anon/service_role JWTs signed by the JWT secret) vs. new publishable/secret key model** — branch on what your project uses:
+          - **Legacy JWT-based keys** (`SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, `SUPABASE_KEY` as JWTs): regenerating the JWT secret (D2.2) **immediately invalidates ALL existing API keys and user sessions** — there is **no overlap or rollback window** for these keys. Rotate them in a maintenance window: update all env files + Railway variables, redeploy backend, and expect all users to re-login. Do not plan a coexistence period for legacy keys.
+          - **New publishable/secret key model** (`VITE_SUPABASE_PUBLISHABLE_KEY` + dashboard-managed secret keys): these **can coexist** — create the new publishable+secret pair, update clients, verify, then revoke the old pair. Keep coexistence/rollback guidance **only** for this model.
+      - **Redis `REDIS_PASSWORD`** — If your Redis provider supports dual-password rotation (e.g. ElastiCache user rotation or Redis ACL with two active passwords), add the new password as a secondary auth credential first; otherwise plan a short maintenance window.
+        - Update `REDIS_PASSWORD` and rebuild `REDIS_URL` in backend env.
+        - Restart backend/workers **after** the Redis service accepts the new password.
+        - Remove the old password from Redis ACL/config only after verification with the new credentials: `redis-cli -a '<NEW_PASSWORD>' ping` must return `PONG` (or pass an application health probe that authenticates with the new `REDIS_URL`).
+        - Before removing the old credential, monitor for authentication failures over a soak period (e.g. Redis `AUTH` failure logs / `INFO commandstats` for `auth_cmd_fail`, or backend error logs) — any failures mean a client still holds the old credential; do not delete it until auth failures are zero.
+        - *Rollback:* if the new password is rejected, revert `REDIS_URL` to the old value and restart; Redis still accepts the old password until you explicitly delete it.
+      - **Neo4j `NEO4J_PASSWORD`** — `ALTER CURRENT USER SET PASSWORD` **does not** support overlapping active passwords (it replaces the password; the old one stops working immediately). Choose one of:
+        1. **Separate user:** create a new user with the new password (`CREATE USER <new-user> SET PASSWORD '<new>'` + grants), point `NEO4J_USER`/`NEO4J_PASSWORD` env at it, restart backend, verify, then `DROP USER <old-user>` once stable.
+        2. **Maintenance window:** stop traffic, run `ALTER CURRENT USER SET PASSWORD FROM 'old' TO 'new'`, update `NEO4J_PASSWORD` in env, restart backend.
+        - Verify bolt connection logs show no auth errors (or `cypher-shell -a bolt://<host>:7687 -u <user> -p '<new>' RETURN 1` succeeds).
+        - *Rollback:* revert env to old password and restart if the new password fails — but note the old password is only valid until the `ALTER` runs; after that, rollback requires changing the password back (or restoring the separate-user path).
+      - **Qdrant `QDRANT_API_KEY`** — Qdrant Cloud does not support overlapping API keys on the same cluster. Plan a brief maintenance window or rotate during low-traffic period.
+        - Generate new key in Qdrant cloud console → update `QDRANT_API_KEY` in backend env → restart backend → verify `/api/health` reports Qdrant ready.
+        - *Rollback:* if the new key is mis-typed, immediately restore the old `QDRANT_API_KEY` and restart; the old key remains valid until explicitly deleted in Qdrant Cloud.
+        - Delete the old Qdrant key in console only after 5 minutes of clean metrics / zero `401` responses.
+
+- [ ] **D2.2 Backend Core Auth & Session Secrets (Stage 2):**
+      - **`ANON_SESSION_HMAC_SECRET`** — Generate high-entropy 32-byte hex string:
+        `python3 -c "import secrets; print(secrets.token_hex(32))"`
+        Update `ANON_SESSION_HMAC_SECRET` in `backend/.env.prod` and Railway service vars.
+        *Note:* Existing anonymous session tokens will be invalidated; anonymous users will automatically receive a new signed session on their next visit.
+      - **`JWT_SECRET`** — Supabase dashboard: Settings → API → JWT Settings → rotate.
+        ⚠️ Invalidates all active user login sessions (forces re-login). Coordinate with a maintenance window.
+        Update `JWT_SECRET` in root `.env`, `backend/.env`, `backend/.env.prod`, Railway.
+      - **`CSRF_SECRET` & `BENCHMARK_SECRET`** — Regenerate:
+        `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
+        Update `CSRF_SECRET` and `BENCHMARK_SECRET` in backend env.
+
+- [ ] **D2.3 Upstream AI & LLM Provider Keys (Stage 3):**
+      - **Sarvam AI** (`SARVAM_API_KEY`) — https://dashboard.sarvam.ai → generate new key → update backend env → revoke old key after verification.
+      - **OpenRouter** (`OPENROUTER_API_KEY`) — https://openrouter.ai/keys → create new key → update backend env → delete old key.
+      - **NVIDIA NIM** (`NIM_API_KEY`) — https://build.nvidia.com → generate new API key → update backend env.
+      - **Anthropic / Krutrim / Emergent** (`ANTHROPIC_API_KEY`, `KRUTRIM_API_KEY`, `EMERGENT_LLM_KEY`) — rotate in respective consoles.
+      - **Hugging Face** (`HF_TOKEN`) — https://huggingface.co/settings/tokens → generate read-token → update backend env.
+
+- [ ] **D2.4 Frontend & Client Credentials (Stage 4):**
+      - **Supabase Anon / Publishable Key** (`SUPABASE_ANON_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY`) — rotate in Supabase dashboard → update frontend `.env.*` and backend env.
+      - **Google / Meta OAuth** (`GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_SECRET`) — rotate in Google Cloud Console / Meta Developer Portal → update backend env.
+
+- [ ] **D2.5 Railway Deployment:**
+      For production deployment on Railway, update variables through the **Railway dashboard** (Project → Service → Variables) or another verified secret-input mechanism. **Do not paste secrets into shell commands** such as CLI arguments with inline values; shell history and process lists can leak them.
+      Redeploy the service and monitor logs for zero startup errors.
+
+### Phase E — Post-Rotation Scans & Verification
+
+- [ ] **E1.** Verification script: `bash scripts/security/verify_no_pii_dumps.sh .` → exit 0 (INV-6).
+- [ ] **E2.** Secret leakage scan with GitLeaks:
+      `gitleaks detect --source . --verbose` (confirm no plaintext secrets committed).
+- [ ] **E3.** Backend health check:
+      `curl -f https://<prod>/api/health` → `{"status": "ok", "ready": true}`
+      `curl -f https://<prod>/api/health/mfa` → `{"status": "ok"}`
+- [ ] **E4.** Anonymous session token generation check:
+      `curl -X POST https://<prod>/api/auth/anon-session` → `{"token": "anon_..."}`
+- [ ] **E5.** Auth smoke test: User sign-in with email/password and Google OAuth.
+- [ ] **E6.** RAG chat query smoke test: Send a question to `/api/chat` and verify 200 OK with citations.
+- [ ] **E7.** Prometheus metrics check:
+      `curl -f https://<prod>/api/metrics` → verify metrics scraped with 0 authentication errors.
+- [ ] **E8.** Confirm encrypted backups decrypt: decrypt to a temporary file
+      **first** so a decryption failure fails the check (`age -d` exit code is
+      propagated, unlike the piped version):
+      `age -d -i ~/keys/askmukthiguru-backup.key -o /tmp/backup.dec backups/encrypted/neo4j.dump.age && head -c 16 /tmp/backup.dec | xxd && rm -f /tmp/backup.dec`
+      produces bytes (not an error); the `&&` chain stops on any failure.
 
 ---
 

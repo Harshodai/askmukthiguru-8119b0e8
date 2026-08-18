@@ -267,6 +267,7 @@ describe('ChatInterface (regression)', () => {
           includeReflection: true,
           actionDepth: 'one_step',
         }),
+        undefined,
       );
     });
   });
@@ -304,17 +305,19 @@ describe('ChatInterface (regression)', () => {
         false,
         undefined,
         undefined,
-        expect.objectContaining({
+                expect.objectContaining({
           mode: 'balanced_guidance',
           includePractice: true,
           includeReflection: true,
           actionDepth: 'one_step',
         }),
+        undefined,
       );
     });
   });
 
-  it('renders an error fallback message when the backend returns an error code', async () => {
+  it('renders an error fallback message when the backend returns an error code', async () =>
+ {
     mocks.sendMessageStreaming.mockImplementation(() => ({
       [Symbol.asyncIterator]: async function* () {
         // Empty stream

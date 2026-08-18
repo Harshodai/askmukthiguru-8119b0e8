@@ -40,6 +40,8 @@ from pathlib import Path
 # Load sibling scripts dynamically
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 fetch_spec = importlib.util.spec_from_file_location("fetch_module", SCRIPT_DIR / "1_fetch_transcripts_local.py")
 fetch_mod = importlib.util.module_from_spec(fetch_spec)
@@ -72,6 +74,7 @@ def load_pipeline_state() -> dict:
     return {
         "completed_playlists": [],
         "in_progress_playlist": None,
+        "failed_videos": [],
         "total_fetched": 0,
         "total_uploaded": 0,
         "total_failed": 0,
@@ -147,20 +150,38 @@ def run_pipeline(
         grand_failed += fail_c
 
         # Step A.5: Autonomous Ingestion Subagent Review & Manifest Sealing
+        subagent_failed_vids: list[str] = []
         try:
             from scripts.ingestion.ingestion_subagent import IngestionSubagent
             subagent = IngestionSubagent()
+        except Exception as e:
+            print(f"  ❌ [subagent] Subagent import failed: {e}")
+            subagent = None
+            subagent_failed_vids = list(vids)
+
+        if subagent is not None:
             corpus_base = REPO_ROOT / "scripts" / "ingestion" / "corpus"
             for v_id in vids:
                 pkg_path = corpus_base / v_id
                 if pkg_path.is_dir():
-                    res = subagent.review_and_seal_package(pkg_path)
-                    print(f"  🤖 [subagent] Audited {v_id}: status={res.status}, ledger_entries={res.ledger_entries_count}")
-        except Exception as e:
-            print(f"  ⚠️ [subagent] Subagent review warning: {e}")
+                    try:
+                        res = subagent.review_and_seal_package(pkg_path)
+                        print(f"  🤖 [subagent] Audited {v_id}: status={res.status}, ledger_entries={res.ledger_entries_count}")
+                    except Exception as e:
+                        print(f"  ❌ [subagent] Review/seal failed for {v_id}: {e}")
+                        subagent_failed_vids.append(v_id)
+
+        if subagent_failed_vids:
+            failed_videos = state.setdefault("failed_videos", [])
+            failed_videos.extend(v for v in subagent_failed_vids if v not in failed_videos)
+            grand_failed += len(subagent_failed_vids)
 
         # Step B: Immediate Batch Upload to Railway for this playlist
-        target_md_files = [TRANSCRIPTS_DIR / f"{v_id}.md" for v_id in vids if (TRANSCRIPTS_DIR / f"{v_id}.md").exists()]
+        target_md_files = [
+            TRANSCRIPTS_DIR / f"{v_id}.md"
+            for v_id in vids
+            if v_id not in subagent_failed_vids and (TRANSCRIPTS_DIR / f"{v_id}.md").exists()
+        ]
         print(f"\n📤 [Playlist {p_idx}/{total_playlists}] Pushing {len(target_md_files)} transcript(s) to Railway...")
 
         if dry_run_upload:

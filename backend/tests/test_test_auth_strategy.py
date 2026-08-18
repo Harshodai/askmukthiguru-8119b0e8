@@ -85,11 +85,23 @@ class TestTestAuthStrategyRegistration:
             assert not any(isinstance(s, TestAuthStrategy) for s in auth_module._strategies)
 
     def test_not_registered_when_production_true(self):
-        """IS_PRODUCTION=true → strategy NOT registered even with secret."""
+        """IS_PRODUCTION=true → enable_test_auth=true is rejected by Settings validator, and strategy NOT registered."""
+        # 1. Reject enable_test_auth=true in production
         with patch.dict(os.environ, {
             "IS_PRODUCTION": "true",
             "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
             "ENABLE_TEST_AUTH": "true",
+            "BENCHMARK_SECRET": "my-secret",
+        }, clear=False):
+            from app.config import Settings
+            with pytest.raises(ValueError, match="enable_test_auth must be False when is_production is True"):
+                Settings()
+
+        # 2. When enable_test_auth=false in production, strategy is not registered
+        with patch.dict(os.environ, {
+            "IS_PRODUCTION": "true",
+            "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+            "ENABLE_TEST_AUTH": "false",
             "BENCHMARK_SECRET": "my-secret",
         }, clear=False):
             from app.config import Settings

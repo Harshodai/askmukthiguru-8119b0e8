@@ -92,7 +92,11 @@ def _fetch_segments(video_id: str, languages: list[str]) -> Optional[list[dict]]
 
         if fetched:
             return [
-                {"text": s.text, "start": s.start, "duration": s.duration}
+                {
+                    "text": getattr(s, "text", s.get("text", "") if isinstance(s, dict) else str(s)),
+                    "start": getattr(s, "start", s.get("start", 0.0) if isinstance(s, dict) else 0.0),
+                    "duration": getattr(s, "duration", s.get("duration", 0.0) if isinstance(s, dict) else 0.0),
+                }
                 for s in fetched
             ]
 

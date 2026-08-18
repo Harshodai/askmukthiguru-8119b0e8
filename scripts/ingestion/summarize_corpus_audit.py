@@ -5,7 +5,10 @@ from pathlib import Path
 
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('audit_json', type=Path); ap.add_argument('--out', type=Path, required=True); args=ap.parse_args()
-    data=json.loads(args.audit_json.read_text()); rows=data['packages']; summary=data['summary']
+    data=json.loads(args.audit_json.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get('packages'), list) or not isinstance(data.get('summary'), dict):
+        raise ValueError(f"invalid audit JSON in {args.audit_json}: expected top-level 'packages' list and 'summary' object")
+    rows=data['packages']; summary=data['summary']
     scores=[r['quality_score'] for r in rows if isinstance(r.get('quality_score'),(int,float))]
     cov=[r['coverage_ratio'] for r in rows if isinstance(r.get('coverage_ratio'),(int,float))]
     paras=[r['paragraph_median_chars'] for r in rows if isinstance(r.get('paragraph_median_chars'),(int,float))]
@@ -30,7 +33,7 @@ def main():
       'correction_count_total':sum(r.get('correction_count',0) or 0 for r in rows),
       'correction_warning_packages':sum(any(w.startswith('correction_') for w in r.get('warnings',[])) for r in rows),
       'top_issue_counts':summary.get('issue_counts',{}), 'top_warning_counts':summary.get('warning_counts',{}),
-      'highest_risk_packages':sorted([{'video_id':r['video_id'],'quality_score':r.get('quality_score'),'quality_state':r.get('quality_state'),'issues':r.get('issues',[]),'warnings':r.get('warnings',[]),'coverage_ratio':r.get('coverage_ratio'),'segment_count':r.get('segment_count')} for r in rows if r.get('issues') or r.get('warnings')], key=lambda x:(len(x['issues'])>0, -len(x['issues']), x['quality_score'] if isinstance(x['quality_score'],(int,float)) else 99))[:50]
+      'highest_risk_packages':sorted([{'video_id':r['video_id'],'quality_score':r.get('quality_score'),'quality_state':r.get('quality_state'),'issues':r.get('issues',[]),'warnings':r.get('warnings',[]),'coverage_ratio':r.get('coverage_ratio'),'segment_count':r.get('segment_count')} for r in rows if r.get('issues') or r.get('warnings')], key=lambda x:(not bool(x['issues']), -len(x['issues']), x['quality_score'] if isinstance(x['quality_score'],(int,float)) else 99))[:50]
     }
-    args.out.write_text(json.dumps(out, indent=2, ensure_ascii=False)); print(json.dumps(out, indent=2))
+    args.out.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8"); print(json.dumps(out, indent=2))
 if __name__=='__main__': main()

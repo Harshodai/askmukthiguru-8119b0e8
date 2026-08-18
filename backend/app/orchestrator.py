@@ -26,6 +26,7 @@ from app.security_utils import is_benchmark_request
 from app.telemetry_sink import SupabaseTelemetrySink
 from rag.memory import normalize_session_id
 from app.grounding import grounding_state_for
+from app.release_manifest import get_release_manifest
 
 from app.coalescer import build_coalescer
 
@@ -76,7 +77,8 @@ class ChatRequestOrchestrator:
         # hash() is randomized per-process and would break cross-pod dedup.
         assistant_tag = assistant_slug or "default"
         _msg_digest = hashlib.sha256(user_msg.encode("utf-8")).hexdigest()[:16]
-        _coalesce_key = f"rag:v3:{preferred_lang}:{assistant_tag}:{user_id}:{session_id}:{_msg_digest}"
+        _manifest = get_release_manifest()
+        _coalesce_key = f"rag:v3:{_manifest.release_id}:{_manifest.policy_version}:{preferred_lang}:{assistant_tag}:{user_id}:{session_id}:{_msg_digest}"
 
         async def _run_pipeline():
             return await self.coordinator.execute(
@@ -144,6 +146,7 @@ class ChatRequestOrchestrator:
             answer_evidence=(None if result.answer_evidence is None else asdict(result.answer_evidence)),
             guidance_plan=(None if result.guidance_plan is None else asdict(result.guidance_plan)),
             grounding_state=grounding_state_for(result),
+            release_manifest=result.release_manifest or get_release_manifest().to_dict(),
         )
 
 
@@ -431,6 +434,7 @@ def _stream_done_metadata(result) -> dict:
         "guidance_plan": None if guidance_plan is None else asdict(guidance_plan),
         "grounding_state": grounding_state_for(result),
         "verification": getattr(result, "verification", None),
+        "release_manifest": getattr(result, "release_manifest", None) or get_release_manifest().to_dict(),
     }
 
 

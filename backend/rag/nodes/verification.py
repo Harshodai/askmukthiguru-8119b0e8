@@ -203,9 +203,14 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
             "relevancy_score": 1.0,
         }
 
-    cove_enabled_tier = query_tier in ("tier3_complex", "tier4_deep") and query_tier not in getattr(
-        settings, "rag_cove_disabled_for_tiers", ["fast", "tier2_simple", "standard"]
+    cove_enabled_tier = (
+        not getattr(settings, "rag_cove_disabled", False)
+        and query_tier in ("tier3_complex", "tier4_deep")
+        and query_tier not in getattr(
+            settings, "rag_cove_disabled_for_tiers", ["fast", "tier2_simple", "standard"]
+        )
     )
+
 
     # CoVe is enabled for tier3_complex / tier4_deep when not in the disabled list.
     # Use the LLM gateway for combined verification; if unavailable or it errors,
@@ -375,11 +380,14 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
 
     # --- CoVe: fires when faithfulness is suspect OR tier3_complex ---
     cove_failed = False
+    cove_pass_ratio = 1.0  # default when CoVe not run (no claim check)
     if should_run_cove:
         cove_result = await _cove_subquestion_check(question, answer, context, ollama)
         cove_failed = not cove_result["passed"]
         claim_verification_passed = not cove_failed
         claim_verification_details = cove_result["details"]
+        # Preserve the computed ratio from CoVe; keep 0.0 when CoVe fails without a ratio.
+        cove_pass_ratio = float(cove_result.get("ratio", 0.0 if cove_failed else 1.0))
     else:
         # Finding #43: non-tier3 queries use lightweight single-claim
         # check instead of hard-coded pass=True
@@ -402,7 +410,7 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         "verification": {
             "passed": is_valid,
             "score": faithfulness_score,
-            "cove_pass_ratio": (1.0 if claim_verification_passed else 0.0),
+            "cove_pass_ratio": cove_pass_ratio,
         },
     }
     confidence_score = calculate_confidence(_conf_state)
@@ -436,7 +444,11 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
 
     return {
         "is_faithful": is_faithful_ld,
-        "verification": {"passed": is_valid, "details": verification_details},
+        "verification": {
+            "passed": is_valid,
+            "details": verification_details,
+            "cove_pass_ratio": cove_pass_ratio,
+        },
         "confidence_score": confidence_score,
         "confidence_reason": confidence_reason,
         "confidence_calibration_status": confidence_calibration_status(),
@@ -546,10 +558,27 @@ async def _cove_subquestion_check(question: str, answer: str, context: str, olla
             supported = 0
 
         ratio = supported / max(len(sub_qs), 1)
-        passed = ratio >= settings.verifier_pass_ratio
+        supported_threshold = float(getattr(settings, "cove_supported_threshold", 0.8))
+        partial_threshold = float(getattr(settings, "cove_partial_threshold", 0.5))
+        # Normalize ordering: a partial threshold above the supported threshold
+        # would dead-code the partially_supported branch.
+        partial_threshold = min(partial_threshold, supported_threshold)
+
+        if ratio >= supported_threshold:
+            passed = True
+            verdict = "supported"
+        elif ratio >= partial_threshold:
+            passed = True
+            verdict = "partially_supported"
+        else:
+            passed = False
+            verdict = "unsupported"
+
         return {
             "passed": passed,
-            "details": f"CoVe: {supported}/{len(sub_qs)} sub-questions supported (ratio={ratio:.2f})",
+            "ratio": ratio,
+            "verdict": verdict,
+            "details": f"CoVe: {supported}/{len(sub_qs)} sub-questions supported (ratio={ratio:.2f}, verdict={verdict})",
         }
     except Exception as e:
         logger.error(f"CoVe sub-question check failed: {e}")

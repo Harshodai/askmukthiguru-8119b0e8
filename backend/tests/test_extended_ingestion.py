@@ -9,12 +9,13 @@ async def test_pdf_ingestion_routing():
     mock_ollama = MagicMock()
     
     pipeline = IngestionPipeline(mock_qdrant, mock_embed, mock_ollama)
+    pipeline._is_url_safe = MagicMock(return_value=True)
     pipeline.ingest_raw_text = AsyncMock(return_value={"status": "success", "chunks_indexed": 5})
 
     mock_doc = MagicMock()
     mock_page = MagicMock()
-    mock_page.get_text.return_value = "Spiritual teachings text from PDF"
-    mock_doc.__iter__ = MagicMock(return_value=iter([mock_page]))
+    mock_page.extract_text.return_value = "Spiritual teachings text from PDF"
+    mock_doc.pages = [mock_page]
     mock_doc.__enter__.return_value = mock_doc
 
     mock_client = MagicMock()
@@ -28,7 +29,7 @@ async def test_pdf_ingestion_routing():
     mock_client.stream.return_value.__aenter__.return_value = mock_response
 
     with patch("services.http_client_pool.get_client", new=AsyncMock(return_value=mock_client)), \
-         patch("fitz.open", return_value=mock_doc) as mock_fitz_open, \
+         patch("pypdf.PdfReader", return_value=mock_doc) as mock_pdf_reader, \
          patch.object(pipeline._auditor, "run", new=AsyncMock(return_value=MagicMock(passed=True, score=85, reasons=[]))) as mock_auditor:
 
         res = await pipeline.ingest_url("https://example.com/wisdom.pdf", max_accuracy=True)
@@ -44,6 +45,7 @@ async def test_web_page_scraping_routing():
     mock_ollama = MagicMock()
     
     pipeline = IngestionPipeline(mock_qdrant, mock_embed, mock_ollama)
+    pipeline._is_url_safe = MagicMock(return_value=True)
     pipeline.ingest_raw_text = AsyncMock(return_value={"status": "success", "chunks_indexed": 3})
 
     mock_client = MagicMock()

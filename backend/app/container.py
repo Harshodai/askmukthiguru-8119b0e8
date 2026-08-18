@@ -395,17 +395,29 @@ class ServiceContainer:
                 driver = self.neo4j_driver
                 if driver is None:
                     return rows
+                query_timeout = getattr(settings, "kg_query_timeout_s", 5.0)
+                # The server-side transaction timeout must go through the driver's
+                # begin_transaction(timeout=...) API — Session.run merges extra
+                # kwargs into the Cypher parameters, so timeout= there would be
+                # sent as a query parameter and silently never terminate the query.
+                # wait_for is kept as a safeguard with a buffer so a timed-out
+                # worker thread can finish without immediately exhausting the executor.
+                wait_budget = query_timeout + 10.0
                 for u in uris:
                     def _run(u=u):
-                        with driver.session() as session:
-                            return list(session.run(cypher, {"uri": u}, timeout=10))
+                        with driver.session() as session, \
+                                session.begin_transaction(timeout=query_timeout) as tx:
+                            return list(tx.run(cypher, {"uri": u}))
                     try:
                         records = await asyncio.wait_for(
                             asyncio.to_thread(_run),
-                            timeout=15,
+                            timeout=wait_budget,
                         )
                     except asyncio.TimeoutError:
-                        logger.warning(f"Neo4j graph traversal timed out after 15s for URI: {u}")
+                        logger.warning(f"Neo4j graph traversal timed out after {wait_budget}s for URI: {u}")
+                        continue
+                    except Exception as exc:
+                        logger.warning(f"Neo4j graph traversal failed for URI {u}: {exc}")
                         continue
                     for record in records:
                         rows.append({
@@ -424,6 +436,9 @@ class ServiceContainer:
                 max_hops=settings.graphrag_max_hops,
                 token_budget=settings.graphrag_token_budget,
                 enable_graph=getattr(settings, "knowledge_graph_query_enabled", False),
+                max_concurrency=getattr(settings, "graphrag_max_concurrency", 4),
+                per_traversal_timeout=getattr(settings, "graphrag_traversal_timeout", 5.0),
+                total_timeout=getattr(settings, "graphrag_total_timeout", 10.0),
             )
         except Exception as exc:
             logger.warning(f"GraphRAGFusion init failed (non-fatal): {exc}")

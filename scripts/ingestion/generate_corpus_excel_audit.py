@@ -15,6 +15,25 @@ CORPUS_DIR = INGESTION_DIR / "corpus"
 PROGRESS_FILE = INGESTION_DIR / "parallel_run_progress.json"
 LOG_FILE = INGESTION_DIR / "parallel_corpus_run.log"
 
+AUDIT_COLUMNS = [
+    "Video ID",
+    "YouTube URL",
+    "Video Title",
+    "Playlist #",
+    "Status",
+    "Quality State",
+    "Quality Score",
+    "Source Tier",
+    "Language",
+    "Duration (s)",
+    "Duration (mm:ss)",
+    "Segments Count",
+    "Word Count",
+    "Char Count",
+    "Manifest SHA256",
+    "Error / Failure Note",
+]
+
 PLAYLIST_URLS = [
     "https://www.youtube.com/playlist?list=PLOVU2e0ZosYDt1cdrKnT1AZs4UHpFU5wo",
     "https://www.youtube.com/playlist?list=PLOVU2e0ZosYAVXIxzJLscsY7bdpB8vhxU",
@@ -266,8 +285,16 @@ def build_audit_reports():
         p_vids = [r for r in all_rows if str(idx) in str(r["Playlist #"]).split(", ")]
         p_proc = [r for r in p_vids if r["Status"] == "PROCESSED"]
         p_fail = [r for r in p_vids if r["Status"] == "DEAD_LETTERED"]
+        p_incomplete = [r for r in p_vids if r["Status"] in {"DEAD_LETTERED", "PENDING", "UNKNOWN"}]
         total_p = len(p_vids)
         rate = (len(p_proc) / total_p * 100) if total_p > 0 else 0.0
+
+        if total_p == 0:
+            playlist_status = "Empty"
+        elif len(p_incomplete) == 0:
+            playlist_status = "100% Ingested"
+        else:
+            playlist_status = "Partially Blocked (Private)" if len(p_fail) > 0 else "Incomplete (Pending/Unknown)"
 
         playlist_stats.append({
             "Playlist Index": idx,
@@ -276,14 +303,14 @@ def build_audit_reports():
             "Processed (Packaged)": len(p_proc),
             "Failed / Dead-Lettered": len(p_fail),
             "Completion Rate (%)": round(rate, 2),
-            "Status": "100% Ingested" if len(p_fail) == 0 and total_p > 0 else ("Partially Blocked (Private)" if len(p_fail) > 0 else "Empty"),
+            "Status": playlist_status,
         })
 
     # 5. Convert to DataFrames
     df_all = pd.DataFrame(all_rows)
     df_proc = pd.DataFrame(processed_rows)
     df_fail = pd.DataFrame(failed_rows)
-    df_pending_unknown = pd.DataFrame(pending_unknown_rows)
+    df_pending_unknown = pd.DataFrame(pending_unknown_rows, columns=AUDIT_COLUMNS)
     df_playlist = pd.DataFrame(playlist_stats)
 
     # 6. Save Excel Workbooks

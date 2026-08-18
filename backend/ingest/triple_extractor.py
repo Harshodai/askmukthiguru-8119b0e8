@@ -103,7 +103,16 @@ def _parse_triples(raw: str) -> list[dict[str, str]]:
     except ValidationError as e:
         logger.warning(f"extract_triples: validation failed ({e}); returning []")
         return []
-    return ts.as_dicts()
+
+    triples = ts.as_dicts()
+    try:
+        from services.doctrine_terms import apply_corrections
+        for t in triples:
+            t["subject"] = apply_corrections(t["subject"])
+            t["object"] = apply_corrections(t["object"])
+    except Exception:
+        pass
+    return triples
 
 
 async def extract_triples(text: str, llm: Any) -> list[dict[str, str]]:

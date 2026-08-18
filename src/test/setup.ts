@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom";
+import "@/i18n";
 import { vi } from "vitest";
 
 // Mock environment variables

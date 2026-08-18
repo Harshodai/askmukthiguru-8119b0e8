@@ -38,14 +38,20 @@ async def query_chat_api(config: dict, payload: dict) -> httpx.Response:
         return response
 
 
-def check_db_telemetry(config: dict, expected_slug: str) -> bool:
-    """Run a query inside the Supabase Postgres container to check telemetry."""
-    sql = f"SELECT assistant_slug FROM public.chat_queries WHERE assistant_slug = '{expected_slug}' LIMIT 1;"
-    cmd = [
+def build_telemetry_check_command(config: dict, expected_slug: str) -> list[str]:
+    """Build a parameterized command to check telemetry without string interpolation in SQL."""
+    return [
         "docker", "exec", "-i", config["db_container"],
         "psql", "-U", "postgres", "-d", "postgres",
-        "-c", sql
+        "-v", f"slug={expected_slug}",
+        "-c", "SELECT assistant_slug FROM public.chat_queries WHERE assistant_slug = :'slug' LIMIT 1;"
     ]
+
+
+def check_db_telemetry(config: dict, expected_slug: str) -> bool:
+    """Run a query inside the Supabase Postgres container to check telemetry."""
+    cmd = build_telemetry_check_command(config, expected_slug)
+
     try:
         env = os.environ.copy()
         env["PATH"] = f"/Users/harshodaikolluru/.docker/bin:{env.get('PATH', '')}"

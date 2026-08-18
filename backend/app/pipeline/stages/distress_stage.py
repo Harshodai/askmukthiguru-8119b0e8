@@ -8,6 +8,7 @@ and proactive-state glue that lived inline in ``execute()``.
 from __future__ import annotations
 
 from app.pipeline.result import PipelineResult
+from app.release_manifest import get_release_manifest
 import logging
 import re
 import time
@@ -214,6 +215,7 @@ class DistressStage(Stage):
                 "level": level.name,
                 "preempted": True,
             }],
+            release_manifest=get_release_manifest().to_dict(),
         )
 
     # -- extracted method bodies (verbatim, self -> ctx) --

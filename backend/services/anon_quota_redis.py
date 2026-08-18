@@ -5,6 +5,7 @@ then sets the key TTL to the window duration so expired sessions clean up.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 import uuid
@@ -12,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from redis.exceptions import RedisError
 
+from services.anon_quota_memory import AnonQuotaMemoryAdapter, _MAX_WINDOW_SIZE
 from services.anon_quota_port import AnonQuotaPort, QuotaResult
 
 if TYPE_CHECKING:
@@ -59,10 +61,19 @@ return {1, count + 1}
 
 
 class AnonQuotaRedisAdapter(AnonQuotaPort):
-    """Redis sorted-set sliding window for anonymous message quotas."""
+    """Redis sorted-set sliding window for anonymous message quotas with bounded in-memory degradation."""
 
-    def __init__(self, redis_client: aioredis.Redis) -> None:
+    def __init__(self, redis_client: aioredis.Redis, max_sessions: int = 500) -> None:
         self._redis = redis_client
+        self._fallback = AnonQuotaMemoryAdapter(
+            max_sessions=max_sessions, max_limit=_MAX_WINDOW_SIZE
+        )
+        # Sessions whose last quota operation degraded to the in-memory
+        # fallback. While tracked, all operations route to the fallback so
+        # reservations recorded there are claimed/released/inspected against
+        # the same store; entries expire with the quota window.
+        self._degraded_sessions: dict[str, float] = {}
+        self._degraded_lock = asyncio.Lock()
 
     def _key(self, session_id: str) -> str:
         # Shared {session_id} hash tag keeps quota + pending in one Redis
@@ -72,6 +83,56 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
 
     def _pending_key(self, session_id: str) -> str:
         return f"anon_quota:{{{session_id}}}:pending"
+
+    def _get_fallback_limit(self, limit: int) -> int:
+        try:
+            from app.config import settings
+            degraded_limit = int(getattr(settings, "anon_quota_degraded_limit", 3))
+            return min(limit, degraded_limit)
+        except Exception:
+            return min(limit, 3)
+
+    def _record_degraded(self, event: str) -> None:
+        try:
+            from app.metrics import ANON_QUOTA_DEGRADED_MODE
+            ANON_QUOTA_DEGRADED_MODE.labels(event=event).inc()
+        except Exception:
+            pass
+
+    async def _is_degraded(self, session_id: str) -> bool:
+        """True while the session is routed to the in-memory fallback."""
+        async with self._degraded_lock:
+            expiry = self._degraded_sessions.get(session_id)
+            if expiry is None:
+                return False
+            if expiry < time.time():
+                self._degraded_sessions.pop(session_id, None)
+                return False
+            return True
+
+    async def _track_degraded(self, session_id: str, window_seconds: float) -> None:
+        """Route this session to the fallback for the rest of the quota window."""
+        async with self._degraded_lock:
+            self._degraded_sessions[session_id] = time.time() + window_seconds
+
+    async def _check_degraded(
+        self, session_id: str, limit: int, window_seconds: float, claim_ttl_seconds: float
+    ) -> QuotaResult | None:
+        """Record on the fallback when this session is degraded; None otherwise."""
+        if not await self._is_degraded(session_id):
+            return None
+        fallback_limit = self._get_fallback_limit(limit)
+        return await self._fallback.check_and_record(
+            session_id, fallback_limit, window_seconds, claim_ttl_seconds
+        )
+
+    async def _inspect_degraded(
+        self, session_id: str, limit: int, window_seconds: float
+    ) -> QuotaResult | None:
+        if not await self._is_degraded(session_id):
+            return None
+        fallback_limit = self._get_fallback_limit(limit)
+        return await self._fallback.inspect(session_id, fallback_limit, window_seconds)
 
     async def check_and_record(
         self,
@@ -87,6 +148,10 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
         ttl = int(window_seconds) + 1
         member = str(uuid.uuid4())
         deadline = now + claim_ttl_seconds
+
+        degraded = await self._check_degraded(session_id, limit, window_seconds, claim_ttl_seconds)
+        if degraded is not None:
+            return degraded
 
         try:
             allowed, count_after_add = await self._redis.eval(
@@ -109,13 +174,22 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
                 if oldest:
                     retry_after = max(0, int(oldest[0][1] + window_seconds - now) + 1)
         except RedisError as exc:
-            # This adapter is only selected after a successful cold-start Redis
-            # probe (AnonQuotaService._build_adapter_async); a LATER outage
-            # (connection drop, timeout) must not 500 anonymous chat. Degrade
-            # to allowed -- unenforced, not crashed -- matching the documented
-            # mid-session Redis-outage contract (backend/CLAUDE.md).
-            logger.warning(f"AnonQuotaRedisAdapter.check_and_record degraded to allowed (Redis error): {exc}")
-            return QuotaResult(allowed=True, remaining=limit, total_limit=limit)
+            # Degrade to a bounded in-memory sliding-window counter with conservative
+            # limit instead of failing open. The session stays on the fallback for
+            # the rest of the quota window so reservations recorded here are
+            # claimed/released/inspected against the same store (no split-brain).
+            logger.warning(
+                f"AnonQuotaRedisAdapter.check_and_record degraded to in-memory sliding window (Redis error: {exc})"
+            )
+            self._record_degraded("check_and_record")
+            await self._track_degraded(session_id, window_seconds)
+            fallback_limit = self._get_fallback_limit(limit)
+            return await self._fallback.check_and_record(
+                session_id,
+                fallback_limit,
+                window_seconds,
+                claim_ttl_seconds,
+            )
 
         # reservation_id is the member added by the Lua script; only a slot
         # that was actually reserved can be given back via release().
@@ -134,6 +208,10 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
         limit: int,
         window_seconds: float,
     ) -> QuotaResult:
+        degraded = await self._inspect_degraded(session_id, limit, window_seconds)
+        if degraded is not None:
+            return degraded
+
         key = self._key(session_id)
         pending = self._pending_key(session_id)
         now = time.time()
@@ -150,24 +228,55 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
                         await self._redis.hdel(pending, member)
             count = await self._redis.zcard(key)
         except RedisError as exc:
-            logger.warning(f"AnonQuotaRedisAdapter.inspect degraded to allowed (Redis error): {exc}")
-            return QuotaResult(allowed=True, remaining=limit, total_limit=limit)
+            logger.warning(
+                f"AnonQuotaRedisAdapter.inspect degraded to in-memory sliding window (Redis error: {exc})"
+            )
+            self._record_degraded("inspect")
+            await self._track_degraded(session_id, window_seconds)
+            fallback_limit = self._get_fallback_limit(limit)
+            return await self._fallback.inspect(session_id, fallback_limit, window_seconds)
         remaining = max(0, limit - count)
         return QuotaResult(allowed=remaining > 0, remaining=remaining, total_limit=limit)
 
     async def reset(self, session_id: str) -> None:
-        await self._redis.delete(self._key(session_id), self._pending_key(session_id))
+        if await self._is_degraded(session_id):
+            # A degraded session resets on the fallback; the tracked expiry
+            # stays so the window is not silently re-enforced on Redis.
+            await self._fallback.reset(session_id)
+            return
+        try:
+            await self._redis.delete(self._key(session_id), self._pending_key(session_id))
+        except RedisError as exc:
+            logger.warning(f"AnonQuotaRedisAdapter.reset degraded to in-memory fallback (Redis error: {exc})")
+            self._record_degraded("reset")
+            await self._fallback.reset(session_id)
 
     async def claim(self, session_id: str, reservation_id: str) -> None:
         # Removing the pending marker commits the reservation: it stays in the
         # window (counts against the limit) until it expires naturally.
-        await self._redis.hdel(self._pending_key(session_id), reservation_id)
+        if await self._is_degraded(session_id):
+            await self._fallback.claim(session_id, reservation_id)
+            return
+        try:
+            await self._redis.hdel(self._pending_key(session_id), reservation_id)
+        except RedisError as exc:
+            logger.warning(f"AnonQuotaRedisAdapter.claim degraded to in-memory fallback (Redis error: {exc})")
+            self._record_degraded("claim")
+            await self._fallback.claim(session_id, reservation_id)
 
     async def release(self, session_id: str, reservation_id: str) -> None:
         # Single-member removal needs no Lua script: ZREM is atomic and the
         # member is only ever added/removed by quota operations.
-        await self._redis.zrem(self._key(session_id), reservation_id)
-        await self._redis.hdel(self._pending_key(session_id), reservation_id)
+        if await self._is_degraded(session_id):
+            await self._fallback.release(session_id, reservation_id)
+            return
+        try:
+            await self._redis.zrem(self._key(session_id), reservation_id)
+            await self._redis.hdel(self._pending_key(session_id), reservation_id)
+        except RedisError as exc:
+            logger.warning(f"AnonQuotaRedisAdapter.release degraded to in-memory fallback (Redis error: {exc})")
+            self._record_degraded("release")
+            await self._fallback.release(session_id, reservation_id)
 
 
 if __name__ == "__main__":

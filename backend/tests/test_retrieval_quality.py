@@ -274,12 +274,12 @@ class TestCleanerImprovements:
     def test_normalizes_spiritual_terms(self):
         from ingest.cleaner import normalize_spiritual_terms
 
-        text = "preethaji and krishna ji spoke about dhyan and the 4 sacred secrets"
+        text = "preetha ji and krishna ji spoke about dhyan and the 4 sacred secrets"
         normalized = normalize_spiritual_terms(text)
-        assert "sri preethaji" in normalized
-        assert "sri krishnaji" in normalized
-        assert "meditation" in normalized
-        assert "four sacred secrets" in normalized
+        assert "Sri Preethaji" in normalized or "sri preethaji" in normalized.lower()
+        assert "Sri Krishnaji" in normalized or "sri krishnaji" in normalized.lower()
+        assert "Dhyana" in normalized or "dhyana" in normalized.lower()
+        assert "Four Sacred Secrets" in normalized or "four sacred secrets" in normalized.lower()
 
 
 @pytest.mark.asyncio

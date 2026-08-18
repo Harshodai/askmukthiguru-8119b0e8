@@ -22,7 +22,7 @@ confirmed = {
     'prena mudra': ('Pranam Mudra', 'confirmed_source_term_correction', 'Primary Peace Ritual analysis identifies Pranam Mudra.'),
     'Adi Dhaivata': ('Aadhi Daivika', 'confirmed_source_term_correction', 'Primary Peace Ritual analysis uses Aadhi Daivika; standard form is Ādhidaivika.'),
     'eye consciousness': ('I-Consciousness', 'confirmed_project_style_correction', 'Project glossary maps Eye Consciousness to I-Consciousness.'),
-    'Smaranadiksha': ('Smarana Deeksha', 'manual_compound_correction', 'Compound boundary and project spelling require review; Deeksha is fixed.'),
+    'Smaranadiksha': ('Smarana Deeksha', 'review', 'Compound boundary and project spelling require review; Deeksha is fixed.'),
 }
 manual = {
     'akam': ('Ekam', 'manual_review_context', 'Lowercase akam can be a legitimate Tamil/Sanskrit-derived word; do not auto-rewrite without context.'),

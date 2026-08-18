@@ -199,7 +199,9 @@ async def ingest_raw_text_endpoint(
             detail=f"Untrusted quality state '{body.quality_state}'. Only 'trusted' or 'trusted_after_review' transcripts may be ingested.",
         )
 
-    text = body.text.strip()
+    import unicodedata
+    text = (body.text or "").replace("\x00", "")
+    text = unicodedata.normalize("NFC", text).strip()
     if not text:
         raise HTTPException(status_code=400, detail="text cannot be empty")
     if len(text) > MAX_RAW_TEXT_CHARS:
@@ -286,16 +288,19 @@ async def ingest_upload_endpoint(
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=400, detail=f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit")
 
-    import fitz
+    import io
+
+    from pypdf import PdfReader
 
     try:
-        with fitz.open(stream=content, filetype="pdf") as doc:
-            pages_text = [p.get_text().strip() for p in doc if p.get_text().strip()]
+        with PdfReader(io.BytesIO(content)) as doc:
+            pages_text = [(p.extract_text() or "").strip() for p in doc.pages if (p.extract_text() or "").strip()]
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not parse PDF: {e}")
 
-    text = "\n\n".join(pages_text)
-    if not text.strip():
+    text = "\n\n".join(pages_text).replace("\x00", "")
+    text = unicodedata.normalize("NFC", text).strip()
+    if not text:
         raise HTTPException(status_code=400, detail="PDF contains no readable text")
 
     title = filename.rsplit(".", 1)[0].replace("-", " ").replace("_", " ").title()

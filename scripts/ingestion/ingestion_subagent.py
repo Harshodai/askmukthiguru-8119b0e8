@@ -31,7 +31,7 @@ if str(REPO_ROOT) not in sys.path:
 if str(REPO_ROOT / "backend") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "backend"))
 
-from backend.services.doctrine_terms import (
+from services.doctrine_terms import (
     apply_corrections_with_ledger,
     get_whisper_initial_prompt,
     load_doctrine_terms,
@@ -60,7 +60,7 @@ class IngestionAuditResult:
     video_id: str
     package_dir: str
     status: str  # "ok", "needs_review", "quarantined", "dead_lettered"
-    quality_score: float
+    quality_score: Optional[float]
     quality_state: str
     ledger_entries_count: int
     segment_count: int
@@ -95,7 +95,7 @@ class IngestionSubagent:
                 video_id=vid,
                 package_dir=str(pkg_dir),
                 status="error",
-                quality_score=0.0,
+                quality_score=None,
                 quality_state="unavailable",
                 ledger_entries_count=0,
                 segment_count=0,
@@ -114,7 +114,8 @@ class IngestionSubagent:
                 issues.append(f"quality_report_parse_error:{e}")
 
         quality_state = quality_data.get("quality_state", "needs_review")
-        quality_score = float(quality_data.get("quality_score", 0.7 if quality_state == "needs_review" else 0.0))
+        raw_quality_score = quality_data.get("quality_score")
+        quality_score: Optional[float] = None if raw_quality_score is None else float(raw_quality_score)
         coverage = float(quality_data.get("speech_interval_coverage_estimate", 0.0))
 
         # Check for Dead-Lettered / Unavailable packages
@@ -123,7 +124,7 @@ class IngestionSubagent:
                 video_id=vid,
                 package_dir=str(pkg_dir),
                 status="dead_lettered",
-                quality_score=0.0,
+                quality_score=quality_score,
                 quality_state=quality_state,
                 ledger_entries_count=0,
                 segment_count=0,
@@ -137,7 +138,7 @@ class IngestionSubagent:
         raw_texts: dict[str, str] = {}
         raw_sources_dir = pkg_dir / "raw_sources"
         if raw_sources_dir.is_dir():
-            for f in raw_sources_dir.rglob("*.json"):
+            for f in sorted(raw_sources_dir.rglob("*.json")):
                 try:
                     data = json.loads(f.read_text(encoding="utf-8"))
                     segs = data.get("segments", []) if isinstance(data, dict) else data
@@ -145,8 +146,8 @@ class IngestionSubagent:
                         for s in segs:
                             if isinstance(s, dict) and "segment_id" in s and "text" in s:
                                 raw_texts[s["segment_id"]] = s["text"]
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("raw source parse failed %s: %s", f, e)
 
         # 3. Read & Rectify Canonical Segments
         seg_file = pkg_dir / "canonical_segments.json"
@@ -165,6 +166,9 @@ class IngestionSubagent:
         new_segments: list[dict[str, Any]] = []
 
         for s in segments:
+            if not auto_correct:
+                new_segments.append(dict(s))
+                continue
             seg_id = s.get("segment_id", "seg_0000")
             raw_text = raw_texts.get(seg_id, s.get("text", ""))
             corr_text, ledger_items = apply_corrections_with_ledger(raw_text, segment_id=seg_id)
@@ -175,7 +179,7 @@ class IngestionSubagent:
             new_segments.append(s_copy)
 
         # 4. Generate Standardized Paragraphs and Full Transcript
-        new_text_body = " ".join(s.get("text", "") for s in new_segments if s.get("text"))
+        new_text_body = " ".join(s.get("text", "") for s in new_segments if not s.get("is_non_speech") and s.get("text"))
         paragraphs: list[str] = []
         curr_p: list[str] = []
         curr_len = 0
@@ -194,13 +198,14 @@ class IngestionSubagent:
             paragraphs.append(" ".join(curr_p))
 
         transcript_file = pkg_dir / "transcript.md"
+        q_score_header = f"**Quality Score:** {quality_score:.2f}" if quality_score is not None else "**Quality Score:** unknown"
         meta_header = f"""# Video Transcript: {vid}
 
 **Video ID:** `{vid}`
 **URL:** https://www.youtube.com/watch?v={vid}
 **Speaker:** Sri Preethaji & Sri Krishnaji
 **Quality State:** {quality_state}
-**Quality Score:** {quality_score}
+{q_score_header}
 **Pipeline Version:** 2.0.0
 **Ingestion Subagent Audited:** {datetime.now(timezone.utc).isoformat()}
 
@@ -209,7 +214,7 @@ class IngestionSubagent:
 """
         new_transcript_content = meta_header + "\n\n".join(paragraphs) + "\n"
 
-        if not dry_run and new_segments:
+        if not dry_run:
             # Write canonical_segments.json
             seg_doc = {
                 "schema_version": "1.0.0",
@@ -235,27 +240,37 @@ class IngestionSubagent:
                 f_path = pkg_dir / target_name
                 if f_path.is_file():
                     artifacts[target_name] = {
+                        "rel_path": target_name,
                         "sha256": sha256_file(f_path),
                         "bytes": f_path.stat().st_size,
                     }
 
-            raw_manifest: dict[str, Any] = {}
+            raw_source_attempts: list[dict[str, Any]] = []
             if raw_sources_dir.is_dir():
                 for rf in sorted(raw_sources_dir.rglob("*.json")):
                     rel_k = str(rf.relative_to(pkg_dir))
-                    raw_manifest[rel_k] = {
+                    raw_source_attempts.append({
+                        "raw_path": rel_k,
                         "sha256": sha256_file(rf),
                         "bytes": rf.stat().st_size,
-                    }
+                        "status": "success",
+                    })
 
             manifest_doc = {
+                "manifest_version": "2.0.0",
+                "pipeline_version": "2.0.0",
                 "schema_version": "1.0.0",
                 "video_id": vid,
+                "source_url": f"https://www.youtube.com/watch?v={vid}",
                 "sealed_at": datetime.now(timezone.utc).isoformat(),
                 "audited_by": "IngestionSubagent_v1",
+                "final_quality_state": quality_state,
+                "quality_score": quality_score,
                 "artifacts": artifacts,
-                "raw_sources": raw_manifest,
+                "raw_source_attempts": raw_source_attempts,
             }
+            manifest_hash = sha256_text(json.dumps(manifest_doc, sort_keys=True))
+            manifest_doc["manifest_hash"] = manifest_hash
             manifest_file.write_text(json.dumps(manifest_doc, indent=2) + "\n", encoding="utf-8")
             manifest_digest = sha256_file(manifest_file)
 

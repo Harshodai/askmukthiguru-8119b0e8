@@ -98,6 +98,71 @@ def test_missing_lexicon_degrades_to_the_curated_map(monkeypatch):
     lex.reload_lexicon()
 
 
+def test_whisper_initial_prompt_contains_all_canonical_mantras_and_names():
+    prompt = get_whisper_initial_prompt()
+    required_terms = [
+        "Ekam",
+        "Sri Preethaji",
+        "Sri Krishnaji",
+        "Sri Bhagavan",
+        "Sri Amma",
+        "Sri Amma Bhagavan",
+        "Anandagiri",
+        "Hamsa Soham Ekam",
+        "Om Ishe Ekapadi Bhava",
+        "Om Urje Dwipadi Bhava",
+        "Om Rayasposhaya Tripadi Bhava",
+        "Om Mayobhavyaya Chatushpadi Bhava",
+        "Om Prajabhyah Panchapadi Bhava",
+        "Om Ritubhyah Shatpadi Bhava",
+        "Om Sakhe Saptapadi Bhava",
+        "Moola Mantra",
+        "Om Sat Chit Ananda Parabrahma",
+        "Purushothama Paramatma",
+        "Sri Bhagavathi Sametha",
+        "Sri Bhagavathe Namaha",
+        "Sparsha Deeksha",
+        "Smarana Deeksha",
+        "Prana Deeksha",
+        "Netra Deeksha",
+    ]
+    for term in required_terms:
+        assert term in prompt, f"Expected {term!r} in Whisper initial prompt: {prompt}"
+
+
+def test_apply_corrections_with_ledger_mantras_and_names():
+    from services.doctrine_terms import apply_corrections_with_ledger
+
+    text = "We chant Hamsa Suha Mikam and Om Isha Ekapati Bhava before Sri Bhagwan and Ammaji."
+    corrected, ledger = apply_corrections_with_ledger(text, segment_id="seg_mantra_01")
+    assert "Hamsa Soham Ekam" in corrected
+    assert "Om Ishe Ekapadi Bhava" in corrected
+    assert "Sri Bhagavan" in corrected
+    assert "Sri Amma" in corrected
+    assert len(ledger) == 4
+
+    rule_ids = {entry["rule_id"] for entry in ledger}
+    assert "DOCTRINE_HAMSA_SOHAM_EKAM" in rule_ids
+    assert "DOCTRINE_OM_ISHE_EKAPADI_BHAVA" in rule_ids
+    assert "DOCTRINE_SRI_BHAGAVAN" in rule_ids
+    assert "DOCTRINE_SRI_AMMA" in rule_ids
+
+
+def test_ledger_reversal_round_trip():
+    from services.doctrine_terms import apply_corrections_with_ledger, revert_corrections_from_ledger
+
+    original = "At Akam with Sri Pretty Ji we chanted Hamsa Suham Ekam and performed parshadiksha."
+    corrected, ledger = apply_corrections_with_ledger(original, segment_id="seg_reversal_01")
+    assert "Ekam" in corrected
+    assert "Sri Preethaji" in corrected
+    assert "Hamsa Soham Ekam" in corrected
+    assert "Sparsha Deeksha" in corrected
+    assert len(ledger) == 4
+
+    reverted = revert_corrections_from_ledger(corrected, ledger)
+    assert reverted == original
+
+
 def test_no_stray_correction_dicts_in_call_sites():
     """The three correction points must route through doctrine_terms — no local dicts.
     This fails loudly if someone re-introduces a `REPLACEMENTS`/`FAST_REPLACEMENTS` map,

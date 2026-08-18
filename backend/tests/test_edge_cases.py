@@ -49,7 +49,8 @@ def mock_coalescer():
 
     with patch("app.orchestrator._coalescer.get_or_run", side_effect=dummy_get_or_run), \
          patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run), \
-         patch("app.coalescer.build_coalescer", return_value=MagicMock(get_or_run=AsyncMock(side_effect=dummy_get_or_run))):
+         patch("app.coalescer.build_coalescer", return_value=MagicMock(get_or_run=AsyncMock(side_effect=dummy_get_or_run))), \
+         patch("rag.nodes.on_device_intent._get_encoder", return_value=False):
         yield
 
 
@@ -129,6 +130,26 @@ def _build_mock_container():
     from app.coalescer import _InMemoryCoalescer
     mock_container.coalescer = _InMemoryCoalescer()
 
+    from services.anon_quota_port import QuotaResult
+    mock_container.anon_quota_service = AsyncMock()
+    mock_container.anon_quota_service.check_and_record.return_value = QuotaResult(
+        allowed=True, remaining=10, total_limit=10, reservation_id="mock-res-id"
+    )
+    mock_container.anon_quota_service.claim.return_value = None
+    mock_container.anon_quota_service.release.return_value = None
+    mock_container.anon_quota_service.inspect.return_value = QuotaResult(
+        allowed=True, remaining=10, total_limit=10
+    )
+
+    mock_container.embedding = MagicMock()
+    mock_container.embedding.encode.return_value = [0.1] * 1024
+    mock_container.embedding.encode_query.return_value = [0.1] * 1024
+    mock_container.embedding.get_dimension.return_value = 1024
+    mock_container.embedding.health_check.return_value = True
+    mock_container.text_quality_filter = MagicMock()
+    mock_container.text_quality_filter.is_valid.return_value = True
+    mock_container.text_quality_filter.filter_text.return_value = (True, "clean", {})
+
     mock_container.health_status = AsyncMock()
     mock_container.health_status.return_value = {
         "qdrant": True, "ollama": True, "embedding": True,
@@ -145,7 +166,34 @@ def mock_get_current_user():
     return {"id": "test-user-id", "email": "test@example.com"}
 
 
-app.dependency_overrides[get_current_user_from_supabase] = mock_get_current_user
+@pytest.fixture(autouse=True)
+def _restore_dependency_overrides():
+    """Snapshot and restore FastAPI dependency overrides for every test.
+
+    Module-level overrides for `get_current_user_from_supabase`,
+    `get_optional_user`, and per-test overrides for `get_container` leak
+    across tests if the same TestClient/app instance is reused. This fixture
+    records the original state, applies the test overrides, and restores
+    the originals (or deletes the key if it didn't exist) in a finally block.
+    """
+    overrides_to_manage = [
+        get_current_user_from_supabase,
+        get_optional_user,
+        get_container,
+    ]
+    original_overrides = {
+        dep: app.dependency_overrides.get(dep) for dep in overrides_to_manage
+    }
+    app.dependency_overrides[get_current_user_from_supabase] = mock_get_current_user
+    app.dependency_overrides[get_optional_user] = mock_get_current_user
+    try:
+        yield
+    finally:
+        for dep, original in original_overrides.items():
+            if original is None:
+                app.dependency_overrides.pop(dep, None)
+            else:
+                app.dependency_overrides[dep] = original
 
 
 # ── Tests ─────────────────────────────────────────────────────────────
@@ -171,7 +219,7 @@ async def test_concurrent_user_load():
         data = r.json()
         assert "response" in data, f"Missing response field: {data}"
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -203,7 +251,7 @@ async def test_llm_api_failure():
     health = client.get("/health")
     assert health.status_code in (200, 404)
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -231,7 +279,7 @@ async def test_vector_db_empty_results():
     data = response.json()
     assert len(data["response"]) > 0
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -259,7 +307,7 @@ async def test_redis_connection_error():
     health = client.get("/health")
     assert health.status_code in (200, 404)
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -275,11 +323,12 @@ async def test_jwt_expiration():
     saved_supabase_override = app.dependency_overrides.pop(get_current_user_from_supabase, None)
     saved_optional_override = app.dependency_overrides.pop(get_optional_user, None)
     saved_container_override = app.dependency_overrides.get(get_container)
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
     try:
+        from app.config import settings
         expired_token = jwt.encode(
             {"sub": "test-user", "exp": 0},
-            key="mock_jwt_secret_for_testing_12345",
+            key=settings.jwt_secret or "mock_jwt_secret_for_testing_12345",
             algorithm="HS256",
         )
         headers = {"Authorization": f"Bearer {expired_token}"}
@@ -303,14 +352,18 @@ async def test_jwt_expiration():
 @pytest.mark.asyncio
 async def test_large_message():
     """A message >10KB should be rejected or gracefully truncated."""
+    mock_container = _build_mock_container()
+    app.dependency_overrides[get_container] = lambda: mock_container
     oversized = "A" * 11_000
-    payload = {"user_message": oversized, "session_id": "large-msg", "messages": []}
+    payload = {"user_message": oversized, "session_id": "anon:large-msg", "messages": []}
     response = client.post("/api/chat", json=payload)
     # Pydantic returns 422 for max_length=10000 violation; also accept 400/413 for rejection
     assert response.status_code in (200, 400, 413, 422), f"Unexpected status: {response.status_code}"
     if response.status_code == 200:
         data = response.json()
         assert "response" in data
+
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -335,7 +388,7 @@ async def test_malformed_message():
             data = response.json()
             assert "response" in data
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -359,7 +412,7 @@ async def test_graph_timeout():
             data = response.json()
             assert len(data.get("response", "")) > 0
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -384,7 +437,7 @@ async def test_streaming_disconnect():
     health_resp = client.get("/health")
     assert health_resp.status_code in (200, 404), "Server became unavailable after partial stream"
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -408,7 +461,7 @@ async def test_circuit_breaker_open_returns_fallback():
     assert "response" in data
     assert len(data["response"]) > 0
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -437,7 +490,7 @@ async def test_neo4j_unavailable_graceful_degradation():
     assert "response" in data
     assert len(data["response"]) > 0
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -462,7 +515,7 @@ async def test_circuit_breaker_recovers():
     data = response.json()
     assert "response" in data
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -497,7 +550,7 @@ async def test_multi_tenant_isolation():
     # Both responses should succeed without cross-contamination errors
     assert "Tenant" not in data_b["response"] or True  # just an isolation sanity
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -528,7 +581,7 @@ async def test_qdrant_timeout_graceful_degradation():
     health = client.get("/health")
     assert health.status_code in (200, 404)
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -559,7 +612,7 @@ async def test_embedding_service_load_failure():
     health = client.get("/health")
     assert health.status_code in (200, 404)
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -591,7 +644,7 @@ async def test_web_search_failure_continues_without_results():
     assert response.status_code == 200
     assert len(response.json()["response"]) > 0
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio
@@ -625,7 +678,7 @@ async def test_provider_rate_limit_handling():
     health = client.get("/health")
     assert health.status_code in (200, 404)
 
-    app.dependency_overrides[get_container] = _build_mock_container
+    app.dependency_overrides[get_container] = lambda: _build_mock_container()
 
 
 @pytest.mark.asyncio

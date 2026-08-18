@@ -28,6 +28,7 @@ from app.pipeline.result import (
     TeachingAttribution,
 )
 from app.pipeline.stages.base import Stage
+from app.release_manifest import get_release_manifest
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
@@ -221,6 +222,7 @@ class CasualShortCircuitStage(Stage):
                 model_provider=None,
                 route_decision="instant_greeting",
                 cache_hit=False,
+                release_manifest=get_release_manifest().to_dict(),
             )
         return None
 
@@ -324,6 +326,7 @@ class ResultAssemblyStage(Stage):
                 graph_result,
                 ctx.citations,
             ),
+            release_manifest=get_release_manifest().to_dict(),
         )
 
         # GDPR audit trail (Unit 24) -- previously wired for reads

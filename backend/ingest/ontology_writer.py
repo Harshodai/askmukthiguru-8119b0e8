@@ -72,6 +72,21 @@ _KNOWN_PRACTICES: frozenset[str] = frozenset(
         "Pranayama",
         "Mantra",
         "Japa",
+        "Sparsha Deeksha",
+        "Smarana Deeksha",
+        "Prana Deeksha",
+        "Netra Deeksha",
+        "Saptapadi",
+        "Hamsa Soham Ekam",
+        "Vastu Purusha Mandala",
+        "Matra Shastra",
+        "Neelakantha",
+        "Nagabharana",
+        "Ajna Chakra",
+        "Sat-Chit-Ananda",
+        "Shivaratri",
+        "Antaryamin",
+        "Sthitha Pragna",
     }
 )
 

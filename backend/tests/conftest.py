@@ -171,7 +171,17 @@ def _clear_dependency_overrides():
     from app.main import app as _app
 
     saved = dict(_app.dependency_overrides)
+    try:
+        from services.tenant_context import TenantContext
+        TenantContext.reset()
+    except Exception:
+        pass
     yield
     _app.dependency_overrides.clear()
     _app.dependency_overrides.update(saved)
+    try:
+        from services.tenant_context import TenantContext
+        TenantContext.reset()
+    except Exception:
+        pass
 

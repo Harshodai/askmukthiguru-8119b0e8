@@ -70,7 +70,7 @@ def test_transcript_md_write_and_parse_roundtrip():
         assert parsed["video_id"] == "test_vid_123"
         assert parsed["title"] == "Sri Preethaji — The Beautiful State"
         assert parsed["speaker"] == "Sri Preethaji"
-        assert "beautiful state" in parsed["text"]
+        assert "Beautiful State" in parsed["text"] or "beautiful state" in parsed["text"].lower()
 
 
 def test_raw_text_ingest_request_schema():
@@ -93,4 +93,4 @@ def test_raw_text_ingest_request_schema():
         text="Teaching about the mind.",
         source_url="https://www.youtube.com/watch?v=abc12345678",
     )
-    assert req_default.speaker == "Unknown"
+    assert req_default.speaker == "Sri Preethaji & Sri Krishnaji"

@@ -534,11 +534,11 @@ class IngestionPipeline:
 
         if not text:
             if ext == ".pdf":
-                import fitz
+                from pypdf import PdfReader
 
-                with fitz.open(file_path) as doc:
-                    for page in doc:
-                        text += page.get_text() + "\n"
+                with PdfReader(file_path) as doc:
+                    for page in doc.pages:
+                        text += (page.extract_text() or "") + "\n"
             elif ext in [".txt", ".csv"]:
                 with open(file_path, encoding="utf-8") as f:
                     text = f.read()
@@ -904,10 +904,47 @@ class IngestionPipeline:
                 "message": "Content already processed. Skipped.",
             }
 
-        self._notify(on_progress, "Starting raw text processing...", 0.1)
+        if not text or not text.strip():
+            return {"status": "error", "message": "Empty text", "source_url": source_url}
+        import unicodedata
+        text = text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+        text = unicodedata.normalize("NFC", text).strip()
+        if not text:
+            return {"status": "error", "message": "Empty text after sanitization", "source_url": source_url}
 
-        # Step 1: Clean & redact PII
+        # Deterministic text check
+        is_ok, reason = is_valid_text_deterministic(text)
+        if not is_ok:
+            logger.warning(f"Deterministic pre-filter rejected raw text for {source_url}: {reason}")
+            self._notify(on_progress, f"Rejected by pre-filter: {reason}", 1.0)
+            return {
+                "status": "error",
+                "message": f"Pre-filter rejection: {reason}",
+                "source_url": source_url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
+
+        # Step 1: Clean, apply doctrine corrections & redact PII
         clean_text = clean_transcript(text)
+        try:
+            from services.doctrine_terms import apply_corrections
+            clean_text = apply_corrections(clean_text)
+        except Exception as dt_err:
+            logger.debug(f"apply_corrections in ingest_raw_text skipped: {dt_err}")
+
+        # Quality Gate
+        self._notify(on_progress, "Auditing content quality...", 0.15)
+        quality_res = await self._auditor.run(clean_text, source_url)
+        if not quality_res.passed:
+            return {
+                "status": "rejected",
+                "message": f"Content rejected by Data Quality Gate: score {quality_res.score}/100. Reasons: {'; '.join(quality_res.reasons)}",
+                "source_url": source_url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
+
         clean_text, pii_found = redact_pii(clean_text)
         if pii_found:
             logger.warning(f"PII redacted from source_url={source_url} — {pii_found} instances")
@@ -1144,6 +1181,10 @@ class IngestionPipeline:
         clean_text, pii_found = redact_pii(clean_text)
         if pii_found:
             logger.warning(f"PII redacted from video url={url} — {pii_found} instances")
+
+        doc_tags = extract_doctrine_tags(clean_text)
+        if doc_tags:
+            tags = list(set(tags + doc_tags))
 
         # Step 2b: Optional Hyper-Extract enrichment (Phase 5.3)
         self._notify(on_progress, "Extracting structure, entities, and atomic facts...", 0.35)
@@ -1432,6 +1473,10 @@ class IngestionPipeline:
         clean_text, pii_found = redact_pii(clean_text)
         if pii_found:
             logger.warning(f"PII redacted from enhanced video url={url} — {pii_found} instances")
+
+        doc_tags = extract_doctrine_tags(clean_text)
+        if doc_tags:
+            tags = list(set(tags + doc_tags))
 
         # KG Phase 6: Hyper-Extract enrichment (same gate as _ingest_video).
         self._notify(on_progress, "Extracting structure, entities, and atomic facts...", 0.37)
@@ -2423,6 +2468,21 @@ class IngestionPipeline:
         if self._qdrant.check_source_exists(source_url):
             logger.info(f"Source already indexed, overwriting: {source_url}")
             self._qdrant.delete_by_source(source_url)
+
+        # Defense-in-depth: Unicode NFC normalization, null byte stripping & doctrine corrections
+        import unicodedata
+        try:
+            from services.doctrine_terms import apply_corrections
+            clean_chunks = [
+                apply_corrections(unicodedata.normalize("NFC", c.replace("\x00", "")))
+                for c in clean_chunks
+            ]
+        except Exception as dt_err:
+            logger.debug(f"apply_corrections in _embed_and_index skipped: {dt_err}")
+            clean_chunks = [
+                unicodedata.normalize("NFC", c.replace("\x00", ""))
+                for c in clean_chunks
+            ]
 
         # Generate both dense and sparse embeddings in one pass
         embeddings = self._embedder.encode_batch(clean_chunks)

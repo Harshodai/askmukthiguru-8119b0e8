@@ -52,38 +52,8 @@ async def contact_support(
             status_code=403,
             detail="Support attachments are not available. Please send a text-only request.",
         )
-    tmp_dir = f"/tmp/support_attachments/{uuid.uuid4().hex}"
+
     try:
-        os.makedirs(tmp_dir, exist_ok=True)
-
-        if len(attachments) > MAX_ATTACHMENTS:
-            logger.warning("Too many attachments (%d), limiting to %d", len(attachments), MAX_ATTACHMENTS)
-            attachments = attachments[:MAX_ATTACHMENTS]
-
-        for af in attachments:
-            ext = os.path.splitext(af.filename or "")[1].lower()
-            if ext not in SUPPORTED_ATTACHMENT_TYPES:
-                logger.warning("Skipped unsupported attachment type: %s", ext)
-                continue
-            content = await af.read(MAX_ATTACHMENT_SIZE + 1)
-            if len(content) > MAX_ATTACHMENT_SIZE:
-                logger.warning("Skipped oversized attachment: %s", af.filename)
-                continue
-            if ext in {".jpg", ".jpeg"}:
-                if not content.startswith(b"\xff\xd8\xff"):
-                    logger.warning("Skipped attachment with mismatched content type: %s", af.filename)
-                    continue
-            elif ext == ".png" and not content.startswith(b"\x89PNG"):
-                logger.warning("Skipped attachment with mismatched content type: %s", af.filename)
-                continue
-            elif ext == ".pdf" and not content.startswith(b"%PDF"):
-                logger.warning("Skipped attachment with mismatched content type: %s", af.filename)
-                continue
-            dest = os.path.join(tmp_dir, f"{uuid.uuid4().hex}{ext}")
-            with open(dest, "wb") as f:
-                f.write(content)
-            saved_paths.append(dest)
-
         ok = send_support_email(
             name=name,
             from_email=email,
@@ -92,15 +62,17 @@ async def contact_support(
             category=category,
             attachment_paths=saved_paths,
         )
-
         if not ok:
             raise HTTPException(
                 status_code=500,
-                detail="Failed to send message. Please try again later or email us directly.",
+                detail="Failed to send support email. Please try again later.",
             )
-
-        return {"ok": True, "message": "Message sent. We will get back to you within 24-48 hours."}
-    finally:
-        import shutil
-        if os.path.exists(tmp_dir):
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+        return {"ok": True, "status": "success", "message": "Message sent. We will get back to you within 24-48 hours."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to send support email: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to send support email. Please try again later.",
+        )

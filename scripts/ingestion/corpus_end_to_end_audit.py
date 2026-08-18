@@ -19,7 +19,7 @@ def norm_text(s):
     return re.sub(r"\s+", " ", s).strip()
 
 def text_from_transcript(path):
-    text = path.read_text(errors="replace")
+    text = path.read_text(encoding="utf-8", errors="replace")
     if text.startswith("---"):
         parts = text.split("---", 2)
         body = parts[2] if len(parts) == 3 else text
@@ -49,7 +49,7 @@ def validate_one(pkg):
     q = segdoc = ledger = manifest = None
     try:
         if (pkg / "quality_report.json").is_file():
-            q = json.loads((pkg / "quality_report.json").read_text())
+            q = json.loads((pkg / "quality_report.json").read_text(encoding="utf-8"))
         if (pkg / "transcript.md").is_file(): transcript_body, transcript_full = text_from_transcript(pkg / "transcript.md")
         if transcript_full and not transcript_full.startswith("---") and not transcript_full.startswith("#"):
             warnings.append("transcript_has_no_frontmatter_or_heading")
@@ -74,7 +74,7 @@ def validate_one(pkg):
                 if k not in q: warnings.append("quality_field_missing:" + k)
     except Exception as e: issues.append("quality_report_parse:" + type(e).__name__)
     try:
-        segdoc = json.loads((pkg / "canonical_segments.json").read_text())
+        segdoc = json.loads((pkg / "canonical_segments.json").read_text(encoding="utf-8"))
         segs = segdoc.get("segments") if isinstance(segdoc, dict) else segdoc
         if not isinstance(segs, list): issues.append("canonical_segments_not_list")
         else:
@@ -98,7 +98,7 @@ def validate_one(pkg):
                 if row["transcript_segment_token_jaccard"] < 0.55: warnings.append("transcript_segment_low_token_overlap")
     except Exception as e: issues.append("canonical_segments_parse:" + type(e).__name__)
     try:
-        ledger = json.loads((pkg / "correction_ledger.json").read_text())
+        ledger = json.loads((pkg / "correction_ledger.json").read_text(encoding="utf-8"))
         entries = correction_spans(ledger)
         row["correction_count"] = len(entries)
         bad = 0
@@ -117,14 +117,14 @@ def validate_one(pkg):
                 corr_start = start + delta
                 if orig[start:end] != old or corr[corr_start:corr_start + len(new)] != new: bad += 1
                 seg_offsets[seg_key] = delta + (len(new) - (end - start))
-                if c.get("reversal_tested") is not True: warnings.append("correction_not_marked_reversal_tested")
-                if c.get("original_segment_hash") and hashlib.sha256(orig.encode("utf-8")).hexdigest() != c["original_segment_hash"]: warnings.append("correction_original_hash_mismatch")
-                if c.get("corrected_segment_hash") and hashlib.sha256(corr.encode("utf-8")).hexdigest() != c["corrected_segment_hash"]: warnings.append("correction_corrected_hash_mismatch")
+                if c.get("reversal_tested") is not True and "correction_not_marked_reversal_tested" not in warnings: warnings.append("correction_not_marked_reversal_tested")
+                if c.get("original_segment_hash") and hashlib.sha256(orig.encode("utf-8")).hexdigest() != c["original_segment_hash"] and "correction_original_hash_mismatch" not in warnings: warnings.append("correction_original_hash_mismatch")
+                if c.get("corrected_segment_hash") and hashlib.sha256(corr.encode("utf-8")).hexdigest() != c["corrected_segment_hash"] and "correction_corrected_hash_mismatch" not in warnings: warnings.append("correction_corrected_hash_mismatch")
         if bad: issues.append("correction_ledger_invalid_entries")
         if entries and not transcript_body: warnings.append("corrections_present_but_transcript_empty")
     except Exception as e: issues.append("correction_ledger_parse:" + type(e).__name__)
     try:
-        manifest = json.loads((pkg / "artifact_manifest.json").read_text())
+        manifest = json.loads((pkg / "artifact_manifest.json").read_text(encoding="utf-8"))
         artifacts = manifest.get("artifacts", {}) if isinstance(manifest, dict) else {}
         if not artifacts: warnings.append("manifest_artifacts_empty")
         mismatches, absent = [], []
@@ -176,8 +176,8 @@ def main():
         for x in r["issues"]: summary["issue_counts"][x.split(":",1)[0]]=summary["issue_counts"].get(x.split(":",1)[0],0)+1
         for x in r["warnings"]: summary["warning_counts"][x.split(":",1)[0]]=summary["warning_counts"].get(x.split(":",1)[0],0)+1
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    (args.out.with_suffix(".json")).write_text(json.dumps({"summary":summary,"packages":rows}, indent=2, ensure_ascii=False))
-    with (args.out.with_suffix(".csv")).open("w", newline="") as f:
+    (args.out.with_suffix(".json")).write_text(json.dumps({"summary":summary,"packages":rows}, indent=2, ensure_ascii=False), encoding="utf-8")
+    with (args.out.with_suffix(".csv")).open("w", newline="", encoding="utf-8") as f:
         keys=sorted({k for r in rows for k in r})
         w=csv.DictWriter(f, fieldnames=keys); w.writeheader()
         for r in rows:

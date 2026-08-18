@@ -397,7 +397,12 @@ class CorpusEngine:
             f"**Fetched:** {datetime.now(timezone.utc).isoformat()}\n\n"
             f"## Status\n\nVideo unavailable or extraction failed: {reason}\n"
         )
-        transcript_hash = compute_sha256(md_content)
+        stable_payload = json.dumps({
+            "video_id": video_id,
+            "quality_state": quality_state,
+            "reason": reason,
+        }, sort_keys=True)
+        transcript_hash = compute_sha256(stable_payload)
         manifest_hash = compute_canonical_manifest_hash(video_id, transcript_hash)
 
         seg_file = v_dir / "canonical_segments.json"

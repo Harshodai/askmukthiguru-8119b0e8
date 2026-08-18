@@ -31,7 +31,7 @@ for r in confirmed:
                 ok = text[int(start):int(end)] == matched
                 evidence = 'canonical span matches' if ok else f"span={text[int(start):int(end)]!r}"
             else:
-                ok = matched.lower() in text.lower() or 'diksha' in text.lower()
+                ok = matched.lower() in text.lower()
                 evidence = 'canonical text contains candidate' if ok else 'candidate absent from canonical text'
         except Exception as e:
             ok=False; evidence=f'parse error: {e}'
@@ -47,7 +47,7 @@ for r in confirmed:
             evidence='transcript contains candidate' if ok else 'candidate absent from transcript'
     item=dict(r); item['validation']=evidence; item['validation_ok']=str(ok).lower()
     (valid if ok else invalid).append(item)
-fields=list(confirmed[0]) + ['validation','validation_ok']
+fields = (list(confirmed[0]) if confirmed else (list(rows[0]) if rows else ['video_id'])) + ['validation','validation_ok']
 with open(out/'confirmed_corrections_validated.csv','w',newline='',encoding='utf-8') as f:
     w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(valid+invalid)
 summary={'confirmed_rows':len(confirmed),'valid_rows':len(valid),'invalid_rows':len(invalid),'invalid_by_reason':dict(Counter(x['validation'] for x in invalid)),'by_disposition':dict(Counter(x['disposition'] for x in confirmed))}

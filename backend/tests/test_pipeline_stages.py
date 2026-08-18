@@ -19,6 +19,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.config import settings
+from app.metrics import SLO_CHAT_LATENCY
 from app.pipeline.pipeline_coordinator import PipelineCoordinator
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages import (
@@ -182,6 +183,58 @@ async def test_cache_check_stage_short_circuits_on_hit(coordinator):
 
 
 @pytest.mark.asyncio
+async def test_cache_hit_observes_slo_latency_once(coordinator, monkeypatch):
+    """PipelineCoordinator.execute observes SLO_CHAT_LATENCY exactly once on a cache hit."""
+    import time
+
+    observes = []
+    orig_observe = SLO_CHAT_LATENCY.labels(tier="semantic_cache").observe
+
+    def _capture_observe(value):
+        observes.append(value)
+        return orig_observe(value)
+
+    monkeypatch.setattr(
+        SLO_CHAT_LATENCY.labels(tier="semantic_cache"),
+        "observe",
+        _capture_observe,
+    )
+
+    cached = {
+        "response": "Cached answer.",
+        "intent": "QUERY",
+        "meditation_step": 0,
+        "citations": [],
+    }
+    coordinator.container = _mock_container(cache_hit=cached)
+    import services.hot_cache as hc
+
+    hc.hot_cache._store.clear()
+    coordinator._vector_cache = None
+
+    chat_body = MagicMock()
+    chat_body.messages = []
+    chat_body.assistant = None
+    chat_body.response_preferences = None
+    chat_body.incognito = False
+
+    result = await coordinator.execute(
+        user_msg="what is the beautiful state",
+        preferred_lang="en",
+        chat_body=chat_body,
+        meditation_step=0,
+        session_id="sess-slo",
+        user={"id": "user-slo"},
+    )
+
+    assert result.cache_hit is True
+    assert result.final_answer == "Cached answer."
+    assert result.latency_ms >= 0
+    assert len(observes) == 1
+    assert observes[0] == result.latency_ms / 1000.0
+
+
+@pytest.mark.asyncio
 async def test_cache_check_stage_passes_through_on_miss(coordinator):
     """CacheCheckStage returns None (continue) on a cache miss."""
     coordinator.container = _mock_container(cache_hit=None)
@@ -304,6 +357,39 @@ async def test_stage_runner_assembles_result(coordinator):
     assert result.final_answer == "Beautiful State is calm awareness."
     assert result.intent == "QUERY"
     assert result.cache_hit is False
+
+
+@pytest.mark.asyncio
+async def test_stage_telemetry_includes_metadata(coordinator):
+    """StageRunner telemetry records must carry the metadata field on success/error paths."""
+    from app.pipeline.stages.base import Stage
+
+    class MetaStage(Stage):
+        name = "meta_probe"
+
+        async def run(self, ctx):
+            ctx.last_stage_metadata = {"probe": 1}
+            return None
+
+    class ErrorStage(Stage):
+        name = "error_probe"
+
+        async def run(self, ctx):
+            raise ValueError("boom")
+
+    ctx = _build_ctx(coordinator.container, coordinator)
+    await StageRunner.run([MetaStage()], ctx, coordinator=coordinator)
+    assert len(ctx.stage_telemetry) == 1
+    assert "metadata" in ctx.stage_telemetry[0]
+    assert ctx.stage_telemetry[0]["metadata"] == {"probe": 1}
+
+    ctx = _build_ctx(coordinator.container, coordinator)
+    ctx.last_stage_metadata = {"pre_error": True}
+    with pytest.raises(ValueError):
+        await StageRunner.run([ErrorStage()], ctx, coordinator=coordinator)
+    assert len(ctx.stage_telemetry) == 1
+    assert "metadata" in ctx.stage_telemetry[0]
+    assert ctx.stage_telemetry[0]["metadata"] == {"pre_error": True}
 
 
 # ---------------------------------------------------------------------------

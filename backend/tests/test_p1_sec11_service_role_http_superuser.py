@@ -30,16 +30,17 @@ _SENTINEL_SUB = "00000000-0000-0000-0000-000000000002"
 
 
 def _forge_service_role_token() -> str:
+    import services.auth_service as auth_svc
     payload = {
         "sub": _SENTINEL_SUB,
         "email": None,
         "role": "service_role",
-        "aud": settings.supabase_jwt_audience,
-        "iss": f"{settings.supabase_url.rstrip('/')}/auth/v1",
+        "aud": auth_svc.settings.supabase_jwt_audience,
+        "iss": f"{auth_svc.settings.supabase_url.rstrip('/')}/auth/v1",
         "iat": int(time.time()),
         "exp": int(time.time()) + 3600,
     }
-    return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+    return jwt.encode(payload, auth_svc.settings.jwt_secret, algorithm="HS256")
 
 
 def _make_request() -> Request:
@@ -54,15 +55,21 @@ def _make_request() -> Request:
 
 @pytest.fixture(autouse=True)
 def _pin_jwt_secret(monkeypatch):
+    import services.auth_service as auth_svc
+    monkeypatch.setattr(auth_svc.settings, "jwt_secret", "mock_jwt_secret_for_testing_12345")
     monkeypatch.setattr(settings, "jwt_secret", "mock_jwt_secret_for_testing_12345")
     yield
 
 
 class TestSec11ServiceRoleHttpNeverSuperuser:
     @pytest.mark.asyncio
-    async def test_sec11_service_role_jwt_never_superuser(self):
+    async def test_sec11_service_role_jwt_never_superuser(self, monkeypatch):
         """A forged service_role JWT decoded by the strategy yields
         is_superuser=False and role='service_role' — never superuser."""
+        async def _no_admin(self, user_id, token=None):
+            return False
+
+        monkeypatch.setattr(SupabaseAuthStrategy, "_check_admin_role", _no_admin)
         strategy = SupabaseAuthStrategy()
         creds = HTTPAuthorizationCredentials(
             scheme="Bearer", credentials=_forge_service_role_token()

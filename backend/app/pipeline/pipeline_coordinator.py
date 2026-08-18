@@ -24,6 +24,7 @@ the stage bodies are verbatim moves, not rewrites.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import hashlib
 import json
 import logging
@@ -38,6 +39,7 @@ from app.metrics import SEARCH_LATENCY_MS, SLO_CHAT_LATENCY
 from app.orchestrator_utils import cache_language_key
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages import PipelineContext, StageRunner, build_default_pipeline
+from app.release_manifest import get_release_manifest
 from rag.memory import normalize_session_id
 from services.health_monitor import HealthMonitor
 from services.hot_cache import hot_cache
@@ -58,7 +60,7 @@ class PipelineCoordinator:
 
     def __init__(self, container: ServiceContainer) -> None:
         self.container = container
-        self.coalescer = container.coalescer
+        self.coalescer = getattr(container, "coalescer", None)
         self._vector_cache: TurboQuantCache | None = None
         self._health_monitor: HealthMonitor | None = None
 
@@ -161,6 +163,7 @@ class PipelineCoordinator:
                 final_answer="The Guru took too long to respond. Please try again.",
                 intent="TIMEOUT", trace_id=trace_id, latency_ms=latency_ms,
                 model_used=None, model_provider=None, route_decision="timeout",
+                release_manifest=get_release_manifest().to_dict(),
             )
         except Exception:
             logger.exception(
@@ -172,6 +175,7 @@ class PipelineCoordinator:
                 final_answer="The Guru encountered an error. Please try again.",
                 intent="ERROR", trace_id=trace_id, latency_ms=latency_ms,
                 model_used=None, model_provider=None, route_decision="error",
+                release_manifest=get_release_manifest().to_dict(),
             )
 
         if result is None:
@@ -185,11 +189,19 @@ class PipelineCoordinator:
                 model_used=None,  # error fallback — no model produced this text
                 model_provider=None,
                 route_decision="error",
+                release_manifest=get_release_manifest().to_dict(),
             )
+
+        if result.release_manifest is None:
+            result = dataclasses.replace(result, release_manifest=get_release_manifest().to_dict())
 
         # Cache-hit results are built with latency_ms=0; apply the real elapsed time.
         if result.cache_hit:
-            return result.with_latency(int((time.time() - start_time) * 1000))
+            latency_ms = int((time.time() - start_time) * 1000)
+            res = result.with_latency(latency_ms)
+            SLO_CHAT_LATENCY.labels(tier=(res.route_decision or "standard")).observe(latency_ms / 1000.0)
+            return res
+
         SLO_CHAT_LATENCY.labels(tier=(result.route_decision or "standard")).observe(time.time() - start_time)
         return result
 
@@ -351,6 +363,7 @@ class PipelineCoordinator:
         unchanged.
         """
         tenant = TenantContext.get() or "default"
+        manifest = get_release_manifest()
         persona = ""
         if assistant_slug or assistant_system_prompt or assistant_knowledge_tags:
             config_text = "|".join(
@@ -368,7 +381,14 @@ class PipelineCoordinator:
                 json.dumps(response_preferences, sort_keys=True).encode("utf-8")
             ).hexdigest()[:12]
             preference_scope = f":pref:{preference_fp}"
-        base_key = f"tenant:{tenant}{persona}{preference_scope}:{cache_language_key(user_msg, preferred_lang)}"
+        if ":" in manifest.release_id or ":" in manifest.policy_version:
+            scope_digest = hashlib.sha256(
+                f":rel:{manifest.release_id}:pol:{manifest.policy_version}".encode("utf-8")
+            ).hexdigest()[:16]
+            release_scope = f":rel:{scope_digest}"
+        else:
+            release_scope = f":rel:{manifest.release_id}:pol:{manifest.policy_version}"
+        base_key = f"tenant:{tenant}{release_scope}{persona}{preference_scope}:{cache_language_key(user_msg, preferred_lang)}"
 
         is_standalone = self._is_standalone_question(user_msg)
         if is_standalone:
@@ -469,6 +489,7 @@ class PipelineCoordinator:
             route_decision="error",
             blocked=True,
             block_reason="circuit_breaker_open",
+            release_manifest=get_release_manifest().to_dict(),
         )
 
     # ------------------------------------------------------------------

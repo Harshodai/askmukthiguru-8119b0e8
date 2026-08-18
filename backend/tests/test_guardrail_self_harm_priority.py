@@ -62,7 +62,7 @@ class TestSelfHarmPriority:
         )
         assert result["redirect_to"] is None
         # The medical_prescription block response (not the old cold refusal).
-        assert "healthcare professional" in result["response"].lower(), (
+        assert "mental health professional" in result["response"].lower() or "professional healthcare" in result["response"].lower(), (
             f"unexpected response: {result['response']!r}"
         )
 

@@ -22,6 +22,8 @@ import { memoryApi } from '@/lib/memoryApi';
 import { useToast } from '@/hooks/use-toast';
 import { CitationPanel, type Citation } from './CitationPanel';
 import { LiveLogisticsCards } from './LiveLogisticsCards';
+import { EuAiBadge } from '@/components/compliance/EuAiBadge';
+import { ProvenanceDrawer } from '@/components/compliance/ProvenanceDrawer';
 
 interface ChatMessageProps {
   message: Message;
@@ -391,6 +393,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const [editValue, setEditValue] = useState(message.content);
     const [noteSaved, setNoteSaved] = useState(false);
     const [sourcesOpen, setSourcesOpen] = useState(false);
+    const [provenanceOpen, setProvenanceOpen] = useState(false);
     const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Auto-resize + cursor-end when editing opens or text changes
@@ -925,17 +928,14 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
 
             </div>
 
-            {/* H1.3 — AI-generated transparency label */}
+            {/* EU AI Act Article 50 Disclosure & Provenance Badge */}
             {isGuru && !message.error && (message.content || !isStreaming) && (
-              <div
-                className="text-[10.5px] text-muted-foreground/70 mt-2 select-none flex items-center gap-1.5"
-                role="status"
-                aria-label={citations.length > 0 ? t('chat.aiLabelWithSources', { count: citations.length }) : t('chat.aiLabel')}
-              >
-                <Sparkles className="w-2.5 h-2.5 text-muted-foreground/60" aria-hidden />
-                <span>
-                  {t('chat.aiLabel')}
-                </span>
+              <div className="mt-2 select-none flex items-center gap-2">
+                <EuAiBadge
+                  originType="ai_generated"
+                  onClick={() => setProvenanceOpen(true)}
+                  size="sm"
+                />
               </div>
             )}
 
@@ -1229,6 +1229,15 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 isOpen={sourcesOpen}
                 onClose={() => setSourcesOpen(false)}
                 citations={citations.map((url): Citation => ({ url }))}
+              />
+            )}
+
+            {/* EU AI Act Article 50 Provenance Drawer */}
+            {isGuru && (
+              <ProvenanceDrawer
+                isOpen={provenanceOpen}
+                onClose={() => setProvenanceOpen(false)}
+                message={message}
               />
             )}
           </div>

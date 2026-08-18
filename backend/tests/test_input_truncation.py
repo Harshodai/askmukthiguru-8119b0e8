@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 from fastapi import Request
 from app.main import app
@@ -25,6 +25,9 @@ def test_chat_endpoint_accepts_long_input():
     def mock_get_container():
         mock_container = MagicMock()
         mock_container.job_queue = None
+        mock_container.anon_quota_service.check_and_record = AsyncMock(
+            return_value=MagicMock(quota_exceeded=False, remaining=10, limit=10)
+        )
         return mock_container
 
     # Set dependency overrides

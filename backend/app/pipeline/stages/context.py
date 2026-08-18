@@ -79,9 +79,10 @@ class PipelineContext:
     # --- Final output ---
     result: PipelineResult | None = None
 
-    # --- Per-stage telemetry (set by stages, read by StageRunner) ---
+    # --- Per-stage telemetry (set by stages, read/appended by StageRunner) ---
     last_stage_status: str = "success"
     last_stage_metadata: dict | None = None
+    stage_telemetry: list[dict[str, Any]] = field(default_factory=list)
 
     # --- Query tier (set by CacheCheckStage, reused by GraphStage to avoid double LLM call) ---
     detected_query_tier: str | None = None

@@ -65,6 +65,14 @@ def flatten_book_structure(structure: list[dict]) -> list[dict]:
             summary = (node.get("summary") or "").strip()
 
             if text:
+                import unicodedata
+                text = unicodedata.normalize("NFC", text)
+                try:
+                    from services.doctrine_terms import apply_corrections
+                    text = apply_corrections(text)
+                except Exception:
+                    pass
+
                 parent_id = str(uuid.uuid4())
                 header = f"[Source: {BOOK_SOURCE_NAME} | Chapter: {context_title}]\n"
                 boundary_chunks = chunk_with_contextual_headers(
@@ -100,6 +108,14 @@ def flatten_book_structure(structure: list[dict]) -> list[dict]:
                     )
 
             if summary:
+                import unicodedata
+                summary = unicodedata.normalize("NFC", summary)
+                try:
+                    from services.doctrine_terms import apply_corrections
+                    summary = apply_corrections(summary)
+                except Exception:
+                    pass
+
                 header = f"[Source: {BOOK_SOURCE_NAME} | Chapter Summary: {context_title}]\n"
                 _dedup_append(
                     summary,
@@ -136,7 +152,14 @@ def _full_text(structure: list[dict]) -> str:
         parts.append(node.get("summary", ""))
         if node.get("nodes"):
             parts.append(_full_text(node["nodes"]))
-    return "\n".join(p for p in parts if p)
+    full = "\n".join(p for p in parts if p)
+    import unicodedata
+    full = unicodedata.normalize("NFC", full)
+    try:
+        from services.doctrine_terms import apply_corrections
+        return apply_corrections(full)
+    except Exception:
+        return full
 
 
 def _chunk_text(text: str, size: int = LIGHTRAG_CHUNK_SIZE) -> list[str]:

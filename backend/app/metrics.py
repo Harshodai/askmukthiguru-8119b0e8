@@ -526,3 +526,9 @@ PROVIDER_REPORTED_COST_USD = Counter(
     "Actual non-negative cost reported by an LLM provider",
     ["provider"],
 )
+
+ANON_QUOTA_DEGRADED_MODE = Counter(
+    "anon_quota_degraded_mode_total",
+    "Total anonymous quota operations processed in degraded in-memory mode due to Redis outage/failure",
+    ["event"],
+)

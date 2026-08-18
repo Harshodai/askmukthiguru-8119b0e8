@@ -18,6 +18,7 @@ from app.language_utils import guardrail_text_for, is_non_english_message
 from app.metrics import REQUEST_LATENCY
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
+from app.release_manifest import get_release_manifest
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
@@ -141,6 +142,7 @@ class InputGuardrailStage(Stage):
                 model_used=None,  # blocked before any model ran
                 model_provider=None,
                 route_decision=route_decision,
+                release_manifest=get_release_manifest().to_dict(),
             )
         return None
 

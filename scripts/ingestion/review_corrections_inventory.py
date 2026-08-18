@@ -1,10 +1,13 @@
-import argparse,json,hashlib
+import argparse,json,hashlib,sys
+from json import JSONDecodeError
 from pathlib import Path
 from collections import Counter
 R=['transcript.md','quality_report.json','canonical_segments.json','correction_ledger.json','artifact_manifest.json']
 def load(p):
  try:return json.loads(p.read_text())
- except:return None
+ except FileNotFoundError:return None
+ except (OSError,JSONDecodeError) as e:
+  print(f'warning: failed to load {p}: {e}',file=sys.stderr);return None
 def digest(p):
  h=hashlib.sha256(); h.update(p.read_bytes()); return h.hexdigest()
 def main(corpus,out):
@@ -31,6 +34,6 @@ def main(corpus,out):
    cand.append({'candidate_id':vid+':'+str(i),'video_id':vid,'package_path':str(p),'ledger_index':i,'rule_id':e.get('rule_id'),'segment_id':sid,'char_start':a,'char_end':b,'start_seconds':s.get('start') if s else None,'end_seconds':s.get('end') if s else None,'matched_text':mt,'replacement':e.get('replacement'),'reason':e.get('reason'),'local_issues':li,'segment_text':s.get('text') if s else None,'original_segment_text':e.get('original_segment_text'),'quality_state':state})
   rec.append({'video_id':vid,'missing_required':miss,'integrity':integ,'segment_count':len(ss),'quality_state':state,'quality_score':q.get('quality_score') if isinstance(q,dict) else None,'ledger_count':len(es)})
  s={'package_count':len(pkgs),'packages_with_ledgers':sum(x['ledger_count']>0 for x in rec),'candidate_count':len(cand),'quality_state_counts':dict(qc),'issue_counts':dict(issues)}
- (out/'inventory_summary.json').write_text(json.dumps(s,indent=2));(out/'package_inventory.json').write_text(json.dumps(rec,indent=2));(out/'correction_candidates.json').write_text(json.dumps(cand,indent=2,ensure_ascii=False));print(json.dumps(s))
+ (out/'inventory_summary.json').write_text(json.dumps(s,indent=2),encoding='utf-8');(out/'package_inventory.json').write_text(json.dumps(rec,indent=2),encoding='utf-8');(out/'correction_candidates.json').write_text(json.dumps(cand,indent=2,ensure_ascii=False),encoding='utf-8');print(json.dumps(s))
 if __name__=='__main__':
  ap=argparse.ArgumentParser();ap.add_argument('--corpus',type=Path,required=True);ap.add_argument('--out',type=Path,required=True);x=ap.parse_args();main(x.corpus,x.out)

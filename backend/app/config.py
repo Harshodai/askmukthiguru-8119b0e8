@@ -459,6 +459,10 @@ class Settings(BaseSettings):
     csrf_secret: Optional[str] = (
         None  # Secret for CSRF token signing (generate with secrets.token_hex(32))
     )
+    # Server-side key-encryption key for Second Brain Mode-A vault wrapping.
+    # Required in production; Mode-B (session-unlock) vaults derive KEK from
+    # the user's passphrase, but the default Mode-A wrap still needs this.
+    brain_kek: Optional[str] = None
     correlation_id_max_length: int = 64  # Max length for X-Correlation-ID header
     allowed_hosts: str = "localhost,127.0.0.1"  # Trusted hosts for Origin/Referer validation
 
@@ -532,6 +536,8 @@ class Settings(BaseSettings):
     anon_quota_messages: int = Field(default=5, gt=0)
     anon_quota_window_hours: float = Field(default=24.0, gt=0)
     anon_quota_enabled: bool = True
+    anon_quota_degraded_limit: int = Field(default=3, gt=0)
+    data_quality_threshold: int = Field(default=65, ge=0, le=100)
     # --- Compliance audit trail (Unit 24) ---
     # Legal basis recorded on each compliance_audit NDJSON record (GDPR Art. 6)
     # and the retention period advertised to downstream data-retention tooling.
@@ -780,6 +786,9 @@ class Settings(BaseSettings):
     graphrag_fusion_enabled: bool = Field(default=False, description="Enable GraphRAG fusion (multi-hop vector+KG)")
     graphrag_max_hops: int = Field(default=2, gt=0, le=5)
     graphrag_token_budget: int = Field(default=4000, gt=0, le=8000)
+    graphrag_max_concurrency: int = Field(default=4, ge=1, le=32, description="Max concurrent GraphRAG retrievals")
+    graphrag_traversal_timeout: float = Field(default=5.0, gt=0.0, le=60.0, description="Per-traversal timeout in seconds")
+    graphrag_total_timeout: float = Field(default=10.0, gt=0.0, le=60.0, description="Aggregate GraphRAG deadline in seconds")
 
     @model_validator(mode="after")
     def validate_graphrag_token_budget(self):
@@ -792,6 +801,11 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"graphrag_token_budget ({budget}) exceeds 80% of max_tokens_per_request "
                 f"({max_tokens}). Reduce budget or increase max_tokens_per_request."
+            )
+        if self.graphrag_total_timeout < self.graphrag_traversal_timeout:
+            raise ValueError(
+                f"graphrag_total_timeout ({self.graphrag_total_timeout}) must be >= "
+                f"graphrag_traversal_timeout ({self.graphrag_traversal_timeout})"
             )
         return self
 
@@ -1173,6 +1187,19 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def validate_cove_threshold_ordering(self):
+        """cove_partial_threshold must not exceed cove_supported_threshold —
+        an inverted pair would silently dead-code the partially_supported
+        branch of the CoVe claim gate."""
+        if self.cove_partial_threshold > self.cove_supported_threshold:
+            raise ValueError(
+                "cove_partial_threshold "
+                f"({self.cove_partial_threshold}) must be <= "
+                f"cove_supported_threshold ({self.cove_supported_threshold})"
+            )
+        return self
+
+    @model_validator(mode="after")
     def validate_anon_session_secret(self):
         """M5: anonymous session HMAC secret must be set in production.
 
@@ -1241,6 +1268,114 @@ class Settings(BaseSettings):
             OpenRouterModelPolicy.from_settings(self)
 
         return self
+
+    @model_validator(mode="after")
+    def validate_embedding_config(self):
+        """Validate embedding model, dimension compatibility, and backend."""
+        model_str = (self.embedding_model or "").lower()
+        dim = self.embedding_dimension
+        if ("bge-m3" in model_str or "multilingual-e5-large" in model_str) and dim != 1024:
+            raise ValueError(
+                f"embedding_model '{self.embedding_model}' requires embedding_dimension=1024, but got {dim}"
+            )
+        if ("e5-small" in model_str or "all-minilm" in model_str) and dim != 384:
+            raise ValueError(
+                f"embedding_model '{self.embedding_model}' requires embedding_dimension=384, but got {dim}"
+            )
+
+        # Factory-implemented backends only (see embedding_service._load_encoder):
+        # "onnx_int8" loads the ONNX INT8 encoder, "flagembedding" the PyTorch
+        # FlagEmbedding/SentenceTransformer path. Aliases like "auto"/"onnx" are
+        # rejected because no consumer branches on them.
+        valid_backends = {"flagembedding", "onnx_int8"}
+        backend_str = (self.embedding_backend or "").lower()
+        if backend_str not in valid_backends:
+            raise ValueError(
+                f"Invalid embedding_backend '{self.embedding_backend}'. Must be one of {sorted(valid_backends)}"
+            )
+        self.embedding_backend = backend_str
+        return self
+
+    @model_validator(mode="after")
+    def validate_reranker_config(self):
+        """Validate reranker backend compatibility."""
+        # Factory-implemented backends only (see embedding_service._ensure_reranker):
+        # "onnx_int8" loads the OnnxReranker, "flagembedding" the PyTorch
+        # CrossEncoder fallback. Aliases like "cross_encoder"/"none"/"auto" are
+        # rejected because no consumer branches on them.
+        valid_rerankers = {"onnx_int8", "flagembedding"}
+        backend_str = (self.reranker_backend or "").lower()
+        if backend_str not in valid_rerankers:
+            raise ValueError(
+                f"Invalid reranker_backend '{self.reranker_backend}'. Must be one of {sorted(valid_rerankers)}"
+            )
+        self.reranker_backend = backend_str
+        return self
+
+    @model_validator(mode="after")
+    def validate_production_restrictions(self):
+        """Enforce strict production invariants (no test auth backdoor)."""
+        if self.is_production and self.enable_test_auth:
+            raise ValueError("enable_test_auth must be False when is_production is True")
+        if self.is_production and not self.brain_kek:
+            raise ValueError(
+                "brain_kek is required in production: the Second Brain default "
+                "Mode-A vault wrap needs a server-side KEK (see field comment)."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_anon_quota(self):
+        """Degraded anonymous quota limit must not exceed the normal limit."""
+        if self.anon_quota_degraded_limit > self.anon_quota_messages:
+            raise ValueError(
+                "anon_quota_degraded_limit "
+                f"({self.anon_quota_degraded_limit}) must be <= "
+                f"anon_quota_messages ({self.anon_quota_messages})"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_concurrency_and_timeouts(self):
+        """Validate timeout constraints (llm_timeout < pipeline_timeout) and positive concurrency."""
+        if self.llm_timeout <= 0:
+            raise ValueError(f"llm_timeout must be > 0, got {self.llm_timeout}")
+        if self.pipeline_timeout <= 0:
+            raise ValueError(f"pipeline_timeout must be > 0, got {self.pipeline_timeout}")
+        if self.llm_timeout >= self.pipeline_timeout:
+            raise ValueError(
+                f"llm_timeout ({self.llm_timeout}) must be strictly less than pipeline_timeout ({self.pipeline_timeout})"
+            )
+
+        concurrency_fields = [
+            ("queue_concurrency", getattr(self, "queue_concurrency", None)),
+            ("ingestion_concurrency", getattr(self, "ingestion_concurrency", None)),
+            ("llm_queue_max_concurrent", getattr(self, "llm_queue_max_concurrent", None)),
+            ("reingest_contextualizer_concurrency", getattr(self, "reingest_contextualizer_concurrency", None)),
+            ("max_concurrent_chat", getattr(self, "max_concurrent_chat", None)),
+            ("transcript_concurrent_workers", getattr(self, "transcript_concurrent_workers", None)),
+        ]
+        for name, val in concurrency_fields:
+            if val is not None and val <= 0:
+                raise ValueError(f"{name} must be positive, got {val}")
+        return self
+
+    @model_validator(mode="after")
+    def validate_allowed_hosts_and_forwarded_ips(self):
+        """Normalize allowed_hosts and forwarded_allow_ips; restrict wildcards in production."""
+        if self.allowed_hosts:
+            hosts = [h.strip() for h in self.allowed_hosts.split(",") if h.strip()]
+            self.allowed_hosts = ",".join(hosts)
+            if self.is_production and "*" in hosts:
+                raise ValueError("Wildcard '*' in allowed_hosts is forbidden in production")
+
+        if self.forwarded_allow_ips:
+            ips = [ip.strip() for ip in self.forwarded_allow_ips.split(",") if ip.strip()]
+            self.forwarded_allow_ips = ",".join(ips)
+            if self.is_production and "*" in ips:
+                raise ValueError("Wildcard '*' in forwarded_allow_ips is forbidden in production")
+        return self
+
 
 
 

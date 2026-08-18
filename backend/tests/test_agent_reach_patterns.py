@@ -27,8 +27,21 @@ from ingest.web_scraper import parse_rss_feed, scrape_and_clean_web_article
 from services.transcript_polisher import polish_transcript
 
 
-def test_is_safe_public_url_security():
+def test_is_safe_public_url_security(monkeypatch):
     """Verify SSRF validation blocks private IPs and internal metadata hosts."""
+    def fake_getaddrinfo(host, port, *args, **kwargs):
+        if host in {"example.com", "www.youtube.com"}:
+            return [(2, 1, 6, "", ("93.184.215.14", port))]
+        if host == "metadata.google.internal":
+            return [(2, 1, 6, "", ("169.254.169.254", port))]
+        if host == "localhost":
+            return [(2, 1, 6, "", ("127.0.0.1", port))]
+        import socket
+        raise socket.gaierror(-2, "Name or service not known")
+
+    import socket
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+
     assert is_safe_public_url("https://example.com/article") is True
     assert is_safe_public_url("https://www.youtube.com/watch?v=12345") is True
 

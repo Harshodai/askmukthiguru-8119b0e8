@@ -8,10 +8,37 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from services.user_profile_service import LanguagePreference, SpiritualLevel
+from app.schemas.compliance_provenance import (
+    AIProvenanceManifest,
+    ArtifactModality,
+    ComplianceStandard,
+    ContentCategory,
+    EUComplianceRiskTier,
+    GroundingSourceReference,
+    OriginType,
+    SoftwareAgentDescriptor,
+    WatermarkType,
+)
 
 logger = logging.getLogger(__name__)
 
 _ALLOWED_ROLES = frozenset({"user", "assistant"})
+
+
+class ReleaseManifestPublic(BaseModel):
+    """Public projection of the release manifest.
+
+    Only fields approved for client exposure. The full manifest (git_sha,
+    model identifiers, build timestamp) stays on internal/telemetry paths.
+    """
+
+    release_id: str = Field(..., description="Release identifier")
+    policy_version: Optional[str] = Field(
+        default=None, description="Model policy version"
+    )
+    schema_version: Optional[str] = Field(
+        default=None, description="Response schema version"
+    )
 
 
 class MessagePayload(BaseModel):
@@ -220,6 +247,18 @@ class ChatResponse(BaseModel):
     grounding_state: Literal["grounded", "abstained", "safety_redirect", "system_error"] = Field(
         default="abstained",
         description="Truthful final state of retrieval and response grounding",
+    )
+    release_manifest: Optional[ReleaseManifestPublic] = Field(
+        default=None,
+        description="Public release provenance and policy projection",
+    )
+    provenance_manifest: Optional[AIProvenanceManifest] = Field(
+        default=None,
+        description="EU AI Act Article 50 & W3C PROV-O compliance manifest",
+    )
+    ai_provenance: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="EU AI Act Article 50 provenance manifest",
     )
 
 class LiveLogisticsEvent(BaseModel):

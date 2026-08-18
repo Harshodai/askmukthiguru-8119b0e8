@@ -28,20 +28,22 @@ from app.config import settings
 from services.auth_service import SupabaseAuthStrategy
 
 LOCAL_ISSUER = "http://127.0.0.1:54321/auth/v1"
+_SENTINEL_SUB = "00000000-0000-0000-0000-000000000001"
 
 
-def _forge_hs256_token(iss: str, role: str = "authenticated") -> str:
+def _forge_hs256_token(issuer: str) -> str:
+    import services.auth_service as auth_svc
     payload = {
-        "sub": "00000000-0000-0000-0000-000000000001",
-        "email": "seeker@example.com",
-        "role": role,
-        "aud": settings.supabase_jwt_audience,
-        "iss": iss,
+        "sub": _SENTINEL_SUB,
+        "email": "tester@example.com",
+        "role": "authenticated",
+        "aud": auth_svc.settings.supabase_jwt_audience,
+        "iss": issuer,
         "aal": "aal1",
         "iat": int(time.time()),
         "exp": int(time.time()) + 3600,
     }
-    return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+    return jwt.encode(payload, auth_svc.settings.jwt_secret, algorithm="HS256")
 
 
 def _make_request() -> Request:
@@ -58,6 +60,8 @@ def _make_request() -> Request:
 def _pin_jwt_secret(monkeypatch):
     """Pin a known signing secret so forged tokens verify against the same
     secret the strategy reads at call time (settings.jwt_secret)."""
+    import services.auth_service as auth_svc
+    monkeypatch.setattr(auth_svc.settings, "jwt_secret", "mock_jwt_secret_for_testing_12345")
     monkeypatch.setattr(settings, "jwt_secret", "mock_jwt_secret_for_testing_12345")
     yield
 
@@ -69,7 +73,10 @@ async def _no_admin_role(self, user_id: str, jwt_token: str | None = None) -> bo
 class TestSec10LocalIssuerProdGate:
     @pytest.mark.asyncio
     async def test_sec10_local_issuer_rejected_in_prod(self, monkeypatch):
+        import services.auth_service as auth_svc
+        monkeypatch.setattr(auth_svc.settings, "is_production", True)
         monkeypatch.setattr(settings, "is_production", True)
+        monkeypatch.setattr(SupabaseAuthStrategy, "_check_admin_role", _no_admin_role)
         strategy = SupabaseAuthStrategy()
         creds = HTTPAuthorizationCredentials(
             scheme="Bearer", credentials=_forge_hs256_token(LOCAL_ISSUER)
@@ -81,6 +88,8 @@ class TestSec10LocalIssuerProdGate:
 
     @pytest.mark.asyncio
     async def test_sec10_local_issuer_accepted_in_dev(self, monkeypatch):
+        import services.auth_service as auth_svc
+        monkeypatch.setattr(auth_svc.settings, "is_production", False)
         monkeypatch.setattr(settings, "is_production", False)
         monkeypatch.setattr(SupabaseAuthStrategy, "_check_admin_role", _no_admin_role)
         strategy = SupabaseAuthStrategy()
@@ -93,7 +102,10 @@ class TestSec10LocalIssuerProdGate:
 
     @pytest.mark.asyncio
     async def test_sec10_localhost_issuer_also_gated_in_prod(self, monkeypatch):
+        import services.auth_service as auth_svc
+        monkeypatch.setattr(auth_svc.settings, "is_production", True)
         monkeypatch.setattr(settings, "is_production", True)
+        monkeypatch.setattr(SupabaseAuthStrategy, "_check_admin_role", _no_admin_role)
         strategy = SupabaseAuthStrategy()
         creds = HTTPAuthorizationCredentials(
             scheme="Bearer",
@@ -104,6 +116,8 @@ class TestSec10LocalIssuerProdGate:
 
     @pytest.mark.asyncio
     async def test_sec10_prod_base_issuer_still_accepted(self, monkeypatch):
+        import services.auth_service as auth_svc
+        monkeypatch.setattr(auth_svc.settings, "is_production", True)
         monkeypatch.setattr(settings, "is_production", True)
         monkeypatch.setattr(SupabaseAuthStrategy, "_check_admin_role", _no_admin_role)
         strategy = SupabaseAuthStrategy()

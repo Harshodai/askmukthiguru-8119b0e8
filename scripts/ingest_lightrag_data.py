@@ -94,6 +94,16 @@ async def process_single_point(lightrag_svc, point, sem, counter_lock, counters,
             payload = point.payload or {}
             text = payload.get("text") or payload.get("page_content") or ""
             source = payload.get("source_url") or payload.get("title") or f"point-{point.id}"
+
+            if isinstance(text, str):
+                import unicodedata
+                text = text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+                text = unicodedata.normalize("NFC", text).strip()
+                try:
+                    from services.doctrine_terms import apply_corrections
+                    text = apply_corrections(text)
+                except Exception:
+                    pass
         except Exception as e:
             # Payload access failure — record as failed, count once, return.
             async with counter_lock:

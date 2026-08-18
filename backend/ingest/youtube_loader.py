@@ -359,7 +359,7 @@ def _fetch_youtube_captions_api(
             try:
                 manual = transcript_list.find_manually_created_transcript(languages)
                 fetched = manual.fetch()
-                text = " ".join([s.text for s in fetched])
+                text = " ".join([getattr(s, "text", s.get("text", "") if isinstance(s, dict) else str(s)) for s in fetched])
                 if text.strip():
                     logger.info(f"[{video_id}] ✅ Manual captions: {len(text)} chars")
                     return text.strip()
@@ -371,7 +371,7 @@ def _fetch_youtube_captions_api(
                 try:
                     auto = transcript_list.find_generated_transcript(languages)
                     fetched = auto.fetch()
-                    text = " ".join([s.text for s in fetched])
+                    text = " ".join([getattr(s, "text", s.get("text", "") if isinstance(s, dict) else str(s)) for s in fetched])
                     if text.strip():
                         logger.info(f"[{video_id}] ✅ Auto captions: {len(text)} chars")
                         return text.strip()

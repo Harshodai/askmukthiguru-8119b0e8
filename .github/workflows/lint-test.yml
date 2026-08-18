@@ -50,6 +50,15 @@ jobs:
         # strings to users; this gate prevents silent scope creep.
         run: node scripts/check_i18n_coverage.mjs
 
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://mock-supabase.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: mock-anon-key-for-ci-build
+
+      - name: Check bundle budget
+        run: npm run bundle:check
+
       - name: Run Vitest tests
         run: npm test
 

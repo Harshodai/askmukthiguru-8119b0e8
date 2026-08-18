@@ -49,6 +49,7 @@ def mock_pipeline(monkeypatch):
     ollama = MagicMock()
     pipeline = IngestionPipeline(qdrant, embedder, ollama)
     pipeline._raptor.build_tree = AsyncMock(return_value=0)
+    pipeline._auditor.run = AsyncMock(return_value=MagicMock(passed=True, score=90, reasons=[]))
     return pipeline
 
 

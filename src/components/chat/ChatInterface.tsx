@@ -32,6 +32,7 @@ import {
 } from '@/lib/chat/attachmentLimits';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
+import { AiTransparencyBanner } from '@/components/compliance/AiTransparencyBanner';
 
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
@@ -389,9 +390,7 @@ export const ChatInterface = () => {
     setInputValue(e.target.value);
   }, []);
 
-  const MAX_ATTACHMENTS = 5;
-const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
-const PASTE_ATTACHMENT_THRESHOLD = 2000;
+  const PASTE_ATTACHMENT_THRESHOLD = 2000;
 
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const pastedText = e.clipboardData.getData('text');
@@ -1366,6 +1365,7 @@ openSereneMind('audio');
         undefined,
         undefined,
         responsePreferences,
+        attachmentContext,
       );
 
       setIsTyping(false);
@@ -1894,6 +1894,9 @@ return (
 
       {/* Global chat error banner */}
       <ChatErrorBanner onRetry={handleRegenerate} />
+
+      {/* EU AI Act Article 50(1) Transparency Banner */}
+      <AiTransparencyBanner />
 
 
       {/* Messages Area — this is the scroll container */}

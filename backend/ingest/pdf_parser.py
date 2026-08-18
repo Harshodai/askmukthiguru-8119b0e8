@@ -1,4 +1,4 @@
-"""PDF parser helper module using PyMuPDF (fitz) and non-blocking HTTP fetching."""
+"""PDF parser helper module using pypdf and non-blocking HTTP fetching."""
 
 from __future__ import annotations
 import io
@@ -20,7 +20,7 @@ async def download_and_parse_pdf(
     if not is_url_safe_func(url):
         raise ValueError("URL resolves to a private or prohibited IP address")
 
-    import fitz
+    from pypdf import PdfReader
 
     client = await get_client()
     async with client.stream("GET", url, follow_redirects=False, timeout=timeout) as resp:
@@ -32,10 +32,20 @@ async def download_and_parse_pdf(
                 raise ValueError(f"Response size exceeds limit of {max_bytes} bytes")
 
     pdf_file = io.BytesIO(content)
-    with fitz.open(stream=pdf_file, filetype="pdf") as doc:
+    with PdfReader(pdf_file) as doc:
         pages_text = []
-        for page in doc:
-            p_text = page.get_text()
+        for page in doc.pages:
+            p_text = page.extract_text() or ""
             if p_text and p_text.strip():
                 pages_text.append(p_text.strip())
-        return "\n\n".join(pages_text)
+        raw_text = "\n\n".join(pages_text)
+
+    import unicodedata
+    raw_text = raw_text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+    raw_text = unicodedata.normalize("NFC", raw_text).strip()
+
+    try:
+        from services.doctrine_terms import apply_corrections
+        return apply_corrections(raw_text)
+    except Exception:
+        return raw_text

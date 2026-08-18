@@ -62,12 +62,23 @@ class TestTestAuthRegistrationGates:
     local-only condition fails."""
 
     def test_testauth_not_registered_in_prod(self):
-        """IS_PRODUCTION=true never registers TestAuthStrategy, even with
-        ENABLE_TEST_AUTH=true and a benchmark secret configured."""
+        """IS_PRODUCTION=true never registers TestAuthStrategy, and rejects ENABLE_TEST_AUTH=true."""
+        # 1. Reject enable_test_auth=true in production
         with patch.dict(os.environ, {
             "IS_PRODUCTION": "true",
             "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
             "ENABLE_TEST_AUTH": "true",
+            "BENCHMARK_SECRET": "my-secret",
+        }, clear=False):
+            from app.config import Settings
+            with pytest.raises(ValueError, match="enable_test_auth must be False when is_production is True"):
+                Settings()
+
+        # 2. When enable_test_auth=false in production, strategy is not registered
+        with patch.dict(os.environ, {
+            "IS_PRODUCTION": "true",
+            "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+            "ENABLE_TEST_AUTH": "false",
             "BENCHMARK_SECRET": "my-secret",
         }, clear=False):
             from app.config import Settings

@@ -66,7 +66,12 @@ TERMS = {
 
 compiled = []
 for canonical, variants in TERMS.items():
+    seen = set()
     for variant in variants:
+        key = variant.lower()
+        if key in seen:
+            continue
+        seen.add(key)
         compiled.append((canonical, variant, re.compile(r'(?<!\w)' + re.escape(variant) + r'(?!\w)', re.I)))
 
 rows = []

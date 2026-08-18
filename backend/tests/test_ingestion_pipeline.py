@@ -118,14 +118,17 @@ def test_ingest_raw_text_metadata_propagation(mock_pipeline, monkeypatch):
     )
     mock_pipeline._qdrant.upsert_chunks = MagicMock(return_value=1)
     mock_pipeline._qdrant.check_source_exists = MagicMock(return_value=False)
-    mock_pipeline._llm.generate = AsyncMock(return_value="Teaching on meditation.")
+    mock_pipeline._llm.generate = AsyncMock(
+        return_value='{"score": 90, "verdict": "PASS", "is_spiritual": true, "coherence": "high", "reasons": ["Coherent spiritual teaching"]}'
+    )
 
     import asyncio
     import hashlib
 
     # Use unique text + random suffix to avoid checkpoint collision from prior tests
     unique_text = (
-        "This is a unique spiritual teaching about meditation and mindfulness practice. "
+        "This is a unique spiritual teaching about meditation, consciousness, awareness, and mindfulness practice "
+        "taught by Sri Preethaji and Sri Krishnaji to help seekers enter the beautiful state. "
         f"{__file__}-{hashlib.sha256(__file__.encode()).hexdigest()[:8]}-{id(mock_pipeline)}"
     )
 

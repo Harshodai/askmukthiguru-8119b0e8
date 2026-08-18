@@ -22,7 +22,8 @@
     "cap:open:android": "npx cap open android",
     "cap:open:ios": "npx cap open ios",
     "test:security": "playwright test tests/e2e/security-aal2.spec.ts",
-    "verify:rls": "node scripts/security/verify_rls.mjs"
+    "verify:rls": "node scripts/security/verify_rls.mjs",
+    "bundle:check": "node scripts/check-bundle-budget.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.0",

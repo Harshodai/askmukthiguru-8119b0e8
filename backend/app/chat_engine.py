@@ -44,6 +44,7 @@ from app.config import settings
 from app.metrics import TTFT_SECONDS
 from app.dependencies import ServiceContainer
 from app.grounding import grounding_state_for
+from app.release_manifest import get_release_manifest
 from app.schemas import ChatRequest
 from rag.memory import normalize_session_id
 
@@ -87,17 +88,26 @@ class ChatResult:
         self.kg_concept_nodes: list[str] = []
         self.daily_practice_card: Optional[dict[str, Any]] = None
         self.grounding_state: str = 'abstained'
+        self.release_manifest: Optional[dict[str, Any]] = None
 
 
 
 class ChatChunk:
     """Single chunk from a streaming response."""
 
-    def __init__(self, text: str = "", is_final: bool = False, citations: Optional[list[str]] = None, grounding_state: str = 'abstained'):
+    def __init__(
+        self,
+        text: str = "",
+        is_final: bool = False,
+        citations: Optional[list[str]] = None,
+        grounding_state: str = 'abstained',
+        release_manifest: Optional[dict[str, Any]] = None,
+    ):
         self.text = text
         self.is_final = is_final
         self.citations = citations or []
         self.grounding_state = grounding_state
+        self.release_manifest = release_manifest
 
 
 class ChatEngine:
@@ -222,9 +232,10 @@ class ChatEngine:
         assistant_slug: Optional[str],
         language: str,
     ) -> str:
+        manifest = get_release_manifest()
         assistant_tag = assistant_slug or "default"
         msg_digest = hashlib.sha256(message.encode("utf-8")).hexdigest()[:16]
-        return f"rag:v3:{language}:{assistant_tag}:{user_id}:{session_id}:{msg_digest}"
+        return f"rag:v3:{manifest.release_id}:{manifest.policy_version}:{language}:{assistant_tag}:{user_id}:{session_id}:{msg_digest}"
 
     async def _execute_batch(
         self,
@@ -298,6 +309,7 @@ class ChatEngine:
         result.kg_concept_nodes = list(getattr(pipeline_result, "kg_concept_nodes", []) or [])
         result.daily_practice_card = getattr(pipeline_result, "daily_practice_card", None)
         result.grounding_state = grounding_state_for(pipeline_result)
+        result.release_manifest = getattr(pipeline_result, "release_manifest", None) or get_release_manifest().to_dict()
 
         if not chat_request.incognito:
             # Content-bearing telemetry is disabled for ephemeral chats.
@@ -392,6 +404,7 @@ class ChatEngine:
                 is_final=True,
                 citations=[],
                 grounding_state='system_error',
+                release_manifest=get_release_manifest().to_dict(),
             )
             return
         citations = self._coerce_citations(pipeline_result.citations) if pipeline_result else []
@@ -409,6 +422,7 @@ class ChatEngine:
             is_final=True,
             citations=citations,
             grounding_state=grounding_state_for(pipeline_result) if pipeline_result else 'system_error',
+            release_manifest=getattr(pipeline_result, "release_manifest", None) or get_release_manifest().to_dict(),
         )
 
     async def _log_telemetry(

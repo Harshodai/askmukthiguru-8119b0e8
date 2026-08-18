@@ -145,6 +145,8 @@ class PipelineResult:
     answer_evidence: AnswerEvidence | None = None
     # Populated only from structured practice, language, and citation fields.
     guidance_plan: GuidancePlan | None = None
+    # Release provenance and model policy manifest
+    release_manifest: dict | None = None
 
 
     def with_latency(self, latency_ms: int) -> "PipelineResult":
@@ -187,6 +189,7 @@ class PipelineResult:
             answer_evidence=self.answer_evidence,
             guidance_plan=self.guidance_plan,
             verification=self.verification,
+            release_manifest=self.release_manifest,
         )
 
     def to_chat_response(self) -> dict[str, Any]:
@@ -220,4 +223,5 @@ class PipelineResult:
             "guidance_plan": (
                 None if self.guidance_plan is None else asdict(self.guidance_plan)
             ),
+            "release_manifest": self.release_manifest,
         }

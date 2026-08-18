@@ -13,6 +13,7 @@ import logging
 from app.config import settings
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
+from app.release_manifest import get_release_manifest
 
 logger = logging.getLogger(__name__)
 
@@ -69,4 +70,5 @@ class DoctrineCacheStage(Stage):
             citations=[],
             route_decision="doctrine_cache",
             cache_hit=True,
+            release_manifest=get_release_manifest().to_dict(),
         )

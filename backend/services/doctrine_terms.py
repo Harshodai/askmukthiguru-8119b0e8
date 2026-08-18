@@ -8,7 +8,14 @@ module, so a term added once is corrected at transcription, at ingest, and in th
 
   * ``get_whisper_initial_prompt()`` — biases Whisper toward correct spellings (prevents the error)
   * ``apply_corrections(text)``      — deterministic word-boundary correction (ingest + output)
+  * ``apply_corrections_with_ledger()`` — audited path: map corrections + reversible ledger, no lexicon
   * ``correction_term_lines()``      — the LLM corrector's "Important Terms" list
+
+The audited ledger path (``apply_corrections_with_ledger``) and its ingestion
+callers deliberately do NOT chain the data-derived lexicon: lexicon replacements
+are word-level and cannot be addressed in the original-text offsets the ledger
+validator checks, so ledgered content skips that pass (``_apply_lexicon_corrections``
+is reachable only from the non-audited ``apply_corrections`` wrapper).
 
 Admins can extend the map at runtime via the ``doctrine_terms`` Supabase table (canonical +
 variants). DB rows merge over the code ``DEFAULT_DOCTRINE_TERMS`` (DB wins); if Supabase is down we
@@ -270,6 +277,12 @@ def apply_corrections_with_ledger(
 ) -> tuple[str, list[dict]]:
     """Apply domain corrections while recording a truly reversible, offset-based audit ledger.
 
+    Only the doctrine_terms map corrections are recorded here. The data-derived
+    lexicon pass (``_apply_lexicon_corrections``) is deliberately NOT chained: its
+    word-level replacements cannot be addressed in original-text offsets, so
+    ledgered/audited ingestion content skips it and stays fully reversible.
+    Non-audited flows get the lexicon via ``apply_corrections``.
+
     Returns:
         (corrected_text, ledger_records)
     """
@@ -369,17 +382,28 @@ def revert_corrections_from_ledger(corrected_text: str, ledger: list[dict]) -> s
     return corrected_text
 
 
-def apply_corrections(text: str) -> str:
-    """Deterministic doctrine-term correction (convenience wrapper)."""
-    corrected, _ = apply_corrections_with_ledger(text)
+def _apply_lexicon_corrections(text: str) -> str:
+    """Second-tier corrections from the data-derived lexicon (non-audited flows only)."""
     try:
         from services.doctrine_lexicon import get_lexicon
         lexicon = get_lexicon()
         if lexicon is not None:
-            corrected, _ = lexicon.correct(corrected)
+            corrected, _ = lexicon.correct(text)
+            return corrected
     except Exception as _lex_err:
         logger.debug("doctrine_lexicon pass skipped: %s", _lex_err)
-    return corrected
+    return text
+
+
+def apply_corrections(text: str) -> str:
+    """Deterministic doctrine-term correction (convenience wrapper).
+
+    Chains the derived lexicon after the map. This is the lexicon's only entry
+    point: the audited ``apply_corrections_with_ledger`` path must not receive
+    lexicon edits, because they cannot be recorded reversibly in the ledger.
+    """
+    corrected, _ = apply_corrections_with_ledger(text)
+    return _apply_lexicon_corrections(corrected)
 
 
 def get_whisper_initial_prompt() -> str:

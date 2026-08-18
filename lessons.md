@@ -1,3 +1,72 @@
+## Aug 19, 2026 — Ephemeral Multimodal Chat Evidence Boundary
+
+### L-UPLOAD-1. Attachment evidence must stay separate from user message and memory
+- **What**: Client-only text attachment concatenation made uploads invisible to backend retrieval, while future media support could accidentally place untrusted file instructions into the same channel as user intent or personal memory.
+- **Fix applied**: Added `POST /api/chat/upload` with 10 MB per-file and 50 MB combined caps, MIME sniffing, bounded PDF/OOXML/text extraction, optional OCR, local Whisper transcription for audio/video, temporary-file cleanup, and an explicit metadata-only fallback. The next chat request carries `attachment_context` separately, generation wraps it in an untrusted evidence fence, cache reads/writes bypass attachment-backed turns, and graph coalescing includes a bounded attachment digest.
+- **How to prevent**: Treat uploaded media as ephemeral evidence, not corpus content or memory. Never cache/coalesce a response without including a bounded digest of evidence inputs. Do not infer content when an extractor is unavailable.
+
+### L-UPLOAD-2. Multimodal file search is modality-specific, not a universal text flattening pass
+- **What**: Current industry reference implementations preserve PDF page images, use separate image vectors where needed, and transcribe audio/video rather than claiming generic file-search support for every modality.
+- **Fix applied**: AskMukthiGuru keeps the MVP extractor modality-aware and documents the missing production capabilities: page/frame citations, malware scanning, resumable jobs, durable artifact lifecycle, and consented indexing.
+- **How to prevent**: Add durable multimodal retrieval only with explicit artifact IDs, source offsets, processing states, and evaluation coverage for each modality.
+
+## Aug 18, 2026 — Sacred Sanskrit Mantras, Deeksha Corrections & Ingestion Subagent Hardening
+
+### L-INGEST-8. Ingestion Checkpoint Namespace Qualification on Disk vs Memory
+- **What**: Ingestion checkpoints persisted on local JSON disk format support multi-tenancy via tenant-prefixed keys (`tenant:{tenant_id}:{chunk_id}`). Legacy unqualified keys migrate on load. In `is_processed()`, reading `self.data.keys()` directly without passing through `_load_processed_chunks()` bypassed the migration logic when checked across processes before an explicit save.
+- **Fix applied**: Updated `is_processed()` in `backend/ingest/handlers/checkpoint.py` to reload via `self.processed_chunks = self._load_processed_chunks()`. Also added `TenantContext.reset()` in `tests/conftest.py`'s autouse fixture to guarantee tenant isolation across test runs.
+- **How to prevent**: Multi-tenant key resolution must use a single qualified accessor path across both in-memory checks and disk fallbacks.
+
+### L-INGEST-9. Video and Enhanced Ingestion Pipeline Doctrine Concept Tagging
+- **What**: While `ingest_raw_text` enriched chunk tags with `extract_doctrine_tags(text)`, `_ingest_video` and `_ingest_video_enhanced` only assigned static URL/channel metadata, leaving video chunks unindexed by spiritual concepts (e.g. *Soul Sync*, *Beautiful State*, *Four Sacred Secrets*).
+- **Fix applied**: Wired `extract_doctrine_tags(clean_text)` into both `_ingest_video` and `_ingest_video_enhanced` in `backend/ingest/pipeline.py`.
+- **How to prevent**: Keep metadata enrichment parity across all modality entry points (text, video, audio, PDF, web).
+
+### L-INGEST-10. Polymorphic Caption Segment Object & Dict Serialization
+- **What**: Different versions of `youtube_transcript_api` return transcript segments as either custom Python objects with `.text` attributes or dictionary structures with `['text']` keys. Hardcoded access caused `AttributeError` or `TypeError` in chunkers.
+- **Fix applied**: Replaced hardcoded access with `getattr(s, "text", s.get("text", "") if isinstance(s, dict) else str(s))` in `youtube_chunker.py` and `youtube_loader.py`.
+- **How to prevent**: Defensive accessors on external API data models must support both attribute and dictionary indexing.
+
+### L-INGEST-11. Knowledge Graph Triple & Ontology Normalization Pipeline
+- **What**: LLM triple extractors (`triple_extractor.py`) and heuristic entity extractors (`hyper_extract_adapter.py`, `ontology_writer.py`) wrote unnormalized entity strings (`Preethaji`, `parsha Deeksha`) directly into Neo4j graph nodes and relationship edges.
+- **Fix applied**: Applied `services.doctrine_terms.apply_corrections` to all extracted `(subject, relation, object)` triples before returning, and expanded `_KNOWN_PRACTICES` and `_KNOWN_SPIRITUAL_ENTITIES` with all newly added canonical sacred terms.
+- **How to prevent**: Information-extraction pipelines must normalize entities against the canonical doctrine registry before asserting knowledge-graph triples.
+
+### L-INGEST-1. Sanskrit Deeksha Modality Phonetics (Sparsha vs Smarana vs Whisper 'Marana' Bug)
+- **What**: Whisper ASR systematically dropped the initial "S" from Sanskrit sibilant-consonant clusters ("Sp" $\rightarrow$ "p", "Sm" $\rightarrow$ "m"), corrupting *Sparsha Deeksha* (स्पर्श दीक्षा - Touch Deeksha) into "parsha Deeksha" and *Smarana Deeksha* (स्मरण दीक्षा - Intention Deeksha) into "marana Deeksha" (which in Sanskrit means death).
+- **Fix applied**: Added explicit canonical mappings in `backend/services/doctrine_terms.py` (`DEFAULT_DOCTRINE_TERMS`), seeded `get_whisper_initial_prompt()` with full sibilant clusters, and updated target video packages (e.g. `avCLyAi9DeY`) with verified reversible ledger tracking.
+- **How to prevent**: Never rely on raw ASR for Sanskrit sibilant prefixes (*Sparsha*, *Smarana*, *Sthitha*, *Samskara*); seed Whisper initial prompts with domain terms and enforce deterministic correction ledgers before vectorization.
+
+### L-INGEST-2. Reversible Correction Ledgers with Multi-Replacement Cumulative Offset Deltas
+- **What**: When a segment has multiple substring corrections where $\text{len}(\text{replacement}) \neq \text{len}(\text{matched\_text})$, naive start/end indices fail verification because replacement $i$ shifts the string offsets for all subsequent replacements $j > i$.
+- **Fix applied**: Implemented cumulative offset delta tracking ($\text{offset\_delta} += \text{len}(\text{replacement}) - \text{len}(\text{matched\_text})$) in `corpus_end_to_end_audit.py` and `rectify_target_packages.py`. All multi-replacement packages across the corpus passed with 0 errors.
+- **How to prevent**: String replacement audit tools must maintain running offset deltas when verifying multi-edit transformations in text spans.
+
+### L-INGEST-3. Sacred Architecture & Mantra Phonetic Distortions (Acre $\rightarrow$ Ekam, Saptapadi & Shiva Mantras)
+- **What**: Whisper misheard sacred architectural references ("Ekam is the only structure..." heard as "Acre is the only structure...") and garbled Vedic Saptapadi wedding vows (*Om Ishe Ekapadi Bhava*, *Om Urje Dwipadi Bhava*, *Om Rayasposhaya Tripadi Bhava*, etc.) as well as Shiva invocations (*Om Nagabharanaya Namaha*, *Om Trikalaya Namaha*, *Om Neelakanthaya Namaha*).
+- **Fix applied**: Hardened doctrine dictionary with all 7 Vedic Saptapadi vows, Vastu Purusha Mandala, Matra Shastra, Shiva invocations, and lineage titles (*Sri Bhagavan*, *Sri Amma Bhagavan*, *Anandagiri*).
+- **How to prevent**: Vedic hymns, architectural shastras, and lineage titles must be registered in the canonical doctrine glossary and initial prompt registry.
+
+### L-INGEST-4. Autonomous Ingestion Subagent Architecture for Pipeline Quality Gating
+- **What**: Ingestion scripts historically processed transcripts without an autonomous verification gate, leaving broken JSONs or unhandled exceptions when encountering private/dead-lettered videos.
+- **Fix applied**: Built `scripts/ingestion/ingestion_subagent.py` (`IngestionSubagent`), wired into `run_batched_ingestion_pipeline.py`, `extract_transcripts.py`, and `smart_extract_and_ingest.py`. Evaluates acoustic coverage, normalizes Sanskrit terms, records reversible ledgers, formalizes dead-lettered states, and seals packages with SHA-256 cryptographic manifests.
+- **How to prevent**: Run an autonomous subagent validator in-line before publishing transcripts to vector stores or downstream search indexes.
+
+### L-INGEST-5. Defense-in-Depth Doctrine Correction Across All Ingestion Pathways
+- **What**: Raw text (`/api/ingest/raw-text`), LightRAG background ingestion (`scripts/ingest_lightrag_data.py`), and book loading (`ingest_book_to_qdrant`) previously bypassed canonical doctrine normalization, causing corrupted Sanskrit spellings to enter Neo4j entity graphs and Qdrant dense vectors.
+- **Fix applied**: Wired `services.doctrine_terms.apply_corrections` directly into `backend/ingest/cleaner.py` (`normalize_spiritual_terms`), `backend/ingest/pipeline.py` (`ingest_raw_text` and `_embed_and_index`), and `scripts/ingest_lightrag_data.py` (`process_single_point`).
+- **How to prevent**: Never assume uploaded documents or third-party datasets are pre-cleaned; enforce single-source-of-truth doctrine normalization immediately before tokenization and embedding.
+
+### L-INGEST-6. Null-Byte and LLM Delimiter Token Sanitization Before Chunking & Embedding
+- **What**: Raw Whisper ASR outputs and scraped subtitle files can contain null bytes (`\x00`), LLM prompt injection / delimiter tokens (`<|begin_of_text|>`, `<|eot_id|>`), or unnormalized Unicode forms, which corrupt Postgres/Redis text storage and poison RAG generation templates.
+- **Fix applied**: Added strict `unicodedata.normalize("NFC", text)` + null-byte and delimiter token stripping across all ingestion endpoints and cleaners.
+- **How to prevent**: Sanitize every incoming text stream at the API perimeter before parsing, splitting, or persisting.
+
+### L-INGEST-7. Query-Expansion Dictionaries vs Text-Correction Dictionaries (DOCTRINE_SYNONYMS Bug)
+- **What**: `DOCTRINE_SYNONYMS` was designed for RAG query expansion and concept tagging (mapping search queries like "letting go" or "state of calm" to concepts like `surrender` or `beautiful state`). When mistakenly wired into `cleaner.py:normalize_spiritual_terms`, it mutated the natural English spoken discourse of the masters (e.g. rewriting "giving up control" to "surrender", or "spiritual teacher" to "guru").
+- **Fix applied**: Separated search query expansion from text normalization. `cleaner.py:normalize_spiritual_terms` strictly executes `services.doctrine_terms.apply_corrections` (which only targets known phonetic ASR mistranscriptions like `Akam` $\rightarrow$ `Ekam` or `Ujash` $\rightarrow$ `Ojas`) and never mutates natural English speech synonyms.
+- **How to prevent**: Never use search synonym tables to rewrite source discourse text; preserve original spoken vocabulary and restrict text cleaning strictly to phonetic ASR mistranscription dictionaries.
+
 ## Aug 15, 2026 — Code-Review Remediation Sprint (quota atomicity, guardrail ordering, checkpoint writes)
 
 ### L-REV-13. Queue status transitions need compare-and-set; keyed benchmark clients validate the endpoint

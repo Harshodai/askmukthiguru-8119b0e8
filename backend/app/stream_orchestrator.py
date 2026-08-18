@@ -29,6 +29,7 @@ from guardrails.lightweight_handler import _HARMFUL_PATTERNS
 from rag.memory import normalize_session_id
 from rag.nodes.generation import _clean_inline_citations
 from services.anon_quota_port import QuotaResult
+from app.release_manifest import get_release_manifest
 
 logger = logging.getLogger(__name__)
 
@@ -259,6 +260,7 @@ class ChatStreamRequestOrchestrator:
                     "blocked": True,
                     "block_reason": result.block_reason,
                     "intent": result.intent,
+                    "release_manifest": getattr(result, "release_manifest", None) or get_release_manifest().to_dict(),
                 })
                 yield f"event: done\ndata: {meta}\n\n"
                 return

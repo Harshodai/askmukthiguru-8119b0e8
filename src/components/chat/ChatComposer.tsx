@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CHAT_MAX_SINGLE_ATTACHMENT_BYTES,
@@ -105,7 +105,7 @@ export function ChatComposer({
   const { t } = useTranslation();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = React.useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const actionCapabilities = capabilities ?? { sereneMind: true, guidedMeditation: true, textAttachments: true, voiceInput: true };
   const hasMoreActions = actionCapabilities.sereneMind || actionCapabilities.guidedMeditation || actionCapabilities.textAttachments;

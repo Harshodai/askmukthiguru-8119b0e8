@@ -1222,7 +1222,8 @@ def build_plain_text(item):
 
     # 4. UTF-8 safety & normalization
     import unicodedata
-    text = text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+    text = text.replace("\x00", "").replace("<|begin_of_text|>", " ").replace("<|eot_id|>", " ").replace("<|end_of_text|>", " ")
+    text = re.sub(r"\s+", " ", text).strip()
     text = unicodedata.normalize("NFC", text)
     return text
 

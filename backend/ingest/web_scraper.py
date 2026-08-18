@@ -70,36 +70,48 @@ async def scrape_and_clean_web_article(
     if not is_url_safe_func(url):
         raise ValueError("URL resolves to a private or prohibited IP address")
 
+    raw_text = ""
     # Tier 1: Try Jina Reader
     if use_jina:
         jina_result = await fetch_web_article_jina(url, timeout=timeout, max_bytes=max_bytes)
         if jina_result:
-            return jina_result
+            raw_text = jina_result
 
     # Tier 2: BeautifulSoup fallback
-    from bs4 import BeautifulSoup
+    if not raw_text:
+        from bs4 import BeautifulSoup
 
-    headers = {"User-Agent": _DEFAULT_UA}
-    client = await get_client()
-    # follow_redirects=False: is_url_safe_func only validates this URL's own
-    # hostname. Following a redirect would fetch whatever host the response
-    # points to without re-checking it — an SSRF bypass. Same invariant as
-    # backend/ingest/pdf_parser.py's download_and_parse_pdf.
-    async with client.stream("GET", url, headers=headers, follow_redirects=False, timeout=timeout) as response:
-        response.raise_for_status()
-        content_bytes = bytearray()
-        async for chunk in response.aiter_bytes(chunk_size=8192):
-            content_bytes.extend(chunk)
-            if len(content_bytes) > max_bytes:
-                raise ValueError(f"Response size exceeds limit of {max_bytes} bytes")
+        headers = {"User-Agent": _DEFAULT_UA}
+        client = await get_client()
+        # follow_redirects=False: is_url_safe_func only validates this URL's own
+        # hostname. Following a redirect would fetch whatever host the response
+        # points to without re-checking it — an SSRF bypass. Same invariant as
+        # backend/ingest/pdf_parser.py's download_and_parse_pdf.
+        async with client.stream("GET", url, headers=headers, follow_redirects=False, timeout=timeout) as response:
+            response.raise_for_status()
+            content_bytes = bytearray()
+            async for chunk in response.aiter_bytes(chunk_size=8192):
+                content_bytes.extend(chunk)
+                if len(content_bytes) > max_bytes:
+                    raise ValueError(f"Response size exceeds limit of {max_bytes} bytes")
 
-    soup = BeautifulSoup(bytes(content_bytes), "html.parser")
-    for element in soup(["script", "style", "nav", "header", "footer", "iframe", "aside"]):
-        element.decompose()
+        soup = BeautifulSoup(bytes(content_bytes), "html.parser")
+        for element in soup(["script", "style", "nav", "header", "footer", "iframe", "aside"]):
+            element.decompose()
 
-    text = soup.get_text(separator="\n")
-    cleaned_lines = [line.strip() for line in text.splitlines() if line.strip()]
-    return "\n".join(cleaned_lines)
+        text = soup.get_text(separator="\n")
+        cleaned_lines = [line.strip() for line in text.splitlines() if line.strip()]
+        raw_text = "\n".join(cleaned_lines)
+
+    import unicodedata
+    raw_text = raw_text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+    raw_text = unicodedata.normalize("NFC", raw_text).strip()
+
+    try:
+        from services.doctrine_terms import apply_corrections
+        return apply_corrections(raw_text)
+    except Exception:
+        return raw_text
 
 
 def parse_rss_feed(
