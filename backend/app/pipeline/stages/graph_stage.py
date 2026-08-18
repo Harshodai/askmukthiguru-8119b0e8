@@ -59,6 +59,12 @@ def _assistant_config_fingerprint(assistant: Any, *, is_authed: bool) -> str:
     return hashlib.sha256(config_text.encode("utf-8")).hexdigest()[:16]
 
 
+def _attachment_context_from_request(request: object) -> str:
+    """Return only validated string evidence from a chat request."""
+    value = getattr(request, "attachment_context", None)
+    return value if isinstance(value, str) else ""
+
+
 def _coalesce_key(
     user_id: str,
     session_id: str,
@@ -142,7 +148,8 @@ class GraphStage(Stage):
             initial_state["memory_context"] = memory_context
             # Attachment evidence is a per-turn input, separate from personal memory.
             # The generation layer labels it as untrusted material and never persists it.
-            initial_state["attachment_context"] = getattr(chat_body, "attachment_context", None) or None
+            attachment_context = _attachment_context_from_request(chat_body)
+            initial_state["attachment_context"] = attachment_context or None
             initial_state["expected_keywords"] = get_expected_keywords(user_msg_en)
             if proactive_data:
                 initial_state["proactive_serene_mind"] = proactive_data
@@ -266,7 +273,7 @@ class GraphStage(Stage):
         _is_authed = bool(_user.get("id")) and _user.get("id") != "anonymous" \
             and not str(_user.get("id")).startswith("anon:") and not _user.get("is_anonymous")
         config_fp = _assistant_config_fingerprint(assistant, is_authed=_is_authed)
-        attachment_context = getattr(chat_body, "attachment_context", None) or ""
+        attachment_context = _attachment_context_from_request(chat_body)
         attachment_fp = hashlib.sha256(attachment_context.encode("utf-8")).hexdigest()[:16]
         start_lat = time.time()
         try:

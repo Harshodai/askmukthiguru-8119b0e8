@@ -42,10 +42,11 @@ def _is_personalization_eligible(ctx: "PipelineContext") -> bool:
     kept as a fallback so direct-stage callers (unit tests) and the write
     guard's later-in-chain view agree with the same source of truth.
     """
+    attachment_context = getattr(ctx.request, "attachment_context", None)
     return bool(
         ctx.personalization_eligible
         or (ctx.state and ctx.state.get("memory_context"))
-        or getattr(ctx.request, "attachment_context", None)
+        or (isinstance(attachment_context, str) and attachment_context)
     )
 
 
