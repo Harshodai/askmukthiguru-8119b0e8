@@ -2,6 +2,7 @@ import { useEffect, Suspense, type ComponentType, type ReactNode } from "react";
 import { lazyWithRetry, preloadCriticalRoutes } from "@/lib/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
+import { GroupedPage } from "@/admin/pages/GroupedPage";
 import { Capacitor } from "@capacitor/core";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
