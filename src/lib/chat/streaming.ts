@@ -202,6 +202,7 @@ export async function* sendMessageStreaming(
   const decoder = new TextDecoder();
   let buffer = '';
   let currentEvent = 'message'; // tracks the SSE event type
+  let doneSeen = false;
 
   try {
     while (true) {
@@ -220,6 +221,9 @@ export async function* sendMessageStreaming(
         if (!line.startsWith('data: ')) continue;
         const payload = line.slice(6);
         if (payload.trim() === '[DONE]') {
+          if (!signal?.aborted && !doneSeen) {
+            throw new Error('The response stream ended before completion metadata was received.');
+          }
           await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId: effectiveSessionId, tags: { provider: 'custom', endpoint: 'stream' } });
           return;
         }
@@ -236,6 +240,7 @@ export async function* sendMessageStreaming(
           currentEvent = 'message';
           try {
             const meta = JSON.parse(payload);
+            doneSeen = true;
             yield {
               type: 'done',
               intent: meta.intent ?? 'CASUAL',
@@ -291,6 +296,9 @@ export async function* sendMessageStreaming(
           if (payload) yield { type: 'token', text: payload.replace(/\\n/g, '\n') };
         }
       }
+    }
+    if (!signal?.aborted && !doneSeen) {
+      throw new Error('The response stream ended before completion metadata was received.');
     }
     await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId: effectiveSessionId, tags: { provider: 'custom', endpoint: 'stream' } });
   } finally {

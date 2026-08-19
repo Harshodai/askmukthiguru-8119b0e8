@@ -22,7 +22,6 @@ import { PRODUCTION_DOMAIN, PRODUCTION_OG_IMAGE, buildCanonical } from '@/lib/do
 const LAST_SEEN_KEY = 'askmukthiguru_last_seen';
 const TOUR_COMPLETED_KEY = 'askmukthiguru_tour_completed';
 const TOUR_SHOWN_COUNT_KEY = 'askmukthiguru_tour_shown_count';
-const TOUR_MAX_SHOWS = 3;
 const ONBOARDED_KEY = 'askmukthiguru_onboarded';
 
 const BackendHealthBanner = () => {
@@ -61,7 +60,9 @@ const ChatPage = () => {
     },
   });
 
-  // Auto-show tour for new / returning users who haven't completed it
+  // Auto-show the tour once for a new authenticated user. Dismissing the tour
+  // counts as onboarding so a returning user is never trapped by a recurring
+  // modal; the explicit "Take a Tour" action clears both keys and restarts it.
   useEffect(() => {
     if (loading) return;
     // Demo mode only when explicitly enabled at build time — never via
@@ -72,12 +73,12 @@ const ChatPage = () => {
     }
     const onboarded = localStorage.getItem(ONBOARDED_KEY) === '1';
     const tourDone = localStorage.getItem(TOUR_COMPLETED_KEY) === '1';
-    const shownCount = parseInt(localStorage.getItem(TOUR_SHOWN_COUNT_KEY) || '0', 10);
 
     // Show tour for authenticated users only; never prompt anonymous users to onboard.
-    const shouldShow = !!user && !tourDone && shownCount < TOUR_MAX_SHOWS;
+    const shouldShow = !!user && !tourDone && !onboarded;
     if (shouldShow) {
-      localStorage.setItem(TOUR_SHOWN_COUNT_KEY, String(shownCount + 1));
+      localStorage.setItem(ONBOARDED_KEY, '1');
+      localStorage.setItem(TOUR_SHOWN_COUNT_KEY, '1');
       // Small delay so the chat UI renders before the tour positions itself
       const t = setTimeout(() => setTourOpen(true), 600);
       return () => clearTimeout(t);
@@ -89,6 +90,7 @@ const ChatPage = () => {
     const handleRestartTour = () => {
       localStorage.removeItem(TOUR_COMPLETED_KEY);
       localStorage.removeItem(TOUR_SHOWN_COUNT_KEY);
+      localStorage.removeItem(ONBOARDED_KEY);
       setTourOpen(false);
       // Re-open after a tick so state resets cleanly
       setTimeout(() => setTourOpen(true), 80);
@@ -103,8 +105,10 @@ const ChatPage = () => {
     setTourOpen(false);
   };
 
-  /** Skip / Escape — dismiss without confirming, so it can re-show next visit. */
+  /** Skip / Escape — persist dismissal so it does not interrupt later sessions. */
   const handleTourDismiss = () => {
+    localStorage.setItem(ONBOARDED_KEY, '1');
+    localStorage.setItem(TOUR_COMPLETED_KEY, '1');
     setTourOpen(false);
   };
 

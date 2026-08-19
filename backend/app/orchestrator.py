@@ -304,11 +304,19 @@ async def _drain_stream_to_redis(
     job_id: str,
     container: ServiceContainer,
 ) -> None:
-    """Drain SSE events from stream_queue into Redis Stream, best-effort."""
-    try:
-        import json
+    """Drain SSE events from stream_queue into Redis Stream, best-effort.
 
-        r = None
+    The pipeline and drain tasks run concurrently. A completed pipeline can make
+    ``stream_queue.empty()`` true for a short interval before its final result is
+    observable through ``Task.result()``. Never call ``result()`` from this
+    cleanup path without first awaiting the task; otherwise a successful answer
+    can be downgraded to a misleading ``Stream drain failed ... Result is not
+    set`` warning and the queued SSE client may miss its terminal ``done`` event.
+    """
+    import json
+
+    r = None
+    try:
         if container.job_queue:
             import redis.asyncio as aioredis
 
@@ -338,10 +346,17 @@ async def _drain_stream_to_redis(
                             await get_task
                         except asyncio.CancelledError:
                             pass
+                        # A heartbeat is only a progress tick. Keep waiting when
+                        # there are no events yet; exiting here could skip tokens
+                        # and race the pipeline's terminal result publication.
+                        if stream_queue.empty() and not pipeline_task.done():
+                            continue
                         if stream_queue.empty():
                             break
                         item = stream_queue.get_nowait()
             except (asyncio.QueueEmpty, ValueError):
+                if not pipeline_task.done():
+                    continue
                 break
             if r:
                 payload = json.dumps(item, default=str) if isinstance(item, dict) else item
@@ -349,22 +364,28 @@ async def _drain_stream_to_redis(
                     await r.xadd(stream_key, {"data": payload}, maxlen=1000)
                 except Exception as _e:
                     logger.debug("[orchestrator cleanup] suppressed non-critical error: %s", _e)
+
         if r:
-            failed = pipeline_task.cancelled() or (
-                pipeline_task.done() and pipeline_task.exception() is not None
-            )
-            if failed:
-                completion_payload = "__ERROR__"
-            else:
-                completion_payload = json.dumps(
-                    {
-                        "event": "done",
-                        "data": json.dumps(_stream_done_metadata(pipeline_task.result())),
-                    }
-                )
-            await r.xadd(stream_key, {"data": completion_payload}, maxlen=1000)
-            await r.expire(stream_key, max(600, settings.queue_job_ttl))
-            await r.close()
+            try:
+                # Awaiting is idempotent for an already-finished task and closes
+                # the completion-vs-drain race for tasks finishing at this point.
+                try:
+                    pipeline_result = await pipeline_task
+                except asyncio.CancelledError:
+                    completion_payload = "__ERROR__"
+                except Exception:
+                    completion_payload = "__ERROR__"
+                else:
+                    completion_payload = json.dumps(
+                        {
+                            "event": "done",
+                            "data": json.dumps(_stream_done_metadata(pipeline_result)),
+                        }
+                    )
+                await r.xadd(stream_key, {"data": completion_payload}, maxlen=1000)
+                await r.expire(stream_key, max(600, settings.queue_job_ttl))
+            finally:
+                await r.close()
     except Exception as exc:
         logger.warning(f"Stream drain failed for {job_id}: {exc}")
 

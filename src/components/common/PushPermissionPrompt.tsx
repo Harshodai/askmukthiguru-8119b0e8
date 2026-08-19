@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { useLocation } from 'react-router-dom';
 import { useWebPush } from '@/hooks/useWebPush';
 import { useChatCapabilities } from '@/hooks/useChatCapabilities';
 import { Button } from '@/components/ui/button';
@@ -14,18 +15,27 @@ export const PushPermissionPrompt = () => {
   const { t } = useTranslation();
   const { supported, permission, subscribed, subscribe, loading } = useWebPush();
   const { capabilities } = useChatCapabilities();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [chatResponseSeen, setChatResponseSeen] = useState(false);
   const isNative = Capacitor.isNativePlatform();
+  const isChatRoute = location.pathname.startsWith('/chat');
   const gated = isNative || !capabilities.pushNotifications;
 
   useEffect(() => {
-    if (gated) return;
+    const handleChatSuccess = () => setChatResponseSeen(true);
+    window.addEventListener('askmukthiguru:chat_response_success', handleChatSuccess);
+    return () => window.removeEventListener('askmukthiguru:chat_response_success', handleChatSuccess);
+  }, []);
+
+  useEffect(() => {
+    if (gated || !chatResponseSeen) return;
     if (!supported || subscribed || permission === 'denied' || permission === 'unsupported') return;
     const last = Number(localStorage.getItem(DISMISS_KEY) || '0');
     if (Date.now() - last < COOLDOWN_MS) return;
     const timer = setTimeout(() => setOpen(true), 4000);
     return () => clearTimeout(timer);
-  }, [supported, subscribed, permission, gated]);
+  }, [supported, subscribed, permission, gated, chatResponseSeen]);
 
   if (gated) return null;
 
@@ -47,7 +57,7 @@ export const PushPermissionPrompt = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
-          className="fixed bottom-4 right-4 z-50 max-w-sm rounded-2xl border border-ojas/30 bg-card/95 backdrop-blur-md shadow-xl p-4"
+          className={`fixed ${isChatRoute ? 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))] sm:bottom-[calc(5.75rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(1rem+env(safe-area-inset-bottom))]'} left-4 right-4 sm:left-auto sm:right-4 z-50 max-w-sm rounded-2xl border border-ojas/30 bg-card/95 backdrop-blur-md shadow-xl p-4`}
           role="dialog"
           aria-label={t('common.pushPromptAria')}
         >

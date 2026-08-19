@@ -1057,6 +1057,7 @@ export const ChatInterface = () => {
         // ────────────────────────────────────────────────────────────────
 
         let gotFirstToken = false;
+        let streamCompleted = false;
         let streamedCitations: string[] = [];
         let streamedMedStep = 0;
         let streamedBlocked = false;
@@ -1117,6 +1118,7 @@ export const ChatInterface = () => {
           }
 
           if (chunk.type === 'done') {
+            streamCompleted = true;
             // Final metadata from backend — citations, intent, meditationStep, proactiveSereneMind, confidenceScore
             streamedCitations = chunk.citations;
             finalIntent = chunk.intent;
@@ -1186,6 +1188,9 @@ export const ChatInterface = () => {
 
         if (fullContent) {
           streamingWorked = true;
+          if (streamCompleted && !streamedBlocked) {
+            window.dispatchEvent(new CustomEvent('askmukthiguru:chat_response_success'));
+          }
           // Commit the final streamed content to the message list
           setMessages((prev) =>
             prev.map((m) =>
@@ -1483,6 +1488,9 @@ openSereneMind('audio');
         setMessages((prev) => [...prev, guruMessage]);
         if (!responseError) {
           setCachedResponse(cacheKey, response.content, guruMessage.citations);
+          if (!response.blocked && response.content) {
+            window.dispatchEvent(new CustomEvent('askmukthiguru:chat_response_success'));
+          }
         }
 
         if (response.meditationStep !== undefined) {

@@ -71,6 +71,7 @@ describe('sendMessageStreaming SSE parsing', () => {
   it('unescapes \\n to real newlines in token text', async () => {
     const body = sseStream([
       'event: message\ndata: {"token":"line1\\nline2"}\n',
+      'event: done\ndata: {}\n',
     ]);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, body }));
 
@@ -93,5 +94,19 @@ describe('sendMessageStreaming SSE parsing', () => {
     }
     expect(done).toMatchObject({ type: 'done', intent: 'CASUAL', meditationStep: 0 });
     expect((done as { citations: string[] }).citations).toEqual([]);
+  });
+
+  it('rejects a stream that ends without completion metadata', async () => {
+    const body = sseStream([
+      'event: message\ndata: {"token":"partial"}\n',
+      'data: [DONE]\n',
+    ]);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, body }));
+
+    await expect((async () => {
+      for await (const _chunk of sendMessageStreaming([], 'hi', 0)) {
+        // Consume the stream to exercise terminal validation.
+      }
+    })()).rejects.toThrow('ended before completion metadata');
   });
 });

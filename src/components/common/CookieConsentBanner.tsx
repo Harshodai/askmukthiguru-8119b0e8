@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Cookie, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,7 +25,9 @@ export const getConsent = (): Consent | null => {
  */
 export const CookieConsentBanner = () => {
   const { t } = useTranslation();
+  const location = useLocation();
   const [visible, setVisible] = useState(false);
+  const isChatRoute = location.pathname.startsWith('/chat');
 
   useEffect(() => {
     if (getConsent() === null) {
@@ -53,7 +55,7 @@ export const CookieConsentBanner = () => {
           transition={{ duration: 0.25 }}
           role="dialog"
           aria-label={t('common.cookiesConsent')}
-          className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 sm:left-auto sm:right-4 sm:bottom-[calc(1rem+env(safe-area-inset-bottom))] sm:max-w-sm md:max-w-md z-[60] rounded-2xl border border-border/60 bg-card/95 backdrop-blur-md shadow-2xl p-3 sm:p-4"
+          className={`fixed ${isChatRoute ? 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))] sm:bottom-[calc(5.75rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(0.75rem+env(safe-area-inset-bottom))] sm:bottom-[calc(1rem+env(safe-area-inset-bottom))]'} left-3 right-3 sm:left-auto sm:right-4 sm:max-w-sm md:max-w-md z-[60] rounded-2xl border border-border/60 bg-card/95 backdrop-blur-md shadow-2xl p-3 sm:p-4`}
         >
           <div className="flex items-start gap-2.5">
             <div className="hidden sm:flex w-9 h-9 rounded-full bg-ojas/12 border border-ojas/25 items-center justify-center flex-shrink-0">
