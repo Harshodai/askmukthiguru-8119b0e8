@@ -155,8 +155,16 @@ async def select_graph_for_query(
                 logger.debug("[telemetry task] suppressed non-critical error: %s", _e)
             return "deep"
 
-    # Multi-part guard: if query contains conjunctions/comparatives, don't fast-path
-    is_multi_part = any(re.search(patn, q) for patn in _MULTI_PART_INDICATORS)
+    # Multi-part guard: preserve deep routing for comparisons and synthesis, but
+    # keep the common definition-plus-practice FAQ on the fast graph. This is a
+    # bounded two-intent pattern, not a general conjunction bypass.
+    is_definition_practice_faq = bool(
+        re.search(
+            r"^what is .{3,80} and how (?:can|do) i (?:practice|apply|use)\b",
+            q,
+        )
+    )
+    is_multi_part = any(re.search(patn, q) for patn in _MULTI_PART_INDICATORS) and not is_definition_practice_faq
 
     # Doctrine keyword fast-path: known spiritual terms get fast even at 25 tokens
     if detected_intent in ("FACTUAL", "QUERY"):

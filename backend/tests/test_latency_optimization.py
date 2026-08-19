@@ -82,6 +82,14 @@ def test_select_graph_heuristics_simple():
     )
     assert result == "fast", f"Expected 'fast' for doctrine keyword, got '{result}'"
 
+    result = asyncio.get_event_loop().run_until_complete(
+        select_graph_for_query(
+            "What is witness awareness and how can I practice it in daily life?",
+            detected_intent="QUERY",
+        )
+    )
+    assert result == "fast", f"Expected 'fast' for definition-plus-practice FAQ, got '{result}'"
+
 
 def test_select_graph_heuristics_deep():
     """Kill #1: Deep patterns should still route to 'deep'."""

@@ -174,6 +174,10 @@ DOCTRINE_FAST_PATH_KEYWORDS: list[str] = [
     "gratitude",
     "compassion",
     "wisdom",
+    "witness awareness",
+    "witness consciousness",
+    "sakshi bhava",
+    "sākṣī bhāva",
 ]
 
 # Multi-part guard: queries containing conjunctions/comparatives should not

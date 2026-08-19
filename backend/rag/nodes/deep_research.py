@@ -70,15 +70,20 @@ def _context_summary(docs: list[dict], top_k: int = 5, per_doc: int = 300) -> st
 
 
 def _deep_research_active(state: dict) -> bool:
-    """Auto-fire for tier3_complex + standard intent; opt-in otherwise."""
-    if getattr(settings, "rag_deep_research_enabled", False):
-        return True
-    if state.get("query_tier") == "tier3_complex":
-        return True
-    # 'standard' intent here means the user-confirmed "standard" activation bucket.
-    if state.get("intent") == "standard":
-        return True
-    return False
+    """Return whether the configured deep-research loop may run.
+
+    Tier3 routing alone is not consent to spend multiple extra LLM/retrieval
+    rounds. The master switch is the latency/cost boundary; ordinary non-English
+    FAQ turns remain explicitly protected even when the feature is enabled.
+    """
+    if not getattr(settings, "rag_deep_research_enabled", False):
+        return False
+    if state.get("detected_language") not in (None, "en") and state.get("intent") in (
+        "FACTUAL",
+        "QUERY",
+    ):
+        return False
+    return state.get("query_tier") in ("tier3_complex", "tier4_deep") or state.get("intent") == "standard"
 
 
 async def conduct_deep_research(

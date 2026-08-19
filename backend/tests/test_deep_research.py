@@ -12,7 +12,8 @@ from unittest.mock import AsyncMock, patch
 from rag.nodes import deep_research as dr
 
 STATE = {
-    "query_tier": "tier3_complex",  # auto-fires
+    "query_tier": "tier3_complex",
+    "rag_deep_research_enabled": True,
     "intent": "FACTUAL",
     "chat_history": [],
     "selected_clusters": [],
@@ -32,8 +33,9 @@ def _verdict(sufficient: bool, queries=None):
     )
 
 
-def test_sufficient_verdict_short_circuits():
+def test_sufficient_verdict_short_circuits(monkeypatch):
     """Sufficient → no follow-up retrieval, accumulated_docs returned unchanged."""
+    monkeypatch.setattr(dr.settings, "rag_deep_research_enabled", True)
     docs = [{"id": "c1", "text": "beautiful state is calm"}]
     fake_ollama = AsyncMock()
     fake_ollama._generate_fast = AsyncMock(return_value=_verdict(True))
@@ -51,8 +53,9 @@ def test_sufficient_verdict_short_circuits():
     fake_ollama._generate_fast.assert_awaited_once()
 
 
-def test_insufficient_then_sufficient_dedupes_and_recurses():
+def test_insufficient_then_sufficient_dedupes_and_recurses(monkeypatch):
     """Round 1 insufficient → follow-up; round 2 sufficient → stop."""
+    monkeypatch.setattr(dr.settings, "rag_deep_research_enabled", True)
     docs = [{"id": "c1", "text": "beautiful state is calm"}]
     new_docs = [{"id": "c2", "text": "a beautiful state brings joy"}]
 
@@ -78,6 +81,18 @@ def test_insufficient_then_sufficient_dedupes_and_recurses():
     ids = {d["id"] for d in out}
     assert ids == {"c1", "c2"}
     assert fake_ollama._generate_fast.await_count == 2
+
+
+def test_tier3_without_explicit_enable_does_nothing(monkeypatch):
+    """Tier3 routing alone must not activate hidden recursive research."""
+    monkeypatch.setattr(dr.settings, "rag_deep_research_enabled", False)
+    docs = [{"id": "c1", "text": "x"}]
+    disabled_state = {"query_tier": "tier3_complex", "intent": "FACTUAL", "chat_history": []}
+    fake_ollama = AsyncMock()
+    with patch.object(dr._services, "_ollama", fake_ollama):
+        out = asyncio.run(dr.conduct_deep_research("q", docs, disabled_state, depth=2))
+    assert out == docs
+    fake_ollama._generate_fast.assert_not_called()
 
 
 def test_disabled_does_nothing():
