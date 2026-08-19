@@ -184,7 +184,7 @@ def _is_logistics_query(question: str) -> bool:
 
 _APP_BOUNDARY_RE = re.compile(
     r"(?:second\s+brain|conversation\s+memory|private\s+vault|knowledge\s+graph|"
-    r"what\s+do\s+you\s+remember)",
+    r"what\s+do\s+you\s+remember|(?:my|your)\s+preferences?)",
     re.IGNORECASE,
 )
 
@@ -471,16 +471,16 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     complexity_score = _compute_complexity_score(question, state.get("chat_history", []))
 
     # Product-memory boundary questions are capability queries, not doctrine
-    # synthesis. Route them to the bounded fast graph before any classifier can
-    # promote them to relational/deep retrieval.
+    # synthesis. Route them to the direct casual handler before any classifier
+    # can promote them to relational/deep retrieval.
     if _is_app_boundary_query(question):
         return {
-            "intent": "FACTUAL",
+            "intent": "CASUAL",
             "query_tier": "tier2_simple",
             "confidence_tier": "high",
             "evaluation_trace": _trace_update(
                 state,
-                intent="FACTUAL",
+                intent="CASUAL",
                 query_tier="tier2_simple",
                 routing_reason="app_memory_boundary_fast_path",
             ),
@@ -931,6 +931,38 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
                 "citations": [],
             }
         # Fall through to LLM for non-English so GURU_SYSTEM_PROMPT preserves language/script
+
+    # Direct resolution for memory and Second Brain boundaries. These are
+    # product-capability questions, not teachings; answer them without vector
+    # retrieval so anonymous users receive a fast, honest fail-closed response.
+    q_lower = state.get("question", "").lower()
+    if _is_app_boundary_query(q_lower) and _english_only(state.get("question", "")):
+        if "what do you remember" in q_lower or "conversation memory" in q_lower:
+            answer = (
+                "I can use the messages in this conversation as context. In an anonymous or "
+                "incognito session, I do not read or write durable personal memory, so I will "
+                "not invent memories about you. Signed-in users can manage any permitted memory "
+                "through the app's privacy controls."
+            )
+        elif "preference" in q_lower:
+            answer = (
+                "I can use a preference that you state in this conversation, but I will not claim "
+                "it is stored unless the signed-in memory flow confirms that. In this anonymous "
+                "session, I will treat your preference as temporary context only."
+            )
+        else:
+            answer = (
+                "Conversation context and the private Second Brain are separate. The Second Brain "
+                "is account-scoped and protected; it is not available to anonymous sessions or to "
+                "another user. If it is locked or unavailable, I will say so rather than inventing "
+                "a personal answer."
+            )
+        return {
+            "final_answer": answer,
+            "intent": "CAPABILITY",
+            "citations": [],
+            "grounding_state": "capability_answer",
+        }
 
     _SPIRITUAL_PRACTICE_SIGNALS = [
         r"\bpractice\b",

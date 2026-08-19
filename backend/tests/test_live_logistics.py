@@ -4,7 +4,7 @@ import pytest
 
 from app.config import settings
 from rag.graph_strategies import route_after_intent
-from rag.nodes.intent import _is_app_boundary_query, _is_logistics_query
+from rag.nodes.intent import _is_app_boundary_query, _is_logistics_query, handle_casual
 from rag.nodes.web_search import web_search_node
 
 
@@ -18,6 +18,21 @@ class OfficialSearch:
                 "source_trust": "official_domain",
             }
         ]
+
+
+@pytest.mark.asyncio
+async def test_app_memory_boundary_returns_direct_privacy_answer():
+    result = await handle_casual(
+        {
+            "question": "What is the difference between conversation memory and my private Second Brain vault?",
+            "intent": "CAPABILITY",
+            "chat_history": [],
+        }
+    )
+    assert result["intent"] == "CAPABILITY"
+    assert result["grounding_state"] == "capability_answer"
+    assert "anonymous" in result["final_answer"]
+    assert "invent" in result["final_answer"]
 
 
 def test_app_memory_boundary_queries_use_fast_capability_route():
