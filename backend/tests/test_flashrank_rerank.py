@@ -51,6 +51,7 @@ async def test_rerank_with_flashrank(monkeypatch):
     """
     pytest.importorskip("flashrank")
     from app.config import settings
+
     monkeypatch.setattr(settings, "cross_encoder_cutoff", 0, raising=False)
     monkeypatch.setattr(settings, "use_cross_encoder_only", False)
 

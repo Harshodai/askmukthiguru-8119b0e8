@@ -21,6 +21,6 @@ class Stage(ABC):
     name: str = "stage"
 
     @abstractmethod
-    async def run(self, ctx: "PipelineContext") -> "PipelineResult | None":
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         """Execute the stage. Return PipelineResult to short-circuit, None to continue."""
         raise NotImplementedError

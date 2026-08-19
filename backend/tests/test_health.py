@@ -25,6 +25,7 @@ def test_health_check(monkeypatch):
     # S7: the health probe now encodes a token and checks the vector width, so
     # the mock must return a correctly-dimensioned dense vector.
     from app.config import settings as _settings
+
     mock_container.embedding._encoder = MagicMock()
     mock_container.embedding.encode_single_full.return_value = {
         "dense": [0.0] * _settings.embedding_dimension
@@ -69,10 +70,12 @@ def test_metrics_admin_only():
     """
     from app.main import get_current_user_from_supabase
 
-    app.dependency_overrides[get_current_user_from_supabase] = lambda: {"id": "u1", "is_superuser": False}
+    app.dependency_overrides[get_current_user_from_supabase] = lambda: {
+        "id": "u1",
+        "is_superuser": False,
+    }
     try:
         response = client.get("/metrics")
         assert response.status_code == 403
     finally:
         app.dependency_overrides.pop(get_current_user_from_supabase, None)
-

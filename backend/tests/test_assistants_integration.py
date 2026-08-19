@@ -24,6 +24,7 @@ from services.qdrant_service import _build_tag_conditions
 # Contract / backward compatibility
 # ---------------------------------------------------------------------------
 
+
 def test_chat_request_without_assistant_is_backward_compatible():
     """Existing clients that omit the assistant block must still parse."""
     req = ChatRequest(messages=[{"role": "user", "content": "Hello"}], user_message="Hello")
@@ -51,31 +52,24 @@ def test_chat_request_with_assistant_parses():
 # Tag filtering
 # ---------------------------------------------------------------------------
 
+
 class TestTagConditions:
     """Unit tests for ``_build_tag_conditions``."""
 
     def test_sky_excluded_by_default(self):
         must, must_not = _build_tag_conditions([])
         assert not must
-        assert any(
-            fc.key == "tags" and fc.match.value == "sky" for fc in must_not
-        )
+        assert any(fc.key == "tags" and fc.match.value == "sky" for fc in must_not)
 
     def test_sky_excluded_when_other_tags_requested(self):
         must, must_not = _build_tag_conditions(["love", "meditation"])
         assert any(fc.key == "tags" for fc in must)
-        assert any(
-            fc.key == "tags" and fc.match.value == "sky" for fc in must_not
-        )
+        assert any(fc.key == "tags" and fc.match.value == "sky" for fc in must_not)
 
     def test_sky_allowed_when_explicitly_requested(self):
         must, must_not = _build_tag_conditions(["Sky"])
-        assert any(
-            fc.key == "tags" and "sky" in fc.match.any for fc in must
-        )
-        assert not any(
-            fc.key == "tags" and fc.match.value == "sky" for fc in must_not
-        )
+        assert any(fc.key == "tags" and "sky" in fc.match.any for fc in must)
+        assert not any(fc.key == "tags" and fc.match.value == "sky" for fc in must_not)
 
 
 class TestQdrantSearchFiltering:
@@ -181,6 +175,7 @@ class TestQdrantSearchFiltering:
 # Prompt assembly
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_context_engineer_uses_assistant_system_prompt():
     """A custom assistant prompt replaces the default persona layer."""
@@ -198,6 +193,7 @@ async def test_context_engineer_uses_assistant_system_prompt():
 def mock_services():
     """Inject minimal mock services for generate_answer tests."""
     import rag.nodes as nodes
+
     mock_ollama = AsyncMock()
     mock_ollama.generate.return_value = "mock answer"
 
@@ -259,6 +255,7 @@ async def test_generate_answer_fallback_uses_assistant_prompt(mock_services, mon
 # ---------------------------------------------------------------------------
 # Telemetry
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_telemetry_includes_assistant_slug(monkeypatch):

@@ -104,7 +104,7 @@ def contextual_reingest_dry_run(
         result = self.run_async(engine.dry_run(source_url=source_url, limit=limit))
         self.update_state(state="SUCCESS", meta=result)
         return result
-    except Exception as exc:
+    except Exception:
         logger.exception("contextual_reingest_dry_run task failed")
         raise
 
@@ -118,8 +118,9 @@ def _release_reingest_lock() -> None:
     two paths together guarantee the lock never outlives its task.
     """
     try:
-        from app.config import settings
         import redis as _sync_redis
+
+        from app.config import settings
 
         _r = _sync_redis.from_url(settings.redis_url)
         _r.delete("contextual_reingest:running")

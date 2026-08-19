@@ -42,7 +42,9 @@ from app.pipeline.stages.context import PipelineContext
 # ---------------------------------------------------------------------------
 
 
-def _mock_container(*, cache_hit: dict | None = None, graph_result: dict | None = None) -> MagicMock:
+def _mock_container(
+    *, cache_hit: dict | None = None, graph_result: dict | None = None
+) -> MagicMock:
     """Build a MagicMock ServiceContainer sufficient for the stage chain.
 
     cache_hit: if provided, exact_cache.get returns this dict (semantic-cache shape).
@@ -98,7 +100,9 @@ def _mock_container(*, cache_hit: dict | None = None, graph_result: dict | None 
     return container
 
 
-def _build_ctx(container: MagicMock, coordinator: PipelineCoordinator, **overrides) -> PipelineContext:
+def _build_ctx(
+    container: MagicMock, coordinator: PipelineCoordinator, **overrides
+) -> PipelineContext:
     """Build a PipelineContext pre-populated the way execute() does."""
     state = {
         "user_msg_en": "what is the beautiful state",
@@ -185,7 +189,6 @@ async def test_cache_check_stage_short_circuits_on_hit(coordinator):
 @pytest.mark.asyncio
 async def test_cache_hit_observes_slo_latency_once(coordinator, monkeypatch):
     """PipelineCoordinator.execute observes SLO_CHAT_LATENCY exactly once on a cache hit."""
-    import time
 
     observes = []
     orig_observe = SLO_CHAT_LATENCY.labels(tier="semantic_cache").observe
@@ -460,8 +463,11 @@ if __name__ == "__main__":
     # ponytail: one runnable self-check — run pytest on this module.
     raise SystemExit(pytest.main([__file__, "-v"]))
 
+
 @pytest.mark.asyncio
-async def test_memory_stage_skips_all_persistence_when_memory_writes_are_disabled(coordinator, monkeypatch):
+async def test_memory_stage_skips_all_persistence_when_memory_writes_are_disabled(
+    coordinator, monkeypatch
+):
     """Memory storage must be explicit opt-in, not a side effect of every chat turn."""
     container = _mock_container()
     container.user_profile = AsyncMock()

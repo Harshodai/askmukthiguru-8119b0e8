@@ -16,6 +16,7 @@ mapped back to the 1–10 scale expected by the rest of the system.
 
 E3.2: also emits a one-line explainable reason string via calculate_confidence_reason.
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -29,13 +30,13 @@ _CALIBRATOR = ConfidenceCalibrator()
 
 # ── Weights must sum to 1.0 ───────────────────────────────────────────────
 _WEIGHTS = {
-    "retrieval":     0.20,
-    "faithfulness":  0.25,
-    "cove":          0.15,
+    "retrieval": 0.20,
+    "faithfulness": 0.25,
+    "cove": 0.15,
     "contradiction": 0.10,
-    "authority":     0.10,
-    "recency":       0.10,
-    "llm_unc":       0.10,
+    "authority": 0.10,
+    "recency": 0.10,
+    "llm_unc": 0.10,
 }
 
 # Temperature scaling factor — values > 1 soften overconfident raw scores.
@@ -88,13 +89,13 @@ def _source_authority(citations: list[str]) -> float:
     if not citations:
         return 0.3
     _HIGH_AUTH_DOMAINS = (
-        "ekam.org", "onenessuniversity.org", "theonenessmovement.org",
-        "isha.sadhguru.org", "iskcon.org",
+        "ekam.org",
+        "onenessuniversity.org",
+        "theonenessmovement.org",
+        "isha.sadhguru.org",
+        "iskcon.org",
     )
-    boost = sum(
-        1 for c in citations
-        if any(d in c.lower() for d in _HIGH_AUTH_DOMAINS)
-    )
+    boost = sum(1 for c in citations if any(d in c.lower() for d in _HIGH_AUTH_DOMAINS))
     base = min(1.0, len(citations) / 5.0)
     return min(1.0, base + boost * 0.1)
 
@@ -149,7 +150,11 @@ def _llm_uncertainty(verification: dict) -> float:
     uncertainty/difficulty estimate if present."""
     if not isinstance(verification, dict):
         return 0.0
-    unc = verification.get("uncertainty") or verification.get("difficulty") or verification.get("llm_uncertainty")
+    unc = (
+        verification.get("uncertainty")
+        or verification.get("difficulty")
+        or verification.get("llm_uncertainty")
+    )
     if unc is None:
         return 0.0
     try:
@@ -182,9 +187,7 @@ def calculate_confidence(state: dict) -> float:
         retrieval_sig = _retrieval_confidence(reranked_docs)
 
         # Signal 2: faithfulness from LettuceDetect / lexical overlap (0–1)
-        faithfulness_sig = float(
-            state.get("faithfulness_score") or verification.get("score", 0.0)
-        )
+        faithfulness_sig = float(state.get("faithfulness_score") or verification.get("score", 0.0))
         faithfulness_sig = max(0.0, min(1.0, faithfulness_sig))
 
         # Signal 3: CoVe pass ratio (0–1); proxy from faithfulness if absent
@@ -195,9 +198,12 @@ def calculate_confidence(state: dict) -> float:
 
         # Signal 4: contradiction (1.0 = clean, 0.3 = contradiction found)
         contradiction_found = (
-            state.get("contradiction_found") or
-            state.get("contradiction_detected") or
-            (isinstance(state.get("evaluation_trace"), dict) and state.get("evaluation_trace").get("contradiction_detected"))
+            state.get("contradiction_found")
+            or state.get("contradiction_detected")
+            or (
+                isinstance(state.get("evaluation_trace"), dict)
+                and state.get("evaluation_trace").get("contradiction_detected")
+            )
         )
         contradiction_sig = 0.3 if contradiction_found else 1.0
 
@@ -213,13 +219,13 @@ def calculate_confidence(state: dict) -> float:
         llm_unc_sig = _llm_uncertainty(verification)
 
         signals = {
-            "retrieval":     retrieval_sig,
-            "faithfulness":  faithfulness_sig,
-            "cove":          cove_sig,
+            "retrieval": retrieval_sig,
+            "faithfulness": faithfulness_sig,
+            "cove": cove_sig,
             "contradiction": contradiction_sig,
-            "authority":     authority_sig,
-            "recency":       recency_sig,
-            "llm_unc":       llm_unc_sig,
+            "authority": authority_sig,
+            "recency": recency_sig,
+            "llm_unc": llm_unc_sig,
         }
 
         raw = sum(signals[k] * _WEIGHTS[k] for k in signals)
@@ -233,7 +239,9 @@ def calculate_confidence(state: dict) -> float:
         logger.debug(
             "Confidence ensemble: signals=%s raw=%.3f calibrated=%.3f → %.1f/10",
             {k: round(v, 3) for k, v in signals.items()},
-            raw, calibrated, score,
+            raw,
+            calibrated,
+            score,
         )
         return round(score, 2)
 
@@ -255,11 +263,16 @@ def calculate_confidence_reason(state: dict) -> str:
         retrieval = _retrieval_confidence(reranked_docs)
         cove = float(verification.get("cove_pass_ratio", 0.0))
         contradiction = (
-            state.get("contradiction_found") or
-            state.get("contradiction_detected") or
-            (isinstance(state.get("evaluation_trace"), dict) and state.get("evaluation_trace").get("contradiction_detected"))
+            state.get("contradiction_found")
+            or state.get("contradiction_detected")
+            or (
+                isinstance(state.get("evaluation_trace"), dict)
+                and state.get("evaluation_trace").get("contradiction_detected")
+            )
         )
-        authority = _source_authority_from_docs(reranked_docs) or _source_authority(state.get("citations") or [])
+        authority = _source_authority_from_docs(reranked_docs) or _source_authority(
+            state.get("citations") or []
+        )
         recency = _recency(reranked_docs)
         llm_unc = _llm_uncertainty(verification)
 

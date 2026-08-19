@@ -52,7 +52,7 @@ import os
 import time
 import uuid
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import SecretStr
 
@@ -98,8 +98,8 @@ logger = logging.getLogger("second_brain")
 _MODE_A = "server_wrapped"
 _MODE_B = "session_unlock"
 
-_MAX_CONTEXT_ITEMS = 8          # cap personal context injected into prompts
-_MAX_TEXT_LEN = 8_000           # per-artifact plaintext cap (chars)
+_MAX_CONTEXT_ITEMS = 8  # cap personal context injected into prompts
+_MAX_TEXT_LEN = 8_000  # per-artifact plaintext cap (chars)
 _DEFAULT_WRAP_MODE = _MODE_A
 
 
@@ -111,11 +111,12 @@ def _aad(user_id: str, kind: str, item_id: str) -> bytes:
 # Types
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class BrainItem:
     id: str
     user_id: str
-    kind: str            # reflection | entity | journal | preference | relationship
+    kind: str  # reflection | entity | journal | preference | relationship
     text: str
     confidence: float
     created_at: float
@@ -125,6 +126,7 @@ class BrainItem:
 # ---------------------------------------------------------------------------
 # Service
 # ---------------------------------------------------------------------------
+
 
 class SecondBrainService:
     def __init__(
@@ -183,7 +185,11 @@ class SecondBrainService:
         from the user's passphrase. After this call the server can no longer
         decrypt the brain on its own.
         """
-        dek = await self._load_dek_mode_a(user_id) if await self._get_key_row(user_id) else generate_dek()
+        dek = (
+            await self._load_dek_mode_a(user_id)
+            if await self._get_key_row(user_id)
+            else generate_dek()
+        )
         salt = os.urandom(16)
         kdf = {"algo": "argon2id", "salt": salt.hex(), "time": 3, "mem_kib": 65536, "par": 2}
         kek = self._mode_b_kek(passphrase, kdf)
@@ -295,7 +301,9 @@ class SecondBrainService:
     # Extraction (async, called post-response from the chat pipeline)
     # ------------------------------------------------------------------
 
-    async def extract_and_write(self, user_id: str, message: str, response: str, *, vault: UnlockedVault) -> int:
+    async def extract_and_write(
+        self, user_id: str, message: str, response: str, *, vault: UnlockedVault
+    ) -> int:
         """LLM-driven extraction of durable personal knowledge from one turn.
 
         Writes only items that clear a confidence bar. Returns count written.
@@ -320,7 +328,9 @@ class SecondBrainService:
         try:
             # ponytail: this repo's LLMProvider contract is generate(system_prompt,
             # user_prompt, **kwargs) (services/llm/base.py) — not the pack's .complete().
-            raw = await self._llm.generate(system_prompt, user_prompt, temperature=0.1, max_tokens=600)
+            raw = await self._llm.generate(
+                system_prompt, user_prompt, temperature=0.1, max_tokens=600
+            )
             items = json.loads(_strip_code_fence(raw)).get("items", [])
         except Exception as exc:  # never break the chat path
             logger.warning("second-brain extraction failed: %s", exc)
@@ -334,8 +344,9 @@ class SecondBrainService:
                 kind = str(it.get("kind", "reflection"))
                 if kind not in {"reflection", "entity", "preference", "relationship", "journal"}:
                     kind = "reflection"
-                await self.add_item(user_id, kind, str(it["text"]), vault=vault,
-                                    confidence=float(it["confidence"]))
+                await self.add_item(
+                    user_id, kind, str(it["text"]), vault=vault, confidence=float(it["confidence"])
+                )
                 written += 1
             except Exception as exc:
                 logger.warning("second-brain write skipped: %s", exc)
@@ -345,8 +356,9 @@ class SecondBrainService:
     # Read path
     # ------------------------------------------------------------------
 
-    async def personal_context(self, user_id: str, query: str, *, vault: UnlockedVault,
-                               limit: int = _MAX_CONTEXT_ITEMS) -> list[BrainItem]:
+    async def personal_context(
+        self, user_id: str, query: str, *, vault: UnlockedVault, limit: int = _MAX_CONTEXT_ITEMS
+    ) -> list[BrainItem]:
         """Semantic recall over the user's OWN brain. Returns decrypted items,
         most relevant first. This is the only read that feeds generation."""
         candidate_ids: list[str] = []
@@ -359,15 +371,22 @@ class SecondBrainService:
         items: list[BrainItem] = []
         for r in rows:
             try:
-                text = decrypt_payload(vault.dek, r["ciphertext"], aad=_aad(user_id, r["kind"], r["id"])).decode()
+                text = decrypt_payload(
+                    vault.dek, r["ciphertext"], aad=_aad(user_id, r["kind"], r["id"])
+                ).decode()
             except VaultIntegrityError:
                 continue
-            items.append(BrainItem(
-                id=r["id"], user_id=user_id, kind=r["kind"], text=text,
-                confidence=float(r.get("confidence", 0.8)),
-                created_at=float(r.get("created_at", 0)),
-                access_count=int(r.get("access_count", 0)),
-            ))
+            items.append(
+                BrainItem(
+                    id=r["id"],
+                    user_id=user_id,
+                    kind=r["kind"],
+                    text=text,
+                    confidence=float(r.get("confidence", 0.8)),
+                    created_at=float(r.get("created_at", 0)),
+                    access_count=int(r.get("access_count", 0)),
+                )
+            )
         items.sort(
             key=lambda x: (
                 candidate_scores.get(x.id, 0),
@@ -381,8 +400,15 @@ class SecondBrainService:
             await self._touch([i.id for i in chosen])
         return chosen
 
-    async def list_items(self, user_id: str, *, vault: UnlockedVault, kind: Optional[str] = None,
-                         limit: int = 100, offset: int = 0) -> list[BrainItem]:
+    async def list_items(
+        self,
+        user_id: str,
+        *,
+        vault: UnlockedVault,
+        kind: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[BrainItem]:
         """Owner-facing listing (the 'My Second Brain' screen)."""
         q = self._db.table("user_brain_nodes").select("*").eq("user_id", user_id)
         if kind:
@@ -392,11 +418,20 @@ class SecondBrainService:
         out = []
         for r in rows:
             try:
-                text = decrypt_payload(vault.dek, r["ciphertext"], aad=_aad(user_id, r["kind"], r["id"])).decode()
-                out.append(BrainItem(r["id"], user_id, r["kind"], text,
-                                     float(r.get("confidence", 0.8)),
-                                     float(r.get("created_at", 0)),
-                                     int(r.get("access_count", 0))))
+                text = decrypt_payload(
+                    vault.dek, r["ciphertext"], aad=_aad(user_id, r["kind"], r["id"])
+                ).decode()
+                out.append(
+                    BrainItem(
+                        r["id"],
+                        user_id,
+                        r["kind"],
+                        text,
+                        float(r.get("confidence", 0.8)),
+                        float(r.get("created_at", 0)),
+                        int(r.get("access_count", 0)),
+                    )
+                )
             except VaultIntegrityError:
                 continue
         return out
@@ -415,11 +450,18 @@ class SecondBrainService:
         """
         await self._delete_embedding(user_id, item_id)
         await asyncio.to_thread(
-            self._db.table("user_brain_nodes").delete().eq("user_id", user_id).eq("id", item_id).execute
+            self._db.table("user_brain_nodes")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("id", item_id)
+            .execute
         )
         await asyncio.to_thread(
-            self._db.table("user_brain_edges").delete().eq("user_id", user_id)
-            .or_(f"src.eq.{item_id},dst.eq.{item_id}").execute
+            self._db.table("user_brain_edges")
+            .delete()
+            .eq("user_id", user_id)
+            .or_(f"src.eq.{item_id},dst.eq.{item_id}")
+            .execute
         )
         self._audit(user_id, "item_forgotten", {"item_id": item_id})
         return True
@@ -437,9 +479,15 @@ class SecondBrainService:
         their vectors — safe to retry.
         """
         await self._drop_collection(user_id)  # early-returns if no vault index configured
-        await asyncio.to_thread(self._db.table("user_brain_nodes").delete().eq("user_id", user_id).execute)
-        await asyncio.to_thread(self._db.table("user_brain_edges").delete().eq("user_id", user_id).execute)
-        await asyncio.to_thread(self._db.table("user_brain_keys").delete().eq("user_id", user_id).execute)
+        await asyncio.to_thread(
+            self._db.table("user_brain_nodes").delete().eq("user_id", user_id).execute
+        )
+        await asyncio.to_thread(
+            self._db.table("user_brain_edges").delete().eq("user_id", user_id).execute
+        )
+        await asyncio.to_thread(
+            self._db.table("user_brain_keys").delete().eq("user_id", user_id).execute
+        )
         self._audit(user_id, "vault_crypto_shredded", {})
         return {"user_id": user_id, "shredded": True}
 
@@ -455,16 +503,25 @@ class SecondBrainService:
                 break
             all_items.extend(page)
             offset += len(page)
-        edges_raw = (await asyncio.to_thread(
-            self._db.table("user_brain_edges").select("*")
-            .eq("user_id", user_id).execute
-        )).data or []
+        edges_raw = (
+            await asyncio.to_thread(
+                self._db.table("user_brain_edges").select("*").eq("user_id", user_id).execute
+            )
+        ).data or []
         edges = []
         for e in edges_raw:
             try:
-                rel = decrypt_payload(vault.dek, e["rel_cipher"], aad=_aad(user_id, "edge", e["id"])).decode()
-                edges.append({"src": e["src"], "dst": e["dst"], "relation": rel,
-                              "weight": e.get("weight", 1.0)})
+                rel = decrypt_payload(
+                    vault.dek, e["rel_cipher"], aad=_aad(user_id, "edge", e["id"])
+                ).decode()
+                edges.append(
+                    {
+                        "src": e["src"],
+                        "dst": e["dst"],
+                        "relation": rel,
+                        "weight": e.get("weight", 1.0),
+                    }
+                )
             except VaultIntegrityError:
                 continue
         self._audit(user_id, "vault_exported", {"items": len(all_items)})
@@ -495,12 +552,16 @@ class SecondBrainService:
     @staticmethod
     def _mode_b_kek(passphrase: str, kdf: dict) -> bytes:
         return derive_kek_from_passphrase(
-            passphrase, bytes.fromhex(kdf["salt"]),
-            time_cost=kdf.get("time", 3), memory_kib=kdf.get("mem_kib", 65536),
+            passphrase,
+            bytes.fromhex(kdf["salt"]),
+            time_cost=kdf.get("time", 3),
+            memory_kib=kdf.get("mem_kib", 65536),
             parallelism=kdf.get("par", 2),
         )
 
-    async def _fetch_nodes(self, user_id: str, *, ids: Optional[list[str]], limit: int) -> list[dict]:
+    async def _fetch_nodes(
+        self, user_id: str, *, ids: Optional[list[str]], limit: int
+    ) -> list[dict]:
         q = self._db.table("user_brain_nodes").select("*").eq("user_id", user_id)
         if ids:
             q = q.in_("id", ids)
@@ -539,7 +600,9 @@ class SecondBrainService:
         except Exception as _e:
             # Re-raise: callers (forget_item, crypto_shred) must not report
             # success unless Qdrant confirms the vector is gone.
-            logger.warning("second-brain vector delete failed (user=%s item=%s): %s", user_id, item_id, _e)
+            logger.warning(
+                "second-brain vector delete failed (user=%s item=%s): %s", user_id, item_id, _e
+            )
             raise
 
     async def _drop_collection(self, user_id: str) -> None:
@@ -576,5 +639,7 @@ if __name__ == "__main__":
     # (Mode-A provisioning requires BRAIN_KEK; that path is exercised in
     # backend/tests/test_second_brain.py, not here).
     assert callable(SecondBrainService)
-    assert BrainItem(id="x", user_id="u", kind="reflection", text="t", confidence=0.9, created_at=0.0)
+    assert BrainItem(
+        id="x", user_id="u", kind="reflection", text="t", confidence=0.9, created_at=0.0
+    )
     print("second_brain_service self-check: OK")

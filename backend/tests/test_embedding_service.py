@@ -44,6 +44,7 @@ def test_embedding_service_ragatouille_optional_graceful_fallback(monkeypatch):
     monkeypatch.setitem(sys.modules, "sentence_transformers", fake_sentence_transformers)
 
     from app.config import settings
+
     monkeypatch.setattr(settings, "embedding_backend", "flagembedding")
     # enable_colbert=True so _ensure_colbert() enters the ragatouille import path
     # (when False it short-circuits at line 480, never reaching the ImportError).
@@ -121,7 +122,7 @@ def test_ensure_encoder_refuses_wrong_dimension_fallback(monkeypatch):
     monkeypatch.setattr(settings, "embedding_model", "BAAI/bge-m3")
     monkeypatch.setattr(settings, "embedding_dimension", 1024)
 
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017
         service._ensure_encoder()
 
     # Must never silently swap to a wrong-dimension model

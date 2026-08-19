@@ -6,6 +6,7 @@ Tests that:
 3. Distress keyword regex catches critical patterns
 4. Graph variant selection is correct for various query types
 """
+
 import asyncio
 import sys
 from pathlib import Path
@@ -92,7 +93,9 @@ def test_select_graph_heuristics_deep():
     assert result == "deep", f"Expected 'deep' for comparative, got '{result}'"
 
     result = asyncio.get_event_loop().run_until_complete(
-        select_graph_for_query("What is the relationship between meditation and consciousness over time?")
+        select_graph_for_query(
+            "What is the relationship between meditation and consciousness over time?"
+        )
     )
     assert result == "deep", f"Expected 'deep' for multi-hop analytical, got '{result}'"
 
@@ -102,7 +105,9 @@ def test_select_graph_heuristics_standard():
     from app.orchestrator_utils import select_graph_for_query
 
     result = asyncio.get_event_loop().run_until_complete(
-        select_graph_for_query("I have been thinking about many spiritual concepts and wondering about their interconnected nature in contemporary society")
+        select_graph_for_query(
+            "I have been thinking about many spiritual concepts and wondering about their interconnected nature in contemporary society"
+        )
     )
     assert result == "standard", f"Expected 'standard' for ambiguous long query, got '{result}'"
 
@@ -111,10 +116,14 @@ def test_warm_greetings_pool():
     """Kill #3: Greeting pool should have enough variety."""
     from app.pipeline.stages.glue_stages import _WARM_GREETINGS
 
-    assert len(_WARM_GREETINGS) >= 8, f"Need at least 8 greetings for variety, got {len(_WARM_GREETINGS)}"
+    assert len(_WARM_GREETINGS) >= 8, (
+        f"Need at least 8 greetings for variety, got {len(_WARM_GREETINGS)}"
+    )
     # All greetings should mention relevant spiritual context
     for g in _WARM_GREETINGS:
-        assert "🙏" in g or "Namaste" in g or "Mukthi" in g, f"Greeting lacks spiritual context: {g[:50]}"
+        assert "🙏" in g or "Namaste" in g or "Mukthi" in g, (
+            f"Greeting lacks spiritual context: {g[:50]}"
+        )
 
 
 if __name__ == "__main__":

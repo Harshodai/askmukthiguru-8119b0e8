@@ -83,7 +83,9 @@ def make_module() -> Optional[MukthiGuruModule]:
         return None
 
 
-def dspy_generate(question: str, context: str, module: Optional[MukthiGuruModule] = None) -> Optional[str]:
+def dspy_generate(
+    question: str, context: str, module: Optional[MukthiGuruModule] = None
+) -> Optional[str]:
     """Generate an answer using the DSPy module. Returns None on failure."""
     if module is None:
         return None
@@ -99,7 +101,10 @@ if __name__ == "__main__":
     settings.use_dspy = True
     mod = make_module()
     if mod:
-        ans = dspy_generate("What is the Four Sacred Secrets?", "The four sacred secrets are spiritual vision, inner truth, universal intelligence, and spiritual right action.")
+        ans = dspy_generate(
+            "What is the Four Sacred Secrets?",
+            "The four sacred secrets are spiritual vision, inner truth, universal intelligence, and spiritual right action.",
+        )
         print(f"DSPy answer: {ans}")
     else:
         print("DSPy module not available")

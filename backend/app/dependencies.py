@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os as _os
 import sys as _sys
+
 _SCRIPT_DIR = _os.path.dirname(_os.path.abspath(__file__))
 if _SCRIPT_DIR in _sys.path:
     _sys.path.remove(_SCRIPT_DIR)
@@ -26,21 +27,20 @@ working unchanged. Do NOT add new logic here; new code should import
 from the focused modules directly.
 """
 
+import logging
 import threading
 
+from app.builder import ContainerBuilder
 from app.container import (
-    _NoopTranslationProvider,
     _REQUIRED_SINGLETONS,
     ServiceContainer,
     _create_llm_service,
+    _NoopTranslationProvider,
 )
-from app.builder import ContainerBuilder
 
 # Re-exported for legacy callers that touched health/cleanup internals.
 from app.health import ContainerHealthChecker
 from app.lifecycle import ContainerLifecycle, close_container, close_container_async
-
-import logging
 
 logger = logging.getLogger(__name__)
 

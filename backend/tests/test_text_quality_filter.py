@@ -120,10 +120,10 @@ class TestCleanTopicLabel:
         [
             "a common transcription error where a space is omitted.",  # from live corpus
             "The user wants me to analyze this",
-            "x" * 80,                    # too long
-            "Wait\nlet me reconsider",   # multi-line
+            "x" * 80,  # too long
+            "Wait\nlet me reconsider",  # multi-line
             "First point. Second point. Third point.",  # sentence-shaped
-            "Topics are:",               # trailing colon
+            "Topics are:",  # trailing colon
             "",
             "   ",
         ],
@@ -245,10 +245,7 @@ def test_storage_boundary_collapses_a_generator_loop():
     n = 227
     texts = [_LOOPED_CHUNK] * n + ["A real teaching about the beautiful state."]
     vectors = [[float(i)] * 4 for i in range(n + 1)]
-    metadatas = [
-        {"source_url": "vid_a", "chunk_index": i, "raptor_level": 0}
-        for i in range(n + 1)
-    ]
+    metadatas = [{"source_url": "vid_a", "chunk_index": i, "raptor_level": 0} for i in range(n + 1)]
 
     indexer = QdrantIndexer.__new__(QdrantIndexer)
     indexer._collection = "test_collection"
@@ -277,6 +274,7 @@ def test_collapse_repeats_rejects_shorter_sources_sequence():
 def test_storage_boundary_missing_sources_equal_text_collapsed():
     """Two records with missing sources and equal text share one sentinel and are collapsed."""
     from unittest.mock import MagicMock
+
     from services.qdrant.indexer import QdrantIndexer
 
     texts = ["Equal text without source", "Equal text without source"]
@@ -298,6 +296,7 @@ def test_storage_boundary_missing_sources_equal_text_collapsed():
 def test_stale_qdrant_points_reconciled_on_reingest():
     """Integration test: duplicate chunk IDs are deleted from Qdrant before upserting retained records."""
     from unittest.mock import MagicMock
+
     from services.qdrant.indexer import QdrantIndexer
 
     teaching = "Duplicated teaching chunk"
@@ -321,4 +320,3 @@ def test_stale_qdrant_points_reconciled_on_reingest():
         collection_name="test_collection",
         points_selector=["vid_stale:1:0"],
     )
-

@@ -11,10 +11,10 @@ Usage:
   cd backend
   .venv/bin/python scripts/ops/cleanup_inactive_user_data.py [--dry-run] [--days-telemetry 90] [--days-inactivity 365]
 """
+
 from __future__ import annotations
 
 import argparse
-import asyncio
 import os
 import sys
 import time
@@ -53,7 +53,10 @@ def cleanup_redis_keys(dry_run: bool = False) -> int:
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
     try:
         import redis
-        r = redis.Redis.from_url(redis_url, decode_responses=True, socket_timeout=5, socket_connect_timeout=5)
+
+        r = redis.Redis.from_url(
+            redis_url, decode_responses=True, socket_timeout=5, socket_connect_timeout=5
+        )
         stale_count = 0
         for pattern in ("session:*", "ephemeral:*"):
             for k in r.scan_iter(match=pattern, count=100):
@@ -72,9 +75,7 @@ def cleanup_redis_keys(dry_run: bool = False) -> int:
 def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = False) -> int:
     try:
         qdrant_api_key = os.environ.get("QDRANT_API_KEY", "")
-        client = QdrantClient(
-            url=settings.qdrant_url, api_key=qdrant_api_key or None, timeout=30
-        )
+        client = QdrantClient(url=settings.qdrant_url, api_key=qdrant_api_key or None, timeout=30)
         supabase = create_client(settings.supabase_url, settings.supabase_key)
         collections = [c.name for c in client.get_collections().collections if "memory" in c.name]
 
@@ -106,9 +107,13 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
                 if len(user_res.data) < page_size:
                     break
                 start += page_size
-            print(f"  Found {len(inactive_user_ids)} inactive users (profiles.last_active_at before {cutoff[:10]})")
+            print(
+                f"  Found {len(inactive_user_ids)} inactive users (profiles.last_active_at before {cutoff[:10]})"
+            )
         except Exception as ue:
-            print(f"  WARN: Could not query inactive users from Supabase ({ue}); falling back to point-level cleanup")
+            print(
+                f"  WARN: Could not query inactive users from Supabase ({ue}); falling back to point-level cleanup"
+            )
             inactive_user_ids = None
 
         for col in collections:
@@ -134,7 +139,9 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
                     break
 
                 if inactive_user_ids is not None:
-                    filtered = [p for p in stale_results if p.payload.get("user_id") in inactive_user_ids]
+                    filtered = [
+                        p for p in stale_results if p.payload.get("user_id") in inactive_user_ids
+                    ]
                 else:
                     filtered = stale_results
 
@@ -161,7 +168,9 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
         return 0
 
 
-def cleanup_telemetry_logs(days_retention: int = TELEMETRY_RETENTION_DAYS, dry_run: bool = False) -> int:
+def cleanup_telemetry_logs(
+    days_retention: int = TELEMETRY_RETENTION_DAYS, dry_run: bool = False
+) -> int:
     """Purge telemetry logs older than days_retention from Supabase."""
     try:
         supabase = create_client(settings.supabase_url, settings.supabase_key)
@@ -170,10 +179,22 @@ def cleanup_telemetry_logs(days_retention: int = TELEMETRY_RETENTION_DAYS, dry_r
         for table in TELEMETRY_TABLES:
             try:
                 if dry_run:
-                    count_result = supabase.table(table).select("id", count="exact").lt("created_at", cutoff).execute()
-                    purged = getattr(count_result, "count", 0) or (len(count_result.data) if count_result.data else 0)
+                    count_result = (
+                        supabase.table(table)
+                        .select("id", count="exact")
+                        .lt("created_at", cutoff)
+                        .execute()
+                    )
+                    purged = getattr(count_result, "count", 0) or (
+                        len(count_result.data) if count_result.data else 0
+                    )
                 else:
-                    result = supabase.table(table).delete(count="exact").lt("created_at", cutoff).execute()
+                    result = (
+                        supabase.table(table)
+                        .delete(count="exact")
+                        .lt("created_at", cutoff)
+                        .execute()
+                    )
                     purged = result.count if hasattr(result, "count") else 0
                 total += purged
                 print(f"  Table '{table}': purged {purged} rows older than {days_retention} days.")
@@ -199,7 +220,9 @@ def cleanup_anonymous_session_summaries(days_retention: int = 30, dry_run: bool 
                 .lt("created_at", cutoff)
                 .execute()
             )
-            purged = getattr(count_result, "count", 0) or (len(count_result.data) if count_result.data else 0)
+            purged = getattr(count_result, "count", 0) or (
+                len(count_result.data) if count_result.data else 0
+            )
         else:
             result = (
                 supabase.table("guru_session_summaries")
@@ -209,7 +232,9 @@ def cleanup_anonymous_session_summaries(days_retention: int = 30, dry_run: bool 
                 .execute()
             )
             purged = result.count if hasattr(result, "count") else 0
-        print(f"✓ Anonymous session summaries: purged {purged} orphan rows older than {days_retention} days.")
+        print(
+            f"✓ Anonymous session summaries: purged {purged} orphan rows older than {days_retention} days."
+        )
         return purged
     except Exception as e:
         print(f"WARN: Anonymous session summary cleanup skipped ({e})")
@@ -219,17 +244,25 @@ def cleanup_anonymous_session_summaries(days_retention: int = 30, dry_run: bool 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Clean up inactive user data & stale memories")
     parser.add_argument("--dry-run", action="store_true", help="Print changes without purging")
-    parser.add_argument("--days-telemetry", type=int, default=90, help="Days retention for telemetry logs")
-    parser.add_argument("--days-inactivity", type=int, default=365, help="Days retention for inactive memories")
+    parser.add_argument(
+        "--days-telemetry", type=int, default=90, help="Days retention for telemetry logs"
+    )
+    parser.add_argument(
+        "--days-inactivity", type=int, default=365, help="Days retention for inactive memories"
+    )
     args = parser.parse_args()
 
-    print(f"=== Starting Inactive User Data & Retention Cleanup ===")
+    print("=== Starting Inactive User Data & Retention Cleanup ===")
     print(f"Mode: {'DRY RUN' if args.dry_run else 'LIVE PURGE'}")
-    print(f"Telemetry Retention: {args.days_telemetry} days | Memory Inactivity Cutoff: {args.days_inactivity} days\n")
+    print(
+        f"Telemetry Retention: {args.days_telemetry} days | Memory Inactivity Cutoff: {args.days_inactivity} days\n"
+    )
 
     start = time.time()
     r_count = cleanup_redis_keys(dry_run=args.dry_run)
-    q_count = cleanup_stale_qdrant_memories(days_inactivity=args.days_inactivity, dry_run=args.dry_run)
+    q_count = cleanup_stale_qdrant_memories(
+        days_inactivity=args.days_inactivity, dry_run=args.dry_run
+    )
     t_count = cleanup_telemetry_logs(days_retention=args.days_telemetry, dry_run=args.dry_run)
     a_count = cleanup_anonymous_session_summaries(dry_run=args.dry_run)
 

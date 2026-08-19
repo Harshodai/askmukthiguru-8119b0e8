@@ -11,6 +11,7 @@ both desync sources directly against format_final_answer.
 """
 
 import pytest
+
 from rag.nodes.generation import format_final_answer
 from rag.states import GraphState
 
@@ -23,7 +24,10 @@ async def test_url_less_doc_does_not_shift_citation_numbering():
     state = GraphState(
         answer="First fact from the graph summary. Second fact is cited [Source: Cited Doc].",
         relevant_docs=[
-            {"title": "Knowledge Graph", "source_url": "knowledge_graph"},  # no citable URL — dropped
+            {
+                "title": "Knowledge Graph",
+                "source_url": "knowledge_graph",
+            },  # no citable URL — dropped
             {"title": "Cited Doc", "source_url": "https://cited.example/doc"},
         ],
         citations=["https://cited.example/doc"],
@@ -79,4 +83,5 @@ async def test_diversity_reorder_does_not_desync_citation_numbering():
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(pytest.main([__file__, "-q"]))

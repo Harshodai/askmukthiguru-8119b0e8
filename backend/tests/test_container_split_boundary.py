@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.health import ContainerHealthChecker
-from app.lifecycle import ContainerLifecycle, close_container
+from app.lifecycle import ContainerLifecycle
 
 
 class _MockContainer:
@@ -53,7 +53,9 @@ class _MockContainer:
 
 def _make_healthy_container() -> _MockContainer:
     return _MockContainer(
-        qdrant=MagicMock(health_check=MagicMock(return_value=True), count=MagicMock(return_value=42)),
+        qdrant=MagicMock(
+            health_check=MagicMock(return_value=True), count=MagicMock(return_value=42)
+        ),
         ocr=MagicMock(health_check=MagicMock(return_value=True)),
         ollama=MagicMock(health_check=AsyncMock(return_value=True)),
         guardrails=MagicMock(is_available=True, provider_name="lightweight"),
@@ -80,7 +82,9 @@ async def test_health_check_all_services():
         "embedding",
         "qdrant_count",
     }
-    assert expected_keys.issubset(result.keys()), f"missing keys: {expected_keys - set(result.keys())}"
+    assert expected_keys.issubset(result.keys()), (
+        f"missing keys: {expected_keys - set(result.keys())}"
+    )
     assert result["qdrant"] is True
     assert result["ollama"] is True
     assert result["ocr"] is True
@@ -128,19 +132,25 @@ def test_back_compat_imports():
     import X` imports across the codebase must keep working unchanged after
     the C2 split. If this test fails, a downstream module broke.
     """
+    from app.builder import ContainerBuilder as _CB
+    from app.container import ServiceContainer as _SC  # noqa: F401
     from app.dependencies import (  # noqa: F401
+        ContainerBuilder,
         ServiceContainer,
         get_container,
-        ContainerBuilder,
+    )
+    from app.dependencies import (
         ContainerHealthChecker as DepHealthChecker,
+    )
+    from app.dependencies import (
         ContainerLifecycle as DepLifecycle,
+    )
+    from app.dependencies import (
         close_container as DepCloseContainer,
     )
-
-    from app.container import ServiceContainer as _SC, _NoopTranslationProvider  # noqa: F401
     from app.health import ContainerHealthChecker as _HC
-    from app.lifecycle import ContainerLifecycle as _LC, close_container as _CC
-    from app.builder import ContainerBuilder as _CB
+    from app.lifecycle import ContainerLifecycle as _LC
+    from app.lifecycle import close_container as _CC
 
     assert ServiceContainer is _SC
     assert DepHealthChecker is _HC

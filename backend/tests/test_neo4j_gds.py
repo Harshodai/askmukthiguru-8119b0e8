@@ -40,9 +40,7 @@ def test_gds_list():
 
     try:
         with driver.session() as session:
-            result = session.run(
-                "CALL gds.list() YIELD name RETURN name ORDER BY name LIMIT 5"
-            )
+            result = session.run("CALL gds.list() YIELD name RETURN name ORDER BY name LIMIT 5")
             rows = [r["name"] for r in result]
         assert len(rows) > 0, (
             "CALL gds.list() returned 0 rows — GDS plugin may not be loaded. "

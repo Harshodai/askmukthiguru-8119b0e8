@@ -51,7 +51,9 @@ def get_meditation_script(script_name: str) -> dict:
 
 # Sentinel string previously returned when the step was out of range. Kept as a constant
 # so callers (and tests) can detect it; production code MUST NOT emit this string.
-_LEGACY_COMPLETE_SENTINEL = "The meditation is complete. Thank you for practicing with me. \U0001f64f"
+_LEGACY_COMPLETE_SENTINEL = (
+    "The meditation is complete. Thank you for practicing with me. \U0001f64f"
+)
 
 
 def _get_max_step() -> int:
@@ -137,7 +139,10 @@ def format_meditation_response(step: int) -> Optional[str]:
         )
         return None
 
-    return f"**Step {step_data['step']}/{_get_max_step()}: {step_data['title']}**\n\n" + step_data["prompt"]
+    return (
+        f"**Step {step_data['step']}/{_get_max_step()}: {step_data['title']}**\n\n"
+        + step_data["prompt"]
+    )
 
 
 def get_meditation_complete_message() -> str:
@@ -233,7 +238,7 @@ _IMPERATIVE_VERBS = (
     "guide me",
     "let's",
     "lets",
-    "do ",            # trailing space so "doing", "does" don't match
+    "do ",  # trailing space so "doing", "does" don't match
     "take me through",
     "walk me through",
     "lead me",
@@ -245,16 +250,42 @@ _IMPERATIVE_VERBS = (
 # mark first, then English question stems, then Hinglish/Romanized Hindi stems
 # ("kya", "kaise", "kab", "kahan", "kyu", "kyon").
 _INTERROGATIVE_STEMS_EN = (
-    "can i", "could i", "should i", "may i",
-    "what is", "what are", "what does", "what's",
-    "how do", "how does", "how can", "how to",
-    "why is", "why does", "why do", "why are",
-    "when is", "when does", "where is", "where does",
-    "is there", "are there", "does ", "do you ",
-    "which ", "who is", "who are",
+    "can i",
+    "could i",
+    "should i",
+    "may i",
+    "what is",
+    "what are",
+    "what does",
+    "what's",
+    "how do",
+    "how does",
+    "how can",
+    "how to",
+    "why is",
+    "why does",
+    "why do",
+    "why are",
+    "when is",
+    "when does",
+    "where is",
+    "where does",
+    "is there",
+    "are there",
+    "does ",
+    "do you ",
+    "which ",
+    "who is",
+    "who are",
 )
 _INTERROGATIVE_STEMS_HINGLISH = (
-    "kya ", "kaise ", "kab ", "kahan ", "kyu", "kyon", "kese",
+    "kya ",
+    "kaise ",
+    "kab ",
+    "kahan ",
+    "kyu",
+    "kyon",
+    "kese",
 )
 
 

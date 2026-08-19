@@ -24,8 +24,8 @@ import logging
 import os
 import sys
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 # ---------------------------------------------------------------------------
 # Project paths
@@ -34,7 +34,7 @@ BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
-from neo4j import AsyncGraphDatabase, exceptions as neo4j_exceptions  # noqa: E402
+from neo4j import AsyncGraphDatabase  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from services.embedding_service import EmbeddingService  # noqa: E402
@@ -59,6 +59,7 @@ _SURVIVOR_ONLY: frozenset[str] = frozenset(
         "entity_type",  # winner's type wins (same for confirmed duplicates)
     }
 )
+
 
 # ---------------------------------------------------------------------------
 # Data container
@@ -91,11 +92,7 @@ _driver: AsyncGraphDatabase | None = None
 
 
 def _get_uri() -> str:
-    return (
-        os.environ.get("NEO4J_URI")
-        or settings.neo4j_uri
-        or "bolt://localhost:7687"
-    )
+    return os.environ.get("NEO4J_URI") or settings.neo4j_uri or "bolt://localhost:7687"
 
 
 def _get_auth() -> tuple[str, str]:
@@ -384,9 +381,7 @@ def _merge_descriptions(survivor: EntityNode, loser: EntityNode) -> str:
     # Only append sentences not already present in survivor
     s_lower = s_text.lower()
     new_sentences = [
-        s.strip()
-        for s in l_text.split(". ")
-        if s.strip() and s.strip().lower() not in s_lower
+        s.strip() for s in l_text.split(". ") if s.strip() and s.strip().lower() not in s_lower
     ]
     if not new_sentences:
         return s_text
@@ -443,9 +438,7 @@ async def _resolve_async(
         }
 
     # 4. Fetch degrees once for all involved entities
-    involved_ids = {
-        entities[i].entity_id for i, j, _ in candidates
-    } | {
+    involved_ids = {entities[i].entity_id for i, j, _ in candidates} | {
         entities[j].entity_id for i, j, _ in candidates
     }
     degrees = await _fetch_degrees(involved_ids)
@@ -459,35 +452,32 @@ async def _resolve_async(
             try:
                 same = _llm_confirm(a_name, b_name)
             except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "LLM confirm failed for '%s'|'%s': %s", a_name, b_name, exc
-                )
+                logger.warning("LLM confirm failed for '%s'|'%s': %s", a_name, b_name, exc)
                 same = False
             if same:
                 confirmed_pairs.append((i, j, score))
             logger.debug(
                 "LLM confirm %s|%s (score=%.3f) -> %s",
-                a_name, b_name, score, "MERGE" if same else "skip",
+                a_name,
+                b_name,
+                score,
+                "MERGE" if same else "skip",
             )
     else:
         confirmed_pairs = candidates  # trust cosine alone
 
     confirmed_count = len(confirmed_pairs)
-    logger.info(
-        "LLM-confirmed %d / %d candidates", confirmed_count, len(candidates)
-    )
+    logger.info("LLM-confirmed %d / %d candidates", confirmed_count, len(candidates))
 
     if dry_run:
         print(f"\n{'-' * 60}")
-        print(
-            f"  DRY-RUN - {confirmed_count} planned merges "
-            f"(threshold={cosine_threshold})"
-        )
+        print(f"  DRY-RUN - {confirmed_count} planned merges (threshold={cosine_threshold})")
         print(f"{'-' * 60}")
         for i, j, score in confirmed_pairs:
             a, b = entities[i], entities[j]
             winner, loser = _pick_survivor(
-                a, b,
+                a,
+                b,
                 degrees.get(a.entity_id, 0),
                 degrees.get(b.entity_id, 0),
             )
@@ -512,7 +502,8 @@ async def _resolve_async(
     for i, j, _score in confirmed_pairs:
         a, b = entities[i], entities[j]
         winner, loser = _pick_survivor(
-            a, b,
+            a,
+            b,
             degrees.get(a.entity_id, 0),
             degrees.get(b.entity_id, 0),
         )
@@ -521,21 +512,22 @@ async def _resolve_async(
         rewired = await _rewire_relationships(winner.entity_id, loser.entity_id)
         logger.info(
             "Rewired %d relationships: '%s' -> '%s'",
-            rewired, loser.entity_id, winner.entity_id,
+            rewired,
+            loser.entity_id,
+            winner.entity_id,
         )
 
         # Merge descriptions (append loser's content to winner's)
         merged_desc = _merge_descriptions(winner, loser)
         if merged_desc != winner.description:
-            await _update_node_property(
-                winner.entity_id, "description", merged_desc
-            )
+            await _update_node_property(winner.entity_id, "description", merged_desc)
 
         # Delete loser node
         await _delete_loser(loser.entity_id)
         logger.info(
             "Deleted alias node '%s' -> merged into '%s'",
-            loser.entity_id, winner.entity_id,
+            loser.entity_id,
+            winner.entity_id,
         )
         merged += 1
 
@@ -580,12 +572,8 @@ def entity_stats() -> dict:
     async def _stats() -> dict:
         driver = await _get_driver()
         async with driver.session(database=_get_database()) as session:
-            nodes = (
-                await session.run("MATCH (n) RETURN count(n) AS c")
-            ).single()
-            rels = (
-                await session.run("MATCH ()-[r]-() RETURN count(r) AS c")
-            ).single()
+            nodes = (await session.run("MATCH (n) RETURN count(n) AS c")).single()
+            rels = (await session.run("MATCH ()-[r]-() RETURN count(r) AS c")).single()
             labels_res = (
                 await session.run(
                     f"MATCH (n:{NODE_LABEL}) "
@@ -608,6 +596,7 @@ def entity_stats() -> dict:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description="Resolve duplicate entities in LightRAG Neo4j graph",
@@ -623,20 +612,22 @@ def _build_parser() -> argparse.ArgumentParser:
     dry = sub.add_parser("dry-run", help="Print planned merges without writing")
     dry.add_argument("--no-confirm", action="store_true", help="Skip LLM confirmation")
     dry.add_argument(
-        "--threshold", type=float, default=0.85,
+        "--threshold",
+        type=float,
+        default=0.85,
         help="Override the default cosine threshold for this run",
     )
 
     apply = sub.add_parser("apply", help="Confirm with LLM and merge aliases")
+    apply.add_argument("--no-confirm", action="store_true", help="Skip LLM confirmation")
     apply.add_argument(
-        "--no-confirm", action="store_true", help="Skip LLM confirmation"
-    )
-    apply.add_argument(
-        "--threshold", type=float, default=0.85,
+        "--threshold",
+        type=float,
+        default=0.85,
         help="Override the default cosine threshold for this run",
     )
 
-    stats = sub.add_parser("stats", help="Print entity graph statistics")
+    sub.add_parser("stats", help="Print entity graph statistics")
 
     return p
 
@@ -652,10 +643,10 @@ def main(argv: list[str] | None = None) -> None:
     try:
         if args.command == "stats":
             stats = entity_stats()
-            print(f"\nEntity graph stats:")
+            print("\nEntity graph stats:")
             print(f"  Total nodes  : {stats['total_nodes']}")
             print(f"  Total edges  : {stats['total_edges']}")
-            print(f"  By entity type:")
+            print("  By entity type:")
             for t, c in sorted(stats["by_type"].items(), key=lambda x: -x[1]):
                 print(f"    {t or '(none)'}: {c}")
             return

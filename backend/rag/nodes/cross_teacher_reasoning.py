@@ -3,13 +3,15 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+
 from cachetools import TTLCache
 from neo4j import GraphDatabase
-from rag.states import GraphState
+
 from app.config import settings
 from app.tracing import trace_rag_node
 from domain.spiritual_ontology import resolve_teacher_domain
 from rag.nodes.retrieval import _screen_prompt_injection
+from rag.states import GraphState
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,7 @@ def _get_driver():
     if _driver is None:
         try:
             from app import dependencies as app_dependencies
+
             container = getattr(app_dependencies, "_container", None)
             shared_driver = container.neo4j_driver if container is not None else None
             if shared_driver is not None:
@@ -113,7 +116,7 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
     teachers = []
     question_lower = question.lower()
     import re
-    
+
     has_sadhguru = bool(re.search(r"\bsadhguru\b", question_lower))
     has_preethaji = bool(re.search(r"\bpreethaji\b", question_lower))
     has_ekam = bool(re.search(r"\bekam\b", question_lower))
@@ -138,7 +141,9 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
     # Dedup and check if there are multiple teachers
     teachers = list(dict.fromkeys(teachers))
     if len(teachers) < 2:
-        logger.debug(f"cross_teacher_reasoning: Comparison not needed (detected teachers: {teachers})")
+        logger.debug(
+            f"cross_teacher_reasoning: Comparison not needed (detected teachers: {teachers})"
+        )
         return {}
 
     logger.info(f"cross_teacher_reasoning: Comparison detected between: {teachers}")
@@ -163,7 +168,7 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
             return {
                 "relevant_docs": docs_to_inject + current_docs,
                 "is_cross_teacher": True,
-                "compared_teachers": teachers
+                "compared_teachers": teachers,
             }
         return {}
 
@@ -175,6 +180,7 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
     external_relationships: list[str] = []
     if settings.neo4j_uri:
         try:
+
             def _query_paths(tx):
                 # Find concepts that both teachers expound
                 cypher = """
@@ -204,7 +210,9 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
                 else:
                     external_relationships.append(text)
         except Exception as e:
-            logger.warning(f"cross_teacher_reasoning: Failed to query Neo4j for cross-teacher paths: {e}")
+            logger.warning(
+                f"cross_teacher_reasoning: Failed to query Neo4j for cross-teacher paths: {e}"
+            )
 
     # If we found ontology connections, construct comparison context and add to documents
     if licensed_relationships or external_relationships:
@@ -223,11 +231,13 @@ async def cross_teacher_reasoning(state: GraphState, config: dict = None) -> dic
 
         if docs_to_inject:
             current_docs = state.get("relevant_docs") or []
-            logger.info("cross_teacher_reasoning: Prepending ontology mapping to relevant_docs context.")
+            logger.info(
+                "cross_teacher_reasoning: Prepending ontology mapping to relevant_docs context."
+            )
             return {
                 "relevant_docs": docs_to_inject + current_docs,
                 "is_cross_teacher": True,
-                "compared_teachers": teachers
+                "compared_teachers": teachers,
             }
         return {}
 

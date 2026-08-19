@@ -12,6 +12,7 @@ from __future__ import annotations
 from app.pipeline.stages.base import Stage
 from app.pipeline.stages.cache_stage import CacheCheckStage, CacheUpdateStage
 from app.pipeline.stages.distress_stage import DistressStage
+from app.pipeline.stages.doctrine_cache_stage import DoctrineCacheStage
 from app.pipeline.stages.glue_stages import (
     CasualShortCircuitStage,
     RequestStateStage,
@@ -24,7 +25,6 @@ from app.pipeline.stages.guardrail_stage import (
     InputGuardrailStage,
     OutputGuardrailStage,
 )
-from app.pipeline.stages.doctrine_cache_stage import DoctrineCacheStage
 from app.pipeline.stages.meditation_gen_stage import MeditationGenStage
 from app.pipeline.stages.memory_stage import MemoryStage
 from app.pipeline.stages.tone_adapter_stage import ToneAdapterStage

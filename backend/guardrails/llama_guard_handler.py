@@ -86,7 +86,13 @@ class LlamaGuardHandler(BaseGuardrailHandler):
             # by the ingestion or answer paths. Deployment approval recorded
             # in AGENTS.md; do not bump to a repo head.
             revision = _LLAMA_GUARD_REVISION
-            device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+            device = (
+                "cuda"
+                if torch.cuda.is_available()
+                else "mps"
+                if torch.backends.mps.is_available()
+                else "cpu"
+            )
 
             logger.info("Loading Llama Guard 3 1B on %s (this may take a moment)...", device)
             self._tokenizer = AutoTokenizer.from_pretrained(model_id, revision=revision)
@@ -99,12 +105,15 @@ class LlamaGuardHandler(BaseGuardrailHandler):
             self._available = True
             logger.info("Llama Guard 3 1B loaded successfully on %s", device)
         except ImportError as e:
-            logger.warning("transformers/torch not available: %s. Llama Guard will pass through.", e)
+            logger.warning(
+                "transformers/torch not available: %s. Llama Guard will pass through.", e
+            )
         except OSError as e:
             logger.warning(
                 "Cannot load Llama Guard model (gated or not found): %s. "
                 "Ensure you have accepted the license at hf.co/meta-llama/Llama-Guard-3-1B "
-                "and logged in via `huggingface-cli login`. Falling back to pass-through.", e
+                "and logged in via `huggingface-cli login`. Falling back to pass-through.",
+                e,
             )
         except Exception as e:
             logger.warning("Llama Guard model failed to load: %s. Falling back to pass-through.", e)
@@ -127,8 +136,10 @@ class LlamaGuardHandler(BaseGuardrailHandler):
                 top_p=None,
             )
 
-        response = self._tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True).strip()
-        lines = [l.strip() for l in response.split("\n") if l.strip()]
+        response = self._tokenizer.decode(
+            outputs[0][inputs.input_ids.shape[1] :], skip_special_tokens=True
+        ).strip()
+        lines = [line.strip() for line in response.split("\n") if line.strip()]
 
         if not lines:
             return False, []
@@ -169,13 +180,18 @@ class LlamaGuardHandler(BaseGuardrailHandler):
             topic = self._map_to_topic(categories)
             logger.info("Llama Guard blocked input: topic=%s categories=%s", topic, categories)
 
-            from guardrails.lightweight_handler import _resolve_block_response, _SERENE_MIND_REDIRECT_TOPICS
+            from guardrails.lightweight_handler import (
+                _SERENE_MIND_REDIRECT_TOPICS,
+                _resolve_block_response,
+            )
 
             redirect = "serene_mind" if topic in _SERENE_MIND_REDIRECT_TOPICS else None
             return {
                 "blocked": True,
                 "reason": f"Llama Guard: {topic}",
-                "response": _resolve_block_response(topic, "This topic is outside my boundaries of spiritual guidance. 🙏"),
+                "response": _resolve_block_response(
+                    topic, "This topic is outside my boundaries of spiritual guidance. 🙏"
+                ),
                 "redirect_to": redirect,
             }
         except Exception as e:

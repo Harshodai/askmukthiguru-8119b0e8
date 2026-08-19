@@ -75,11 +75,15 @@ class SelfCorrectionNode(NodeCommand):
             try:
                 result = self._wrapped.execute(state)
                 if attempt > 1:
-                    logger.info(f"[SelfCorrection] {self._wrapped.name} succeeded on attempt {attempt}")
+                    logger.info(
+                        f"[SelfCorrection] {self._wrapped.name} succeeded on attempt {attempt}"
+                    )
                 return result
             except Exception as exc:
                 last_error = exc
-                logger.warning(f"[SelfCorrection] {self._wrapped.name} attempt {attempt} failed: {exc}")
+                logger.warning(
+                    f"[SelfCorrection] {self._wrapped.name} attempt {attempt} failed: {exc}"
+                )
                 state.setdefault("__correction_context__", []).append(str(exc))
 
         raise last_error

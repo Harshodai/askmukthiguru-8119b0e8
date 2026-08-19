@@ -3,10 +3,11 @@ Unit tests for Guru Brain persona & tone alignment service.
 """
 
 import pytest
-from services.guru_brain.guru_brain_service import GuruBrainService, get_guru_brain_service
-from services.guru_brain.guru_kg_service import GuruKGService
-from services.guru_brain.tone_extractor import PersonaToneExemplar, SpeakerRole, ToneExtractor
+
 from rag.nodes.guru_tone_adapter import GuruToneAdapterNode
+from services.guru_brain.guru_brain_service import GuruBrainService
+from services.guru_brain.guru_kg_service import GuruKGService
+from services.guru_brain.tone_extractor import PersonaToneExemplar, ToneExtractor
 
 
 class _FakeSession:
@@ -64,7 +65,9 @@ def test_populate_ontology_arc_timestamps_each_merge_independently():
     # ON CREATE SET clauses, each setting exactly one variable's property —
     # the bug was a single shared ON CREATE SET setting all of them at once,
     # gated only by whichever MERGE it happened to trail.
-    on_create_lines = [l.strip() for l in cypher.strip().splitlines() if "ON CREATE SET" in l]
+    on_create_lines = [
+        line.strip() for line in cypher.strip().splitlines() if "ON CREATE SET" in line
+    ]
     assert len(on_create_lines) == 10
     for line in on_create_lines:
         assert line.count("=") == 1, f"expected exactly one assignment, got: {line}"
@@ -126,6 +129,3 @@ async def test_guru_tone_adapter_node():
     )
     final_ans = res.get("final_answer") if isinstance(res, dict) else res
     assert final_ans == draft
-
-
-

@@ -39,7 +39,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -55,7 +55,7 @@ _MAX_RESPONSE_PREVIEW = 500
 
 def _get_audit_path(base_dir: Path = _DEFAULT_AUDIT_DIR) -> Path:
     """Return today's NDJSON audit log file path."""
-    today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+    today = datetime.now(tz=UTC).strftime("%Y-%m-%d")
     return base_dir / f"{_AUDIT_FILE_PREFIX}_{today}.jsonl"
 
 
@@ -67,6 +67,7 @@ def _hash_prompt(text: str) -> str:
 # -----------------------------------------------------------------------
 # ComplianceLogger
 # -----------------------------------------------------------------------
+
 
 class ComplianceLogger:
     """GDPR-compliant audit logger for all LLM interactions.
@@ -92,8 +93,7 @@ class ComplianceLogger:
         except OSError as exc:
             # In sandboxed / read-only environments, fall back to local dir
             logger.warning(
-                f"ComplianceLogger: cannot create {self._audit_dir}: {exc}. "
-                f"Falling back to ./logs/"
+                f"ComplianceLogger: cannot create {self._audit_dir}: {exc}. Falling back to ./logs/"
             )
             self._audit_dir = Path("logs")
             self._audit_dir.mkdir(parents=True, exist_ok=True)
@@ -140,7 +140,7 @@ class ComplianceLogger:
         """Log a single completed LLM interaction."""
         combined_prompt = system_prompt + "\n" + user_prompt
         record = {
-            "ts": datetime.now(tz=timezone.utc).isoformat(),
+            "ts": datetime.now(tz=UTC).isoformat(),
             "tenant_id": tenant_id,
             "user_id": user_id,
             "session_id": session_id,

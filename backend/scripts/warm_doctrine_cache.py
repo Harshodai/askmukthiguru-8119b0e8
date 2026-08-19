@@ -37,9 +37,7 @@ DOCTRINE_CATEGORIES = [
 
 for category in DOCTRINE_CATEGORIES:
     if category in QUERIES:
-        DOCTRINE_QUERIES.extend(
-            [q["q"] for q in QUERIES[category] if "q" in q]
-        )
+        DOCTRINE_QUERIES.extend([q["q"] for q in QUERIES[category] if "q" in q])
 
 # Add common spiritual queries to reach 200
 COMMON_QUERIES = [
@@ -192,7 +190,9 @@ async def warm_cache():
                     print(f"  [{i}/{len(DOCTRINE_QUERIES)}] Warmed: {query[:60]}...")
                 else:
                     failed += 1
-                    print(f"  [{i}/{len(DOCTRINE_QUERIES)}] Failed ({response.status_code}): {query[:60]}...")
+                    print(
+                        f"  [{i}/{len(DOCTRINE_QUERIES)}] Failed ({response.status_code}): {query[:60]}..."
+                    )
             except Exception as e:
                 failed += 1
                 print(f"  [{i}/{len(DOCTRINE_QUERIES)}] Error: {query[:60]}... — {e}")

@@ -94,7 +94,7 @@ class GeminiTranslationProvider(TranslationProvider):
                 # Flatten into individual numbers
                 all_nums = []
                 for group in original_markers:
-                    nums = [n.strip() for n in group.split(',')]
+                    nums = [n.strip() for n in group.split(",")]
                     all_nums.extend(nums)
                 # Check for each number if it appears as [N] or within [N,M,...] in translated
                 missing = []

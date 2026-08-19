@@ -1,4 +1,5 @@
 import pytest
+
 from services.kg_analytics import enrich_graph, export_d3blocks_html
 
 
@@ -25,7 +26,12 @@ def test_enrich_graph_adds_analytics_fields(sample_graph):
     a = next(n for n in result["nodes"] if n["id"] == "concept:B")
     assert "analytics" in a
     assert set(a["analytics"].keys()) == {
-        "pagerank", "betweenness", "closeness", "degree", "hits_hub", "hits_authority"
+        "pagerank",
+        "betweenness",
+        "closeness",
+        "degree",
+        "hits_hub",
+        "hits_authority",
     }
     assert "community" in a
     assert isinstance(a["community"], int)
@@ -45,7 +51,9 @@ def test_enrich_graph_empty_graph():
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(pytest.main([__file__]))
+
 
 def test_export_d3blocks_html_smoke(sample_graph):
     pytest.importorskip("d3blocks")

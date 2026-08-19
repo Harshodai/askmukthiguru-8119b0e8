@@ -37,6 +37,7 @@ def _aiter_chunks(chunks):
     async def _gen():
         for c in chunks:
             yield c
+
     return _gen()
 
 
@@ -92,4 +93,3 @@ async def test_budget_truncation_preserves_rerank_order(mock_services, monkeypat
     assert titles[0] == "Zeta", f"rerank order not preserved; first surviving doc was {titles[0]}"
     assert "Mid" not in titles, "lowest-rerank doc should have been truncated; budget too large"
     assert titles == ["Zeta", "Alpha"], f"surviving docs not in rerank order: {titles}"
-

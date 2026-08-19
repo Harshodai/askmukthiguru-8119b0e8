@@ -2,9 +2,6 @@
 
 import logging
 import re
-from unittest.mock import patch
-
-import pytest
 
 from app.config import settings
 
@@ -14,6 +11,7 @@ def _reload_cors_state(monkeypatch, origins, is_production):
     monkeypatch.setattr(settings, "cors_origins", origins)
     monkeypatch.setattr(settings, "is_production", is_production)
     import importlib
+
     import app.main as main_module
 
     importlib.reload(main_module)

@@ -40,9 +40,10 @@ import json
 import re
 import sys
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 _BACKEND = Path(__file__).resolve().parents[2]
 if str(_BACKEND) not in sys.path:
@@ -139,18 +140,20 @@ def audit(base_url: str, collection: str, cap: int | None = None) -> dict[str, A
     sources = []
     for src, (bad, tot) in per_source.items():
         pct = bad / tot if tot else 0.0
-        sources.append({
-            "source_url": src,
-            "total": tot,
-            "poisoned": bad,
-            "pct": round(pct, 4),
-            "bucket": _bucket(pct),
-            "samples": samples.get(src, []),
-        })
+        sources.append(
+            {
+                "source_url": src,
+                "total": tot,
+                "poisoned": bad,
+                "pct": round(pct, 4),
+                "bucket": _bucket(pct),
+                "samples": samples.get(src, []),
+            }
+        )
     sources.sort(key=lambda s: (-s["poisoned"], -s["pct"]))
 
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "collection": collection,
         "scanned": total,
         "contaminated": contaminated,
@@ -183,8 +186,9 @@ def _print_report(report: dict[str, Any], top: int = 20) -> None:
     if report.get("by_tier"):
         print(f"\nby chunk tier (proposition = body < {PROPOSITION_MAX_CHARS} chars):")
         for tier, stats in report["by_tier"].items():
-            print(f"  {stats['poisoned']:7,}/{stats['total']:<8,} "
-                  f"{100 * stats['rate']:5.1f}%  {tier}")
+            print(
+                f"  {stats['poisoned']:7,}/{stats['total']:<8,} {100 * stats['rate']:5.1f}%  {tier}"
+            )
 
     print("\nsource buckets (re-ingest priority):")
     for bucket in ("total_loss", "partial", "trace", "clean"):
@@ -194,25 +198,32 @@ def _print_report(report: dict[str, Any], top: int = 20) -> None:
     if worst:
         print(f"\ntop {len(worst)} re-ingest targets:")
         for s in worst:
-            print(f"  {s['poisoned']:5}/{s['total']:<6} {100*s['pct']:3.0f}%  "
-                  f"[{s['bucket']:10}] {s['source_url'][:64]}")
+            print(
+                f"  {s['poisoned']:5}/{s['total']:<6} {100 * s['pct']:3.0f}%  "
+                f"[{s['bucket']:10}] {s['source_url'][:64]}"
+            )
     if not bad:
         print("\nno contamination detected.")
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Corpus contamination audit (read-only).")
-    parser.add_argument("--collection", default=None,
-                        help="Qdrant collection (default: settings.qdrant_collection)")
-    parser.add_argument("--url", default=None,
-                        help="Qdrant base URL (default: settings.qdrant_url)")
+    parser.add_argument(
+        "--collection", default=None, help="Qdrant collection (default: settings.qdrant_collection)"
+    )
+    parser.add_argument(
+        "--url", default=None, help="Qdrant base URL (default: settings.qdrant_url)"
+    )
     parser.add_argument("--mode", choices=("audit", "ci"), default="audit")
-    parser.add_argument("--sample", type=int, default=None,
-                        help="stop after N chunks (ci mode defaults to 5000)")
-    parser.add_argument("--max-rate", type=float, default=0.01,
-                        help="ci mode: fail above this contamination rate")
-    parser.add_argument("--json", dest="json_out", default=None,
-                        help="write the full report to this path")
+    parser.add_argument(
+        "--sample", type=int, default=None, help="stop after N chunks (ci mode defaults to 5000)"
+    )
+    parser.add_argument(
+        "--max-rate", type=float, default=0.01, help="ci mode: fail above this contamination rate"
+    )
+    parser.add_argument(
+        "--json", dest="json_out", default=None, help="write the full report to this path"
+    )
     parser.add_argument("--top", type=int, default=20)
     args = parser.parse_args(argv)
 
@@ -220,11 +231,11 @@ def main(argv: list[str] | None = None) -> int:
     if not collection or not url:
         try:
             from app.config import settings
+
             collection = collection or settings.qdrant_collection
             url = url or settings.qdrant_url
         except Exception as exc:  # pragma: no cover - config optional for CLI use
-            print(f"could not load settings ({exc}); pass --collection and --url",
-                  file=sys.stderr)
+            print(f"could not load settings ({exc}); pass --collection and --url", file=sys.stderr)
             return 2
 
     cap = args.sample or (5000 if args.mode == "ci" else None)
@@ -244,11 +255,16 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.mode == "ci":
         if report["rate"] > args.max_rate:
-            print(f"\nFAIL: contamination {100*report['rate']:.2f}% exceeds max "
-                  f"{100*args.max_rate:.2f}%", file=sys.stderr)
+            print(
+                f"\nFAIL: contamination {100 * report['rate']:.2f}% exceeds max "
+                f"{100 * args.max_rate:.2f}%",
+                file=sys.stderr,
+            )
             return 1
-        print(f"\nPASS: contamination {100*report['rate']:.2f}% within max "
-              f"{100*args.max_rate:.2f}%")
+        print(
+            f"\nPASS: contamination {100 * report['rate']:.2f}% within max "
+            f"{100 * args.max_rate:.2f}%"
+        )
     return 0
 
 

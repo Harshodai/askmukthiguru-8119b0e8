@@ -10,6 +10,7 @@ bridge dependency (FastAPI's idiomatic seam for route tests); the X-Test-Key /
 X-Test-Aal benchmark backdoor itself is covered at the strategy level with a
 scoped Request, mirroring test_test_auth_strategy.py.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -84,7 +85,9 @@ class TestRequireAal2Dependency:
 class TestTestAuthStrategyAal:
     """Unit tests for the X-Test-Aal header on the benchmark backdoor."""
 
-    @pytest.mark.skipif(_NO_BACKDOOR, reason="BENCHMARK_SECRET not set - test auth backdoor unavailable")
+    @pytest.mark.skipif(
+        _NO_BACKDOOR, reason="BENCHMARK_SECRET not set - test auth backdoor unavailable"
+    )
     @pytest.mark.asyncio
     async def test_authenticate_defaults_to_aal1(self):
         """X-Test-Key without X-Test-Aal -> aal1 identity."""
@@ -93,7 +96,9 @@ class TestTestAuthStrategyAal:
         assert user is not None
         assert user["aal"] == "aal1"
 
-    @pytest.mark.skipif(_NO_BACKDOOR, reason="BENCHMARK_SECRET not set - test auth backdoor unavailable")
+    @pytest.mark.skipif(
+        _NO_BACKDOOR, reason="BENCHMARK_SECRET not set - test auth backdoor unavailable"
+    )
     @pytest.mark.asyncio
     async def test_authenticate_accepts_aal2(self):
         """X-Test-Aal: aal2 -> aal2 identity."""
@@ -104,7 +109,9 @@ class TestTestAuthStrategyAal:
         assert user is not None
         assert user["aal"] == "aal2"
 
-    @pytest.mark.skipif(_NO_BACKDOOR, reason="BENCHMARK_SECRET not set - test auth backdoor unavailable")
+    @pytest.mark.skipif(
+        _NO_BACKDOOR, reason="BENCHMARK_SECRET not set - test auth backdoor unavailable"
+    )
     @pytest.mark.asyncio
     async def test_authenticate_ignores_invalid_aal(self):
         """Unsupported X-Test-Aal values fall back to aal1."""
@@ -122,11 +129,13 @@ class TestHealthMfaRoute:
     def _override_user(self, user: dict | None):
         """Override the auth bridge dependency for the duration of a request."""
         if user is None:
+
             async def no_user():
                 raise HTTPException(status_code=401, detail="Authentication required")
 
             app.dependency_overrides[get_current_user_from_supabase] = no_user
         else:
+
             async def fixed_user():
                 return user
 

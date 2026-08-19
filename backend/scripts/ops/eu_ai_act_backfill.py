@@ -19,7 +19,7 @@ import logging
 import os
 import sys
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 # Add backend directory to sys.path
 backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -41,7 +41,7 @@ logger = logging.getLogger("eu_ai_act_backfill")
 # ---------------------------------------------------------------------------
 
 
-def classify_qdrant_point_payload(payload: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+def classify_qdrant_point_payload(payload: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     """Determine whether a Qdrant point is primary human source or AI-generated.
 
     Returns:
@@ -68,7 +68,7 @@ def classify_qdrant_point_payload(payload: Dict[str, Any]) -> Tuple[str, Dict[st
         # Primary human source discourse (transcripts, books, talks, youtube discourses)
         origin = OriginType.HUMAN_GENERATED.value
 
-    timestamp = _dt.datetime.now(_dt.timezone.utc).isoformat()
+    timestamp = _dt.datetime.now(_dt.UTC).isoformat()
     update_payload = {
         "origin_type": origin,
         "provenance_schema_version": "1.0",
@@ -89,7 +89,7 @@ def backfill_qdrant(
     limit: Optional[int] = None,
     qdrant_url: Optional[str] = None,
     qdrant_api_key: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Scroll Qdrant collection and backfill EU AI Act provenance tags."""
     logger.info(
         "Starting Qdrant backfill [collection=%s, batch_size=%d, dry_run=%s, limit=%s]",
@@ -162,7 +162,7 @@ def backfill_qdrant(
 
             scanned += 1
 
-        timestamp = _dt.datetime.now(_dt.timezone.utc).isoformat()
+        timestamp = _dt.datetime.now(_dt.UTC).isoformat()
 
         if not dry_run:
             try:
@@ -223,15 +223,21 @@ def backfill_qdrant(
 # ---------------------------------------------------------------------------
 
 
-def backfill_database(dry_run: bool = True) -> Dict[str, Any]:
+def backfill_database(dry_run: bool = True) -> dict[str, Any]:
     """Backfill origin classifications on Postgres chat_messages & user_brain_nodes."""
     logger.info("Starting Postgres / Supabase database backfill [dry_run=%s]", dry_run)
 
     supabase_url = os.getenv("SUPABASE_URL") or getattr(settings, "supabase_url", None)
-    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or getattr(settings, "supabase_service_role_key", None) or os.getenv("SUPABASE_KEY")
+    supabase_key = (
+        os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        or getattr(settings, "supabase_service_role_key", None)
+        or os.getenv("SUPABASE_KEY")
+    )
 
     if not supabase_url or not supabase_key:
-        logger.warning("Supabase credentials not configured in environment. Simulating database backfill.")
+        logger.warning(
+            "Supabase credentials not configured in environment. Simulating database backfill."
+        )
         return {
             "status": "simulated",
             "dry_run": dry_run,
@@ -241,12 +247,13 @@ def backfill_database(dry_run: bool = True) -> Dict[str, Any]:
 
     try:
         from supabase import create_client
+
         supabase = create_client(supabase_url, supabase_key)
     except Exception as exc:
         logger.error("Failed to initialize Supabase client: %s", exc)
         return {"status": "error", "error": str(exc)}
 
-    timestamp = _dt.datetime.now(_dt.timezone.utc).isoformat()
+    timestamp = _dt.datetime.now(_dt.UTC).isoformat()
     chat_updated = 0
     brain_updated = 0
 
@@ -255,11 +262,13 @@ def backfill_database(dry_run: bool = True) -> Dict[str, Any]:
             # Tag user messages as human_generated
             res_user = (
                 supabase.table("chat_messages")
-                .update({
-                    "origin_type": OriginType.HUMAN_GENERATED.value,
-                    "provenance_schema_version": "1.0",
-                    "compliance_tagged_at": timestamp,
-                })
+                .update(
+                    {
+                        "origin_type": OriginType.HUMAN_GENERATED.value,
+                        "provenance_schema_version": "1.0",
+                        "compliance_tagged_at": timestamp,
+                    }
+                )
                 .eq("role", "user")
                 .execute()
             )
@@ -268,11 +277,13 @@ def backfill_database(dry_run: bool = True) -> Dict[str, Any]:
             # Tag assistant messages as ai_generated
             res_asst = (
                 supabase.table("chat_messages")
-                .update({
-                    "origin_type": OriginType.AI_GENERATED.value,
-                    "provenance_schema_version": "1.0",
-                    "compliance_tagged_at": timestamp,
-                })
+                .update(
+                    {
+                        "origin_type": OriginType.AI_GENERATED.value,
+                        "provenance_schema_version": "1.0",
+                        "compliance_tagged_at": timestamp,
+                    }
+                )
                 .eq("role", "assistant")
                 .execute()
             )
@@ -281,11 +292,13 @@ def backfill_database(dry_run: bool = True) -> Dict[str, Any]:
             # Tag user_brain_nodes as human_generated
             res_brain = (
                 supabase.table("user_brain_nodes")
-                .update({
-                    "origin_type": OriginType.HUMAN_GENERATED.value,
-                    "provenance_schema_version": "1.0",
-                    "compliance_tagged_at": timestamp,
-                })
+                .update(
+                    {
+                        "origin_type": OriginType.HUMAN_GENERATED.value,
+                        "provenance_schema_version": "1.0",
+                        "compliance_tagged_at": timestamp,
+                    }
+                )
                 .is_("origin_type", "null")
                 .execute()
             )
@@ -295,7 +308,9 @@ def backfill_database(dry_run: bool = True) -> Dict[str, Any]:
             logger.error("Error executing database update queries: %s", exc)
             return {"status": "error", "error": str(exc)}
     else:
-        logger.info("[Dry Run] Would update chat_messages and user_brain_nodes with provenance tags.")
+        logger.info(
+            "[Dry Run] Would update chat_messages and user_brain_nodes with provenance tags."
+        )
 
     logger.info(
         "Database backfill completed: chat_messages=%d, user_brain_nodes=%d (dry_run=%s)",
@@ -317,7 +332,7 @@ def backfill_database(dry_run: bool = True) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def backfill_neo4j(dry_run: bool = True) -> Dict[str, Any]:
+def backfill_neo4j(dry_run: bool = True) -> dict[str, Any]:
     """Tag Neo4j graph nodes with :HumanAuthored vs :AiSynthesized labels."""
     logger.info("Starting Neo4j Knowledge Graph backfill [dry_run=%s]", dry_run)
 
@@ -331,7 +346,7 @@ def backfill_neo4j(dry_run: bool = True) -> Dict[str, Any]:
         logger.warning("neo4j driver not installed. Skipping Neo4j backfill.")
         return {"status": "skipped", "reason": "neo4j library missing"}
 
-    timestamp = _dt.datetime.now(_dt.timezone.utc).isoformat()
+    timestamp = _dt.datetime.now(_dt.UTC).isoformat()
     ai_labeled = 0
     human_labeled = 0
 
@@ -448,7 +463,7 @@ def main() -> int:
         args.batch_size,
     )
 
-    results: Dict[str, Any] = {}
+    results: dict[str, Any] = {}
 
     if args.scope in ("qdrant", "all"):
         results["qdrant"] = backfill_qdrant(

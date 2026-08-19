@@ -46,8 +46,11 @@ jobs:
         env:
           CI: "true"
           BASE_URL: ${{ github.event.inputs.base_url }}
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          # Public placeholders unblock the local production build on forks and
+          # repos without credentials. E2E suites use fake browser sessions for
+          # their auth wiring checks; real provider/staging tests remain separate.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://mock-supabase.supabase.co' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'mock-anon-key-for-ci-build' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TEST_USER_EMAIL: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY && format('preflight+{0}@example.com', github.run_id) || '' }}

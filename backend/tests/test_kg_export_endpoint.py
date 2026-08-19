@@ -4,14 +4,14 @@ Note: TestClient(app) triggers the app lifespan which requires Qdrant. These
 tests are skipped when Qdrant is not reachable (host dev without Docker).
 """
 
-import sys
 import socket
+import sys
 
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
-from app.config import settings
 
+from app.config import settings
+from app.main import app
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__]))
@@ -20,7 +20,11 @@ if __name__ == "__main__":
 def _qdrant_available() -> bool:
     try:
         host = settings.qdrant_url.split("//")[-1].split(":")[0]
-        port = int(settings.qdrant_url.split(":")[-1].rstrip("/")) if ":" in settings.qdrant_url.split("//")[-1] else 6333
+        port = (
+            int(settings.qdrant_url.split(":")[-1].rstrip("/"))
+            if ":" in settings.qdrant_url.split("//")[-1]
+            else 6333
+        )
         socket.create_connection((host, port), timeout=1).close()
         return True
     except Exception:
@@ -45,7 +49,9 @@ def client(monkeypatch):
 def test_export_disabled_by_default(client):
     # kg_export_enabled is explicitly False (forced by fixture, not env-default).
     # The 501 check fires before auth or any service call.
-    response = client.post("/api/memory/knowledge-graph/export", json={"view": "ontology", "title": "Test"})
+    response = client.post(
+        "/api/memory/knowledge-graph/export", json={"view": "ontology", "title": "Test"}
+    )
     assert response.status_code == 501
 
 

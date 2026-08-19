@@ -15,6 +15,7 @@ The module is deliberately thin: every value comes from ``settings`` so the
 gate can be tuned without code changes, and every helper has a runnable
 self-check.
 """
+
 from __future__ import annotations
 
 import logging
@@ -78,7 +79,9 @@ def is_low_confidence_segment(segment: dict[str, Any]) -> bool:
     return False
 
 
-def filter_low_confidence_segments(segments: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
+def filter_low_confidence_segments(
+    segments: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
     """Drop low-confidence segments. Returns (kept, dropped_count)."""
     kept: list[dict[str, Any]] = []
     dropped = 0
@@ -107,7 +110,7 @@ def reject_transcript(text: str) -> Optional[str]:
 
 
 if __name__ == "__main__":  # runnable self-check
-    from services.text_quality_filter import _LOOP_NGRAM, _LOOP_MIN_REPEATS
+    from services.text_quality_filter import _LOOP_MIN_REPEATS, _LOOP_NGRAM
 
     assert _LOOP_NGRAM == 5 and _LOOP_MIN_REPEATS == 4, "loop detector contract changed"
 

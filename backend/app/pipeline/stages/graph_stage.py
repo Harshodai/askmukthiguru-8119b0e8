@@ -16,16 +16,16 @@ import time
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from langgraph.errors import GraphRecursionError
+
 from app.assistant_registry import resolve_assistant_scope
 from app.config import settings
 from app.context import correlation_id_var
 from app.orchestrator_utils import get_expected_keywords, select_graph_for_query
-from langgraph.errors import GraphRecursionError
+from app.pipeline.result import PipelineResult  # noqa: F401  (re-export hint)
+from app.pipeline.stages.base import Stage
 from rag.graph import create_initial_state
 from rag.timeout_utils import TimeoutBudget, budget_var
-
-from app.pipeline.stages.base import Stage
-from app.pipeline.result import PipelineResult  # noqa: F401  (re-export hint)
 
 if TYPE_CHECKING:
     from app.pipeline.stages.context import PipelineContext
@@ -96,7 +96,7 @@ class GraphStage(Stage):
 
     name = "langgraph"
 
-    async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         # ponytail: body of _run_graph verbatim (self -> ctx.coordinator / ctx.container)
         user_msg_en = ctx.state["user_msg_en"]
         chat_history_en = ctx.state["chat_history_en"]
@@ -120,19 +120,27 @@ class GraphStage(Stage):
             # scope retrieval and stay. Drop this gate once a server-side slug
             # allowlist exists.
             _user = ctx.user or {}
-            _is_authed = bool(_user.get("id")) and _user.get("id") != "anonymous" \
-                and not str(_user.get("id")).startswith("anon:") and not _user.get("is_anonymous")
+            _is_authed = (
+                bool(_user.get("id"))
+                and _user.get("id") != "anonymous"
+                and not str(_user.get("id")).startswith("anon:")
+                and not _user.get("is_anonymous")
+            )
             requested_slug = getattr(assistant, "slug", None)
             scope = resolve_assistant_scope(requested_slug)
             if scope is None:
-                logger.warning("Rejecting assistant without a server-resolved corpus scope: %r", requested_slug)
+                logger.warning(
+                    "Rejecting assistant without a server-resolved corpus scope: %r", requested_slug
+                )
                 requested_slug = None
                 scope = resolve_assistant_scope(None)
                 if assistant is not None:
                     assistant.system_prompt = None
             _persona = getattr(assistant, "system_prompt", None) if _is_authed else None
             if getattr(assistant, "system_prompt", None) and not _is_authed:
-                logger.warning("Dropping client-supplied assistant.system_prompt for unauthenticated request (M3).")
+                logger.warning(
+                    "Dropping client-supplied assistant.system_prompt for unauthenticated request (M3)."
+                )
             initial_state = create_initial_state(
                 question=user_msg_en,
                 chat_history=chat_history_en,
@@ -144,7 +152,9 @@ class GraphStage(Stage):
             )
             initial_state["corpus_id"] = scope.corpus_id
             initial_state["teacher_id"] = scope.teacher_id
-            initial_state["detected_language"] = lang_detection.primary.value if lang_detection else "en"
+            initial_state["detected_language"] = (
+                lang_detection.primary.value if lang_detection else "en"
+            )
             initial_state["memory_context"] = memory_context
             # Attachment evidence is a per-turn input, separate from personal memory.
             # The generation layer labels it as untrusted material and never persists it.
@@ -164,6 +174,7 @@ class GraphStage(Stage):
 
             # Pre-classify intent before graph selection for fast-path routing
             from rag.nodes.on_device_intent import classify_with_reason
+
             on_device_result = await asyncio.to_thread(classify_with_reason, user_msg_en)
             detected_intent = on_device_result[0] if on_device_result else None
             if detected_intent:
@@ -171,7 +182,11 @@ class GraphStage(Stage):
                 # Pre-fill query_tier from on-device classifier
                 # Uses is None check because create_initial_state always sets query_tier=None.
                 if initial_state.get("query_tier") is None:
-                    initial_state["query_tier"] = "tier2_simple" if detected_intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION") else "tier3_complex"
+                    initial_state["query_tier"] = (
+                        "tier2_simple"
+                        if detected_intent in ("CASUAL", "FACTUAL", "DISTRESS", "MEDITATION")
+                        else "tier3_complex"
+                    )
 
             # Kill #7: reuse query tier already determined by CacheCheckStage to avoid
             # a redundant select_graph_for_query call. Falls back to calling it only
@@ -192,7 +207,11 @@ class GraphStage(Stage):
                 if ctx.detected_query_tier == "deep":
                     graph_variant = "deep"
                 else:
-                    graph_variant = ctx.detected_query_tier if tier_for_graph not in ("fast", "tier2_simple") else "fast"
+                    graph_variant = (
+                        ctx.detected_query_tier
+                        if tier_for_graph not in ("fast", "tier2_simple")
+                        else "fast"
+                    )
             else:
                 graph_variant = await select_graph_for_query(
                     user_msg_en,
@@ -209,7 +228,10 @@ class GraphStage(Stage):
             # Only set query_tier if on-device didn't already set it
             if "query_tier" not in initial_state or initial_state.get("query_tier") is None:
                 initial_state["query_tier"] = graph_variant
-            elif graph_variant != "fast" and initial_state["query_tier"] in ("fast", "tier2_simple"):
+            elif graph_variant != "fast" and initial_state["query_tier"] in (
+                "fast",
+                "tier2_simple",
+            ):
                 # Divergence guard: graph_variant is the tier CacheCheckStage's
                 # intent-blind classifier actually resolved (it catches deep
                 # patterns like "difference between" that the on-device
@@ -224,20 +246,27 @@ class GraphStage(Stage):
                 # see "tier4_deep", not the "standard" that was previously
                 # used for both -- that silently downgraded deep queries out
                 # of their own tier's extra verification pass.
-                initial_state["query_tier"] = "tier4_deep" if graph_variant == "deep" else "standard"
+                initial_state["query_tier"] = (
+                    "tier4_deep" if graph_variant == "deep" else "standard"
+                )
 
             selected_graph = getattr(container, f"{graph_variant}_graph")
 
             # Verify the fast_graph definition contains the distress/quality-gate nodes before allowing fast routing
             if graph_variant == "fast":
                 required_nodes = ["handle_distress_check", "handle_distress"]
-                if not hasattr(selected_graph, "nodes") or not all(node in selected_graph.nodes for node in required_nodes):
-                    logger.warning("fast_graph is missing required distress/quality-gate nodes! Routing to standard graph instead.")
+                if not hasattr(selected_graph, "nodes") or not all(
+                    node in selected_graph.nodes for node in required_nodes
+                ):
+                    logger.warning(
+                        "fast_graph is missing required distress/quality-gate nodes! Routing to standard graph instead."
+                    )
                     graph_variant = "standard"
-                    selected_graph = getattr(container, "standard_graph")
+                    selected_graph = container.standard_graph
                     initial_state["query_tier"] = "standard"
             try:
                 import uuid
+
                 user_id = ctx.user_id or str(uuid.uuid4())
                 session_id = getattr(chat_body, "session_id", None) or str(uuid.uuid4())
                 config = {
@@ -245,8 +274,8 @@ class GraphStage(Stage):
                     "configurable": {
                         "user_id": user_id,
                         "session_id": session_id,
-                        **({"stream_queue": stream_queue} if stream_queue else {})
-                    }
+                        **({"stream_queue": stream_queue} if stream_queue else {}),
+                    },
                 }
                 return await selected_graph.ainvoke(initial_state, config=config)
             except GraphRecursionError as e:
@@ -262,7 +291,9 @@ class GraphStage(Stage):
 
         user_id = ctx.user_id or str(uuid.uuid4())
         session_id = getattr(chat_body, "session_id", None) or str(uuid.uuid4())
-        history_hash = hashlib.md5(str([m["content"] for m in chat_history_en[-4:]]).encode(), usedforsecurity=False).hexdigest()[:8]
+        history_hash = hashlib.md5(
+            str([m["content"] for m in chat_history_en[-4:]]).encode(), usedforsecurity=False
+        ).hexdigest()[:8]
         # Coalesce identity: bounded fingerprint of the effective assistant
         # configuration (M3 gate: system_prompt only for authenticated users)
         # plus meditation_step, so runs under different effective configurations
@@ -270,8 +301,12 @@ class GraphStage(Stage):
         # enters the key — the fingerprint is a bounded digest.
         assistant = getattr(chat_body, "assistant", None)
         _user = ctx.user or {}
-        _is_authed = bool(_user.get("id")) and _user.get("id") != "anonymous" \
-            and not str(_user.get("id")).startswith("anon:") and not _user.get("is_anonymous")
+        _is_authed = (
+            bool(_user.get("id"))
+            and _user.get("id") != "anonymous"
+            and not str(_user.get("id")).startswith("anon:")
+            and not _user.get("is_anonymous")
+        )
         config_fp = _assistant_config_fingerprint(assistant, is_authed=_is_authed)
         attachment_context = _attachment_context_from_request(chat_body)
         attachment_fp = hashlib.sha256(attachment_context.encode("utf-8")).hexdigest()[:16]
@@ -282,15 +317,23 @@ class GraphStage(Stage):
             result = await asyncio.wait_for(
                 coalescer.get_or_run(
                     _coalesce_key(
-                        user_id, session_id, lang_code, user_msg_en, history_hash,
-                        config_fp, meditation_step, attachment_fp,
+                        user_id,
+                        session_id,
+                        lang_code,
+                        user_msg_en,
+                        history_hash,
+                        config_fp,
+                        meditation_step,
+                        attachment_fp,
                     ),
                     run,
                 ),
                 timeout=settings.pipeline_timeout,
             )
-        except asyncio.TimeoutError:
-            logger.warning(f"Pipeline outer timeout ({settings.pipeline_timeout}s) exceeded. Returning graceful fallback.")
+        except TimeoutError:
+            logger.warning(
+                f"Pipeline outer timeout ({settings.pipeline_timeout}s) exceeded. Returning graceful fallback."
+            )
             fallback = {
                 "final_answer": "The Guru took too long to respond. Please try again.",
                 "intent": "QUERY",
@@ -307,7 +350,10 @@ class GraphStage(Stage):
         ctx.graph_latency = int((time.time() - start_lat) * 1000)
 
         # ponytail: post-graph field extraction from execute() verbatim
-        final_answer = result.get("final_answer") or "The Guru is unable to answer this question. Please try again."
+        final_answer = (
+            result.get("final_answer")
+            or "The Guru is unable to answer this question. Please try again."
+        )
         intent = result.get("intent", "CASUAL")
         if intent == "FACTUAL":
             intent = "QUERY"

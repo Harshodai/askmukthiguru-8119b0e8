@@ -10,6 +10,7 @@ locks in the fix:
   - TTL/hit semantics are unchanged: a fresh cache hit short-circuits
     before any Supabase/network call.
 """
+
 from __future__ import annotations
 
 import inspect

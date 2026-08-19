@@ -13,10 +13,12 @@ warnings.filterwarnings("ignore")
 # before any third-party import triggers it.
 _orig_warn_fn = warnings.warn
 
+
 def _suppress_langchain_warn(*args, **kwargs):
     if args and "allowed_objects" in str(args[0]):
         return
     return _orig_warn_fn(*args, **kwargs)
+
 
 warnings.warn = _suppress_langchain_warn
 
@@ -48,8 +50,9 @@ os.environ["IS_PRODUCTION"] = "false"
 os.environ["ENABLE_TEST_AUTH"] = "true"
 # Non-production fixture value — only active under IS_PRODUCTION=false +
 # ENABLE_TEST_AUTH=true. Override via BENCHMARK_SECRET env var in CI.
-os.environ["BENCHMARK_SECRET"] = os.environ.get("BENCHMARK_SECRET", "test-benchmark-secret-for-aal2-tests")  # gitleaks:allow
-
+os.environ["BENCHMARK_SECRET"] = os.environ.get(
+    "BENCHMARK_SECRET", "test-benchmark-secret-for-aal2-tests"
+)  # gitleaks:allow
 
 
 # Ensure JWT_SECRET is set for import-time validation
@@ -69,7 +72,6 @@ from app.core.limiter import limiter
 limiter.enabled = False
 
 import asyncio
-import logging
 
 import pytest
 
@@ -154,7 +156,9 @@ def _close_global_redis_pool():
             except Exception as _ce:
                 _log.debug(
                     "_close_global_redis_pool: could not clear %s.%s: %s",
-                    module_name, list_attr, _ce,
+                    module_name,
+                    list_attr,
+                    _ce,
                 )
 
 
@@ -173,6 +177,7 @@ def _clear_dependency_overrides():
     saved = dict(_app.dependency_overrides)
     try:
         from services.tenant_context import TenantContext
+
         TenantContext.reset()
     except Exception:
         pass
@@ -181,7 +186,7 @@ def _clear_dependency_overrides():
     _app.dependency_overrides.update(saved)
     try:
         from services.tenant_context import TenantContext
+
         TenantContext.reset()
     except Exception:
         pass
-

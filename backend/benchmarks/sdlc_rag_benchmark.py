@@ -160,9 +160,22 @@ def _reject_check(text: str, rejects: list[str]) -> tuple[bool, list[str]]:
     hits = []
     text_lower = text.lower()
     negation_prefixes = (
-        "no ", "not ", "isn't ", "doesn't ", "don't ", "never ", "cannot ",
-        "there is no ", "there are no ", "does not ", "is not ", "are not ",
-        "not a ", "no such ", "doesn't exist", "not exist",
+        "no ",
+        "not ",
+        "isn't ",
+        "doesn't ",
+        "don't ",
+        "never ",
+        "cannot ",
+        "there is no ",
+        "there are no ",
+        "does not ",
+        "is not ",
+        "are not ",
+        "not a ",
+        "no such ",
+        "doesn't exist",
+        "not exist",
     )
     for r in rejects:
         r_lower = r.lower()
@@ -200,7 +213,9 @@ async def _post_chat(
     headers = {"X-Test-Key": test_key} if test_key else {}
     t0 = time.perf_counter()
     try:
-        r = await client.post(f"{base_url}/api/chat", json=payload, headers=headers, timeout=timeout)
+        r = await client.post(
+            f"{base_url}/api/chat", json=payload, headers=headers, timeout=timeout
+        )
         latency_ms = (time.perf_counter() - t0) * 1000
         if r.status_code != 200:
             return {
@@ -280,8 +295,14 @@ def _evaluate_single(item: dict, res: dict, response_text: str, latency_ms: floa
         refused = blocked_flag or any(
             sig in response_text.lower()
             for sig in (
-                "cannot", "unable", "sorry", "not appropriate",
-                "spiritual guide", "off-topic", "off topic", "not able to",
+                "cannot",
+                "unable",
+                "sorry",
+                "not appropriate",
+                "spiritual guide",
+                "off-topic",
+                "off topic",
+                "not able to",
             )
         )
         if not refused:
@@ -353,7 +374,7 @@ async def _run_category(
         items = items[:limit]
 
     results: list[QueryResult] = []
-    for idx, item in enumerate(items):
+    for _idx, item in enumerate(items):
         item = dict(item)
         item["_category"] = category_name
         q = item.get("q", "")
@@ -361,7 +382,9 @@ async def _run_category(
             continue
 
         async with semaphore:
-            res = await _post_chat(client, base_url, q, str(uuid.uuid4()), timeout, test_key=test_key)
+            res = await _post_chat(
+                client, base_url, q, str(uuid.uuid4()), timeout, test_key=test_key
+            )
 
         latency_ms = res["latency_ms"]
         response_text = res["data"].get("response", "") if res["ok"] else ""
@@ -446,7 +469,7 @@ def write_markdown_report(report: BenchmarkReport, output_dir: Path) -> Path:
     if failures:
         lines.append("\n## Top Failures\n")
         for f in failures[:20]:
-            preview = f.response.replace('\n', ' ')[:80] if f.response else ""
+            preview = f.response.replace("\n", " ")[:80] if f.response else ""
             lines.append(
                 f"- **{f.category}**: `{f.query[:60]}...` → {', '.join(f.checks)} | preview: {preview}...\n"
             )
@@ -508,7 +531,9 @@ class RAGBenchmarkRunner:
         report = BenchmarkReport()
         report.started_at = time.strftime("%Y-%m-%dT%H:%M:%S")
         semaphore = asyncio.Semaphore(self.concurrency)
-        limits = httpx.Limits(max_connections=self.concurrency * 2, max_keepalive_connections=self.concurrency)
+        limits = httpx.Limits(
+            max_connections=self.concurrency * 2, max_keepalive_connections=self.concurrency
+        )
 
         all_categories = list(QUERIES.keys())
         if categories:
@@ -582,7 +607,9 @@ def print_console_summary(report: BenchmarkReport) -> None:
     for c in report.categories:
         print(f"{c.name:<25} {c.total:>6} {c.passed:>6} {c.failed:>6} {c.avg_latency_ms:>10.1f}")
     print("-" * 70)
-    print(f"{'TOTAL':<25} {report.total:>6} {report.passed:>6} {report.failed:>6} {report.total_latency_ms/report.total if report.total else 0:>10.1f}")
+    print(
+        f"{'TOTAL':<25} {report.total:>6} {report.passed:>6} {report.failed:>6} {report.total_latency_ms / report.total if report.total else 0:>10.1f}"
+    )
     print("═" * 70)
     print(f"Pass Rate: {report.passed / max(1, report.total):.1%}")
     print(f"Duration : {report.total_latency_ms / 1000:.1f}s")
@@ -592,13 +619,15 @@ def print_console_summary(report: BenchmarkReport) -> None:
 def flush_all_caches_on_host():
     import shutil
     from pathlib import Path
+
     print("🧹 [Auto-Flush] Flushing Redis, Qdrant semantic cache collection, and local GPTCache...")
 
     # 1. Flush Redis
     try:
         import redis
+
         redis_url = "redis://:mukthiguru_redis_pass@localhost:6379/0"
-        
+
         env_path = Path(__file__).resolve().parent.parent / ".env"
         if env_path.exists():
             for line in env_path.read_text().splitlines():
@@ -615,18 +644,21 @@ def flush_all_caches_on_host():
     # 2. Re-create Qdrant collection
     try:
         import httpx
+
         qdrant_url = "http://localhost:6333"
         # Delete first
         httpx.delete(f"{qdrant_url}/collections/mukthi_semantic_cache")
         # Recreate
         resp = httpx.put(
             f"{qdrant_url}/collections/mukthi_semantic_cache",
-            json={"vectors": {"size": 1024, "distance": "Cosine"}}
+            json={"vectors": {"size": 1024, "distance": "Cosine"}},
         )
         if resp.status_code == 200:
             print("   ✅ Qdrant semantic cache collection recreated successfully.")
         else:
-            print(f"   ⚠️ Qdrant collection recreation returned status: {resp.status_code} - {resp.text}")
+            print(
+                f"   ⚠️ Qdrant collection recreation returned status: {resp.status_code} - {resp.text}"
+            )
     except Exception as e:
         print(f"   ⚠️ Failed to recreate Qdrant collection: {e}")
 
@@ -644,12 +676,22 @@ def flush_all_caches_on_host():
 def main() -> int:
     parser = argparse.ArgumentParser(description="SDLC-compliant RAG benchmark runner")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Backend base URL")
-    parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT, help="Per-request timeout (seconds)")
-    parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY, help="Max parallel requests")
+    parser.add_argument(
+        "--timeout", type=float, default=DEFAULT_TIMEOUT, help="Per-request timeout (seconds)"
+    )
+    parser.add_argument(
+        "--concurrency", type=int, default=DEFAULT_CONCURRENCY, help="Max parallel requests"
+    )
     parser.add_argument("--category", nargs="+", default=None, help="Filter by category names")
     parser.add_argument("--limit", type=int, default=None, help="Limit queries per category")
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR, help="Report output directory")
-    parser.add_argument("--test-key", default=os.environ.get("BENCHMARK_SECRET"), help="X-Test-Key value for auth (must match BENCHMARK_SECRET)")
+    parser.add_argument(
+        "--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR, help="Report output directory"
+    )
+    parser.add_argument(
+        "--test-key",
+        default=os.environ.get("BENCHMARK_SECRET"),
+        help="X-Test-Key value for auth (must match BENCHMARK_SECRET)",
+    )
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
     args = parser.parse_args()
 
@@ -668,7 +710,11 @@ def main() -> int:
 
     runner = RAGBenchmarkRunner(args.base_url, args.timeout, args.concurrency)
     try:
-        report = asyncio.run(runner.run(categories=args.category, limit_per_category=args.limit, test_key=args.test_key))
+        report = asyncio.run(
+            runner.run(
+                categories=args.category, limit_per_category=args.limit, test_key=args.test_key
+            )
+        )
     except KeyboardInterrupt:
         logger.warning("Interrupted by user.")
         return 130

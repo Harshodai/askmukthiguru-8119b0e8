@@ -175,16 +175,22 @@ async def compare_single_query(
         comp.with_lightrag_answer = r_a if isinstance(r_a, str) else r_a.get("text", "")
         comp.with_lightrag_word_count = len(comp.with_lightrag_answer.split())
         comp.with_lightrag_citations = _count_citations(comp.with_lightrag_answer)
-        comp.with_lightrag_concept_coverage = _concept_coverage(comp.with_lightrag_answer, must_mention)
+        comp.with_lightrag_concept_coverage = _concept_coverage(
+            comp.with_lightrag_answer, must_mention
+        )
 
         gen_prompt = f"Context:\n{without_ctx}\n\nQuestion: {query_text}"
         r_b = await llm_service.generate(GEN_SYSTEM, gen_prompt)
         comp.without_lightrag_answer = r_b if isinstance(r_b, str) else r_b.get("text", "")
         comp.without_lightrag_word_count = len(comp.without_lightrag_answer.split())
         comp.without_lightrag_citations = _count_citations(comp.without_lightrag_answer)
-        comp.without_lightrag_concept_coverage = _concept_coverage(comp.without_lightrag_answer, must_mention)
+        comp.without_lightrag_concept_coverage = _concept_coverage(
+            comp.without_lightrag_answer, must_mention
+        )
 
-        judge = await _judge_answers(llm_service, query_text, comp.with_lightrag_answer, comp.without_lightrag_answer)
+        judge = await _judge_answers(
+            llm_service, query_text, comp.with_lightrag_answer, comp.without_lightrag_answer
+        )
         comp.judge_verdict = judge.get("verdict", "tie")
         comp.judge_reasoning = judge.get("reasoning", "")
 
@@ -219,12 +225,13 @@ async def run_comparison():
                     test_cases.append((qtext, cat, item.get("must_mention", [])))
 
     import random
-    random.seed(42)
-    test_cases = test_cases[:min(SAMPLE_SIZE, len(test_cases))]
 
-    print(f"\n{'='*70}")
-    print(f"LIGHTRAG vs QDRANT: ANSWER QUALITY COMPARISON")
-    print(f"{'='*70}")
+    random.seed(42)
+    test_cases = test_cases[: min(SAMPLE_SIZE, len(test_cases))]
+
+    print(f"\n{'=' * 70}")
+    print("LIGHTRAG vs QDRANT: ANSWER QUALITY COMPARISON")
+    print(f"{'=' * 70}")
     print(f"  Queries: {len(test_cases)} (doctrine categories)")
     print(f"  LightRAG: {'YES' if lightrag else 'N/A'}")
     print(f"  LLM: {type(llm_service).__name__}")
@@ -236,7 +243,13 @@ async def run_comparison():
     async def _bounded(qtext: str, cat: str, mm: list[str]):
         async with semaphore:
             return await compare_single_query(
-                qtext, cat, mm, embedder=embedder, qdrant=qdrant, lightrag=lightrag, llm_service=llm_service
+                qtext,
+                cat,
+                mm,
+                embedder=embedder,
+                qdrant=qdrant,
+                lightrag=lightrag,
+                llm_service=llm_service,
             )
 
     tasks = [_bounded(q, c, m) for q, c, m in test_cases]
@@ -253,7 +266,9 @@ async def run_comparison():
         else:
             status = "➖"
 
-        print(f"  [{status}] {comp.query[:55]:<55}  LR+{comp.with_lightrag_doc_count - comp.without_lightrag_doc_count:+d} docs  {comp.judge_verdict}")
+        print(
+            f"  [{status}] {comp.query[:55]:<55}  LR+{comp.with_lightrag_doc_count - comp.without_lightrag_doc_count:+d} docs  {comp.judge_verdict}"
+        )
 
     report = Report()
     report.total = len(results)
@@ -268,18 +283,18 @@ async def run_comparison():
             report.ties += 1
     report.samples = results
 
-    print(f"\n{'='*70}")
-    print(f"ANSWER QUALITY SUMMARY")
-    print(f"{'='*70}")
+    print(f"\n{'=' * 70}")
+    print("ANSWER QUALITY SUMMARY")
+    print(f"{'=' * 70}")
     print(f"  Total queries        : {report.total}")
     print(f"  Errors               : {report.errors}")
     print(f"  LightRAG better       : {report.lightrag_wins}")
     print(f"  Qdrant-only better    : {report.qdrant_wins}")
     print(f"  Tie                   : {report.ties}")
 
-    print(f"\n{'='*70}")
-    print(f"DETAILED COMPARISON")
-    print(f"{'='*70}")
+    print(f"\n{'=' * 70}")
+    print("DETAILED COMPARISON")
+    print(f"{'=' * 70}")
     for s in results:
         if s.error:
             print(f"\n--- ❌ {s.query} ---")
@@ -289,24 +304,34 @@ async def run_comparison():
         verdict_icon = {"lightrag_better": "✨", "qdrant_better": "📖", "tie": "➖"}
         print(f"\n--- {verdict_icon.get(s.judge_verdict, '?')} {s.query} ---")
         print(f"  Category: {s.category}")
-        print(f"  Latency:     LR={s.with_lightrag_latency_ms:.0f}ms  Qdrant={s.without_lightrag_latency_ms:.0f}ms  Δ={s.with_lightrag_latency_ms - s.without_lightrag_latency_ms:+.0f}ms")
-        print(f"  Docs:        LR={s.with_lightrag_doc_count}  Qdrant={s.without_lightrag_doc_count}")
-        print(f"  Words:       LR={s.with_lightrag_word_count}  Qdrant={s.without_lightrag_word_count}")
-        print(f"  Citations:   LR={s.with_lightrag_citations}  Qdrant={s.without_lightrag_citations}")
-        print(f"  Concepts:    LR={s.with_lightrag_concept_coverage:.0%}  Qdrant={s.without_lightrag_concept_coverage:.0%}")
+        print(
+            f"  Latency:     LR={s.with_lightrag_latency_ms:.0f}ms  Qdrant={s.without_lightrag_latency_ms:.0f}ms  Δ={s.with_lightrag_latency_ms - s.without_lightrag_latency_ms:+.0f}ms"
+        )
+        print(
+            f"  Docs:        LR={s.with_lightrag_doc_count}  Qdrant={s.without_lightrag_doc_count}"
+        )
+        print(
+            f"  Words:       LR={s.with_lightrag_word_count}  Qdrant={s.without_lightrag_word_count}"
+        )
+        print(
+            f"  Citations:   LR={s.with_lightrag_citations}  Qdrant={s.without_lightrag_citations}"
+        )
+        print(
+            f"  Concepts:    LR={s.with_lightrag_concept_coverage:.0%}  Qdrant={s.without_lightrag_concept_coverage:.0%}"
+        )
         print(f"  Verdict:     {s.judge_verdict}")
         if s.judge_reasoning:
             print(f"  Reasoning:   {s.judge_reasoning}")
-        print(f"\n  --- LR Answer (first 300 chars) ---")
+        print("\n  --- LR Answer (first 300 chars) ---")
         print(f"  {s.with_lightrag_answer[:300]}")
-        print(f"\n  --- Qdrant Answer (first 300 chars) ---")
+        print("\n  --- Qdrant Answer (first 300 chars) ---")
         print(f"  {s.without_lightrag_answer[:300]}")
 
     report_path = Path("benchmarks/reports/lightrag_answer_comparison.json")
     report_path.parent.mkdir(parents=True, exist_ok=True)
 
     def _serialize(o):
-        if hasattr(o, '__dict__'):
+        if hasattr(o, "__dict__"):
             return asdict(o)
         return str(o)
 

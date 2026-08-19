@@ -7,14 +7,14 @@ and proactive-state glue that lived inline in ``execute()``.
 
 from __future__ import annotations
 
-from app.pipeline.result import PipelineResult
-from app.release_manifest import get_release_manifest
 import logging
 import re
 import time
 from typing import TYPE_CHECKING
 
+from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
+from app.release_manifest import get_release_manifest
 from services.serene_mind_engine import (
     DISTRESS_RESPONSES,
     DistressAssessment,
@@ -61,7 +61,7 @@ _INDIC_CRISIS_KEYWORDS = (
     "खुदकुशी",  # suicide (colloquial)
     "खुद को मार",  # kill myself
     # Marathi-specific (Devanagari)
-    "जीव देणे",   # "give life" — Marathi idiom for suicide
+    "जीव देणे",  # "give life" — Marathi idiom for suicide
     "जीव संपवणे",  # "end life" — Marathi
     # Bengali (Bengali script)
     "আত্মহত্যা",  # suicide
@@ -73,13 +73,13 @@ _INDIC_CRISIS_KEYWORDS = (
     "ఆత్మహత్య",  # suicide
     "ఆత్మహత్య చేసుకో",  # commit suicide
     # Kannada (Kannada script)
-    "ಆತ್ಮಹತ್ಯೆ",   # suicide
+    "ಆತ್ಮಹತ್ಯೆ",  # suicide
     "ಆತ್ಮಹತ್ಯೆ ಮಾಡಿಕೊಳ್ಳ",  # commit suicide
     "ನನ್ನನ್ನು ಕೊಲ್ಲ",  # kill myself
     # Malayalam (Malayalam script)
-    "ആത്മഹത്യ",   # suicide
+    "ആത്മഹത്യ",  # suicide
     "ആത്മഹത്യ ചെയ്യ",  # commit suicide
-    "എന്നെ കൊല്ല",   # kill myself
+    "എന്നെ കൊല്ല",  # kill myself
     # Gujarati (Gujarati script)
     "આત્મહત્યા",
     "જીવ આપવો",
@@ -119,7 +119,7 @@ class DistressStage(Stage):
 
     name = "distress_detection"
 
-    async def run(self, ctx: "PipelineContext") -> "PipelineResult | None":
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         user_msg_en = ctx.state["user_msg_en"]
         state = ctx.state
 
@@ -149,8 +149,10 @@ class DistressStage(Stage):
         # Trigger on a keyword hit, a persistent distress trend, OR a positive
         # assessment this turn — so a crisis with no listed keyword still routes.
         proactive_data = None
-        if ctx.has_distress_keywords or state.get("distress_history") or (
-            assessment and level_value >= DistressLevel.MODERATE.value
+        if (
+            ctx.has_distress_keywords
+            or state.get("distress_history")
+            or (assessment and level_value >= DistressLevel.MODERATE.value)
         ):
             proactive_data = await self._maybe_trigger_proactive_serene_mind(
                 ctx, assessment, ctx.user_id, ctx.request, state
@@ -160,11 +162,9 @@ class DistressStage(Stage):
         ctx.proactive_data = proactive_data
         return None
 
-
-
     @staticmethod
     async def _crisis_preemption_result(
-        ctx: "PipelineContext", assessment: DistressAssessment
+        ctx: PipelineContext, assessment: DistressAssessment
     ) -> PipelineResult:
         """Return reviewed support before any model or persistence side effect."""
         level = assessment.level
@@ -183,7 +183,11 @@ class DistressStage(Stage):
         # Translate compassionate prose if Indic, but preserve the helpline resource block
         # in clean ASCII format so phone numbers and SMS shortcodes ("Text HOME to 741741")
         # are never mangled by machine translation.
-        if getattr(ctx, "is_indic", False) and getattr(ctx, "container", None) and getattr(ctx.container, "translation", None):
+        if (
+            getattr(ctx, "is_indic", False)
+            and getattr(ctx, "container", None)
+            and getattr(ctx.container, "translation", None)
+        ):
             try:
                 translated_prefix = await ctx.container.translation.translate_text(
                     text=prefix, source_lang="en", target_lang=ctx.preferred_lang
@@ -191,7 +195,9 @@ class DistressStage(Stage):
                 translated_next_step = await ctx.container.translation.translate_text(
                     text=next_step, source_lang="en", target_lang=ctx.preferred_lang
                 )
-                response = "\n\n".join(part for part in (resources, translated_prefix, translated_next_step) if part)
+                response = "\n\n".join(
+                    part for part in (resources, translated_prefix, translated_next_step) if part
+                )
             except Exception:
                 response = "\n\n".join(part for part in (resources, prefix, next_step) if part)
         else:
@@ -210,23 +216,32 @@ class DistressStage(Stage):
                 "preempted": True,
                 "level": level.name,
             },
-            trigger_events=[{
-                "type": "DISTRESS",
-                "level": level.name,
-                "preempted": True,
-            }],
+            trigger_events=[
+                {
+                    "type": "DISTRESS",
+                    "level": level.name,
+                    "preempted": True,
+                }
+            ],
             release_manifest=get_release_manifest().to_dict(),
         )
 
     # -- extracted method bodies (verbatim, self -> ctx) --
 
-    async def _detect_distress(self, ctx, user_msg_en: str, state: dict) -> DistressAssessment | None:
+    async def _detect_distress(
+        self, ctx, user_msg_en: str, state: dict
+    ) -> DistressAssessment | None:
         """Run Serene Mind distress detection. Returns None on failure (non-fatal)."""
         try:
             if ctx.container.serene_mind:
                 distress_history = state.get("distress_history", [])
                 assessment_history = (
-                    [{"role": "system", "content": f"Previous distress history: {distress_history}"}]
+                    [
+                        {
+                            "role": "system",
+                            "content": f"Previous distress history: {distress_history}",
+                        }
+                    ]
                     if distress_history
                     else []
                 )
@@ -234,7 +249,9 @@ class DistressStage(Stage):
                     user_msg_en, history=state.get("chat_history_en", []) + assessment_history
                 )
                 if assessment.level.value >= 2:
-                    logger.info(f"Distress detected ({assessment.level.name}), passing to RAG pipeline for compassionate response.")
+                    logger.info(
+                        f"Distress detected ({assessment.level.name}), passing to RAG pipeline for compassionate response."
+                    )
                 return assessment
         except Exception as e:
             logger.warning(f"Serene Mind detection failed (non-fatal): {e}")
@@ -281,10 +298,14 @@ class DistressStage(Stage):
                     _skip = True
 
             if _skip:
-                logger.info(f"Proactive Serene Mind skipped for {user_id} — within 15-min cooldown.")
+                logger.info(
+                    f"Proactive Serene Mind skipped for {user_id} — within 15-min cooldown."
+                )
                 return {"triggered": False}
 
-            logger.info(f"Proactive Serene Mind triggered for user {user_id}: level={proactive.level.name}, confidence={proactive.confidence:.2f}")
+            logger.info(
+                f"Proactive Serene Mind triggered for user {user_id}: level={proactive.level.name}, confidence={proactive.confidence:.2f}"
+            )
             return {
                 "triggered": True,
                 "level": proactive.level.name,

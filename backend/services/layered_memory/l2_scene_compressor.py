@@ -13,12 +13,14 @@ logger = logging.getLogger(__name__)
 _MAX_SCENES_PER_SESSION = 15
 _TIMEOUT = 15.0
 
+
 class SceneBlock(BaseModel):
     intent: str
     emotional_state: str
     key_insight: str
     decision: str | None = None
     turn_count: int = 1
+
 
 def _build_client() -> tuple[Any, str] | None:
     from openai import AsyncOpenAI
@@ -34,12 +36,19 @@ def _build_client() -> tuple[Any, str] | None:
             settings.sarvam_cloud_classify_model or "sarvam-30b",
         )
     if provider == "openrouter":
-        return AsyncOpenAI(base_url=settings.openrouter_base_url, api_key=settings.openrouter_api_key), settings.model_for_classification
+        return AsyncOpenAI(
+            base_url=settings.openrouter_base_url, api_key=settings.openrouter_api_key
+        ), settings.model_for_classification
     if provider == "nim":
-        return AsyncOpenAI(base_url=settings.nim_base_url, api_key=settings.nim_api_key), settings.nim_classify_model
+        return AsyncOpenAI(
+            base_url=settings.nim_base_url, api_key=settings.nim_api_key
+        ), settings.nim_classify_model
     if provider == "ollama":
-        return AsyncOpenAI(base_url=settings.ollama_base_url, api_key="ollama"), settings.model_for_classification
+        return AsyncOpenAI(
+            base_url=settings.ollama_base_url, api_key="ollama"
+        ), settings.model_for_classification
     return None
+
 
 async def compress_turns_to_scene(
     turns: list[dict[str, Any]],
@@ -78,6 +87,7 @@ async def compress_turns_to_scene(
             timeout=_TIMEOUT,
         )
         import json
+
         raw = resp.choices[0].message.content
         data = json.loads(raw) if raw else {}
         return SceneBlock(**data, turn_count=len(turns))
@@ -85,7 +95,10 @@ async def compress_turns_to_scene(
         logger.warning(f"L2 scene compression failed: {e}")
         return None
 
-async def get_scene_blocks(supabase_client: Any, user_id: str, tenant_id: str | None = None) -> list[SceneBlock]:
+
+async def get_scene_blocks(
+    supabase_client: Any, user_id: str, tenant_id: str | None = None
+) -> list[SceneBlock]:
     try:
         query = (
             supabase_client.table("user_scene_blocks")
@@ -100,6 +113,7 @@ async def get_scene_blocks(supabase_client: Any, user_id: str, tenant_id: str | 
         if not res.data:
             return []
         from .persona_store import decrypt
+
         blocks = []
         for row in res.data:
             try:
@@ -114,6 +128,7 @@ async def get_scene_blocks(supabase_client: Any, user_id: str, tenant_id: str | 
         logger.debug(f"get_scene_blocks miss: {e}")
         return []
 
+
 async def save_scene_block(
     supabase_client: Any,
     user_id: str,
@@ -123,39 +138,71 @@ async def save_scene_block(
 ) -> bool:
     try:
         from .persona_store import encrypt
+
         encrypted = encrypt(block.model_dump_json(), user_id)
-        existing = await supabase_client.table("user_scene_blocks").select("id, turn_count").eq("user_id", user_id).eq("session_id", session_id).order("created_at", {"ascending": False}).limit(1).maybe_single().execute()
+        existing = (
+            await supabase_client.table("user_scene_blocks")
+            .select("id, turn_count")
+            .eq("user_id", user_id)
+            .eq("session_id", session_id)
+            .order("created_at", {"ascending": False})
+            .limit(1)
+            .maybe_single()
+            .execute()
+        )
         if existing.data:
-            await supabase_client.table("user_scene_blocks").update({
-                "compressed_blocks": encrypted,
-                "turn_count": existing.data["turn_count"] + block.turn_count,
-                "scene_type": block.intent[:64],
-                "ended_at": "now()",
-            }).eq("id", existing.data["id"]).execute()
+            await (
+                supabase_client.table("user_scene_blocks")
+                .update(
+                    {
+                        "compressed_blocks": encrypted,
+                        "turn_count": existing.data["turn_count"] + block.turn_count,
+                        "scene_type": block.intent[:64],
+                        "ended_at": "now()",
+                    }
+                )
+                .eq("id", existing.data["id"])
+                .execute()
+            )
         else:
-            await supabase_client.table("user_scene_blocks").insert({
-                "user_id": user_id,
-                "tenant_id": tenant_id,
-                "session_id": session_id,
-                "compressed_blocks": encrypted,
-                "turn_count": block.turn_count,
-                "scene_type": block.intent[:64],
-            }).execute()
+            await (
+                supabase_client.table("user_scene_blocks")
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "tenant_id": tenant_id,
+                        "session_id": session_id,
+                        "compressed_blocks": encrypted,
+                        "turn_count": block.turn_count,
+                        "scene_type": block.intent[:64],
+                    }
+                )
+                .execute()
+            )
         _enforce_max_scenes(supabase_client, user_id, tenant_id)
         return True
     except Exception as e:
         logger.warning(f"save_scene_block failed: {e}")
         return False
 
+
 async def _enforce_max_scenes(supabase_client: Any, user_id: str, tenant_id: str) -> None:
     try:
-        res = await supabase_client.table("user_scene_blocks").select("id").eq("user_id", user_id).eq("tenant_id", tenant_id).order("created_at", {"ascending": False}).execute()
+        res = (
+            await supabase_client.table("user_scene_blocks")
+            .select("id")
+            .eq("user_id", user_id)
+            .eq("tenant_id", tenant_id)
+            .order("created_at", {"ascending": False})
+            .execute()
+        )
         if res.data and len(res.data) > _MAX_SCENES_PER_SESSION:
             excess_ids = [r["id"] for r in res.data[_MAX_SCENES_PER_SESSION:]]
             for eid in excess_ids:
                 await supabase_client.table("user_scene_blocks").delete().eq("id", eid).execute()
     except Exception as _e:
         logger.debug("[l2 compressor] suppressed non-critical error: %s", _e)
+
 
 def _build_compression_prompt(turns: list[dict[str, Any]]) -> str:
     lines = []
@@ -169,12 +216,18 @@ def _build_compression_prompt(turns: list[dict[str, Any]]) -> str:
         f"TURNS:\n{dialog}"
     )
 
+
 if __name__ == "__main__":
-    import json, asyncio
+    import asyncio
+    import json
+
     async def _test():
         turns = [
             {"role": "user", "content": "I feel anxious about my job interview tomorrow."},
-            {"role": "assistant", "content": "That's natural. Try the three-question meditation: What am I grateful for? What is my intention? What is my True Self?"},
+            {
+                "role": "assistant",
+                "content": "That's natural. Try the three-question meditation: What am I grateful for? What is my intention? What is my True Self?",
+            },
             {"role": "user", "content": "That helped. I'll practice tonight."},
         ]
         block = await compress_turns_to_scene(turns)
@@ -182,4 +235,5 @@ if __name__ == "__main__":
             print(json.dumps(block.model_dump(), indent=2))
         else:
             print("Compression returned None (expected if no LLM available)")
+
     asyncio.run(_test())

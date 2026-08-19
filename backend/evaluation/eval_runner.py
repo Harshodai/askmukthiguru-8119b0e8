@@ -41,6 +41,7 @@ import statistics
 import sys
 import time
 from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -52,7 +53,12 @@ BACKEND_ROOT = HERE.parent
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from evaluation.llm_judge import CompositeScore, LLMJudge, DimensionScore, _safe_json_parse  # noqa: E402
+from evaluation.llm_judge import (  # noqa: E402
+    CompositeScore,
+    DimensionScore,
+    LLMJudge,
+    _safe_json_parse,
+)
 
 logger = logging.getLogger("mukthi_guru.eval_runner")
 logging.basicConfig(
@@ -79,14 +85,14 @@ class EvalQuestion:
 def load_dataset(dataset_path: Path) -> list[EvalQuestion]:
     """Load a YAML eval set. The YAML format is:
 
-        version: 1
-        questions:
-          - id: founders_001
-            category: Founders
-            language: en
-            text: "Who is Sri Krishnaji?"
-            expected_refusal: false
-          ...
+    version: 1
+    questions:
+      - id: founders_001
+        category: Founders
+        language: en
+        text: "Who is Sri Krishnaji?"
+        expected_refusal: false
+      ...
     """
     with dataset_path.open("r", encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
@@ -163,7 +169,7 @@ async def call_chat_endpoint(
                     )
                     return None
                 data = await resp.json()
-    except (asyncio.TimeoutError, aiohttp.ClientError) as exc:
+    except (TimeoutError, aiohttp.ClientError) as exc:
         logger.warning("chat endpoint call failed: %s", exc)
         return None
 
@@ -262,6 +268,7 @@ async def run_batched_evaluation(
     max_concurrent: int,
 ) -> list[QuestionResult]:
     import aiohttp
+
     from app.config import settings
 
     # Step 1: call all chat endpoints concurrently
@@ -302,15 +309,24 @@ async def run_batched_evaluation(
 
     if not successful_chats:
         logger.warning("All chat endpoint calls failed. Skipping judge batch.")
-        return [final_results.get(q.id) or QuestionResult(
-            id=q.id, category=q.category, language=q.language, question=q.text,
-            expected_refusal=q.expected_refusal, response=None, composite=None,
-            failed_reason="chat_endpoint_unreachable"
-        ) for q in questions]
+        return [
+            final_results.get(q.id)
+            or QuestionResult(
+                id=q.id,
+                category=q.category,
+                language=q.language,
+                question=q.text,
+                expected_refusal=q.expected_refusal,
+                response=None,
+                composite=None,
+                failed_reason="chat_endpoint_unreachable",
+            )
+            for q in questions
+        ]
 
     if judge.client.is_stub:
         logger.info("Judge client is stub (no API key). Simulating passing scores.")
-        for q, resp in successful_chats:
+        for q, _resp in successful_chats:
             dim_scores = {}
             for dim_name in LLMJudge.DEFAULT_DIMENSIONS:
                 rubric = judge.rubrics.get(dim_name, {})
@@ -354,16 +370,15 @@ async def run_batched_evaluation(
             f"Message Batches API is only supported for 'anthropic' provider models, got {judge.config.provider_model}"
         )
 
-    api_key = (
-        getattr(settings, "anthropic_api_key", "")
-        or getattr(settings, "emergent_llm_key", "")
+    api_key = getattr(settings, "anthropic_api_key", "") or getattr(
+        settings, "emergent_llm_key", ""
     )
     if not api_key:
         raise ValueError("No API key available for Anthropic Message Batches API.")
 
     requests_payload = []
 
-    for q, resp in successful_chats:
+    for q, _resp in successful_chats:
         context = resp.retrieved_context[:context_max_chars]
         meta = {
             "category": q.category,
@@ -379,8 +394,7 @@ async def run_batched_evaluation(
             user_template = rubric.get("user_template", "")
 
             rendered_user_prompt = (
-                user_template
-                .replace("{{query}}", q.text)
+                user_template.replace("{{query}}", q.text)
                 .replace("{{answer}}", resp.final_answer or "")
                 .replace("{{context}}", context or "")
                 .replace("{{citations}}", "\n".join(resp.citations))
@@ -390,26 +404,23 @@ async def run_batched_evaluation(
 
             custom_id = f"{q.id}:{dim_name}"
 
-            requests_payload.append({
-                "custom_id": custom_id,
-                "params": {
-                    "model": model_name.strip(),
-                    "max_tokens": 1024,
-                    "system": [
-                        {
-                            "type": "text",
-                            "text": system_prompt,
-                            "cache_control": {"type": "ephemeral"}
-                        }
-                    ],
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": rendered_user_prompt
-                        }
-                    ]
+            requests_payload.append(
+                {
+                    "custom_id": custom_id,
+                    "params": {
+                        "model": model_name.strip(),
+                        "max_tokens": 1024,
+                        "system": [
+                            {
+                                "type": "text",
+                                "text": system_prompt,
+                                "cache_control": {"type": "ephemeral"},
+                            }
+                        ],
+                        "messages": [{"role": "user", "content": rendered_user_prompt}],
+                    },
                 }
-            })
+            )
 
     # Step 3: POST batch
     logger.info("Submitting batch of %d requests to Anthropic...", len(requests_payload))
@@ -422,10 +433,14 @@ async def run_batched_evaluation(
 
     batch_url = "https://api.anthropic.com/v1/messages/batches"
     async with aiohttp.ClientSession() as session:
-        async with session.post(batch_url, json={"requests": requests_payload}, headers=headers) as post_resp:
+        async with session.post(
+            batch_url, json={"requests": requests_payload}, headers=headers
+        ) as post_resp:
             if post_resp.status >= 400:
                 err_text = await post_resp.text()
-                raise RuntimeError(f"Anthropic batch submission failed with {post_resp.status}: {err_text}")
+                raise RuntimeError(
+                    f"Anthropic batch submission failed with {post_resp.status}: {err_text}"
+                )
             batch_data = await post_resp.json()
 
         batch_id = batch_data["id"]
@@ -482,7 +497,7 @@ async def run_batched_evaluation(
     # Group results by question ID
     question_dim_scores_map: dict[str, dict[str, DimensionScore]] = {}
 
-    for q, resp in successful_chats:
+    for q, _resp in successful_chats:
         question_dim_scores_map[q.id] = {}
         for dim_name in LLMJudge.DEFAULT_DIMENSIONS:
             if dim_name not in judge.rubrics:
@@ -534,7 +549,7 @@ async def run_batched_evaluation(
             )
 
     # Assemble CompositeScore and QuestionResult for each question
-    for q, resp in successful_chats:
+    for q, _resp in successful_chats:
         q_scores = question_dim_scores_map[q.id]
         scores_list = [q_scores[d] for d in LLMJudge.DEFAULT_DIMENSIONS if d in q_scores]
 
@@ -542,8 +557,7 @@ async def run_batched_evaluation(
         weights = judge.config.default_weights
         total_weight = sum(weights.get(name, 1.0) for name in q_scores) or 1.0
         weighted_mean = (
-            sum(q_scores[name].score * weights.get(name, 1.0) for name in q_scores)
-            / total_weight
+            sum(q_scores[name].score * weights.get(name, 1.0) for name in q_scores) / total_weight
         )
         all_pass = all(s.passes for s in scores_list)
         tokens = sum((s.judge_tokens_in or 0) + (s.judge_tokens_out or 0) for s in scores_list)
@@ -659,7 +673,9 @@ def _p95(values: list[int]) -> int:
 # ---------------------------------------------------------------------------
 
 
-def regression_check(current: dict[str, Any], baseline: dict[str, Any], tolerance: float) -> tuple[bool, list[str]]:
+def regression_check(
+    current: dict[str, Any], baseline: dict[str, Any], tolerance: float
+) -> tuple[bool, list[str]]:
     """Returns (passes, regressions_list).
 
     A baseline regression is any per-dimension mean dropping by more than
@@ -675,8 +691,8 @@ def regression_check(current: dict[str, Any], baseline: dict[str, Any], toleranc
             f"composite_mean regressed: baseline={base_composite:.4f} -> current={cur_composite:.4f}"
         )
 
-    base_dims = (baseline.get("dimensions") or {})
-    cur_dims = (current.get("dimensions") or {})
+    base_dims = baseline.get("dimensions") or {}
+    cur_dims = current.get("dimensions") or {}
     for name, base_metrics in base_dims.items():
         base_score = float((base_metrics or {}).get("mean") or 0)
         cur_score = float((cur_dims.get(name) or {}).get("mean") or 0)
@@ -694,12 +710,16 @@ def regression_check(current: dict[str, Any], baseline: dict[str, Any], toleranc
 
 def write_markdown_report(summary: dict[str, Any], path: Path) -> None:
     lines = ["# Mukthi Guru Eval Report", ""]
-    lines.append(f"- **Questions graded**: {summary.get('questions_graded')} / {summary.get('questions_total')}")
+    lines.append(
+        f"- **Questions graded**: {summary.get('questions_graded')} / {summary.get('questions_total')}"
+    )
     lines.append(f"- **Composite mean**: {summary.get('composite_mean'):.4f}")
     lines.append(f"- **Composite p50**: {summary.get('composite_p50'):.4f}")
     lines.append(f"- **Weighted mean**: {summary.get('weighted_mean'):.4f}")
     lines.append(f"- **Cache hit rate**: {summary.get('cache_hit_rate'):.1%}")
-    lines.append(f"- **Endpoint latency p50/p95**: {summary.get('latency_p50_ms')}ms / {summary.get('latency_p95_ms')}ms")
+    lines.append(
+        f"- **Endpoint latency p50/p95**: {summary.get('latency_p50_ms')}ms / {summary.get('latency_p95_ms')}ms"
+    )
     lines.append(f"- **Judge tokens total**: {summary.get('judge_tokens_total')}")
     lines.append("")
     lines.append("## Per-dimension scores")
@@ -723,7 +743,9 @@ def write_markdown_report(summary: dict[str, Any], path: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Mukthi Guru eval runner.")
-    parser.add_argument("--endpoint", default=os.environ.get("EVAL_ENDPOINT", "http://localhost:8000"))
+    parser.add_argument(
+        "--endpoint", default=os.environ.get("EVAL_ENDPOINT", "http://localhost:8000")
+    )
     parser.add_argument("--auth-token", default=os.environ.get("EVAL_AUTH_TOKEN"))
     parser.add_argument(
         "--dataset",
@@ -746,7 +768,9 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=int(os.environ.get("LLM_JUDGE_CONTEXT_MAX_CHARS", "6000")),
     )
-    parser.add_argument("--baseline", default=None, help="Path to a previous report JSON for regression gating.")
+    parser.add_argument(
+        "--baseline", default=None, help="Path to a previous report JSON for regression gating."
+    )
     parser.add_argument("--tolerance", type=float, default=0.01)
     parser.add_argument("--strict", action="store_true", help="Exit non-zero on any regression.")
     parser.add_argument(
@@ -791,23 +815,25 @@ def main(argv: list[str] | None = None) -> int:
             )
 
     if args.use_batch:
-        results = asyncio.run(run_batched_evaluation(
-            questions=questions,
-            endpoint=args.endpoint,
-            auth_token=args.auth_token,
-            judge=judge,
-            session_id_prefix=session_id_prefix,
-            request_timeout_s=args.request_timeout,
-            context_max_chars=args.context_max_chars,
-            max_concurrent=args.max_concurrent_requests,
-        ))
+        results = asyncio.run(
+            run_batched_evaluation(
+                questions=questions,
+                endpoint=args.endpoint,
+                auth_token=args.auth_token,
+                judge=judge,
+                session_id_prefix=session_id_prefix,
+                request_timeout_s=args.request_timeout,
+                context_max_chars=args.context_max_chars,
+                max_concurrent=args.max_concurrent_requests,
+            )
+        )
     else:
         results = asyncio.run(asyncio.gather(*[_run_one(q, i) for i, q in enumerate(questions)]))
 
     summary = aggregate(results)
     metadata = {
         "dataset_id": args.dataset,
-        "evaluated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "evaluated_at_utc": datetime.now(UTC).isoformat(),
         "deployment_sha": os.environ.get("DEPLOYMENT_SHA", "unknown"),
         "model_policy_id": os.environ.get("MODEL_POLICY_ID", "unknown"),
         "corpus_release": os.environ.get("CORPUS_RELEASE", "unknown"),
@@ -820,13 +846,21 @@ def main(argv: list[str] | None = None) -> int:
     out_md_path.parent.mkdir(parents=True, exist_ok=True)
 
     with out_json_path.open("w", encoding="utf-8") as f:
-        json.dump({"metadata": metadata, "summary": summary, "per_question": [_serialise(r) for r in results]}, f, indent=2)
+        json.dump(
+            {
+                "metadata": metadata,
+                "summary": summary,
+                "per_question": [_serialise(r) for r in results],
+            },
+            f,
+            indent=2,
+        )
     write_markdown_report(summary, out_md_path)
     logger.info("Wrote report to %s and %s", out_json_path, out_md_path)
 
     exit_code = 0
     if args.baseline:
-        with open(args.baseline, "r", encoding="utf-8") as f:
+        with open(args.baseline, encoding="utf-8") as f:
             baseline = json.load(f).get("summary", {})
         passes, regressions = regression_check(summary, baseline, args.tolerance)
         if regressions:
@@ -862,9 +896,7 @@ def _serialise(r: QuestionResult) -> dict[str, Any]:
             "weighted_mean": r.composite.weighted_mean,
             "all_pass": r.composite.all_pass,
             "judge_tokens": r.composite.total_judge_tokens,
-            "dimensions": {
-                name: asdict(ds) for name, ds in r.composite.dimensions.items()
-            },
+            "dimensions": {name: asdict(ds) for name, ds in r.composite.dimensions.items()},
         }
     return out
 

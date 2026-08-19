@@ -7,8 +7,8 @@ multi-turn replies in hi/te/ta/mr chats do not drift back to English.
 
 from __future__ import annotations
 
-from services.language_router import LanguageCode, LanguageRouter
 from rag.prompts.system import MULTI_TURN_PROMPT
+from services.language_router import LanguageCode, LanguageRouter
 
 
 def test_multiturn_prompt_has_lang_suffix_placeholder():

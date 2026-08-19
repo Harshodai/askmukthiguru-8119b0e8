@@ -6,7 +6,7 @@ Focuses on the deep contradiction gate and graph wiring helpers.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,7 +18,6 @@ from rag.states import GraphState
 async def test_deep_graph_adds_contradiction_gate_for_tier4_deep():
     """DeepGraphStrategy must wire an extra contradiction gate for tier4_deep."""
     from rag.graph_strategies import DeepGraphStrategy
-    from unittest.mock import MagicMock
 
     strategy = DeepGraphStrategy()
     graph = strategy.build(
@@ -120,4 +119,5 @@ def test_route_after_intent_routes_distress():
     )
     assert route_after_intent(state) == "query"
     from rag.graph_strategies import route_after_intent_fast
+
     assert route_after_intent_fast(state) == "distress"

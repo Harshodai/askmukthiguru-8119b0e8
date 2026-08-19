@@ -54,7 +54,7 @@ except Exception:  # pragma: no cover - prometheus absent on minimal hosts
         def inc(self, *args, **kwargs) -> None:  # noqa: ANN
             pass
 
-        def labels(self, *args, **kwargs) -> "_NoopGauge":  # noqa: ANN
+        def labels(self, *args, **kwargs) -> _NoopGauge:  # noqa: ANN
             return self
 
         def set(self, *args, **kwargs) -> None:  # noqa: ANN
@@ -193,9 +193,7 @@ class OntologyValidator:
             try:
                 verdict = await self._validate_fact(fact)
             except Exception as exc:  # pragma: no cover - graph errors
-                logger.warning(
-                    f"OntologyValidator: fact validation failed for {fact}: {exc}"
-                )
+                logger.warning(f"OntologyValidator: fact validation failed for {fact}: {exc}")
                 verdict = "unknown"
 
             if verdict == "supported":
@@ -207,7 +205,10 @@ class OntologyValidator:
 
         total = len(claimed_facts)
         confidence = len(supported) / total if total else 1.0
-        is_valid = confidence >= settings.ontology_validity_confidence_threshold and len(contradictions) == 0
+        is_valid = (
+            confidence >= settings.ontology_validity_confidence_threshold
+            and len(contradictions) == 0
+        )
 
         # Prom gauge — one increment per contradiction (soft-gate signal).
         if contradictions:
@@ -254,11 +255,15 @@ class OntologyValidator:
             predicate = predicate_raw
 
         try:
-            result = await asyncio.to_thread(self._run_cypher, _RELATION_CYPHER, {
-                "subject": subject,
-                "object": obj,
-                "predicate": predicate,
-            })
+            result = await asyncio.to_thread(
+                self._run_cypher,
+                _RELATION_CYPHER,
+                {
+                    "subject": subject,
+                    "object": obj,
+                    "predicate": predicate,
+                },
+            )
         except Exception as exc:
             logger.warning(f"OntologyValidator: relation query failed ({exc})")
             return "unknown"
@@ -274,11 +279,15 @@ class OntologyValidator:
             return "unknown"
 
         try:
-            opp = await asyncio.to_thread(self._run_cypher, _OPPOSITE_CYPHER, {
-                "subject": subject,
-                "object": obj,
-                "opposites": opposites,
-            })
+            opp = await asyncio.to_thread(
+                self._run_cypher,
+                _OPPOSITE_CYPHER,
+                {
+                    "subject": subject,
+                    "object": obj,
+                    "opposites": opposites,
+                },
+            )
         except Exception as exc:
             logger.warning(f"OntologyValidator: opposite query failed ({exc})")
             return "unknown"
@@ -410,11 +419,13 @@ class OntologyValidator:
         for t in triples:
             if not t:
                 continue
-            normalized.append({
-                "subject": t.get("subject", ""),
-                "predicate": t.get("predicate") or t.get("relation", ""),
-                "object": t.get("object", ""),
-            })
+            normalized.append(
+                {
+                    "subject": t.get("subject", ""),
+                    "predicate": t.get("predicate") or t.get("relation", ""),
+                    "object": t.get("object", ""),
+                }
+            )
         return normalized
 
 
@@ -542,7 +553,7 @@ class _MockSession:
                     return _MockResult(rows)
         return _MockResult([])
 
-    def __enter__(self) -> "_MockSession":
+    def __enter__(self) -> _MockSession:
         return self
 
     def __exit__(self, *exc) -> None:
@@ -565,7 +576,9 @@ class _MockLLM:
     def __init__(self, raw: str) -> None:
         self._raw = raw
 
-    async def generate(self, system_prompt: str, user_prompt: str, context: str = "", **kwargs) -> str:
+    async def generate(
+        self, system_prompt: str, user_prompt: str, context: str = "", **kwargs
+    ) -> str:
         return self._raw
 
 
@@ -615,7 +628,6 @@ if __name__ == "__main__":
     validator = OntologyValidator(driver)
     # Run extraction+validation. The mock LLM returns canned JSON; the mock
     # driver returns the canned rows. We use asyncio.run for the self-check.
-    import json as _json
 
     result = asyncio.run(
         validator.validate_response(
@@ -633,7 +645,9 @@ if __name__ == "__main__":
 
     # Sanity assertions (deterministic given the canned fixtures).
     assert len(result.supported_facts) >= 1, f"expected >=1 supported, got {result.supported_facts}"
-    assert len(result.contradictions) >= 1, f"expected >=1 contradiction, got {result.contradictions}"
+    assert len(result.contradictions) >= 1, (
+        f"expected >=1 contradiction, got {result.contradictions}"
+    )
     assert 0.0 <= result.confidence <= 1.0
     assert result.is_valid is False, "contradictions present → is_valid must be False"
 

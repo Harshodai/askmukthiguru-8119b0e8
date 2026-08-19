@@ -19,8 +19,8 @@ import logging
 import time
 from collections.abc import AsyncIterator
 
-from anyio import Lock as AsyncLock
 import httpx
+from anyio import Lock as AsyncLock
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 from ollama import ResponseError as OllamaResponseError
@@ -128,6 +128,7 @@ class OllamaService:
         # Circuit breaker: fail-fast after consecutive failures to prevent cascading hangs
         # Use provider-agnostic circuit breaker from shared module
         from app.constants import CircuitBreakerProvider
+
         ollama_config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.OLLAMA.value)
         self._circuit_breaker = DefaultCircuitBreaker(ollama_config)
 
@@ -146,8 +147,12 @@ class OllamaService:
         """Return current Ollama queue metrics."""
         return {
             "pending_requests": self._pending_requests,
-            "avg_queue_depth": sum(self._queue_depth_hist) / len(self._queue_depth_hist) if self._queue_depth_hist else 0,
-            "avg_queue_time_ms": sum(self._queue_time_hist) / len(self._queue_time_hist) if self._queue_time_hist else 0,
+            "avg_queue_depth": sum(self._queue_depth_hist) / len(self._queue_depth_hist)
+            if self._queue_depth_hist
+            else 0,
+            "avg_queue_time_ms": sum(self._queue_time_hist) / len(self._queue_time_hist)
+            if self._queue_time_hist
+            else 0,
         }
 
     @staticmethod
@@ -161,6 +166,7 @@ class OllamaService:
     def _enforce_token_budget(cls, prompt_text: str, budget: int, node: str = "generate") -> None:
         """Soft enforcement: warns if estimated tokens exceed budget; raises only at 2x hard limit."""
         import logging
+
         estimated = cls._estimate_tokens(prompt_text)
         hard_limit = budget * 2
         if estimated > budget:
@@ -250,7 +256,13 @@ class OllamaService:
                         if kwargs:
                             options = {}
                             for k, v in kwargs.items():
-                                if k in ["num_predict", "temperature", "top_k", "top_p", "repeat_penalty"]:
+                                if k in [
+                                    "num_predict",
+                                    "temperature",
+                                    "top_k",
+                                    "top_p",
+                                    "repeat_penalty",
+                                ]:
                                     options[k] = v
                                 elif k in ChatOllama.model_fields:
                                     clean_kwargs[k] = v
@@ -284,6 +296,7 @@ class OllamaService:
                         # Update request-scoped token accumulator
                         try:
                             from services.cost_tracker import token_accumulator_var
+
                             acc = token_accumulator_var.get()
                             if acc is not None:
                                 acc.tokens_in += tokens_sent
@@ -295,7 +308,7 @@ class OllamaService:
 
                         self._circuit_breaker.record_success()
                         return content
-        except (asyncio.TimeoutError, httpx.ConnectError, httpx.RemoteProtocolError) as e:
+        except (TimeoutError, httpx.ConnectError, httpx.RemoteProtocolError) as e:
             self._circuit_breaker.record_failure()
             logger.error(f"Ollama generation failed (transient): {type(e).__name__}: {e}")
             raise ModelUnavailableError(str(e), is_transient=True) from e
@@ -303,7 +316,9 @@ class OllamaService:
             if not _is_rate_limited(e):
                 self._circuit_breaker.record_failure()
             else:
-                logger.warning(f"Ollama rate limited (429) — not counted against circuit breaker: {e}")
+                logger.warning(
+                    f"Ollama rate limited (429) — not counted against circuit breaker: {e}"
+                )
             logger.error(f"Ollama generation failed: {e}")
             raise
         finally:
@@ -327,7 +342,9 @@ class OllamaService:
             HumanMessage(content=user_prompt),
         ]
 
-        _FAST_TIMEOUT = settings.llm_timeout  # Must accommodate local model loading time (~34s for llama3.2:3b)
+        _FAST_TIMEOUT = (
+            settings.llm_timeout
+        )  # Must accommodate local model loading time (~34s for llama3.2:3b)
         _FAST_RETRIES = 2
         timeout = kwargs.pop("timeout", _FAST_TIMEOUT)
         max_retries = kwargs.pop("max_retries", _FAST_RETRIES)
@@ -360,7 +377,13 @@ class OllamaService:
                     if kwargs:
                         options = {}
                         for k, v in kwargs.items():
-                            if k in ["num_predict", "temperature", "top_k", "top_p", "repeat_penalty"]:
+                            if k in [
+                                "num_predict",
+                                "temperature",
+                                "top_k",
+                                "top_p",
+                                "repeat_penalty",
+                            ]:
                                 options[k] = v
                             elif k in ChatOllama.model_fields:
                                 clean_kwargs[k] = v
@@ -387,6 +410,7 @@ class OllamaService:
                     tokens_received = self._estimate_tokens(content)
                     try:
                         from services.cost_tracker import token_accumulator_var
+
                         acc = token_accumulator_var.get()
                         if acc is not None:
                             acc.tokens_in += tokens_sent
@@ -460,7 +484,13 @@ class OllamaService:
                     if kwargs:
                         options = {}
                         for k, v in kwargs.items():
-                            if k in ["num_predict", "temperature", "top_k", "top_p", "repeat_penalty"]:
+                            if k in [
+                                "num_predict",
+                                "temperature",
+                                "top_k",
+                                "top_p",
+                                "repeat_penalty",
+                            ]:
                                 options[k] = v
                             elif k in ChatOllama.model_fields:
                                 clean_kwargs[k] = v
@@ -480,7 +510,7 @@ class OllamaService:
                                 if end == -1:
                                     text = ""
                                 else:
-                                    text = text[end + 8:]
+                                    text = text[end + 8 :]
                                     in_think_block = False
                                 continue
                             start = text.find("<think>")
@@ -490,7 +520,7 @@ class OllamaService:
                             else:
                                 if start > 0:
                                     yield text[:start]
-                                text = text[start + 7:]
+                                text = text[start + 7 :]
                                 in_think_block = True
             self._circuit_breaker.record_success()
 
@@ -501,10 +531,11 @@ class OllamaService:
             async for token in guarded_stream(_raw_stream()):
                 accumulated_tokens += token
                 yield token
-            
+
             tokens_received = self._estimate_tokens(accumulated_tokens)
             try:
                 from services.cost_tracker import token_accumulator_var
+
                 acc = token_accumulator_var.get()
                 if acc is not None:
                     acc.tokens_in += tokens_sent
@@ -517,7 +548,7 @@ class OllamaService:
             self._circuit_breaker.record_failure()
             # StreamInterruptedError already yielded the sentinel; just log
             logger.error("Ollama streaming interrupted mid-stream")
-        except (asyncio.TimeoutError, httpx.ConnectError, httpx.RemoteProtocolError) as e:
+        except (TimeoutError, httpx.ConnectError, httpx.RemoteProtocolError) as e:
             self._circuit_breaker.record_failure()
             logger.error(f"Ollama streaming failed (transient): {type(e).__name__}: {e}")
             raise ModelUnavailableError(str(e), is_transient=True) from e
@@ -525,7 +556,9 @@ class OllamaService:
             if not _is_rate_limited(e):
                 self._circuit_breaker.record_failure()
             else:
-                logger.warning(f"Ollama rate limited (429) on stream — not counted against circuit breaker: {e}")
+                logger.warning(
+                    f"Ollama rate limited (429) on stream — not counted against circuit breaker: {e}"
+                )
             logger.error(f"Ollama streaming failed: {e}")
             raise
 
@@ -584,17 +617,21 @@ class OllamaService:
         from rag.prompts import INTENT_AND_COMPLEXITY_PROMPT
 
         try:
-            result = await self._generate_fast(
-                INTENT_AND_COMPLEXITY_PROMPT, text, **kwargs
-            )
+            result = await self._generate_fast(INTENT_AND_COMPLEXITY_PROMPT, text, **kwargs)
             result_upper = result.upper().strip()
 
             # Parse intent (first matching label wins; order = priority)
             intent = "CASUAL"
             for label in (
-                "DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL",
-                "FACTUAL", "RELATIONAL", "FOLLOW_UP",
-                "MEDITATION", "COMPARATIVE", "CASUAL",
+                "DISTRESS",
+                "SAFETY_VIOLATION",
+                "ADVERSARIAL",
+                "FACTUAL",
+                "RELATIONAL",
+                "FOLLOW_UP",
+                "MEDITATION",
+                "COMPARATIVE",
+                "CASUAL",
             ):
                 if label in result_upper:
                     intent = label
@@ -607,7 +644,9 @@ class OllamaService:
             for line in result_upper.splitlines():
                 if line.startswith("COMPLEXITY"):
                     # Take the substring after the colon (or after the word)
-                    value = line.split(":", 1)[-1] if ":" in line else line.replace("COMPLEXITY", "", 1)
+                    value = (
+                        line.split(":", 1)[-1] if ":" in line else line.replace("COMPLEXITY", "", 1)
+                    )
                     if "COMPLEX" in value:
                         complexity = "complex"
                     else:

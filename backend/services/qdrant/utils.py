@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import uuid
 import logging
+import uuid
 
 from qdrant_client.http.models import SparseVector
 

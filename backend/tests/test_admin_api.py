@@ -4,6 +4,7 @@ Covers promote/demote admin, alert-rule upsert/delete, prompt activation,
 golden-question upsert/delete, generic reingest, and logs list.
 All endpoints must enforce both `_require_admin` (superuser) and AAL2.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -21,11 +22,13 @@ client = TestClient(app)
 
 def _set_user(user: dict | None):
     if user is None:
+
         async def no_user():
             raise HTTPException(status_code=401, detail="Authentication required")
 
         app.dependency_overrides[get_current_user_from_supabase] = no_user
     else:
+
         async def fixed_user():
             return user
 
@@ -37,9 +40,11 @@ def _clear_overrides():
     yield
     app.dependency_overrides.pop(get_current_user_from_supabase, None)
     from app.dependencies import get_container
+
     app.dependency_overrides.pop(get_container, None)
     # Reset shared admin rate limiter state so tests do not 429 each other.
     from app.main import _ADMIN_RATE_LIMITER
+
     for _lim in (_ADMIN_RATE_LIMITER, getattr(_ADMIN_RATE_LIMITER, "_fallback", None)):
         if _lim is None:
             continue
@@ -86,7 +91,19 @@ def _mock_supabase_client():
 
     def _make_return(value):
         m = MagicMock()
-        for name in ("eq", "neq", "gte", "lte", "ilike", "limit", "order", "select", "insert", "update", "delete"):
+        for name in (
+            "eq",
+            "neq",
+            "gte",
+            "lte",
+            "ilike",
+            "limit",
+            "order",
+            "select",
+            "insert",
+            "update",
+            "delete",
+        ):
             getattr(m, name).return_value = m
         m.execute.return_value = value
         return m
@@ -174,7 +191,9 @@ def test_promote_admin_success(mock_get_client, admin_user):
 
     auth_resp = MagicMock()
     auth_resp.data = [{"id": "target-user-id"}]
-    auth_table.select.return_value.eq.return_value.limit.return_value.execute.return_value = auth_resp
+    auth_table.select.return_value.eq.return_value.limit.return_value.execute.return_value = (
+        auth_resp
+    )
 
     existing_resp = MagicMock()
     existing_resp.data = []
@@ -186,6 +205,7 @@ def test_promote_admin_success(mock_get_client, admin_user):
     data = res.json()
     assert data["ok"] is True
     assert data["user_id"] == "target-user-id"
+
 
 @patch("app.telemetry_db._get_client")
 def test_promote_admin_missing_user(mock_get_client, admin_user):
@@ -303,7 +323,9 @@ def test_delete_alert_rule_success(mock_get_client, admin_user):
     mock_client = _mock_supabase_client()
     mock_get_client.return_value = mock_client
 
-    mock_client.table.return_value.delete.return_value.eq.return_value.execute.return_value = MagicMock()
+    mock_client.table.return_value.delete.return_value.eq.return_value.execute.return_value = (
+        MagicMock()
+    )
 
     res = client.delete("/api/admin/alert-rules/rule-1")
     assert res.status_code == 200
@@ -343,7 +365,9 @@ def test_activate_prompt_success(mock_get_client, admin_user):
     target_resp.data = [{"name": "system-prompt"}]
     mock_client.table.return_value.select.return_value.eq.return_value.limit.return_value.execute.return_value = target_resp
 
-    mock_client.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
+    mock_client.table.return_value.update.return_value.eq.return_value.execute.return_value = (
+        MagicMock()
+    )
 
     res = client.post("/api/admin/prompts/prompt-1/activate")
     assert res.status_code == 200
@@ -401,7 +425,9 @@ def test_delete_golden_question_success(mock_get_client, admin_user):
     mock_client = _mock_supabase_client()
     mock_get_client.return_value = mock_client
 
-    mock_client.table.return_value.delete.return_value.eq.return_value.execute.return_value = MagicMock()
+    mock_client.table.return_value.delete.return_value.eq.return_value.execute.return_value = (
+        MagicMock()
+    )
 
     res = client.delete("/api/admin/golden-questions/gq-1")
     assert res.status_code == 200
@@ -434,8 +460,10 @@ def test_reingest_requires_aal2(admin_user_aal1):
 @patch("ingestion.web_ingest_pipeline._validate_and_normalize")
 def test_reingest_url_success(mock_validate, admin_user):
     _set_user(admin_user)
-    from app.dependencies import get_container
     from types import SimpleNamespace
+
+    from app.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: SimpleNamespace(redis_client=None)
 
     mock_validate.return_value = "https://example.com/normalized"
@@ -448,7 +476,9 @@ def test_reingest_url_success(mock_validate, admin_user):
     # The route imports tasks.web_ingest_tasks.ingest_url_task at runtime; patch
     # the import source so `ingest_url_task.delay()` returns our mock.
     with patch("tasks.web_ingest_tasks.ingest_url_task", mock_task):
-        res = client.post("/api/admin/reingest", json={"source": "https://example.com", "mode": "url"})
+        res = client.post(
+            "/api/admin/reingest", json={"source": "https://example.com", "mode": "url"}
+        )
     assert res.status_code == 200
     data = res.json()
     assert data["mode"] == "url"
@@ -457,8 +487,10 @@ def test_reingest_url_success(mock_validate, admin_user):
 
 def test_reingest_invalid_mode(admin_user):
     _set_user(admin_user)
-    from app.dependencies import get_container
     from types import SimpleNamespace
+
+    from app.dependencies import get_container
+
     app.dependency_overrides[get_container] = lambda: SimpleNamespace(redis_client=None)
     res = client.post("/api/admin/reingest", json={"source": "x", "mode": "invalid"})
     assert res.status_code == 422
@@ -488,7 +520,15 @@ def test_list_logs_success(mock_get_client, admin_user):
     mock_get_client.return_value = mock_client
 
     logs_resp = MagicMock()
-    logs_resp.data = [{"id": 1, "level": "info", "message": "hello", "request_id": "r1", "created_at": "2026-01-01T00:00:00Z"}]
+    logs_resp.data = [
+        {
+            "id": 1,
+            "level": "info",
+            "message": "hello",
+            "request_id": "r1",
+            "created_at": "2026-01-01T00:00:00Z",
+        }
+    ]
     mock_client.table.return_value.select.return_value.gte.return_value.lte.return_value.eq.return_value.ilike.return_value.order.return_value.limit.return_value.execute.return_value = logs_resp
 
     res = client.get("/api/admin/logs?level=info&search=hello")

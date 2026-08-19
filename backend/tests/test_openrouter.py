@@ -42,10 +42,12 @@ class FakeAsyncClient:
             if "some-other-model" in model:
                 return FakeResponse()
             # Classification model test expects intent/complexity response
-            return FakeResponse(data={
-                "choices": [{"message": {"content": "INTENT: FACTUAL\nCOMPLEXITY: simple"}}],
-                "usage": {"prompt_tokens": 5, "completion_tokens": 6}
-            })
+            return FakeResponse(
+                data={
+                    "choices": [{"message": {"content": "INTENT: FACTUAL\nCOMPLEXITY: simple"}}],
+                    "usage": {"prompt_tokens": 5, "completion_tokens": 6},
+                }
+            )
         return FakeResponse()
 
     async def get(self, url, **kwargs):
@@ -58,10 +60,11 @@ class FakeAsyncClient:
 async def test_openrouter_service_generate(monkeypatch):
     monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
     monkeypatch.setattr(settings, "openrouter_generation_model", "some-other-model")
-    
+
     # Capture client initialization
     async def fake_get_client(self):
         return FakeAsyncClient()
+
     monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
 
     service = OpenRouterService()
@@ -74,6 +77,7 @@ class FakeResponse429:
 
     def raise_for_status(self):
         import httpx
+
         raise httpx.HTTPStatusError("rate limited", request=None, response=self)
 
     def json(self):
@@ -97,6 +101,7 @@ async def test_openrouter_429_does_not_retry_same_model(monkeypatch):
 
     async def fake_get_client(self):
         return FakeRateLimitedClient()
+
     monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
 
     service = OpenRouterService()
@@ -127,6 +132,7 @@ async def test_openrouter_429_falls_back_to_secondary_model(monkeypatch):
 
     async def fake_get_client(self):
         return FakeFallbackClient()
+
     monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
 
     service = OpenRouterService()
@@ -139,9 +145,10 @@ async def test_openrouter_429_falls_back_to_secondary_model(monkeypatch):
 @pytest.mark.asyncio
 async def test_openrouter_provider_delegation(monkeypatch):
     monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
-    
+
     async def fake_get_client(self):
         return FakeAsyncClient()
+
     monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
 
     service = OpenRouterService()
@@ -157,8 +164,9 @@ async def test_openrouter_service_anthropic_caching(monkeypatch, caplog):
     monkeypatch.setattr(settings, "openrouter_enforce_model_policy", False)
 
     import logging
+
     monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
-    
+
     captured_calls = []
 
     class MockAsyncClient:
@@ -170,16 +178,16 @@ async def test_openrouter_service_anthropic_caching(monkeypatch, caplog):
 
         async def post(self, url, json=None, headers=None, **kwargs):
             captured_calls.append({"url": url, "json": json, "headers": headers})
-            return FakeResponse(data={
-                "choices": [{"message": {"content": "Zen is peace."}}],
-                "usage": {
-                    "prompt_tokens": 100,
-                    "completion_tokens": 10,
-                    "prompt_tokens_details": {
-                        "cached_tokens": 40
-                    }
+            return FakeResponse(
+                data={
+                    "choices": [{"message": {"content": "Zen is peace."}}],
+                    "usage": {
+                        "prompt_tokens": 100,
+                        "completion_tokens": 10,
+                        "prompt_tokens_details": {"cached_tokens": 40},
+                    },
                 }
-            })
+            )
 
     async def fake_get_client(self):
         return MockAsyncClient()
@@ -187,22 +195,22 @@ async def test_openrouter_service_anthropic_caching(monkeypatch, caplog):
     monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
 
     service = OpenRouterService()
-    
+
     # 1. Test standard Anthropic model call
     with caplog.at_level(logging.INFO):
         res = await service.generate(
             system_prompt="Be a Zen master.",
             user_prompt="Explain mindfulness.",
-            model="anthropic/claude-3-5-sonnet"
+            model="anthropic/claude-3-5-sonnet",
         )
-    
+
     assert res == "Zen is peace."
     assert len(captured_calls) == 1
     call = captured_calls[0]
-    
+
     # Verify model
     assert call["json"]["model"] == "anthropic/claude-3-5-sonnet"
-    
+
     # Verify structured system prompt
     messages = call["json"]["messages"]
     assert messages[0]["role"] == "system"
@@ -210,20 +218,22 @@ async def test_openrouter_service_anthropic_caching(monkeypatch, caplog):
     assert messages[0]["content"][0]["type"] == "text"
     assert messages[0]["content"][0]["text"] == "Be a Zen master."
     assert messages[0]["content"][0]["cache_control"] == {"type": "ephemeral"}
-    
+
     # Verify headers
     assert call["headers"] is not None
     assert call["headers"].get("anthropic-beta") == "prompt-caching-2024-07-31"
 
     # Verify logging of cached tokens
-    assert any("OpenRouter Cache Hit: cached_tokens=40" in record.message for record in caplog.records)
+    assert any(
+        "OpenRouter Cache Hit: cached_tokens=40" in record.message for record in caplog.records
+    )
 
     # 2. Test standard non-Anthropic model call (should not modify payload or send headers)
     captured_calls.clear()
     res = await service.generate(
         system_prompt="Be a Zen master.",
         user_prompt="Explain mindfulness.",
-        model="meta-llama/llama-3.1-8b-instruct"
+        model="meta-llama/llama-3.1-8b-instruct",
     )
     assert len(captured_calls) == 1
     call = captured_calls[0]
@@ -239,7 +249,7 @@ async def test_openrouter_service_anthropic_caching_stream(monkeypatch):
     monkeypatch.setattr(settings, "openrouter_enforce_model_policy", False)
 
     monkeypatch.setattr(settings, "openrouter_api_key", "test-api-key")
-    
+
     captured_calls = []
 
     class MockAsyncClient:
@@ -250,28 +260,25 @@ async def test_openrouter_service_anthropic_caching_stream(monkeypatch):
             return False
 
         def stream(self, method, url, json=None, headers=None, **kwargs):
-            captured_calls.append({
-                "method": method,
-                "url": url,
-                "json": json,
-                "headers": headers
-            })
-            
+            captured_calls.append({"method": method, "url": url, "json": json, "headers": headers})
+
             class MockStreamResponse:
                 async def __aenter__(self):
                     return self
+
                 async def __aexit__(self, exc_type, exc, tb):
                     pass
+
                 def raise_for_status(self):
                     pass
+
                 async def aiter_lines(self):
                     import json as json_lib
-                    chunk = {
-                        "choices": [{"delta": {"content": "Mindfulness is simple."}}]
-                    }
+
+                    chunk = {"choices": [{"delta": {"content": "Mindfulness is simple."}}]}
                     yield f"data: {json_lib.dumps(chunk)}"
                     yield "data: [DONE]"
-            
+
             return MockStreamResponse()
 
     async def fake_get_client(self):
@@ -280,24 +287,22 @@ async def test_openrouter_service_anthropic_caching_stream(monkeypatch):
     monkeypatch.setattr(OpenRouterService, "_get_http_client", fake_get_client)
 
     service = OpenRouterService()
-    
+
     # 1. Test Anthropic streaming
     chunks = []
     async for chunk in service.generate_stream(
-        system_prompt="Be a monk.",
-        user_prompt="What is now?",
-        model="anthropic/claude-3-5-sonnet"
+        system_prompt="Be a monk.", user_prompt="What is now?", model="anthropic/claude-3-5-sonnet"
     ):
         chunks.append(chunk)
 
     assert "".join(chunks) == "Mindfulness is simple."
     assert len(captured_calls) == 1
     call = captured_calls[0]
-    
+
     # Verify model and stream payload
     assert call["json"]["model"] == "anthropic/claude-3-5-sonnet"
     assert call["json"]["stream"] is True
-    
+
     # Verify structured system prompt
     messages = call["json"]["messages"]
     assert messages[0]["role"] == "system"
@@ -305,7 +310,7 @@ async def test_openrouter_service_anthropic_caching_stream(monkeypatch):
     assert messages[0]["content"][0]["type"] == "text"
     assert messages[0]["content"][0]["text"] == "Be a monk."
     assert messages[0]["content"][0]["cache_control"] == {"type": "ephemeral"}
-    
+
     # Verify headers
     assert call["headers"] is not None
     assert call["headers"].get("anthropic-beta") == "prompt-caching-2024-07-31"
@@ -316,7 +321,7 @@ async def test_openrouter_service_anthropic_caching_stream(monkeypatch):
     async for chunk in service.generate_stream(
         system_prompt="Be a monk.",
         user_prompt="What is now?",
-        model="meta-llama/llama-3.1-8b-instruct"
+        model="meta-llama/llama-3.1-8b-instruct",
     ):
         chunks.append(chunk)
 
@@ -326,4 +331,3 @@ async def test_openrouter_service_anthropic_caching_stream(monkeypatch):
     assert messages[0]["role"] == "system"
     assert isinstance(messages[0]["content"], str)
     assert call["headers"] is None or "anthropic-beta" not in call["headers"]
-

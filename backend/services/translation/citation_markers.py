@@ -1,4 +1,5 @@
 """Preserve answer citation markers across every provider translation path."""
+
 from __future__ import annotations
 
 import re
@@ -27,4 +28,4 @@ def restore_citation_markers(source_text: str, translated_text: str) -> str:
             missing.append(number)
     if not missing:
         return translated
-    return "{} {}".format(translated.rstrip(), " ".join("[{}]".format(n) for n in missing)).strip()
+    return "{} {}".format(translated.rstrip(), " ".join(f"[{n}]" for n in missing)).strip()

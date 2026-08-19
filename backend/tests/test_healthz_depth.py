@@ -5,12 +5,12 @@ BEFORE the real FastAPI app. These tests drive the ASGI wrapper directly with
 an httpx ASGITransport so the wrapper's own heartbeat/lifespan logic is what
 is under test (no FastAPI TestClient needed).
 """
+
 import asyncio
 import time
 from contextlib import contextmanager
 
 import httpx
-import pytest
 
 import start_railway
 

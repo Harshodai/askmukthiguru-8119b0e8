@@ -23,7 +23,6 @@ import ipaddress
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Optional
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -50,8 +49,14 @@ _BLOCKED_QUERY_PATTERNS = [
 
 # Suspicious TLDs often used for spam/phishing
 _SUSPICIOUS_TLDS = {
-    "tk", "ml", "ga", "cf", "gq",  # Free TLDs with high abuse rates
-    "zip", "mov", "phd",             # Recently introduced, high abuse
+    "tk",
+    "ml",
+    "ga",
+    "cf",
+    "gq",  # Free TLDs with high abuse rates
+    "zip",
+    "mov",
+    "phd",  # Recently introduced, high abuse
 }
 
 # Blocked URL schemes (only http/https allowed)
@@ -65,17 +70,19 @@ _PRIVATE_NETWORKS = [
     ipaddress.ip_network("127.0.0.0/8"),
     ipaddress.ip_network("169.254.0.0/16"),  # Link-local
     ipaddress.ip_network("0.0.0.0/8"),
-    ipaddress.ip_network("fc00::/7"),         # IPv6 private
-    ipaddress.ip_network("fe80::/10"),         # IPv6 link-local
-    ipaddress.ip_network("::1/128"),           # IPv6 loopback
+    ipaddress.ip_network("fc00::/7"),  # IPv6 private
+    ipaddress.ip_network("fe80::/10"),  # IPv6 link-local
+    ipaddress.ip_network("::1/128"),  # IPv6 loopback
 ]
 
 
 # ─── Data Classes ──────────────────────────────────────────────────────────────
 
+
 @dataclass
 class GuardrailResult:
     """Result of running guardrail checks on a search operation."""
+
     allowed: bool
     reason: str = ""
     sanitized_query: str = ""
@@ -85,6 +92,7 @@ class GuardrailResult:
 @dataclass
 class SanitizedResult:
     """A search result after content sanitization."""
+
     title: str
     snippet: str
     url: str
@@ -93,6 +101,7 @@ class SanitizedResult:
 
 
 # ─── Input Guardrails ────────────────────────────────────────────────────────
+
 
 def sanitize_query(raw_query: str) -> str:
     """
@@ -166,6 +175,7 @@ def check_query_repetition(query: str) -> tuple[bool, str]:
 
 
 # ─── SSRF / URL Security Guardrails ──────────────────────────────────────────
+
 
 def _is_private_ip(hostname: str) -> bool:
     """Check if hostname resolves to a private IP."""
@@ -241,6 +251,7 @@ def check_url_safety(url: str) -> tuple[bool, str]:
 
 # ─── Content Sanitization Guardrails ─────────────────────────────────────────
 
+
 def sanitize_result_content(text: str) -> str:
     """
     Sanitize search result text content.
@@ -289,7 +300,9 @@ def calculate_content_score(result: dict) -> tuple[float, list[str]]:
         score -= 0.3
 
     # Check for excessive special characters (garbage content)
-    special_char_ratio = sum(1 for c in combined if c in "!@#$%^&*()_+-=[]{}|;':\",./<>?") / max(len(combined), 1)
+    special_char_ratio = sum(1 for c in combined if c in "!@#$%^&*()_+-=[]{}|;':\",./<>?") / max(
+        len(combined), 1
+    )
     if special_char_ratio > 0.3:
         flags.append("high_special_char_ratio")
         score -= 0.2
@@ -318,6 +331,7 @@ def calculate_content_score(result: dict) -> tuple[float, list[str]]:
 
 
 # ─── Deduplication Guardrails ────────────────────────────────────────────────
+
 
 def deduplicate_results(results: list[dict], similarity_threshold: float = 0.85) -> list[dict]:
     """
@@ -367,6 +381,7 @@ def deduplicate_results(results: list[dict], similarity_threshold: float = 0.85)
 
 # ─── Rate Limiting Hooks ────────────────────────────────────────────────────
 
+
 class SearchRateLimiter:
     """
     Simple in-memory rate limiter for web search queries.
@@ -381,8 +396,7 @@ class SearchRateLimiter:
     def _clean_old(self, user_id: str, now: float) -> None:
         if user_id in self._queries:
             self._queries[user_id] = [
-                t for t in self._queries[user_id]
-                if now - t < self.window_seconds
+                t for t in self._queries[user_id] if now - t < self.window_seconds
             ]
 
     def can_search(self, user_id: str) -> tuple[bool, str]:
@@ -395,8 +409,7 @@ class SearchRateLimiter:
         query_times = self._queries.get(user_id, [])
         if len(query_times) >= self.max_queries:
             return False, (
-                f"Rate limit exceeded: {self.max_queries} queries per "
-                f"{self.window_seconds}s window"
+                f"Rate limit exceeded: {self.max_queries} queries per {self.window_seconds}s window"
             )
 
         return True, ""
@@ -411,6 +424,7 @@ class SearchRateLimiter:
 
 
 # ─── Orchestration ───────────────────────────────────────────────────────────
+
 
 def apply_input_guardrails(raw_query: str) -> GuardrailResult:
     """
@@ -489,7 +503,10 @@ def apply_result_guardrails(result: dict) -> tuple[bool, dict, list[str]]:
 
 # ─── Audit / Compliance ─────────────────────────────────────────────────────
 
-def log_search_audit(query: str, results_count: int, user_id: str | None = None, flags: list | None = None) -> None:
+
+def log_search_audit(
+    query: str, results_count: int, user_id: str | None = None, flags: list | None = None
+) -> None:
     """Log a structured audit entry for a web search operation."""
     import json
 

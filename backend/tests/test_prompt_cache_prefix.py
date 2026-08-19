@@ -7,14 +7,14 @@ prefixes regardless of retrieval score ordering or dynamic state changes.
 from __future__ import annotations
 
 import pytest
-import asyncio
-from rag.doc_utils import sort_docs_canonically, doc_hash
-from rag.nodes.generation import context_engineer
+
 from app.telemetry.prompt_cache_telemetry import (
     compute_prompt_prefix_hash,
-    record_prompt_cache_event,
     get_prompt_cache_stats,
+    record_prompt_cache_event,
 )
+from rag.doc_utils import doc_hash, sort_docs_canonically
+from rag.nodes.generation import context_engineer
 
 
 def test_canonical_document_sorting_determinism():
@@ -63,7 +63,9 @@ async def test_context_engineer_prefix_cache_stability():
     knowledge_a = res_a["context_layers"]["knowledge"]
     knowledge_b = res_b["context_layers"]["knowledge"]
 
-    assert knowledge_a == knowledge_b, "Context engineer produced different knowledge blocks for identical doc sets!"
+    assert knowledge_a == knowledge_b, (
+        "Context engineer produced different knowledge blocks for identical doc sets!"
+    )
 
 
 @pytest.mark.asyncio
@@ -95,14 +97,18 @@ async def test_context_engineer_keeps_most_relevant_doc_when_over_budget():
     result = await context_engineer(state)
     knowledge = result["context_layers"]["knowledge"]
 
-    assert "most directly relevant" in knowledge, "Highest-relevance doc must survive budget selection"
+    assert "most directly relevant" in knowledge, (
+        "Highest-relevance doc must survive budget selection"
+    )
 
 
 def test_prompt_cache_telemetry_tracking():
     """Test telemetry module tracking cache events correctly."""
     prefix_h = compute_prompt_prefix_hash("System persona", "Sorted knowledge block")
-    
-    event_1 = record_prompt_cache_event("vllm", prefix_h, cached_tokens=100, total_tokens=150, ttft_ms=30.0)
+
+    event_1 = record_prompt_cache_event(
+        "vllm", prefix_h, cached_tokens=100, total_tokens=150, ttft_ms=30.0
+    )
     assert event_1["is_hit"] is True
 
     stats = get_prompt_cache_stats()

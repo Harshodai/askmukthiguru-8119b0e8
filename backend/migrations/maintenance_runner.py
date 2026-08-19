@@ -31,7 +31,6 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import logging
 import os
@@ -40,9 +39,9 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import IntEnum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 # Ensure backend/ is in sys.path
 _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -72,7 +71,7 @@ class OperationResult:
     actions: list[str] = field(default_factory=list)
     details: dict[str, Any] = field(default_factory=dict)
     execution_time_ms: float = 0.0
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     exit_code: ExitCode = ExitCode.SUCCESS
 
     def to_dict(self) -> dict[str, Any]:
@@ -130,7 +129,9 @@ class DistributedLock:
 
     def acquire(self) -> bool:
         if self.redis is None:
-            logger.info("Redis not available; proceeding without distributed lock for %s", self.lock_name)
+            logger.info(
+                "Redis not available; proceeding without distributed lock for %s", self.lock_name
+            )
             self.acquired = True
             return True
         try:
@@ -167,7 +168,7 @@ class BaseMaintenanceOperation(ABC):
     description: str
 
     @abstractmethod
-    def check_preconditions(self, ctx: MaintenanceContext) -> Tuple[bool, str]:
+    def check_preconditions(self, ctx: MaintenanceContext) -> tuple[bool, str]:
         """Verify services/connections are ready before execution."""
         pass
 
@@ -186,6 +187,7 @@ class BaseMaintenanceOperation(ABC):
 # 1. Qdrant Contract Migration: qdrant-contract-v1
 # =============================================================================
 
+
 class QdrantContractOperation(BaseMaintenanceOperation):
     name = "qdrant-contract-v1"
     description = "Enforce Qdrant HNSW m=16 configs on LightRAG collections, ensure semantic_query_cache (1024d cosine), and patch spiritual_wisdom HNSW m=16"
@@ -196,7 +198,7 @@ class QdrantContractOperation(BaseMaintenanceOperation):
         "lightrag_vdb_chunks_baai_bge_m3_1024d",
     ]
 
-    def check_preconditions(self, ctx: MaintenanceContext) -> Tuple[bool, str]:
+    def check_preconditions(self, ctx: MaintenanceContext) -> tuple[bool, str]:
         try:
             client = ctx.get_qdrant_client()
             client.get_collections()
@@ -220,7 +222,9 @@ class QdrantContractOperation(BaseMaintenanceOperation):
                     info = client.get_collection(col)
                     current_m = getattr(getattr(info.config, "hnsw_config", None), "m", None)
                     if current_m is None or current_m < 16:
-                        plan_items.append(f"Patch HNSW m=16 (ef_construct=100) on {col} (current m={current_m})")
+                        plan_items.append(
+                            f"Patch HNSW m=16 (ef_construct=100) on {col} (current m={current_m})"
+                        )
                     else:
                         plan_items.append(f"HNSW m={current_m} already optimal on {col} (skip)")
                 else:
@@ -237,7 +241,9 @@ class QdrantContractOperation(BaseMaintenanceOperation):
                 sw_info = client.get_collection("spiritual_wisdom")
                 sw_m = getattr(getattr(sw_info.config, "hnsw_config", None), "m", None)
                 if sw_m is None or sw_m < 16:
-                    plan_items.append(f"Patch HNSW m=16 (ef_construct=200) on spiritual_wisdom (current m={sw_m})")
+                    plan_items.append(
+                        f"Patch HNSW m=16 (ef_construct=200) on spiritual_wisdom (current m={sw_m})"
+                    )
                 else:
                     plan_items.append(f"spiritual_wisdom HNSW m={sw_m} already optimal (skip)")
             else:
@@ -279,7 +285,9 @@ class QdrantContractOperation(BaseMaintenanceOperation):
                     info = client.get_collection(col)
                     current_m = getattr(getattr(info.config, "hnsw_config", None), "m", None)
                     if current_m is None or current_m < 16:
-                        client.update_collection(col, hnsw_config=HnswConfigDiff(m=16, ef_construct=100))
+                        client.update_collection(
+                            col, hnsw_config=HnswConfigDiff(m=16, ef_construct=100)
+                        )
                         actions.append(f"Patched HNSW m=16 on {col}")
                     else:
                         actions.append(f"HNSW m={current_m} already optimal on {col}")
@@ -300,7 +308,9 @@ class QdrantContractOperation(BaseMaintenanceOperation):
                 sw_info = client.get_collection("spiritual_wisdom")
                 sw_m = getattr(getattr(sw_info.config, "hnsw_config", None), "m", None)
                 if sw_m is None or sw_m < 16:
-                    client.update_collection("spiritual_wisdom", hnsw_config=HnswConfigDiff(m=16, ef_construct=200))
+                    client.update_collection(
+                        "spiritual_wisdom", hnsw_config=HnswConfigDiff(m=16, ef_construct=200)
+                    )
                     actions.append("Patched HNSW m=16 on spiritual_wisdom")
                 else:
                     actions.append(f"spiritual_wisdom HNSW m={sw_m} already optimal")
@@ -329,11 +339,12 @@ class QdrantContractOperation(BaseMaintenanceOperation):
 # 2. Neo4j Spiritual Ontology Schema Migration: neo4j-ontology-schema-v1
 # =============================================================================
 
+
 class Neo4jOntologyOperation(BaseMaintenanceOperation):
     name = "neo4j-ontology-schema-v1"
     description = "Create Neo4j unique constraints, base entity index, seed spiritual teachers, concepts, practices, relationships, and align extracted ontology"
 
-    def check_preconditions(self, ctx: MaintenanceContext) -> Tuple[bool, str]:
+    def check_preconditions(self, ctx: MaintenanceContext) -> tuple[bool, str]:
         if not getattr(settings, "neo4j_uri", None):
             return False, "NEO4J_URI is not configured in settings"
         try:
@@ -409,6 +420,7 @@ class Neo4jOntologyOperation(BaseMaintenanceOperation):
 # 3. Qdrant Payload Indexes Migration: qdrant-payload-indexes-v1
 # =============================================================================
 
+
 class QdrantPayloadIndexesOperation(BaseMaintenanceOperation):
     name = "qdrant-payload-indexes-v1"
     description = "Ensure integer and keyword payload indexes on spiritual_wisdom collection (raptor_level, cluster_id, language, content_type, speaker, topic)"
@@ -416,7 +428,7 @@ class QdrantPayloadIndexesOperation(BaseMaintenanceOperation):
     INT_FIELDS = ["raptor_level", "cluster_id"]
     KW_FIELDS = ["language", "content_type", "speaker", "topic"]
 
-    def check_preconditions(self, ctx: MaintenanceContext) -> Tuple[bool, str]:
+    def check_preconditions(self, ctx: MaintenanceContext) -> tuple[bool, str]:
         try:
             client = ctx.get_qdrant_client()
             cols = {c.name for c in client.get_collections().collections}
@@ -430,9 +442,7 @@ class QdrantPayloadIndexesOperation(BaseMaintenanceOperation):
         t0 = time.time()
         plan_items = [
             f"Create INTEGER payload index on spiritual_wisdom.{f}" for f in self.INT_FIELDS
-        ] + [
-            f"Create KEYWORD payload index on spiritual_wisdom.{f}" for f in self.KW_FIELDS
-        ]
+        ] + [f"Create KEYWORD payload index on spiritual_wisdom.{f}" for f in self.KW_FIELDS]
         return OperationResult(
             operation=self.name,
             mode="dry-run",
@@ -453,7 +463,12 @@ class QdrantPayloadIndexesOperation(BaseMaintenanceOperation):
 
             def _is_already_exists(ex: Exception) -> bool:
                 msg = str(ex).lower()
-                return "already exists" in msg or "conflict" in msg or getattr(getattr(ex, "status_code", None), "value", None) == 409 or getattr(ex, "status_code", None) == 409
+                return (
+                    "already exists" in msg
+                    or "conflict" in msg
+                    or getattr(getattr(ex, "status_code", None), "value", None) == 409
+                    or getattr(ex, "status_code", None) == 409
+                )
 
             for f in self.INT_FIELDS:
                 try:
@@ -461,7 +476,9 @@ class QdrantPayloadIndexesOperation(BaseMaintenanceOperation):
                     actions.append(f"Created INTEGER index on spiritual_wisdom.{f}")
                 except Exception as ex:
                     if _is_already_exists(ex):
-                        actions.append(f"INTEGER index on spiritual_wisdom.{f} already exists ({ex})")
+                        actions.append(
+                            f"INTEGER index on spiritual_wisdom.{f} already exists ({ex})"
+                        )
                     else:
                         failures.append(f"INTEGER index on spiritual_wisdom.{f} failed: {ex}")
                         actions.append(f"INTEGER index on spiritual_wisdom.{f} failed: {ex}")
@@ -472,7 +489,9 @@ class QdrantPayloadIndexesOperation(BaseMaintenanceOperation):
                     actions.append(f"Created KEYWORD index on spiritual_wisdom.{f}")
                 except Exception as ex:
                     if _is_already_exists(ex):
-                        actions.append(f"KEYWORD index on spiritual_wisdom.{f} already exists ({ex})")
+                        actions.append(
+                            f"KEYWORD index on spiritual_wisdom.{f} already exists ({ex})"
+                        )
                     else:
                         failures.append(f"KEYWORD index on spiritual_wisdom.{f} failed: {ex}")
                         actions.append(f"KEYWORD index on spiritual_wisdom.{f} failed: {ex}")
@@ -512,16 +531,22 @@ class QdrantPayloadIndexesOperation(BaseMaintenanceOperation):
 # 4. LightRAG Entity Dedup Migration: lightrag-entity-dedup-v1
 # =============================================================================
 
+
 class LightRAGEntityDedupOperation(BaseMaintenanceOperation):
     name = "lightrag-entity-dedup-v1"
-    description = "Run entity deduplication merge rules for known spiritual concept name variants in LightRAG"
+    description = (
+        "Run entity deduplication merge rules for known spiritual concept name variants in LightRAG"
+    )
 
     ENTITY_MERGES = [
         (["karma", "Karma", "KARMA"], "Karma"),
         (["dharma", "Dharma", "DHARMA"], "Dharma"),
         (["deeksha", "Deeksha", "DEEKSHA", "deeksha blessing"], "Deeksha"),
         (["aham", "Aham", "AHAM", "aham consciousness"], "Aham"),
-        (["beautiful state", "Beautiful State", "beautiful-state", "BeautifulState"], "Beautiful State"),
+        (
+            ["beautiful state", "Beautiful State", "beautiful-state", "BeautifulState"],
+            "Beautiful State",
+        ),
         (["suffering state", "Suffering State", "suffering-state"], "Suffering State"),
         (["soul sync", "Soul Sync", "SoulSync", "soul-sync"], "Soul Sync"),
         (["oneness blessing", "Oneness Blessing", "oneness-blessing"], "Oneness Blessing"),
@@ -529,7 +554,7 @@ class LightRAGEntityDedupOperation(BaseMaintenanceOperation):
         (["beautiful state of being", "beautiful state of consciousness"], "Beautiful State"),
     ]
 
-    def check_preconditions(self, ctx: MaintenanceContext) -> Tuple[bool, str]:
+    def check_preconditions(self, ctx: MaintenanceContext) -> tuple[bool, str]:
         # LightRAG can be checked or Neo4j driver can be checked
         return True, "LightRAG entity dedup preconditions met"
 
@@ -564,9 +589,9 @@ class LightRAGEntityDedupOperation(BaseMaintenanceOperation):
                     from app.dependencies import get_container
 
                     container = get_container()
-                    rag_instance = getattr(getattr(container, "lightrag", None), "_rag", None) or getattr(
-                        getattr(container, "lightrag", None), "rag", None
-                    )
+                    rag_instance = getattr(
+                        getattr(container, "lightrag", None), "_rag", None
+                    ) or getattr(getattr(container, "lightrag", None), "rag", None)
                 except Exception as ce:
                     logger.debug("Container LightRAG resolution note: %s", ce)
 
@@ -635,9 +660,12 @@ class LightRAGEntityDedupOperation(BaseMaintenanceOperation):
 # 5. Cleanup Stale Collections Migration: cleanup-stale-collections-v1
 # =============================================================================
 
+
 class CleanupStaleCollectionsOperation(BaseMaintenanceOperation):
     name = "cleanup-stale-collections-v1"
-    description = "Delete stale 384d LightRAG collections and empty semantic_query_cache from Qdrant"
+    description = (
+        "Delete stale 384d LightRAG collections and empty semantic_query_cache from Qdrant"
+    )
 
     STALE_384D = [
         "lightrag_vdb_entities_intfloat_multilingual_e5_small_384d",
@@ -647,7 +675,7 @@ class CleanupStaleCollectionsOperation(BaseMaintenanceOperation):
         "spiritual_wisdom_recovery_v20260713_003753",
     ]
 
-    def check_preconditions(self, ctx: MaintenanceContext) -> Tuple[bool, str]:
+    def check_preconditions(self, ctx: MaintenanceContext) -> tuple[bool, str]:
         try:
             client = ctx.get_qdrant_client()
             client.get_collections()
@@ -675,7 +703,9 @@ class CleanupStaleCollectionsOperation(BaseMaintenanceOperation):
                 if count == 0:
                     plan_items.append("Delete empty semantic_query_cache collection (0 points)")
                 elif count is None:
-                    plan_items.append("Preserve semantic_query_cache collection (point count unknown)")
+                    plan_items.append(
+                        "Preserve semantic_query_cache collection (point count unknown)"
+                    )
                 else:
                     plan_items.append(f"Preserve semantic_query_cache collection ({count} points)")
 
@@ -707,14 +737,17 @@ class CleanupStaleCollectionsOperation(BaseMaintenanceOperation):
         try:
             if not ctx.force:
                 stale_present = [
-                    stale for stale in self.STALE_384D
+                    stale
+                    for stale in self.STALE_384D
                     if stale in {c.name for c in client.get_collections().collections}
                 ]
                 return OperationResult(
                     operation=self.name,
                     mode="apply",
                     status="SKIPPED",
-                    actions=[f"Stale 384d collection deletion requires --force confirmation; {len(stale_present)} stale collection(s) found: {stale_present}"],
+                    actions=[
+                        f"Stale 384d collection deletion requires --force confirmation; {len(stale_present)} stale collection(s) found: {stale_present}"
+                    ],
                     details={
                         "reason": "Destructive operation: pass --force to confirm deletion of stale 384d collections",
                         "stale_collections_present": stale_present,
@@ -740,9 +773,13 @@ class CleanupStaleCollectionsOperation(BaseMaintenanceOperation):
                         client.delete_collection("semantic_query_cache")
                         actions.append("Deleted empty semantic_query_cache collection")
                     elif count is None:
-                        actions.append("Preserved semantic_query_cache collection (point count unknown)")
+                        actions.append(
+                            "Preserved semantic_query_cache collection (point count unknown)"
+                        )
                     else:
-                        actions.append(f"Preserved semantic_query_cache collection ({count} points)")
+                        actions.append(
+                            f"Preserved semantic_query_cache collection ({count} points)"
+                        )
                 except Exception as ce:
                     actions.append(f"Checking semantic_query_cache failed: {ce}")
 
@@ -770,7 +807,7 @@ class CleanupStaleCollectionsOperation(BaseMaintenanceOperation):
 # Registry & Runner
 # =============================================================================
 
-OPERATIONS: Dict[str, BaseMaintenanceOperation] = {
+OPERATIONS: dict[str, BaseMaintenanceOperation] = {
     QdrantContractOperation.name: QdrantContractOperation(),
     Neo4jOntologyOperation.name: Neo4jOntologyOperation(),
     QdrantPayloadIndexesOperation.name: QdrantPayloadIndexesOperation(),
@@ -780,10 +817,7 @@ OPERATIONS: Dict[str, BaseMaintenanceOperation] = {
 
 
 def list_operations() -> list[dict[str, str]]:
-    return [
-        {"name": op.name, "description": op.description}
-        for op in OPERATIONS.values()
-    ]
+    return [{"name": op.name, "description": op.description} for op in OPERATIONS.values()]
 
 
 def run_operation(
@@ -797,7 +831,9 @@ def run_operation(
             operation=operation_name,
             mode="dry-run" if dry_run else "apply",
             status="FAILED",
-            details={"error": f"Unknown operation: {operation_name}. Available: {list(OPERATIONS.keys())}"},
+            details={
+                "error": f"Unknown operation: {operation_name}. Available: {list(OPERATIONS.keys())}"
+            },
             exit_code=ExitCode.INVALID_OPERATION,
         )
 
@@ -839,7 +875,9 @@ def run_operation(
                     operation=operation_name,
                     mode="apply",
                     status="PRECONDITION_FAILED",
-                    details={"reason": f"Distributed lock could not be acquired due to Redis error: {lock.error}"},
+                    details={
+                        "reason": f"Distributed lock could not be acquired due to Redis error: {lock.error}"
+                    },
                     exit_code=ExitCode.PRECONDITION_FAILED,
                 )
         elif not ctx.force:
@@ -847,7 +885,9 @@ def run_operation(
                 operation=operation_name,
                 mode="apply",
                 status="LOCK_HELD",
-                details={"error": f"Lock maintenance:lock:{operation_name} is held by another worker"},
+                details={
+                    "error": f"Lock maintenance:lock:{operation_name} is held by another worker"
+                },
                 exit_code=ExitCode.LOCK_HELD,
             )
         else:
@@ -943,7 +983,7 @@ def main() -> int:
             "mode": "dry-run" if dry_run else "apply",
             "overall_status": "SUCCESS" if overall_exit_code == ExitCode.SUCCESS else "FAILED",
             "overall_exit_code": int(overall_exit_code),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "results": [r.to_dict() for r in results],
         }
         print(json.dumps(report, indent=2))

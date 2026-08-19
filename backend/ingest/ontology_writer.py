@@ -15,8 +15,9 @@ of seed scripts. Non-fatal on any failure (logs + returns 0).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Iterable, Optional
+from collections.abc import Iterable
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 from domain.spiritual_ontology import (
     ConceptType,
@@ -31,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 class OntologyWriteError(RuntimeError):
     """Raised when required ontology materialization cannot be committed."""
+
 
 # =============================================================================
 # Domain name lists — sourced from app/db/seed_ontology.py
@@ -239,8 +241,9 @@ async def write_extraction_to_neo4j(
         return 0
     written = 0
     from services.tenant_context import TenantContext
+
     tenant_id = tenant_id or TenantContext.get() or "default"
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     # Collect all entity names from both sources so we MERGE nodes first.
     all_entities: list[str] = list(entities or [])
@@ -368,6 +371,7 @@ async def write_extraction_to_neo4j(
 # Self-check
 # =============================================================================
 
+
 class _MockTransaction:
     """Records Cypher + params, supports commit/rollback."""
 
@@ -383,7 +387,7 @@ class _MockTransaction:
     def rollback(self) -> None:
         pass
 
-    def __enter__(self) -> "_MockTransaction":
+    def __enter__(self) -> _MockTransaction:
         return self
 
     def __exit__(self, *exc: object) -> bool:
@@ -397,7 +401,7 @@ class _MockSession:
         self.calls: list[tuple[str, dict]] = []
         self.tx: Optional[_MockTransaction] = None
 
-    def __enter__(self) -> "_MockSession":
+    def __enter__(self) -> _MockSession:
         return self
 
     def __exit__(self, *exc: object) -> bool:

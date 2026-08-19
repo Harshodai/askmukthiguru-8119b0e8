@@ -1,4 +1,5 @@
 """Regression coverage for deterministic severe/crisis pipeline preemption."""
+
 from __future__ import annotations
 
 import time

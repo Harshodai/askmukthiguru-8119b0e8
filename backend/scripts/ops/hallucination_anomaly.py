@@ -18,7 +18,7 @@ import json
 import logging
 import statistics
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 from app.config import settings
@@ -29,14 +29,16 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso(dt: datetime) -> str:
     return dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def _fetch_responses(since: datetime, until: Optional[datetime] = None) -> Optional[list[dict[str, Any]]]:
+def _fetch_responses(
+    since: datetime, until: Optional[datetime] = None
+) -> Optional[list[dict[str, Any]]]:
     """Pull chat_responses with faithfulness / hallucination_flag in the window.
 
     Returns None (not []) on a connection/query failure, so the caller can

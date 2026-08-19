@@ -50,9 +50,8 @@ def _hf_cache_dir(model_id: str) -> Path:
 
     Mirrors how huggingface_hub resolves its own cache so we do not fight it.
     """
-    hf_home = (
-        os.environ.get("HF_HOME")
-        or os.path.join(os.path.expanduser("~"), ".cache", "huggingface")
+    hf_home = os.environ.get("HF_HOME") or os.path.join(
+        os.path.expanduser("~"), ".cache", "huggingface"
     )
     safe = "models--" + model_id.replace("/", "--")
     return Path(hf_home) / "hub" / safe
@@ -84,8 +83,8 @@ class OnnxReranker:
 
     def _load(self, model_id: str) -> None:
         """Download (once) and load the ONNX session + tokeniser."""
-        from huggingface_hub import snapshot_download
         import onnxruntime as ort
+        from huggingface_hub import snapshot_download
         from transformers import AutoTokenizer
 
         # Fail-closed: only the validated model id may be loaded. A
@@ -115,9 +114,7 @@ class OnnxReranker:
 
         onnx_files = sorted(Path(local_path).glob("*.onnx"))
         if not onnx_files:
-            raise FileNotFoundError(
-                f"No .onnx file in {local_path} for model '{model_id}'"
-            )
+            raise FileNotFoundError(f"No .onnx file in {local_path} for model '{model_id}'")
 
         # Prefer a quantised file if multiple exist (e.g. model_qint8.onnx vs model.onnx)
         onnx_path = next(
@@ -151,8 +148,7 @@ class OnnxReranker:
             use_fast=True,
         )  # nosec B615
         logger.info(
-            "Loaded ONNX INT8 reranker: %s  (file=%s, inputs=%s, "
-            "token_type_ids=%s, outputs=%s)",
+            "Loaded ONNX INT8 reranker: %s  (file=%s, inputs=%s, token_type_ids=%s, outputs=%s)",
             model_id,
             onnx_path.name,
             sorted(input_names),
@@ -227,7 +223,7 @@ if __name__ == "__main__":
     ]
     scores = reranker.predict(pairs)
     print("Scores:")
-    for (q, d), s in zip(pairs, scores):
+    for (_q, d), s in zip(pairs, scores):
         print(f"  {s:.4f}  {d[:60]}")
 
     if scores[0] < scores[1]:

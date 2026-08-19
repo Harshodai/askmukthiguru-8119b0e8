@@ -2,8 +2,8 @@
 
 import logging
 
-from anyio import Lock as AsyncLock
 import httpx
+from anyio import Lock as AsyncLock
 
 from app.config import settings
 

@@ -1,4 +1,5 @@
 """Server-authoritative assistant persona and corpus-scope registry."""
+
 from __future__ import annotations
 
 import json
@@ -59,9 +60,7 @@ def _scope_registry() -> dict[str, AssistantScope]:
         if not isinstance(corpus_id, str) or not corpus_id.strip():
             logger.warning("Ignoring assistant scope %r with invalid corpus", slug)
             continue
-        if teacher_id is not None and (
-            not isinstance(teacher_id, str) or not teacher_id.strip()
-        ):
+        if teacher_id is not None and (not isinstance(teacher_id, str) or not teacher_id.strip()):
             logger.warning("Ignoring assistant scope %r with invalid teacher", slug)
             continue
         if rights_status not in {"approved", "pending", "revoked"}:
@@ -73,8 +72,12 @@ def _scope_registry() -> dict[str, AssistantScope]:
         scopes[slug] = AssistantScope(
             corpus_id=corpus_id.strip(),
             teacher_id=teacher_id.strip() if isinstance(teacher_id, str) else None,
-            graph_namespace=graph_namespace.strip() if isinstance(graph_namespace, str) and graph_namespace.strip() else None,
-            source_release_id=source_release_id.strip() if isinstance(source_release_id, str) and source_release_id.strip() else None,
+            graph_namespace=graph_namespace.strip()
+            if isinstance(graph_namespace, str) and graph_namespace.strip()
+            else None,
+            source_release_id=source_release_id.strip()
+            if isinstance(source_release_id, str) and source_release_id.strip()
+            else None,
             rights_status=rights_status,
             rollout_enabled=rollout_enabled,
         )

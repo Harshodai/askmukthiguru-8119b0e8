@@ -104,7 +104,9 @@ def test_add_and_list_items() -> None:
 
     asyncio.run(svc.create("u1", "My Notebook"))
 
-    item = asyncio.run(svc.add_item("u1", "nb1", "What is oneness?", "It is union.", [{"q": "x"}], "ep1"))
+    item = asyncio.run(
+        svc.add_item("u1", "nb1", "What is oneness?", "It is union.", [{"q": "x"}], "ep1")
+    )
     assert item is not None
     assert item["id"] == "nb1"
 

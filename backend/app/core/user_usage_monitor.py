@@ -37,7 +37,10 @@ class UserUsageMonitor:
         if count >= self._threshold:
             logger.warning(
                 "User %s exceeded %d LLM calls in %.0fs (count=%d) — possible abuse probe",
-                user_id[:12], self._threshold, self._window, count,
+                user_id[:12],
+                self._threshold,
+                self._window,
+                count,
             )
         return count
 

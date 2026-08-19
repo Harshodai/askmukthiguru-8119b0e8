@@ -60,6 +60,7 @@ async def neo4j_fulltext_search(
     """
     try:
         from app.config import settings as _settings
+
         uri = neo4j_uri or _settings.neo4j_uri
         user = neo4j_user or _settings.neo4j_user
         pwd = neo4j_password or _settings.neo4j_password
@@ -108,20 +109,22 @@ async def neo4j_fulltext_search(
                 result = session.run(cypher, query=query, limit=limit)
                 records = []
                 for record in result:
-                    records.append({
-                        "text": record.get("text", ""),
-                        "source_url": record.get("source_url", ""),
-                        "title": record.get("title", ""),
-                        "content_type": "neo4j_fts",
-                        "chunk_index": record.get("chunk_index", 0),
-                        "raptor_level": record.get("raptor_level", 0),
-                        "score": record.get("score", 0.0),
-                        "parent_id": None,
-                        "parent_text": None,
-                        "is_child": False,
-                        "speaker": "Unknown",
-                        "topic": "Spiritual",
-                    })
+                    records.append(
+                        {
+                            "text": record.get("text", ""),
+                            "source_url": record.get("source_url", ""),
+                            "title": record.get("title", ""),
+                            "content_type": "neo4j_fts",
+                            "chunk_index": record.get("chunk_index", 0),
+                            "raptor_level": record.get("raptor_level", 0),
+                            "score": record.get("score", 0.0),
+                            "parent_id": None,
+                            "parent_text": None,
+                            "is_child": False,
+                            "speaker": "Unknown",
+                            "topic": "Spiritual",
+                        }
+                    )
                 return records
         finally:
             if close_driver:
@@ -137,7 +140,7 @@ async def neo4j_fulltext_search(
             f"{len(results)} results for query: {query[:60]!r}"
         )
         return results
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("SemanticRouterFallback: Neo4j query timed out (10s)")
         return []
     except Exception as exc:
@@ -209,27 +212,28 @@ class SemanticRouterFallback:
                     timeout=15.0,
                 )
                 if lightrag_context and isinstance(lightrag_context, str):
-                    combined.append({
-                        "text": lightrag_context[:2000],
-                        "source_url": "lightrag://graph",
-                        "title": "Knowledge Graph Context",
-                        "content_type": "lightrag_graph",
-                        "chunk_index": 0,
-                        "raptor_level": 2,
-                        "score": 0.5,
-                        "parent_id": None,
-                        "parent_text": None,
-                        "is_child": False,
-                        "speaker": "Graph",
-                        "topic": "Spiritual",
-                    })
+                    combined.append(
+                        {
+                            "text": lightrag_context[:2000],
+                            "source_url": "lightrag://graph",
+                            "title": "Knowledge Graph Context",
+                            "content_type": "lightrag_graph",
+                            "chunk_index": 0,
+                            "raptor_level": 2,
+                            "score": 0.5,
+                            "parent_id": None,
+                            "parent_text": None,
+                            "is_child": False,
+                            "speaker": "Graph",
+                            "topic": "Spiritual",
+                        }
+                    )
                     logger.info("SemanticRouterFallback: LightRAG added graph context")
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("SemanticRouterFallback: LightRAG query timed out (15s)")
             except Exception as exc:
                 logger.warning(
-                    f"SemanticRouterFallback: LightRAG fallback failed: "
-                    f"{type(exc).__name__}: {exc}"
+                    f"SemanticRouterFallback: LightRAG fallback failed: {type(exc).__name__}: {exc}"
                 )
 
         return combined

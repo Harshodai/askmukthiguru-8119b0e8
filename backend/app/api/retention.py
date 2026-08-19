@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -49,10 +48,7 @@ async def record_practice(
         raise HTTPException(status_code=503, detail="Retention service not available")
     before = await svc.get_streak(uid)
     state = await svc.record_practice(uid)
-    is_new_milestone = (
-        state.current in STREAK_MILESTONES
-        and state.current != before.current
-    )
+    is_new_milestone = state.current in STREAK_MILESTONES and state.current != before.current
     return {
         "current": state.current,
         "longest": state.longest,
@@ -75,10 +71,7 @@ async def retention_curve(
     if allowlist and user.get("id") not in allowlist:
         raise HTTPException(status_code=403, detail="Admin access required (not allowlisted)")
     if days < 1 or days > 365:
-        raise HTTPException(
-            status_code=422,
-            detail="days must be between 1 and 365"
-        )
+        raise HTTPException(status_code=422, detail="days must be between 1 and 365")
     svc = getattr(container, "retention_service", None)
     if svc is None:
         raise HTTPException(status_code=503, detail="Retention service not available")

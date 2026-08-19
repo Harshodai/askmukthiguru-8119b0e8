@@ -78,7 +78,7 @@ class RAGGraphBuilder:
 
 
 @lru_cache(maxsize=4)
-def _build_cached(builder: "RAGGraphBuilder", tier: Tier) -> CompiledStateGraph:
+def _build_cached(builder: RAGGraphBuilder, tier: Tier) -> CompiledStateGraph:
     """Compile a strategy ONCE per tier and return the cached graph.
 
     ``lru_cache`` keys on (builder id, tier). The builder instance is

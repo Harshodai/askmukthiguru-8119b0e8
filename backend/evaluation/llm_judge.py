@@ -47,9 +47,10 @@ import json
 import logging
 import re
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import yaml
 
@@ -66,7 +67,7 @@ class DimensionScore:
     """Single-dimension score with reasoning trail."""
 
     name: str
-    score: float            # 0.0 .. 1.0
+    score: float  # 0.0 .. 1.0
     pass_threshold: float
     rationale: str
     failure_mode: str | None = None  # taxonomy: hallucination|tone_drift|...
@@ -84,8 +85,8 @@ class CompositeScore:
     """Composite of all five dimensions for one (query, answer) evaluation."""
 
     query: str
-    composite: float                       # min(dim_scores) — weakest link
-    weighted_mean: float                   # mean weighted by per-dim weights
+    composite: float  # min(dim_scores) — weakest link
+    weighted_mean: float  # mean weighted by per-dim weights
     dimensions: dict[str, DimensionScore]
     all_pass: bool
     total_judge_tokens: int = 0
@@ -190,21 +191,20 @@ class JudgeClient:
         provider, model = _parse_provider_model(self.config.provider_model)
         start = time.monotonic()
         try:
-            chat = (
-                LlmChat(
-                    api_key=self.api_key,
-                    session_id=session_id,
-                    system_message=system_prompt,
-                )
-                .with_model(provider, model)
-            )
+            chat = LlmChat(
+                api_key=self.api_key,
+                session_id=session_id,
+                system_message=system_prompt,
+            ).with_model(provider, model)
             reply = await asyncio.wait_for(
                 chat.send_message(UserMessage(text=user_prompt)),
                 timeout=timeout_s,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = int((time.monotonic() - start) * 1000)
-            logger.warning("Judge timed out after %sms (%s).", latency_ms, self.config.provider_model)
+            logger.warning(
+                "Judge timed out after %sms (%s).", latency_ms, self.config.provider_model
+            )
             return ({}, 0, 0, latency_ms)
         except Exception as exc:  # noqa: BLE001 — judge failure must never bring down eval
             latency_ms = int((time.monotonic() - start) * 1000)
@@ -228,9 +228,7 @@ def _parse_provider_model(spec: str) -> tuple[str, str]:
     """Parse "provider:model" → (provider, model). Defaults provider=anthropic
     when not specified. Raises on empty input."""
     if not spec or ":" not in spec:
-        raise ValueError(
-            f"LLM_JUDGE_PROVIDER_MODEL must be 'provider:model', got {spec!r}"
-        )
+        raise ValueError(f"LLM_JUDGE_PROVIDER_MODEL must be 'provider:model', got {spec!r}")
     provider, model = spec.split(":", 1)
     return provider.strip().lower(), model.strip()
 
@@ -314,7 +312,7 @@ class LLMJudge:
     # ---- public API ----
 
     @classmethod
-    def from_settings(cls) -> "LLMJudge":
+    def from_settings(cls) -> LLMJudge:
         from app.config import settings
 
         repo_root = Path(__file__).resolve().parent
@@ -324,9 +322,7 @@ class LLMJudge:
             provider_model=getattr(
                 settings, "llm_judge_provider_model", "anthropic:claude-sonnet-4-6"
             ),
-            session_prefix=getattr(
-                settings, "llm_judge_session_prefix", "mukthi-guru-judge"
-            ),
+            session_prefix=getattr(settings, "llm_judge_session_prefix", "mukthi-guru-judge"),
             max_concurrent=int(getattr(settings, "llm_judge_max_concurrent", 4)),
             rubrics_dir=rubrics_dir,
             use_emergent_key=True,
@@ -434,8 +430,7 @@ class LLMJudge:
         user_template = rubric.get("user_template", "")
 
         rendered = (
-            user_template
-            .replace("{{query}}", query)
+            user_template.replace("{{query}}", query)
             .replace("{{answer}}", answer or "")
             .replace("{{context}}", retrieved_context or "")
             .replace("{{citations}}", "\n".join(citations))

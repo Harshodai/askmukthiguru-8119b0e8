@@ -38,7 +38,7 @@ async def polish_transcript(
     current_depth: int = 0,
 ) -> str:
     """Format and polish raw transcript using AskMukthiGuru native LLM providers.
-    
+
     If the transcript is empty or too short, returns raw_transcript as-is.
     Handles long transcript completions with recursive midpoint splitting.
     """
@@ -50,7 +50,7 @@ async def polish_transcript(
 
     try:
         prompt = f"{POLISH_SYSTEM_PROMPT}\n\nFormat this raw transcript:\n\n{raw_text}"
-        
+
         # Flexibly handle MultiProviderLLMService, ChatOpenAI, or mock objects
         if hasattr(svc, "generate"):
             try:
@@ -69,7 +69,9 @@ async def polish_transcript(
             response = await svc.ainvoke(messages)
 
         if isinstance(response, dict):
-            polished_text = response.get("choices", [{}])[0].get("message", {}).get("content", "") or response.get("text", "")
+            polished_text = response.get("choices", [{}])[0].get("message", {}).get(
+                "content", ""
+            ) or response.get("text", "")
         elif hasattr(response, "content"):
             polished_text = str(response.content)
         else:
@@ -92,15 +94,22 @@ async def polish_transcript(
                 midpoint = space_idx
 
             first_half = await polish_transcript(
-                raw_text[:midpoint], llm_service=svc, max_depth=max_depth, current_depth=current_depth + 1
+                raw_text[:midpoint],
+                llm_service=svc,
+                max_depth=max_depth,
+                current_depth=current_depth + 1,
             )
             second_half = await polish_transcript(
-                raw_text[midpoint:], llm_service=svc, max_depth=max_depth, current_depth=current_depth + 1
+                raw_text[midpoint:],
+                llm_service=svc,
+                max_depth=max_depth,
+                current_depth=current_depth + 1,
             )
             return f"{first_half}\n\n{second_half}"
 
         try:
             from services.doctrine_terms import apply_corrections
+
             return apply_corrections(polished_text)
         except Exception:
             return polished_text
@@ -108,4 +117,3 @@ async def polish_transcript(
     except Exception as e:
         logger.warning("Transcript polish failed (returning raw text): %s", e)
         return raw_text
-

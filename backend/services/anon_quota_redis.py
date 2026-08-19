@@ -3,6 +3,7 @@
 Uses sorted sets with ZADD + ZREMRANGEBYSCORE for an O(log n) sliding window,
 then sets the key TTL to the window duration so expired sessions clean up.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -13,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from redis.exceptions import RedisError
 
-from services.anon_quota_memory import AnonQuotaMemoryAdapter, _MAX_WINDOW_SIZE
+from services.anon_quota_memory import _MAX_WINDOW_SIZE, AnonQuotaMemoryAdapter
 from services.anon_quota_port import AnonQuotaPort, QuotaResult
 
 if TYPE_CHECKING:
@@ -87,6 +88,7 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
     def _get_fallback_limit(self, limit: int) -> int:
         try:
             from app.config import settings
+
             degraded_limit = int(getattr(settings, "anon_quota_degraded_limit", 3))
             return min(limit, degraded_limit)
         except Exception:
@@ -95,6 +97,7 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
     def _record_degraded(self, event: str) -> None:
         try:
             from app.metrics import ANON_QUOTA_DEGRADED_MODE
+
             ANON_QUOTA_DEGRADED_MODE.labels(event=event).inc()
         except Exception:
             pass
@@ -247,7 +250,9 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
         try:
             await self._redis.delete(self._key(session_id), self._pending_key(session_id))
         except RedisError as exc:
-            logger.warning(f"AnonQuotaRedisAdapter.reset degraded to in-memory fallback (Redis error: {exc})")
+            logger.warning(
+                f"AnonQuotaRedisAdapter.reset degraded to in-memory fallback (Redis error: {exc})"
+            )
             self._record_degraded("reset")
             await self._fallback.reset(session_id)
 
@@ -260,7 +265,9 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
         try:
             await self._redis.hdel(self._pending_key(session_id), reservation_id)
         except RedisError as exc:
-            logger.warning(f"AnonQuotaRedisAdapter.claim degraded to in-memory fallback (Redis error: {exc})")
+            logger.warning(
+                f"AnonQuotaRedisAdapter.claim degraded to in-memory fallback (Redis error: {exc})"
+            )
             self._record_degraded("claim")
             await self._fallback.claim(session_id, reservation_id)
 
@@ -274,7 +281,9 @@ class AnonQuotaRedisAdapter(AnonQuotaPort):
             await self._redis.zrem(self._key(session_id), reservation_id)
             await self._redis.hdel(self._pending_key(session_id), reservation_id)
         except RedisError as exc:
-            logger.warning(f"AnonQuotaRedisAdapter.release degraded to in-memory fallback (Redis error: {exc})")
+            logger.warning(
+                f"AnonQuotaRedisAdapter.release degraded to in-memory fallback (Redis error: {exc})"
+            )
             self._record_degraded("release")
             await self._fallback.release(session_id, reservation_id)
 

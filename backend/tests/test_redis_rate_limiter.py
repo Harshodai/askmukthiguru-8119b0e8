@@ -24,9 +24,7 @@ def _redis_available() -> bool:
     try:
         import redis
 
-        r = redis.Redis.from_url(
-            REDIS_URL, socket_timeout=0.5, socket_connect_timeout=0.5
-        )
+        r = redis.Redis.from_url(REDIS_URL, socket_timeout=0.5, socket_connect_timeout=0.5)
         return bool(r.ping())
     except Exception:
         return False
@@ -160,18 +158,16 @@ class TestRedisLuaDecision:
             barrier.wait()
             results[idx] = limiter.is_allowed(key)
 
-        threads = [
-            threading.Thread(target=worker, args=(i,)) for i in range(n_threads)
-        ]
+        threads = [threading.Thread(target=worker, args=(i,)) for i in range(n_threads)]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
 
         successes = sum(1 for allowed, _ in results if allowed)
-        assert (
-            successes == max_requests
-        ), f"expected exactly {max_requests} successes (atomic Lua), got {successes}"
+        assert successes == max_requests, (
+            f"expected exactly {max_requests} successes (atomic Lua), got {successes}"
+        )
 
 
 class TestRedisDownFallback:

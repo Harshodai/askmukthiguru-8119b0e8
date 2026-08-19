@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -68,7 +68,7 @@ class SemanticChunker:
                 return self._fallback_chunker.chunk(text)
 
             vec_arr = np.array(dense_vectors)
-            
+
             # 2. Compute consecutive sentence cosine distances (1 - cosine_similarity)
             distances = []
             for i in range(len(sentences) - 1):
@@ -80,7 +80,7 @@ class SemanticChunker:
 
             # 3. Determine topic-shift boundary threshold
             cutoff = float(np.percentile(distances, self._percentile_threshold))
-            
+
             # 4. Group sentences into topic chunks based on distance spikes & size limits
             chunks: list[str] = []
             curr_sentences: list[str] = [sentences[0]]
@@ -92,7 +92,9 @@ class SemanticChunker:
                 is_spike = distances[i] >= cutoff
 
                 # Cut chunk if distance spike detected AND min size met, OR max size exceeded
-                if (is_spike and curr_len >= self._min_chunk_chars) or (curr_len + next_len > self._max_chunk_chars):
+                if (is_spike and curr_len >= self._min_chunk_chars) or (
+                    curr_len + next_len > self._max_chunk_chars
+                ):
                     chunks.append(" ".join(curr_sentences))
                     curr_sentences = [next_sentence]
                     curr_len = next_len

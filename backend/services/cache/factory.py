@@ -31,12 +31,16 @@ class CacheFactory:
         mode = (override or getattr(settings, "cache_mode", CacheMode.BEST_EFFORT.value)).lower()
         valid = {m.value for m in CacheMode}
         if mode not in valid:
-            logger.warning(f"Invalid cache_mode '{mode}'; falling back to '{CacheMode.BEST_EFFORT.value}'")
+            logger.warning(
+                f"Invalid cache_mode '{mode}'; falling back to '{CacheMode.BEST_EFFORT.value}'"
+            )
             mode = CacheMode.BEST_EFFORT.value
         return mode
 
     @classmethod
-    def create_exact_cache(cls, override: Optional[str] = None) -> RedisCacheAdapter | InMemoryCacheAdapter:
+    def create_exact_cache(
+        cls, override: Optional[str] = None
+    ) -> RedisCacheAdapter | InMemoryCacheAdapter:
         """Create the configured exact (query -> response) cache adapter.
 
         - memory: always use in-memory cache.

@@ -3,16 +3,21 @@
 from services.citation_service import (
     CitationStyle,
     Source,
-    resolve,
     format_reference,
+    resolve,
     strip_orphan_markers,
 )
 
 
 def test_resolve_basic():
     ctx = [
-        {"id": "d1", "title": "Breath Awareness", "teacher": "Sri Preethaji",
-         "source": "Ekam Discourse", "year": "2023"},
+        {
+            "id": "d1",
+            "title": "Breath Awareness",
+            "teacher": "Sri Preethaji",
+            "source": "Ekam Discourse",
+            "year": "2023",
+        },
         {"id": "d2", "title": "On Presence", "source": "Ekam Teaching", "year": "2022"},
     ]
     answer = (
@@ -38,10 +43,13 @@ def test_grounding_check():
         "First paragraph with more than twenty-five words so it passes the substantive threshold and requires a citation.[^1]\n\n"
         "Second paragraph also twenty-five plus words because it needs citation checking too not a short empty paragraph.[^2]"
     )
-    result = resolve(cited, [
-        {"id": "d1", "title": "First"},
-        {"id": "d2", "title": "Second"},
-    ])
+    result = resolve(
+        cited,
+        [
+            {"id": "d1", "title": "First"},
+            {"id": "d2", "title": "Second"},
+        ],
+    )
     assert result.grounded is True
 
     # Uncited substantive paragraph — should NOT be grounded
@@ -49,10 +57,13 @@ def test_grounding_check():
         "First paragraph with more than twenty-five words so it passes the substantive threshold and requires a citation.[^1]\n\n"
         "Second paragraph also twenty-five plus words and actually does not have any citation marker not a single one at all here now added more words to exceed threshold."
     )
-    result = resolve(uncited, [
-        {"id": "d1", "title": "First"},
-        {"id": "d2", "title": "Second"},
-    ])
+    result = resolve(
+        uncited,
+        [
+            {"id": "d1", "title": "First"},
+            {"id": "d2", "title": "Second"},
+        ],
+    )
     assert result.grounded is False
 
 

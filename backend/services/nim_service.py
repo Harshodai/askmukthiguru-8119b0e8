@@ -11,37 +11,33 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import re
 import time
 from collections.abc import AsyncIterator
-from typing import Any, Optional
+from typing import Optional
 
-from anyio import Lock as AsyncLock
 import httpx
+from anyio import Lock as AsyncLock
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.config import settings
 from app.constants import CircuitBreakerProvider
-from services.circuit_breaker import (
-    CircuitBreakerConfig,
-    CircuitOpenException,
-    DefaultCircuitBreaker,
-)
 from rag.prompts import (
-    BATCH_GRADE_PROMPT,
     COMBINED_VERIFICATION_PROMPT,
+    COMPRESS_CONTEXT_PROMPT,
     DECOMPOSE_QUERY_PROMPT,
     FAITHFULNESS_CHECK_PROMPT,
     GRADE_RELEVANCE_PROMPT,
     HINT_EXTRACTION_PROMPT,
     HYDE_PROMPT,
-    INTENT_CLASSIFICATION_PROMPT,
-    IS_COMPLEX_QUERY_PROMPT,
     INTENT_AND_COMPLEXITY_PROMPT,
+    INTENT_CLASSIFICATION_PROMPT,
     QUERY_REWRITE_PROMPT,
     SUMMARIZE_PROMPT,
     VERIFICATION_PROMPT,
-    COMPRESS_CONTEXT_PROMPT,
+)
+from services.circuit_breaker import (
+    CircuitBreakerConfig,
+    DefaultCircuitBreaker,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,6 +70,7 @@ class NimService:
         if getattr(settings, "sarvam_api_key", None):
             try:
                 from services.sarvam_service import SarvamCloudService
+
                 self._sarvam_fallback = SarvamCloudService()
                 logger.info("NIM Service: Sarvam fallback initialized")
             except Exception as e:
@@ -84,6 +81,7 @@ class NimService:
         if getattr(settings, "openrouter_api_key", None):
             try:
                 from services.openrouter_service import OpenRouterService
+
                 self._openrouter_fallback = OpenRouterService()
                 logger.info("NIM Service: OpenRouter fallback initialized")
             except Exception as e:
@@ -100,7 +98,9 @@ class NimService:
             if self._http_client is None:
                 limits = httpx.Limits(
                     max_connections=getattr(settings, "http_max_connections", 100),
-                    max_keepalive_connections=getattr(settings, "http_max_keepalive_connections", 20),
+                    max_keepalive_connections=getattr(
+                        settings, "http_max_keepalive_connections", 20
+                    ),
                     keepalive_expiry=getattr(settings, "http_keepalive_expiry", 30.0),
                 )
                 headers = {"Content-Type": "application/json"}
@@ -149,7 +149,11 @@ class NimService:
             try:
                 return await self._openrouter_fallback._call_api(
                     messages=messages,
-                    model=getattr(settings, "openrouter_generation_model", "meta-llama/llama-3.3-70b-instruct:free"),
+                    model=getattr(
+                        settings,
+                        "openrouter_generation_model",
+                        "meta-llama/llama-3.3-70b-instruct:free",
+                    ),
                     max_tokens=2048,
                     temperature=0.7,
                     operation=operation,
@@ -158,7 +162,10 @@ class NimService:
                 logger.warning(f"OpenRouter last-resort fallback failed for {operation}: {e}")
         logger.warning(f"Using graceful degradation for {operation}")
         last_msg = messages[-1]["content"] if messages else ""
-        is_question = any(last_msg.lower().startswith(q) for q in ["what", "how", "who", "where", "why", "when", "can", "do", "is", "are"])
+        is_question = any(
+            last_msg.lower().startswith(q)
+            for q in ["what", "how", "who", "where", "why", "when", "can", "do", "is", "are"]
+        )
         if is_question:
             return (
                 "I'm currently experiencing a temporary connectivity issue with my knowledge base. "
@@ -179,6 +186,7 @@ class NimService:
     def _track_token_usage(self, *, tokens_in: int, tokens_out: int, model: str) -> None:
         try:
             from services.cost_tracker import token_accumulator_var
+
             acc = token_accumulator_var.get()
             if acc is not None:
                 acc.tokens_in += tokens_in
@@ -188,15 +196,18 @@ class NimService:
         except Exception as exc:
             logger.warning(f"Failed to record NIM token usage: {exc}")
 
-
-
-    async def _fallback_to_openrouter(self, messages: list[dict], model: str, max_tokens: int, temperature: float, operation: str) -> str:
+    async def _fallback_to_openrouter(
+        self, messages: list[dict], model: str, max_tokens: int, temperature: float, operation: str
+    ) -> str:
         """Try OpenRouter when NIM and Sarvam are unavailable. Returns graceful degradation if no fallback."""
         if self._openrouter_fallback is None:
             return await self._graceful_degradation(messages, operation=operation)
         try:
             logger.warning(f"NIM/Sarvam failed for {operation}; trying OpenRouter fallback")
-            target_model = getattr(settings, "openrouter_generation_model", None) or "meta-llama/llama-3.3-70b-instruct:free"
+            target_model = (
+                getattr(settings, "openrouter_generation_model", None)
+                or "meta-llama/llama-3.3-70b-instruct:free"
+            )
             content = await self._openrouter_fallback._call_api(
                 messages=messages,
                 model=target_model,
@@ -210,7 +221,10 @@ class NimService:
         except Exception as e:
             logger.warning(f"OpenRouter fallback failed for {operation}: {e}")
         return await self._graceful_degradation(messages, operation=operation)
-    async def _fallback_to_sarvam(self, messages: list[dict], model: str, max_tokens: int, temperature: float, operation: str) -> str:
+
+    async def _fallback_to_sarvam(
+        self, messages: list[dict], model: str, max_tokens: int, temperature: float, operation: str
+    ) -> str:
         """Try Sarvam when NIM is unavailable. Returns graceful degradation if no fallback."""
         if self._sarvam_fallback is None:
             return await self._graceful_degradation(messages, operation=operation)
@@ -228,7 +242,9 @@ class NimService:
                 return content
         except Exception as e:
             logger.warning(f"Sarvam fallback failed for {operation}: {e}")
-        return await self._fallback_to_openrouter(messages, model, max_tokens, temperature, operation)
+        return await self._fallback_to_openrouter(
+            messages, model, max_tokens, temperature, operation
+        )
 
     async def _call_api(
         self,
@@ -292,16 +308,19 @@ class NimService:
 
         except Exception as exc:
             is_rate_limit = (
-                isinstance(exc, httpx.HTTPStatusError)
-                and exc.response.status_code == 429
+                isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429
             )
-            is_connection_error = isinstance(exc, (httpx.RemoteProtocolError, httpx.ConnectError, httpx.TimeoutException))
+            is_connection_error = isinstance(
+                exc, (httpx.RemoteProtocolError, httpx.ConnectError, httpx.TimeoutException)
+            )
             if is_rate_limit or is_connection_error:
                 if is_rate_limit:
                     await self._record_rate_limit_response()
                 reason = "rate limited (429)" if is_rate_limit else type(exc).__name__
                 logger.warning(f"NIM {reason} during {operation} — trying fallback")
-                return await self._fallback_to_sarvam(messages, model, max_tokens, temperature, operation)
+                return await self._fallback_to_sarvam(
+                    messages, model, max_tokens, temperature, operation
+                )
             self._circuit.record_failure()
             logger.error(f"NIM call failed during {operation} (model={model}): {exc}")
             raise
@@ -462,7 +481,7 @@ class NimService:
             operation="classify_intent_and_complexity",
         )
         result_upper = raw.upper().strip()
-        
+
         # Robust fallback for JSON formatted responses (e.g. from mock tests)
         try:
             parsed = json.loads(raw)
@@ -470,7 +489,9 @@ class NimService:
                 intent_raw = parsed.get("intent")
                 intent = str(intent_raw).upper() if intent_raw is not None else "FACTUAL"
                 complexity_raw = parsed.get("complexity")
-                complexity = str(complexity_raw).lower() if complexity_raw is not None else "complex"
+                complexity = (
+                    str(complexity_raw).lower() if complexity_raw is not None else "complex"
+                )
                 if intent == "QUERY":
                     intent = "FACTUAL"
                 return {"intent": intent, "complexity": complexity}
@@ -486,7 +507,18 @@ class NimService:
             line = line.strip()
             if line.startswith("INTENT:"):
                 val = line.split(":", 1)[-1].strip()
-                for candidate in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL", "MEDITATION", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "CASUAL", "QUERY", "COMPARATIVE"]:
+                for candidate in [
+                    "DISTRESS",
+                    "SAFETY_VIOLATION",
+                    "ADVERSARIAL",
+                    "MEDITATION",
+                    "FACTUAL",
+                    "RELATIONAL",
+                    "FOLLOW_UP",
+                    "CASUAL",
+                    "QUERY",
+                    "COMPARATIVE",
+                ]:
                     if candidate in val:
                         intent = candidate
                         break
@@ -501,6 +533,7 @@ class NimService:
 
     async def classify_distress_structured(self, message: str) -> dict:
         from services.serene_mind_engine import DISTRESS_CLASSIFICATION_SYSTEM_PROMPT
+
         messages = [
             {"role": "system", "content": DISTRESS_CLASSIFICATION_SYSTEM_PROMPT},
             {"role": "user", "content": message},
@@ -573,7 +606,9 @@ class NimService:
         except (json.JSONDecodeError, TypeError):
             return []
 
-    async def rewrite_query(self, original_query: str, reasons: Optional[list[str]] = None, **kwargs) -> str:
+    async def rewrite_query(
+        self, original_query: str, reasons: Optional[list[str]] = None, **kwargs
+    ) -> str:
         reasons_text = f"Reasons: {reasons}" if reasons else ""
         messages = [
             {"role": "system", "content": QUERY_REWRITE_PROMPT},
@@ -686,7 +721,9 @@ class NimService:
             operation="compress_context",
         )
 
-    async def translate_text(self, text: str, source_language_code: str, target_language_code: str) -> str:
+    async def translate_text(
+        self, text: str, source_language_code: str, target_language_code: str
+    ) -> str:
         system_prompt = f"Translate the following text from {source_language_code} to {target_language_code}. Return only the translation, no explanations."
         messages = [
             {"role": "system", "content": system_prompt},

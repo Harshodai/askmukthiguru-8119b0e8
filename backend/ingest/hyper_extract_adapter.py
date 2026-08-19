@@ -207,7 +207,6 @@ _STOPWORDS: frozenset[str] = frozenset(
         "themselves",
         "here",
         "there",
-        "where",
         "everywhere",
         "anywhere",
         "somewhere",
@@ -320,9 +319,7 @@ _RELATION_VERBS = [
 ]
 
 _RELATION_RE = re.compile(
-    r"\b("
-    + "|".join(map(re.escape, sorted(_RELATION_VERBS, key=len, reverse=True)))
-    + r")\b",
+    r"\b(" + "|".join(map(re.escape, sorted(_RELATION_VERBS, key=len, reverse=True))) + r")\b",
     re.IGNORECASE,
 )
 
@@ -330,6 +327,7 @@ _RELATION_RE = re.compile(
 # =============================================================================
 # Public data structures
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class Section:
@@ -609,9 +607,7 @@ def _extract_entities(text: str) -> list[str]:
     return list(found.values())
 
 
-def _extract_relationships(
-    facts: list[str], entities: list[str]
-) -> list[tuple[str, str, str]]:
+def _extract_relationships(facts: list[str], entities: list[str]) -> list[tuple[str, str, str]]:
     """
     Build simple entity co-occurrence relationships from atomic facts.
 

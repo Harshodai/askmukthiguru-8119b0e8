@@ -83,7 +83,12 @@ def clean_transcript(text: str) -> str:
     import unicodedata
 
     # Strip null bytes and special LLM delimiter tokens
-    text = text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+    text = (
+        text.replace("\x00", "")
+        .replace("<|begin_of_text|>", "")
+        .replace("<|eot_id|>", "")
+        .replace("<|end_of_text|>", "")
+    )
     text = unicodedata.normalize("NFC", text)
 
     original_len = len(text)
@@ -136,16 +141,40 @@ def clean_for_embedding(text: str) -> str:
     # Robust sentence splitting: abbreviations and decimals are protected before
     # splitting on sentence-ending punctuation. This avoids NLTK/SpaCy deps.
     _abbreviation_periods = [
-        r"Mr\.", r"Mrs\.", r"Ms\.", r"Dr\.", r"Prof\.", r"Sr\.", r"Jr\.",
-        r"e\.g\.", r"i\.e\.", r"vs\.", r"etc\.", r"viz\.", r"Inc\.", r"Ltd\.",
-        r"a\.m\.", r"p\.m\.", r"A\.M\.", r"P\.M\.", r"no\.", r"No\.",
-        r"fig\.", r"Fig\.", r"et al\.", r"approx\.", r"ca\.", r"Co\.",
+        r"Mr\.",
+        r"Mrs\.",
+        r"Ms\.",
+        r"Dr\.",
+        r"Prof\.",
+        r"Sr\.",
+        r"Jr\.",
+        r"e\.g\.",
+        r"i\.e\.",
+        r"vs\.",
+        r"etc\.",
+        r"viz\.",
+        r"Inc\.",
+        r"Ltd\.",
+        r"a\.m\.",
+        r"p\.m\.",
+        r"A\.M\.",
+        r"P\.M\.",
+        r"no\.",
+        r"No\.",
+        r"fig\.",
+        r"Fig\.",
+        r"et al\.",
+        r"approx\.",
+        r"ca\.",
+        r"Co\.",
     ]
 
     # Temporarily replace period in abbreviations and decimal numbers
     _protected_text = text
     for abbr in _abbreviation_periods:
-        _protected_text = re.sub(abbr, abbr.replace(".", "__DOT__"), _protected_text, flags=re.IGNORECASE)
+        _protected_text = re.sub(
+            abbr, abbr.replace(".", "__DOT__"), _protected_text, flags=re.IGNORECASE
+        )
 
     # Also protect decimal numbers like 3.14 or 1,000.50
     _protected_text = re.sub(r"(\d)\.(\d)", r"\1__DOT__\2", _protected_text)
@@ -180,6 +209,7 @@ def normalize_spiritual_terms(text: str) -> str:
 
     try:
         from services.doctrine_terms import apply_corrections
+
         return apply_corrections(text)
     except Exception as e:
         logger.debug("Failed to apply doctrine_terms corrections: %s", e)

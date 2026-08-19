@@ -20,7 +20,11 @@ from typing import Any, Optional
 
 from qdrant_client.http.models import FieldCondition, Filter, MatchAny, MatchValue
 
-from services.circuit_breaker import CircuitBreakerConfig, CircuitOpenException, DefaultCircuitBreaker
+from services.circuit_breaker import (
+    CircuitBreakerConfig,
+    CircuitOpenException,
+    DefaultCircuitBreaker,
+)
 from services.qdrant.client import QdrantClientManager
 from services.qdrant.filters import QdrantFilterBuilder
 from services.qdrant.indexer import QdrantIndexer
@@ -37,7 +41,9 @@ logger = logging.getLogger(__name__)
 _SKY_TAG = "sky"
 
 
-def _build_tag_conditions(knowledge_tags: list[str]) -> tuple[list[FieldCondition], list[FieldCondition]]:
+def _build_tag_conditions(
+    knowledge_tags: list[str],
+) -> tuple[list[FieldCondition], list[FieldCondition]]:
     """
     Build (must, must_not) tag filter conditions.
 
@@ -99,6 +105,7 @@ class QdrantService:
         self._raptor = QdrantRaptorStore(self._client, self._collection, self._utils)
         self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("qdrant"))
         from services.circuit_breaker import get_circuit_breaker_registry
+
         get_circuit_breaker_registry().register("qdrant", self._circuit)
 
     # === Client / collection delegation ======================================
@@ -235,9 +242,7 @@ class QdrantService:
         """Dense-only search using the named 'dense' vector."""
         return self._searcher._dense_search(query_vector, limit, search_filter)
 
-    def scroll_content(
-        self, query: str, limit: int = 20, filter_cond=None
-    ) -> list[dict]:
+    def scroll_content(self, query: str, limit: int = 20, filter_cond=None) -> list[dict]:
         """BM25-like full-text search via Qdrant text_index on text field."""
         return self._client_manager.scroll_content(query, limit, filter_cond)
 

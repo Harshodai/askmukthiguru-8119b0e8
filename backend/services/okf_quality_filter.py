@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -80,16 +80,18 @@ class OKFQualityFilter:
 
         # Verify doctrine-specific validation
         body_lower = body.lower()
-        if "sri preethaji" not in body_lower and "sri krishnaji" not in body_lower and "ekam" not in body_lower:
+        if (
+            "sri preethaji" not in body_lower
+            and "sri krishnaji" not in body_lower
+            and "ekam" not in body_lower
+        ):
             # We don't fail, but log warning for low spiritual context
             logger.debug(f"OKF Warning: '{title}' has low doctrine term density.")
 
         return True, ""
 
     @classmethod
-    def filter_duplicate_entries(
-        cls, entries: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def filter_duplicate_entries(cls, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Remove duplicates by title (case-insensitive), keeping the longest body."""
         seen: dict[str, dict[str, Any]] = {}
         for entry in entries:

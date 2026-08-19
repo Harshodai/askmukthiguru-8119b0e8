@@ -129,6 +129,7 @@ class RerankerService:
         """Remove cached files for a model from HuggingFace cache directories."""
         import glob
         import shutil
+
         cache_dirs = [
             os.environ.get("SENTENCE_TRANSFORMERS_HOME", ""),
             os.environ.get("HF_HOME", ""),
@@ -153,6 +154,7 @@ class RerankerService:
         if settings.reranker_backend == "onnx_int8":
             try:
                 from services.onnx_reranker import OnnxReranker
+
                 start_time = time.perf_counter()
                 self._fallback_reranker = OnnxReranker(model_id=settings.reranker_onnx_model)
                 # OnnxReranker.predict() applies sigmoid internally; flag this so
@@ -230,8 +232,10 @@ class RerankerService:
         if self._fallback_reranker is None:
             return None
         import gc
+
         import numpy as np
         import torch
+
         gc.collect()
         pairs = [(query, doc["text"]) for doc in documents]
         with torch.inference_mode():
@@ -297,7 +301,9 @@ class RerankerService:
         start_time = time.perf_counter()
 
         cross_encoder_cutoff = getattr(settings, "cross_encoder_cutoff", 20)
-        use_cross_primary = len(documents) <= cross_encoder_cutoff or settings.use_cross_encoder_only
+        use_cross_primary = (
+            len(documents) <= cross_encoder_cutoff or settings.use_cross_encoder_only
+        )
 
         if use_cross_primary:
             try:
@@ -402,16 +408,17 @@ class RerankerService:
             text_low = (doc.get("text") or "").lower()
             tags_low = [str(t).lower() for t in (doc.get("tags") or [])]
             overlap = sum(
-                1 for label in concept_labels
-                if label and (label in text_low or label in tags_low)
+                1 for label in concept_labels if label and (label in text_low or label in tags_low)
             )
             score = base + overlap * overlap_weight
             if doc.get("ontology_validated"):
                 score += validated_weight
-            scored.append({
-                **doc,
-                "ontology_overlap": overlap,
-                "ontology_boosted_score": score,
-            })
+            scored.append(
+                {
+                    **doc,
+                    "ontology_overlap": overlap,
+                    "ontology_boosted_score": score,
+                }
+            )
         scored.sort(key=lambda d: d["ontology_boosted_score"], reverse=True)
         return scored

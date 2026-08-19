@@ -20,9 +20,11 @@ def mock_coalescer():
     mock_coalescer_obj = MagicMock()
     mock_coalescer_obj.get_or_run = AsyncMock(side_effect=dummy_get_or_run)
 
-    with patch("app.orchestrator._coalescer.get_or_run", side_effect=dummy_get_or_run), \
-         patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run), \
-         patch("app.coalescer.build_coalescer", return_value=mock_coalescer_obj):
+    with (
+        patch("app.orchestrator._coalescer.get_or_run", side_effect=dummy_get_or_run),
+        patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run),
+        patch("app.coalescer.build_coalescer", return_value=mock_coalescer_obj),
+    ):
         yield
 
 
@@ -66,6 +68,7 @@ def mock_get_container():
     mock_container.semantic_cache.is_available = True
 
     from app.coalescer import _InMemoryCoalescer
+
     mock_container.coalescer = _InMemoryCoalescer()
 
     # Mock Ollama
@@ -87,10 +90,11 @@ def mock_get_container():
 
     # Mock Translation
     mock_container.translation = AsyncMock()
+
     async def dummy_translate_text(*, text: str, source_lang: str, target_lang: str, **kwargs):
         return f"translated_{text}"
-    mock_container.translation.translate_text = dummy_translate_text
 
+    mock_container.translation.translate_text = dummy_translate_text
 
     # Mock Qdrant and OCR
     mock_container.qdrant = MagicMock()
@@ -133,8 +137,10 @@ def mock_get_container():
     def mock_table(table_name):
         query_mock = MagicMock()
         if table_name == "conversations":
+
             def select_fn(cols):
                 sel_mock = MagicMock()
+
                 def eq_fn(field, val):
                     eq_mock = MagicMock()
                     if field == "id" and val == "test-session":
@@ -142,22 +148,30 @@ def mock_get_container():
                     else:
                         eq_mock.execute.return_value.data = []
                     return eq_mock
+
                 sel_mock.eq = eq_fn
                 return sel_mock
+
             query_mock.select = select_fn
         elif table_name == "chat_messages":
+
             def select_fn(*args, **kwargs):
                 sel_mock = MagicMock()
+
                 def eq_fn(field, val):
                     eq_mock = MagicMock()
+
                     def order_fn(sort_col, desc=False):
                         ord_mock = MagicMock()
                         ord_mock.execute.return_value.data = []
                         return ord_mock
+
                     eq_mock.order = order_fn
                     return eq_mock
+
                 sel_mock.eq = eq_fn
                 return sel_mock
+
             query_mock.select = select_fn
         return query_mock
 
@@ -184,10 +198,6 @@ def mock_get_container():
     mock_quota.claim = AsyncMock()
     mock_container.anon_quota_service = mock_quota
     return mock_container
-
-
-
-
 
 
 app.dependency_overrides[get_current_user_from_supabase] = mock_get_current_user
@@ -240,6 +250,7 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
     # Setup mock container with a cached response that would be blocked by guardrails
     mock_container = MagicMock()
     from app.coalescer import _InMemoryCoalescer
+
     mock_container.coalescer = _InMemoryCoalescer()
     mock_container.guardrails = AsyncMock()
     mock_container.guardrails.check_input.return_value = {"blocked": False, "reason": None}
@@ -299,10 +310,11 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
     mock_container.ollama.translate_text = dummy_translate
 
     mock_container.translation = AsyncMock()
+
     async def dummy_translate_text(*, text: str, source_lang: str, target_lang: str, **kwargs):
         return f"translated_{text}"
-    mock_container.translation.translate_text = dummy_translate_text
 
+    mock_container.translation.translate_text = dummy_translate_text
 
     mock_container.qdrant = MagicMock()
     mock_container.qdrant.health_check = lambda: True
@@ -352,7 +364,6 @@ def test_chat_endpoint_cache_hit_with_guardrails(mock_log_query_trace):
     mock_quota.release = AsyncMock()
     mock_quota.claim = AsyncMock()
     mock_container.anon_quota_service = mock_quota
-
 
     # Temporarily override the container dependency
     app.dependency_overrides[get_container] = lambda: mock_container
@@ -404,7 +415,9 @@ def test_chat_endpoint_queue_full_releases_reservation():
         payload = {"user_message": "Hello", "session_id": "test-session", "messages": []}
         response = client.post("/api/chat", json=payload)
         assert response.status_code == 429
-        mock_quota.release.assert_awaited_once_with({"id": "test-user-id", "email": "test@example.com"}, "res-1")
+        mock_quota.release.assert_awaited_once_with(
+            {"id": "test-user-id", "email": "test@example.com"}, "res-1"
+        )
     finally:
         app.dependency_overrides[get_container] = mock_get_container
 
@@ -437,7 +450,9 @@ def test_stream_endpoint_queue_full_releases_reservation():
         payload = {"user_message": "Hello", "session_id": "test-session", "messages": []}
         response = client.post("/api/chat/stream", json=payload)
         assert response.status_code == 429
-        mock_quota.release.assert_awaited_once_with({"id": "test-user-id", "email": "test@example.com"}, "res-2")
+        mock_quota.release.assert_awaited_once_with(
+            {"id": "test-user-id", "email": "test@example.com"}, "res-2"
+        )
     finally:
         app.dependency_overrides[get_container] = mock_get_container
 
@@ -466,7 +481,9 @@ def test_stream_endpoint_empty_message_releases_reservation():
         payload = {"user_message": "   ", "session_id": "test-session", "messages": []}
         response = client.post("/api/chat/stream", json=payload)
         assert response.status_code == 200
-        mock_quota.release.assert_awaited_once_with({"id": "test-user-id", "email": "test@example.com"}, "res-3")
+        mock_quota.release.assert_awaited_once_with(
+            {"id": "test-user-id", "email": "test@example.com"}, "res-3"
+        )
         container.rag_graph.ainvoke.assert_not_awaited()
     finally:
         app.dependency_overrides[get_container] = mock_get_container
@@ -474,14 +491,17 @@ def test_stream_endpoint_empty_message_releases_reservation():
 
 def test_chat_endpoint_unauthorized_conversation_owner():
     """Verify that accessing another user's conversation returns 403 Forbidden."""
+
     def unauthorized_table(table_name):
         query_mock = MagicMock()
         if table_name == "conversations":
             sel_mock = MagicMock()
+
             def eq_fn(field, val):
                 eq_mock = MagicMock()
                 eq_mock.execute.return_value.data = [{"user_id": "different-user-id"}]
                 return eq_mock
+
             sel_mock.eq = eq_fn
             query_mock.select.return_value = sel_mock
         return query_mock
@@ -501,4 +521,3 @@ def test_chat_endpoint_unauthorized_conversation_owner():
         assert "Unauthorized" in response.json().get("detail", "")
     finally:
         app.dependency_overrides[get_container] = mock_get_container
-

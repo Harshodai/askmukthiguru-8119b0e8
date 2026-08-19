@@ -33,22 +33,62 @@ def _keyword_overlap_encoder():
     depending on a full embedding model in this preview environment."""
     MARKERS = [
         # Meditation domain
-        "meditation", "meditate", "soul sync", "serene mind", "breathing", "breathwork",
-        "start", "begin", "guide me", "take me", "lead me", "open the", "let us",
+        "meditation",
+        "meditate",
+        "soul sync",
+        "serene mind",
+        "breathing",
+        "breathwork",
+        "start",
+        "begin",
+        "guide me",
+        "take me",
+        "lead me",
+        "open the",
+        "let us",
         # Distress
-        "hopeless", "suicide", "anxious", "panic", "alone", "crying", "drowning",
-        "kashtama", "mann tut", "tut chuka",
+        "hopeless",
+        "suicide",
+        "anxious",
+        "panic",
+        "alone",
+        "crying",
+        "drowning",
+        "kashtama",
+        "mann tut",
+        "tut chuka",
         # Doctrine / FACTUAL
-        "preethaji", "krishnaji", "ekam", "deeksha", "beautiful state",
-        "suffering state", "four sacred secrets", "spiritual vision",
-        "spiritual right action", "inner truth", "universal intelligence",
-        "surrender", "oneness",
+        "preethaji",
+        "krishnaji",
+        "ekam",
+        "deeksha",
+        "beautiful state",
+        "suffering state",
+        "four sacred secrets",
+        "spiritual vision",
+        "spiritual right action",
+        "inner truth",
+        "universal intelligence",
+        "surrender",
+        "oneness",
         # Temporal
-        "schedule", "upcoming", "next", "month", "manifest course", "retreat",
+        "schedule",
+        "upcoming",
+        "next",
+        "month",
+        "manifest course",
+        "retreat",
         # Casual
-        "hello", "hi", "namaste", "pranam", "thank",
+        "hello",
+        "hi",
+        "namaste",
+        "pranam",
+        "thank",
         # Capability
-        "what can you", "tell me about yourself", "how do you work", "topics",
+        "what can you",
+        "tell me about yourself",
+        "how do you work",
+        "topics",
     ]
 
     def encode(text: str) -> list[float]:
@@ -75,7 +115,16 @@ def test_router_loads_yaml_and_finds_routes():
     router = _build_router_with_stub()
     names = router.route_names()
     # Asserting these in YAML order proves the YAML is the source of truth.
-    expected = {"SAFETY_VIOLATION", "DISTRESS", "MEDITATION", "ADVERSARIAL", "TEMPORAL", "CASUAL", "CAPABILITY", "FACTUAL"}
+    expected = {
+        "SAFETY_VIOLATION",
+        "DISTRESS",
+        "MEDITATION",
+        "ADVERSARIAL",
+        "TEMPORAL",
+        "CASUAL",
+        "CAPABILITY",
+        "FACTUAL",
+    }
     assert expected.issubset(set(names)), names
 
 
@@ -191,7 +240,7 @@ def test_linguistic_is_interrogative(query, expected):
         ("Tell me about yourself", True),
         ("Who are you", True),
         ("What topics can you teach", True),
-            ("What sort of knowledge do you have", True),
+        ("What sort of knowledge do you have", True),
         # Must NOT match: distress questions that share a "what is" prefix
         ("What is wrong with me", False),
         ("What is happening to me", False),

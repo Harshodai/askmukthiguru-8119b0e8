@@ -1,5 +1,7 @@
 """Build a deterministic, planning-only source re-ingestion manifest."""
+
 from __future__ import annotations
+
 import argparse
 import json
 from pathlib import Path
@@ -19,15 +21,17 @@ def build_manifest(report: dict, *, generated_from: str) -> dict:
         url = str(source.get("source_url") or "").strip()
         if verdict not in ALLOWED_VERDICTS or not url:
             continue
-        rows.append({
-            "source_url": url,
-            "verdict": verdict,
-            "contamination_rate": source.get("contamination_rate"),
-            "chunks": int(source.get("chunks") or 0),
-            "source_identity": url,
-            "candidate_action": ACTIONS[verdict],
-            "publish_allowed": False,
-        })
+        rows.append(
+            {
+                "source_url": url,
+                "verdict": verdict,
+                "contamination_rate": source.get("contamination_rate"),
+                "chunks": int(source.get("chunks") or 0),
+                "source_identity": url,
+                "candidate_action": ACTIONS[verdict],
+                "publish_allowed": False,
+            }
+        )
     rows.sort(key=lambda row: (row["verdict"], row["source_url"]))
     counts = {v: sum(row["verdict"] == v for row in rows) for v in sorted(ALLOWED_VERDICTS)}
     return {
@@ -55,7 +59,16 @@ def main() -> int:
     manifest = build_manifest(json.loads(args.report.read_text()), generated_from=str(args.report))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    print(json.dumps({"output": str(args.output), "source_count": manifest["source_count"], "verdict_counts": manifest["verdict_counts"]}, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "output": str(args.output),
+                "source_count": manifest["source_count"],
+                "verdict_counts": manifest["verdict_counts"],
+            },
+            sort_keys=True,
+        )
+    )
     return 0
 
 

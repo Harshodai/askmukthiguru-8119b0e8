@@ -22,11 +22,10 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.core.limiter import limiter
-from pydantic import BaseModel, Field
-
 from app.dependencies import get_container
 from services.auth_service import get_current_user_from_supabase
 from services.second_brain.crypto import UnlockedVault, VaultLockedError
@@ -64,6 +63,7 @@ async def _vault(
 # Schemas
 # ---------------------------------------------------------------------------
 
+
 class ProvisionResponse(BaseModel):
     user_id: str
     wrap_mode: str
@@ -93,6 +93,7 @@ class BrainItemOut(BaseModel):
 # Vault lifecycle
 # ---------------------------------------------------------------------------
 
+
 @router.post("/brain/vault", response_model=ProvisionResponse)
 async def provision(user_id: str = Depends(_authed_user_id)):
     return await _svc().provision_vault(user_id)
@@ -118,6 +119,7 @@ async def shred(request: Request, user_id: str = Depends(_authed_user_id)):
 # Items
 # ---------------------------------------------------------------------------
 
+
 @router.post("/brain/items", response_model=dict)
 @limiter.limit(settings.second_brain_write_rate_limit)
 async def add_item(
@@ -142,8 +144,9 @@ async def list_items(
     vault: UnlockedVault = Depends(_vault),
 ):
     with vault:
-        items = await _svc().list_items(user_id, vault=vault, kind=kind,
-                                        limit=min(limit, 500), offset=offset)
+        items = await _svc().list_items(
+            user_id, vault=vault, kind=kind, limit=min(limit, 500), offset=offset
+        )
     return [BrainItemOut(**vars(i)) for i in items]
 
 
@@ -157,6 +160,7 @@ async def forget_item(request: Request, item_id: str, user_id: str = Depends(_au
 # ---------------------------------------------------------------------------
 # Recall (used by the chat pipeline; also powers the 'brain recap' screen)
 # ---------------------------------------------------------------------------
+
 
 @router.get("/brain/recall", response_model=list[BrainItemOut])
 @limiter.limit(settings.second_brain_write_rate_limit)
@@ -175,6 +179,7 @@ async def recall(
 # ---------------------------------------------------------------------------
 # Export (GDPR/DSAR) — owner session only
 # ---------------------------------------------------------------------------
+
 
 @router.get("/brain/export")
 @limiter.limit(settings.second_brain_export_rate_limit)

@@ -22,13 +22,11 @@ import ipaddress
 import logging
 import os
 import re
-import shutil
 import socket
-import subprocess
 import tempfile
 import time
 import urllib.parse
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -48,28 +46,28 @@ _BLOCKED_NETWORKS = [
     ipaddress.ip_network("0.0.0.0/8"),
     ipaddress.ip_network("10.0.0.0/8"),
     ipaddress.ip_network("100.64.0.0/10"),  # Carrier-grade NAT
-    ipaddress.ip_network("127.0.0.0/8"),    # Loopback
-    ipaddress.ip_network("169.254.0.0/16"), # Link-local / Cloud Metadata (AWS/GCP/Azure)
+    ipaddress.ip_network("127.0.0.0/8"),  # Loopback
+    ipaddress.ip_network("169.254.0.0/16"),  # Link-local / Cloud Metadata (AWS/GCP/Azure)
     ipaddress.ip_network("172.16.0.0/12"),  # Private Class B
-    ipaddress.ip_network("192.0.0.0/24"),   # IETF Protocol Assignments
-    ipaddress.ip_network("192.0.2.0/24"),   # TEST-NET-1
-    ipaddress.ip_network("192.168.0.0/16"), # Private Class C
+    ipaddress.ip_network("192.0.0.0/24"),  # IETF Protocol Assignments
+    ipaddress.ip_network("192.0.2.0/24"),  # TEST-NET-1
+    ipaddress.ip_network("192.168.0.0/16"),  # Private Class C
     ipaddress.ip_network("198.18.0.0/15"),  # Benchmarking
-    ipaddress.ip_network("198.51.100.0/24"),# TEST-NET-2
-    ipaddress.ip_network("203.0.113.0/24"), # TEST-NET-3
-    ipaddress.ip_network("224.0.0.0/4"),    # Multicast
-    ipaddress.ip_network("240.0.0.0/4"),    # Reserved / Future use
-    ipaddress.ip_network("255.255.255.255/32"), # Broadcast
+    ipaddress.ip_network("198.51.100.0/24"),  # TEST-NET-2
+    ipaddress.ip_network("203.0.113.0/24"),  # TEST-NET-3
+    ipaddress.ip_network("224.0.0.0/4"),  # Multicast
+    ipaddress.ip_network("240.0.0.0/4"),  # Reserved / Future use
+    ipaddress.ip_network("255.255.255.255/32"),  # Broadcast
     # IPv6
-    ipaddress.ip_network("::/128"),         # Unspecified
-    ipaddress.ip_network("::1/128"),        # Loopback
+    ipaddress.ip_network("::/128"),  # Unspecified
+    ipaddress.ip_network("::1/128"),  # Loopback
     ipaddress.ip_network("::ffff:0:0/96"),  # IPv4-mapped IPv6
-    ipaddress.ip_network("64:ff9b::/96"),   # IPv4/IPv6 translation
-    ipaddress.ip_network("100::/64"),       # Discard prefix
+    ipaddress.ip_network("64:ff9b::/96"),  # IPv4/IPv6 translation
+    ipaddress.ip_network("100::/64"),  # Discard prefix
     ipaddress.ip_network("2001:db8::/32"),  # Documentation
-    ipaddress.ip_network("fc00::/7"),       # Unique Local Address (ULA)
-    ipaddress.ip_network("fe80::/10"),      # Link-local
-    ipaddress.ip_network("ff00::/8"),       # Multicast
+    ipaddress.ip_network("fc00::/7"),  # Unique Local Address (ULA)
+    ipaddress.ip_network("fe80::/10"),  # Link-local
+    ipaddress.ip_network("ff00::/8"),  # Multicast
 ]
 
 # Patterns for social media / direct video URL detection
@@ -91,9 +89,16 @@ DIRECT_VIDEO_PATTERN = re.compile(
 )
 
 
-def _is_prohibited_ip(ip: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]) -> bool:
+def _is_prohibited_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     """Return True if IP is private, loopback, link-local, reserved, multicast, or unspecified."""
-    if ip.is_private or ip.is_loopback or ip.is_reserved or ip.is_link_local or ip.is_multicast or ip.is_unspecified:
+    if (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_reserved
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_unspecified
+    ):
         return True
     for net in _BLOCKED_NETWORKS:
         if ip in net:
@@ -101,7 +106,7 @@ def _is_prohibited_ip(ip: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]) -
     return False
 
 
-def _parse_ip_literal(host: str) -> Optional[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]:
+def _parse_ip_literal(host: str) -> Optional[ipaddress.IPv4Address | ipaddress.IPv6Address]:
     """Parse standard, integer, hex, octal, or IPv6-bracketed literal."""
     h = host.strip("[]").strip()
     if not h:
@@ -160,7 +165,7 @@ def _parse_ip_literal(host: str) -> Optional[Union[ipaddress.IPv4Address, ipaddr
     return None
 
 
-def resolve_and_validate_hostname(hostname: str, port: int = 80) -> List[str]:
+def resolve_and_validate_hostname(hostname: str, port: int = 80) -> list[str]:
     """
     Resolve hostname and verify that NONE of the resolved IPs are private/loopback/reserved.
     Returns list of valid public IP strings, or raises ValueError.
@@ -174,7 +179,10 @@ def resolve_and_validate_hostname(hostname: str, port: int = 80) -> List[str]:
     if lower_host in ("localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"):
         raise ValueError(f"Blocked localhost hostname: {hostname}")
 
-    if any(lower_host.endswith(tld) for tld in (".local", ".internal", ".localhost", ".lan", ".corp", ".home", ".localdomain")):
+    if any(
+        lower_host.endswith(tld)
+        for tld in (".local", ".internal", ".localhost", ".lan", ".corp", ".home", ".localdomain")
+    ):
         raise ValueError(f"Blocked internal domain name: {hostname}")
 
     # Check for direct IP literal in hostname
@@ -194,7 +202,7 @@ def resolve_and_validate_hostname(hostname: str, port: int = 80) -> List[str]:
     if not addr_info:
         raise ValueError(f"No DNS records found for hostname: {hostname}")
 
-    public_ips: List[str] = []
+    public_ips: list[str] = []
     for entry in addr_info:
         sockaddr = entry[4]
         ip_str = sockaddr[0]
@@ -215,7 +223,7 @@ def resolve_and_validate_hostname(hostname: str, port: int = 80) -> List[str]:
     return public_ips
 
 
-def validate_safe_url(url: str) -> Tuple[bool, str]:
+def validate_safe_url(url: str) -> tuple[bool, str]:
     """
     Validate that a URL is safe for ingestion against SSRF, bad schemes, and credentials.
     Returns (is_safe, error_reason).
@@ -276,6 +284,7 @@ def _get_cookie_opts() -> dict:
     """Reuse existing cookie helper for authentication (same as youtube_loader.py)."""
     try:
         from services.cookie_helper import ensure_cookies_file
+
         cookie_path = ensure_cookies_file()
         if cookie_path and os.path.exists(cookie_path):
             return {"cookiefile": cookie_path}
@@ -325,13 +334,17 @@ async def download_streaming_file(
             while True:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    raise TimeoutError(f"Download of '{url}' exceeded total timeout of {total_timeout}s")
+                    raise TimeoutError(
+                        f"Download of '{url}' exceeded total timeout of {total_timeout}s"
+                    )
 
                 is_safe, reason = validate_safe_url(current_url)
                 if not is_safe:
                     raise ValueError(f"SSRF blocked URL '{current_url}': {reason}")
 
-                req = client.build_request("GET", current_url, headers={"User-Agent": "MukthiGuru-Ingest/1.0"})
+                req = client.build_request(
+                    "GET", current_url, headers={"User-Agent": "MukthiGuru-Ingest/1.0"}
+                )
                 resp = await asyncio.wait_for(
                     client.send(req, stream=True),
                     timeout=min(connect_timeout + 5.0, remaining),
@@ -345,7 +358,9 @@ async def download_streaming_file(
                         raise ValueError(f"Too many redirects (exceeded {max_redirects})")
                     location = resp.headers.get("Location")
                     if not location:
-                        raise ValueError(f"Redirect status {resp.status_code} missing Location header")
+                        raise ValueError(
+                            f"Redirect status {resp.status_code} missing Location header"
+                        )
                     current_url = urllib.parse.urljoin(current_url, location)
                     continue
 
@@ -364,7 +379,9 @@ async def download_streaming_file(
                         total_bytes += len(chunk)
                         if total_bytes > max_bytes:
                             await resp.aclose()
-                            raise ValueError(f"Response size ({total_bytes} bytes) exceeds limit of {max_bytes} bytes")
+                            raise ValueError(
+                                f"Response size ({total_bytes} bytes) exceeds limit of {max_bytes} bytes"
+                            )
                         f.write(chunk)
                 await resp.aclose()
                 return total_bytes
@@ -409,12 +426,13 @@ async def ingest_social_media(
 
     with tempfile.TemporaryDirectory() as tmpdir:
         audio_outtmpl = os.path.join(tmpdir, "audio.%(ext)s")
-        result_info: Dict[str, Any] = {}
+        result_info: dict[str, Any] = {}
 
         # Step 1: Download audio via yt-dlp
         def _download_audio() -> dict:
             try:
                 import yt_dlp  # type: ignore
+
                 cookie_opts = _get_cookie_opts()
                 ydl_opts = {
                     "format": "bestaudio/best",
@@ -484,13 +502,18 @@ async def ingest_social_media(
                         return result.get("text", "")
                     return str(result)
                 from services.whisper_local_service import transcribe_with_whisper
+
                 text = transcribe_with_whisper("", af)
                 return text or ""
             except Exception as e:
-                logger.warning("transcribe_with_whisper failed (%s), trying faster-whisper directly", e)
+                logger.warning(
+                    "transcribe_with_whisper failed (%s), trying faster-whisper directly", e
+                )
                 try:
                     from faster_whisper import WhisperModel  # type: ignore
+
                     from services.doctrine_terms import get_whisper_initial_prompt
+
                     model = WhisperModel("large-v3", device="cpu", compute_type="int8")
                     prompt = get_whisper_initial_prompt()
                     segments, _ = model.transcribe(af, initial_prompt=prompt)
@@ -513,9 +536,11 @@ async def ingest_social_media(
             }
 
     import unicodedata
+
     clean_text = unicodedata.normalize("NFC", transcript.replace("\x00", "")).strip()
     try:
         from services.doctrine_terms import apply_corrections
+
         clean_text = apply_corrections(clean_text)
     except Exception:
         pass
@@ -532,6 +557,7 @@ async def ingest_social_media(
 
 
 if __name__ == "__main__":
+
     async def _test():
         result = await ingest_social_media("https://www.instagram.com/reel/test123/")
         print(f"Result keys: {list(result.keys())}")

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -85,10 +84,7 @@ async def test_dry_run(engine, sample_payloads, monkeypatch):
     from unittest.mock import AsyncMock
 
     # Prepare scroll results
-    records = [
-        MagicMock(id=f"id-{i}", payload=p)
-        for i, p in enumerate(sample_payloads)
-    ]
+    records = [MagicMock(id=f"id-{i}", payload=p) for i, p in enumerate(sample_payloads)]
     engine._client().scroll.return_value = (records, None)
 
     # Monkey-patch rechunk and contextualize for determinism
@@ -121,10 +117,7 @@ async def test_dry_run(engine, sample_payloads, monkeypatch):
 async def test_reingest_writes_points(engine, sample_payloads, monkeypatch, tmp_path):
     from qdrant_client.http.models import PointStruct
 
-    records = [
-        MagicMock(id=f"id-{i}", payload=p)
-        for i, p in enumerate(sample_payloads)
-    ]
+    records = [MagicMock(id=f"id-{i}", payload=p) for i, p in enumerate(sample_payloads)]
     engine._client().scroll.return_value = (records, None)
 
     monkeypatch.setattr(
@@ -187,10 +180,7 @@ async def test_reingest_skips_already_processed(engine, sample_payloads, monkeyp
     # Force re-read state
     engine._state = engine._load_state()
 
-    records = [
-        MagicMock(id=f"id-{i}", payload=p)
-        for i, p in enumerate(sample_payloads)
-    ]
+    records = [MagicMock(id=f"id-{i}", payload=p) for i, p in enumerate(sample_payloads)]
     engine._client().scroll.return_value = (records, None)
 
     # Skip Ollama health check and target collection creation so the test
@@ -227,7 +217,10 @@ def test_task_registration():
     from tasks.contextual_reingest_task import contextual_reingest, contextual_reingest_dry_run
 
     assert contextual_reingest.name == "tasks.contextual_reingest_task.contextual_reingest"
-    assert contextual_reingest_dry_run.name == "tasks.contextual_reingest_task.contextual_reingest_dry_run"
+    assert (
+        contextual_reingest_dry_run.name
+        == "tasks.contextual_reingest_task.contextual_reingest_dry_run"
+    )
     assert contextual_reingest.queue == "ingestion"
 
 
@@ -274,13 +267,15 @@ async def test_reingest_source_with_late_chunking_enabled(engine, sample_payload
 
 @pytest.mark.asyncio
 async def test_correct_full_text_invokes_llm_corrector(engine):
-    with patch("ingest.corrector.TranscriptCorrector.correct_transcript", new_callable=AsyncMock) as mock_correct:
+    with patch(
+        "ingest.corrector.TranscriptCorrector.correct_transcript", new_callable=AsyncMock
+    ) as mock_correct:
         mock_correct.return_value = "Corrected text about I-Consciousness."
-        res = await engine._correct_full_text("Raw text with eye consciousness", "http://example.com/video")
+        res = await engine._correct_full_text(
+            "Raw text with eye consciousness", "http://example.com/video"
+        )
         assert res == "Corrected text about I-Consciousness."
         mock_correct.assert_called_once()
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -351,8 +346,8 @@ def test_coverage_invariant_raises_on_catastrophic_loss():
     """The systemic fix: gates catch WRONG text, nothing caught MISSING text."""
     from ingest.contextual_reingest import ContextualReingestEngine
 
-    before = "x" * 22487          # the real incident's numbers
-    after = "x" * 7876            # 35% survived
+    before = "x" * 22487  # the real incident's numbers
+    after = "x" * 7876  # 35% survived
 
     with pytest.raises(ValueError, match="Refusing to ingest a mutilated document"):
         ContextualReingestEngine._assert_coverage("test stage", "src", before, after)
@@ -368,12 +363,31 @@ def test_raptor_summaries_never_reach_transcript_reconstruction():
 
     engine = ContextualReingestEngine.__new__(ContextualReingestEngine)
     payloads = [
-        {"chunk_index": 0, "content_type": "summary", "raptor_level": 1, "text": "SUMMARY", "_id": "a"},
-        {"chunk_index": 0, "content_type": "video_enhanced", "raptor_level": 0, "text": "REAL 0", "_id": "b"},
-        {"chunk_index": 1, "content_type": "video_enhanced", "raptor_level": 0, "text": "REAL 1", "_id": "c"},
+        {
+            "chunk_index": 0,
+            "content_type": "summary",
+            "raptor_level": 1,
+            "text": "SUMMARY",
+            "_id": "a",
+        },
+        {
+            "chunk_index": 0,
+            "content_type": "video_enhanced",
+            "raptor_level": 0,
+            "text": "REAL 0",
+            "_id": "b",
+        },
+        {
+            "chunk_index": 1,
+            "content_type": "video_enhanced",
+            "raptor_level": 0,
+            "text": "REAL 1",
+            "_id": "c",
+        },
     ]
     kept = [
-        p for p in payloads
+        p
+        for p in payloads
         if p.get("content_type") != "summary" and not (p.get("raptor_level") or 0)
     ]
     assert [p["text"] for p in kept] == ["REAL 0", "REAL 1"]
@@ -403,9 +417,9 @@ def test_parents_are_never_runts_and_never_split_a_chunk():
     the small-to-big swap in retrieval.py degraded to a no-op. A parent must span
     whole consecutive chunks and reach the minimum size."""
     from ingest.contextual_reingest import (
-        ContextualReingestEngine,
         _PARENT_MAX_CHARS,
         _PARENT_MIN_CHARS,
+        ContextualReingestEngine,
     )
 
     for chunks in (["A" * 800] * 10, ["A" * 1800] * 7, ["A" * 1500] * 4 + ["E" * 200]):
@@ -546,8 +560,8 @@ def test_llm_correction_is_skipped_for_already_edited_sources():
     import asyncio
 
     from ingest.contextual_reingest import (
-        ContextualReingestEngine,
         _NO_LLM_CORRECTION_TYPES,
+        ContextualReingestEngine,
     )
 
     engine = ContextualReingestEngine.__new__(ContextualReingestEngine)
@@ -596,8 +610,11 @@ def test_book_sections_are_processed_as_separate_documents():
 
     # A node_id that reappears later starts a NEW section rather than merging
     # text from opposite ends of the book into one unit.
-    interleaved = [{"node_id": "A", "text": "1"}, {"node_id": "B", "text": "2"},
-                   {"node_id": "A", "text": "3"}]
+    interleaved = [
+        {"node_id": "A", "text": "1"},
+        {"node_id": "B", "text": "2"},
+        {"node_id": "A", "text": "3"},
+    ]
     assert len(ContextualReingestEngine._section_groups(interleaved)) == 3
 
 
@@ -620,7 +637,7 @@ def test_sections_are_written_incrementally_with_resume():
     run skips what already landed."""
     import inspect
 
-    from ingest.contextual_reingest import ContextualReingestEngine, _STATE_KEY_SECTIONS
+    from ingest.contextual_reingest import _STATE_KEY_SECTIONS, ContextualReingestEngine
 
     assert _STATE_KEY_SECTIONS == "contextual_reingest_processed_sections"
     src = inspect.getsource(ContextualReingestEngine._reingest_source)

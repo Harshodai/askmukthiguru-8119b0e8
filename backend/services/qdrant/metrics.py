@@ -6,12 +6,14 @@ Integrates with app/metrics.py for /api/metrics endpoint.
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import wraps
-from typing import Callable, Optional
+from typing import Optional
 
 try:
-    from prometheus_client import Counter, Histogram, Gauge
+    from prometheus_client import Counter, Gauge, Histogram
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -22,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class QdrantSearchMetrics:
     """Qdrant search performance snapshot."""
+
     search_latency_p50_ms: float
     search_latency_p95_ms: float
     search_latency_p99_ms: float
@@ -99,7 +102,9 @@ class QdrantMetricsCollector:
         if PROMETHEUS_AVAILABLE:
             self.upsert_latency_histogram.observe(latency_ms)
 
-    def update_collection_stats(self, size_vectors: int, size_mb: float, fragmentation_pct: float, segment_count: int):
+    def update_collection_stats(
+        self, size_vectors: int, size_mb: float, fragmentation_pct: float, segment_count: int
+    ):
         """Update collection-level metrics from health check."""
         if PROMETHEUS_AVAILABLE:
             self.collection_size_gauge.set(size_vectors)
@@ -116,7 +121,11 @@ class QdrantMetricsCollector:
         p95 = recent_latencies[int(len(recent_latencies) * 0.95)]
         p99 = recent_latencies[int(len(recent_latencies) * 0.99)]
 
-        avg_upsert = sum(self._upsert_latencies) / len(self._upsert_latencies) if self._upsert_latencies else 0
+        avg_upsert = (
+            sum(self._upsert_latencies) / len(self._upsert_latencies)
+            if self._upsert_latencies
+            else 0
+        )
 
         return QdrantSearchMetrics(
             search_latency_p50_ms=p50,
@@ -145,6 +154,7 @@ def get_metrics_collector() -> QdrantMetricsCollector:
 
 def track_search_latency(func: Callable) -> Callable:
     """Decorator to track search operation latency."""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         start = time.time()
@@ -153,14 +163,16 @@ def track_search_latency(func: Callable) -> Callable:
             latency_ms = (time.time() - start) * 1000
             get_metrics_collector().record_search_latency(latency_ms)
             return result
-        except Exception as e:
+        except Exception:
             get_metrics_collector().record_search_error()
             raise
+
     return wrapper
 
 
 def track_upsert_latency(func: Callable) -> Callable:
     """Decorator to track upsert operation latency."""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         start = time.time()
@@ -168,6 +180,7 @@ def track_upsert_latency(func: Callable) -> Callable:
         latency_ms = (time.time() - start) * 1000
         get_metrics_collector().record_upsert_latency(latency_ms)
         return result
+
     return wrapper
 
 

@@ -252,7 +252,11 @@ def get_crisis_resource(region_key: str = "global") -> str:
     from services.crisis_helplines import format_helplines_block
 
     region = _region_label_for_key(region_key)
-    intro = "🆘 If you're in crisis: Please reach out for help." if region_key == "global" else f"🆘 Crisis Helplines ({region or 'International'}):"
+    intro = (
+        "🆘 If you're in crisis: Please reach out for help."
+        if region_key == "global"
+        else f"🆘 Crisis Helplines ({region or 'International'}):"
+    )
     return format_helplines_block(region=region, style="bullet", intro=intro)
 
 
@@ -412,7 +416,9 @@ class SemanticDistressDetector:
         from app.config import settings
 
         self._embedder = embedding_service
-        self._threshold = threshold if threshold is not None else settings.semantic_distress_threshold
+        self._threshold = (
+            threshold if threshold is not None else settings.semantic_distress_threshold
+        )
         self._distress_embeddings = {}  # level -> list of embeddings
         self._initialized = False
 
@@ -529,7 +535,9 @@ class SereneMindEngine:
                 return msg.get("distress_score", 0)
             return getattr(msg, "distress_score", 0)
 
-        distress_count = sum(1 for msg in recent if get_distress(msg) > self._history_score_threshold)
+        distress_count = sum(
+            1 for msg in recent if get_distress(msg) > self._history_score_threshold
+        )
 
         assessment = await self.async_assess_distress(message)
 

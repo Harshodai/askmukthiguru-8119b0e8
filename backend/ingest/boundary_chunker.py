@@ -26,10 +26,32 @@ logger = logging.getLogger(__name__)
 # Abbreviations whose periods should not be treated as sentence terminators.
 # Mixed case is handled by case-insensitive regex.
 _ABBREVIATIONS = {
-    "mr.", "mrs.", "ms.", "dr.", "prof.", "sr.", "jr.",
-    "e.g.", "i.e.", "vs.", "etc.", "viz.", "inc.", "ltd.",
-    "a.m.", "p.m.", "approx.", "ca.", "co.", "no.",
-    "fig.", "et al.", "hon.", "st.", "ave.", "blvd.",
+    "mr.",
+    "mrs.",
+    "ms.",
+    "dr.",
+    "prof.",
+    "sr.",
+    "jr.",
+    "e.g.",
+    "i.e.",
+    "vs.",
+    "etc.",
+    "viz.",
+    "inc.",
+    "ltd.",
+    "a.m.",
+    "p.m.",
+    "approx.",
+    "ca.",
+    "co.",
+    "no.",
+    "fig.",
+    "et al.",
+    "hon.",
+    "st.",
+    "ave.",
+    "blvd.",
 }
 
 
@@ -77,9 +99,7 @@ class BoundaryChunker:
             return []
 
         paragraphs = self._split_paragraphs(text)
-        sentences_by_paragraph = [
-            self._split_sentences(p.strip()) for p in paragraphs if p.strip()
-        ]
+        sentences_by_paragraph = [self._split_sentences(p.strip()) for p in paragraphs if p.strip()]
 
         # Flatten while remembering paragraph breaks for natural boundaries
         sentences: list[tuple[str, int, bool]] = []
@@ -98,7 +118,7 @@ class BoundaryChunker:
         current_len = 0
         current_offset = 0
 
-        for idx, (sentence, sent_len, is_para_start) in enumerate(sentences):
+        for _idx, (sentence, sent_len, is_para_start) in enumerate(sentences):
             # A sentence that is itself longer than max_size must be sliced into
             # pieces before accumulation, otherwise a single append can exceed
             # the hard limit and a later flush will never recover.
@@ -109,7 +129,10 @@ class BoundaryChunker:
                     # Flush current accumulation if adding this piece would cross max_size.
                     # Long-sentence pieces are not eligible for overlap; carrying overlap
                     # from prior sentences is safe because those pieces are already <= max_size.
-                    if current_len and current_len + piece_len + (1 if current_len else 0) > self.max_size:
+                    if (
+                        current_len
+                        and current_len + piece_len + (1 if current_len else 0) > self.max_size
+                    ):
                         self._flush_chunk(
                             current_sentences,
                             current_len,
@@ -197,9 +220,7 @@ class BoundaryChunker:
 
         # Merge trailing tiny chunks with the previous chunk if possible
         merged = self._merge_small_chunks(chunks, bounds)
-        logger.debug(
-            f"BoundaryChunker: {len(merged)} chunks from {len(sentences)} sentences"
-        )
+        logger.debug(f"BoundaryChunker: {len(merged)} chunks from {len(sentences)} sentences")
         return merged
 
     @staticmethod
@@ -237,11 +258,7 @@ class BoundaryChunker:
 
         sentences: list[str] = []
         for part in parts:
-            sentence = (
-                part.replace("__DOT__", ".")
-                .replace("__COMMA__", ",")
-                .strip()
-            )
+            sentence = part.replace("__DOT__", ".").replace("__COMMA__", ",").strip()
             if sentence:
                 sentences.extend(self._split_oversized_fallback(sentence))
 
@@ -259,7 +276,7 @@ class BoundaryChunker:
 
         pieces: list[str] = []
         for i in range(0, len(sentence), self.max_size):
-            pieces.append(sentence[i:i + self.max_size])
+            pieces.append(sentence[i : i + self.max_size])
         return pieces
 
     def _carry_overlap(
@@ -275,13 +292,17 @@ class BoundaryChunker:
         carried leaves at least half of max_size free for the next sentence.
         """
         just_flushed = bounds[-1] if bounds else None
-        overlap = list(current_sentences[-self.overlap_sentences :]) if self.overlap_sentences else []
+        overlap = (
+            list(current_sentences[-self.overlap_sentences :]) if self.overlap_sentences else []
+        )
         budget = self.max_size // 2
         while overlap and (sum(len(s) for s in overlap) + len(overlap) - 1) > budget:
             overlap.pop(0)
         current_len = sum(len(s) for s in overlap) + (len(overlap) - 1 if overlap else 0)
         current_offset = (
-            just_flushed.start + len(" ".join(overlap)) if overlap and just_flushed else (just_flushed.start if just_flushed else 0)
+            just_flushed.start + len(" ".join(overlap))
+            if overlap and just_flushed
+            else (just_flushed.start if just_flushed else 0)
         )
         return overlap, current_len, current_offset
 
@@ -303,9 +324,7 @@ class BoundaryChunker:
         chunks.append(text)
         bounds.append(ChunkBounds(start=current_offset, end=end_offset))
 
-    def _merge_small_chunks(
-        self, chunks: list[str], bounds: list[ChunkBounds]
-    ) -> list[str]:
+    def _merge_small_chunks(self, chunks: list[str], bounds: list[ChunkBounds]) -> list[str]:
         """Merge trailing chunks that are shorter than min_size into the previous chunk."""
         if not chunks or len(chunks) < 2:
             return chunks
@@ -322,7 +341,7 @@ class BoundaryChunker:
         """Slice a sentence longer than max_size into max_size character pieces."""
         if len(sentence) <= self.max_size:
             return [sentence]
-        return [sentence[i:i + self.max_size] for i in range(0, len(sentence), self.max_size)]
+        return [sentence[i : i + self.max_size] for i in range(0, len(sentence), self.max_size)]
 
 
 def split_text_at_boundaries(

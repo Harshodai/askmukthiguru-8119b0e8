@@ -10,17 +10,14 @@ Covers:
 
 from __future__ import annotations
 
-import base64
-import datetime as _dt
-import hashlib
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.api.compliance import router as compliance_router
 from app.dependencies import get_container
-from app.main import app
+from app.schemas import ChatResponse
 from app.schemas.compliance_provenance import (
     AIProvenanceManifest,
     ArtifactModality,
@@ -29,13 +26,11 @@ from app.schemas.compliance_provenance import (
     OriginType,
     SoftwareAgentDescriptor,
 )
-from app.schemas import ChatResponse
 from services.provenance_ontology_service import (
     ProvenanceOntologyService,
     get_provenance_ontology_service,
 )
 from services.watermarking_service import WatermarkingService
-
 
 # ---------------------------------------------------------------------------
 # 1. Phase 1: Schema & W3C PROV-O JSON-LD Tests
@@ -320,10 +315,14 @@ def mock_service_container():
 def test_app():
     """Create isolated FastAPI test app with compliance router attached."""
     from fastapi import FastAPI
+
     from app.api.compliance import _require_admin
 
     app = FastAPI()
-    app.dependency_overrides[_require_admin] = lambda: {"user_id": "test-admin", "is_superuser": True}
+    app.dependency_overrides[_require_admin] = lambda: {
+        "user_id": "test-admin",
+        "is_superuser": True,
+    }
     app.include_router(compliance_router)
     return app
 
@@ -349,7 +348,9 @@ async def test_compliance_status_endpoint(test_app, mock_service_container):
 
 
 @pytest.mark.asyncio
-async def test_compliance_provenance_search_and_manifest_endpoints(test_app, mock_service_container):
+async def test_compliance_provenance_search_and_manifest_endpoints(
+    test_app, mock_service_container
+):
     """Test /api/compliance/provenance/search and /manifest/{artifact_id} endpoints."""
     test_app.dependency_overrides[get_container] = lambda: mock_service_container
     try:
@@ -374,7 +375,9 @@ async def test_compliance_provenance_search_and_manifest_endpoints(test_app, moc
             assert search_resp.status_code == 200
             search_data = search_resp.json()
             assert search_data["count"] >= 1
-            assert any(r["artifact_id"] == "urn:uuid:e2e-artifact-42" for r in search_data["results"])
+            assert any(
+                r["artifact_id"] == "urn:uuid:e2e-artifact-42" for r in search_data["results"]
+            )
 
             # Fetch manifest by ID
             manifest_resp = await client.get(
@@ -402,9 +405,6 @@ async def test_compliance_provenance_search_and_manifest_endpoints(test_app, moc
 def test_qdrant_classification_heuristics():
     """Verify classification logic accurately distinguishes human teachings from AI summaries."""
     from scripts.ops.eu_ai_act_backfill import (
-        backfill_database,
-        backfill_neo4j,
-        backfill_qdrant,
         classify_qdrant_point_payload,
     )
 

@@ -6,13 +6,14 @@ Raises loud if called without tenant context, preventing cross-tenant data leaks
 
 import functools
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
 
 class MultitenancyViolation(Exception):
     """Raised when a Qdrant operation is missing required tenant context."""
+
     pass
 
 
@@ -27,6 +28,7 @@ def enforce_multitenancy(func: Callable) -> Callable:
     Raises:
         MultitenancyViolation: if teacher_id is None
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         teacher_id = kwargs.get("teacher_id")

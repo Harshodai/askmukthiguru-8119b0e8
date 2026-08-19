@@ -1,8 +1,8 @@
-import os
 import json
+import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from app.config import settings
 from app.core.feedback_store import FeedbackStore
@@ -55,6 +55,7 @@ async def submit_feedback(
         # Thumbs-down also invalidates the cached semantic entry for this query
         # so the bad answer is not served again to other users.
         from app.dependencies import get_container
+
         _container = get_container()
         _sink = getattr(_container, "telemetry_sink", None)
         if _sink is not None:
@@ -90,13 +91,13 @@ async def get_feedback_lessons(
     """
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
-        
+
     from app.constants import FEEDBACK_LESSONS_FILE_PATH
-    
+
     lessons = []
     if os.path.exists(FEEDBACK_LESSONS_FILE_PATH):
         try:
-            with open(FEEDBACK_LESSONS_FILE_PATH, "r", encoding="utf-8") as f:
+            with open(FEEDBACK_LESSONS_FILE_PATH, encoding="utf-8") as f:
                 for line in f:
                     line_str = line.strip()
                     if line_str:
@@ -104,7 +105,9 @@ async def get_feedback_lessons(
                             lessons.append(json.loads(line_str))
                         except json.JSONDecodeError:
                             continue
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="Failed to load feedback lessons. Please try again.")
-            
+        except Exception:
+            raise HTTPException(
+                status_code=500, detail="Failed to load feedback lessons. Please try again."
+            )
+
     return lessons

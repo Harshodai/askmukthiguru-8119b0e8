@@ -10,15 +10,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, List, Dict, Optional
+from typing import Any
 
-from app.config import settings
 from rag.states import GraphState
 
 logger = logging.getLogger(__name__)
 
 
-async def get_concept_details(entity_id: str, state: GraphState) -> Dict[str, Any]:
+async def get_concept_details(entity_id: str, state: GraphState) -> dict[str, Any]:
     """
     Deterministic Neo4j query to retrieve full details of a concept node.
 
@@ -70,19 +69,23 @@ async def get_concept_details(entity_id: str, state: GraphState) -> Dict[str, An
                 if rel:
                     child = rel.end_node
                     child_dict = dict(child)
-                    adjacent_concepts.append({
-                        "entity_id": child_dict.get("entity_id"),
-                        "relation_type": rel.type,
-                        "relation_description": rel.get("description") or rel.type,
-                        "child_name": child_dict.get("name"),
-                        "child_type": child_dict.get("type"),
-                    })
-                    relationships.append({
-                        "type": rel.type,
-                        "description": rel.get("description") or rel.type,
-                        "target": child_dict.get("name"),
-                        "target_type": child_dict.get("type"),
-                    })
+                    adjacent_concepts.append(
+                        {
+                            "entity_id": child_dict.get("entity_id"),
+                            "relation_type": rel.type,
+                            "relation_description": rel.get("description") or rel.type,
+                            "child_name": child_dict.get("name"),
+                            "child_type": child_dict.get("type"),
+                        }
+                    )
+                    relationships.append(
+                        {
+                            "type": rel.type,
+                            "description": rel.get("description") or rel.type,
+                            "target": child_dict.get("name"),
+                            "target_type": child_dict.get("type"),
+                        }
+                    )
 
             # Build navigation hints
             navigation_hints = []
@@ -100,7 +103,11 @@ async def get_concept_details(entity_id: str, state: GraphState) -> Dict[str, An
                     "name": node.get("name"),
                     "type": node.get("type"),
                     "description": node.get("description"),
-                    "properties": {k: v for k, v in node.items() if k not in ["entity_id", "name", "type", "description"]},
+                    "properties": {
+                        k: v
+                        for k, v in node.items()
+                        if k not in ["entity_id", "name", "type", "description"]
+                    },
                 },
                 "relationships": relationships,
                 "adjacent_concepts": adjacent_concepts,
@@ -108,9 +115,7 @@ async def get_concept_details(entity_id: str, state: GraphState) -> Dict[str, An
                 "source": "neo4j_ontology",
             }
 
-        result = await asyncio.to_thread(
-            lambda: driver.session().execute_read(_query)
-        )
+        result = await asyncio.to_thread(lambda: driver.session().execute_read(_query))
 
         if result is None:
             return {
@@ -134,7 +139,7 @@ async def get_concept_details(entity_id: str, state: GraphState) -> Dict[str, An
         }
 
 
-async def get_adjacent_concepts(entity_id: str, state: GraphState) -> Dict[str, Any]:
+async def get_adjacent_concepts(entity_id: str, state: GraphState) -> dict[str, Any]:
     """
     Deterministic Neo4j query to retrieve all adjacent concepts for an entity.
 
@@ -198,14 +203,16 @@ async def get_adjacent_concepts(entity_id: str, state: GraphState) -> Dict[str, 
                 rel_concepts = [c for c in adjacent_concepts if c["relation_type"] == rel_type]
                 if rel_concepts:
                     example = rel_concepts[0]
-                    traversal_options.append({
-                        "option": f"Explore {len(rel_concepts)} concepts via '{rel_type}'",
-                        "examples": [
-                            f"{example['name']} ({example['type']}) via {example['relation_type']}",
-                        ],
-                        "relation_type": rel_type,
-                        "count": count,
-                    })
+                    traversal_options.append(
+                        {
+                            "option": f"Explore {len(rel_concepts)} concepts via '{rel_type}'",
+                            "examples": [
+                                f"{example['name']} ({example['type']}) via {example['relation_type']}",
+                            ],
+                            "relation_type": rel_type,
+                            "count": count,
+                        }
+                    )
 
             return {
                 "adjacent_concepts": adjacent_concepts,
@@ -214,9 +221,7 @@ async def get_adjacent_concepts(entity_id: str, state: GraphState) -> Dict[str, 
                 "source": "neo4j_ontology",
             }
 
-        result = await asyncio.to_thread(
-            lambda: driver.session().execute_read(_query)
-        )
+        result = await asyncio.to_thread(lambda: driver.session().execute_read(_query))
         return result
 
     except Exception as e:
@@ -229,7 +234,7 @@ async def get_adjacent_concepts(entity_id: str, state: GraphState) -> Dict[str, 
         }
 
 
-async def get_graph_traversal_context(state: GraphState) -> Dict[str, Any]:
+async def get_graph_traversal_context(state: GraphState) -> dict[str, Any]:
     """
     Utility function to retrieve the current graph traversal context from state.
 

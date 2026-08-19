@@ -166,24 +166,28 @@ class TestLlmGuardClientReuse:
             )
 
             mock_openai_instance = MagicMock()
-            with patch.object(
-                lightweight_handler,
-                "settings",
-                MagicMock(
-                    guardrails_llm_enabled=True,
-                    is_sarvam_cloud=True,
-                    sarvam_api_key="test-sub-key",
-                    sarvam_base_url="https://api.example.com/v1",
-                    llm_provider="sarvam_cloud",
-                    model_for_classification="test-model",
-                    max_input_length=5000,
+            with (
+                patch.object(
+                    lightweight_handler,
+                    "settings",
+                    MagicMock(
+                        guardrails_llm_enabled=True,
+                        is_sarvam_cloud=True,
+                        sarvam_api_key="test-sub-key",
+                        sarvam_base_url="https://api.example.com/v1",
+                        llm_provider="sarvam_cloud",
+                        model_for_classification="test-model",
+                        max_input_length=5000,
+                    ),
                 ),
-            ), patch(
-                "guardrails.lightweight_handler.AsyncOpenAI",
-                return_value=mock_openai_instance,
-            ) as openai_factory, patch(
-                "guardrails.lightweight_handler.instructor.from_openai",
-                return_value=fake_instructor_client,
+                patch(
+                    "guardrails.lightweight_handler.AsyncOpenAI",
+                    return_value=mock_openai_instance,
+                ) as openai_factory,
+                patch(
+                    "guardrails.lightweight_handler.instructor.from_openai",
+                    return_value=fake_instructor_client,
+                ),
             ):
                 run(guardrails.check_input("Hello"))
                 run(guardrails.check_input("Hi again"))

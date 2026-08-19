@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -32,7 +32,7 @@ from app.schemas.compliance_provenance import (
     OriginType,
     WatermarkType,
 )
-from services.auth_service import get_current_user_from_supabase, require_aal2
+from services.auth_service import require_aal2
 from services.provenance_ontology_service import get_provenance_ontology_service
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,7 @@ def _get_container_safely() -> Optional[ServiceContainer]:
     """Safely resolve container if available, returning None during unit testing."""
     try:
         from app.dependencies import get_container
+
         return get_container()
     except Exception:
         return None
@@ -59,7 +60,7 @@ def _require_admin(user: dict = Depends(require_aal2)) -> dict:
 async def get_eu_ai_act_status(
     container: Optional[ServiceContainer] = Depends(_get_container_safely),
     _admin: dict = Depends(_require_admin),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Return system-wide EU AI Act (Regulation (EU) 2024/1689) Article 50 Transparency status,
     including watermarking engines, supported modalities, risk tiers, and lineage statistics.
@@ -99,21 +100,25 @@ async def get_eu_ai_act_status(
             "AskMukthiGuru AI interactions provide synthetic guidance grounded in authentic "
             "teachings with tamper-evident provenance and W3C PROV-O lineage."
         ),
-        "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+        "timestamp": _dt.datetime.now(_dt.UTC).isoformat(),
     }
 
 
 @router.get("/provenance/search")
 async def search_provenance(
     content_id: Optional[str] = Query(None, description="Filter by content / artifact ID"),
-    origin_type: Optional[str] = Query(None, description="Filter by origin type (e.g. ai_generated, ai_assisted)"),
-    model: Optional[str] = Query(None, description="Filter by model name (e.g. bulbul:v3, meta-llama/llama-3.1-8b-instruct)"),
+    origin_type: Optional[str] = Query(
+        None, description="Filter by origin type (e.g. ai_generated, ai_assisted)"
+    ),
+    model: Optional[str] = Query(
+        None, description="Filter by model name (e.g. bulbul:v3, meta-llama/llama-3.1-8b-instruct)"
+    ),
     start_date: Optional[str] = Query(None, description="Start date filter (ISO format)"),
     end_date: Optional[str] = Query(None, description="End date filter (ISO format)"),
     limit: int = Query(50, ge=1, le=200, description="Max records to return"),
     container: Optional[ServiceContainer] = Depends(_get_container_safely),
     _admin: dict = Depends(_require_admin),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Search and verify provenance records for EU AI Act Article 50 compliance.
     """
@@ -167,7 +172,7 @@ async def search_provenance(
         },
         "count": len(records),
         "results": records,
-        "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+        "timestamp": _dt.datetime.now(_dt.UTC).isoformat(),
     }
 
 
@@ -176,7 +181,7 @@ async def get_provenance_manifest(
     artifact_id: str,
     container: Optional[ServiceContainer] = Depends(_get_container_safely),
     _admin: dict = Depends(_require_admin),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Retrieve W3C PROV-O JSON-LD manifest for a specific artifact identifier.
     """
@@ -231,7 +236,9 @@ async def get_audit_stats(
         for path in sorted(audit_dir.glob(f"{_AUDIT_FILE_PREFIX}_*.jsonl")):
             try:
                 line_count = sum(1 for _ in path.open("r", encoding="utf-8"))
-                stats.append({"date": path.stem.replace(f"{_AUDIT_FILE_PREFIX}_", ""), "records": line_count})
+                stats.append(
+                    {"date": path.stem.replace(f"{_AUDIT_FILE_PREFIX}_", ""), "records": line_count}
+                )
             except OSError:
                 continue
     return {"files": stats, "total_files": len(stats)}
@@ -252,7 +259,7 @@ async def request_data_deletion(
     container = get_container()
     container.compliance_logger.write_record(
         {
-            "ts": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+            "ts": _dt.datetime.now(_dt.UTC).isoformat(),
             "action": "gdpr_deletion_request",
             "user_id": user_id,
             "status": "pending",

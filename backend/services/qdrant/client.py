@@ -106,6 +106,7 @@ class QdrantClientManager:
             self._collection = collection
         else:
             from services.tenant_context import get_tenant_collection
+
             self._collection = get_tenant_collection(settings.qdrant_collection)
 
         self._dimension = settings.embedding_dimension
@@ -139,11 +140,13 @@ class QdrantClientManager:
                 )
             )
         if q == "binary":
-            return BinaryQuantization(
-                binary=BinaryQuantizationConfig(always_ram=True)
-            )
+            return BinaryQuantization(binary=BinaryQuantizationConfig(always_ram=True))
         if q.startswith("turboquant_"):
-            if TurboQuantBitSize is None or TurboQuantization is None or TurboQuantQuantizationConfig is None:
+            if (
+                TurboQuantBitSize is None
+                or TurboQuantization is None
+                or TurboQuantQuantizationConfig is None
+            ):
                 raise RuntimeError(
                     "TurboQuant requires a qdrant-client version exposing TurboQuant models. "
                     "Use scalar_int8 or binary with the installed client."
@@ -204,7 +207,9 @@ class QdrantClientManager:
                 except Exception as create_err:
                     err_msg = str(create_err).lower()
                     if "already exists" in err_msg or "conflict" in err_msg:
-                        logger.info(f"Collection already exists (concurrent create): {self._collection}")
+                        logger.info(
+                            f"Collection already exists (concurrent create): {self._collection}"
+                        )
                         self._verify_collection_dimension()
                         _created_by_race = True
                     else:
@@ -290,7 +295,9 @@ class QdrantClientManager:
                     field_name=field_name,
                     field_schema=field_schema,
                 )
-                logger.info(f"Created {field_name} index on existing collection: {self._collection}")
+                logger.info(
+                    f"Created {field_name} index on existing collection: {self._collection}"
+                )
             except Exception as idx_err:
                 err_msg = str(idx_err).lower()
                 if "already exists" in err_msg or "conflict" in err_msg:
@@ -311,9 +318,7 @@ class QdrantClientManager:
         """
         from qdrant_client.http.models import FieldCondition, Filter, MatchText
 
-        text_filter = Filter(
-            must=[FieldCondition(key="text", match=MatchText(text=query))]
-        )
+        text_filter = Filter(must=[FieldCondition(key="text", match=MatchText(text=query))])
         # Combine with existing filter if provided
         combined = text_filter
         if filter_cond:
@@ -336,9 +341,7 @@ class QdrantClientManager:
                     "id": str(r.id),
                     "content": r.payload.get("text", ""),
                     "score": _bm25_overlap_score(query, r.payload.get("text", "")),
-                    "metadata": {
-                        k: v for k, v in r.payload.items() if k != "text"
-                    },
+                    "metadata": {k: v for k, v in r.payload.items() if k != "text"},
                     "source": "bm25_text",
                 }
                 for r in results

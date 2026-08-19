@@ -27,7 +27,9 @@ def test_check_persona_adherence_flags_ai_disclaimer():
 
 
 def test_check_persona_adherence_flags_founder_impersonation():
-    assert nodes.check_persona_adherence("As Krishnaji, I feel deep compassion for you.") is not None
+    assert (
+        nodes.check_persona_adherence("As Krishnaji, I feel deep compassion for you.") is not None
+    )
 
 
 def test_check_persona_adherence_allows_clean_answer():
@@ -36,7 +38,10 @@ def test_check_persona_adherence_allows_clean_answer():
 
 
 def test_check_constitutional_compliance_flags_flattery_opener():
-    assert nodes.check_constitutional_compliance("Great question! Sri Krishnaji teaches...") is not None
+    assert (
+        nodes.check_constitutional_compliance("Great question! Sri Krishnaji teaches...")
+        is not None
+    )
 
 
 def test_check_constitutional_compliance_flags_cot_leakage():
@@ -44,11 +49,18 @@ def test_check_constitutional_compliance_flags_cot_leakage():
 
 
 def test_check_constitutional_compliance_flags_found_in_teachings_disclaimer():
-    assert nodes.check_constitutional_compliance("Based on what I found in the teachings, suffering is optional.") is not None
+    assert (
+        nodes.check_constitutional_compliance(
+            "Based on what I found in the teachings, suffering is optional."
+        )
+        is not None
+    )
 
 
 def test_check_constitutional_compliance_flags_guaranteed_outcome():
-    assert nodes.check_constitutional_compliance("This will cure your anxiety completely.") is not None
+    assert (
+        nodes.check_constitutional_compliance("This will cure your anxiety completely.") is not None
+    )
 
 
 def test_check_constitutional_compliance_allows_clean_answer():
@@ -223,10 +235,27 @@ async def test_verify_answer_node(mock_services):
         chat_history=[],
         request_id="test-req-123",
         intent="FACTUAL",
-        documents=[{"score": 0.85, "source_url": "url1", "metadata": {"source_type": "transcript", "published_date": "2024-01-01"}}],
-        reranked_docs=[{"score": 0.85, "source_url": "url1", "metadata": {"source_type": "transcript", "published_date": "2024-01-01"}}],
+        documents=[
+            {
+                "score": 0.85,
+                "source_url": "url1",
+                "metadata": {"source_type": "transcript", "published_date": "2024-01-01"},
+            }
+        ],
+        reranked_docs=[
+            {
+                "score": 0.85,
+                "source_url": "url1",
+                "metadata": {"source_type": "transcript", "published_date": "2024-01-01"},
+            }
+        ],
         hyde_text=None,
-        relevant_docs=[{"text": "Sri Preethaji teaches that the Beautiful State is a state of connection, a state of oneness, a state of peace, a state of love, a state of joy, and a state of compassion. It is not just an absence of suffering, but a positive presence of connection.", "source_url": "url1"}],
+        relevant_docs=[
+            {
+                "text": "Sri Preethaji teaches that the Beautiful State is a state of connection, a state of oneness, a state of peace, a state of love, a state of joy, and a state of compassion. It is not just an absence of suffering, but a positive presence of connection.",
+                "source_url": "url1",
+            }
+        ],
         grading_reasons=[],
         rewrite_count=0,
         rewritten_query=None,
@@ -258,7 +287,10 @@ async def test_verify_answer_node(mock_services):
     )
 
     state["query_tier"] = "standard"
-    state["answer"] = "The Beautiful State is a state of inner connection, according to Sri Preethaji, representing a profound positive presence of connection, oneness, peace, love, joy and compassion rather than merely an absence of suffering. " * 3
+    state["answer"] = (
+        "The Beautiful State is a state of inner connection, according to Sri Preethaji, representing a profound positive presence of connection, oneness, peace, love, joy and compassion rather than merely an absence of suffering. "
+        * 3
+    )
     result = await nodes.verify_answer(state)
 
     assert result["is_faithful"] is True
@@ -338,7 +370,7 @@ async def test_verify_answer_tier3_complex_fast_exit_rejects_low_faithfulness(mo
 @pytest.mark.asyncio
 async def test_intent_router_meditation_step_robustness(mock_services):
     from rag.nodes.intent import intent_router
-    
+
     # Test case 1: meditation_step is a string number
     state = GraphState(
         question="yes",
@@ -353,7 +385,7 @@ async def test_intent_router_meditation_step_robustness(mock_services):
     result = await intent_router(state)
     assert result["intent"] == "MEDITATION_CONTINUE"
     assert result["meditation_step"] == 3
-    
+
     # Test case 2: meditation_step is None (TypeError test)
     mock_ollama, _ = mock_services
     mock_ollama.generate.return_value = "INTENT: CASUAL\nCOMPLEXITY: simple"
@@ -405,10 +437,20 @@ async def test_generate_answer_fast_tier_runs_lettuce_detect(mock_services):
         request_id="test-fast-123",
         intent="FACTUAL",
         query_tier="tier2_simple",
-        documents=[{"text": "Sri Preethaji teaches that the Beautiful State is connection.", "source_url": "url1"}],
+        documents=[
+            {
+                "text": "Sri Preethaji teaches that the Beautiful State is connection.",
+                "source_url": "url1",
+            }
+        ],
         reranked_docs=[],
         hyde_text=None,
-        relevant_docs=[{"text": "Sri Preethaji teaches that the Beautiful State is connection.", "source_url": "url1"}],
+        relevant_docs=[
+            {
+                "text": "Sri Preethaji teaches that the Beautiful State is connection.",
+                "source_url": "url1",
+            }
+        ],
         grading_reasons=[],
         rewrite_count=0,
         rewritten_query=None,
@@ -467,10 +509,20 @@ async def test_generate_answer_fast_tier_flags_hallucination(mock_services):
         request_id="test-fast-124",
         intent="FACTUAL",
         query_tier="fast",
-        documents=[{"text": "Sri Preethaji teaches that the Beautiful State is connection.", "source_url": "url1"}],
+        documents=[
+            {
+                "text": "Sri Preethaji teaches that the Beautiful State is connection.",
+                "source_url": "url1",
+            }
+        ],
         reranked_docs=[],
         hyde_text=None,
-        relevant_docs=[{"text": "Sri Preethaji teaches that the Beautiful State is connection.", "source_url": "url1"}],
+        relevant_docs=[
+            {
+                "text": "Sri Preethaji teaches that the Beautiful State is connection.",
+                "source_url": "url1",
+            }
+        ],
         grading_reasons=[],
         rewrite_count=0,
         rewritten_query=None,
@@ -506,5 +558,3 @@ async def test_generate_answer_fast_tier_flags_hallucination(mock_services):
     assert result["hallucination_flag"] is True
     assert result["is_faithful"] is False
     assert result["verification"]["passed"] is False
-
-

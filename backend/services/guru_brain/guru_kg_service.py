@@ -15,8 +15,9 @@ Relations:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,9 @@ class OKFTransformationArc:
 class GuruKGService:
     """Neo4j Knowledge Graph & OKF 5-Node Ontology Engine."""
 
-    def __init__(self, neo4j_driver: Any = None, neo4j_driver_accessor: Optional[Callable[[], Any]] = None) -> None:
+    def __init__(
+        self, neo4j_driver: Any = None, neo4j_driver_accessor: Optional[Callable[[], Any]] = None
+    ) -> None:
         self.neo4j_driver = neo4j_driver
         self._neo4j_driver_accessor = neo4j_driver_accessor
         self._in_memory_graph: list[OKFTransformationArc] = []
@@ -101,7 +104,9 @@ class GuruKGService:
                         practice=practice_step,
                     )
             except Exception as exc:
-                logger.warning(f"GuruKGService: Neo4j Cypher write failed ({exc}), stored in graph memory fallback.")
+                logger.warning(
+                    f"GuruKGService: Neo4j Cypher write failed ({exc}), stored in graph memory fallback."
+                )
 
     def record_user_state_transition(
         self,
@@ -127,13 +132,22 @@ class GuruKGService:
                 }]->(s2)
                 MERGE (s1)-[:TRANSITIONS_TO]->(s2)
                 """
-                session.run(cypher, user_id=user_id, from_state=from_state, to_state=to_state, context=trigger_context)
-                logger.info(f"GuruKGService: Recorded state transition for user {user_id}: {from_state} -> {to_state}")
+                session.run(
+                    cypher,
+                    user_id=user_id,
+                    from_state=from_state,
+                    to_state=to_state,
+                    context=trigger_context,
+                )
+                logger.info(
+                    f"GuruKGService: Recorded state transition for user {user_id}: {from_state} -> {to_state}"
+                )
         except Exception as exc:
             logger.warning(f"GuruKGService: Failed to record state transition ({exc})")
 
-
-    def traverse_guru_ontology(self, query: str, limit: int = 3, timeout: float | None = None) -> list[OKFTransformationArc]:
+    def traverse_guru_ontology(
+        self, query: str, limit: int = 3, timeout: float | None = None
+    ) -> list[OKFTransformationArc]:
         """Perform 5-node multi-hop graph traversal to discover spiritual transformation arcs."""
         if self._resolved_driver:
             try:
@@ -167,13 +181,18 @@ class GuruKGService:
                     if arcs:
                         return arcs
             except Exception as exc:
-                logger.warning(f"GuruKGService: Neo4j traversal failed ({exc}), falling back to in-memory graph.")
+                logger.warning(
+                    f"GuruKGService: Neo4j traversal failed ({exc}), falling back to in-memory graph."
+                )
 
         # Fallback in-memory graph traversal
         matched = []
         q_lower = query.lower()
         for arc in self._in_memory_graph:
-            if any(w in arc.seeker_dilemma.lower() or w in arc.teaching.lower() for w in q_lower.split()):
+            if any(
+                w in arc.seeker_dilemma.lower() or w in arc.teaching.lower()
+                for w in q_lower.split()
+            ):
                 matched.append(arc)
             if len(matched) >= limit:
                 break

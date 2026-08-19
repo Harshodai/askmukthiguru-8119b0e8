@@ -29,8 +29,8 @@ import json
 import logging
 import sys
 import urllib.request
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 _BACKEND = Path(__file__).resolve().parents[2]
 if str(_BACKEND) not in sys.path:
@@ -55,12 +55,30 @@ _BOOK_TYPES = {"book", "pdf"}
 # never fed into it; a calibration set that trained the thing it measures would
 # report its own inputs back as success.
 _CALIBRATION_SHOULD_FIX = (
-    ("ujash", "ojas"), ("ujasi", "ojas"), ("ojasi", "ojas"),
-    ("diksha", "deeksha"), ("mukti", "mukthi"), ("akam", "ekam"),
+    ("ujash", "ojas"),
+    ("ujasi", "ojas"),
+    ("ojasi", "ojas"),
+    ("diksha", "deeksha"),
+    ("mukti", "mukthi"),
+    ("akam", "ekam"),
 )
 _CALIBRATION_MUST_NOT_TOUCH = (
-    "peace", "piece", "soul", "soil", "must", "most", "four", "fear",
-    "care", "core", "shield", "should", "time", "theme", "teaching", "them",
+    "peace",
+    "piece",
+    "soul",
+    "soil",
+    "must",
+    "most",
+    "four",
+    "fear",
+    "care",
+    "core",
+    "shield",
+    "should",
+    "time",
+    "theme",
+    "teaching",
+    "them",
 )
 
 
@@ -117,7 +135,9 @@ def calibrate(lexicon: DoctrineLexicon) -> dict:
             details.append(f"  MISS  {variant} -> ? ({decision.reason})")
         elif decision.replacement.lower() == canonical:
             fixed_right += 1
-            details.append(f"  OK    {variant} -> {decision.replacement} ({decision.similarity:.3f})")
+            details.append(
+                f"  OK    {variant} -> {decision.replacement} ({decision.similarity:.3f})"
+            )
         else:
             fixed_wrong += 1
             details.append(f"  WRONG {variant} -> {decision.replacement} (wanted {canonical})")
@@ -148,8 +168,12 @@ async def main() -> int:
     parser.add_argument("--qdrant-url", default="http://localhost:6333")
     parser.add_argument("--collection", default="spiritual_wisdom")
     parser.add_argument("--no-web", action="store_true", help="skip the official-site scrape")
-    parser.add_argument("--min-consensus", type=int, default=20,
-                        help="independent sources that must agree before a corpus spelling counts")
+    parser.add_argument(
+        "--min-consensus",
+        type=int,
+        default=20,
+        help="independent sources that must agree before a corpus spelling counts",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -168,8 +192,12 @@ async def main() -> int:
         if content_type in _BOOK_TYPES:
             book_texts.append(text)
 
-    logger.info("corpus: %d chunks, %d sources, %d book chunks",
-                len(corpus), len(per_source_types), len(book_texts))
+    logger.info(
+        "corpus: %d chunks, %d sources, %d book chunks",
+        len(corpus),
+        len(per_source_types),
+        len(book_texts),
+    )
 
     # A general English wordlist is what actually protects ordinary prose. The
     # books plus the official sites yield ~5,700 words; English needs 50k-100k,
@@ -180,12 +208,14 @@ async def main() -> int:
     english_words: list[str] = []
     try:
         from wordfreq import top_n_list
+
         english_words = top_n_list("en", 200_000)
         logger.info("english wordlist: %d words", len(english_words))
     except Exception as exc:
         logger.error(
             "wordfreq unavailable (%s) — REFUSING to build, since without an "
-            "English wordlist the lexicon rewrites ordinary prose", exc,
+            "English wordlist the lexicon rewrites ordinary prose",
+            exc,
         )
         return 1
 
@@ -217,8 +247,10 @@ async def main() -> int:
     for line in report["details"]:
         print(line)
     print(f"\n  precision {report['precision']:.3f}   recall {report['recall']:.3f}")
-    print(f"  corrected right {report['corrected_right']}, wrong {report['corrected_wrong']}, "
-          f"false positives {report['false_positives']}, missed {report['missed']}")
+    print(
+        f"  corrected right {report['corrected_right']}, wrong {report['corrected_wrong']}, "
+        f"false positives {report['false_positives']}, missed {report['missed']}"
+    )
     if report["false_positives"]:
         print("\n  !! FALSE POSITIVES present — real English was rewritten. Do not ship.")
         return 1

@@ -3,21 +3,18 @@ Admin dashboard API routes.
 
 Unit 13 — moved from `routers/admin.py` into `app.api`.
 """
-import re
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+import re
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from celery_config import celery_app
 
-from app.config import settings
 from app.admin_telemetry import operations_snapshot, trace_detail, trace_summary
-
-from app.core.limiter import limiter
+from app.config import settings
 from app.dependencies import ServiceContainer, get_container
 from app.telemetry_db import (
     get_admins,
@@ -34,6 +31,7 @@ from app.telemetry_db import (
     get_kpis,
     get_live_feed,
     get_model_pricing,
+    get_node_latencies,
     get_prompt_metrics_by_version,
     get_quality_data,
     get_query_trace,
@@ -47,14 +45,16 @@ from app.telemetry_db import (
     get_topic_clusters,
     get_trigger_events,
     get_trigger_trend,
-    get_node_latencies,
 )
+from celery_config import celery_app
 from services.auth_service import require_aal2
 
 
 class _AdminActionResult(BaseModel):
     ok: bool = True
     message: Optional[str] = None
+
+
 def _require_admin(user: dict = Depends(require_aal2)) -> dict:
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
@@ -64,7 +64,6 @@ def _require_admin(user: dict = Depends(require_aal2)) -> dict:
     if allowlist and user.get("id") not in allowlist:
         raise HTTPException(status_code=403, detail="Admin access required (not allowlisted)")
     return user
-
 
 
 logger = logging.getLogger(__name__)
@@ -105,7 +104,6 @@ async def get_operations_snapshot(
         budget_guard_enabled=settings.openrouter_budget_guard_enabled,
         release_readiness=_source_release_readiness(),
     )
-
 
 
 @admin_router.get("/prompts")
@@ -155,18 +153,24 @@ async def upsert_doctrine_term(
     if not client:
         raise HTTPException(status_code=503, detail="Database service unavailable")
     try:
-        await client.table("doctrine_terms").upsert(
-            {
-                "canonical": body.canonical.strip(),
-                "variants": body.variants,
-                "enabled": body.enabled,
-                "updated_by": user.get("email") or user.get("id"),
-            },
-            on_conflict="canonical",
-        ).execute()
+        await (
+            client.table("doctrine_terms")
+            .upsert(
+                {
+                    "canonical": body.canonical.strip(),
+                    "variants": body.variants,
+                    "enabled": body.enabled,
+                    "updated_by": user.get("email") or user.get("id"),
+                },
+                on_conflict="canonical",
+            )
+            .execute()
+        )
     except Exception as e:
         logger.error(f"Failed to upsert doctrine term: {e}")
-        raise HTTPException(status_code=500, detail="Failed to save doctrine term. Please try again.")
+        raise HTTPException(
+            status_code=500, detail="Failed to save doctrine term. Please try again."
+        )
     reload_doctrine_terms()  # hot-reload the correction map (no restart needed)
     return {"ok": True, "canonical": body.canonical.strip()}
 
@@ -183,41 +187,45 @@ async def get_rag_flow_graph(
 
     try:
         container = get_container()
-        
+
         # Choose the correct graph based on strategy param
         graph_obj = container.standard_graph
         if strategy == "fast":
             graph_obj = container.fast_graph
         elif strategy == "deep":
             graph_obj = container.deep_graph
-            
+
         compiled_graph = graph_obj.get_graph()
-        
+
         # 1. Fetch latency averages from Supabase (last 1000 spans)
         latencies = await get_node_latencies(limit=1000)
         latency_map = {item["node"]: item for item in latencies}
-        
+
         # 2. Extract nodes
         nodes = []
         for key, node in compiled_graph.nodes.items():
             avg_metrics = latency_map.get(key, {"avg_latency_ms": 0.0, "count": 0})
-            nodes.append({
-                "id": key,
-                "label": getattr(node, "name", key) or key,
-                "avg_latency_ms": avg_metrics["avg_latency_ms"],
-                "invocation_count": avg_metrics["count"],
-            })
-            
+            nodes.append(
+                {
+                    "id": key,
+                    "label": getattr(node, "name", key) or key,
+                    "avg_latency_ms": avg_metrics["avg_latency_ms"],
+                    "invocation_count": avg_metrics["count"],
+                }
+            )
+
         # 3. Extract edges
         edges = []
         for edge in compiled_graph.edges:
-            edges.append({
-                "id": f"e-{edge.source}-{edge.target}",
-                "source": edge.source,
-                "target": edge.target,
-                "animated": True,
-            })
-            
+            edges.append(
+                {
+                    "id": f"e-{edge.source}-{edge.target}",
+                    "source": edge.source,
+                    "target": edge.target,
+                    "animated": True,
+                }
+            )
+
         return {
             "strategy": strategy,
             "nodes": nodes,
@@ -328,6 +336,7 @@ async def get_data_stores_endpoint(
     try:
         driver = container.neo4j_driver
         if driver:
+
             def _query_neo4j():
                 with driver.session(database="neo4j", default_access_mode="READ") as session:
                     node_rows = session.run(
@@ -343,7 +352,9 @@ async def get_data_stores_endpoint(
             result["neo4j"]["nodes_by_label"] = {}
             for r in node_rows:
                 label = r["label"]
-                result["neo4j"]["nodes_by_label"][label] = result["neo4j"]["nodes_by_label"].get(label, 0) + r["cnt"]
+                result["neo4j"]["nodes_by_label"][label] = (
+                    result["neo4j"]["nodes_by_label"].get(label, 0) + r["cnt"]
+                )
             result["neo4j"]["total_nodes"] = total_nodes
             result["neo4j"]["relationships_by_type"] = {r["type"]: r["cnt"] for r in rel_rows}
             result["neo4j"]["total_relationships"] = sum(r["cnt"] for r in rel_rows)
@@ -575,7 +586,13 @@ async def promote_admin(
     if not client:
         raise HTTPException(status_code=503, detail="Database service unavailable")
     try:
-        auth_resp = client.table("auth_users").select("id").eq("email", body.email.strip().lower()).limit(1).execute()
+        auth_resp = (
+            client.table("auth_users")
+            .select("id")
+            .eq("email", body.email.strip().lower())
+            .limit(1)
+            .execute()
+        )
         auth_rows = getattr(auth_resp, "data", None) or []
         if not auth_rows:
             raise HTTPException(status_code=404, detail="User not found")
@@ -624,7 +641,12 @@ async def demote_admin(
             .eq("role", "admin")
             .execute()
         )
-        return {"ok": True, "message": "Admin role revoked", "user_id": body.user_id, "deleted": bool(getattr(result, "data", None))}
+        return {
+            "ok": True,
+            "message": "Admin role revoked",
+            "user_id": body.user_id,
+            "deleted": bool(getattr(result, "data", None)),
+        }
     except Exception as e:
         logger.error(f"Failed to demote admin: {e}")
         raise HTTPException(status_code=500, detail="Failed to demote admin")
@@ -735,7 +757,15 @@ async def activate_prompt_version(
         raise HTTPException(status_code=503, detail="Database service unavailable")
     try:
         # Deactivate every version in the same prompt family as the target.
-        target_rows = client.table("prompt_versions").select("name").eq("id", prompt_id).limit(1).execute().data or []
+        target_rows = (
+            client.table("prompt_versions")
+            .select("name")
+            .eq("id", prompt_id)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
         if not target_rows:
             raise HTTPException(status_code=404, detail="Prompt version not found")
         prompt_name = target_rows[0]["name"]
@@ -777,44 +807,48 @@ async def ask_admin_question(
     from services.cost_tracker import get_cost_tracker
 
     dynamic_context = []
-    
+
     try:
-        now_dt = datetime.now(timezone.utc)
+        now_dt = datetime.now(UTC)
         from_date = (now_dt - timedelta(days=30)).isoformat()
         to_date = now_dt.isoformat()
-        
+
         kpis_30d = await get_kpis(from_date=from_date, to_date=to_date)
         node_latencies = await get_node_latencies(limit=100)
-        
+
         tracker = get_cost_tracker()
         cost_report = tracker.get_usage_report(days=30)
-        
+
         dynamic_context.append("--- Detailed Telemetry & Analytics (Last 30 Days) ---")
         dynamic_context.append("Overall KPIs:")
         for k, v in (kpis_30d or {}).items():
             dynamic_context.append(f"  {k}: {v}")
-            
-        dynamic_context.append(f"\nCost & Token Metrics:")
+
+        dynamic_context.append("\nCost & Token Metrics:")
         dynamic_context.append(f"  Total Cost USD: ${cost_report.total_cost_usd:.6f}")
-        dynamic_context.append(f"  Total Tokens: {cost_report.total_tokens} (Prompt/In: {cost_report.total_tokens_in}, Completion/Out: {cost_report.total_tokens_out})")
+        dynamic_context.append(
+            f"  Total Tokens: {cost_report.total_tokens} (Prompt/In: {cost_report.total_tokens_in}, Completion/Out: {cost_report.total_tokens_out})"
+        )
         dynamic_context.append(f"  Unique Users: {cost_report.unique_users}")
         dynamic_context.append(f"  Unique Sessions: {cost_report.unique_sessions}")
-        
+
         if cost_report.by_model:
             dynamic_context.append("  Usage by Model:")
             for m, details in cost_report.by_model.items():
                 dynamic_context.append(f"    - {m}: {details}")
-                
+
         if cost_report.by_provider:
             dynamic_context.append("  Usage by Provider:")
             for prov, details in cost_report.by_provider.items():
                 dynamic_context.append(f"    - {prov}: {details}")
-                
+
         if node_latencies:
             dynamic_context.append("\nAverage Node/Span Latencies:")
             for nl in node_latencies:
-                dynamic_context.append(f"  - {nl.get('name')}: {nl.get('avg_duration_ms', 0):.2f}ms (count: {nl.get('count', 0)})")
-                
+                dynamic_context.append(
+                    f"  - {nl.get('name')}: {nl.get('avg_duration_ms', 0):.2f}ms (count: {nl.get('count', 0)})"
+                )
+
     except Exception as ctx_err:
         logger.error(f"Failed to fetch dynamic telemetry context for ask_admin_question: {ctx_err}")
 
@@ -851,10 +885,13 @@ async def ask_admin_question(
         return {"response": answer.strip()}
     except Exception as e:
         logger.error(f"Error in ask_admin_question: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Admin assistant request failed. Please try again.")
+        raise HTTPException(
+            status_code=500, detail="Admin assistant request failed. Please try again."
+        )
 
 
 # ── Unit 23: Cost Attribution Endpoints ──────────────────────────────
+
 
 @admin_router.get("/cost/usage")
 async def get_cost_usage(
@@ -865,6 +902,7 @@ async def get_cost_usage(
 ) -> dict[str, Any]:
     """Get token usage and cost report. Admin only."""
     from services.cost_tracker import get_cost_tracker
+
     tracker = get_cost_tracker()
     report = tracker.get_usage_report(tenant_id=tenant_id, user_id=user_id, days=days)
     return {
@@ -889,10 +927,12 @@ async def get_daily_cost(
 ) -> list[dict[str, Any]]:
     """Get day-by-day cost breakdown for a tenant. Admin only."""
     from services.cost_tracker import get_cost_tracker
+
     return get_cost_tracker().get_daily_usage(tenant_id, days=days)
 
 
 # ── Unit 22: Prompt Versioning Endpoints ─────────────────────────────
+
 
 @admin_router.get("/prompt-store/names")
 async def list_prompt_names(
@@ -900,6 +940,7 @@ async def list_prompt_names(
 ) -> list[str]:
     """List all prompt names in the prompt store. Admin only."""
     from services.prompt_store import get_prompt_store
+
     return get_prompt_store().list_prompt_names()
 
 
@@ -910,13 +951,18 @@ async def list_prompt_versions(
 ) -> list[dict[str, Any]]:
     """List all versions of a prompt. Admin only."""
     from services.prompt_store import get_prompt_store
+
     store = get_prompt_store()
     versions = store.list_versions(name)
     return [
         {
-            "id": v.id, "name": v.name, "version": v.version,
-            "description": v.description, "author": v.author,
-            "created_at": v.created_iso, "is_active": v.is_active,
+            "id": v.id,
+            "name": v.name,
+            "version": v.version,
+            "description": v.description,
+            "author": v.author,
+            "created_at": v.created_iso,
+            "is_active": v.is_active,
             "content_length": len(v.content),
         }
         for v in versions
@@ -931,6 +977,7 @@ async def rollback_prompt(
 ) -> dict[str, Any]:
     """Rollback a prompt to a specific version. Admin only."""
     from services.prompt_store import get_prompt_store
+
     result = get_prompt_store().rollback(name, version)
     if result is None:
         raise HTTPException(status_code=404, detail=f"Version {version} of {name} not found")
@@ -939,12 +986,14 @@ async def rollback_prompt(
 
 # ── Unit 16: A/B Testing Endpoints ───────────────────────────────────
 
+
 @admin_router.get("/ab-tests")
 async def list_ab_experiments(
     user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List all registered A/B experiments. Admin only."""
     from services.ab_testing import get_ab_router
+
     return get_ab_router().list_experiments()
 
 
@@ -956,6 +1005,7 @@ async def preview_ab_assignment(
 ) -> dict[str, Any]:
     """Preview A/B variant assignment for a user. Admin only."""
     from services.ab_testing import get_ab_router
+
     result = get_ab_router().assign(user_id, experiment)
     return {
         "experiment": result.experiment_name,
@@ -987,6 +1037,7 @@ async def list_okf_entries(
 ):
     """List OKF knowledge entries (optionally filtered by type). Admin only."""
     from services.memory.okf_store import OKFStore
+
     store = OKFStore()
     entries = store.by_type(type_filter) if type_filter else store.list_entries()
     return {
@@ -1008,6 +1059,7 @@ async def list_okf_entries(
 async def compile_okf_index(user: dict = Depends(_require_admin)):
     """Rebuild the OKF compiled index. Admin only."""
     from services.memory.compiler import compile_okf
+
     path = compile_okf()
     return {"status": "ok", "path": str(path)}
 
@@ -1017,7 +1069,9 @@ class OkfExtractRequest(BaseModel):
     video_id: Optional[str] = None
     limit: int = Field(default=20, ge=1, le=100)
     auto_approve: bool = False
-    mode: str = Field(default="direct", description="'direct' (run inline) or 'celery' (queue async)")
+    mode: str = Field(
+        default="direct", description="'direct' (run inline) or 'celery' (queue async)"
+    )
 
 
 @admin_router.post("/okf/extract")
@@ -1064,28 +1118,27 @@ async def get_admin_settings(
     user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Fetch global application settings (Admin only)."""
-    
+
     from app.telemetry_db import _get_client
+
     client = _get_client()
     if not client:
         # Fallback to current settings if Supabase is offline/not set
-        return {
-            "web_search_allowed_domains": settings.web_search_allowed_domains_list
-        }
-        
+        return {"web_search_allowed_domains": settings.web_search_allowed_domains_list}
+
     try:
         res = client.table("app_settings").select("*").eq("key", "global").execute()
         if res.data and len(res.data) > 0:
             val = res.data[0]["value"]
             return {
-                "web_search_allowed_domains": val.get("web_search_allowed_domains", settings.web_search_allowed_domains_list)
+                "web_search_allowed_domains": val.get(
+                    "web_search_allowed_domains", settings.web_search_allowed_domains_list
+                )
             }
     except Exception as e:
         logger.error(f"Failed to fetch app settings from DB: {e}")
-        
-    return {
-        "web_search_allowed_domains": settings.web_search_allowed_domains_list
-    }
+
+    return {"web_search_allowed_domains": settings.web_search_allowed_domains_list}
 
 
 @admin_router.post("/settings")
@@ -1094,30 +1147,35 @@ async def update_admin_settings(
     user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Update global application settings (Admin only)."""
-        
+
     from app.telemetry_db import _get_client
+
     client = _get_client()
     if not client:
         raise HTTPException(status_code=503, detail="Database service unavailable")
-        
+
     try:
         data = {
             "key": "global",
             "value": {
-                "web_search_allowed_domains": [d.strip().lower() for d in payload.web_search_allowed_domains if d.strip()]
+                "web_search_allowed_domains": [
+                    d.strip().lower() for d in payload.web_search_allowed_domains if d.strip()
+                ]
             },
-            "updated_at": "now()"
+            "updated_at": "now()",
         }
         client.table("app_settings").upsert(data).execute()
-        
+
         # Dynamic hot-reload in memory
         container = get_container()
         new_domains = [d.strip().lower() for d in payload.web_search_allowed_domains if d.strip()]
         settings.web_search_allowed_domains = ",".join(new_domains)
         if getattr(container, "web_search", None):
             container.web_search.allowed_domains = new_domains
-            logger.info(f"WebSearchService allowed domains dynamically updated in memory: {new_domains}")
-            
+            logger.info(
+                f"WebSearchService allowed domains dynamically updated in memory: {new_domains}"
+            )
+
         return {"status": "success", "web_search_allowed_domains": new_domains}
     except Exception as e:
         logger.error(f"Failed to update app settings in DB: {e}")
@@ -1139,6 +1197,7 @@ async def list_okf_review_queue(
 ) -> list[dict[str, Any]]:
     """List items in the OKF review queue (Admin only)."""
     from app.telemetry_db import _get_client
+
     client = _get_client()
     if not client:
         raise HTTPException(status_code=503, detail="Data service not available")
@@ -1148,7 +1207,9 @@ async def list_okf_review_queue(
         return res.data or []
     except Exception as e:
         logger.error(f"Failed to fetch OKF review queue: {e}")
-        raise HTTPException(status_code=500, detail="Failed to load review queue. Please try again.")
+        raise HTTPException(
+            status_code=500, detail="Failed to load review queue. Please try again."
+        )
 
 
 @admin_router.post("/okf/review/{review_id}/approve")
@@ -1158,6 +1219,7 @@ async def approve_okf_entry(
 ) -> dict[str, Any]:
     """Approve a draft OKF entry, save it as a markdown file, and recompile index (Admin only)."""
     from app.telemetry_db import _get_client
+
     client = _get_client()
     if not client:
         raise HTTPException(status_code=503, detail="Data service not available")
@@ -1173,11 +1235,13 @@ async def approve_okf_entry(
 
         title = entry.get("title", "untitled")
         import string
-        valid_chars = "-_%s%s" % (string.ascii_letters, string.digits)
+
+        valid_chars = f"-_{string.ascii_letters}{string.digits}"
         slug = "".join(c if c in valid_chars else "-" for c in title.lower().replace(" ", "_"))
         slug = re.sub(r"-+", "-", slug).strip("-")
 
         from services.memory.compiler import _OKF_DIR
+
         target_dir = _OKF_DIR / guru_slug
         target_dir.mkdir(parents=True, exist_ok=True)
         target_file = target_dir / f"{slug}.md"
@@ -1190,6 +1254,7 @@ async def approve_okf_entry(
             "confidence": "high",
         }
         import yaml
+
         yaml_str = yaml.safe_dump(meta, default_flow_style=False)
         body = entry.get("body", "")
 
@@ -1197,13 +1262,16 @@ async def approve_okf_entry(
         target_file.write_text(content, encoding="utf-8")
 
         from services.memory.compiler import compile_okf
+
         compile_okf()
 
-        client.table("okf_review_queue").update({
-            "status": "approved",
-            "reviewed_at": "now()",
-            "reviewed_by": user.get("id"),
-        }).eq("id", review_id).execute()
+        client.table("okf_review_queue").update(
+            {
+                "status": "approved",
+                "reviewed_at": "now()",
+                "reviewed_by": user.get("id"),
+            }
+        ).eq("id", review_id).execute()
 
         return {"status": "success", "file": str(target_file)}
     except HTTPException:
@@ -1221,17 +1289,20 @@ async def reject_okf_entry(
 ) -> dict[str, Any]:
     """Reject a draft OKF entry (Admin only)."""
     from app.telemetry_db import _get_client
+
     client = _get_client()
     if not client:
         raise HTTPException(status_code=503, detail="Data service not available")
 
     try:
-        client.table("okf_review_queue").update({
-            "status": "rejected",
-            "reviewer_notes": reviewer_notes,
-            "reviewed_at": "now()",
-            "reviewed_by": user.get("id"),
-        }).eq("id", review_id).execute()
+        client.table("okf_review_queue").update(
+            {
+                "status": "rejected",
+                "reviewer_notes": reviewer_notes,
+                "reviewed_at": "now()",
+                "reviewed_by": user.get("id"),
+            }
+        ).eq("id", review_id).execute()
 
         return {"status": "success"}
     except Exception as e:
@@ -1298,10 +1369,11 @@ async def admin_ingest_url(
     if mode not in valid_modes:
         raise HTTPException(
             status_code=422,
-            detail=f"Invalid mode '{mode}'. Must be one of: {', '.join(sorted(valid_modes))}"
+            detail=f"Invalid mode '{mode}'. Must be one of: {', '.join(sorted(valid_modes))}",
         )
     # Validate URL before queueing — reuse ingestion pipeline validator
     from ingestion.web_ingest_pipeline import _validate_and_normalize
+
     try:
         url = await _validate_and_normalize(url)
     except ValueError as e:
@@ -1362,6 +1434,7 @@ async def admin_reingest(
     mode = body.mode.lower().strip()
     if mode == "url":
         from ingestion.web_ingest_pipeline import _validate_and_normalize
+
         try:
             normalized_url = await _validate_and_normalize(body.source)
         except ValueError as e:
@@ -1383,7 +1456,12 @@ async def admin_reingest(
             )
         try:
             task = contextual_reingest.delay(source_url=body.source)
-            return {"task_id": task.id, "source": body.source, "mode": "contextual", "status": "queued"}
+            return {
+                "task_id": task.id,
+                "source": body.source,
+                "mode": "contextual",
+                "status": "queued",
+            }
         except Exception:
             await _release_reingest_lock(container)
             raise
@@ -1413,8 +1491,10 @@ async def _acquire_reingest_lock(container: ServiceContainer) -> tuple[bool, Opt
         import datetime as _dt
 
         _current = celery_app.current_task
-        _task_id = _current.request.id if _current is not None and hasattr(_current, "request") else "api"
-        owner = f"{_task_id}@{_dt.datetime.now(_dt.timezone.utc).isoformat()}"
+        _task_id = (
+            _current.request.id if _current is not None and hasattr(_current, "request") else "api"
+        )
+        owner = f"{_task_id}@{_dt.datetime.now(_dt.UTC).isoformat()}"
         # redis-py set nx ex is atomic
         acquired = redis_client.set(
             _REINGEST_LOCK_KEY,
@@ -1452,7 +1532,6 @@ async def admin_contextual_reingest(
 
     Singleton Redis lock prevents overlapping full-corpus rebuilds.
     """
-    from celery_config import celery_app
     from tasks.contextual_reingest_task import contextual_reingest
 
     acquired, owner = await _acquire_reingest_lock(container)

@@ -213,16 +213,16 @@ def send_win_back_email(
             already_sent = row.get("win_back_emails_sent") or []
             if template_key not in already_sent:
                 already_sent.append(template_key)
-                client.table("cancellations").update(
-                    {"win_back_emails_sent": already_sent}
-                ).eq("id", row["id"]).execute()
+                client.table("cancellations").update({"win_back_emails_sent": already_sent}).eq(
+                    "id", row["id"]
+                ).execute()
 
         return {"status": "sent" if sent_ok else "failed", "template_key": template_key}
     except Exception as e:
         logger.error(f"send_win_back_email failed ({template_key}, user {user_id}): {e}")
         # Retry with backoff (max 3 attempts).
         if self.request.retries < 3:
-            raise self.retry(exc=e, countdown=2 ** self.request.retries * 60)
+            raise self.retry(exc=e, countdown=2**self.request.retries * 60)
         return {"status": "error", "reason": str(e)}
 
 
@@ -248,7 +248,7 @@ def dispatch_due_win_back_emails() -> dict:
 
         client = _service_client()
         now = datetime.now(UTC)
-        horizon = now + timedelta(days=37)
+        now + timedelta(days=37)
 
         resp = (
             client.table("cancellations")

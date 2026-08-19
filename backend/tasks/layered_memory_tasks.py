@@ -17,6 +17,7 @@ TURN_THRESHOLD = 5
 IDLE_TIMEOUT = 600
 TURN_REDIS_PREFIX = "turn_counter:"
 
+
 @app.task(bind=True, max_retries=2, soft_time_limit=120)
 def process_batched_memories(self) -> dict:
     """Scan users with accumulated turns, trigger L3 persona + skill refresh."""
@@ -48,6 +49,7 @@ def process_batched_memories(self) -> dict:
         logger.error(f"process_batched_memories failed: {e}")
         return {"processed": 0, "error": str(e)}
 
+
 async def _refresh_persona_and_skills(user_id: str):
     from app.telemetry_db import _get_client
     from services.layered_memory.l1_extractor import get_recent_atoms
@@ -78,6 +80,7 @@ async def _refresh_persona_and_skills(user_id: str):
     new_skills = await generate_skills(atoms_text, existing_skills)
     if new_skills:
         await save_skills(client, user_id, tenant_id, new_skills)
+
 
 if __name__ == "__main__":
     print("Layered memory tasks loaded")

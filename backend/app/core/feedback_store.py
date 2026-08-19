@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 
@@ -29,7 +29,7 @@ class FeedbackStore:
     ):
         """Record user feedback for RAG quality analysis."""
         entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "session_id": session_id,
             "query": query,
             "response_preview": response[:500],

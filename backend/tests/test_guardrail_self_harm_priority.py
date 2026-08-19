@@ -24,7 +24,7 @@ def guardrails():
 
 class TestSelfHarmPriority:
     def test_self_harm_with_medication_routes_to_helplines(self, guardrails):
-        """"stop my medication and end my life" -> self_harm, serene_mind, helplines."""
+        """ "stop my medication and end my life" -> self_harm, serene_mind, helplines."""
         result = run(guardrails.check_input("stop my medication and end my life"))
 
         assert result["blocked"] is True
@@ -40,17 +40,16 @@ class TestSelfHarmPriority:
         )
         assert "consult a doctor" not in result["response"].lower()
         # Must carry helpline signal.
-        assert "crisis helpline" in result["response"].lower() or "reach out" in result[
-            "response"
-        ].lower(), f"missing helpline text: {result['response']!r}"
+        assert (
+            "crisis helpline" in result["response"].lower()
+            or "reach out" in result["response"].lower()
+        ), f"missing helpline text: {result['response']!r}"
 
     def test_spiritual_guide_phrasing_not_blocked(self, guardrails):
         """Removal of `you are a (?!spiritual)` must not block legitimate spiritual phrasing."""
         result = run(guardrails.check_input("you are a spiritual guide, tell me about dharma"))
 
-        assert result["blocked"] is False, (
-            f"spiritual guide phrasing was blocked: {result!r}"
-        )
+        assert result["blocked"] is False, f"spiritual guide phrasing was blocked: {result!r}"
 
     def test_prescribe_lithium_bipolar_blocks_via_medical_topic(self, guardrails):
         """Medical prescription request blocked by medical_prescription topic, not cold refusal."""
@@ -62,9 +61,10 @@ class TestSelfHarmPriority:
         )
         assert result["redirect_to"] is None
         # The medical_prescription block response (not the old cold refusal).
-        assert "mental health professional" in result["response"].lower() or "professional healthcare" in result["response"].lower(), (
-            f"unexpected response: {result['response']!r}"
-        )
+        assert (
+            "mental health professional" in result["response"].lower()
+            or "professional healthcare" in result["response"].lower()
+        ), f"unexpected response: {result['response']!r}"
 
     def test_crisis_topics_precede_medical_in_blocked_topics(self):
         """Dict insertion order is load-bearing: crisis topics must precede

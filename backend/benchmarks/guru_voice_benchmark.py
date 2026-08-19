@@ -30,7 +30,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -92,7 +92,7 @@ def _bootstrap_env() -> None:
         if not line or line.startswith("#"):
             continue
         if line.startswith("export "):
-            line = line[len("export "):].strip()
+            line = line[len("export ") :].strip()
         if "=" not in line:
             continue
         key, _, value = line.partition("=")
@@ -179,15 +179,13 @@ async def _llm_judge(query: str, answer: str, provider: Any) -> Optional[dict[st
         raw = await asyncio.wait_for(
             provider.generate(
                 system_prompt="You are a rigorous, unbiased style judge.",
-                user_prompt=_JUDGE_PROMPT.format(
-                    query=query, answer=answer, fillers=_FILLER_LIST
-                ),
+                user_prompt=_JUDGE_PROMPT.format(query=query, answer=answer, fillers=_FILLER_LIST),
                 temperature=0.0,
                 max_tokens=700,
             ),
             timeout=60.0,
         )
-    except (asyncio.TimeoutError, Exception):
+    except (TimeoutError, Exception):
         return None
     return _parse_judge_scores(raw)
 
@@ -205,9 +203,7 @@ async def _generate(query: str, system_prompt: str, provider: Any) -> str:
     return (response or "").strip()
 
 
-async def _score_response(
-    query: str, answer: str, provider: Optional[Any]
-) -> dict[str, Any]:
+async def _score_response(query: str, answer: str, provider: Optional[Any]) -> dict[str, Any]:
     rule = _rule_scores(answer)
     entry: dict[str, Any] = {
         "response": answer,
@@ -264,7 +260,8 @@ async def main() -> int:
 
     queries = TEST_QUERIES[: max(1, min(args.queries, len(TEST_QUERIES)))]
     output_path = Path(
-        args.output or getattr(settings, "guru_voice_benchmark_output", "")
+        args.output
+        or getattr(settings, "guru_voice_benchmark_output", "")
         or "benchmarks/reports/guru_voice_benchmark.json"
     )
 
@@ -299,17 +296,20 @@ async def main() -> int:
         means: dict[str, float] = {}
         for variant in ("prompt", "adapter"):
             answers = [
-                "\n\n".join(REFERENCE_VOICE.split("\n\n")[: i + 1])
-                for i in range(len(queries))
+                "\n\n".join(REFERENCE_VOICE.split("\n\n")[: i + 1]) for i in range(len(queries))
             ]
             variant_results = [await _score_response(q, a, None) for q, a in zip(queries, answers)]
             results[variant] = variant_results
-            means[variant] = round(sum(r["rule_mean"] for r in variant_results) / len(variant_results), 3)
+            means[variant] = round(
+                sum(r["rule_mean"] for r in variant_results) / len(variant_results), 3
+            )
     else:
         results = {}
         means = {}
         for variant in ("prompt", "adapter"):
-            variant_results, mean = await _run_variant(queries, GURU_SYSTEM_PROMPT, provider, variant)
+            variant_results, mean = await _run_variant(
+                queries, GURU_SYSTEM_PROMPT, provider, variant
+            )
             results[variant] = variant_results
             means[variant] = round(mean, 3)
 
@@ -332,7 +332,7 @@ async def main() -> int:
     }
 
     report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "config": {
             "langhanam_voice_enabled": bool(settings.langhanam_voice_enabled),
             "guru_voice_mode": settings.guru_voice_mode,
@@ -343,7 +343,9 @@ async def main() -> int:
         "degrade_reason": degrade_reason,
         "judge": {
             "llm_available": provider is not None,
-            "method": "LLM-as-judge over STYLE_RUBRIC" if provider is not None else "rule-based only",
+            "method": "LLM-as-judge over STYLE_RUBRIC"
+            if provider is not None
+            else "rule-based only",
         },
         "rubric": STYLE_RUBRIC,
         "queries": [

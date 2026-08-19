@@ -28,7 +28,6 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Optional
 
-
 # === ONTOLOGY VERSIONING ===
 # Semantic versioning (MAJOR.MINOR.PATCH):
 #   MAJOR — breaking schema change (new ConceptType/RelationType removed/renamed,
@@ -44,53 +43,53 @@ ONTOLOGY_VERSION = "1.1.0"
 class ConceptType(Enum):
     """Types of spiritual concepts."""
 
-    PRACTICE = auto()       # Meditation technique, breathing exercise
-    PRINCIPLE = auto()       # Core teaching, philosophical concept
-    EXPERIENCE = auto()      # State of consciousness, feeling
-    BEING = auto()           # Deity, guru, spiritual figure
-    TEXT = auto()            # Scripture, teaching, book
-    TRADITION = auto()       # Lineage, school of thought
-    QUALITY = auto()         # Virtue, attribute
-    OBSTACLE = auto()        # Challenge, limitation
-    TOOL = auto()            # Mala, singing bowl, etc.
-    PATH = auto()            # Spiritual path or stage
+    PRACTICE = auto()  # Meditation technique, breathing exercise
+    PRINCIPLE = auto()  # Core teaching, philosophical concept
+    EXPERIENCE = auto()  # State of consciousness, feeling
+    BEING = auto()  # Deity, guru, spiritual figure
+    TEXT = auto()  # Scripture, teaching, book
+    TRADITION = auto()  # Lineage, school of thought
+    QUALITY = auto()  # Virtue, attribute
+    OBSTACLE = auto()  # Challenge, limitation
+    TOOL = auto()  # Mala, singing bowl, etc.
+    PATH = auto()  # Spiritual path or stage
 
 
 class RelationType(Enum):
     """Types of relationships between concepts."""
 
     # Hierarchical
-    IS_A = "is_a"                            # Taxonomic
-    PART_OF = "part_of"                      # Meronomic
-    INSTANCE_OF = "instance_of"              # Instantiation
+    IS_A = "is_a"  # Taxonomic
+    PART_OF = "part_of"  # Meronomic
+    INSTANCE_OF = "instance_of"  # Instantiation
 
     # Causal
-    LEADS_TO = "leads_to"                    # Causation
-    CAUSES = "causes"                        # Strong causation
-    PREVENTS = "prevents"                    # Negative causation
+    LEADS_TO = "leads_to"  # Causation
+    CAUSES = "causes"  # Strong causation
+    PREVENTS = "prevents"  # Negative causation
 
     # Temporal
-    PRECEDES = "precedes"                    # Temporal order
-    FOLLOWS = "follows"                      # Temporal successor
+    PRECEDES = "precedes"  # Temporal order
+    FOLLOWS = "follows"  # Temporal successor
 
     # Semantic
-    IS_RELATED_TO = "is_related_to"          # Generic
-    IS_SIMILAR_TO = "is_similar_to"          # Similarity
-    IS_OPPOSITE_OF = "is_opposite_of"        # Antonym
+    IS_RELATED_TO = "is_related_to"  # Generic
+    IS_SIMILAR_TO = "is_similar_to"  # Similarity
+    IS_OPPOSITE_OF = "is_opposite_of"  # Antonym
 
     # Pragmatic
-    IS_USED_FOR = "is_used_for"              # Purpose
+    IS_USED_FOR = "is_used_for"  # Purpose
     IS_PREREQUISITE_FOR = "is_prerequisite_for"
-    IS_TECHNIQUE_FOR = "is_technique_for"    # Method-goal
+    IS_TECHNIQUE_FOR = "is_technique_for"  # Method-goal
 
     # Spiritual-specific
-    IS_MENTIONED_IN = "is_mentioned_in"      # Reference
-    IS_TAUGHT_BY = "is_taught_by"            # Teaching lineage
-    LEADS_TO_STATE = "leads_to_state"        # Practice -> state
-    REQUIRES_QUALITY = "requires_quality"    # Practice needs virtue
-    TRANSFORMS = "transforms"                # State A -> State B
+    IS_MENTIONED_IN = "is_mentioned_in"  # Reference
+    IS_TAUGHT_BY = "is_taught_by"  # Teaching lineage
+    LEADS_TO_STATE = "leads_to_state"  # Practice -> state
+    REQUIRES_QUALITY = "requires_quality"  # Practice needs virtue
+    TRANSFORMS = "transforms"  # State A -> State B
     IS_MANIFESTATION_OF = "is_manifestation_of"
-    IS_ASPECT_OF = "is_aspect_of"            # Partial identity
+    IS_ASPECT_OF = "is_aspect_of"  # Partial identity
 
 
 # Aliases for relation extraction. Maps natural-language verbs and uppercase
@@ -248,10 +247,16 @@ class TeacherDomain:
     # CANONICAL_ENTITY_ALIASES / _KNOWN_TEACHERS in ingest/ontology_writer.py).
     aliases: list[str] = field(default_factory=list)
     rights_status: str = "unverified"  # "licensed" | "unlicensed_reference_only" | "unverified"
-    corpus_release: Optional[str] = None  # e.g. settings.qdrant_collection value, if this domain has one
-    graph_namespace: Optional[str] = None  # Neo4j scoping label/property for this domain's own nodes
+    corpus_release: Optional[str] = (
+        None  # e.g. settings.qdrant_collection value, if this domain has one
+    )
+    graph_namespace: Optional[str] = (
+        None  # Neo4j scoping label/property for this domain's own nodes
+    )
     voice_policy: str = "third_person_attribution_only"  # never first-person impersonation
-    rollout_enabled: bool = False  # gate: may this domain's content ever reach an answer as doctrine?
+    rollout_enabled: bool = (
+        False  # gate: may this domain's content ever reach an answer as doctrine?
+    )
     ontology_version: str = ONTOLOGY_VERSION
 
 
@@ -323,7 +328,9 @@ def normalize_entity_name(name: str) -> str:
 # ingest/pipeline.py's `_consolidate_graph_entities.clean_name()` regex so
 # LLM-extracted variants like "Guru Preethaji" resolve the same canonical
 # id as "Sri Preethaji".
-_HONORIFIC_PREFIX_RE = re.compile(r"^(sri|shri|sree|guruji|guru|swami|swamiji|acharya)\s+", re.IGNORECASE)
+_HONORIFIC_PREFIX_RE = re.compile(
+    r"^(sri|shri|sree|guruji|guru|swami|swamiji|acharya)\s+", re.IGNORECASE
+)
 _HONORIFIC_SUFFIX_RE = re.compile(r"\s+(ji|deva|dev|maharaj|swami|swamiji)$", re.IGNORECASE)
 
 
@@ -368,7 +375,7 @@ class SpiritualConcept:
 
     # Validation
     confidence: float = 1.0  # KG extraction confidence
-    verified: bool = False   # Human-verified?
+    verified: bool = False  # Human-verified?
 
     # Metadata
     created_at: Optional[str] = None
@@ -519,12 +526,12 @@ if __name__ == "__main__":
 
     # (e) Ontology version stamp — single source of truth.
     print(f"ONTOLOGY_VERSION: {ONTOLOGY_VERSION}")
-    assert all(
-        c.ontology_version == ONTOLOGY_VERSION for c in SEED_CONCEPTS
-    ), "Seed concept missing current ontology_version"
-    assert all(
-        r.ontology_version == ONTOLOGY_VERSION for r in SEED_RELATIONS
-    ), "Seed relation missing current ontology_version"
+    assert all(c.ontology_version == ONTOLOGY_VERSION for c in SEED_CONCEPTS), (
+        "Seed concept missing current ontology_version"
+    )
+    assert all(r.ontology_version == ONTOLOGY_VERSION for r in SEED_RELATIONS), (
+        "Seed relation missing current ontology_version"
+    )
     print(
         f"All {len(SEED_CONCEPTS)} seed concepts and {len(SEED_RELATIONS)} "
         f"seed relations stamped with ontology_version={ONTOLOGY_VERSION}"

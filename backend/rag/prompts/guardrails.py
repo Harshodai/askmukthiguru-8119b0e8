@@ -132,6 +132,3 @@ User: "Let's meditate together"
 INTENT: MEDITATION
 COMPLEXITY: simple
 """
-
-
-

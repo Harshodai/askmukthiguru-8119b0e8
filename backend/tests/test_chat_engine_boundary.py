@@ -173,11 +173,11 @@ async def test_chat_engine_telemetry_fired():
     engine._coordinator = mock_coord
 
     telemetry_mock = AsyncMock()
-    with patch("app.coalescer.build_coalescer", return_value=_DirectCoalescer()), \
-         patch.object(ChatEngine, "_log_telemetry", telemetry_mock):
-        await engine.chat_advanced(
-            _basic_request("Did you log this?"), user={"id": "u5"}
-        )
+    with (
+        patch("app.coalescer.build_coalescer", return_value=_DirectCoalescer()),
+        patch.object(ChatEngine, "_log_telemetry", telemetry_mock),
+    ):
+        await engine.chat_advanced(_basic_request("Did you log this?"), user={"id": "u5"})
         # Let the fire-and-forget create_task run.
         for _ in range(10):
             await asyncio.sleep(0)

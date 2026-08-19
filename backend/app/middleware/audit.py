@@ -20,13 +20,15 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
     Skips health checks and static file mounts.
     """
 
-    SKIP_PATHS = frozenset({
-        "/api/health",
-        "/metrics",
-        "/static-ingest",
-        "/static-chat",
-        "/favicon.ico",
-    })
+    SKIP_PATHS = frozenset(
+        {
+            "/api/health",
+            "/metrics",
+            "/static-ingest",
+            "/static-chat",
+            "/favicon.ico",
+        }
+    )
 
     async def dispatch(self, request: Request, call_next):
         start = time.monotonic()
@@ -41,7 +43,10 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             observe_request_resources(time.process_time() - cpu_start)
             logger.error(
                 "AUDIT %s %s -> EXCEPTION (%.3fs): %s",
-                method, path, duration, exc,
+                method,
+                path,
+                duration,
+                exc,
             )
             raise
 

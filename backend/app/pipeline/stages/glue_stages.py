@@ -18,8 +18,8 @@ import uuid
 from typing import TYPE_CHECKING
 
 from app.config import settings
-from app.orchestrator_utils import prepare_request_state
 from app.evidence_support import evidence_support_label
+from app.orchestrator_utils import prepare_request_state
 from app.pipeline.result import (
     ActionStep,
     AnswerEvidence,
@@ -58,7 +58,9 @@ def _number(value: object) -> float | None:
     return None
 
 
-def _answer_evidence(ctx, graph_result: dict, citations: list, response_data: dict) -> AnswerEvidence:
+def _answer_evidence(
+    ctx, graph_result: dict, citations: list, response_data: dict
+) -> AnswerEvidence:
     """Build a provenance envelope without reading answer text or model output."""
     source_count = len(citations)
     scores = []
@@ -90,6 +92,7 @@ def _answer_evidence(ctx, graph_result: dict, citations: list, response_data: di
         citations_verified=graph_result.get("citations_verified"),
     )
 
+
 def _text(value: object, limit: int) -> str | None:
     """Return bounded display text only from a structured pipeline field."""
     if not isinstance(value, str):
@@ -101,9 +104,7 @@ def _text(value: object, limit: int) -> str | None:
 def _guidance_plan(ctx, graph_result: dict, citations: list) -> GuidancePlan | None:
     """Build optional UI guidance without parsing or inventing answer content."""
     assessment = getattr(ctx, "assessment", None)
-    response_type = str(
-        getattr(assessment, "recommended_response_type", "") or ""
-    ).lower()
+    response_type = str(getattr(assessment, "recommended_response_type", "") or "").lower()
     if response_type in {"crisis", "severe"}:
         return None
     preferences = getattr(getattr(ctx, "request", None), "response_preferences", None)
@@ -116,9 +117,7 @@ def _guidance_plan(ctx, graph_result: dict, citations: list) -> GuidancePlan | N
     action_step = None
     if isinstance(practice, dict):
         instruction = _text(
-            practice.get("instruction")
-            or practice.get("practice")
-            or practice.get("description"),
+            practice.get("instruction") or practice.get("practice") or practice.get("description"),
             640,
         )
         if instruction:
@@ -160,7 +159,6 @@ def _guidance_plan(ctx, graph_result: dict, citations: list) -> GuidancePlan | N
     )
 
 
-
 # ---- Kill #3: instant CASUAL greeting short-circuit (moved from coordinator) ----
 _WARM_GREETINGS = [
     "\U0001f64f Namaste, dear seeker! I am Mukthi Guru, here to walk with you on the path of awakening. What wisdom would you like to explore today?",
@@ -187,9 +185,11 @@ class RequestStateStage(Stage):
 
     name = "request_state"
 
-    async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         # ponytail: inline block from execute() verbatim
-        state = await prepare_request_state(ctx.container, ctx.request, ctx.preferred_lang, user=ctx.user)
+        state = await prepare_request_state(
+            ctx.container, ctx.request, ctx.preferred_lang, user=ctx.user
+        )
         ctx.state = state
         return None
 
@@ -199,7 +199,7 @@ class CasualShortCircuitStage(Stage):
 
     name = "casual_short_circuit"
 
-    async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         # ponytail: inline block from execute() verbatim
         user_msg_en = ctx.state["user_msg_en"]
         is_indic = ctx.is_indic
@@ -232,9 +232,15 @@ class TranslationStage(Stage):
 
     name = "translation"
 
-    async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
-        if ctx.is_indic and ctx.final_answer and getattr(ctx, "container", None) and getattr(ctx.container, "translation", None):
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
+        if (
+            ctx.is_indic
+            and ctx.final_answer
+            and getattr(ctx, "container", None)
+            and getattr(ctx.container, "translation", None)
+        ):
             from app.language_utils import detect_message_lang
+
             detected = detect_message_lang(ctx.final_answer)
             # Only translate if the model generated English despite the prompt suffix.
             # If the model already produced native Indic script, re-translating with source_lang="en"
@@ -251,7 +257,7 @@ class ResultAssemblyStage(Stage):
 
     name = "result_assembly"
 
-    async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         # ponytail: result-assembly block from execute() verbatim
         coordinator = ctx.coordinator
         graph_result = ctx.graph_result or {}
@@ -259,7 +265,9 @@ class ResultAssemblyStage(Stage):
 
         retrieval_meta = coordinator._build_retrieval_meta(ctx.citations)
         trigger_events = coordinator._build_trigger_events(ctx.assessment)
-        safety_events = coordinator._build_safety_events(ctx.input_check or {}, ctx.output_check or {})
+        safety_events = coordinator._build_safety_events(
+            ctx.input_check or {}, ctx.output_check or {}
+        )
         spans = coordinator._build_spans(graph_result)
         response_data = coordinator._build_response_data(graph_result, ctx.intent)
         live_logistics_events = [
@@ -284,13 +292,17 @@ class ResultAssemblyStage(Stage):
             # Use graph_result as the source of truth for tier/score because it is
             # the output of the LangGraph execution; ctx.state holds the pre-graph
             # input state and may still carry the initial None placeholder.
-            query_tier=graph_result.get("query_tier") or ctx.state.get("query_tier") or ctx.detected_query_tier,
+            query_tier=graph_result.get("query_tier")
+            or ctx.state.get("query_tier")
+            or ctx.detected_query_tier,
             blocked=False,
             cache_hit=False,
             proactive_serene_mind=ctx.state.get("proactive_serene_mind"),
             # Forward the score computed by verify_answer/format_final_answer;
             # fall back to the coordinator-derived value only when missing.
-            faithfulness_score=graph_result.get("faithfulness_score", response_data.get("faithfulness", 0.0)),
+            faithfulness_score=graph_result.get(
+                "faithfulness_score", response_data.get("faithfulness", 0.0)
+            ),
             hallucination_flag=response_data.get("hallucination_flag", False),
             # verify_answer (rag/nodes/verification.py) already returns this dict in
             # graph state ({"passed": is_valid, "details": ...}) -- it was never
@@ -367,7 +379,9 @@ class ResultAssemblyStage(Stage):
                             timeout=audit_timeout,
                         )
                     else:
-                        sync_call = functools.partial(compliance_logger.log_interaction, **interaction_payload)
+                        sync_call = functools.partial(
+                            compliance_logger.log_interaction, **interaction_payload
+                        )
                         await asyncio.wait_for(
                             loop.run_in_executor(None, sync_call),
                             timeout=audit_timeout,

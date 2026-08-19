@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Fail-closed, secret-redacting preflight for a production deployment."""
+
 from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 
 @dataclass(frozen=True)
@@ -30,8 +31,11 @@ def validate_environment(env: Mapping[str, str] | None = None) -> PreflightResul
     if str(values.get("IS_PRODUCTION", "")).lower() not in {"1", "true", "yes"}:
         errors.append("IS_PRODUCTION must be true")
     for name in (
-        "SUPABASE_URL", "SUPABASE_KEY", "REDIS_URL",
-        "ANON_SESSION_HMAC_SECRET", "FORWARDED_ALLOW_IPS",
+        "SUPABASE_URL",
+        "SUPABASE_KEY",
+        "REDIS_URL",
+        "ANON_SESSION_HMAC_SECRET",
+        "FORWARDED_ALLOW_IPS",
     ):
         required(name)
 

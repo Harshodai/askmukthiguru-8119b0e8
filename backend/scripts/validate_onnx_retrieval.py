@@ -18,7 +18,6 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
@@ -56,9 +55,13 @@ def _build_corpus() -> list[str]:
 
     # 1. Question bank constants (clean, domain-relevant)
     from benchmarks.question_bank import (
-        FOUR_SACRED_SECRETS, MANIFEST_2026_POWERS, SOUL_SYNC_STEPS_VERIFIED,
-        SERENE_MIND_KNOWN, DEEKSHA_NEUROSCIENCE,
+        DEEKSHA_NEUROSCIENCE,
+        FOUR_SACRED_SECRETS,
+        MANIFEST_2026_POWERS,
+        SERENE_MIND_KNOWN,
+        SOUL_SYNC_STEPS_VERIFIED,
     )
+
     for secret in FOUR_SACRED_SECRETS:
         add(f"The Four Sacred Secrets include: {secret}.")
     for month, power in MANIFEST_2026_POWERS.items():
@@ -73,6 +76,7 @@ def _build_corpus() -> list[str]:
     # 2. OKF entries (curated doctrine)
     try:
         from services.memory.okf_store import OKFStore
+
         store = OKFStore()
         for entry in store.list_entries():
             add(f"{entry.title}: {entry.description}" if entry.description else entry.title)
@@ -82,6 +86,7 @@ def _build_corpus() -> list[str]:
 
     # 3. Clean LightRAG chunks (filtered, truncated)
     import requests
+
     try:
         resp = requests.post(
             "http://localhost:6333/collections/lightrag_vdb_chunks_baai_bge_m3_1024d/points/scroll",
@@ -108,8 +113,12 @@ def _get_eval_queries() -> list[dict]:
     from benchmarks.question_bank import QUERIES
 
     eval_categories = [
-        "doctrine_four_secrets", "doctrine_founders", "doctrine_manifest",
-        "doctrine_deeksha", "doctrine_soul_sync", "doctrine_ekam_architecture",
+        "doctrine_four_secrets",
+        "doctrine_founders",
+        "doctrine_manifest",
+        "doctrine_deeksha",
+        "doctrine_soul_sync",
+        "doctrine_ekam_architecture",
         "complex_multi_hop",
     ]
     queries = []
@@ -129,7 +138,7 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 
 def _top_k_overlap(fp32_sims: list[float], onnx_sims: list[float], k: int = TOP_K) -> float:
     """Jaccard overlap of top-k items from two similarity lists."""
-    n = len(fp32_sims)
+    len(fp32_sims)
     fp32_top = set(np.argsort(fp32_sims)[-k:])
     onnx_top = set(np.argsort(onnx_sims)[-k:])
     intersection = fp32_top & onnx_top
@@ -172,8 +181,8 @@ class EncodeBoth:
         self._tokenizer = None
 
     def load(self):
-        from FlagEmbedding import BGEM3FlagModel
         import onnxruntime as ort
+        from FlagEmbedding import BGEM3FlagModel
         from huggingface_hub import snapshot_download
         from transformers import AutoTokenizer
 
@@ -205,9 +214,7 @@ class EncodeBoth:
             os.path.join(local_path, "model_quantized.onnx"),
             providers=["CPUExecutionProvider"],
         )
-        self._tokenizer = AutoTokenizer.from_pretrained(
-            "BAAI/bge-m3", revision=BGE_M3_REVISION
-        )
+        self._tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-m3", revision=BGE_M3_REVISION)
         print(f"  ONNX loaded in {time.monotonic() - t0:.1f}s")
 
     def encode_both(self, texts: list[str]) -> tuple[np.ndarray, np.ndarray]:
@@ -215,9 +222,12 @@ class EncodeBoth:
         # fp32
         fp32_all = []
         for i in range(0, len(texts), BATCH_SIZE):
-            batch = texts[i:i + BATCH_SIZE]
+            batch = texts[i : i + BATCH_SIZE]
             out = self._baseline.encode(
-                batch, return_dense=True, return_sparse=False, return_colbert_vecs=False,
+                batch,
+                return_dense=True,
+                return_sparse=False,
+                return_colbert_vecs=False,
             )
             fp32_all.append(out["dense_vecs"])
         fp32_vecs = np.concatenate(fp32_all, axis=0)
@@ -225,9 +235,12 @@ class EncodeBoth:
         # ONNX
         onnx_all = []
         for i in range(0, len(texts), BATCH_SIZE):
-            batch = texts[i:i + BATCH_SIZE]
+            batch = texts[i : i + BATCH_SIZE]
             inputs = self._tokenizer(
-                batch, padding=True, truncation=True, return_tensors="np",
+                batch,
+                padding=True,
+                truncation=True,
+                return_tensors="np",
             )
             ort_in = {
                 "input_ids": inputs["input_ids"].astype(np.int64),
@@ -305,17 +318,21 @@ def main():
         passed = avg_o >= OVERLAP_THRESHOLD
         if not passed:
             all_pass = False
-        print(f"{cat:<28} {avg_o:<12.4f} {min_o:<12.4f} {avg_c:<12.4f} {'PASS' if passed else 'FAIL'}")
+        print(
+            f"{cat:<28} {avg_o:<12.4f} {min_o:<12.4f} {avg_c:<12.4f} {'PASS' if passed else 'FAIL'}"
+        )
 
     overall_avg = sum(total_overlaps) / len(total_overlaps)
     overall_min = min(total_overlaps)
-    print(f"\n{'OVERALL':<28} {overall_avg:<12.4f} {overall_min:<12.4f} "
-          f"{sum(total_cosines)/len(total_cosines):<12.4f} {'PASS' if all_pass else 'FAIL'}")
+    print(
+        f"\n{'OVERALL':<28} {overall_avg:<12.4f} {overall_min:<12.4f} "
+        f"{sum(total_cosines) / len(total_cosines):<12.4f} {'PASS' if all_pass else 'FAIL'}"
+    )
 
     # Cross-config validation
     print(f"\n{'=' * 60}")
     print("Cross-Config Check (ONNX query → fp32 passage NN overlap)")
-    print('=' * 60)
+    print("=" * 60)
     cross_overlaps = [
         _cross_config_overlap(q_onnx[i], corpus_fp32, corpus_onnx, TOP_K)
         for i in range(len(queries))
@@ -327,19 +344,21 @@ def main():
 
     if not _evaluate_cross_config(cross_avg):
         print(f"  ⚠ Cross-config overlap {cross_avg:.4f} < baseline {OVERLAP_THRESHOLD}")
-        print(f"  → ONNX passage embeddings diverge from fp32 — discriminative quality degraded")
+        print("  → ONNX passage embeddings diverge from fp32 — discriminative quality degraded")
         all_pass = False
     else:
         print(f"  ✓ Cross-config overlap >= baseline (Δ={cross_avg - overall_avg:.4f})")
 
     # Zero-overlap queries
-    zero_qs = [(queries[i], total_overlaps[i]) for i in range(len(queries)) if total_overlaps[i] == 0]
+    zero_qs = [
+        (queries[i], total_overlaps[i]) for i in range(len(queries)) if total_overlaps[i] == 0
+    ]
     if zero_qs:
         print(f"\n  ⚠ {len(zero_qs)} queries with zero overlap:")
         for q, _ in zero_qs[:5]:
             print(f"    [{q['category']}] {q['q'][:80]}")
     else:
-        print(f"\n  ✓ No zero-overlap queries")
+        print("\n  ✓ No zero-overlap queries")
 
     # A reduced corpus cannot validate the Phase-3 gate: any source that was
     # unavailable must fail the run, regardless of the overlap numbers.
@@ -351,20 +370,21 @@ def main():
     # Final verdict
     print(f"\n{'=' * 60}")
     print("FINAL VERDICT — Phase 3: Retrieval Agreement")
-    print('=' * 60)
+    print("=" * 60)
     print(f"  Top-{TOP_K} overlap threshold: >= {OVERLAP_THRESHOLD}")
     print(f"  Achieved: avg={overall_avg:.4f}, min={overall_min:.4f}")
     print(f"  Result: {'PASS ✅' if all_pass else 'FAIL ❌'}")
 
     if all_pass:
-        print(f"\n  Phase 3 PASSED — proceed to Phase 4.")
+        print("\n  Phase 3 PASSED — proceed to Phase 4.")
     else:
-        print(f"\n  Phase 3 FAILED.")
+        print("\n  Phase 3 FAILED.")
         sys.exit(1)
 
 
 def _cleanup():
     import shutil
+
     if SCRATCH.exists():
         shutil.rmtree(SCRATCH)
 

@@ -42,13 +42,15 @@ def _supabase_client():
 
 def _firebase_creds_dict() -> dict | None:
     """Parse FIREBASE_CREDENTIALS_JSON — either raw JSON or a path to a file."""
-    raw = (settings.firebase_credentials_json or os.environ.get("FIREBASE_CREDENTIALS_JSON", "")).strip()
+    raw = (
+        settings.firebase_credentials_json or os.environ.get("FIREBASE_CREDENTIALS_JSON", "")
+    ).strip()
     if not raw:
         return None
     # Path form
     if raw.startswith("/") or raw.startswith("./") or raw.startswith("../"):
         try:
-            with open(raw, "r", encoding="utf-8") as f:
+            with open(raw, encoding="utf-8") as f:
                 return json.load(f)
         except OSError as e:
             logger.warning("firebase credentials path unreadable: %s (%s)", raw, e)
@@ -72,6 +74,7 @@ def _ensure_firebase() -> bool:
     try:
         import firebase_admin
         from firebase_admin import credentials
+
         try:
             firebase_admin.get_app()
         except ValueError:
@@ -100,7 +103,7 @@ def _apns_jwt() -> str | None:
     pem = (settings.apns_key_pem or "").strip()
     if not pem and settings.apns_key_path:
         try:
-            with open(settings.apns_key_path, "r", encoding="utf-8") as f:
+            with open(settings.apns_key_path, encoding="utf-8") as f:
                 pem = f.read()
         except OSError as e:
             logger.warning("apns key path unreadable: %s (%s)", settings.apns_key_path, e)
@@ -110,6 +113,7 @@ def _apns_jwt() -> str | None:
 
     try:
         import jwt as pyjwt
+
         payload = {"iss": team_id, "iat": now, "exp": now + 60 * 50}
         headers = {"kid": key_id, "alg": "ES256"}
         token = pyjwt.encode(payload, pem, algorithm="ES256", headers=headers)
@@ -163,11 +167,7 @@ class PushService:
         try:
             client = self._client()
             # Upsert: re-activates a deactivated row on re-registration.
-            resp = (
-                client.table("push_devices")
-                .upsert(row, on_conflict="platform,token")
-                .execute()
-            )
+            resp = client.table("push_devices").upsert(row, on_conflict="platform,token").execute()
             data = getattr(resp, "data", None) or []
             if not data:
                 # Fallback: select the row to get its id.
@@ -256,6 +256,7 @@ class PushService:
             return {"sent": 0, "failed": 0, "errors": ["firebase credentials not configured"]}
         try:
             from firebase_admin import messaging
+
             payload_data = dict(data or {})
             if deep_link:
                 payload_data["deep_link"] = deep_link

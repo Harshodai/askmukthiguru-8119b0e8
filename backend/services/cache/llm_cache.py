@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Optional
+from collections.abc import Callable
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,6 @@ def init_llm_cache(embedding_func: Optional[Callable] = None):
 
         os.makedirs("data/gptcache", exist_ok=True)
 
-        
         # MapDataManager expects a hashable key.  We use the prompt text itself as the
         # key (exact-match LLM call cache).  Any caller-provided embedding function is
         # ignored for this exact-match store; semantic similarity is handled separately

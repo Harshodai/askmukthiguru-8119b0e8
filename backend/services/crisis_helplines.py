@@ -37,10 +37,10 @@ Schema in YAML:
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterable
 
 import yaml
 
@@ -69,7 +69,11 @@ _FALLBACK_HELPLINES: tuple[Helpline, ...] = (
 _FALLBACK_DOMESTIC_VIOLENCE_HELPLINES: tuple[Helpline, ...] = (
     Helpline("India", "National Emergency Helpline", "112"),
     Helpline("India", "Women Helpline (All India)", "181 / 1091"),
-    Helpline("United States", "National Domestic Violence Hotline", "1-800-799-SAFE (7233) or Text START to 88788"),
+    Helpline(
+        "United States",
+        "National Domestic Violence Hotline",
+        "1-800-799-SAFE (7233) or Text START to 88788",
+    ),
     Helpline("United Kingdom", "National Domestic Abuse Helpline", "0808 2000 247"),
 )
 
@@ -98,9 +102,7 @@ def get_helplines() -> tuple[Helpline, ...]:
     """
     path = _resolve_config_path()
     if not path.is_file():
-        logger.warning(
-            "crisis_helplines: %s not found; using in-code fallback list.", path
-        )
+        logger.warning("crisis_helplines: %s not found; using in-code fallback list.", path)
         return _FALLBACK_HELPLINES
 
     try:
@@ -142,9 +144,7 @@ def get_helplines() -> tuple[Helpline, ...]:
                 )
             )
         except (KeyError, TypeError) as exc:
-            logger.warning(
-                "crisis_helplines: skipping malformed entry %r: %s", entry, exc
-            )
+            logger.warning("crisis_helplines: skipping malformed entry %r: %s", entry, exc)
     if not parsed:
         return _FALLBACK_HELPLINES
     return tuple(parsed)
@@ -263,4 +263,3 @@ def format_domestic_violence_helplines_block(
         url_suffix = f" ({h.url})" if h.url else ""
         lines.append(f"- {h.region} | {h.name}: {h.contact}{url_suffix}")
     return "\n".join(lines)
-

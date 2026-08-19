@@ -41,10 +41,11 @@ import json
 import logging
 import re
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -113,12 +114,18 @@ def _phonetic_key(word: str) -> str:
     # encoding — metaphone alone codes a trailing "sh" differently from "s" and
     # so puts ujash and ojas in different buckets, where they can never meet.
     for digraph, plain in (
-        ("ph", "f"), ("th", "t"), ("kh", "k"), ("gh", "g"),
-        ("dh", "d"), ("bh", "b"), ("ch", "c"), ("sh", "s"),
+        ("ph", "f"),
+        ("th", "t"),
+        ("kh", "k"),
+        ("gh", "g"),
+        ("dh", "d"),
+        ("bh", "b"),
+        ("ch", "c"),
+        ("sh", "s"),
     ):
         value = value.replace(digraph, plain)
-    value = re.sub(r"(.)\1+", r"\1", value)          # doubled letters
-    folded = re.sub(r"[aeiou]+", "a", value)         # all vowels equivalent
+    value = re.sub(r"(.)\1+", r"\1", value)  # doubled letters
+    folded = re.sub(r"[aeiou]+", "a", value)  # all vowels equivalent
     return jellyfish.metaphone(folded) or folded.upper()
 
 
@@ -199,9 +206,11 @@ class DoctrineLexicon:
         # couple of times on ekam.org, correctable. OCR'd sources (the book PDFs)
         # do contain fragments like `ealth` and `ense`, so a word seen ONLY there
         # must recur before it can attract anything.
-        real = self.general_english | self.clean_curated | {
-            w for w in self.curated if self.targets.get(w, 0) >= _MIN_TARGET_SUPPORT
-        }
+        real = (
+            self.general_english
+            | self.clean_curated
+            | {w for w in self.curated if self.targets.get(w, 0) >= _MIN_TARGET_SUPPORT}
+        )
         self._index: dict[str, list[str]] = defaultdict(list)
         for word in self.targets:
             if len(word) >= _MIN_TOKEN_LEN and (not real or word in real):
@@ -232,11 +241,9 @@ class DoctrineLexicon:
         return path
 
     @classmethod
-    def load(cls, path: Path = LEXICON_PATH) -> "DoctrineLexicon":
+    def load(cls, path: Path = LEXICON_PATH) -> DoctrineLexicon:
         data = json.loads(path.read_text(encoding="utf-8"))
-        stats = LexiconStats(
-            counts=data.get("sources", {}), built_at=data.get("built_at", "")
-        )
+        stats = LexiconStats(counts=data.get("sources", {}), built_at=data.get("built_at", ""))
         return cls(
             data.get("vocabulary", {}),
             stats,
@@ -291,9 +298,7 @@ class DoctrineLexicon:
         if raw[:1].isupper() and not raw.isupper():
             candidates = [c for c in candidates if self.proper_nouns.get(c)]
             if not candidates:
-                return Correction(
-                    raw, None, "capitalised token with no proper-noun candidate"
-                )
+                return Correction(raw, None, "capitalised token with no proper-noun candidate")
 
         # A truncated fragment is the dominant residual error class: OCR and ASR
         # cut words off (`coura`, `succe`, `blems`, `professiona`), and edit
@@ -301,9 +306,7 @@ class DoctrineLexicon:
         # `succe -> such` — when the truth is always a longer completion.
         # Completion is far stronger evidence than similarity, so it is tried
         # first and, when a unique one exists, wins outright.
-        completions = sorted(
-            (c for c in candidates if c.startswith(word) and c != word), key=len
-        )
+        completions = sorted((c for c in candidates if c.startswith(word) and c != word), key=len)
         if completions:
             shortest = completions[0]
             tied = [c for c in completions if len(c) == len(shortest)]
@@ -361,11 +364,11 @@ class DoctrineLexicon:
         return _TOKEN_RE.sub(_sub, text or ""), applied
 
 
-_SHARED: Optional["DoctrineLexicon"] = None
+_SHARED: Optional[DoctrineLexicon] = None
 _LOAD_FAILED = False
 
 
-def get_lexicon() -> Optional["DoctrineLexicon"]:
+def get_lexicon() -> Optional[DoctrineLexicon]:
     """The process-wide lexicon, or None if it has not been built on this host.
 
     Loading parses a ~7MB JSON, so it happens once and the result is held for the
@@ -385,7 +388,8 @@ def get_lexicon() -> Optional["DoctrineLexicon"]:
         _SHARED = DoctrineLexicon.load(LEXICON_PATH)
         logger.info(
             "doctrine lexicon loaded: %d vocabulary, %d correction targets",
-            len(_SHARED.vocabulary), len(_SHARED.targets),
+            len(_SHARED.vocabulary),
+            len(_SHARED.targets),
         )
     except FileNotFoundError:
         _LOAD_FAILED = True
@@ -448,7 +452,7 @@ def build_lexicon(
     general_english: set[str] = set()
     curated: set[str] = set()
     clean_curated: set[str] = set()
-    stats = LexiconStats(built_at=datetime.now(timezone.utc).isoformat())
+    stats = LexiconStats(built_at=datetime.now(UTC).isoformat())
 
     for label, texts in authority_texts.items():
         before = len(vocabulary)
@@ -459,7 +463,7 @@ def build_lexicon(
                 vocabulary[word] += 1
                 # Capitalised NOT at a sentence start is real proper-noun
                 # evidence; sentence-initial capitals say nothing.
-                prefix = (text[max(0, match.start() - 2):match.start()]).strip()
+                prefix = (text[max(0, match.start() - 2) : match.start()]).strip()
                 if token[:1].isupper() and prefix and prefix[-1] not in ".!?\n":
                     proper_nouns[word] += 1
                 if label in protect_only:
@@ -520,14 +524,22 @@ def build_lexicon(
     if shadowed:
         logger.info(
             "consensus refused %d spellings shadowed by a dominant authority term: %s",
-            len(shadowed), ", ".join(sorted(shadowed)[:12]),
+            len(shadowed),
+            ", ".join(sorted(shadowed)[:12]),
         )
 
     stats.counts["proper_nouns"] = len(proper_nouns)
     stats.counts["correction_targets"] = len(targets)
     return DoctrineLexicon(
-        dict(vocabulary), stats, dict(corpus_freq), corpus_sources,
-        dict(proper_nouns), dict(targets), general_english, curated, clean_curated,
+        dict(vocabulary),
+        stats,
+        dict(corpus_freq),
+        corpus_sources,
+        dict(proper_nouns),
+        dict(targets),
+        general_english,
+        curated,
+        clean_curated,
     )
 
 
@@ -542,9 +554,7 @@ if __name__ == "__main__":  # pragma: no cover - self-check
             ]
         }
     )
-    fixed, corrections = lex.correct(
-        "Ujash and Ujasi and Ojasi shield you. Peace is not a piece."
-    )
+    fixed, corrections = lex.correct("Ujash and Ujasi and Ojasi shield you. Peace is not a piece.")
     print(fixed)
     for c in corrections:
         print(f"  {c.token} -> {c.replacement} ({c.reason}, {c.similarity:.3f})")

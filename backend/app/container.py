@@ -6,6 +6,7 @@ from __future__ import annotations
 # package. No-op when run via `python -m app.container`.
 import os as _os
 import sys as _sys
+
 _SCRIPT_DIR = _os.path.dirname(_os.path.abspath(__file__))
 if _SCRIPT_DIR in _sys.path:
     _sys.path.remove(_SCRIPT_DIR)
@@ -29,12 +30,13 @@ Design Patterns:
 
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Optional
 
 from app.config import settings
 from guardrails import GuardrailsService
 from ingest.pipeline import IngestionPipeline
 from rag.graph import build_deep_graph, build_fast_graph, build_rag_graph
+from services.anon_quota_service import AnonQuotaService
 from services.circuit_breaker import initialize_circuit_breakers
 from services.embedding_service import EmbeddingService
 from services.ingestion_tracker import IngestionTracker
@@ -43,13 +45,12 @@ from services.krutrim_service import KrutrimService
 from services.language_router import LanguageRouter
 from services.lightrag_service import lightrag_service
 from services.model_registry import ModelRegistry  # Unit 25
-from services.sarvam_failover import SarvamFailoverService
 from services.ocr_service import OCRService
 from services.qdrant_service import QdrantService
+from services.sarvam_failover import SarvamFailoverService
 from services.serene_mind_engine import SereneMindEngine
 from services.user_profile_service import UserProfileService
 from services.web_search_service import WebSearchService
-from services.anon_quota_service import AnonQuotaService
 
 logger = logging.getLogger(__name__)
 
@@ -79,15 +80,17 @@ class _NoopTranslationProvider:
 
 
 # Required singletons that must be non-None after container construction.
-_REQUIRED_SINGLETONS = frozenset({
-    "ingestion_tracker",
-    "qdrant",
-    "embedding",
-    "ollama",
-    "guardrails",
-    "exact_cache",
-    "circuit_breaker_registry",
-})
+_REQUIRED_SINGLETONS = frozenset(
+    {
+        "ingestion_tracker",
+        "qdrant",
+        "embedding",
+        "ollama",
+        "guardrails",
+        "exact_cache",
+        "circuit_breaker_registry",
+    }
+)
 
 
 class ServiceContainer:
@@ -146,6 +149,7 @@ class ServiceContainer:
 
         # Initialize Supabase client early for dynamic settings loading
         from supabase import create_client
+
         self.supabase_client = None
         if settings.supabase_url and settings.supabase_key:
             try:
@@ -155,13 +159,15 @@ class ServiceContainer:
 
     def _build_vector_services(self) -> None:
         """Layer 2: Embedding, semantic-router, and Guru Brain vector/KG services."""
-        from services.semantic_model_router import SemanticModelRouter
         from services.guru_brain.guru_brain_service import GuruBrainService
         from services.guru_brain.guru_kg_service import GuruKGService
+        from services.semantic_model_router import SemanticModelRouter
 
         self.embedding = EmbeddingService()
         self.semantic_router = SemanticModelRouter(self.embedding)
-        self.guru_brain_service = GuruBrainService(qdrant_service=self.qdrant, embedding_service=self.embedding)
+        self.guru_brain_service = GuruBrainService(
+            qdrant_service=self.qdrant, embedding_service=self.embedding
+        )
         self.guru_kg_service = GuruKGService(
             neo4j_driver_accessor=lambda: self.neo4j_driver,
         )
@@ -169,12 +175,12 @@ class ServiceContainer:
         # Initialize GPTCache with the shared embedding service to avoid
         # loading BGE-M3 a second time in a separate SBERT instance.
         from services.cache import init_llm_cache
-        init_llm_cache(embedding_func=self.embedding.encode_single)
 
+        init_llm_cache(embedding_func=self.embedding.encode_single)
 
     def _build_llm_services(self) -> None:
         """Layer 3: LLM, translation, failover, and circuit-breaker services."""
-        from services.llm import LLMProviderFactory, OllamaProvider
+        from services.llm import OllamaProvider
         from services.llm_factory import LLMServiceFactory
         from services.openrouter_service import OpenRouterService
         from services.translation import TranslationProviderFactory
@@ -192,6 +198,7 @@ class ServiceContainer:
             self.sarvam_cloud = None
             if isinstance(self.ollama, OllamaProvider):
                 from services.translation import OllamaTranslationProvider
+
                 self.translation = OllamaTranslationProvider(self.ollama._service)
             else:
                 # Non-Ollama provider without Sarvam: keep a placeholder that passes text through
@@ -208,6 +215,7 @@ class ServiceContainer:
         self.multi_provider_llm = None
         try:
             from services.multi_provider_llm import get_llm_service as get_multi_provider_llm
+
             self.multi_provider_llm = get_multi_provider_llm()
             logger.info("MultiProviderLLMService initialized (failover ready)")
         except Exception as e:
@@ -260,11 +268,13 @@ class ServiceContainer:
         # blocking call and must never run per-request inside the event loop.
         self.doctrine_cache = DoctrineCache(supabase_client=self.supabase_client)
         from services.doctrine_service import DoctrineService
+
         self.doctrine_service = DoctrineService(supabase_client=self.supabase_client)
 
         # Job Queue (Redis-backed)
         if settings.queue_enabled:
             from app.services.job_queue import JobQueueService
+
             self.job_queue = JobQueueService(
                 redis_url=settings.redis_url,
                 max_queue=settings.queue_max_size,
@@ -277,6 +287,7 @@ class ServiceContainer:
         # LLM Queue (concurrency gating)
         if settings.llm_queue_enabled:
             from app.services.llm_queue import LLMQueueService
+
             self.llm_queue = LLMQueueService(
                 max_concurrent=settings.llm_queue_max_concurrent,
                 queue_maxsize=settings.llm_queue_maxsize,
@@ -287,6 +298,7 @@ class ServiceContainer:
         # Request Queue (Phase 1 — horizontal scaling stub)
         if settings.use_request_queue:
             from app.queue.redis_stream_queue import RedisStreamQueue
+
             self.request_queue = RedisStreamQueue(
                 redis_url=settings.redis_url,
                 consumer_group="backend-workers",
@@ -294,16 +306,21 @@ class ServiceContainer:
             logger.info("RequestQueue: initialized RedisStreamQueue")
         else:
             from app.queue.in_process_queue import InProcessQueue
+
             self.request_queue = InProcessQueue()
-            logger.info("RequestQueue: initialized InProcessQueue (no-op — USE_REQUEST_QUEUE=false)")
+            logger.info(
+                "RequestQueue: initialized InProcessQueue (no-op — USE_REQUEST_QUEUE=false)"
+            )
 
         # Request coalescer — single instance shared across pipeline and orchestrator
         from app.coalescer import build_coalescer
+
         self.coalescer = build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
 
         # LLM Gateway — same-provider model-tier fallback, opt-in cross-provider
         # fallback, coalescing. See services/llm_gateway.py.
         from services.llm_gateway import LLMGateway
+
         _primary_provider_name = settings.llm_provider.lower()
         self.llm_gateway = LLMGateway(
             primary=self.ollama,
@@ -337,7 +354,9 @@ class ServiceContainer:
                 try:
                     vault_index.ensure_collection()
                 except Exception as exc:
-                    logger.warning(f"SecondBrain: vault_index.ensure_collection() failed (will retry lazily): {exc}")
+                    logger.warning(
+                        f"SecondBrain: vault_index.ensure_collection() failed (will retry lazily): {exc}"
+                    )
                 self.second_brain = SecondBrainService(
                     supabase_client=self.supabase_client,
                     embedding_service=self.embedding,
@@ -346,20 +365,23 @@ class ServiceContainer:
                 )
                 logger.info("SecondBrainService initialized")
             except Exception as exc:
-                logger.warning(f"SecondBrain: initialization failed, vault endpoints will 503: {exc}")
+                logger.warning(
+                    f"SecondBrain: initialization failed, vault endpoints will 503: {exc}"
+                )
         else:
             logger.info("SecondBrain: skipped (no supabase_client configured)")
 
         # GraphRAG Fusion — multi-hop vector + knowledge-graph retrieval
         self.graphrag_fusion = None
         try:
-            from services.graphrag_fusion import GraphRAGFusion
             from domain.spiritual_ontology import SEED_CONCEPTS
+            from services.graphrag_fusion import GraphRAGFusion
 
             async def _resolve_entities(q: str) -> list[str]:
                 ql = q.lower()
-                return [c.uri for c in SEED_CONCEPTS
-                        if any(w in ql for w in c.label.lower().split())]
+                return [
+                    c.uri for c in SEED_CONCEPTS if any(w in ql for w in c.label.lower().split())
+                ]
 
             async def _vector_search(q: str, k: int):
                 vec = await asyncio.to_thread(self.embedding.encode_single_full, q)
@@ -375,11 +397,18 @@ class ServiceContainer:
                         ),
                         timeout=15,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.warning("Qdrant vector search timed out after 15s")
                     return []
-                return [{"id": h.get("id"), "text": h.get("text", ""),
-                         "score": h.get("score", 0.0), "source": h.get("source", "")} for h in hits]
+                return [
+                    {
+                        "id": h.get("id"),
+                        "text": h.get("text", ""),
+                        "score": h.get("score", 0.0),
+                        "source": h.get("source", ""),
+                    }
+                    for h in hits
+                ]
 
             async def _traverse_graph(uris: list[str], max_hops: int):
                 if not isinstance(max_hops, int) or max_hops < 1:
@@ -404,29 +433,37 @@ class ServiceContainer:
                 # worker thread can finish without immediately exhausting the executor.
                 wait_budget = query_timeout + 10.0
                 for u in uris:
+
                     def _run(u=u):
-                        with driver.session() as session, \
-                                session.begin_transaction(timeout=query_timeout) as tx:
+                        with (
+                            driver.session() as session,
+                            session.begin_transaction(timeout=query_timeout) as tx,
+                        ):
                             return list(tx.run(cypher, {"uri": u}))
+
                     try:
                         records = await asyncio.wait_for(
                             asyncio.to_thread(_run),
                             timeout=wait_budget,
                         )
-                    except asyncio.TimeoutError:
-                        logger.warning(f"Neo4j graph traversal timed out after {wait_budget}s for URI: {u}")
+                    except TimeoutError:
+                        logger.warning(
+                            f"Neo4j graph traversal timed out after {wait_budget}s for URI: {u}"
+                        )
                         continue
                     except Exception as exc:
                         logger.warning(f"Neo4j graph traversal failed for URI {u}: {exc}")
                         continue
                     for record in records:
-                        rows.append({
-                            "uri": record.get("uri"),
-                            "text": record.get("text"),
-                            "relation": record.get("relation"),
-                            "hop": record.get("hop", 0),
-                            "source": record.get("source"),
-                        })
+                        rows.append(
+                            {
+                                "uri": record.get("uri"),
+                                "text": record.get("text"),
+                                "relation": record.get("relation"),
+                                "hop": record.get("hop", 0),
+                                "source": record.get("source"),
+                            }
+                        )
                 return rows
 
             self.graphrag_fusion = GraphRAGFusion(
@@ -449,31 +486,52 @@ class ServiceContainer:
             allowed_domains = settings.web_search_allowed_domains_list
             if self.supabase_client:
                 try:
-                    res = self.supabase_client.table("app_settings").select("value").eq("key", "global").execute()
+                    res = (
+                        self.supabase_client.table("app_settings")
+                        .select("value")
+                        .eq("key", "global")
+                        .execute()
+                    )
                     if res.data and len(res.data) > 0:
                         db_val = res.data[0]["value"]
                         candidate_domains = db_val["web_search_allowed_domains"]
-                        if not isinstance(candidate_domains, list) or not all(isinstance(domain, str) for domain in candidate_domains):
+                        if not isinstance(candidate_domains, list) or not all(
+                            isinstance(domain, str) for domain in candidate_domains
+                        ):
                             logger.error("Ignoring malformed DB web-search domain configuration")
                         elif settings.web_search_allow_db_domain_override:
                             allowed_domains = candidate_domains
-                            logger.warning("Loaded DB web-search domain override: %s", allowed_domains)
+                            logger.warning(
+                                "Loaded DB web-search domain override: %s", allowed_domains
+                            )
                         else:
                             base_domains = set(settings.web_search_allowed_domains_list)
-                            requested_domains = {domain.strip().lower() for domain in candidate_domains if domain.strip()}
+                            requested_domains = {
+                                domain.strip().lower()
+                                for domain in candidate_domains
+                                if domain.strip()
+                            }
                             if requested_domains.issubset(base_domains):
                                 allowed_domains = sorted(requested_domains)
-                                logger.info("Loaded DB web-search domain narrowing: %s", allowed_domains)
+                                logger.info(
+                                    "Loaded DB web-search domain narrowing: %s", allowed_domains
+                                )
                             else:
-                                logger.error("Ignoring DB web-search domains outside the source-controlled allowlist")
+                                logger.error(
+                                    "Ignoring DB web-search domains outside the source-controlled allowlist"
+                                )
                 except Exception as e:
-                    logger.error(f"Failed to load allowed web search domains from database at startup: {e}")
+                    logger.error(
+                        f"Failed to load allowed web search domains from database at startup: {e}"
+                    )
 
             self.web_search = WebSearchService(
                 allowed_domains=allowed_domains,
                 provider=settings.web_search_provider,
                 max_results=settings.web_search_max_results,
-                searxng_url=settings.searxng_url if settings.web_search_provider == "searxng" else None,
+                searxng_url=settings.searxng_url
+                if settings.web_search_provider == "searxng"
+                else None,
             )
         else:
             self.web_search = None
@@ -482,10 +540,12 @@ class ServiceContainer:
     def _build_profiles(self) -> None:
         """Layer 6: Emotional intelligence and user profiles."""
         from services.memory_service_v2 import MemoryServiceV2
+
         self.memory_outbox = None
         if self.supabase_client is not None:
             try:
                 from services.memory_outbox import MemoryOutbox
+
                 self.memory_outbox = MemoryOutbox(supabase_client=self.supabase_client)
             except Exception as exc:
                 logger.warning(f"MemoryOutbox init failed (non-fatal): {exc}")
@@ -511,9 +571,12 @@ class ServiceContainer:
             from services.notebook_service import NotebookService
 
             # ponytail: reuse the same supabase_client built above — no new connection.
-            self.episodic_memory_service = EpisodicMemoryService(supabase_client=self.supabase_client)
+            self.episodic_memory_service = EpisodicMemoryService(
+                supabase_client=self.supabase_client
+            )
             self.notebook_service = NotebookService(supabase_client=self.supabase_client)
             from services.srs_service import SRSService
+
             self.srs_service = SRSService(
                 supabase_client=self.supabase_client,
                 ollama_service=self.ollama,
@@ -529,6 +592,7 @@ class ServiceContainer:
 
         # Push notification service — lightweight (lazy FCM/APNs init), no heavy deps.
         from services.push_service import PushService
+
         self.push_service = PushService()
 
         # Retention service — streak tracking + lifecycle events.
@@ -537,6 +601,7 @@ class ServiceContainer:
         if self.supabase_client is not None:
             try:
                 from services.retention_service import RetentionService
+
                 self.retention_service = RetentionService(supabase_client=self.supabase_client)
                 logger.info("RetentionService initialized")
             except Exception as exc:
@@ -556,7 +621,9 @@ class ServiceContainer:
 
     def _build_graphs(self) -> None:
         """Layer 8: RAG graph variants (depends on core services + serene mind)."""
-        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+        from concurrent.futures import ThreadPoolExecutor
+        from concurrent.futures import TimeoutError as FutureTimeoutError
+
         # LightRAG degraded-service flag: if Neo4j was unreachable during
         # lightrag.initialize(), the graph still builds but without graph
         # enrichment. The service itself logs the warning.
@@ -592,10 +659,14 @@ class ServiceContainer:
                 self.standard_graph = fut.result(timeout=60.0)
                 logger.info("ContainerBuilder: STANDARD graph built")
             except FutureTimeoutError:
-                logger.warning("ContainerBuilder: STANDARD graph compilation timed out after 60s — falling back to FAST graph")
+                logger.warning(
+                    "ContainerBuilder: STANDARD graph compilation timed out after 60s — falling back to FAST graph"
+                )
                 self.standard_graph = self.fast_graph
             except Exception as e:
-                logger.warning(f"ContainerBuilder: STANDARD graph compilation failed: {e} — falling back to FAST graph")
+                logger.warning(
+                    f"ContainerBuilder: STANDARD graph compilation failed: {e} — falling back to FAST graph"
+                )
                 self.standard_graph = self.fast_graph
 
         logger.info("ContainerBuilder: building DEEP graph...")
@@ -616,10 +687,14 @@ class ServiceContainer:
                 self.deep_graph = fut.result(timeout=60.0)
                 logger.info("ContainerBuilder: DEEP graph built")
             except FutureTimeoutError:
-                logger.warning("ContainerBuilder: DEEP graph compilation timed out after 60s — falling back to STANDARD graph")
+                logger.warning(
+                    "ContainerBuilder: DEEP graph compilation timed out after 60s — falling back to STANDARD graph"
+                )
                 self.deep_graph = self.standard_graph
             except Exception as e:
-                logger.warning(f"ContainerBuilder: DEEP graph compilation failed: {e} — falling back to STANDARD graph")
+                logger.warning(
+                    f"ContainerBuilder: DEEP graph compilation failed: {e} — falling back to STANDARD graph"
+                )
                 self.deep_graph = self.standard_graph
         # Backward-compatible alias — defaults to standard graph
         self.rag_graph = self.standard_graph

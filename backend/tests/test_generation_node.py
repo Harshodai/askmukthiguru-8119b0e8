@@ -19,14 +19,20 @@ class TestGenerationTokenBudget:
     def test_max_500_removed(self):
         """Check that max(500, ...) was removed from generation.py."""
         from rag.nodes import generation
+
         source = inspect.getsource(generation)
-        assert "max(500, allowed_knowledge_tokens)" not in source, "Old max(500, ...) pattern still present"
+        assert "max(500, allowed_knowledge_tokens)" not in source, (
+            "Old max(500, ...) pattern still present"
+        )
 
     def test_allowed_knowledge_tokens_clamped_to_zero(self):
         """allowed_knowledge_tokens must be clamped to at least 0."""
         from rag.nodes import generation
+
         source = inspect.getsource(generation)
-        assert "max(0, max_budget - (sys_tokens + base_user_tokens + 250))" in source, "Budget clamped to zero not found"
+        assert "max(0, max_budget - (sys_tokens + base_user_tokens + 250))" in source, (
+            "Budget clamped to zero not found"
+        )
 
 
 class TestSarvamCloudDI:
@@ -39,7 +45,10 @@ class TestSarvamCloudDI:
     def test_no_module_level_lazy_singleton(self):
         """Ensure the module-level _sarvam_cloud_service global was removed."""
         from rag.nodes import generation
-        assert "_sarvam_cloud_service" not in generation.__dict__, "Lazy singleton still present in generation"
+
+        assert "_sarvam_cloud_service" not in generation.__dict__, (
+            "Lazy singleton still present in generation"
+        )
 
 
 class MockEmbeddingService:
@@ -71,9 +80,8 @@ def _aiter_chunks(chunks):
     async def _gen():
         for c in chunks:
             yield c
+
     return _gen()
-
-
 
 
 @pytest.mark.asyncio
@@ -111,6 +119,7 @@ async def test_generate_answer_falls_back_on_anthropic_config_error(mock_service
     mock_ollama = mock_services
 
     from app.config import settings as app_settings
+
     monkeypatch.setattr(app_settings, "llm_provider", "ollama")
 
     from services.gateways.anthropic_gateway import AnthropicGatewayError
@@ -149,6 +158,7 @@ async def test_generate_answer_falls_back_when_sarvam_not_injected(mock_services
     mock_ollama = mock_services
 
     from app.config import settings as app_settings
+
     monkeypatch.setattr(app_settings, "llm_provider", "sarvam_cloud")
     monkeypatch.setattr(nodes, "_sarvam_cloud", None)
 

@@ -37,8 +37,16 @@ def _sentence_has_citation(sentence: str) -> bool:
 
 
 _SYCHOPHANTIC_OPENERS = [
-    (r"^\s*(Certainly!|Of course!|Absolutely!|Great question!|Sure!|Happy to help!|What a (wonderful|lovely|great) question!)\s*", "", "sycophantic opener"),
-    (r"^\s*(That('| i)s a (great|wonderful|beautiful|profound) (question|point)[.!])\s*", "", "sycophantic opener"),
+    (
+        r"^\s*(Certainly!|Of course!|Absolutely!|Great question!|Sure!|Happy to help!|What a (wonderful|lovely|great) question!)\s*",
+        "",
+        "sycophantic opener",
+    ),
+    (
+        r"^\s*(That('| i)s a (great|wonderful|beautiful|profound) (question|point)[.!])\s*",
+        "",
+        "sycophantic opener",
+    ),
 ]
 
 _FILLER = [
@@ -54,9 +62,23 @@ _FILLER = [
 
 # AI vocabulary adjectives/adverbs that read as hype (only when standalone words)
 _AI_VOCAB = [
-    "delve", "tapestry", "testament", "underscor", "pivotal", "vibrant",
-    "intricate", "showcas", "foster", "garner", "endeavor", "plethora",
-    "seamless", "profound(ly)?", "rich(ly)?", "multifaceted", "holistic(ally)?",
+    "delve",
+    "tapestry",
+    "testament",
+    "underscor",
+    "pivotal",
+    "vibrant",
+    "intricate",
+    "showcas",
+    "foster",
+    "garner",
+    "endeavor",
+    "plethora",
+    "seamless",
+    "profound(ly)?",
+    "rich(ly)?",
+    "multifaceted",
+    "holistic(ally)?",
 ]
 
 _NEGATIVE_PARALLELISM = [
@@ -75,7 +97,11 @@ _SIGNIFICANCE_INFLATION = [
 
 _COLLAB_ARTIFACTS = [
     (r"\s*I hope this helps[.!]?", "", "collab artifact"),
-    (r"\s*Let me know if you('|')d like (me to )?(expand on|more on|more)[^.!]*[.!]?", "", "collab artifact"),
+    (
+        r"\s*Let me know if you('|')d like (me to )?(expand on|more on|more)[^.!]*[.!]?",
+        "",
+        "collab artifact",
+    ),
     (r"\s*Would you like (me to|more)[^.!]*[.!]?", "", "collab artifact"),
     (r"^\s*Here is an? (overview|summary|breakdown)[^.!]*[.:]\s*", "", "collab artifact"),
 ]
@@ -190,8 +216,14 @@ def scrub_with_report(text: str) -> tuple[str, HumanizeReport]:
             cleaned_sentences.append(stripped)
             continue
         for _ in range(2):  # second pass catches openers exposed by the first
-            for rules in (_SYCHOPHANTIC_OPENERS, _COLLAB_ARTIFACTS, _FILLER,
-                          _NEGATIVE_PARALLELISM, _SIGNIFICANCE_INFLATION, _HEDGING):
+            for rules in (
+                _SYCHOPHANTIC_OPENERS,
+                _COLLAB_ARTIFACTS,
+                _FILLER,
+                _NEGATIVE_PARALLELISM,
+                _SIGNIFICANCE_INFLATION,
+                _HEDGING,
+            ):
                 stripped = _apply(stripped, rules, report)
             stripped = stripped.strip()
         cleaned_sentences.append(stripped)

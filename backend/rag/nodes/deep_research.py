@@ -13,7 +13,6 @@ import asyncio
 import json
 import logging
 import re
-from typing import Any
 
 from app.config import settings
 from rag.nodes import _services
@@ -52,12 +51,7 @@ def _deduplicate(docs: list[dict]) -> list[dict]:
     seen: set[str] = set()
     out: list[dict] = []
     for d in docs:
-        key = str(
-            d.get("id")
-            or d.get("chunk_id")
-            or d.get("point_id")
-            or (d.get("text", "")[:64])
-        )
+        key = str(d.get("id") or d.get("chunk_id") or d.get("point_id") or (d.get("text", "")[:64]))
         if key in seen:
             continue
         seen.add(key)
@@ -114,9 +108,7 @@ async def conduct_deep_research(
     try:
         raw = await ollama._generate_fast(
             system_prompt=SUFFICIENCY_CHECK_SYSTEM,
-            user_prompt=SUFFICIENCY_CHECK_USER.format(
-                question=question, context_summary=summary
-            ),
+            user_prompt=SUFFICIENCY_CHECK_USER.format(question=question, context_summary=summary),
             timeout=get_node_timeout("default_fast", getattr(settings, "node_timeout_fast", 15)),
             max_retries=1,
         )
@@ -138,7 +130,9 @@ async def conduct_deep_research(
 
     logger.info(
         "Deep research: insufficient at depth=%d, firing %d follow-ups: %s",
-        depth, len(follow_ups), follow_ups,
+        depth,
+        len(follow_ups),
+        follow_ups,
     )
 
     chat_history = state.get("chat_history", []) or []

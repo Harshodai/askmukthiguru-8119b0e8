@@ -4,6 +4,7 @@ Used as a safe fallback when Redis is unavailable and in tests/sandboxes.
 Thread-safe but not shared across processes — acceptable for dev or single-node
 fall-back; production should use AnonQuotaRedisAdapter.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -41,9 +42,7 @@ class AnonQuotaMemoryAdapter(AnonQuotaPort):
         if self._max_limit is not None:
             limit = min(limit, self._max_limit)
         if limit > _MAX_WINDOW_SIZE:
-            raise ValueError(
-                f"limit {limit} exceeds in-memory window capacity {_MAX_WINDOW_SIZE}"
-            )
+            raise ValueError(f"limit {limit} exceeds in-memory window capacity {_MAX_WINDOW_SIZE}")
         return limit
 
     def _now(self) -> float:
@@ -54,7 +53,9 @@ class AnonQuotaMemoryAdapter(AnonQuotaPort):
             self._windows[session_id] = deque(maxlen=_MAX_WINDOW_SIZE)
         return self._windows[session_id]
 
-    def _prune(self, window: deque[tuple[float, str, float | None]], cutoff: float, now: float) -> None:
+    def _prune(
+        self, window: deque[tuple[float, str, float | None]], cutoff: float, now: float
+    ) -> None:
         while window and window[0][0] < cutoff:
             window.popleft()
         # Reap members whose claim deadline passed (dropped jobs). A full scan
@@ -70,8 +71,7 @@ class AnonQuotaMemoryAdapter(AnonQuotaPort):
         now = self._now()
         cutoff = now - window_seconds
         empty_sessions = [
-            sid for sid, window in self._windows.items()
-            if not window or window[-1][0] < cutoff
+            sid for sid, window in self._windows.items() if not window or window[-1][0] < cutoff
         ]
         for sid in empty_sessions:
             self._windows.pop(sid, None)
@@ -168,6 +168,7 @@ class AnonQuotaMemoryAdapter(AnonQuotaPort):
 
 
 if __name__ == "__main__":
+
     async def _self_check():
         adapter = AnonQuotaMemoryAdapter()
         sid = "anon:test"

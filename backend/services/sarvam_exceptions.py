@@ -5,7 +5,7 @@ Breaks circular imports between sarvam_service.py and the HTTP gateway.
 
 # Re-export the canonical CircuitOpenException from the circuit-breaker module
 # so that the gateway and the service agree on the same class.
-from services.circuit_breaker import CircuitOpenException
+from services.circuit_breaker import CircuitOpenException  # noqa: F401
 
 
 class QuotaExceededError(Exception):

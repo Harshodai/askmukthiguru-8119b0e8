@@ -13,7 +13,9 @@ from app.config import settings as app_settings
 
 from . import _services, utils
 from ._services import init_services
-from .agentic_graph_traversal import agentic_graph_traversal
+from .agentic_graph_traversal import agentic_graph_traversal  # noqa: F401
+from .citation_extractor import extract_citations
+from .cross_teacher_reasoning import cross_teacher_reasoning
 from .generation import (
     context_engineer,
     format_final_answer,
@@ -46,15 +48,13 @@ from .short_circuit import (
 from .utils import (
     select_llm_model,
 )
-from .citation_extractor import extract_citations
 from .verification import (
-    check_constitutional_compliance,
-    check_persona_adherence,
+    check_constitutional_compliance,  # noqa: F401
+    check_persona_adherence,  # noqa: F401
     reflect_on_answer,
     verify_answer,
 )
 from .web_search import web_search_node
-from .cross_teacher_reasoning import cross_teacher_reasoning
 
 # Placeholder module-level attributes for IDE/static analysis and direct access
 _ollama: Any = None
@@ -118,6 +118,7 @@ class NodesModule(ModuleType):
         else:
             super().__setattr__(name, value)
 
+
 sys.modules[__name__].__class__ = NodesModule
 
 __all__ = [
@@ -149,4 +150,3 @@ __all__ = [
     "web_search_node",
     "cross_teacher_reasoning",
 ]
-

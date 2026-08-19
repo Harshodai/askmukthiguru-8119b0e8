@@ -6,6 +6,7 @@ interpolated into the flashcard-generation LLM prompt:
   - guardrails pre-check catches "system prompt" style leaks -> HTTP 400
   - user braces are escaped so they cannot break out of the prompt template
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock

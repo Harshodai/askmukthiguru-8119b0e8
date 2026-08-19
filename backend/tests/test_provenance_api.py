@@ -16,9 +16,7 @@ from app.api.compliance import router as compliance_router
 from app.schemas import (
     AIProvenanceManifest,
     ChatResponse,
-    ComplianceStandard,
     OriginType,
-    WatermarkType,
 )
 
 
@@ -28,7 +26,10 @@ def client():
     from app.api.compliance import _require_admin
 
     app = FastAPI()
-    app.dependency_overrides[_require_admin] = lambda: {"user_id": "test-admin", "is_superuser": True}
+    app.dependency_overrides[_require_admin] = lambda: {
+        "user_id": "test-admin",
+        "is_superuser": True,
+    }
     app.include_router(compliance_router)
     return TestClient(app)
 
@@ -167,7 +168,10 @@ def test_chat_response_json_roundtrip_with_provenance():
 
     json_str = original_resp.model_dump_json()
     assert '"identifier":"resp-abc"' in json_str or '"identifier": "resp-abc"' in json_str
-    assert '"creativeWorkStatus":"AI-Generated"' in json_str or '"creativeWorkStatus": "AI-Generated"' in json_str
+    assert (
+        '"creativeWorkStatus":"AI-Generated"' in json_str
+        or '"creativeWorkStatus": "AI-Generated"' in json_str
+    )
 
     # Deserialization check
     reconstructed = ChatResponse.model_validate_json(json_str)

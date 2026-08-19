@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 def _get_client():
     from app.telemetry_db import _get_client as _supa_client
+
     return _supa_client()
 
 
@@ -67,7 +68,8 @@ class FeedbackService:
                 .order("created_at", desc=True)
                 .limit(limit)
                 .execute()
-                .data or []
+                .data
+                or []
             )
             return rows
         except Exception as e:

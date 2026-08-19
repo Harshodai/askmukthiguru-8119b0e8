@@ -4,19 +4,18 @@ run_ralph.py — Batch CLI runner for the Ralph Loop (Teacher-Student prompt opt
 """
 
 import asyncio
-import sys
 import json
 import os
+import sys
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, timezone
 
 # Add backend directory to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.config import settings
-from app.dependencies import get_container
 from app.constants import FEEDBACK_LESSONS_FILE_PATH, PROMPT_PATCHES_VALIDATED_FILE_PATH
 from app.core.refiner import mine_failed_session
+from app.dependencies import get_container
 
 
 async def run_batch_ralph():
@@ -27,7 +26,6 @@ async def run_batch_ralph():
     # Initialize DI Container
     try:
         # Require container builder to build singletons
-        from app.dependencies import ServiceContainer
         container = get_container()
         print("✅ Service container initialized successfully.")
     except Exception as e:
@@ -39,7 +37,7 @@ async def run_batch_ralph():
     lessons = []
     if os.path.exists(FEEDBACK_LESSONS_FILE_PATH):
         try:
-            with open(FEEDBACK_LESSONS_FILE_PATH, "r", encoding="utf-8") as f:
+            with open(FEEDBACK_LESSONS_FILE_PATH, encoding="utf-8") as f:
                 for line in f:
                     line_str = line.strip()
                     if line_str:
@@ -56,7 +54,7 @@ async def run_batch_ralph():
         print("Generating a test failure lesson to verify the validation loop...")
         lessons = [
             {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "query": "Who is Lokaa's daughter?",
                 "category": "hallucination",
                 "analysis": "LLM claimed Lokaa has a daughter, violating Lokaa Rule.",
@@ -69,7 +67,7 @@ async def run_batch_ralph():
     validated_queries = set()
     if os.path.exists(PROMPT_PATCHES_VALIDATED_FILE_PATH):
         try:
-            with open(PROMPT_PATCHES_VALIDATED_FILE_PATH, "r", encoding="utf-8") as f:
+            with open(PROMPT_PATCHES_VALIDATED_FILE_PATH, encoding="utf-8") as f:
                 for line in f:
                     line_str = line.strip()
                     if line_str:
@@ -81,15 +79,17 @@ async def run_batch_ralph():
         except Exception:
             pass
 
-    print(f"Loaded {len(lessons)} total failures. {len(validated_queries)} patches already validated.\n")
+    print(
+        f"Loaded {len(lessons)} total failures. {len(validated_queries)} patches already validated.\n"
+    )
 
     unvalidated_count = 0
     validated_new = 0
 
-    for idx, lesson in enumerate(lessons):
+    for _idx, lesson in enumerate(lessons):
         query = lesson.get("query")
         suggested_correction = lesson.get("suggested_correction")
-        
+
         if not query or not suggested_correction or suggested_correction in ("None", "N/A"):
             continue
 
@@ -97,17 +97,13 @@ async def run_batch_ralph():
             continue
 
         unvalidated_count += 1
-        print(f"[{unvalidated_count}] Processing failure: \"{query}\"")
-        print(f"    Suggested correction: \"{suggested_correction}\"")
+        print(f'[{unvalidated_count}] Processing failure: "{query}"')
+        print(f'    Suggested correction: "{suggested_correction}"')
 
         # 3. Retrieve context from Qdrant
         try:
             query_embedding = container.embedding.embed_query(query)
-            docs = container.qdrant.search(
-                query_vector=query_embedding,
-                limit=5,
-                query=query
-            )
+            docs = container.qdrant.search(query_vector=query_embedding, limit=5, query=query)
             retrieved_context = "\n\n".join(d["text"] for d in docs)
             print(f"    Retrieved {len(docs)} document chunks from Qdrant.")
         except Exception as e:
@@ -116,15 +112,15 @@ async def run_batch_ralph():
 
         # 4. Trigger validation run
         print("    Running Student validation...")
-        
+
         try:
             result = await mine_failed_session(
                 query=query,
                 retrieved_context=retrieved_context,
                 answer="Original failed response place-holder",
-                comment=lesson.get("comment")
+                comment=lesson.get("comment"),
             )
-            
+
             if result.get("validated"):
                 validated_new += 1
                 print(f"    ✅ Student validation PASSED (score={result.get('student_score')})")

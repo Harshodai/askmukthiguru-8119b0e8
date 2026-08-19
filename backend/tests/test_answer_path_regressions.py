@@ -49,12 +49,12 @@ def test_persona_budget_fits_the_whole_constitution():
 @pytest.mark.parametrize(
     "rule",
     [
-        "You do not invent",             # anti-hallucination core (line-wrapped)
+        "You do not invent",  # anti-hallucination core (line-wrapped)
         "helpline information appears",  # crisis safety
-        "qualified professional",        # clinical redirect
-        "Who you are",                   # identity section
-        "hype words",                    # Voice section
-        "Four Sacred Secrets",           # doctrine vocabulary
+        "qualified professional",  # clinical redirect
+        "Who you are",  # identity section
+        "hype words",  # Voice section
+        "Four Sacred Secrets",  # doctrine vocabulary
     ],
 )
 def test_every_critical_rule_survives_the_persona_cap(rule):

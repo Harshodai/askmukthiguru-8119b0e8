@@ -16,7 +16,7 @@ from services.retention_service import (
 
 
 def test_streak_starts_at_zero():
-    eng = StreakEngine()
+    StreakEngine()
     s = StreakState()
     assert s.current == 0
     assert s.longest == 0

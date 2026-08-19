@@ -8,6 +8,7 @@ when ALL THREE conditions are met:
 
 The X-Test-Key value must match BENCHMARK_SECRET.
 """
+
 from __future__ import annotations
 
 import os
@@ -21,6 +22,7 @@ from fastapi import Request
 def reset_settings_cache():
     """Clear the lru_cache on get_settings between tests."""
     from app.config import get_settings
+
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -42,13 +44,18 @@ class TestTestAuthStrategyRegistration:
 
     def test_not_registered_by_default(self):
         """Default config (ENABLE_TEST_AUTH=false) → strategy NOT registered."""
-        with patch.dict(os.environ, {
-            "ENABLE_TEST_AUTH": "false",
-            "IS_PRODUCTION": "true",
-            "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
-            "BENCHMARK_SECRET": "",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "ENABLE_TEST_AUTH": "false",
+                "IS_PRODUCTION": "true",
+                "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+                "BENCHMARK_SECRET": "",
+            },
+            clear=False,
+        ):
             from app.config import Settings
+
             settings = Settings()
             assert settings.enable_test_auth is False
             assert settings.is_production is True
@@ -57,20 +64,27 @@ class TestTestAuthStrategyRegistration:
             import importlib
 
             import services.auth_service as auth_module
+
             importlib.reload(auth_module)
 
             # Should NOT have TestAuthStrategy
             from services.auth_service import TestAuthStrategy
+
             assert not any(isinstance(s, TestAuthStrategy) for s in auth_module._strategies)
 
     def test_not_registered_when_enable_true_but_no_secret(self):
         """ENABLE_TEST_AUTH=true but BENCHMARK_SECRET unset → strategy NOT registered."""
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "false",
-            "ENABLE_TEST_AUTH": "true",
-            "BENCHMARK_SECRET": "",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "IS_PRODUCTION": "false",
+                "ENABLE_TEST_AUTH": "true",
+                "BENCHMARK_SECRET": "",
+            },
+            clear=False,
+        ):
             from app.config import Settings
+
             settings = Settings()
             assert settings.enable_test_auth is True
             assert settings.is_production is False
@@ -79,51 +93,72 @@ class TestTestAuthStrategyRegistration:
             import importlib
 
             import services.auth_service as auth_module
+
             importlib.reload(auth_module)
 
             from services.auth_service import TestAuthStrategy
+
             assert not any(isinstance(s, TestAuthStrategy) for s in auth_module._strategies)
 
     def test_not_registered_when_production_true(self):
         """IS_PRODUCTION=true → enable_test_auth=true is rejected by Settings validator, and strategy NOT registered."""
         # 1. Reject enable_test_auth=true in production
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "true",
-            "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
-            "ENABLE_TEST_AUTH": "true",
-            "BENCHMARK_SECRET": "my-secret",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "IS_PRODUCTION": "true",
+                "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+                "ENABLE_TEST_AUTH": "true",
+                "BENCHMARK_SECRET": "my-secret",
+            },
+            clear=False,
+        ):
             from app.config import Settings
-            with pytest.raises(ValueError, match="enable_test_auth must be False when is_production is True"):
+
+            with pytest.raises(
+                ValueError, match="enable_test_auth must be False when is_production is True"
+            ):
                 Settings()
 
         # 2. When enable_test_auth=false in production, strategy is not registered
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "true",
-            "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
-            "ENABLE_TEST_AUTH": "false",
-            "BENCHMARK_SECRET": "my-secret",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "IS_PRODUCTION": "true",
+                "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+                "ENABLE_TEST_AUTH": "false",
+                "BENCHMARK_SECRET": "my-secret",
+            },
+            clear=False,
+        ):
             from app.config import Settings
+
             settings = Settings()
             assert settings.is_production is True
 
             import importlib
 
             import services.auth_service as auth_module
+
             importlib.reload(auth_module)
 
             from services.auth_service import TestAuthStrategy
+
             assert not any(isinstance(s, TestAuthStrategy) for s in auth_module._strategies)
 
     def test_registered_when_all_conditions_met(self):
         """All three conditions met → strategy IS registered."""
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "false",
-            "ENABLE_TEST_AUTH": "true",
-            "BENCHMARK_SECRET": "my-benchmark-secret",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "IS_PRODUCTION": "false",
+                "ENABLE_TEST_AUTH": "true",
+                "BENCHMARK_SECRET": "my-benchmark-secret",
+            },
+            clear=False,
+        ):
             from app.config import Settings
+
             settings = Settings()
             assert settings.enable_test_auth is True
             assert settings.is_production is False
@@ -132,9 +167,11 @@ class TestTestAuthStrategyRegistration:
             import importlib
 
             import services.auth_service as auth_module
+
             importlib.reload(auth_module)
 
             from services.auth_service import TestAuthStrategy
+
             assert any(isinstance(s, TestAuthStrategy) for s in auth_module._strategies)
 
 
@@ -245,14 +282,19 @@ class TestAuthBridgeIntegration:
     @pytest.mark.asyncio
     async def test_auth_bridge_returns_401_when_not_registered(self):
         """When strategy not registered, X-Test-Key should result in 401."""
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "true",
-            "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
-            "ENABLE_TEST_AUTH": "false",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "IS_PRODUCTION": "true",
+                "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+                "ENABLE_TEST_AUTH": "false",
+            },
+            clear=False,
+        ):
             import importlib
 
             import services.auth_service as auth_module
+
             importlib.reload(auth_module)
 
             from services.auth_service import auth_bridge
@@ -270,14 +312,19 @@ class TestAuthBridgeIntegration:
         """When strategy registered with secret, correct key authenticates."""
         from app.config import settings
 
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "false",
-            "ENABLE_TEST_AUTH": "true",
-            "BENCHMARK_SECRET": "test-secret-123",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "IS_PRODUCTION": "false",
+                "ENABLE_TEST_AUTH": "true",
+                "BENCHMARK_SECRET": "test-secret-123",
+            },
+            clear=False,
+        ):
             import importlib
 
             import services.auth_service as auth_module
+
             importlib.reload(auth_module)
 
             from services.auth_service import auth_bridge
@@ -303,14 +350,19 @@ class TestAuthBridgeIntegration:
         """When strategy registered, wrong key → 401."""
         from app.config import settings
 
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "false",
-            "ENABLE_TEST_AUTH": "true",
-            "BENCHMARK_SECRET": "correct-secret",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "IS_PRODUCTION": "false",
+                "ENABLE_TEST_AUTH": "true",
+                "BENCHMARK_SECRET": "correct-secret",
+            },
+            clear=False,
+        ):
             import importlib
 
             import services.auth_service as auth_module
+
             importlib.reload(auth_module)
 
             from services.auth_service import auth_bridge

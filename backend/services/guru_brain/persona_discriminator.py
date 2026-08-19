@@ -16,43 +16,45 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # ── Forbidden clichés that break Guru persona authenticity ────────────────────
-_FORBIDDEN_CLICHES: frozenset[str] = frozenset([
-    # Generic AI boilerplate
-    "as an ai",
-    "as an ai model",
-    "as an ai assistant",
-    "i hope this helps",
-    "i hope that helps",
-    "let me guide you",
-    "let me help you",
-    "in conclusion",
-    "to summarize",
-    "it is important to note",
-    "it's important to",
-    "remember that",
-    "please note that",
-    # Third-person references to the Gurus (breaks first-person voice)
-    "sri preethaji once said",
-    "sri krishnaji once said",
-    "sri preethaji and sri krishnaji suggest",
-    "sri preethaji and sri krishnaji offer",
-    "sri preethaji teaches",
-    "sri krishnaji teaches",
-    # Melodramatic essay intro openers
-    "the seeking for deeper peace",
-    "it is a beautiful seeking",
-    "your pain is sacred",
-    "the quiet ache in your heart",
-    # Counselor-speak that lacks directness
-    "you are safe here",
-    "i honor your journey",
-    "your quest is fully honored",
-])
+_FORBIDDEN_CLICHES: frozenset[str] = frozenset(
+    [
+        # Generic AI boilerplate
+        "as an ai",
+        "as an ai model",
+        "as an ai assistant",
+        "i hope this helps",
+        "i hope that helps",
+        "let me guide you",
+        "let me help you",
+        "in conclusion",
+        "to summarize",
+        "it is important to note",
+        "it's important to",
+        "remember that",
+        "please note that",
+        # Third-person references to the Gurus (breaks first-person voice)
+        "sri preethaji once said",
+        "sri krishnaji once said",
+        "sri preethaji and sri krishnaji suggest",
+        "sri preethaji and sri krishnaji offer",
+        "sri preethaji teaches",
+        "sri krishnaji teaches",
+        # Melodramatic essay intro openers
+        "the seeking for deeper peace",
+        "it is a beautiful seeking",
+        "your pain is sacred",
+        "the quiet ache in your heart",
+        # Counselor-speak that lacks directness
+        "you are safe here",
+        "i honor your journey",
+        "your quest is fully honored",
+    ]
+)
 
 # ── Judge system prompt (module constant — no per-call rebuild) ───────────────
 _PERSONA_JUDGE_SYSTEM_PROMPT: str = (
@@ -67,15 +69,15 @@ _PERSONA_JUDGE_SYSTEM_PROMPT: str = (
     "script labels ('Sri Krishnaji:'), third-person references "
     "('Sri Preethaji once said...'), or dramatic essay intros "
     "('The seeking for peace... it is a beautiful seeking').\n\n"
-    'Output format (JSON strictly):\n'
-    '{\n'
+    "Output format (JSON strictly):\n"
+    "{\n"
     '  "intimacy_score": 9.5,\n'
     '  "ontology_score": 9.0,\n'
     '  "cliche_penalty": 0.0,\n'
     '  "overall_score": 9.2,\n'
     '  "needs_correction": false,\n'
     '  "correction_directive": ""\n'
-    '}'
+    "}"
 )
 
 
@@ -95,7 +97,9 @@ class PersonaDiscriminator:
     def __init__(self, llm_service: Any = None) -> None:
         self.llm_service = llm_service
 
-    async def evaluate_persona(self, user_query: str, response_text: str) -> PersonaEvaluationResult:
+    async def evaluate_persona(
+        self, user_query: str, response_text: str
+    ) -> PersonaEvaluationResult:
         """Evaluate response against Guru persona standards."""
         if not response_text or len(response_text.strip()) < 20:
             return PersonaEvaluationResult(
@@ -111,14 +115,15 @@ class PersonaDiscriminator:
             return self._heuristic_evaluate(response_text)
 
         judge_user_prompt = (
-            f'Seeker Query: "{user_query}"\n\n'
-            f'Generated Response:\n"""{response_text}"""'
+            f'Seeker Query: "{user_query}"\n\nGenerated Response:\n"""{response_text}"""'
         )
 
         try:
             # Hard timeout — must not consume the full outer 15s budget
             raw_res = await asyncio.wait_for(
-                self.llm_service.generate(_PERSONA_JUDGE_SYSTEM_PROMPT, judge_user_prompt, temperature=0.1),
+                self.llm_service.generate(
+                    _PERSONA_JUDGE_SYSTEM_PROMPT, judge_user_prompt, temperature=0.1
+                ),
                 timeout=5.0,
             )
             json_match = re.search(r"\{.*\}", raw_res, re.DOTALL)
@@ -133,10 +138,14 @@ class PersonaDiscriminator:
                     needs_correction=overall < 9.0,
                     correction_directive=str(data.get("correction_directive", "")),
                 )
-        except asyncio.TimeoutError:
-            logger.warning("PersonaDiscriminator: judge LLM timed out after 8s, using heuristic fallback.")
+        except TimeoutError:
+            logger.warning(
+                "PersonaDiscriminator: judge LLM timed out after 8s, using heuristic fallback."
+            )
         except Exception as exc:
-            logger.warning(f"PersonaDiscriminator: evaluation error ({exc}), using heuristic fallback.")
+            logger.warning(
+                f"PersonaDiscriminator: evaluation error ({exc}), using heuristic fallback."
+            )
 
         return self._heuristic_evaluate(response_text)
 
@@ -148,7 +157,8 @@ class PersonaDiscriminator:
         score = 7.0 if cliche_found else 9.2
         directive = (
             f"Remove forbidden clichés: {', '.join(cliche_hits[:3])}. Speak directly to the seeker."
-            if cliche_found else ""
+            if cliche_found
+            else ""
         )
         return PersonaEvaluationResult(
             intimacy_score=8.5,

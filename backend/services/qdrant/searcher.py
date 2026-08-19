@@ -62,7 +62,9 @@ def retry_with_backoff(max_retries=3, initial_delay=1):
 class QdrantSearcher:
     """Hybrid and dense retrieval with metadata filtering hooks."""
 
-    def __init__(self, client: QdrantClient, collection: str, utils: Optional[QdrantUtils] = None) -> None:
+    def __init__(
+        self, client: QdrantClient, collection: str, utils: Optional[QdrantUtils] = None
+    ) -> None:
         self._client = client
         self._collection = collection
         self._utils = utils or QdrantUtils()
@@ -159,9 +161,7 @@ class QdrantSearcher:
                     FieldCondition(key="tags", match=MatchValue(value=tag_values[0]))
                 )
             else:
-                filter_conditions.append(
-                    FieldCondition(key="tags", match=MatchAny(any=tag_values))
-                )
+                filter_conditions.append(FieldCondition(key="tags", match=MatchAny(any=tag_values)))
         if title_contains:
             filter_conditions.append(
                 FieldCondition(key="title", match=MatchValue(value=title_contains))
@@ -196,7 +196,9 @@ class QdrantSearcher:
             # failure, and letting it land in that handler would silently disable
             # hybrid search on every query while health stayed green.
             dense_limit = max(1, round(internal_limit * settings.qdrant_dense_prefetch_multiplier))
-            sparse_limit = max(1, round(internal_limit * settings.qdrant_sparse_prefetch_multiplier))
+            sparse_limit = max(
+                1, round(internal_limit * settings.qdrant_sparse_prefetch_multiplier)
+            )
             fusion = Fusion.DBSF if settings.qdrant_fusion_strategy == "dbsf" else Fusion.RRF
             try:
                 prefetch_queries = [
@@ -235,7 +237,9 @@ class QdrantSearcher:
             )
 
         # Filter out poisoned nodes
-        hits = [hit for hit in hits if not self._utils.is_poisoned_node(hit.payload.get("text", ""))]
+        hits = [
+            hit for hit in hits if not self._utils.is_poisoned_node(hit.payload.get("text", ""))
+        ]
         hits = hits[:limit]
 
         return [
@@ -317,7 +321,9 @@ class QdrantSearcher:
                 using="dense",
                 limit=limit,
                 query_filter=search_filter,
-                search_params=search_params if search_params is not None else self._dense_quantization_search_params(),
+                search_params=search_params
+                if search_params is not None
+                else self._dense_quantization_search_params(),
                 with_payload=True,
             )
             return results.points

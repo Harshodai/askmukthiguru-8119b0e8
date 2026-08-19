@@ -13,10 +13,10 @@ import hashlib
 import json
 import re
 from pathlib import Path
-from typing import Any
+
 import pytest
 
-from services.doctrine_terms import DEFAULT_DOCTRINE_TERMS, load_doctrine_terms
+from services.doctrine_terms import load_doctrine_terms
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CORPUS_ROOT = REPO_ROOT / "scripts" / "ingestion" / "corpus"
@@ -135,14 +135,18 @@ def test_no_uncorrected_doctrine_variants(all_packages: list[Path]):
                         if not is_part_of_canon:
                             for other_canon in all_terms:
                                 if other_canon in stext:
-                                    for oc_m in re.finditer(rf"\b{re.escape(other_canon)}\b", stext):
+                                    for oc_m in re.finditer(
+                                        rf"\b{re.escape(other_canon)}\b", stext
+                                    ):
                                         if oc_m.start() <= start and end <= oc_m.end():
                                             is_part_of_canon = True
                                             break
                         if not is_part_of_canon:
                             uncorrected_hits.append((p.name, s.get("segment_id"), v, canon, stext))
 
-    assert not uncorrected_hits, f"Found {len(uncorrected_hits)} uncorrected doctrine terms: {uncorrected_hits[:10]}"
+    assert not uncorrected_hits, (
+        f"Found {len(uncorrected_hits)} uncorrected doctrine terms: {uncorrected_hits[:10]}"
+    )
 
 
 def test_artifact_manifest_hash_integrity_and_field_agreement(all_packages: list[Path]):
@@ -176,9 +180,13 @@ def test_artifact_manifest_hash_integrity_and_field_agreement(all_packages: list
 
         # Terminology corrections count vs ledger entries
         q_term_count = q_data.get("terminology_corrections_count")
-        ledger_entries = ledg_data if isinstance(ledg_data, list) else ledg_data.get("corrections", [])
+        ledger_entries = (
+            ledg_data if isinstance(ledg_data, list) else ledg_data.get("corrections", [])
+        )
         if q_term_count is not None and q_term_count != len(ledger_entries):
-            discrepancies.append((vid, f"corr_count_mismatch: q={q_term_count}, ledg={len(ledger_entries)}"))
+            discrepancies.append(
+                (vid, f"corr_count_mismatch: q={q_term_count}, ledg={len(ledger_entries)}")
+            )
 
         # Artifact SHA-256 integrity
         artifacts = man_data.get("artifacts", {})
@@ -196,4 +204,6 @@ def test_artifact_manifest_hash_integrity_and_field_agreement(all_packages: list
                 if entry["sha256"] != actual_sha:
                     discrepancies.append((vid, f"hash_mismatch_{art_name}"))
 
-    assert not discrepancies, f"Found {len(discrepancies)} package discrepancies: {discrepancies[:10]}"
+    assert not discrepancies, (
+        f"Found {len(discrepancies)} package discrepancies: {discrepancies[:10]}"
+    )

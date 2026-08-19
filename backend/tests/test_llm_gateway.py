@@ -25,7 +25,14 @@ class _FakeProvider:
 
     async def generate(self, system_prompt, user_prompt, context="", **kwargs):
         model = kwargs.get("model")
-        self.calls.append({"system_prompt": system_prompt, "user_prompt": user_prompt, "context": context, **kwargs})
+        self.calls.append(
+            {
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "context": context,
+                **kwargs,
+            }
+        )
         if self._always_fail:
             raise RuntimeError(f"{self.name} always fails")
         if model in self._fail_models:
@@ -147,6 +154,7 @@ if __name__ == "__main__":
         print("test_llm_gateway self-check: all OK")
 
     asyncio.run(_run_all())
+
 
 @pytest.mark.asyncio
 async def test_coalescing_collapses_five_hundred_identical_requests():

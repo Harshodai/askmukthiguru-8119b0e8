@@ -161,6 +161,7 @@ def build_deep_graph(
 # Factory for initial state
 # ---------------------------------------------------------------------------
 
+
 def create_initial_state(
     question: str,
     chat_history: Optional[list[dict]] = None,
@@ -267,6 +268,7 @@ def create_initial_state(
 # ---------------------------------------------------------------------------
 # Node Registry integration (registry defined in node_registry.py)
 # ---------------------------------------------------------------------------
+
 
 def _register_graph_nodes() -> None:
     """

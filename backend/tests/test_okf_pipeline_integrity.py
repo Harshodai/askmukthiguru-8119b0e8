@@ -79,7 +79,7 @@ def test_subdir_teachings_are_included():
             "stopped recursing (non-recursive glob regression)"
         )
     finally:
-        _cleanup(probe, *( (subdir,) if created else () ))
+        _cleanup(probe, *((subdir,) if created else ()))
 
 
 @pytest.mark.parametrize("excluded_dir", ["staging", "_scripts", "staging/nested"])
@@ -119,10 +119,10 @@ def test_extractor_copies_are_identical():
     repo_root = OKF_DIR.parent.parent
     root_path = repo_root / "scripts" / "extract_okf_from_stores.py"
     backend_path = repo_root / "backend" / "scripts" / "extract_okf_from_stores.py"
-    
+
     assert root_path.exists(), "root scripts/extract_okf_from_stores.py is missing"
     assert backend_path.exists(), "backend/scripts/extract_okf_from_stores.py is missing"
-    
+
     assert root_path.read_text(encoding="utf-8") == backend_path.read_text(encoding="utf-8"), (
         "scripts/extract_okf_from_stores.py and backend/scripts/extract_okf_from_stores.py "
         "have diverged — make them identical"

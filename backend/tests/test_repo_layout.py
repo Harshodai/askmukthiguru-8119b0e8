@@ -44,9 +44,7 @@ def _script_names(directory: Path) -> set[str]:
     if not directory.is_dir():
         return set()
     return {
-        p.name
-        for p in directory.iterdir()
-        if p.is_file() and p.suffix in {".py", ".sh", ".cjs"}
+        p.name for p in directory.iterdir() if p.is_file() and p.suffix in {".py", ".sh", ".cjs"}
     }
 
 

@@ -83,7 +83,9 @@ def main() -> int:
     if not is_local_target and service_role_key:
         # Remote target with a service-role key: validate the key isn't being sent
         # to an unexpected host.
-        host_ok = any(parsed_host == h or parsed_host.endswith(f".{h}") for h in _APPROVED_REMOTE_HOSTS)
+        host_ok = any(
+            parsed_host == h or parsed_host.endswith(f".{h}") for h in _APPROVED_REMOTE_HOSTS
+        )
         if not host_ok:
             print(
                 json.dumps(

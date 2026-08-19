@@ -17,12 +17,13 @@ The SupabaseTelemetrySink uses os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 directly (not the auth bridge), so this change does not affect it; that is
 asserted here as a contract guard against future regressions.
 """
+
 from __future__ import annotations
 
 import inspect
 
 import pytest
-from fastapi import Depends, HTTPException
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.config import settings
@@ -32,18 +33,19 @@ from services.auth_service import (
     require_aal2,
 )
 
-
 client = TestClient(app)
 
 
 def _set_user(user: dict | None):
     """Override the auth bridge to return a fixed user (or 401 if None)."""
     if user is None:
+
         async def no_user():
             raise HTTPException(status_code=401, detail="Authentication required")
 
         app.dependency_overrides[get_current_user_from_supabase] = no_user
     else:
+
         async def fixed_user():
             return user
 
@@ -55,6 +57,7 @@ def _clear_overrides():
     yield
     app.dependency_overrides.pop(get_current_user_from_supabase, None)
     from app.dependencies import get_container
+
     app.dependency_overrides.pop(get_container, None)
     # The admin rate limiter is module-level state shared across tests in
     # this process; without a reset, the 5/min cap 429s the later tests that
@@ -64,6 +67,7 @@ def _clear_overrides():
     # RedisBackedRateLimiter (Redis `rl:*` window + `_fallback` in-memory
     # `_attempts` when Redis is down). Clear whichever backend is active.
     from app.main import _ADMIN_RATE_LIMITER
+
     for _lim in (_ADMIN_RATE_LIMITER, getattr(_ADMIN_RATE_LIMITER, "_fallback", None)):
         if _lim is None:
             continue
@@ -84,6 +88,7 @@ def _clear_overrides():
         _db = int(_kwargs.get("db", 0) or 0)
         if not (_db >= 1 or _host in ("localhost", "127.0.0.1", "::1")):
             import logging as _logging
+
             _logging.getLogger(__name__).debug(
                 "admin rate-limit teardown: skipped rl:* sweep (Redis not a test target: host=%r db=%d)",
                 _host,
@@ -103,11 +108,13 @@ def _clear_overrides():
                     keys_deleted += 1
                 if keys_deleted:
                     import logging as _logging
+
                     _logging.getLogger(__name__).debug(
                         "admin rate-limit teardown: removed %d rl:* key(s) from Redis", keys_deleted
                     )
             except Exception as _e:
                 import logging as _logging
+
                 _logging.getLogger(__name__).debug(
                     "admin rate-limit Redis flush failed during teardown: %s", _e
                 )
@@ -140,7 +147,7 @@ class TestServiceRoleNotSuperuser:
         branch = src[guard_idx:guard_line_end]
         # Walk forward until we hit a line dedented below the guard's body.
         body_indent = "            "  # 12 spaces: try(8) + if(4) inside
-        rest = src[guard_line_end + 1:]
+        rest = src[guard_line_end + 1 :]
         for line in rest.splitlines(keepends=True):
             if line.strip() == "":
                 branch += line
@@ -159,42 +166,48 @@ class TestServiceRoleNotSuperuser:
 
     def test_service_role_token_denied_admin_endpoint(self):
         """A service_role identity hitting /api/admin/kpis is rejected (403)."""
-        _set_user({
-            "id": "svc-role-sentinel",
-            "email": None,
-            "role": "service_role",
-            "is_superuser": False,  # T2: no longer True
-            "provider": "supabase",
-            "tenant_id": "svc-role-sentinel",
-            "aal": "aal1",  # service_role tokens carry no aal -> defaults aal1
-        })
+        _set_user(
+            {
+                "id": "svc-role-sentinel",
+                "email": None,
+                "role": "service_role",
+                "is_superuser": False,  # T2: no longer True
+                "provider": "supabase",
+                "tenant_id": "svc-role-sentinel",
+                "aal": "aal1",  # service_role tokens carry no aal -> defaults aal1
+            }
+        )
         # admin endpoints are AAL2-gated (T1); service_role has aal1 -> 403.
         response = client.get("/api/admin/kpis")
         assert response.status_code == 403, response.text
 
     def test_service_role_token_denied_ingest_endpoint(self):
         """A service_role identity hitting /api/ingest/status is rejected (403)."""
-        _set_user({
-            "id": "svc-role-sentinel",
-            "role": "service_role",
-            "is_superuser": False,
-            "provider": "supabase",
-            "tenant_id": "svc-role-sentinel",
-            "aal": "aal1",
-        })
+        _set_user(
+            {
+                "id": "svc-role-sentinel",
+                "role": "service_role",
+                "is_superuser": False,
+                "provider": "supabase",
+                "tenant_id": "svc-role-sentinel",
+                "aal": "aal1",
+            }
+        )
         response = client.get("/api/ingest/status")
         assert response.status_code == 403, response.text
 
     def test_service_role_token_denied_kg_sparql(self):
         """A service_role identity hitting /api/kg/sparql is rejected (403)."""
-        _set_user({
-            "id": "svc-role-sentinel",
-            "role": "service_role",
-            "is_superuser": False,
-            "provider": "supabase",
-            "tenant_id": "svc-role-sentinel",
-            "aal": "aal1",
-        })
+        _set_user(
+            {
+                "id": "svc-role-sentinel",
+                "role": "service_role",
+                "is_superuser": False,
+                "provider": "supabase",
+                "tenant_id": "svc-role-sentinel",
+                "aal": "aal1",
+            }
+        )
         response = client.post("/api/kg/sparql", json={"query": "MATCH (n) RETURN n LIMIT 1"})
         assert response.status_code == 403, response.text
 
@@ -227,8 +240,9 @@ class TestAal2Gating:
         # Stub the container: the real one builds a Qdrant client eagerly
         # (unresolvable hostname "qdrant" outside docker), which would make
         # this authz test depend on live infra.
-        from app.dependencies import get_container
         from types import SimpleNamespace
+
+        from app.dependencies import get_container
 
         class _Tracker:
             def get_all(self):
@@ -359,9 +373,7 @@ def _resolved_dep_names(func) -> set[str]:
             continue
         name = getattr(dep, "__name__", str(dep))
         if name == "_require_admin":
-            inner = getattr(
-                inspect.signature(dep).parameters["user"].default, "dependency", None
-            )
+            inner = getattr(inspect.signature(dep).parameters["user"].default, "dependency", None)
             name = getattr(inner, "__name__", str(inner))
         names.add(name)
     return names
@@ -378,10 +390,7 @@ class TestAllAdminEndpointsAal2Gated:
 
     @pytest.mark.parametrize(
         "module_path,path",
-        [
-            pytest.param(m, p, id=f"{m}:{p}")
-            for m, p in sorted(_admin_endpoints())
-        ],
+        [pytest.param(m, p, id=f"{m}:{p}") for m, p in sorted(_admin_endpoints())],
     )
     def test_endpoint_resolves_to_require_aal2(self, module_path, path):
         import importlib
@@ -405,7 +414,9 @@ class TestAdminAllowlist:
     def test_allowlist_property_parses_comma_separated_uuids(self, monkeypatch):
         from app.config import Settings
 
-        s = Settings(admin_user_ids="00000000-0000-0000-0000-0000000000aa, 11111111-1111-1111-1111-1111111111aa")
+        s = Settings(
+            admin_user_ids="00000000-0000-0000-0000-0000000000aa, 11111111-1111-1111-1111-1111111111aa"
+        )
         assert s.admin_user_ids_list == [
             "00000000-0000-0000-0000-0000000000aa",
             "11111111-1111-1111-1111-1111111111aa",
@@ -419,45 +430,47 @@ class TestAdminAllowlist:
 
     def test_non_allowlisted_aal2_user_denied_admin(self, monkeypatch):
         """An aal2 superuser NOT in ADMIN_USER_IDS is denied (defense in depth)."""
-        from app.config import Settings
 
         allowlisted = "00000000-0000-0000-0000-0000000000aa"
-        monkeypatch.setattr(
-            settings, "admin_user_ids", allowlisted
-        )
+        monkeypatch.setattr(settings, "admin_user_ids", allowlisted)
         # Different UUID -> not allowlisted.
-        _set_user({
-            "id": "99999999-9999-9999-9999-999999999999",
-            "email": "intruder@b.com",
-            "is_superuser": True,
-            "aal": "aal2",
-        })
+        _set_user(
+            {
+                "id": "99999999-9999-9999-9999-999999999999",
+                "email": "intruder@b.com",
+                "is_superuser": True,
+                "aal": "aal2",
+            }
+        )
         response = client.get("/api/admin/kpis")
         assert response.status_code == 403, response.text
 
     def test_allowlisted_aal2_user_accepted_admin(self, monkeypatch):
-        from app.config import Settings
 
         allowlisted = "00000000-0000-0000-0000-0000000000aa"
         monkeypatch.setattr(settings, "admin_user_ids", allowlisted)
-        _set_user({
-            "id": allowlisted,
-            "email": "admin@b.com",
-            "is_superuser": True,
-            "aal": "aal2",
-        })
+        _set_user(
+            {
+                "id": allowlisted,
+                "email": "admin@b.com",
+                "is_superuser": True,
+                "aal": "aal2",
+            }
+        )
         response = client.get("/api/admin/kpis")
         assert response.status_code == 200, response.text
 
     def test_empty_allowlist_does_not_block(self, monkeypatch):
         """When ADMIN_USER_IDS is empty (dev default), allowlist is not enforced."""
         monkeypatch.setattr(settings, "admin_user_ids", "")
-        _set_user({
-            "id": "any-user-id",
-            "email": "a@b.com",
-            "is_superuser": True,
-            "aal": "aal2",
-        })
+        _set_user(
+            {
+                "id": "any-user-id",
+                "email": "a@b.com",
+                "is_superuser": True,
+                "aal": "aal2",
+            }
+        )
         response = client.get("/api/admin/kpis")
         assert response.status_code == 200, response.text
 

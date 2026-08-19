@@ -33,7 +33,9 @@ class ErrorResponse(BaseModel):
     error: str = Field(description="Machine-readable PascalCase error code")
     message: str = Field(description="Human-readable description for display")
     details: Optional[dict] = Field(default=None, description="Structured context about the error")
-    request_id: Optional[str] = Field(default=None, description="Correlation ID from X-Request-ID header")
+    request_id: Optional[str] = Field(
+        default=None, description="Correlation ID from X-Request-ID header"
+    )
     timestamp: str = Field(
         default_factory=lambda: datetime.now(UTC).isoformat(),
         description="ISO-8601 UTC timestamp of when the error occurred",
@@ -41,6 +43,7 @@ class ErrorResponse(BaseModel):
 
 
 # ---- Standard error factories -----------------------------------------------
+
 
 def not_found(resource: str, identifier: str) -> ErrorResponse:
     """404 — resource could not be located."""

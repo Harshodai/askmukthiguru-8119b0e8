@@ -105,6 +105,7 @@ def _build_pairs(n: int = 100) -> list[tuple[str, str]]:
 # P0 — env parse
 # ---------------------------------------------------------------------------
 
+
 def _test_concat_guard() -> None:
     fused = "SMTP_PASSWORD=secretEMBEDDING_BACKEND=onnx_int8"
     stripped = fused.strip()
@@ -146,7 +147,9 @@ def validate_env_parse(env_path: Path = _ENV_PATH) -> tuple[bool, dict]:
                 malformed.append(lineno)
                 logger.error(
                     "P0: line %d possible concatenation bug — value contains a second KEY= pattern: %s=...%s",
-                    lineno, key, value[:40],
+                    lineno,
+                    key,
+                    value[:40],
                 )
                 continue
             keys.append(key)
@@ -166,6 +169,7 @@ def validate_env_parse(env_path: Path = _ENV_PATH) -> tuple[bool, dict]:
     else:
         try:
             from app.config import settings
+
             logger.info(
                 "P0: RERANKER_BACKEND absent — config default is '%s'",
                 settings.reranker_backend,
@@ -179,6 +183,7 @@ def validate_env_parse(env_path: Path = _ENV_PATH) -> tuple[bool, dict]:
 # ---------------------------------------------------------------------------
 # P1 — capability probe
 # ---------------------------------------------------------------------------
+
 
 def capability_probe() -> tuple[bool, list[float]]:
     """Load OnnxReranker, score 3 pairs, assert monotonic ordering."""
@@ -194,8 +199,7 @@ def capability_probe() -> tuple[bool, list[float]]:
     logger.info("P1: scores = %s", [round(s, 4) for s in scores])
     if not (scores[0] > scores[1] and scores[2] > scores[1]):
         logger.error(
-            "P1: FAIL — monotonicity broken (relevant should beat irrelevant). "
-            "scores=%s",
+            "P1: FAIL — monotonicity broken (relevant should beat irrelevant). scores=%s",
             scores,
         )
         return False, scores
@@ -207,6 +211,7 @@ def capability_probe() -> tuple[bool, list[float]]:
 # P2 — score correlation vs PyTorch CrossEncoder (OPTIONAL)
 # ---------------------------------------------------------------------------
 
+
 def _spearman_fallback(a: list[float], b: list[float]) -> float:
     """Pure-Python Spearman rank correlation (no scipy dependency).
 
@@ -214,6 +219,7 @@ def _spearman_fallback(a: list[float], b: list[float]) -> float:
     ``spearmanr`` averages tied ranks, this fallback does not.
     """
     import numpy as np
+
     rank_a = np.argsort(np.argsort(a)).astype(float)
     rank_b = np.argsort(np.argsort(b)).astype(float)
     n = len(a)
@@ -264,6 +270,7 @@ def score_correlation(num_pairs: int = 100) -> tuple[bool, Optional[float], str]
 
     try:
         from scipy.stats import spearmanr
+
         spearman_corr, _p = spearmanr(onnx_scores, pytorch_scores)
         spearman_corr = float(spearman_corr)
         spearman_path = "scipy"
@@ -300,9 +307,11 @@ def score_correlation(num_pairs: int = 100) -> tuple[bool, Optional[float], str]
 # P3 — latency benchmark
 # ---------------------------------------------------------------------------
 
+
 def latency_benchmark(num_pairs: int = 100, warm_iters: int = 20) -> tuple[bool, dict]:
     """Cold + warm latency; pass if warm P95 < 600ms and cold P95 < 1500ms."""
     import numpy as np
+
     from services.onnx_reranker import OnnxReranker
 
     reranker = OnnxReranker()
@@ -333,7 +342,12 @@ def latency_benchmark(num_pairs: int = 100, warm_iters: int = 20) -> tuple[bool,
     }
     logger.info(
         "P3: cold=%.1fms warm_p50=%.1fms warm_p95=%.1fms variance=%.1fms² (n=%d, pairs=%d)",
-        cold_ms, warm_p50, warm_p95, variance, warm_iters, len(pairs),
+        cold_ms,
+        warm_p50,
+        warm_p95,
+        variance,
+        warm_iters,
+        len(pairs),
     )
 
     warm_pass = warm_p95 < _WARM_P95_GATE_MS
@@ -341,12 +355,18 @@ def latency_benchmark(num_pairs: int = 100, warm_iters: int = 20) -> tuple[bool,
     if not (warm_pass and cold_pass):
         logger.error(
             "P3: FAIL — warm_p95=%.1fms (need <%dms), cold_p95=%.1fms (need <%dms)",
-            warm_p95, int(_WARM_P95_GATE_MS), cold_p95, int(_COLD_P95_GATE_MS),
+            warm_p95,
+            int(_WARM_P95_GATE_MS),
+            cold_p95,
+            int(_COLD_P95_GATE_MS),
         )
         return False, metrics
     logger.info(
         "P3: PASS — warm_p95=%.1fms <%dms, cold_p95=%.1fms <%dms",
-        warm_p95, int(_WARM_P95_GATE_MS), cold_p95, int(_COLD_P95_GATE_MS),
+        warm_p95,
+        int(_WARM_P95_GATE_MS),
+        cold_p95,
+        int(_COLD_P95_GATE_MS),
     )
     return True, metrics
 
@@ -354,6 +374,7 @@ def latency_benchmark(num_pairs: int = 100, warm_iters: int = 20) -> tuple[bool,
 # ---------------------------------------------------------------------------
 # Driver
 # ---------------------------------------------------------------------------
+
 
 def _format_summary(results: dict) -> str:
     rows = [
@@ -396,8 +417,7 @@ def main() -> int:
         import onnxruntime  # noqa: F401
     except ModuleNotFoundError:
         logger.info(
-            "onnxruntime is not installed — validation is opt-in. "
-            "Skipping P1/P2/P3 (exit 0)."
+            "onnxruntime is not installed — validation is opt-in. Skipping P1/P2/P3 (exit 0)."
         )
         print(_format_summary(results))
         return 0

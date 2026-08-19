@@ -214,7 +214,6 @@ feelings or add emotional framing. Short sentences, then a longer one when
 the teaching needs room. No lists of three for their own sake."""
 
 
-
 # === VOICE RULE (shared generation instruction) ===
 # Single source of truth for the preserve-but-never-invent first-person rule.
 # Referenced by the tier2 prompt, the standard prompt, and the CCR
@@ -261,7 +260,6 @@ Multi-turn awareness:
 - NEVER repeat your introduction in the same conversation
 
 Language: ALWAYS reply in the EXACT language the user writes in."""
-
 
 
 # === DISTRESS ACKNOWLEDGMENT PROMPT ===
@@ -322,7 +320,6 @@ def build_distress_prompt() -> str:
     return DISTRESS_PROMPT.format(helplines_block=helplines_block)
 
 
-
 # === MEDITATION STEPS ===
 MEDITATION_STEPS = [
     {
@@ -376,10 +373,8 @@ MEDITATION_STEPS = [
 ]
 
 
-
 # === FALLBACK RESPONSE ===
 FALLBACK_RESPONSE = "I don't have that specific teaching. 🙏"
-
 
 
 # === MULTI-TURN CONTEXT PROMPT ===
@@ -403,7 +398,6 @@ This creates the feeling of a CONTINUOUS conversation with the guru, not isolate
 CONVERSATION HISTORY (for maintaining teaching continuity):
 {history}
 {lang_suffix}"""
-
 
 
 # === MEDITATION INFUSION PROMPT ===
@@ -504,7 +498,6 @@ Return ONLY a valid JSON object (no markdown, no explanation):
 Begin your response with `{` and end with `}`. No preamble, no explanation."""
 
 
-
 # === FOLLOW-UP RESOLUTION ENHANCEMENT ===
 FOLLOW_UP_ENHANCEMENT = """
 When the user asks a follow-up ("tell me more", "what about that", "explain further"):
@@ -534,8 +527,8 @@ GURU_TONE_ADAPTER_SYSTEM_PROMPT = (
 )
 
 GURU_TONE_ADAPTER_USER_PROMPT = (
-    "Seeker's Question: \"{user_query}\"\n\n"
-    "Raw Retrieval Pipeline Draft:\n\"\"\"{factual_draft}\"\"\"\n\n"
+    'Seeker\'s Question: "{user_query}"\n\n'
+    'Raw Retrieval Pipeline Draft:\n"""{factual_draft}"""\n\n'
     "MANDATORY GURU TONE GUARDRAIL RULES (PersoDPO + GraphRAG Fused):\n"
     "1. SPEAK DIRECTLY TO THE SEEKER: Address them with immediate, grounded, warm, face-to-face intimacy (e.g., 'When you ask for peace, look closely at what is happening inside you right now...').\n"
     "2. NO POETIC ESSAY HOOKS ($Y_{{lose}}$): Do NOT start with dramatic rhetorical intro clichés like 'The seeking for peace... it is a beautiful seeking, isn't it?' or 'Please know this: your heart is longing...'. Jump straight into direct insight.\n"
@@ -552,8 +545,3 @@ GURU_TONE_REFLEXION_CORRECTION_PROMPT = (
     "Your previous attempt scored {overall_score:.1f}/10 due to: {correction_directive}\n"
     "Fix this immediately and output the perfectly aligned response."
 )
-
-
-
-
-

@@ -704,12 +704,20 @@ async def _post(
     headers = {"X-Test-Key": test_key} if test_key else {}
     t0 = time.perf_counter()
     try:
-        r = await client.post(f"{base_url}/api/chat", json=payload, headers=headers, timeout=timeout)
+        r = await client.post(
+            f"{base_url}/api/chat", json=payload, headers=headers, timeout=timeout
+        )
         lat = (time.perf_counter() - t0) * 1000
         if r.status_code == 200:
             data = r.json()
             return {"ok": True, "status": 200, "data": data, "error": "", "latency_ms": lat}
-        return {"ok": False, "status": r.status_code, "data": {}, "error": f"HTTP {r.status_code}: {r.text[:200]}", "latency_ms": lat}
+        return {
+            "ok": False,
+            "status": r.status_code,
+            "data": {},
+            "error": f"HTTP {r.status_code}: {r.text[:200]}",
+            "latency_ms": lat,
+        }
     except (httpx.RequestError, httpx.TimeoutException) as e:
         lat = (time.perf_counter() - t0) * 1000
         return {"ok": False, "status": 0, "data": {}, "error": str(e), "latency_ms": lat}
@@ -743,7 +751,9 @@ async def run_comprehensive(
         blocked = intent in ("CASUAL", "OFF_TOPIC") or status == 403
         blocked_correctly = blocked == b.expect_blocked
 
-        passed = res["ok"] and kw >= 0.4 and intent_match and blocked_correctly and bool(resp.strip())
+        passed = (
+            res["ok"] and kw >= 0.4 and intent_match and blocked_correctly and bool(resp.strip())
+        )
 
         return CompResult(
             query=b.query,
@@ -779,17 +789,19 @@ def print_results(results: list[CompResult]):
     passed = sum(1 for r in results if r.passed)
     total = len(results)
     print(f"\n{'=' * 60}")
-    print(f"  COMPREHENSIVE BENCHMARK RESULTS")
+    print("  COMPREHENSIVE BENCHMARK RESULTS")
     print(f"{'=' * 60}")
     print(f"  Passed: {passed}/{total} ({passed / total:.0%})")
     for r in results:
         sym = "✅" if r.passed else "❌"
         print(f"\n  {sym} [{r.category}] {r.query[:60]}")
-        print(f"      Intent: {r.actual_intent} (expected: {r.expected_intent}) | Latency: {r.latency_ms:.0f}ms | KW: {r.keyword_score:.2f}")
+        print(
+            f"      Intent: {r.actual_intent} (expected: {r.expected_intent}) | Latency: {r.latency_ms:.0f}ms | KW: {r.keyword_score:.2f}"
+        )
         if r.error:
             print(f"      Error: {r.error}")
         if not r.intent_match:
-            print(f"      ⚠️  Intent mismatch")
+            print("      ⚠️  Intent mismatch")
         if not r.blocked_correctly:
             print(f"      ⚠️  Blocked={r.expect_blocked} but got block_status={r.actual_intent}")
 
@@ -828,7 +840,9 @@ def save_report(results: list[CompResult]):
 async def main():
     parser = argparse.ArgumentParser(description="Comprehensive benchmark runner for AskMukthiGuru")
     parser.add_argument("--base-url", default="http://localhost:8000")
-    parser.add_argument("--test-key", default=os.environ.get("BENCHMARK_SECRET") or os.environ.get("JWT_SECRET"))
+    parser.add_argument(
+        "--test-key", default=os.environ.get("BENCHMARK_SECRET") or os.environ.get("JWT_SECRET")
+    )
     parser.add_argument("--concurrency", type=int, default=1)
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--dry-run", action="store_true")
@@ -839,7 +853,9 @@ async def main():
     print(f"   Concurrency: {args.concurrency}")
     print(f"   Queries: {3 if args.dry_run else len(ALL_BENCHMARKS)}")
 
-    results = await run_comprehensive(args.base_url, args.test_key, args.concurrency, args.timeout, args.dry_run)
+    results = await run_comprehensive(
+        args.base_url, args.test_key, args.concurrency, args.timeout, args.dry_run
+    )
     print_results(results)
     save_report(results)
 

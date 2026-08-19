@@ -49,7 +49,11 @@ def test_conversational_filler_does_not_autopass():
     svc = LettuceDetectService(embedder=_FakeEmbedder(sentence_score=0.05, context_score=0.9))
     # "Namaste, thank you for your guidance." is filler + a slightly longer clause,
     # but the fake embedder makes every sentence score below the 0.22 threshold.
-    result = svc.score_faithfulness("any question", "context paragraph one\n\ncontext paragraph two", "Namaste, thank you for your guidance.")
+    result = svc.score_faithfulness(
+        "any question",
+        "context paragraph one\n\ncontext paragraph two",
+        "Namaste, thank you for your guidance.",
+    )
     assert result["is_faithful"] is False
 
 

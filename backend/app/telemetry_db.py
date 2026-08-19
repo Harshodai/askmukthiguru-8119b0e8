@@ -9,9 +9,7 @@ evaluations, and user feedback via Supabase.
 
 import logging
 import re
-from datetime import datetime, timedelta, timezone
-
-UTC = timezone.utc
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 from supabase import Client, create_client
@@ -83,7 +81,7 @@ async def log_router_decision(
         return None
 
     import uuid
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     trace_id = str(uuid.uuid4())
     decision_payload = {
@@ -93,7 +91,7 @@ async def log_router_decision(
         "confidence": round(confidence, 6),
         "method": method,
         "shadow_tier": shadow_tier,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
     try:
@@ -189,7 +187,10 @@ async def log_query_trace(query_data: dict, response_data: dict) -> None:
                 trigger_payloads.append(
                     {
                         "query_id": query_data["id"],
-                        "trigger_name": t.get("name") or t.get("trigger_name") or t.get("type") or "unknown",
+                        "trigger_name": t.get("name")
+                        or t.get("trigger_name")
+                        or t.get("type")
+                        or "unknown",
                         "metadata": t.get("metadata", {}),
                         "created_at": query_data["created_at"],
                     }
@@ -229,7 +230,7 @@ async def get_recent_traces(limit: int = 50) -> list[dict[str, Any]]:
                         row[k] = v
                     else:
                         row[f"response_{k}"] = v
-            
+
             # Map trace_spans
             spans = row.pop("trace_spans", [])
             for span in spans:
@@ -244,7 +245,9 @@ async def get_recent_traces(limit: int = 50) -> list[dict[str, Any]]:
         return []
 
 
-async def get_kpis(from_date: Optional[str] = None, to_date: Optional[str] = None) -> dict[str, Any]:
+async def get_kpis(
+    from_date: Optional[str] = None, to_date: Optional[str] = None
+) -> dict[str, Any]:
     """Fetch aggregated KPI snapshot from Supabase."""
     client = _get_client()
     if not client:
@@ -532,7 +535,9 @@ async def get_timeseries_data(
                     up = sum(1 for r in ratings if r > 0)
                     bucket["value"] = up / len(ratings) if ratings else 0.0
                 else:
-                    bucket["value"] = bucket["value"] / bucket["count"] if bucket["count"] > 0 else 0
+                    bucket["value"] = (
+                        bucket["value"] / bucket["count"] if bucket["count"] > 0 else 0
+                    )
             # For queries and cost_usd, value is already summed
 
             # Remove temporary fields
@@ -1461,10 +1466,16 @@ async def get_node_latencies(limit: int = 1000) -> list[dict[str, Any]]:
     if not client:
         return []
     try:
-        resp = client.table("trace_spans").select("name, duration_ms").order("start_ms", desc=True).limit(limit).execute()
+        resp = (
+            client.table("trace_spans")
+            .select("name, duration_ms")
+            .order("start_ms", desc=True)
+            .limit(limit)
+            .execute()
+        )
         if not resp.data:
             return []
-        
+
         # Aggregate in Python
         node_latencies = {}
         for row in resp.data:
@@ -1474,14 +1485,16 @@ async def get_node_latencies(limit: int = 1000) -> list[dict[str, Any]]:
                 if name not in node_latencies:
                     node_latencies[name] = []
                 node_latencies[name].append(dur)
-                
+
         averages = []
         for name, durs in node_latencies.items():
-            averages.append({
-                "node": name,
-                "avg_latency_ms": round(sum(durs) / len(durs), 2) if durs else 0.0,
-                "count": len(durs)
-            })
+            averages.append(
+                {
+                    "node": name,
+                    "avg_latency_ms": round(sum(durs) / len(durs), 2) if durs else 0.0,
+                    "count": len(durs),
+                }
+            )
         return averages
     except Exception as e:
         logger.error(f"Failed to query node latencies: {e}")

@@ -21,7 +21,9 @@ async def get_profile_endpoint(
 ):
     """Fetch the authenticated user's spiritual profile."""
     if not container.user_profile:
-        raise HTTPException(status_code=501, detail="Profile features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Profile features are not available at this time."
+        )
 
     profile = await container.user_profile.get_or_create_profile(user["id"])
     return asdict(profile)
@@ -35,7 +37,9 @@ async def update_profile_endpoint(
 ):
     """Update user preferences and spiritual level."""
     if not container.user_profile:
-        raise HTTPException(status_code=501, detail="Profile features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Profile features are not available at this time."
+        )
 
     profile = await container.user_profile.get_or_create_profile(user["id"])
 

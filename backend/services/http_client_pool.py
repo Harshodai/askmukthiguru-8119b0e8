@@ -20,13 +20,12 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from anyio import Lock as AsyncLock
 import httpx
+from anyio import Lock as AsyncLock
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,6 @@ DEFAULT_LIMITS = httpx.Limits(
 )
 
 
-
 async def get_client() -> httpx.AsyncClient:
     """Get or create the global AsyncClient."""
     global _client
@@ -53,7 +51,9 @@ async def get_client() -> httpx.AsyncClient:
         async with _lock:
             if _client is None:
                 _client = httpx.AsyncClient(limits=DEFAULT_LIMITS, timeout=30.0)
-                logger.info(f"HTTP client pool initialized (max_connections={_max_conn}, keepalive={_max_keep})")
+                logger.info(
+                    f"HTTP client pool initialized (max_connections={_max_conn}, keepalive={_max_keep})"
+                )
     return _client
 
 

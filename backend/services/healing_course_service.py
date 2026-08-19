@@ -62,24 +62,69 @@ SIGNAL_TO_SLUG: dict[str, str] = {
 # never trips the "stress" keyword. "general" is the fallback signal.
 _SIGNAL_KEYWORDS: dict[str, tuple[str, ...]] = {
     "grief": (
-        "grief", "grieving", "died", "death", "passed away", "funeral", "widow",
-        "miscarriage", "heartbreak", "breakup", "divorce", "lost", "loss", "bereav",
+        "grief",
+        "grieving",
+        "died",
+        "death",
+        "passed away",
+        "funeral",
+        "widow",
+        "miscarriage",
+        "heartbreak",
+        "breakup",
+        "divorce",
+        "lost",
+        "loss",
+        "bereav",
     ),
     "anxiety": (
-        "anxious", "anxiety", "panic", "worried", "worry", "worrying",
-        "insomnia", "dread", "nervous", "overwhelmed", "overwhelm",
-        "stress", "stressed", "tense", "tension",
+        "anxious",
+        "anxiety",
+        "panic",
+        "worried",
+        "worry",
+        "worrying",
+        "insomnia",
+        "dread",
+        "nervous",
+        "overwhelmed",
+        "overwhelm",
+        "stress",
+        "stressed",
+        "tense",
+        "tension",
     ),
     "anger": (
-        "angry", "anger", "furious", "rage", "resent", "betrayed",
-        "argument", "forgive", "conflict",
+        "angry",
+        "anger",
+        "furious",
+        "rage",
+        "resent",
+        "betrayed",
+        "argument",
+        "forgive",
+        "conflict",
     ),
     "loneliness": (
-        "lonely", "alone", "aloneness", "no one", "nobody", "isolated", "abandoned",
+        "lonely",
+        "alone",
+        "aloneness",
+        "no one",
+        "nobody",
+        "isolated",
+        "abandoned",
     ),
     "meaninglessness": (
-        "pointless", "meaningless", "meaninglessness", "meaning", "no meaning",
-        "no purpose", "empty inside", "numb", "why am i here", "why am i alive",
+        "pointless",
+        "meaningless",
+        "meaninglessness",
+        "meaning",
+        "no meaning",
+        "no purpose",
+        "empty inside",
+        "numb",
+        "why am i here",
+        "why am i alive",
     ),
 }
 
@@ -113,9 +158,7 @@ def _timestamp_of(turn: dict[str, Any], now: float) -> float:
         return now
 
 
-def suffering_signal_from_text(
-    text: str, detected_signals: list[str] | None = None
-) -> str:
+def suffering_signal_from_text(text: str, detected_signals: list[str] | None = None) -> str:
     """Classify a message into a SufferingSignal; 'general' when calm/unknown."""
     if not text and not detected_signals:
         return "general"
@@ -290,13 +333,9 @@ async def maybe_assign_healing_course(
         consecutive_threshold=(
             consecutive_threshold or settings.proactive_course_consecutive_threshold
         ),
-        frequency_threshold=(
-            frequency_threshold or settings.proactive_course_frequency_threshold
-        ),
+        frequency_threshold=(frequency_threshold or settings.proactive_course_frequency_threshold),
         frequency_window=frequency_window or settings.proactive_course_frequency_window,
-        repeat_window_hours=(
-            repeat_window_hours or settings.proactive_course_repeat_window_hours
-        ),
+        repeat_window_hours=(repeat_window_hours or settings.proactive_course_repeat_window_hours),
     )
     if trigger is None:
         return None

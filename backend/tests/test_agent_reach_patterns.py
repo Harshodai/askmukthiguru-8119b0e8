@@ -10,10 +10,8 @@ Verifies:
 
 from __future__ import annotations
 
-import asyncio
 import shutil
 import subprocess
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -29,6 +27,7 @@ from services.transcript_polisher import polish_transcript
 
 def test_is_safe_public_url_security(monkeypatch):
     """Verify SSRF validation blocks private IPs and internal metadata hosts."""
+
     def fake_getaddrinfo(host, port, *args, **kwargs):
         if host in {"example.com", "www.youtube.com"}:
             return [(2, 1, 6, "", ("93.184.215.14", port))]
@@ -37,9 +36,11 @@ def test_is_safe_public_url_security(monkeypatch):
         if host == "localhost":
             return [(2, 1, 6, "", ("127.0.0.1", port))]
         import socket
+
         raise socket.gaierror(-2, "Name or service not known")
 
     import socket
+
     monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
 
     assert is_safe_public_url("https://example.com/article") is True
@@ -57,7 +58,9 @@ def test_is_safe_public_url_security(monkeypatch):
 @pytest.mark.asyncio
 async def test_web_scraper_jina_fallback():
     """Verify web_scraper uses Jina Reader or falls back to BeautifulSoup."""
-    mock_is_safe = lambda url: True
+
+    def mock_is_safe(url):
+        return True
 
     # Case 1: Jina fails -> BeautifulSoup fallback
     with patch("ingest.web_scraper.fetch_web_article_jina", new=AsyncMock(return_value=None)):
@@ -80,7 +83,9 @@ async def test_web_scraper_jina_fallback():
 
     # Case 2: Jina succeeds
     jina_content = "# Spiritual Article\n\nPure clean markdown text from Jina Reader"
-    with patch("ingest.web_scraper.fetch_web_article_jina", new=AsyncMock(return_value=jina_content)):
+    with patch(
+        "ingest.web_scraper.fetch_web_article_jina", new=AsyncMock(return_value=jina_content)
+    ):
         result = await scrape_and_clean_web_article("https://example.com/wisdom", mock_is_safe)
         assert "Pure clean markdown text from Jina Reader" in result
 
@@ -90,7 +95,17 @@ def test_compress_and_chunk_audio(tmp_path):
     """Verify mono/16kHz compression and keyframe-segment chunking against a real ffmpeg run."""
     src = tmp_path / "tone.wav"
     subprocess.run(
-        ["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=2", "-y", str(src)],
+        [
+            "ffmpeg",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2",
+            "-y",
+            str(src),
+        ],
         check=True,
     )
 
@@ -125,13 +140,14 @@ def test_parse_rss_feed():
         assert entries[0]["link"] == "https://example.com/episode1"
 
 
-
 @pytest.mark.asyncio
 async def test_transcript_polisher():
     """Verify transcript polishing via LLM service."""
     raw_text = "welcome everyone today we talk about spiritual peace and inner stillness"
     mock_response = MagicMock()
-    mock_response.content = "Welcome everyone. Today, we talk about spiritual peace and inner stillness."
+    mock_response.content = (
+        "Welcome everyone. Today, we talk about spiritual peace and inner stillness."
+    )
 
     mock_llm_service = MagicMock()
     mock_llm_service.generate = AsyncMock(return_value=mock_response)

@@ -141,11 +141,7 @@ class InMemoryCacheAdapter(ICacheRepository):
             "max_size": self._cache.maxsize,
             "hits": self._hits,
             "misses": self._misses,
-            "hit_rate": (
-                f"{self._hits / total:.1%}"
-                if total > 0
-                else "N/A"
-            ),
+            "hit_rate": (f"{self._hits / total:.1%}" if total > 0 else "N/A"),
         }
 
     def health_check(self) -> bool:

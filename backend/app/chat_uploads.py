@@ -3,6 +3,7 @@
 Uploads are deliberately converted to bounded evidence text and are not persisted
 or indexed. Long-lived corpus ingestion remains an explicit user/admin action.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -29,8 +30,23 @@ MAX_OFFICE_MEMBER_BYTES = 4 * 1024 * 1024
 MAX_OFFICE_UNCOMPRESSED_BYTES = 20 * 1024 * 1024
 
 _ALLOWED_TEXT_EXTENSIONS = {
-    ".txt", ".md", ".markdown", ".csv", ".tsv", ".json", ".log", ".xml",
-    ".html", ".htm", ".yaml", ".yml", ".py", ".js", ".ts", ".tsx", ".jsx",
+    ".txt",
+    ".md",
+    ".markdown",
+    ".csv",
+    ".tsv",
+    ".json",
+    ".log",
+    ".xml",
+    ".html",
+    ".htm",
+    ".yaml",
+    ".yml",
+    ".py",
+    ".js",
+    ".ts",
+    ".tsx",
+    ".jsx",
 }
 _ALLOWED_DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".pptx", ".xlsx"}
 _ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
@@ -96,6 +112,7 @@ def _extract_office_text(path: str) -> str:
             raw = archive.read(info).decode("utf-8", errors="ignore")
             text = raw.replace("><", "> <")
             import re
+
             text = re.sub(r"<[^>]+>", " ", text)
             text = " ".join(text.split())
             if text:
@@ -123,7 +140,9 @@ def _extract_pdf_text(path: str) -> str:
     return completed.stdout.decode("utf-8", errors="replace").replace("\x00", "").strip()
 
 
-async def _extract_media_text(path: str, name: str, mime_type: str, language: str | None, ocr_service: Any) -> tuple[str, str]:
+async def _extract_media_text(
+    path: str, name: str, mime_type: str, language: str | None, ocr_service: Any
+) -> tuple[str, str]:
     ext = _extension(name)
     if mime_type.startswith("image/") or ext in _ALLOWED_IMAGE_EXTENSIONS:
         if ocr_service is None:
@@ -134,7 +153,11 @@ async def _extract_media_text(path: str, name: str, mime_type: str, language: st
         except Exception as exc:
             logger.warning("Image OCR failed for %s: %s", name, exc)
             return "", "ocr_failed"
-    if mime_type.startswith("audio/") or mime_type.startswith("video/") or ext in (_ALLOWED_AUDIO_EXTENSIONS | _ALLOWED_VIDEO_EXTENSIONS):
+    if (
+        mime_type.startswith("audio/")
+        or mime_type.startswith("video/")
+        or ext in (_ALLOWED_AUDIO_EXTENSIONS | _ALLOWED_VIDEO_EXTENSIONS)
+    ):
         try:
             transcript = await asyncio.to_thread(
                 transcribe_with_whisper,
@@ -184,12 +207,16 @@ async def extract_chat_attachment(
                 logger.warning("Office extraction failed for %s: %s", safe_name, exc)
                 text = ""
                 status = "office_extraction_failed"
-        elif ext in (_ALLOWED_IMAGE_EXTENSIONS | _ALLOWED_AUDIO_EXTENSIONS | _ALLOWED_VIDEO_EXTENSIONS) or mime_type.startswith(("image/", "audio/", "video/")):
+        elif ext in (
+            _ALLOWED_IMAGE_EXTENSIONS | _ALLOWED_AUDIO_EXTENSIONS | _ALLOWED_VIDEO_EXTENSIONS
+        ) or mime_type.startswith(("image/", "audio/", "video/")):
             suffix = ext if ext else ".bin"
             with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
                 tmp.write(payload)
                 temp_path = tmp.name
-            text, status = await _extract_media_text(temp_path, safe_name, mime_type, language, ocr_service)
+            text, status = await _extract_media_text(
+                temp_path, safe_name, mime_type, language, ocr_service
+            )
         else:
             text = ""
             status = "unsupported_type"

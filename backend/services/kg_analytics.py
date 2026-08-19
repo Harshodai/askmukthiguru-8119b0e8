@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 # Default analytics config
 _MAX_NODES_FOR_HITS = 500  # HITS is O(N^2) per iteration; skip for huge graphs
 _MAX_NODES_FOR_CLOSENESS = 1000  # closeness is all-pairs shortest path
-_MAX_NODES_FOR_EXACT_BETWEENNESS = 2000  # exact betweenness is O(N^3); use k-sample approx above this
+_MAX_NODES_FOR_EXACT_BETWEENNESS = (
+    2000  # exact betweenness is O(N^3); use k-sample approx above this
+)
 
 
 def _as_undirected(graph: dict[str, Any]) -> nx.Graph:
@@ -172,7 +174,9 @@ def export_d3blocks_html(graph: dict[str, Any], title: str = "Wisdom Map") -> st
     try:
         from d3blocks import D3Blocks
     except ImportError as e:
-        raise ImportError("d3blocks is required for HTML export. Install: pip install d3blocks>=1.4.0") from e
+        raise ImportError(
+            "d3blocks is required for HTML export. Install: pip install d3blocks>=1.4.0"
+        ) from e
 
     nodes = graph.get("nodes", [])
     edges = graph.get("edges", [])
@@ -207,6 +211,7 @@ def export_d3blocks_html(graph: dict[str, Any], title: str = "Wisdom Map") -> st
         node_color = [type_color.get(n.get("type"), 0) for n in nodes]
 
     import matplotlib as mpl
+
     cmap = mpl.colormaps["tab10"]
     hex_colors = [mpl.colors.rgb2hex(cmap(c % 10)[:3]) for c in node_color]
 
@@ -230,8 +235,12 @@ def export_d3blocks_html(graph: dict[str, Any], title: str = "Wisdom Map") -> st
     # Build color/size/label arrays in adjacency-matrix column order
     adj_nodes = list(d3.D3graph.adjmat.columns)
     nid_to_idx = {n["id"]: i for i, n in enumerate(nodes)}
-    labels_ordered = [node_labels[nid_to_idx[nid]] if nid in nid_to_idx else nid for nid in adj_nodes]
-    colors_ordered = [hex_colors[nid_to_idx[nid]] if nid in nid_to_idx else "#000080" for nid in adj_nodes]
+    labels_ordered = [
+        node_labels[nid_to_idx[nid]] if nid in nid_to_idx else nid for nid in adj_nodes
+    ]
+    colors_ordered = [
+        hex_colors[nid_to_idx[nid]] if nid in nid_to_idx else "#000080" for nid in adj_nodes
+    ]
     sizes_ordered = [sizes[nid_to_idx[nid]] if nid in nid_to_idx else 5 for nid in adj_nodes]
 
     d3.D3graph.set_node_properties(
@@ -259,7 +268,7 @@ def export_d3blocks_html(graph: dict[str, Any], title: str = "Wisdom Map") -> st
             dark_mode=True,
             show_controls=True,
         )
-        with open(tmp_path, "r", encoding="utf-8") as f:
+        with open(tmp_path, encoding="utf-8") as f:
             html = f.read()
     finally:
         try:

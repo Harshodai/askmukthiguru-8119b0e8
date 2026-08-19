@@ -1,4 +1,5 @@
 """Regression tests for attachment-aware retrieval isolation."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -11,7 +12,7 @@ def test_attachment_context_is_cache_personalization_sensitive() -> None:
     ctx = SimpleNamespace(
         personalization_eligible=False,
         state={},
-        request=SimpleNamespace(attachment_context="[ATTACHED MATERIAL]") ,
+        request=SimpleNamespace(attachment_context="[ATTACHED MATERIAL]"),
     )
 
     assert _is_personalization_eligible(ctx) is True

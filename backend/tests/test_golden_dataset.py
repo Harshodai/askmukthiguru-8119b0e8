@@ -4,6 +4,7 @@
 # doctrine, which violates SPEC_DEV. Bump this assertion when more real
 # questions are added to backend/benchmarks/question_bank.py.
 """
+
 import json
 import subprocess
 import sys

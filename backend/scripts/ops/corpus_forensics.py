@@ -44,9 +44,10 @@ import re
 import statistics
 import sys
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 _BACKEND = Path(__file__).resolve().parents[2]
 if str(_BACKEND) not in sys.path:
@@ -105,8 +106,11 @@ def _scroll(client, collection: str, cap: int | None) -> Iterator[dict]:
     offset, seen = None, 0
     while True:
         records, offset = client.scroll(
-            collection_name=collection, limit=1000, offset=offset,
-            with_payload=True, with_vectors=False,
+            collection_name=collection,
+            limit=1000,
+            offset=offset,
+            with_payload=True,
+            with_vectors=False,
         )
         for rec in records:
             yield rec.payload or {}
@@ -187,22 +191,26 @@ def field_parity(target: dict[str, Any], source: dict[str, Any]) -> dict[str, An
     for field, count in sorted(s_fields.items(), key=lambda kv: -kv[1]):
         if field in t_fields:
             continue
-        lost.append({
-            "field": field,
-            "source_coverage": round(count / s_n, 4),
-            "source_count": count,
-        })
+        lost.append(
+            {
+                "field": field,
+                "source_coverage": round(count / s_n, 4),
+                "source_count": count,
+            }
+        )
 
     broken_caps = []
     for capability, fields in _CAPABILITY_FIELDS.items():
         missing = [f for f in fields if f not in t_fields and f in s_fields]
         if missing:
             cov = max((s_fields.get(f, 0) / s_n) for f in missing)
-            broken_caps.append({
-                "capability": capability,
-                "missing_fields": missing,
-                "source_coverage": round(cov, 4),
-            })
+            broken_caps.append(
+                {
+                    "capability": capability,
+                    "missing_fields": missing,
+                    "source_coverage": round(cov, 4),
+                }
+            )
     broken_caps.sort(key=lambda c: -c["source_coverage"])
 
     return {
@@ -213,7 +221,8 @@ def field_parity(target: dict[str, Any], source: dict[str, Any]) -> dict[str, An
         "gained_fields": sorted(set(t_fields) - set(s_fields)),
         "bloat_in_target": [
             {"field": f, "coverage": round(t_fields[f] / t_n, 4)}
-            for f in _KNOWN_BLOAT if f in t_fields
+            for f in _KNOWN_BLOAT
+            if f in t_fields
         ],
     }
 
@@ -236,16 +245,24 @@ def _verdict(rate: float, chunks: int) -> tuple[str, float, list[str]]:
         return "MIGRATE", 0.90, reasons
 
     if rate <= _MIGRATE_RISKY_MAX:
-        return "MIGRATE_THEN_VERIFY", 0.45, [
-            f"contamination {rate:.2%} sits in the "
-            f"{_MIGRATE_CLEAN_MAX:.0%}-{_MIGRATE_RISKY_MAX:.0%} band; re-chunking "
-            "amplifies contamination unpredictably here — verify post-write"
-        ]
+        return (
+            "MIGRATE_THEN_VERIFY",
+            0.45,
+            [
+                f"contamination {rate:.2%} sits in the "
+                f"{_MIGRATE_CLEAN_MAX:.0%}-{_MIGRATE_RISKY_MAX:.0%} band; re-chunking "
+                "amplifies contamination unpredictably here — verify post-write"
+            ],
+        )
 
-    return "REFETCH_FROM_ORIGIN", 0.95, [
-        f"contamination {rate:.2%} > {_MIGRATE_RISKY_MAX:.0%}; the one measured "
-        "re-ingest went 46.4% -> 98.8% after re-chunking. Migration cannot clean this."
-    ]
+    return (
+        "REFETCH_FROM_ORIGIN",
+        0.95,
+        [
+            f"contamination {rate:.2%} > {_MIGRATE_RISKY_MAX:.0%}; the one measured "
+            "re-ingest went 46.4% -> 98.8% after re-chunking. Migration cannot clean this."
+        ],
+    )
 
 
 def build_forensic(scan_result: dict, parity: dict | None) -> dict[str, Any]:
@@ -258,15 +275,17 @@ def build_forensic(scan_result: dict, parity: dict | None) -> dict[str, Any]:
     parent_health: dict[str, Any] = {"present": bool(plens)}
     if plens:
         useless = sum(1 for L in plens if L < _MIN_USEFUL_PARENT_CHARS)
-        parent_health.update({
-            "median_chars": statistics.median(plens),
-            "unusable": useless,
-            "unusable_rate": round(useless / len(plens), 4),
-            "target_min_chars": _MIN_USEFUL_PARENT_CHARS,
-        })
+        parent_health.update(
+            {
+                "median_chars": statistics.median(plens),
+                "unusable": useless,
+                "unusable_rate": round(useless / len(plens), 4),
+                "target_min_chars": _MIN_USEFUL_PARENT_CHARS,
+            }
+        )
 
     report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "collection": scan_result["collection"],
         "scanned": total,
         "sources": len(srcs),
@@ -303,16 +322,23 @@ def build_feasibility(scan_result: dict) -> dict[str, Any]:
     for src, s in scan_result["per_source"].items():
         rate = s["poisoned"] / s["total"] if s["total"] else 0.0
         verdict, conf, reasons = _verdict(rate, s["total"])
-        rows.append({
-            "source_url": src, "chunks": s["total"], "poisoned": s["poisoned"],
-            "contamination_rate": round(rate, 4), "verdict": verdict,
-            "confidence": conf, "reasons": reasons, "samples": s["samples"],
-        })
+        rows.append(
+            {
+                "source_url": src,
+                "chunks": s["total"],
+                "poisoned": s["poisoned"],
+                "contamination_rate": round(rate, 4),
+                "verdict": verdict,
+                "confidence": conf,
+                "reasons": reasons,
+                "samples": s["samples"],
+            }
+        )
     rows.sort(key=lambda r: (-r["contamination_rate"], -r["chunks"]))
     tally = Counter(r["verdict"] for r in rows)
     migratable = [r for r in rows if r["verdict"] == "MIGRATE"]
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "collection": scan_result["collection"],
         "total_sources": len(rows),
         "verdicts": dict(tally),
@@ -328,7 +354,7 @@ def _print_forensic(r: dict) -> None:
     print(f"\ncollection  : {r['collection']}")
     print(f"scanned     : {r['scanned']:,} chunks across {r['sources']} sources")
     c = r["contamination"]
-    print(f"CONTAMINATED: {c['poisoned']:,} ({100*c['rate']:.1f}%)")
+    print(f"CONTAMINATED: {c['poisoned']:,} ({100 * c['rate']:.1f}%)")
     d = r["duplication"]
     print(f"duplication : {d['redundant_copies']:,} redundant copies / {d['groups']:,} groups")
 
@@ -338,11 +364,17 @@ def _print_forensic(r: dict) -> None:
         print("  ABSENT — no parent_text. Every chunk is served without surrounding")
         print("  context; the documented Parent-Child Retrieval path is dead here.")
     else:
-        print(f"  median parent {pc['median_chars']:.0f} chars (target >= {pc['target_min_chars']})")
-        print(f"  UNUSABLE: {pc['unusable']:,} ({100*pc['unusable_rate']:.1f}%) shorter than target")
+        print(
+            f"  median parent {pc['median_chars']:.0f} chars (target >= {pc['target_min_chars']})"
+        )
+        print(
+            f"  UNUSABLE: {pc['unusable']:,} ({100 * pc['unusable_rate']:.1f}%) shorter than target"
+        )
 
     cr, rr = r["citation_readiness"], r["retrieval_readiness"]
-    print(f"\ncitation-ready: {'YES' if cr['ready'] else 'NO — missing ' + ', '.join(cr['missing'])}")
+    print(
+        f"\ncitation-ready: {'YES' if cr['ready'] else 'NO — missing ' + ', '.join(cr['missing'])}"
+    )
     if rr["missing"]:
         print(f"retrieval gaps : missing {', '.join(rr['missing'])}")
     if rr["pooling_mixed"]:
@@ -361,12 +393,14 @@ def _print_forensic(r: dict) -> None:
         if fp["broken_capabilities"]:
             print("CAPABILITIES LOST:")
             for cap in fp["broken_capabilities"]:
-                print(f"  {100*cap['source_coverage']:5.1f}% src coverage  {cap['capability']}")
+                print(f"  {100 * cap['source_coverage']:5.1f}% src coverage  {cap['capability']}")
                 print(f"         missing: {', '.join(cap['missing_fields'])}")
         else:
             print("  no capability-bearing field lost")
         if fp["bloat_in_target"]:
-            b = ", ".join(f"{x['field']} ({100*x['coverage']:.0f}%)" for x in fp["bloat_in_target"])
+            b = ", ".join(
+                f"{x['field']} ({100 * x['coverage']:.0f}%)" for x in fp["bloat_in_target"]
+            )
             print(f"BLOAT CARRIED FORWARD: {b}")
 
 
@@ -377,9 +411,13 @@ def _print_feasibility(r: dict, top: int) -> None:
     for v, n in sorted(r["verdicts"].items(), key=lambda kv: -kv[1]):
         print(f"  {n:5}  {v}")
     pct = 100 * r["migratable_chunks"] / max(r["total_chunks"], 1)
-    print(f"\nmigratable : {r['migratable_sources']}/{r['total_sources']} sources, "
-          f"{r['migratable_chunks']:,}/{r['total_chunks']:,} chunks ({pct:.1f}%)")
-    print(f"\nCAN WE BULK RE-INGEST EVERYTHING?  {'YES' if r['bulk_reingest_all_sources'] else 'NO'}")
+    print(
+        f"\nmigratable : {r['migratable_sources']}/{r['total_sources']} sources, "
+        f"{r['migratable_chunks']:,}/{r['total_chunks']:,} chunks ({pct:.1f}%)"
+    )
+    print(
+        f"\nCAN WE BULK RE-INGEST EVERYTHING?  {'YES' if r['bulk_reingest_all_sources'] else 'NO'}"
+    )
     if not r["bulk_reingest_all_sources"]:
         n = r["verdicts"].get("REFETCH_FROM_ORIGIN", 0)
         print(f"  {n} source(s) exceed the migration ceiling. Re-chunking AMPLIFIES")
@@ -390,16 +428,19 @@ def _print_feasibility(r: dict, top: int) -> None:
     if worst:
         print(f"\ntop {len(worst)} problem sources:")
         for s in worst:
-            print(f"  {100*s['contamination_rate']:5.1f}%  {s['chunks']:5}ch  conf={s['confidence']:.2f}"
-                  f"  {s['verdict']:20} {s['source_url'][:50]}")
+            print(
+                f"  {100 * s['contamination_rate']:5.1f}%  {s['chunks']:5}ch  conf={s['confidence']:.2f}"
+                f"  {s['verdict']:20} {s['source_url'][:50]}"
+            )
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Corpus forensics (read-only).")
     ap.add_argument("mode", choices=("forensic", "feasibility"))
     ap.add_argument("--collection", default=None)
-    ap.add_argument("--compare-to", default=None,
-                    help="forensic mode: source collection for field-parity check")
+    ap.add_argument(
+        "--compare-to", default=None, help="forensic mode: source collection for field-parity check"
+    )
     ap.add_argument("--url", default=None)
     ap.add_argument("--sample", type=int, default=None)
     ap.add_argument("--json", dest="json_out", default=None)
@@ -409,6 +450,7 @@ def main(argv: list[str] | None = None) -> int:
     collection, url = args.collection, args.url
     if not collection or not url:
         from app.config import settings
+
         collection = collection or settings.qdrant_collection
         url = url or settings.qdrant_url
 

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Optional
+from typing import Any
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ class DoctrineService:
             return self._supabase
         if settings.supabase_url and settings.supabase_key:
             from supabase import create_client
+
             try:
                 self._supabase = create_client(settings.supabase_url, settings.supabase_key)
                 return self._supabase
@@ -44,7 +46,12 @@ class DoctrineService:
         if client:
             try:
                 # Run query synchronously (supabase client is sync/threaded)
-                res = client.table("assistant_doctrines").select("*").eq("assistant_slug", assistant_slug).execute()
+                res = (
+                    client.table("assistant_doctrines")
+                    .select("*")
+                    .eq("assistant_slug", assistant_slug)
+                    .execute()
+                )
                 if res.data:
                     doc = res.data[0]
                     self._cache[assistant_slug] = doc
@@ -60,10 +67,10 @@ class DoctrineService:
         """Enhance query with canonical terms if variants are found in the query."""
         doc = await self.get_doctrine(assistant_slug)
         synonyms = doc.get("synonyms_json") or {}
-        
+
         enhanced = query
         query_lower = query.lower()
-        
+
         for canonical, variants in synonyms.items():
             canonical_lower = canonical.lower()
             # If variant is found but canonical term itself is not mentioned, append it
@@ -71,6 +78,6 @@ class DoctrineService:
                 variant_lower = variant.lower()
                 if variant_lower in query_lower and canonical_lower not in query_lower:
                     enhanced += f" {canonical}"
-                    break # Only append canonical once
-                    
+                    break  # Only append canonical once
+
         return enhanced

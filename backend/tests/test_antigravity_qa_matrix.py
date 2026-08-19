@@ -5,9 +5,10 @@ and multilingual handling across representative queries.
 """
 
 import pytest
+
 from guardrails.lightweight_handler import LightweightGuardrailHandler
 from rag.nodes.on_device_intent import classify
-from services.language_router import LanguageRouter, LanguageCode
+from services.language_router import LanguageCode, LanguageRouter
 
 
 @pytest.mark.asyncio
@@ -51,7 +52,7 @@ async def test_domestic_abuse_safety_interception():
     assert res is not None
     assert res.get("blocked") is True
     assert "domestic_abuse_safety" in res.get("reason", "")
-    assert ("112" in res["response"] or "181" in res["response"] or "799-SAFE" in res["response"])
+    assert "112" in res["response"] or "181" in res["response"] or "799-SAFE" in res["response"]
 
 
 @pytest.mark.asyncio
@@ -63,7 +64,11 @@ async def test_medical_replacement_safety_interception():
     assert res is not None
     assert res.get("blocked") is True
     assert "medical" in res.get("reason", "")
-    assert ("professional" in res["response"].lower() or "doctor" in res["response"].lower() or "medical" in res["response"].lower())
+    assert (
+        "professional" in res["response"].lower()
+        or "doctor" in res["response"].lower()
+        or "medical" in res["response"].lower()
+    )
 
 
 @pytest.mark.asyncio
@@ -75,7 +80,11 @@ async def test_divination_future_telling_refusal():
     assert res is not None
     assert res.get("blocked") is True
     assert "divination_and_astrology" in res.get("reason", "")
-    assert ("inner transformation" in res["response"].lower() or "horoscope" in res["response"].lower() or "astrology" in res["response"].lower())
+    assert (
+        "inner transformation" in res["response"].lower()
+        or "horoscope" in res["response"].lower()
+        or "astrology" in res["response"].lower()
+    )
 
 
 @pytest.mark.asyncio
@@ -92,39 +101,43 @@ async def test_output_moderation_unsupported_cure_claims():
 def test_multilingual_script_detection():
     """Verify language router accurately identifies Indian language scripts."""
     router = LanguageRouter()
-    
+
     # Hindi (Devanagari)
     hi_res = router.detect("नमस्ते, मन को शांत कैसे करें?")
     assert hi_res.primary == LanguageCode.HI
-    
+
     # Telugu
     te_res = router.detect("నా మనస్సు చాలా అశాంతిగా ఉంది, నేను ఏమి చేయాలి?")
     assert te_res.primary == LanguageCode.TE
-    
+
     # Tamil
     ta_res = router.detect("என் மனம் மிகவும் அமைதியற்றதாக இருக்கிறது.")
     assert ta_res.primary == LanguageCode.TA
-    
+
     # Kannada
     kn_res = router.detect("ನನ್ನ ಮನಸ್ಸು ತುಂಬಾ ಅಶಾಂತವಾಗಿದೆ.")
     assert kn_res.primary == LanguageCode.KN
-    
+
     # Bengali
     bn_res = router.detect("আমার মন খুব অশান্ত, আমি কি করব?")
     assert bn_res.primary == LanguageCode.BN
-    
+
     # Gujarati
     gu_res = router.detect("મારું મન ખૂબ અશાંત છે, મારે શું કરવું?")
     assert gu_res.primary == LanguageCode.GU
-    
+
     # Malayalam
     ml_res = router.detect("എന്റെ മനസ്സ് വളരെ അസ്വസ്ഥമാണ്.")
     assert ml_res.primary == LanguageCode.ML
-    
+
     # Punjabi
     pa_res = router.detect("ਮੇਰਾ ਮਨ ਬਹੁਤ ਅਸ਼ਾਂਤ ਹੈ, ਮੈਂ ਕੀ ਕਰਾਂ?")
     assert pa_res.primary == LanguageCode.PA
-    
+
     # Hinglish
     hinglish_res = router.detect("Mera mann bohot restless hai, koi meditation batao please")
-    assert hinglish_res.is_codemixed is True or hinglish_res.primary in (LanguageCode.HINGLISH, LanguageCode.HI, LanguageCode.EN)
+    assert hinglish_res.is_codemixed is True or hinglish_res.primary in (
+        LanguageCode.HINGLISH,
+        LanguageCode.HI,
+        LanguageCode.EN,
+    )

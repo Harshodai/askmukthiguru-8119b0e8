@@ -84,9 +84,13 @@ async def test_personalized_answer_not_served_from_generic_cache():
     A's generic cached answer."""
     await CacheUpdateStage().run(_ctx(memory_context=""))
 
-    assert hot_cache.get(CACHE_KEY) is not None, "precondition: generic answer must be in the hot cache"
+    assert hot_cache.get(CACHE_KEY) is not None, (
+        "precondition: generic answer must be in the hot cache"
+    )
 
-    personalized_ctx = _ctx(memory_context="USER PROFILE & CORE FACTS:\n- Seeker is recovering from alcoholism")
+    personalized_ctx = _ctx(
+        memory_context="USER PROFILE & CORE FACTS:\n- Seeker is recovering from alcoholism"
+    )
     result = await CacheCheckStage().run(personalized_ctx)
 
     assert result is None, (
@@ -110,7 +114,9 @@ async def test_tenant_prefix_isolates_caches():
     assert "tenant:tenant-x:" in key_x
     assert "tenant:tenant-y:" in key_y
     assert key_x != key_y, "cache keys must differ across tenants for the same query"
-    assert key_x.endswith(CACHE_KEY), "tenant prefix must wrap, not replace, the (language, message) key"
+    assert key_x.endswith(CACHE_KEY), (
+        "tenant prefix must wrap, not replace, the (language, message) key"
+    )
 
 
 @pytest.mark.asyncio
@@ -135,7 +141,9 @@ async def test_personalized_answer_purges_stale_shared_entry():
     # User A: generic write
     await CacheUpdateStage().run(_ctx(memory_context="", user_id="user-alice"))
 
-    assert hot_cache.get(CACHE_KEY) is not None, "precondition: generic answer must be in the hot cache"
+    assert hot_cache.get(CACHE_KEY) is not None, (
+        "precondition: generic answer must be in the hot cache"
+    )
 
     # User B: personalized write — must invalidate A's stale shared entry
     await CacheUpdateStage().run(
@@ -149,6 +157,7 @@ async def test_personalized_answer_purges_stale_shared_entry():
         "stale shared entry survived: a memory-personalized answer must purge the "
         "previously cached generic answer for the same key"
     )
+
 
 @pytest.mark.asyncio
 async def test_response_preferences_scope_shared_cache_keys():

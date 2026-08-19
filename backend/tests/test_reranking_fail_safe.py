@@ -91,9 +91,7 @@ def mock_services(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_grade_documents_web_grading_failure_keeps_top_three(
-    mock_services, monkeypatch
-):
+async def test_grade_documents_web_grading_failure_keeps_top_three(mock_services, monkeypatch):
     """If web-doc grading raises, only the top-3 reranked web docs are kept."""
     mock_ollama, _, _ = mock_services
 
@@ -143,9 +141,7 @@ async def test_grade_documents_web_grading_failure_keeps_top_three(
 
 
 @pytest.mark.asyncio
-async def test_grade_documents_db_grading_failure_keeps_top_three(
-    mock_services, monkeypatch
-):
+async def test_grade_documents_db_grading_failure_keeps_top_three(mock_services, monkeypatch):
     """If DB-doc grading raises, only the top-3 reranked DB docs are kept —
     it must fail closed like the web-docs branch, not accept every doc
     (which inverts CRAG's entire filtering purpose)."""

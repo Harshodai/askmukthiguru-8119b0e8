@@ -32,9 +32,11 @@ async def test_ontology_relationships_are_merged_with_corpus_provenance():
     assert params["teacher_id"] == "teacher-a"
     assert params["tenant_id"] == "tenant-a"
 
+
 @pytest.mark.asyncio
 async def test_ontology_write_failure_is_explicit():
     from unittest.mock import MagicMock
+
     from ingest.ontology_writer import OntologyWriteError
 
     driver = MagicMock()

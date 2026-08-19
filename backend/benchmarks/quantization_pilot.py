@@ -26,7 +26,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Add backend directory to path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -326,7 +326,9 @@ async def run_benchmark(
     baseline_latencies: list[float] = []
     candidate_latencies: list[float] = []
 
-    use_quant_params_for_pilot = pilot_exists and _is_quantized_collection(baseline_manager, pilot_collection)
+    use_quant_params_for_pilot = pilot_exists and _is_quantized_collection(
+        baseline_manager, pilot_collection
+    )
     if use_quant_params_for_pilot:
         logger.info(
             f"Pilot collection '{pilot_collection}' is quantized; applying "
@@ -371,8 +373,12 @@ async def run_benchmark(
             "top_k": top_k,
         },
         "candidate": {
-            "recall_at_10_mean": statistics.mean(candidate_recalls_10) if candidate_recalls_10 else 0.0,
-            "recall_at_50_mean": statistics.mean(candidate_recalls_50) if candidate_recalls_50 else 0.0,
+            "recall_at_10_mean": statistics.mean(candidate_recalls_10)
+            if candidate_recalls_10
+            else 0.0,
+            "recall_at_50_mean": statistics.mean(candidate_recalls_50)
+            if candidate_recalls_50
+            else 0.0,
             "median_ms": statistics.median(candidate_latencies) if candidate_latencies else 0.0,
             "p95_ms": _percentile(candidate_latencies, 95.0),
             "collection": pilot_collection,
@@ -521,7 +527,14 @@ def _self_check() -> None:
     # Parsing --help would call sys.exit; in self-check mode we only verify the
     # parser object is well-formed by inspecting its actions.
     action_names = {a.dest for a in parser._actions}
-    required = {"queries", "pilot_collection", "top_k", "output", "qdrant_url", "baseline_collection"}
+    required = {
+        "queries",
+        "pilot_collection",
+        "top_k",
+        "output",
+        "qdrant_url",
+        "baseline_collection",
+    }
     assert required <= action_names, f"Missing CLI arguments: {required - action_names}"
 
 

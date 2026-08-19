@@ -9,6 +9,7 @@ Covered here:
   - the rate-limit key function (backend/app/core/limiter.py)
   - the shared is_benchmark_request helper (backend/app/security_utils.py)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -233,6 +234,7 @@ class TestChatV2Endpoint:
         class _MockAnonQuotaService:
             async def check_and_record(self, user):
                 from services.anon_quota_service import QuotaResult
+
                 return QuotaResult(allowed=True, remaining=10, total_limit=10)
 
         class _MockContainer:

@@ -39,7 +39,9 @@ class ChatUser(HttpUser):
         with self.client.post(
             "/api/chat",
             json={
-                "messages": [{"role": "user", "content": "What is the essence of inner stillness?"}],
+                "messages": [
+                    {"role": "user", "content": "What is the essence of inner stillness?"}
+                ],
                 "user_message": "What is the essence of inner stillness?",
                 "language": "en",
                 "session_id": str(self._session_token()),

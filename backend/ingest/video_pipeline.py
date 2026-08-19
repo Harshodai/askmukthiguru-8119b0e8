@@ -9,7 +9,6 @@ import logging
 import os
 import tempfile
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Optional
 
 from ingest.cleaner import clean_transcript
@@ -96,7 +95,20 @@ class VideoPipeline:
                 )
             else:
                 subprocess.run(
-                    ["ffmpeg", "-i", video_path, "-vn", "-acodec", "pcm_s16le", "-ac", "1", "-ar", "16000", "-y", output_path],
+                    [
+                        "ffmpeg",
+                        "-i",
+                        video_path,
+                        "-vn",
+                        "-acodec",
+                        "pcm_s16le",
+                        "-ac",
+                        "1",
+                        "-ar",
+                        "16000",
+                        "-y",
+                        output_path,
+                    ],
                     check=True,
                     capture_output=True,
                     text=True,
@@ -108,7 +120,16 @@ class VideoPipeline:
         # Estimate duration via ffprobe
         try:
             result = subprocess.run(
-                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", video_path],
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    video_path,
+                ],
                 capture_output=True,
                 text=True,
             )
@@ -178,6 +199,7 @@ class VideoPipeline:
         if getattr(settings, "use_adaptive_chunking", True):
             try:
                 from ingest.adaptive_chunking import AdaptiveChunker
+
                 chunker = AdaptiveChunker(
                     embedder=self._embedder,
                     chunk_size=effective_size,
@@ -185,7 +207,10 @@ class VideoPipeline:
                 )
                 return chunker.chunk_document(text)
             except Exception as e:
-                logger.warning("AdaptiveChunker unavailable in VideoPipeline (%s) — falling back to recursive", e)
+                logger.warning(
+                    "AdaptiveChunker unavailable in VideoPipeline (%s) — falling back to recursive",
+                    e,
+                )
 
         # Fallback: RecursiveCharacterTextSplitter with config-driven sizes
         try:
@@ -224,13 +249,15 @@ class VideoPipeline:
             logger.warning(
                 "video_pipeline: rejected %d/%d chunks from %s failing the "
                 "quality gate. First: %r in %r",
-                len(_rejected), len(chunks), source, _rejected[0][1], _rejected[0][2],
+                len(_rejected),
+                len(chunks),
+                source,
+                _rejected[0][1],
+                _rejected[0][2],
             )
             chunks = [chunks[i] for i in _keep]
         if not chunks:
-            logger.warning(
-                "video_pipeline: all chunks from %s rejected — nothing written", source
-            )
+            logger.warning("video_pipeline: all chunks from %s rejected — nothing written", source)
             return 0
 
         embeddings = self._embedder.embed(chunks)

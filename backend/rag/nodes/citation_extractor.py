@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Optional
+from typing import Optional
 
 from rag.states import GraphState
 
@@ -18,9 +18,11 @@ logger = logging.getLogger(__name__)
 
 def _jaccard(a: str, b: str, n: int = 3) -> float:
     """N-gram Jaccard similarity between two strings."""
+
     def _grams(s: str) -> set:
         s = s.lower()
-        return {s[i:i + n] for i in range(len(s) - n + 1)} if len(s) >= n else set()
+        return {s[i : i + n] for i in range(len(s) - n + 1)} if len(s) >= n else set()
+
     ga = _grams(a)
     gb = _grams(b)
     if not ga or not gb:
@@ -32,14 +34,14 @@ def _is_youtube_video_id_title(title: str) -> bool:
     """Check if a title is just a YouTube video ID (11 chars, alphanumeric + _ -)."""
     if not title:
         return False
-    return len(title) == 11 and all(c.isalnum() or c in '_-' for c in title)
+    return len(title) == 11 and all(c.isalnum() or c in "_-" for c in title)
 
 
 def _is_youtube_url(source: str) -> bool:
     """Check if source is a YouTube URL."""
     if not source:
         return False
-    return 'youtube.com' in source.lower() or 'youtu.be' in source.lower()
+    return "youtube.com" in source.lower() or "youtu.be" in source.lower()
 
 
 def extract_citations(state: GraphState) -> dict:
@@ -56,7 +58,6 @@ def extract_citations(state: GraphState) -> dict:
         return {"citations": []}
 
     # Split answer into sentences (crude but fast)
-    import re
     sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", answer) if len(s.strip()) > 10]
 
     citations: list[dict] = []
@@ -84,7 +85,10 @@ def extract_citations(state: GraphState) -> dict:
 
             # Skip citations from YouTube videos with video ID as title (metadata extraction failed)
             if _is_youtube_url(source_for_yt) and _is_youtube_video_id_title(title):
-                logger.debug(f"Skipping citation from YouTube video with ID-only title: {title}", extra={"request_id": state.get("request_id")})
+                logger.debug(
+                    f"Skipping citation from YouTube video with ID-only title: {title}",
+                    extra={"request_id": state.get("request_id")},
+                )
                 continue
 
             # For YouTube videos, also verify title relevance to answer
@@ -92,20 +96,25 @@ def extract_citations(state: GraphState) -> dict:
             if _is_youtube_url(source_for_yt) and title:
                 title_relevance = _jaccard(sent, title)
                 if title_relevance < 0.05:
-                    logger.debug(f"Skipping YouTube citation - title '{title}' not relevant to answer (score: {title_relevance:.3f})", extra={"request_id": state.get("request_id")})
+                    logger.debug(
+                        f"Skipping YouTube citation - title '{title}' not relevant to answer (score: {title_relevance:.3f})",
+                        extra={"request_id": state.get("request_id")},
+                    )
                     continue
 
             doc_identifier = url or meta.get("title") or meta.get("source", "unknown")
 
-            citations.append({
-                "doc_id": doc_identifier,
-                "source_url": url,
-                "title": title or meta.get("source", "Spiritual Teaching"),
-                "quote": sent,
-                "span_in_answer": sent,
-                "confidence": round(best_score, 3),
-                "source": meta.get("source", "Retrieved document"),
-            })
+            citations.append(
+                {
+                    "doc_id": doc_identifier,
+                    "source_url": url,
+                    "title": title or meta.get("source", "Spiritual Teaching"),
+                    "quote": sent,
+                    "span_in_answer": sent,
+                    "confidence": round(best_score, 3),
+                    "source": meta.get("source", "Retrieved document"),
+                }
+            )
 
     logger.info("Extracted %d citations from answer", len(citations))
     return {"citations": citations}

@@ -26,57 +26,208 @@ logger = logging.getLogger(__name__)
 # ── class keyword seeds (used when sentence-transformers is unavailable) ──
 _CLASS_KEYWORDS: dict[str, list[str]] = {
     "ADVERSARIAL": [
-        "ignore previous", "ignore the above", "you are now", "pretend to be", "act as a",
-        "bypass", "jailbreak", "disregard", "override", "hack", "exploit", "leak",
-        "confidential", "private information", "internal", "system prompt", "developer mode",
-        "dan mode", "root access", "admin mode", "sudo", "fake", "fabricated",
-        "fifth sacred secret", "sixth sacred secret", "not real", "does not exist",
+        "ignore previous",
+        "ignore the above",
+        "you are now",
+        "pretend to be",
+        "act as a",
+        "bypass",
+        "jailbreak",
+        "disregard",
+        "override",
+        "hack",
+        "exploit",
+        "leak",
+        "confidential",
+        "private information",
+        "internal",
+        "system prompt",
+        "developer mode",
+        "dan mode",
+        "root access",
+        "admin mode",
+        "sudo",
+        "fake",
+        "fabricated",
+        "fifth sacred secret",
+        "sixth sacred secret",
+        "not real",
+        "does not exist",
     ],
     "DISTRESS": [
-        "sad", "depressed", "lonely", "anxious", "worried", "afraid", "fear", "scared",
-        "grief", "loss", "cry", "crying", "empty", "hopeless", "miserable", "suffering",
-        "pain", "hurt", "broken", "dying", "death", "die", "suicide", "kill", "end it all",
-        "life sucks", "don't want to live", "give up", "lost will", "no reason to live",
-        "helpless", "wounded", "abuse", "trauma", "panic", "stress", "overwhelmed",
-        "want to die", "i want to die",
+        "sad",
+        "depressed",
+        "lonely",
+        "anxious",
+        "worried",
+        "afraid",
+        "fear",
+        "scared",
+        "grief",
+        "loss",
+        "cry",
+        "crying",
+        "empty",
+        "hopeless",
+        "miserable",
+        "suffering",
+        "pain",
+        "hurt",
+        "broken",
+        "dying",
+        "death",
+        "die",
+        "suicide",
+        "kill",
+        "end it all",
+        "life sucks",
+        "don't want to live",
+        "give up",
+        "lost will",
+        "no reason to live",
+        "helpless",
+        "wounded",
+        "abuse",
+        "trauma",
+        "panic",
+        "stress",
+        "overwhelmed",
+        "want to die",
+        "i want to die",
     ],
     "MEDITATION": [
-        "meditate", "meditation", "breathing", "breathe", "mindfulness", "serene mind",
-        "calm", "relax", "quiet", "silence", "inner stillness", "guided meditation",
-        "meditation practice", "how to meditate", "breath awareness",
-        "golden light meditation", "start meditating", "do a meditation", "guide me through",
-        "deeksha session", "soul sync practice", "humming exercise",
+        "meditate",
+        "meditation",
+        "breathing",
+        "breathe",
+        "mindfulness",
+        "serene mind",
+        "calm",
+        "relax",
+        "quiet",
+        "silence",
+        "inner stillness",
+        "guided meditation",
+        "meditation practice",
+        "how to meditate",
+        "breath awareness",
+        "golden light meditation",
+        "start meditating",
+        "do a meditation",
+        "guide me through",
+        "deeksha session",
+        "soul sync practice",
+        "humming exercise",
     ],
     "CASUAL": [
-        "hello", "hi", "hey", "how are you", "what's up", "good morning", "namaste",
-        "thank you", "thanks", "bye", "goodbye", "see you", "nice to meet",
-        "who are you", "what can you do", "what do you know", "tell me about yourself",
-        "capabilities", "help me", "joke", "funny", "weather", "time",
+        "hello",
+        "hi",
+        "hey",
+        "how are you",
+        "what's up",
+        "good morning",
+        "namaste",
+        "thank you",
+        "thanks",
+        "bye",
+        "goodbye",
+        "see you",
+        "nice to meet",
+        "who are you",
+        "what can you do",
+        "what do you know",
+        "tell me about yourself",
+        "capabilities",
+        "help me",
+        "joke",
+        "funny",
+        "weather",
+        "time",
     ],
     "CONVERSATION_RECALL": [
-        "what did i just ask", "what did i ask you", "what was my last question",
-        "repeat what i said", "what were we talking about", "summarize our chat",
-        "what did you say earlier", "can you repeat that", "repeat that", "what did i say",
-        "what did i ask", "what was my question",
+        "what did i just ask",
+        "what did i ask you",
+        "what was my last question",
+        "repeat what i said",
+        "what were we talking about",
+        "summarize our chat",
+        "what did you say earlier",
+        "can you repeat that",
+        "repeat that",
+        "what did i say",
+        "what did i ask",
+        "what was my question",
     ],
     "APP_ORIENTATION": [
-        "what is this app", "how does ask mukthi guru work", "who created this app",
-        "what can i ask here", "how do i use this website", "app guide", "what do you do",
-        "how does this work", "what is ask mukthi guru", "about this app", "what does this app do",
-        "what does the app do", "tell me about this app", "how to use ask mukthi guru",
+        "what is this app",
+        "how does ask mukthi guru work",
+        "who created this app",
+        "what can i ask here",
+        "how do i use this website",
+        "app guide",
+        "what do you do",
+        "how does this work",
+        "what is ask mukthi guru",
+        "about this app",
+        "what does this app do",
+        "what does the app do",
+        "tell me about this app",
+        "how to use ask mukthi guru",
     ],
     "FACTUAL": [
-        "what is", "who is", "where is", "when", "why", "how", "define", "explain",
-        "describe", "meaning of", "teach me", "tell me about", "four sacred secrets",
-        "beautiful state", "ekam", "sri preethaji", "sri krishnaji", "oneness",
-        "soul sync", "deeksha", "manifest 2026", "universal intelligence",
-        "spiritual vision", "inner truth", "consciousness", "enlightenment",
-        "practice", "practicing", "how to practice", "how do i", "how do you",
-        "how can i", "how should i", "how to", "steps to", "guide me", "teach me",
-        "learn to", "guidelines", "instructions", "steps", "process", "method",
+        "what is",
+        "who is",
+        "where is",
+        "when",
+        "why",
+        "how",
+        "define",
+        "explain",
+        "describe",
+        "meaning of",
+        "teach me",
+        "tell me about",
+        "four sacred secrets",
+        "beautiful state",
+        "ekam",
+        "sri preethaji",
+        "sri krishnaji",
+        "oneness",
+        "soul sync",
+        "deeksha",
+        "manifest 2026",
+        "universal intelligence",
+        "spiritual vision",
+        "inner truth",
+        "consciousness",
+        "enlightenment",
+        "practice",
+        "practicing",
+        "how to practice",
+        "how do i",
+        "how do you",
+        "how can i",
+        "how should i",
+        "how to",
+        "steps to",
+        "guide me",
+        "teach me",
+        "learn to",
+        "guidelines",
+        "instructions",
+        "steps",
+        "process",
+        "method",
     ],
     "GUIDED_TOUR": [
-        "start the meditation journey", "guided tour", "guided pathway", "learning path", "journey", "tour", "start journey", "guided journey"
+        "start the meditation journey",
+        "guided tour",
+        "guided pathway",
+        "learning path",
+        "journey",
+        "tour",
+        "start journey",
+        "guided journey",
     ],
 }
 
@@ -119,6 +270,7 @@ def _get_encoder():
         return _ENCODER
     try:
         from sentence_transformers import SentenceTransformer
+
         _ENCODER = SentenceTransformer("all-MiniLM-L6-v2")
         logger.info("On-device intent classifier: loaded all-MiniLM-L6-v2")
     except Exception as exc:
@@ -158,6 +310,7 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
 
 # ── public API ──
 
+
 def classify(text: str, *, threshold: float = 0.45) -> str | None:
     """Fast keyword-based intent classification.
 
@@ -196,7 +349,7 @@ def classify(text: str, *, threshold: float = 0.45) -> str | None:
             return "APP_ORIENTATION"
         if "FACTUAL" in best_intents:
             return "FACTUAL"
-    
+
     return best_intents[0]
 
 
@@ -243,13 +396,23 @@ def classify_with_embeddings(text: str, *, threshold: float = 0.45) -> str | Non
     per_class_threshold = _PER_CLASS_THRESHOLDS.get(best_label, threshold)
     margin = best_score - second_score if second_label is not None else best_score
 
-    if best_label and best_score >= per_class_threshold and (second_label is None or margin >= _MARGIN_THRESHOLD):
-        logger.debug(f"On-device classifier (embedding): {text[:60]}... -> {best_label} ({best_score:.3f})")
+    if (
+        best_label
+        and best_score >= per_class_threshold
+        and (second_label is None or margin >= _MARGIN_THRESHOLD)
+    ):
+        logger.debug(
+            f"On-device classifier (embedding): {text[:60]}... -> {best_label} ({best_score:.3f})"
+        )
         return best_label
     if best_label and best_score < per_class_threshold:
-        logger.debug(f"On-device classifier (embedding): rejecting {best_label} ({best_score:.3f}) — below per-class threshold {per_class_threshold:.2f}")
+        logger.debug(
+            f"On-device classifier (embedding): rejecting {best_label} ({best_score:.3f}) — below per-class threshold {per_class_threshold:.2f}"
+        )
     elif best_label and second_label is not None and margin < _MARGIN_THRESHOLD:
-        logger.debug(f"On-device classifier (embedding): rejecting {best_label} ({best_score:.3f}) — margin {margin:.3f} < {_MARGIN_THRESHOLD}")
+        logger.debug(
+            f"On-device classifier (embedding): rejecting {best_label} ({best_score:.3f}) — margin {margin:.3f} < {_MARGIN_THRESHOLD}"
+        )
     return None
 
 
@@ -274,7 +437,9 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
         r"\bsimilarit(y|ies)\b",
     ]
     if any(re.search(pat, lower) for pat in complex_patterns):
-        logger.info(f"On-device classifier bypass: query contains complex keywords: '{text[:50]}...'")
+        logger.info(
+            f"On-device classifier bypass: query contains complex keywords: '{text[:50]}...'"
+        )
         return None
 
     # Bypass for multi-sentence or very long queries
@@ -286,14 +451,22 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
     # e.g. "Which month's power comes after the Power of Intention?" has 'intention' which
     # accidentally matches MEDITATION seeds. Force FACTUAL for these.
     _MANIFEST_FACTUAL_SIGNALS = [
-        r"\bwhich\s+month", r"\bpower\s+of\s+intention\b", r"\bpower\s+of\s+\w+\b",
-        r"\bmanifest\s+2026\b", r"\bafter\s+the\s+power", r"\bbefore\s+the\s+power",
-        r"\bfollowing\s+power", r"\bnext\s+power", r"\bmonthly\s+power",
+        r"\bwhich\s+month",
+        r"\bpower\s+of\s+intention\b",
+        r"\bpower\s+of\s+\w+\b",
+        r"\bmanifest\s+2026\b",
+        r"\bafter\s+the\s+power",
+        r"\bbefore\s+the\s+power",
+        r"\bfollowing\s+power",
+        r"\bnext\s+power",
+        r"\bmonthly\s+power",
         r"\bjanuary|february|march|april|may|june|july|august|september|october|november|december\b",
     ]
     for signal in _MANIFEST_FACTUAL_SIGNALS:
         if re.search(signal, lower, re.I):
-            logger.info(f"On-device classifier FACTUAL bypass (manifest/temporal signal): '{text[:60]}...'")
+            logger.info(
+                f"On-device classifier FACTUAL bypass (manifest/temporal signal): '{text[:60]}...'"
+            )
             return "FACTUAL", "tier3_complex", "on_device_manifest_temporal_factual"
 
     result = classify_with_embeddings(text, threshold=threshold)
@@ -316,7 +489,6 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
         routing_reason = "tier4_deep_cue"
 
     return intent, tier, routing_reason
-
 
 
 if __name__ == "__main__":

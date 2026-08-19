@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
-from services.second_brain.crypto import AESGCM, _KEY_LEN, _NONCE_LEN, _PREAMBLE, _b64d, _b64e
+from services.second_brain.crypto import _KEY_LEN, _NONCE_LEN, _PREAMBLE, AESGCM, _b64d, _b64e
 from services.tenant_context import TenantContext
 
 logger = logging.getLogger(__name__)
@@ -42,7 +41,7 @@ def encrypt(plaintext: str, user_id: str) -> str:
     kek = _kek()
     aes = AESGCM(kek)
     nonce = os.urandom(_NONCE_LEN)
-    aad = _PREAMBLE + f"persona:{user_id}".encode("utf-8")
+    aad = _PREAMBLE + f"persona:{user_id}".encode()
     ct = aes.encrypt(nonce, plaintext.encode("utf-8"), associated_data=aad)
     return _b64e(_PREAMBLE + nonce + ct)
 
@@ -55,7 +54,7 @@ def decrypt(blob: str, user_id: str) -> str:
         raise ValueError("Corrupt persona ciphertext")
     aes = AESGCM(kek)
     nonce, ct = raw[1 : 1 + _NONCE_LEN], raw[1 + _NONCE_LEN :]
-    aad = _PREAMBLE + f"persona:{user_id}".encode("utf-8")
+    aad = _PREAMBLE + f"persona:{user_id}".encode()
     return aes.decrypt(nonce, ct, associated_data=aad).decode("utf-8")
 
 
@@ -63,7 +62,14 @@ async def get_persona(supabase, user_id: str) -> tuple[Optional[str], Optional[s
     """Return (decrypted persona content, updated_at ISO timestamp) or (None, None)."""
     try:
         tenant_id = TenantContext.get()
-        res = await supabase.table(_TABLE).select("content, updated_at").eq("user_id", user_id).eq("tenant_id", tenant_id).maybe_single().execute()
+        res = (
+            await supabase.table(_TABLE)
+            .select("content, updated_at")
+            .eq("user_id", user_id)
+            .eq("tenant_id", tenant_id)
+            .maybe_single()
+            .execute()
+        )
         if res.data and res.data.get("content"):
             return decrypt(res.data["content"], user_id), res.data.get("updated_at")
     except Exception as e:
@@ -75,15 +81,19 @@ async def save_persona(supabase, user_id: str, content: str) -> bool:
     try:
         tenant_id = TenantContext.get()
         encrypted = encrypt(content, user_id)
-        await supabase.table(_TABLE).upsert(
-            {
-                "user_id": user_id,
-                "tenant_id": tenant_id,
-                "content": encrypted,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            },
-            on_conflict="user_id,tenant_id",
-        ).execute()
+        await (
+            supabase.table(_TABLE)
+            .upsert(
+                {
+                    "user_id": user_id,
+                    "tenant_id": tenant_id,
+                    "content": encrypted,
+                    "updated_at": datetime.now(UTC).isoformat(),
+                },
+                on_conflict="user_id,tenant_id",
+            )
+            .execute()
+        )
         return True
     except Exception as e:
         logger.warning(f"save_persona failed: {e}")

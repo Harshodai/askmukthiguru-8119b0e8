@@ -27,27 +27,23 @@ import os
 import socket
 import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from ingest.social_media_loader import (
-    MAX_INGEST_RESPONSE_BYTES,
     download_streaming_file,
     ingest_social_media,
-    is_social_media_url,
-    resolve_and_validate_hostname,
     validate_safe_url,
 )
 from services.graphrag_fusion import (
-    ContextItem,
     FusedContext,
     GraphRAGFusion,
-    reciprocal_rank_fusion,
 )
-
 
 # ---------------------------------------------------------------------------
 # 1. SSRF Defenses & Scheme Validation
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "url, expected_error_substring",
@@ -62,7 +58,7 @@ from services.graphrag_fusion import (
         ("http://2130706433/video.mp4", "prohibited IP"),  # 127.0.0.1 decimal
         ("http://0x7f000001/video.mp4", "prohibited IP"),  # 127.0.0.1 hex
         ("http://0177.0.0.1/video.mp4", "prohibited IP"),  # 127.0.0.1 octal
-        ("http://0x7f.1/video.mp4", "prohibited IP"),      # 127.0.0.1 mixed
+        ("http://0x7f.1/video.mp4", "prohibited IP"),  # 127.0.0.1 mixed
         # Private & Cloud Metadata
         ("http://10.0.0.1/video.mp4", "prohibited IP"),
         ("http://192.168.1.1/video.mp4", "prohibited IP"),
@@ -83,15 +79,15 @@ from services.graphrag_fusion import (
 def test_ssrf_and_scheme_rejections(url: str, expected_error_substring: str):
     is_safe, reason = validate_safe_url(url)
     assert not is_safe, f"Expected URL '{url}' to be rejected, but it passed"
-    assert expected_error_substring.lower() in reason.lower(), f"Expected '{expected_error_substring}' in '{reason}'"
+    assert expected_error_substring.lower() in reason.lower(), (
+        f"Expected '{expected_error_substring}' in '{reason}'"
+    )
 
 
 def test_dns_rebinding_rejection():
     """Verify that a hostname resolving to a private/loopback IP is blocked."""
     # Mock socket.getaddrinfo to simulate a hostname resolving to 127.0.0.1
-    fake_addrinfo = [
-        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))
-    ]
+    fake_addrinfo = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))]
     with patch("socket.getaddrinfo", return_value=fake_addrinfo):
         is_safe, reason = validate_safe_url("http://attacker-rebinding.com/video.mp4")
         assert not is_safe
@@ -100,9 +96,7 @@ def test_dns_rebinding_rejection():
 
 def test_valid_public_dns_resolution():
     """Verify that a hostname resolving to a public IP passes validation."""
-    fake_addrinfo = [
-        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
-    ]
+    fake_addrinfo = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
     with patch("socket.getaddrinfo", return_value=fake_addrinfo):
         is_safe, reason = validate_safe_url("http://example.com/video.mp4")
         assert is_safe
@@ -113,12 +107,11 @@ def test_valid_public_dns_resolution():
 # 2. Redirect to Private IP & Oversized Streaming Download Abort
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_redirect_to_private_ip_aborts_download():
     """Verify that a redirect to a private IP (e.g. 169.254.169.254) is blocked during streaming."""
-    fake_addrinfo = [
-        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
-    ]
+    fake_addrinfo = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
 
     with patch("socket.getaddrinfo", return_value=fake_addrinfo):
         # Mock httpx response that redirects to 169.254.169.254
@@ -155,11 +148,10 @@ async def test_redirect_to_private_ip_aborts_download():
 @pytest.mark.asyncio
 async def test_oversized_streaming_download_aborts_and_cleans_up():
     """Verify that a streaming download exceeding max_bytes aborts immediately and cleans up file."""
-    fake_addrinfo = [
-        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
-    ]
+    fake_addrinfo = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
 
     with patch("socket.getaddrinfo", return_value=fake_addrinfo):
+
         async def fake_aiter_bytes(chunk_size=65536):
             # Yield 2MB chunks up to 10MB (when limit is 5MB)
             for _ in range(5):
@@ -179,7 +171,6 @@ async def test_oversized_streaming_download_aborts_and_cleans_up():
         mock_client_ctx.__aexit__ = AsyncMock(return_value=None)
 
         with patch("httpx.AsyncClient", return_value=mock_client_ctx):
-
             with tempfile.NamedTemporaryFile(delete=False) as tmp:
                 dest_path = tmp.name
 
@@ -203,6 +194,7 @@ async def test_oversized_streaming_download_aborts_and_cleans_up():
 # 3. Ingest Social Media Error Handling & Temp File Teardown
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_ingest_social_media_ssrf_blocked_returns_dict():
     """Verify ingest_social_media returns graceful error dict on SSRF block."""
@@ -215,9 +207,7 @@ async def test_ingest_social_media_ssrf_blocked_returns_dict():
 @pytest.mark.asyncio
 async def test_ingest_social_media_tempdir_cleanup_on_exception():
     """Verify temporary files are cleaned up when download or transcription raises exception."""
-    fake_addrinfo = [
-        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
-    ]
+    fake_addrinfo = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
 
     created_dirs = []
     real_temp_dir = tempfile.TemporaryDirectory
@@ -227,9 +217,10 @@ async def test_ingest_social_media_tempdir_cleanup_on_exception():
             super().__init__(*args, **kwargs)
             created_dirs.append(self.name)
 
-    with patch("socket.getaddrinfo", return_value=fake_addrinfo), \
-         patch("tempfile.TemporaryDirectory", new=TrackedTempDir):
-
+    with (
+        patch("socket.getaddrinfo", return_value=fake_addrinfo),
+        patch("tempfile.TemporaryDirectory", new=TrackedTempDir),
+    ):
         # Mock yt_dlp so YoutubeDL raises an error
         yt_dlp_mock = MagicMock()
         yt_dlp_mock.YoutubeDL.side_effect = RuntimeError("yt-dlp failed")
@@ -247,6 +238,7 @@ async def test_ingest_social_media_tempdir_cleanup_on_exception():
 # ---------------------------------------------------------------------------
 # 4. GraphRAG Traversal Bounding & Concurrency Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_graphrag_concurrency_semaphore():
@@ -293,6 +285,7 @@ async def test_graphrag_concurrency_semaphore():
 @pytest.mark.asyncio
 async def test_graphrag_per_traversal_timeout():
     """Verify that a slow vector search or graph traversal times out gracefully without crashing."""
+
     async def hanging_vector(q, k):
         await asyncio.sleep(10.0)  # Hang longer than per_traversal_timeout
         return [{"id": "v1", "text": "should never arrive", "score": 0.9}]
@@ -301,7 +294,9 @@ async def test_graphrag_per_traversal_timeout():
         return ["https://askmukthiguru.org/concept/peace"]
 
     async def fast_graph(uris, hops):
-        return [{"uri": uris[0], "text": "Inner peace is stillness", "relation": "DEFINES", "hop": 1}]
+        return [
+            {"uri": uris[0], "text": "Inner peace is stillness", "relation": "DEFINES", "hop": 1}
+        ]
 
     fusion = GraphRAGFusion(
         hanging_vector,
@@ -321,7 +316,6 @@ async def test_graphrag_per_traversal_timeout():
 @pytest.mark.asyncio
 async def test_graphrag_aggregate_deadline_and_subtask_cancellation():
     """Verify that when aggregate deadline expires, subtasks are cancelled and partial results returned."""
-    vector_cancelled = False
     graph_cancelled = False
 
     async def fast_vector(q, k):

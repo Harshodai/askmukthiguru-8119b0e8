@@ -20,25 +20,31 @@ Usage:
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import time
 from typing import Optional
 
-from app.config import settings
-from app.metrics import IDEMPOTENCY_CACHE_HIT_TOTAL, IDEMPOTENCY_CACHE_MISS_TOTAL
-from services.tenant_context import TenantContext
-from starlette.datastructures import Headers, MutableHeaders
+from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp
 
+from app.config import settings
+from app.metrics import IDEMPOTENCY_CACHE_HIT_TOTAL, IDEMPOTENCY_CACHE_MISS_TOTAL
+from services.tenant_context import TenantContext
+
 logger = logging.getLogger(__name__)
 
-_IDEMPOTENCY_TTL = settings.idempotency_ttl_seconds if hasattr(settings, 'idempotency_ttl_seconds') else 86400
-_IDEMPOTENCY_PREFIX = settings.idempotency_redis_prefix if hasattr(settings, 'idempotency_redis_prefix') else "idempotency:"
+_IDEMPOTENCY_TTL = (
+    settings.idempotency_ttl_seconds if hasattr(settings, "idempotency_ttl_seconds") else 86400
+)
+_IDEMPOTENCY_PREFIX = (
+    settings.idempotency_redis_prefix
+    if hasattr(settings, "idempotency_redis_prefix")
+    else "idempotency:"
+)
 
 
 class IdempotencyMiddleware(BaseHTTPMiddleware):
@@ -71,6 +77,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
     async def _get_redis(self):
         if self._redis is None:
             import redis.asyncio as aioredis
+
             try:
                 self._redis = aioredis.from_url(
                     self._redis_url,

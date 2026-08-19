@@ -5,8 +5,9 @@ import json
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 from anyio import Semaphore as AsyncSemaphore
 
@@ -80,10 +81,11 @@ class JobQueueService:
     async def _get_redis(self):
         if self._redis is None:
             import redis.asyncio as aioredis
+
             self._redis = aioredis.from_url(self._redis_url, decode_responses=True)
             try:
                 await asyncio.wait_for(self._redis.ping(), timeout=5.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.error("Redis ping timed out after 5s — connection may be stalled")
                 raise
         return self._redis
@@ -145,13 +147,16 @@ class JobQueueService:
         r = await self._get_redis()
         now = time.time()
         pipe = r.pipeline()
-        pipe.hset(f"job:{job_id}:meta", mapping={
-            "status": JobStatus.QUEUED.value,
-            "user_id": user_id,
-            "is_stream": "1" if is_stream else "0",
-            "created_at": str(now),
-            "request_data": json.dumps(request_data),
-        })
+        pipe.hset(
+            f"job:{job_id}:meta",
+            mapping={
+                "status": JobStatus.QUEUED.value,
+                "user_id": user_id,
+                "is_stream": "1" if is_stream else "0",
+                "created_at": str(now),
+                "request_data": json.dumps(request_data),
+            },
+        )
         pipe.expire(f"job:{job_id}:meta", self._job_ttl)
         pipe.rpush("job_queue:pending", job_id)
         pipe.expire("job_queue:pending", self._job_ttl)
@@ -199,15 +204,18 @@ class JobQueueService:
                 job_id = key.replace("job:", "").replace(":meta", "")
                 meta = await r.hgetall(key)
                 if meta:
-                    jobs.append({
-                        "job_id": job_id,
-                        "status": meta.get("status", "unknown"),
-                        "user_id": meta.get("user_id", ""),
-                        "created_at": float(meta.get("created_at", 0)),
-                        "is_stream": meta.get("is_stream") == "1",
-                        "queue_position": (pending_ids.index(job_id) + 1)
-                            if job_id in pending_set else None,
-                    })
+                    jobs.append(
+                        {
+                            "job_id": job_id,
+                            "status": meta.get("status", "unknown"),
+                            "user_id": meta.get("user_id", ""),
+                            "created_at": float(meta.get("created_at", 0)),
+                            "is_stream": meta.get("is_stream") == "1",
+                            "queue_position": (pending_ids.index(job_id) + 1)
+                            if job_id in pending_set
+                            else None,
+                        }
+                    )
             if not cursor:
                 break
         jobs.sort(key=lambda j: j["created_at"], reverse=True)
@@ -248,13 +256,14 @@ class JobQueueService:
         while self._running:
             try:
                 job_id = await asyncio.wait_for(self._queue.get(), timeout=1.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
             async with self._semaphore:
                 await self._process_job(job_id, worker_factory, worker_id)
             self._queue.task_done()
+
     async def _release_lease(self, redis_client: Any, lease_key: str, owner: str) -> None:
         """Release only this worker's lease; never delete a newer owner's lock."""
         if await redis_client.get(lease_key) == owner:
@@ -307,16 +316,21 @@ class JobQueueService:
                 str(time.time()),
             )
             if not claimed:
-                logger.debug("JobQueue worker %s: %s no longer queued — skipping", worker_id, job_id)
+                logger.debug(
+                    "JobQueue worker %s: %s no longer queued — skipping", worker_id, job_id
+                )
                 return
             request_data = json.loads(meta.get("request_data", "{}"))
             result = await worker_factory(request_data, is_stream, job_id)
             if not is_stream:
                 await r.set(f"job:{job_id}:result", json.dumps(result, default=str))
-            await r.hset(f"job:{job_id}:meta", mapping={
-                "status": JobStatus.COMPLETED.value,
-                "completed_at": str(time.time()),
-            })
+            await r.hset(
+                f"job:{job_id}:meta",
+                mapping={
+                    "status": JobStatus.COMPLETED.value,
+                    "completed_at": str(time.time()),
+                },
+            )
             if not is_stream:
                 await r.expire(f"job:{job_id}:result", self._job_ttl)
             logger.info(f"JobQueue worker {worker_id}: completed {job_id}")
@@ -324,19 +338,25 @@ class JobQueueService:
             # Shutdown must leave the job recoverable; start() re-enqueues IDs
             # that remain in the durable pending list on the next process.
             remove_from_pending = False
-            await r.hset(f"job:{job_id}:meta", mapping={
-                "status": JobStatus.QUEUED.value,
-                "started_at": "",
-            })
+            await r.hset(
+                f"job:{job_id}:meta",
+                mapping={
+                    "status": JobStatus.QUEUED.value,
+                    "started_at": "",
+                },
+            )
             logger.info("JobQueue worker %s returned %s to queued on shutdown", worker_id, job_id)
             raise
         except Exception as e:
             logger.error(f"JobQueue worker {worker_id}: {job_id} failed: {e}")
             await r.set(f"job:{job_id}:error", str(e))
-            await r.hset(f"job:{job_id}:meta", mapping={
-                "status": JobStatus.FAILED.value,
-                "completed_at": str(time.time()),
-            })
+            await r.hset(
+                f"job:{job_id}:meta",
+                mapping={
+                    "status": JobStatus.FAILED.value,
+                    "completed_at": str(time.time()),
+                },
+            )
             await r.expire(f"job:{job_id}:error", self._job_ttl)
         finally:
             await self._release_lease(r, lease_key, lease_owner)

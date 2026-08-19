@@ -61,11 +61,7 @@ def build_llm_client() -> tuple[Any, str] | None:
     if provider == "ollama":
         # Use the ollama-specific classify model, falling back to the primary
         # ollama model, then the OllamaService default (sarvam-30b:latest).
-        model = (
-            settings.ollama_classify_model
-            or settings.ollama_model
-            or "sarvam-30b:latest"
-        )
+        model = settings.ollama_classify_model or settings.ollama_model or "sarvam-30b:latest"
         return _make_client(settings.ollama_base_url, "ollama"), model
 
     return None
@@ -73,4 +69,7 @@ def build_llm_client() -> tuple[Any, str] | None:
 
 if __name__ == "__main__":
     result = build_llm_client()
-    print("build_llm_client() →", "None" if result is None else f"({type(result[0]).__name__}, {result[1]!r})")
+    print(
+        "build_llm_client() →",
+        "None" if result is None else f"({type(result[0]).__name__}, {result[1]!r})",
+    )

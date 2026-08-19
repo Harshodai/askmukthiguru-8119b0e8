@@ -165,12 +165,16 @@ class AbstractLLMService(abc.ABC):
     # ------------------------------------------------------------------
 
     @abc.abstractmethod
-    async def generate(self, system_prompt: str, user_prompt: str, context: str = "", **kwargs) -> str:
+    async def generate(
+        self, system_prompt: str, user_prompt: str, context: str = "", **kwargs
+    ) -> str:
         """Generate a complete text response."""
         ...
 
     @abc.abstractmethod
-    async def generate_stream(self, system_prompt: str, user_prompt: str, context: str = "", **kwargs) -> AsyncIterator[str]:
+    async def generate_stream(
+        self, system_prompt: str, user_prompt: str, context: str = "", **kwargs
+    ) -> AsyncIterator[str]:
         """Generate a streaming text response."""
         ...
 

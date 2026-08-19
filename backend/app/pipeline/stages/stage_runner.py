@@ -26,7 +26,7 @@ class StageRunner:
     @staticmethod
     async def run(
         stages: list[Stage],
-        ctx: "PipelineContext",
+        ctx: PipelineContext,
         coordinator: object | None = None,
     ) -> PipelineResult | None:
         """Run each stage. ``coordinator`` (the PipelineCoordinator) is used
@@ -58,42 +58,56 @@ class StageRunner:
                     metadata = None
 
                 if hasattr(ctx, "stage_telemetry"):
-                    ctx.stage_telemetry.append({
-                        "stage": stage_name,
-                        "status": status,
-                        "duration_ms": duration_ms,
-                        "error_code": None,
-                        "release_id": release_id,
-                        "metadata": metadata,
-                    })
+                    ctx.stage_telemetry.append(
+                        {
+                            "stage": stage_name,
+                            "status": status,
+                            "duration_ms": duration_ms,
+                            "error_code": None,
+                            "release_id": release_id,
+                            "metadata": metadata,
+                        }
+                    )
 
                 if coordinator is not None:
                     await coordinator._stage(
-                        stage_name, ctx.trace_id, start_ns=start_ns, status=status, metadata=metadata
+                        stage_name,
+                        ctx.trace_id,
+                        start_ns=start_ns,
+                        status=status,
+                        metadata=metadata,
                     )
                 if result is not None:
                     return result
             except Exception as exc:
                 duration_ms = max(0.0, round((time.time_ns() - start_ns) / 1_000_000, 2))
                 err_type_name = type(exc).__name__
-                error_code = "".join(c for c in err_type_name if c.isalnum() or c == "_")[:64] or "Exception"
+                error_code = (
+                    "".join(c for c in err_type_name if c.isalnum() or c == "_")[:64] or "Exception"
+                )
                 # Keep any context metadata as failure context for diagnostics.
                 metadata = getattr(ctx, "last_stage_metadata", None)
 
                 if hasattr(ctx, "stage_telemetry"):
-                    ctx.stage_telemetry.append({
-                        "stage": stage_name,
-                        "status": "error",
-                        "duration_ms": duration_ms,
-                        "error_code": error_code,
-                        "release_id": release_id,
-                        "metadata": metadata,
-                    })
+                    ctx.stage_telemetry.append(
+                        {
+                            "stage": stage_name,
+                            "status": "error",
+                            "duration_ms": duration_ms,
+                            "error_code": error_code,
+                            "release_id": release_id,
+                            "metadata": metadata,
+                        }
+                    )
 
                 if coordinator is not None:
                     await coordinator._stage(
-                        stage_name, ctx.trace_id, start_ns=start_ns, status="error",
-                        error_type=error_code, metadata=metadata,
+                        stage_name,
+                        ctx.trace_id,
+                        start_ns=start_ns,
+                        status="error",
+                        error_type=error_code,
+                        metadata=metadata,
                     )
                 raise
         return None

@@ -226,8 +226,12 @@ class TranscriptCorrector:
                             "Chunk %d correction length ratio %.2f outside [%.2f, %.2f] "
                             "(%d chars in, %d out) — LLM summarized or padded instead of "
                             "correcting. Using original.",
-                            i, ratio, _MIN_LENGTH_RATIO, _MAX_LENGTH_RATIO,
-                            len(original), len(corrected),
+                            i,
+                            ratio,
+                            _MIN_LENGTH_RATIO,
+                            _MAX_LENGTH_RATIO,
+                            len(original),
+                            len(corrected),
                         )
                         return chunk
 
@@ -238,7 +242,8 @@ class TranscriptCorrector:
                         logger.warning(
                             "Chunk %d correction rewrote more than %.0f%% of tokens — "
                             "paraphrase, not correction. Using original.",
-                            i, _MAX_TOKEN_CHANGE_RATIO * 100,
+                            i,
+                            _MAX_TOKEN_CHANGE_RATIO * 100,
                         )
                         return chunk
 

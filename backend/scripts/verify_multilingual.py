@@ -19,12 +19,10 @@ Tests:
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 import time
 from argparse import ArgumentParser
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 import httpx
 
@@ -34,7 +32,7 @@ HEADERS = {
     "X-Test-Key": TEST_KEY,
     "Content-Type": "application/json",
 }
-BATCH_SIZE = 3       # concurrent requests per category
+BATCH_SIZE = 3  # concurrent requests per category
 SESSION_PREFIX = f"verify-{int(time.time())}"
 
 # ─── Query Suites ────────────────────────────────────────────────────────────
@@ -134,6 +132,7 @@ CATEGORY_LABELS = {
     "cache": "Cache Verification",
 }
 
+
 @dataclass
 class Result:
     key: str
@@ -150,7 +149,15 @@ class Result:
     error: str | None = None
 
 
-async def _fire_query(client: httpx.AsyncClient, base_url: str, key: str, query: str, category: str, index: int, total: int) -> Result:
+async def _fire_query(
+    client: httpx.AsyncClient,
+    base_url: str,
+    key: str,
+    query: str,
+    category: str,
+    index: int,
+    total: int,
+) -> Result:
     url = f"{base_url}/api/chat"
     payload = {
         "user_message": query,
@@ -180,26 +187,48 @@ async def _fire_query(client: httpx.AsyncClient, base_url: str, key: str, query:
         else:
             body = resp.text[:200]
             return Result(
-                key=key, query=query, status=f"err-{resp.status_code}", latency_ms=round(latency, 1),
-                cache_hit=False, route="error", intent="", model_used="", blocked=False,
-                block_reason=body, response_len=0,
+                key=key,
+                query=query,
+                status=f"err-{resp.status_code}",
+                latency_ms=round(latency, 1),
+                cache_hit=False,
+                route="error",
+                intent="",
+                model_used="",
+                blocked=False,
+                block_reason=body,
+                response_len=0,
             )
     except Exception as e:
         return Result(
-            key=key, query=query, status=f"exc-{type(e).__name__}", latency_ms=0,
-            cache_hit=False, route="error", intent="", model_used="", blocked=False,
-            block_reason=None, response_len=0, error=str(e),
+            key=key,
+            query=query,
+            status=f"exc-{type(e).__name__}",
+            latency_ms=0,
+            cache_hit=False,
+            route="error",
+            intent="",
+            model_used="",
+            blocked=False,
+            block_reason=None,
+            response_len=0,
+            error=str(e),
         )
 
 
-async def _run_category(client: httpx.AsyncClient, base_url: str, cat: str, queries: dict[str, str]) -> list[Result]:
+async def _run_category(
+    client: httpx.AsyncClient, base_url: str, cat: str, queries: dict[str, str]
+) -> list[Result]:
     total = len(queries)
     results: list[Result] = []
     items = list(queries.items())
 
     for i in range(0, total, BATCH_SIZE):
         batch = items[i : i + BATCH_SIZE]
-        tasks = [_fire_query(client, base_url, k, q, cat, idx + i, total) for idx, (k, q) in enumerate(batch)]
+        tasks = [
+            _fire_query(client, base_url, k, q, cat, idx + i, total)
+            for idx, (k, q) in enumerate(batch)
+        ]
         batch_results = await asyncio.gather(*tasks)
         results.extend(batch_results)
         await asyncio.sleep(0.5)
@@ -214,10 +243,12 @@ def _print_category(results: list[Result], label: str) -> None:
     cache_hits = sum(1 for r in results if r.cache_hit)
     blocked = sum(1 for r in results if r.blocked)
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"  {label}")
-    print(f"  {ok}/{total} ok | Avg {avg_latency:.0f}ms | Cache hits: {cache_hits} | Blocked: {blocked}")
-    print(f"{'='*70}")
+    print(
+        f"  {ok}/{total} ok | Avg {avg_latency:.0f}ms | Cache hits: {cache_hits} | Blocked: {blocked}"
+    )
+    print(f"{'=' * 70}")
 
     for r in results:
         icon = "✅" if r.status == "ok" else "❌"
@@ -227,7 +258,9 @@ def _print_category(results: list[Result], label: str) -> None:
         print(f"  {icon}{cache_icon}{block_icon} [{r.key}] {query_trunc}")
         if r.status == "ok":
             resp_preview = f"response:{r.response_len}chars" if r.response_len > 0 else "empty"
-            print(f"          intent={r.intent} route={r.route} model={r.model_used} latency={r.latency_ms:.0f}ms {resp_preview}")
+            print(
+                f"          intent={r.intent} route={r.route} model={r.model_used} latency={r.latency_ms:.0f}ms {resp_preview}"
+            )
         elif r.error:
             print(f"          ERROR: {r.error[:100]}")
         else:
@@ -235,11 +268,11 @@ def _print_category(results: list[Result], label: str) -> None:
 
 
 async def verify_all(base_url: str = BASE_URL) -> bool:
-    print(f"\n{'#'*70}")
-    print(f"#  MULTILINGUAL SYSTEM VERIFICATION")
+    print(f"\n{'#' * 70}")
+    print("#  MULTILINGUAL SYSTEM VERIFICATION")
     print(f"#  Target: {base_url}/api/chat")
     print(f"#  Session: {SESSION_PREFIX}")
-    print(f"{'#'*70}\n")
+    print(f"{'#' * 70}\n")
 
     all_ok = True
 
@@ -295,16 +328,18 @@ async def verify_all(base_url: str = BASE_URL) -> bool:
         all_ok = all_ok and all(r.status == "ok" for r in cache_results)
 
     # ─── Summary ─────────────────────────────────────────────────────────────
-    all_results = en_results + hi_results + te_results + hi_pure + te_pure + edge_results + cache_results
+    all_results = (
+        en_results + hi_results + te_results + hi_pure + te_pure + edge_results + cache_results
+    )
     total = len(all_results)
     passed = sum(1 for r in all_results if r.status == "ok")
     avg_all = sum(r.latency_ms for r in all_results if r.status == "ok") / max(passed, 1)
     cache_total = sum(1 for r in all_results if r.cache_hit)
     blocked_total = sum(1 for r in all_results if r.blocked)
 
-    print(f"\n{'#'*70}")
-    print(f"#  VERIFICATION SUMMARY")
-    print(f"{'#'*70}")
+    print(f"\n{'#' * 70}")
+    print("#  VERIFICATION SUMMARY")
+    print(f"{'#' * 70}")
     print(f"  Total queries:     {total}")
     print(f"  Passed:            {passed}")
     print(f"  Failed:            {total - passed}")
@@ -314,7 +349,7 @@ async def verify_all(base_url: str = BASE_URL) -> bool:
     print(f"  Overall:           {'✅ PASS' if all_ok else '❌ PARTIAL FAIL'}")
     print(f"  First EN latency:  {first_en_latency:.0f}ms (cold start)")
     print(f"  Session:           {SESSION_PREFIX}")
-    print(f"{'#'*70}\n")
+    print(f"{'#' * 70}\n")
     return all_ok
 
 

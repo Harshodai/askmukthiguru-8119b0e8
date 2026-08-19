@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import functools
 import hashlib
 import json
@@ -17,15 +16,21 @@ from typing import Any, Optional
 class SettingsProxy:
     def __getattr__(self, name: str) -> Any:
         import sys
+
         nodes = sys.modules.get("rag.nodes")
         if nodes is not None and hasattr(nodes, "settings") and nodes.settings is not None:
             from app.config import settings as app_settings
+
             if nodes.settings is not app_settings:
                 return getattr(nodes.settings, name)
         from app.config import settings as app_settings
+
         return getattr(app_settings, name)
 
+
 settings = SettingsProxy()
+
+from datetime import UTC
 
 from app.metrics import PIPELINE_STAGE_LATENCY
 from rag.states import GraphState
@@ -35,8 +40,6 @@ from services.rankers import _reciprocal_rank_fusion
 from . import _services
 
 logger = logging.getLogger(__name__)
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +78,7 @@ async def emit_status(config: Optional[dict], message: str) -> None:
     except Exception:
         # Status emission must never break the pipeline.
         pass
+
 
 # -----------------------------------------------------------------------
 # COT Patterns & Reasoning Markers
@@ -125,34 +129,75 @@ _SARVAM_REASONING_MARKERS = [
 # Canonical URL map: keywords that appear in LLM answers -> authoritative web URLs.
 _CANONICAL_URL_MAP: list[tuple[list[str], str]] = [
     # Topic-keyword triggers -> canonical sources (for KG/LightRAG docs without source_url)
-    (["soul sync", "breath awareness", "humming", "golden light", "guided meditation"],
-     "https://www.youtube.com/c/pkconsciousness"),
-    (["four sacred secrets", "sacred secret", "inner truth", "spiritual vision",
-      "spiritual right action", "universal intelligence", "connected consciousness"],
-     "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"),
-    (["manifest 2026", "monthly power", "karma cleansing", "power of intention",
-      "lokaa foundation", "lokaa", "village welfare"],
-     "https://theonenessmovement.org/manifest"),
-    (["deeksha", "oneness blessing", "parietal lobe", "frontal lobe",
-      "neuroscience", "brain activation"],
-     "https://www.ekam.org/"),
-    (["ekam world peace festival", "world peace festival", "day 7", "peace festival",
-      "collective human evolution"],
-     "https://www.ekam.org/"),
-    (["serene mind", "breathing room app", "breathingroom"],
-     "https://www.breathingroom.com/"),
+    (
+        ["soul sync", "breath awareness", "humming", "golden light", "guided meditation"],
+        "https://www.youtube.com/c/pkconsciousness",
+    ),
+    (
+        [
+            "four sacred secrets",
+            "sacred secret",
+            "inner truth",
+            "spiritual vision",
+            "spiritual right action",
+            "universal intelligence",
+            "connected consciousness",
+        ],
+        "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+    ),
+    (
+        [
+            "manifest 2026",
+            "monthly power",
+            "karma cleansing",
+            "power of intention",
+            "lokaa foundation",
+            "lokaa",
+            "village welfare",
+        ],
+        "https://theonenessmovement.org/manifest",
+    ),
+    (
+        [
+            "deeksha",
+            "oneness blessing",
+            "parietal lobe",
+            "frontal lobe",
+            "neuroscience",
+            "brain activation",
+        ],
+        "https://www.ekam.org/",
+    ),
+    (
+        [
+            "ekam world peace festival",
+            "world peace festival",
+            "day 7",
+            "peace festival",
+            "collective human evolution",
+        ],
+        "https://www.ekam.org/",
+    ),
+    (["serene mind", "breathing room app", "breathingroom"], "https://www.breathingroom.com/"),
     # URL-mention triggers -> direct citations
     (["ekam.org", "ekam world", "world centre for enlightenment"], "https://www.ekam.org/"),
-    (["youtube.com/c/pkconsciousness", "pkconsciousness", "official youtube channel"],
-     "https://www.youtube.com/c/pkconsciousness"),
-    (["theonenessmovement.org", "oneness movement"],
-     "https://theonenessmovement.org/"),
-    (["amazon.com/Four-Sacred-Secrets", "amazon"],
-     "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"),
-    (["amazon.in/Four-Sacred-Secrets", "amazon.in", "amazon india"],
-     "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"),
-    (["simon & schuster", "simonandschuster.com", "simon and schuster"],
-     "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"),
+    (
+        ["youtube.com/c/pkconsciousness", "pkconsciousness", "official youtube channel"],
+        "https://www.youtube.com/c/pkconsciousness",
+    ),
+    (["theonenessmovement.org", "oneness movement"], "https://theonenessmovement.org/"),
+    (
+        ["amazon.com/Four-Sacred-Secrets", "amazon"],
+        "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+    ),
+    (
+        ["amazon.in/Four-Sacred-Secrets", "amazon.in", "amazon india"],
+        "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+    ),
+    (
+        ["simon & schuster", "simonandschuster.com", "simon and schuster"],
+        "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+    ),
 ]
 
 # -----------------------------------------------------------------------
@@ -160,15 +205,61 @@ _CANONICAL_URL_MAP: list[tuple[list[str], str]] = [
 # -----------------------------------------------------------------------
 DOCTRINE_SYNONYMS: dict[str, list[str]] = {
     # Core teachings
-    "beautiful state": ["beautiful state", "blissful state", "state of bliss", "state of calm", "state of joy", "no-stress state"],
-    "suffering state": ["suffering state", "state of suffering", "painful state", "state of pain", "stressful state"],
-    "surrender": ["surrender", "letting go", "giving up control", "relinquishing", "total surrender"],
+    "beautiful state": [
+        "beautiful state",
+        "blissful state",
+        "state of bliss",
+        "state of calm",
+        "state of joy",
+        "no-stress state",
+    ],
+    "suffering state": [
+        "suffering state",
+        "state of suffering",
+        "painful state",
+        "state of pain",
+        "stressful state",
+    ],
+    "surrender": [
+        "surrender",
+        "letting go",
+        "giving up control",
+        "relinquishing",
+        "total surrender",
+    ],
     "oneness": ["oneness", "unity", "non-duality", "non-dual", "advaita", "non separation"],
-    "consciousness": ["consciousness", "awareness", "higher consciousness", "divine consciousness", "universal consciousness"],
-    "ekam": ["ekam", "ekam world", "world centre for enlightenment", "world center for enlightenment"],
-    "deeksha": ["deeksha", "oneness blessing", "divine blessing", "energy transmission", "sacred transfer"],
-    "soul sync": ["soul sync", "soul synchronization", "breath meditation", "breath awareness meditation"],
-    "four sacred secrets": ["four sacred secrets", "4 sacred secrets", "sacred secrets", "the four secrets"],
+    "consciousness": [
+        "consciousness",
+        "awareness",
+        "higher consciousness",
+        "divine consciousness",
+        "universal consciousness",
+    ],
+    "ekam": [
+        "ekam",
+        "ekam world",
+        "world centre for enlightenment",
+        "world center for enlightenment",
+    ],
+    "deeksha": [
+        "deeksha",
+        "oneness blessing",
+        "divine blessing",
+        "energy transmission",
+        "sacred transfer",
+    ],
+    "soul sync": [
+        "soul sync",
+        "soul synchronization",
+        "breath meditation",
+        "breath awareness meditation",
+    ],
+    "four sacred secrets": [
+        "four sacred secrets",
+        "4 sacred secrets",
+        "sacred secrets",
+        "the four secrets",
+    ],
     "sri preethaji": ["sri preethaji", "preethaji", "preetha ji", "sree preethaji"],
     "sri krishnaji": ["sri krishnaji", "krishnaji", "krishna ji", "sree krishnaji"],
     "meditation": ["meditation", "dhyana", "dhyan", "contemplation", "mindfulness practice"],
@@ -179,7 +270,13 @@ DOCTRINE_SYNONYMS: dict[str, list[str]] = {
     "brahman": ["brahman", "brahman", "universal self", "supreme reality", "absolute reality"],
     "samsara": ["samsara", "cycle of birth", "rebirth", "worldly cycle"],
     "guru": ["guru", "master", "spiritual teacher", "spiritual guide", "enlightened master"],
-    "sadhna": ["sadhna", "sadhana", "spiritual practice", "spiritual discipline", "spiritual sadhana"],
+    "sadhna": [
+        "sadhna",
+        "sadhana",
+        "spiritual practice",
+        "spiritual discipline",
+        "spiritual sadhana",
+    ],
     "sadhak": ["sadhak", "seeker", "spiritual seeker", "practitioner", "devotee"],
     "mahavakya": ["mahavakya", "great saying", "great pronouncement", "vedic statement"],
     "satsang": ["satsang", "spiritual gathering", "spiritual discourse", "divine gathering"],
@@ -190,41 +287,164 @@ DOCTRINE_SYNONYMS: dict[str, list[str]] = {
     "kriya": ["kriya", "action", "spiritual action", "sacred action", "purificatory practice"],
     "mantra": ["mantra", "sacred sound", "sacred syllable", "divine chant", "spiritual chant"],
     "mayic force": ["mayic force", "illusion force", "deluding force", "maya", "illusory power"],
-    "dharma prabhu": ["dharma prabhu", "lord of dharma", "lord of righteousness", "divine lawkeeper"],
-    "jeevan mukta": ["jeevan mukta", "jeevanmukta", "liberated while living", "living liberated one"],
+    "dharma prabhu": [
+        "dharma prabhu",
+        "lord of dharma",
+        "lord of righteousness",
+        "divine lawkeeper",
+    ],
+    "jeevan mukta": [
+        "jeevan mukta",
+        "jeevanmukta",
+        "liberated while living",
+        "living liberated one",
+    ],
     "paramatma": ["paramatma", "paramatman", "supreme soul", "universal soul", "supreme self"],
-    "prarabdha": ["prarabdha", "prarabdha karma", "matured karma", "destined karma", "fruit of past actions"],
+    "prarabdha": [
+        "prarabdha",
+        "prarabdha karma",
+        "matured karma",
+        "destined karma",
+        "fruit of past actions",
+    ],
     # Mukthi Guru expanded concepts
-    "universal intelligence": ["universal intelligence", "divine field", "cosmic consciousness", "divine intelligence", "universal consciousness field"],
-    "inner stillness": ["inner stillness", "stillness", "inner quiet", "quiet presence", "inner calm", "tranquility"],
+    "universal intelligence": [
+        "universal intelligence",
+        "divine field",
+        "cosmic consciousness",
+        "divine intelligence",
+        "universal consciousness field",
+    ],
+    "inner stillness": [
+        "inner stillness",
+        "stillness",
+        "inner quiet",
+        "quiet presence",
+        "inner calm",
+        "tranquility",
+    ],
     "warring self": ["warring self", "divided self", "conflicted self", "inner conflict"],
-    "self-centric thinking": ["self-centric thinking", "self-centered thinking", "self-preoccupation", "obsessive thinking", "ego-centric thinking"],
-    "heart awakening": ["heart awakening", "heart opening", "open heart", "awakening of the heart", "heart center opening"],
-    "heart explosion": ["heart explosion", "explosion of the heart", "sudden opening", "heart burst"],
+    "self-centric thinking": [
+        "self-centric thinking",
+        "self-centered thinking",
+        "self-preoccupation",
+        "obsessive thinking",
+        "ego-centric thinking",
+    ],
+    "heart awakening": [
+        "heart awakening",
+        "heart opening",
+        "open heart",
+        "awakening of the heart",
+        "heart center opening",
+    ],
+    "heart explosion": [
+        "heart explosion",
+        "explosion of the heart",
+        "sudden opening",
+        "heart burst",
+    ],
     "compassion": ["compassion", "loving kindness", "kindness", "karuna", "empathy"],
-    "intuition": ["intuition", "intuitive knowing", "inner knowing", "heart knowledge", "gut feeling"],
-    "awakening": ["awakening", "spiritual awakening", "inner awakening", "transformation", "consciousness shift"],
+    "intuition": [
+        "intuition",
+        "intuitive knowing",
+        "inner knowing",
+        "heart knowledge",
+        "gut feeling",
+    ],
+    "awakening": [
+        "awakening",
+        "spiritual awakening",
+        "inner awakening",
+        "transformation",
+        "consciousness shift",
+    ],
     "grace": ["grace", "divine grace", "blessing", "divine favor", "anugraha"],
     "presence": ["presence", "being present", "present moment", "now", "mindfulness"],
     "inner truth": ["inner truth", "truth within", "deep truth", "essential truth", "core truth"],
-    "collective meditation": ["collective meditation", "group meditation", "community meditation", "satsang meditation"],
-    "divine manifest": ["divine manifest", "manifest divine", "creator manifest", "god with form", "saguna brahman"],
-    "divine unmanifest": ["divine unmanifest", "unmanifest divine", "formless divine", "god without form", "nirguna brahman"],
-    "synchronicity": ["synchronicity", "meaningful coincidence", "divine timing", "cosmic alignment"],
-    "prosperity": ["prosperity", "abundance", "flourishing", "well-being", "material and spiritual wealth"],
-    "karmic clearing": ["karmic clearing", "karma clearing", "karmic release", "karmic debt clearing", "purification of karma"],
-    "spiritual vision": ["spiritual vision", "divine vision", "higher vision", "sacred vision", "purpose driven living"],
-    "science of purification": ["science of purification", "purification process", "inner purification", "cleansing practice"],
-    "truth of suffering": ["truth of suffering", "seeing suffering", "nature of suffering", "understanding suffering"],
-    "dissolving into the beautiful state": ["dissolving", "dissolving into", "merging with the beautiful state", "dissolving suffering"],
-    "serene mind": ["serene mind", "serene mind practice", "calm mind", "peaceful mind", "tranquil mind"],
-    "three questions": ["three questions", "three question meditation", "what is my state", "who am i inquiry"],
+    "collective meditation": [
+        "collective meditation",
+        "group meditation",
+        "community meditation",
+        "satsang meditation",
+    ],
+    "divine manifest": [
+        "divine manifest",
+        "manifest divine",
+        "creator manifest",
+        "god with form",
+        "saguna brahman",
+    ],
+    "divine unmanifest": [
+        "divine unmanifest",
+        "unmanifest divine",
+        "formless divine",
+        "god without form",
+        "nirguna brahman",
+    ],
+    "synchronicity": [
+        "synchronicity",
+        "meaningful coincidence",
+        "divine timing",
+        "cosmic alignment",
+    ],
+    "prosperity": [
+        "prosperity",
+        "abundance",
+        "flourishing",
+        "well-being",
+        "material and spiritual wealth",
+    ],
+    "karmic clearing": [
+        "karmic clearing",
+        "karma clearing",
+        "karmic release",
+        "karmic debt clearing",
+        "purification of karma",
+    ],
+    "spiritual vision": [
+        "spiritual vision",
+        "divine vision",
+        "higher vision",
+        "sacred vision",
+        "purpose driven living",
+    ],
+    "science of purification": [
+        "science of purification",
+        "purification process",
+        "inner purification",
+        "cleansing practice",
+    ],
+    "truth of suffering": [
+        "truth of suffering",
+        "seeing suffering",
+        "nature of suffering",
+        "understanding suffering",
+    ],
+    "dissolving into the beautiful state": [
+        "dissolving",
+        "dissolving into",
+        "merging with the beautiful state",
+        "dissolving suffering",
+    ],
+    "serene mind": [
+        "serene mind",
+        "serene mind practice",
+        "calm mind",
+        "peaceful mind",
+        "tranquil mind",
+    ],
+    "three questions": [
+        "three questions",
+        "three question meditation",
+        "what is my state",
+        "who am i inquiry",
+    ],
     "sadhguru": ["sadhguru", "jaggi vasudev", "isha foundation", "yogi mystic"],
     "amma bhagavan": ["amma bhagavan", "sri amma bhagavan", "oneness movement", "kalki"],
     "iskcon": ["iskcon", "hare krishna", "prabhupada", "krishna consciousness"],
     "oo academy": ["o and o academy", "oo academy", "o&o academy", "oando academy"],
     "mukthi guru": ["mukthi guru", "mukthi guru platform", "mukthiguru", "mukti"],
-    "soul sync": ["soul sync", "soul synchronization", "breath meditation", "breath awareness meditation", "soulsync"],
 }
 
 
@@ -263,8 +483,10 @@ async def expand_query_with_synonyms(query: str, assistant_slug: str = "default"
             doc = await _services._doctrine_service.get_doctrine(assistant_slug)
             synonyms_map = doc.get("synonyms_json") or DOCTRINE_SYNONYMS
         except Exception as e:
-            logger.warning(f"Failed to get synonyms from DoctrineService for '{assistant_slug}': {e}. Falling back to default.")
-            
+            logger.warning(
+                f"Failed to get synonyms from DoctrineService for '{assistant_slug}': {e}. Falling back to default."
+            )
+
     query_lower = query.lower()
     expansions: list[str] = []
     for canonical, alternates in synonyms_map.items():
@@ -282,17 +504,20 @@ async def expand_query_with_synonyms(query: str, assistant_slug: str = "default"
 
 async def inject_doctrine_keywords(query: str, assistant_slug: str = "default") -> str:
     """Inject known doctrine keywords into a query to improve retrieval coverage.
-    
+
     First runs database dynamic doctrine synonyms, then delegates to static keyword_injection.
     """
     enhanced = query
     if _services._doctrine_service:
         try:
-            enhanced = await _services._doctrine_service.inject_doctrine_keywords(query, assistant_slug)
+            enhanced = await _services._doctrine_service.inject_doctrine_keywords(
+                query, assistant_slug
+            )
         except Exception as e:
             logger.warning(f"Dynamic doctrine injection failed for '{assistant_slug}': {e}")
 
     from rag.nodes.keyword_injection import inject_doctrine_keywords as _ki
+
     return _ki(enhanced, top_k=3)
 
 
@@ -347,14 +572,16 @@ def _grounded_citation_urls(docs: list[dict]) -> list[str]:
     return urls
 
 
-def _inject_canonical_citations(answer: str, existing_citations: list[dict | str]) -> list[dict | str]:
+def _inject_canonical_citations(
+    answer: str, existing_citations: list[dict | str]
+) -> list[dict | str]:
     """Scan the LLM answer for known canonical URLs and topic keywords and inject citations."""
     if not answer:
         return existing_citations
 
     answer_lower = answer.lower()
     enriched = list(existing_citations)
-    
+
     existing_set = set()
     for c in existing_citations:
         if isinstance(c, dict):
@@ -384,7 +611,7 @@ async def _llm_retrieval_expansions(state: GraphState) -> list[str]:
     """Ask the model to propose retrieval-only reformulations without encoding doctrine in code."""
     if state.get("query_tier") in ("fast", "tier2_simple"):
         return []
-    
+
     ollama = _services._ollama
     if ollama is None:
         return []
@@ -449,16 +676,16 @@ def strip_cot(text: str) -> str:
             continue
         para_lower = para_strip.lower()
         normalized_para = re.sub(r"^[\s\d.*#_()\[\]-]+", "", para_lower)
-        
+
         is_reasoning = False
         for marker in _SARVAM_REASONING_MARKERS:
             if normalized_para.startswith(marker):
                 is_reasoning = True
                 break
-        
+
         if not is_reasoning:
             filtered_paragraphs.append(para_strip)
-            
+
     cleaned = "\n\n".join(filtered_paragraphs)
 
     cleaned_lower = cleaned.lower()
@@ -488,11 +715,11 @@ def _generation_kwargs(state: GraphState) -> dict:
     if intent == "DISTRESS":
         base["num_predict"] = 2048
     elif query_tier in ("fast", "tier2_simple"):
-        base["num_predict"] = 150   # 1.7: aggressive cap for fast path
+        base["num_predict"] = 150  # 1.7: aggressive cap for fast path
     elif query_tier in ("deep", "tier3_complex"):
-        base["num_predict"] = 550   # 1.7: cap for deep path
+        base["num_predict"] = 550  # 1.7: cap for deep path
     elif intent in {"FACTUAL", "QUERY"}:
-        base["num_predict"] = 400   # 1.7: standard path cap
+        base["num_predict"] = 400  # 1.7: standard path cap
     elif intent in {"RELATIONAL", "ADVERSARIAL"}:
         base["num_predict"] = 600
     else:
@@ -509,7 +736,14 @@ def _generation_kwargs(state: GraphState) -> dict:
     # Record generation metrics (Phase 2.1)
     try:
         from app.metrics import GENERATION_TEMPERATURE, GENERATION_TOP_K
-        tier_label = "fast" if query_tier in ("fast", "tier2_simple") else "deep" if query_tier in ("deep", "tier3_complex") else "standard"
+
+        tier_label = (
+            "fast"
+            if query_tier in ("fast", "tier2_simple")
+            else "deep"
+            if query_tier in ("deep", "tier3_complex")
+            else "standard"
+        )
         GENERATION_TEMPERATURE.labels(strategy=tier_label).set(base.get("temperature", 0.7))
         GENERATION_TOP_K.labels(strategy=tier_label).set(base.get("num_predict", 1024))
     except Exception as _e:
@@ -520,12 +754,12 @@ def _generation_kwargs(state: GraphState) -> dict:
 
 def select_llm_model(query: str, context_len: int) -> str:
     """Determines optimal model routing to balance latency and context capacity.
-    
+
     Returns model name appropriate for the configured LLM provider.
     """
     provider = getattr(settings, "llm_provider", "sarvam_cloud").lower()
     complex_enabled = getattr(settings, "sarvam_complex_routing_enabled", False)
-    
+
     if provider == "sarvam_cloud":
         if not complex_enabled:
             return getattr(settings, "sarvam_cloud_model", "sarvam-30b")
@@ -533,19 +767,23 @@ def select_llm_model(query: str, context_len: int) -> str:
         if context_len >= threshold or len(query) > 2000:
             return getattr(settings, "sarvam_cloud_complex_model", "sarvam-105b")
         return getattr(settings, "sarvam_cloud_model", "sarvam-30b")
-    
+
     elif provider == "openrouter":
         if not complex_enabled:
-            return getattr(settings, "openrouter_generation_model", "meta-llama/llama-3.3-70b-instruct:free")
+            return getattr(
+                settings, "openrouter_generation_model", "meta-llama/llama-3.3-70b-instruct:free"
+            )
         # For OpenRouter, use the generation model for complex too (or a specific complex model if configured)
-        return getattr(settings, "openrouter_generation_model", "meta-llama/llama-3.3-70b-instruct:free")
-    
+        return getattr(
+            settings, "openrouter_generation_model", "meta-llama/llama-3.3-70b-instruct:free"
+        )
+
     elif provider == "ollama":
         return getattr(settings, "ollama_model", "qwen2.5:32b")
-    
+
     elif provider == "nim":
         return getattr(settings, "nim_generation_model", "minimaxai/minimax-m2.7")
-    
+
     # Default fallback
     return getattr(settings, "sarvam_cloud_model", "sarvam-30b")
 
@@ -600,9 +838,11 @@ def _rrf_docs(ranked_lists: list[list[dict]], k: int = 60) -> list[dict]:
 
     sorted_ids = _reciprocal_rank_fusion(id_rankings, k=k)
     return [id_to_doc[key] for key in sorted_ids]
+
+
 def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
     """Select generation model via config, not benchmark-answer hardcoding.
-    
+
     Works with any configured LLM provider (sarvam_cloud, openrouter, ollama).
     """
     kwargs = _generation_kwargs(state)
@@ -613,7 +853,9 @@ def _generation_route(state: GraphState, context_chars: int = 0) -> dict:
     model = select_llm_model(question, context_chars)
 
     complex_enabled = getattr(settings, "sarvam_complex_routing_enabled", False)
-    is_complex = state.get("query_tier") in ("deep", "tier3_complex") or bool(state.get("is_complex"))
+    is_complex = state.get("query_tier") in ("deep", "tier3_complex") or bool(
+        state.get("is_complex")
+    )
     is_high_risk = state.get("intent") in {"ADVERSARIAL", "RELATIONAL"}
 
     # Provider-specific complex model routing
@@ -647,6 +889,7 @@ def _extract_source_id(citation_str: str) -> str | None:
         return None
     # YouTube ID
     import re
+
     m = re.search(r"[?&]v=([^&]+)", citation_str)
     if m:
         return m.group(1)
@@ -656,6 +899,7 @@ def _extract_source_id(citation_str: str) -> str | None:
         return m.group(1)
     # Generic: strip query params, use netloc+path
     from urllib.parse import urlparse
+
     try:
         parsed = urlparse(citation_str)
         return f"{parsed.netloc}{parsed.path}"
@@ -663,7 +907,9 @@ def _extract_source_id(citation_str: str) -> str | None:
         return citation_str
 
 
-def enforce_source_diversity(citations: list[dict | str], min_distinct: int = 2) -> list[dict | str]:
+def enforce_source_diversity(
+    citations: list[dict | str], min_distinct: int = 2
+) -> list[dict | str]:
     """Ensure top citations draw from at least min_distinct sources.
     Works with both dict docs (source_id/video_id) and plain URL strings."""
     if not citations or len(citations) < min_distinct:
@@ -687,10 +933,18 @@ def enforce_source_diversity(citations: list[dict | str], min_distinct: int = 2)
     result = list(citations)
     existing: set[str | None] = set()
     for c in top:
-        existing.add(_extract_source_id(c) if not isinstance(c, dict) else (c.get("source_id") or c.get("video_id")))
+        existing.add(
+            _extract_source_id(c)
+            if not isinstance(c, dict)
+            else (c.get("source_id") or c.get("video_id"))
+        )
 
     for i, c in enumerate(result[3:], start=3):
-        sid = _extract_source_id(c) if not isinstance(c, dict) else (c.get("source_id") or c.get("video_id"))
+        sid = (
+            _extract_source_id(c)
+            if not isinstance(c, dict)
+            else (c.get("source_id") or c.get("video_id"))
+        )
         if sid and sid not in existing:
             result.insert(2, result.pop(i))
             break
@@ -719,8 +973,7 @@ def remap_citation_markers(answer: str, relevant_docs: list[dict], final_citatio
         return answer
 
     final_urls = [
-        (c.get("url") or c.get("source")) if isinstance(c, dict) else c
-        for c in final_citations
+        (c.get("url") or c.get("source")) if isinstance(c, dict) else c for c in final_citations
     ]
 
     def _replace(m: re.Match) -> str:
@@ -740,14 +993,21 @@ def remap_citation_markers(answer: str, relevant_docs: list[dict], final_citatio
     return _CITE_MARKER_RE.sub(_replace, answer)
 
 
-def _persist_trace_span(request_id: str, node_name: str, start_time: float, duration_ms: float, status: str = "ok", metadata: dict = None) -> None:
+def _persist_trace_span(
+    request_id: str,
+    node_name: str,
+    start_time: float,
+    duration_ms: float,
+    status: str = "ok",
+    metadata: dict = None,
+) -> None:
     """Persist a trace span to the telemetry DB asynchronously (fire-and-forget)."""
     if not request_id:
         return
     try:
-        from app.telemetry_db import get_node_latencies  # reuse client init
+        from datetime import datetime
+
         from app.telemetry_db import _get_client
-        from datetime import datetime, timezone
 
         client = _get_client()
         if not client:
@@ -765,11 +1025,12 @@ def _persist_trace_span(request_id: str, node_name: str, start_time: float, dura
             "duration_ms": round(duration_ms, 1),
             "status": status,
             "metadata": metadata or {},
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
 
         # Fire and forget - don't await
         import asyncio
+
         async def _insert():
             try:
                 client.table("trace_spans").insert(span_payload).execute()
@@ -807,6 +1068,7 @@ def log_metrics(func):
                 exc_info=True,
             )
             from app.metrics import NODE_ERROR_TOTAL, NODE_FALLBACK_TOTAL
+
             try:
                 NODE_ERROR_TOTAL.labels(node=node_name).inc()
                 NODE_FALLBACK_TOTAL.labels(node=node_name).inc()
@@ -843,7 +1105,9 @@ def log_metrics(func):
             result.update(fallback)
 
             # Persist failed span
-            _persist_trace_span(request_id, node_name, start, duration_ms, "error", {"error": str(e)})
+            _persist_trace_span(
+                request_id, node_name, start, duration_ms, "error", {"error": str(e)}
+            )
             return result
 
         duration = time.time() - start
@@ -872,7 +1136,9 @@ def log_metrics(func):
             result["node_timings"] = existing_timings
 
         # Persist successful span
-        _persist_trace_span(request_id, node_name, start, duration_ms, "ok", {"query_tier": state.get("query_tier")})
+        _persist_trace_span(
+            request_id, node_name, start, duration_ms, "ok", {"query_tier": state.get("query_tier")}
+        )
 
         return result
 
@@ -907,25 +1173,26 @@ def _verify_inline_citations(answer: str, retrieved_docs: list) -> tuple[str, bo
 
     # citation_service functions use [^N] markers, not [[CITE:N]].
     # Normalize bare [N] and [[CITE:N]] → [^N] before delegation, then normalize back.
-    _normalize_in = lambda t: re.sub(
-        r"\[\[CITE:(\d{1,3})\]\]", r"[^\1]",
-        re.sub(r"(?<!\[)\[(\d{1,3})\](?!\[)", r"[^\1]", t)
-    )
-    _normalize_out = lambda t: re.sub(r"\[\^(\d{1,3})\]", r"[[CITE:\1]]", t)
+    def _normalize_in(t):
+        return re.sub(
+            r"\[\[CITE:(\d{1,3})\]\]", r"[^\1]", re.sub(r"(?<!\[)\[(\d{1,3})\](?!\[)", r"[^\1]", t)
+        )
+
+    def _normalize_out(t):
+        return re.sub(r"\[\^(\d{1,3})\]", r"[[CITE:\1]]", t)
 
     normalized = _normalize_in(answer)
 
     # Phase 1: identify orphan citation indices before stripping
     doc_count = len(retrieved_docs)
-    all_cite_nums = set(
-        int(m.group(1))
-        for m in re.finditer(r"\[\^(\d{1,3})\]", normalized)
-    )
+    all_cite_nums = set(int(m.group(1)) for m in re.finditer(r"\[\^(\d{1,3})\]", normalized))
     orphan_nums = set()
     for n in all_cite_nums:
         if n < 1 or n > doc_count:
             orphan_nums.add(n)
-        elif not (retrieved_docs[n - 1].get("source_url") or retrieved_docs[n - 1].get("url") or "").strip():
+        elif not (
+            retrieved_docs[n - 1].get("source_url") or retrieved_docs[n - 1].get("url") or ""
+        ).strip():
             orphan_nums.add(n)
 
     # Phase 2: split into alternating text/marker segments and rebuild,

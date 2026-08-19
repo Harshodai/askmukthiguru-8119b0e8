@@ -122,10 +122,7 @@ class UserProfileService:
         if self._supabase and _is_persistable_user_id(user_id):
             try:
                 result = await asyncio.to_thread(
-                    self._supabase.table("user_profiles")
-                    .select("*")
-                    .eq("user_id", user_id)
-                    .execute
+                    self._supabase.table("user_profiles").select("*").eq("user_id", user_id).execute
                 )
                 if result.data:
                     data = result.data[0]
@@ -182,7 +179,8 @@ class UserProfileService:
         if self._supabase and _is_persistable_user_id(memory.user_id):
             try:
                 await asyncio.to_thread(
-                    self._supabase.table("conversation_memories").upsert(
+                    self._supabase.table("conversation_memories")
+                    .upsert(
                         {
                             "session_id": memory.session_id,
                             "user_id": memory.user_id,
@@ -192,7 +190,8 @@ class UserProfileService:
                             "emotional_arc": json.dumps(memory.emotional_arc),
                             "follow_up_suggestions": memory.follow_up_suggestions,
                         }
-                    ).execute
+                    )
+                    .execute
                 )
             except Exception as e:
                 logger.warning(f"Supabase memory save failed: {e}")

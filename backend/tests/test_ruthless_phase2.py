@@ -13,10 +13,10 @@ from rag.states import GraphState
 def test_classify_user_familiarity():
     # Seeker (default)
     assert classify_user_familiarity("hello, how are you?", []) == "Seeker"
-    
+
     # Practitioner
     assert classify_user_familiarity("I want a meditation instruction", []) == "Practitioner"
-    
+
     # Advanced Meditator
     assert classify_user_familiarity("tell me about deeksha", []) == "Advanced Meditator"
 
@@ -25,7 +25,7 @@ def test_classify_user_familiarity():
 async def test_context_engineer_cost_steering():
     # Long history (4 turns = 8 messages)
     chat_history = [{"role": "user", "content": "hi"}] * 8
-    
+
     state = GraphState(
         question="Can you help me?",
         chat_history=chat_history,
@@ -36,10 +36,10 @@ async def test_context_engineer_cost_steering():
         memory_context="",
         assistant_system_prompt=None,
     )
-    
+
     # Run context_engineer
     result = await context_engineer(state)
-    
+
     assert "query_tier" in result
     assert result["query_tier"] == "tier2_simple"
     assert "COST STEERING" in result["context_layers"]["instructions"]
@@ -55,12 +55,17 @@ async def test_feedback_lessons_mining():
             pass
 
     from fastapi import FastAPI
+
     app = FastAPI()
     app.include_router(router)
     client = TestClient(app)
 
     from services.auth_service import get_current_user_from_supabase
-    app.dependency_overrides[get_current_user_from_supabase] = lambda: {"id": "user123", "is_superuser": True}
+
+    app.dependency_overrides[get_current_user_from_supabase] = lambda: {
+        "id": "user123",
+        "is_superuser": True,
+    }
 
     # Mock get_container
     mock_container = MagicMock()
@@ -87,7 +92,7 @@ async def test_feedback_lessons_mining():
                 "rating": -1,
                 "feedback_text": "Wrong answer",
                 "metadata_json": {"chunks": "Mock context"},
-            }
+            },
         )
         assert response.status_code == 200
 

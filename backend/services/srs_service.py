@@ -5,22 +5,29 @@ Manages active recall flashcard generation and reviews.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
-import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 from fastapi import HTTPException
 
-from app.language_utils import guardrail_text_for
 from app.config import settings
+from app.language_utils import guardrail_text_for
 from services.injection_scanner import InjectionScanner
 
 logger = logging.getLogger(__name__)
 
+
 class SRSService:
-    def __init__(self, supabase_client: Optional[Any] = None, ollama_service: Optional[Any] = None, guardrails_service: Optional[Any] = None, translation_service: Optional[Any] = None) -> None:
+    def __init__(
+        self,
+        supabase_client: Optional[Any] = None,
+        ollama_service: Optional[Any] = None,
+        guardrails_service: Optional[Any] = None,
+        translation_service: Optional[Any] = None,
+    ) -> None:
         self._supabase = supabase_client
         self._ollama = ollama_service
         self._guardrails = guardrails_service
@@ -35,7 +42,7 @@ class SRSService:
         if not self.available:
             return []
         try:
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
             resp = await asyncio.to_thread(
                 self._supabase.table("user_retention_cards")
                 .select("*")
@@ -56,7 +63,7 @@ class SRSService:
         question: str,
         answer: str,
         source_type: str,
-        source_id: Optional[str] = None
+        source_id: Optional[str] = None,
     ) -> dict[str, Any] | None:
         """Create a new flashcard in the database."""
         if not self.available:
@@ -71,12 +78,10 @@ class SRSService:
                 "easiness_factor": 2.5,
                 "interval_days": 0,
                 "repetitions": 0,
-                "next_review_at": datetime.now(timezone.utc).isoformat()
+                "next_review_at": datetime.now(UTC).isoformat(),
             }
             resp = await asyncio.to_thread(
-                self._supabase.table("user_retention_cards")
-                .insert(payload)
-                .execute
+                self._supabase.table("user_retention_cards").insert(payload).execute
             )
             return resp.data[0] if resp.data else None
         except Exception as e:
@@ -105,7 +110,7 @@ class SRSService:
             if not card_resp.data:
                 logger.warning(f"Card {card_id} not found for review.")
                 return None
-            
+
             card = card_resp.data[0]
             ef = card.get("easiness_factor", 2.5)
             interval = card.get("interval_days", 0)
@@ -134,13 +139,13 @@ class SRSService:
             if ef > 3.0:
                 ef = 3.0
 
-            next_review = datetime.now(timezone.utc) + timedelta(days=interval)
+            next_review = datetime.now(UTC) + timedelta(days=interval)
 
             update_payload = {
                 "easiness_factor": round(ef, 3),
                 "interval_days": interval,
                 "repetitions": repetitions,
-                "next_review_at": next_review.isoformat()
+                "next_review_at": next_review.isoformat(),
             }
 
             resp = await asyncio.to_thread(
@@ -152,14 +157,18 @@ class SRSService:
                 .execute
             )
             if not resp.data:
-                logger.warning(f"Concurrent review conflict for card {card_id} — stale state detected")
+                logger.warning(
+                    f"Concurrent review conflict for card {card_id} — stale state detected"
+                )
                 return None
             return resp.data[0]
         except Exception as e:
             logger.error(f"Failed to review SRS card {card_id}: {e}")
             return None
 
-    async def generate_cards_from_notebook_item(self, user_id: str, query: str, answer: str, source_id: str) -> list[dict]:
+    async def generate_cards_from_notebook_item(
+        self, user_id: str, query: str, answer: str, source_id: str
+    ) -> list[dict]:
         """Use Ollama service to generate active recall flashcards from a notebook Q&A turn."""
         if not self._ollama:
             logger.warning("Ollama service not available for flashcard generation.")
@@ -198,18 +207,18 @@ class SRSService:
         safe_query = query.replace("{", "{{").replace("}", "}}")
         safe_answer = answer.replace("{", "{{").replace("}", "}}")
 
-        prompt = """Generate exactly 2 high-quality active recall study flashcards (Question & Answer pairs) 
+        prompt = f"""Generate exactly 2 high-quality active recall study flashcards (Question & Answer pairs)
 based on the following spiritual dialogue. Keep the questions focused on critical spiritual insights, practices, or wisdom.
 
 Dialogue:
-Question: {query}
-Answer: {answer}
+Question: {safe_query}
+Answer: {safe_answer}
 
 Format your output exactly as a JSON list of objects:
 [
   {{"question": "Question text here?", "answer": "Answer text here"}},
   ...
-]""".format(query=safe_query, answer=safe_answer)
+]"""
 
         try:
             response = await self._ollama.generate(
@@ -222,6 +231,7 @@ Format your output exactly as a JSON list of objects:
                 max_tokens=400,
             )
             import json
+
             # Handle markdown fence wrappers if any
             clean_resp = response.strip()
             if clean_resp.startswith("```"):
@@ -231,7 +241,9 @@ Format your output exactly as a JSON list of objects:
 
             pairs = json.loads(clean_resp.strip())
             if not isinstance(pairs, list) or len(pairs) > 2:
-                logger.warning(f"Generated flashcards are not a list of at most 2 items: {type(pairs).__name__}")
+                logger.warning(
+                    f"Generated flashcards are not a list of at most 2 items: {type(pairs).__name__}"
+                )
                 return []
 
             created_cards = []
@@ -240,7 +252,12 @@ Format your output exactly as a JSON list of objects:
                     continue
                 q = pair.get("question")
                 a = pair.get("answer")
-                if not isinstance(q, str) or not q.strip() or not isinstance(a, str) or not a.strip():
+                if (
+                    not isinstance(q, str)
+                    or not q.strip()
+                    or not isinstance(a, str)
+                    or not a.strip()
+                ):
                     logger.warning("Skipping flashcard with missing or non-string question/answer.")
                     continue
                 q = q.strip()
@@ -255,11 +272,15 @@ Format your output exactly as a JSON list of objects:
                     )
                     input_check = await self._guardrails.check_input(gr_text)
                     if input_check.get("blocked"):
-                        logger.warning(f"Flashcard content blocked by guardrails: {input_check.get('reason')}")
+                        logger.warning(
+                            f"Flashcard content blocked by guardrails: {input_check.get('reason')}"
+                        )
                         continue
                     output_check = await self._guardrails.check_output(a)
                     if output_check.get("blocked"):
-                        logger.warning(f"Flashcard answer blocked by guardrails: {output_check.get('reason')}")
+                        logger.warning(
+                            f"Flashcard answer blocked by guardrails: {output_check.get('reason')}"
+                        )
                         continue
                     moderated_answer = output_check.get("moderated_response")
                     if moderated_answer is not None:
@@ -269,7 +290,7 @@ Format your output exactly as a JSON list of objects:
                     question=q,
                     answer=a,
                     source_type="notebook_item",
-                    source_id=source_id
+                    source_id=source_id,
                 )
                 if card:
                     created_cards.append(card)

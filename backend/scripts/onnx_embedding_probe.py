@@ -73,10 +73,7 @@ def _probe_with_onnxruntime(model_path: str) -> dict:
     tokenizer = _get_tokenizer()
     texts = ["What is the Four Sacred Secrets?", "How do I practice Soul Sync?"]
     inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="np")
-    ort_inputs = {
-        k: v.astype(np.int64)
-        for k, v in inputs.items()
-    }
+    ort_inputs = {k: v.astype(np.int64) for k, v in inputs.items()}
 
     print(f"\nForward pass with {len(texts)} texts:")
     raw_outputs = session.run(None, ort_inputs)
@@ -141,6 +138,7 @@ def _probe_with_optimum(model_path: str) -> dict:
 def _get_tokenizer():
     """Get the bge-m3 tokenizer (used for both probe methods), pinned revision."""
     from transformers import AutoTokenizer
+
     return AutoTokenizer.from_pretrained("BAAI/bge-m3", revision=BGE_M3_REVISION)
 
 
@@ -155,9 +153,7 @@ def _produce_verdict(ort_info: dict, optimum_info: dict) -> str:
     raw = ort_info["raw_outputs"]
 
     # Dense embedding output
-    has_dense_output = any("dense" in n.lower() for n in output_names) or (
-        num_outputs >= 1 and len(raw[0].shape) == 2
-    )
+    any("dense" in n.lower() for n in output_names) or (num_outputs >= 1 and len(raw[0].shape) == 2)
 
     # Sparse output (lexical weights or token weights)
     has_sparse_output = any(
@@ -173,8 +169,11 @@ def _produce_verdict(ort_info: dict, optimum_info: dict) -> str:
 
     print()
     if has_sparse_output:
-        print("  >> VERDICT: DENSE_AND_SPARSE (and ColBERT)" if has_colbert
-              else "  >> VERDICT: DENSE_AND_SPARSE")
+        print(
+            "  >> VERDICT: DENSE_AND_SPARSE (and ColBERT)"
+            if has_colbert
+            else "  >> VERDICT: DENSE_AND_SPARSE"
+        )
     else:
         print("  >> VERDICT: DENSE_ONLY")
     print()
@@ -213,8 +212,11 @@ def main():
             print(f"ERROR: model_quantized.onnx not found at {model_file}")
             # List what we got
             for f in Path(local_path).iterdir():
-                print(f"  {f.name} ({f.stat().st_size / 1e6:.1f} MB)" if f.is_file()
-                      else f"  {f.name}/")
+                print(
+                    f"  {f.name} ({f.stat().st_size / 1e6:.1f} MB)"
+                    if f.is_file()
+                    else f"  {f.name}/"
+                )
             sys.exit(1)
 
         ort_info = _probe_with_onnxruntime(model_file)
@@ -226,6 +228,7 @@ def main():
     except Exception as e:
         print(f"\nERROR during probe: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
     finally:

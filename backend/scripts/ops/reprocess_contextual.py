@@ -97,7 +97,9 @@ async def reprocess(
     qdrant_url = os.environ.get("QDRANT_URL", settings.qdrant_url)
     collection = os.environ.get("QDRANT_COLLECTION", settings.qdrant_collection)
 
-    qdrant_api_key = os.environ.get("QDRANT_API_KEY") or getattr(settings, "qdrant_api_key", "") or None
+    qdrant_api_key = (
+        os.environ.get("QDRANT_API_KEY") or getattr(settings, "qdrant_api_key", "") or None
+    )
     client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key, timeout=30)
 
     # Initialise LLM + contextual service using the configured provider

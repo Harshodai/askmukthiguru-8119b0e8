@@ -17,6 +17,7 @@ class NimProvider(LLMProvider):
 
     async def generate(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> str:
         from app.config import settings
+
         full_prompt_text = f"{system_prompt} {user_prompt}"
         max_budget = getattr(settings, "max_tokens_per_request", 12000)
         self._enforce_token_budget(full_prompt_text, max_budget, node="generate")
@@ -25,8 +26,11 @@ class NimProvider(LLMProvider):
     async def _generate_fast(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> str:
         return await self._service._generate_fast(system_prompt, user_prompt, **kwargs)
 
-    async def generate_stream(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> AsyncIterator[str]:
+    async def generate_stream(
+        self, system_prompt: str, user_prompt: str, **kwargs: Any
+    ) -> AsyncIterator[str]:
         from app.config import settings
+
         full_prompt_text = f"{system_prompt} {user_prompt}"
         max_budget = getattr(settings, "max_tokens_per_request", 12000)
         self._enforce_token_budget(full_prompt_text, max_budget, node="generate_stream")
@@ -42,7 +46,9 @@ class NimProvider(LLMProvider):
     async def classify_distress_structured(self, message: str) -> dict:
         return await self._service.classify_distress_structured(message)
 
-    async def grade_relevance(self, question: str, doc_texts: list[str], **kwargs: Any) -> list[dict[str, Any]]:
+    async def grade_relevance(
+        self, question: str, doc_texts: list[str], **kwargs: Any
+    ) -> list[dict[str, Any]]:
         return await self._service.batch_grade_relevance(question, doc_texts)
 
     async def check_faithfulness(self, answer: str, context: str, **kwargs: Any) -> dict[str, Any]:
@@ -64,7 +70,9 @@ class NimProvider(LLMProvider):
     async def compress_context(self, question: str, text: str, **kwargs: Any) -> str:
         return await self._service.compress_context(question, text)
 
-    async def translate_text(self, text: str, source_lang: str, target_lang: str, **kwargs: Any) -> str:
+    async def translate_text(
+        self, text: str, source_lang: str, target_lang: str, **kwargs: Any
+    ) -> str:
         return await self._service.translate_text(text, source_lang, target_lang)
 
     async def health_check(self) -> bool:

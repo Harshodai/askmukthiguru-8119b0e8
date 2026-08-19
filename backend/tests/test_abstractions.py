@@ -77,7 +77,7 @@ class TestGraphStrategies(unittest.TestCase):
         self.assertEqual(DeepGraphStrategy().name, "deep")
 
 
-class TestNodeCommand(unittest.TestCase):
+class TestNodeCommandImport(unittest.TestCase):
     """Verify the Node Command base class."""
 
     def test_node_command_import(self) -> None:
@@ -122,6 +122,7 @@ class TestIsAvailable(unittest.TestCase):
     def test_ollama_is_available(self) -> None:
         from app.config import settings
         from services.ollama_service import OllamaService
+
         # Exercise OllamaService internals; temporarily bypass cloud-only guard.
         settings.ollama_cloud_only = False
         svc = OllamaService()
@@ -129,6 +130,7 @@ class TestIsAvailable(unittest.TestCase):
 
     def test_sarvam_is_available(self) -> None:
         from services.sarvam_service import SarvamCloudService
+
         if not settings.sarvam_api_key:
             self.skipTest("SARVAM_API_KEY not set")
         svc = SarvamCloudService()
@@ -136,6 +138,7 @@ class TestIsAvailable(unittest.TestCase):
 
     def test_nim_is_available(self) -> None:
         from services.nim_service import NimService
+
         if not settings.nim_api_key:
             self.skipTest("NIM_API_KEY not set")
         svc = NimService()
@@ -177,7 +180,7 @@ class TestNodeRegistry(unittest.TestCase):
         self.assertFalse("__nonexistent__" in registry)
 
 
-class TestNodeCommand(unittest.TestCase):
+class TestNodeCommandBehavior(unittest.TestCase):
     """Verify the Node Command base class and decorators."""
 
     def test_node_command_import(self):
@@ -256,6 +259,7 @@ class TestAgenticNodes(unittest.TestCase):
 
     def test_react_node_import(self):
         from rag.agentic_nodes import ReActNode, SelfCorrectionNode
+
         self.assertIsNotNone(ReActNode)
         self.assertIsNotNone(SelfCorrectionNode)
 
@@ -323,6 +327,7 @@ class TestTools(unittest.TestCase):
 
     def test_tool_imports(self) -> None:
         from rag.tools import EmbeddingTool, LLMGenerateTool, QdrantSearchTool, Tool, ToolRegistry
+
         self.assertIsNotNone(Tool)
         self.assertIsNotNone(ToolRegistry)
         self.assertIsNotNone(QdrantSearchTool)

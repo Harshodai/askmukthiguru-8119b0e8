@@ -192,8 +192,7 @@ async def run_live_endpoint_eval(
                 f"verified={'Y' if entry['verification_ran'] else 'N'} "
                 f"halluc={'Y' if entry['hallucination_flag'] else 'N'} "
                 f"cites={entry['citations_count']} tier={entry['query_tier']} "
-                f"({latency_ms:.0f}ms) — {item['q'][:60]}"
-                + (f"  ERROR: {error}" if error else "")
+                f"({latency_ms:.0f}ms) — {item['q'][:60]}" + (f"  ERROR: {error}" if error else "")
             )
 
             if i < len(questions) - 1:
@@ -205,9 +204,13 @@ async def run_live_endpoint_eval(
     accepted = [r for r in results if not r["blocked"] and r["faithfulness_score"] is not None]
     would_flip = [r for r in accepted if r["faithfulness_score"] < settings.faithfulness_floor]
     reject_rate_delta = len(would_flip) / len(accepted) if accepted else 0.0
-    verified_rate = sum(1 for r in results if r["verification_ran"]) / len(results) if results else 0.0
+    verified_rate = (
+        sum(1 for r in results if r["verification_ran"]) / len(results) if results else 0.0
+    )
     avg_faith = sum(r["faithfulness_score"] for r in accepted) / len(accepted) if accepted else 0.0
-    halluc_rate = sum(1 for r in results if r["hallucination_flag"]) / len(results) if results else 0.0
+    halluc_rate = (
+        sum(1 for r in results if r["hallucination_flag"]) / len(results) if results else 0.0
+    )
 
     summary = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -249,7 +252,9 @@ async def run_live_endpoint_eval(
 def _parse_args() -> argparse.Namespace:
     from app.config import settings
 
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--endpoint", default=settings.benchmark_endpoint)
     parser.add_argument(
         "--test-key",

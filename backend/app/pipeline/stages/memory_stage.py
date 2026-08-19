@@ -9,14 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from app.config import settings
-
-from app.pipeline.stages.base import Stage
 from app.pipeline.result import PipelineResult  # noqa: F401
+from app.pipeline.stages.base import Stage
 from services.user_profile_service import _is_persistable_user_id
 
 if TYPE_CHECKING:
@@ -34,7 +32,9 @@ logger = logging.getLogger(__name__)
 # Non-blocking capacity mechanism: only allow the configured number of active
 # or queued Celery apply_async calls; defer to Celery Beat when no slot is available.
 _DISPATCH_MAX_SLOTS = 2
-_DISPATCH_EXECUTOR = ThreadPoolExecutor(max_workers=_DISPATCH_MAX_SLOTS, thread_name_prefix="memory-outbox-dispatch")
+_DISPATCH_EXECUTOR = ThreadPoolExecutor(
+    max_workers=_DISPATCH_MAX_SLOTS, thread_name_prefix="memory-outbox-dispatch"
+)
 _DISPATCH_SEMAPHORE = asyncio.Semaphore(_DISPATCH_MAX_SLOTS)
 
 
@@ -47,7 +47,7 @@ def _schedule_memory_task(coro, task_name: str) -> None:
                 coro,
                 timeout=settings.memory_background_task_timeout_seconds,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("%s timed out and was cancelled", task_name)
         except asyncio.CancelledError:
             raise
@@ -62,7 +62,7 @@ class MemoryStage(Stage):
 
     name = "memory_save"
 
-    async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         if ctx.incognito:
             logger.debug("Memory persistence skipped for incognito request")
             return None
@@ -89,9 +89,7 @@ class MemoryStage(Stage):
             return None
         tenant_id = TenantContext.get()
         try:
-            consent = await outbox.active_consent(
-                user_id=user_id, tenant_id=tenant_id
-            )
+            consent = await outbox.active_consent(user_id=user_id, tenant_id=tenant_id)
             if not consent:
                 logger.debug("Memory persistence skipped: no active consent receipt")
                 return None

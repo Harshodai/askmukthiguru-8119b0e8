@@ -108,6 +108,7 @@ def get_tenant_collection(base_collection: str, tenant_id: Optional[str] = None)
 # FastAPI dependency: extract tenant_id from the resolved user dict
 # -----------------------------------------------------------------------
 
+
 def get_tenant_id_from_user(user: dict) -> str:
     """Extract the tenant ID from an authenticated user dict.
 
@@ -131,11 +132,7 @@ def get_tenant_id_from_user(user: dict) -> str:
     failure shape as the tenant/corpus outage fixed this session, just
     dormant rather than live, and via the authenticated path specifically).
     """
-    return (
-        user.get("tenant_id")
-        or user.get("id")
-        or _LEGACY_TENANT
-    )
+    return user.get("tenant_id") or user.get("id") or _LEGACY_TENANT
 
 
 async def set_tenant_from_request(request: Request) -> None:

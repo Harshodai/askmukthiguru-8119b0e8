@@ -14,7 +14,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 # Add backend/ to the path so imports work when run as a script
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -45,6 +45,7 @@ def _load_service_container():
     """Load the ServiceContainer (assumes dependencies.py is importable)."""
     try:
         from app.dependencies import ServiceContainer
+
         return ServiceContainer()
     except Exception as e:
         logger.error("Failed to initialize ServiceContainer: %s", e)
@@ -55,6 +56,7 @@ def _get_redis_client():
     """Try to get a Redis client for storing precomputed results."""
     try:
         import redis
+
         redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
         client = redis.from_url(redis_url, decode_responses=True)
         client.ping()
@@ -92,7 +94,7 @@ async def precompute_topic(container, topic: str, redis_client, limit: int = 5) 
 
         payload = {
             "topic": topic,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "count": len(docs),
             "docs": docs,
         }

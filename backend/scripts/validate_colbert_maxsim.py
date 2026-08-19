@@ -143,7 +143,9 @@ def validate_env_parse(env_path: Path = _ENV_PATH) -> tuple[bool, dict]:
                 malformed.append(lineno)
                 logger.error(
                     "P0: line %d possible concatenation bug — value contains a second KEY= pattern: %s=...%s",
-                    lineno, key, value[:40],
+                    lineno,
+                    key,
+                    value[:40],
                 )
                 continue
             keys.append(key)
@@ -163,7 +165,10 @@ def validate_env_parse(env_path: Path = _ENV_PATH) -> tuple[bool, dict]:
     if backend_val is None:
         logger.info("P0: EMBEDDING_BACKEND absent — config default applies")
     elif backend_val != "onnx_int8":
-        logger.warning("P0: EMBEDDING_BACKEND=%s (not onnx_int8) — ColBERT path may fall back to PyTorch", backend_val)
+        logger.warning(
+            "P0: EMBEDDING_BACKEND=%s (not onnx_int8) — ColBERT path may fall back to PyTorch",
+            backend_val,
+        )
     else:
         logger.info("P0: EMBEDDING_BACKEND=onnx_int8 confirmed")
 
@@ -185,6 +190,7 @@ def _force_enable_colbert() -> None:
     os.environ["ENABLE_COLBERT"] = "true"
     try:
         from app.config import settings
+
         settings.enable_colbert = True
     except Exception as exc:
         logger.warning("P1: could not set settings.enable_colbert=True: %s", exc)
@@ -193,6 +199,7 @@ def _force_enable_colbert() -> None:
 def capability_probe() -> tuple[bool, dict]:
     """Load EmbeddingService, call encode_with_colbert, assert 3 keys + CLS exclusion."""
     import numpy as np
+
     from services.embedding_service import EmbeddingService
 
     svc = EmbeddingService()
@@ -200,7 +207,9 @@ def capability_probe() -> tuple[bool, dict]:
     result = svc.encode_with_colbert(test_texts)
 
     if not isinstance(result, dict) or set(result.keys()) < {"dense", "sparse", "colbert"}:
-        return False, {"reason": f"missing keys: got {sorted(result.keys()) if isinstance(result, dict) else type(result)}"}
+        return False, {
+            "reason": f"missing keys: got {sorted(result.keys()) if isinstance(result, dict) else type(result)}"
+        }
 
     if len(result["colbert"]) != 2:
         return False, {"reason": f"expected 2 colbert arrays, got {len(result['colbert'])}"}
@@ -224,7 +233,9 @@ def capability_probe() -> tuple[bool, dict]:
     raw_token_counts = []
     try:
         if hasattr(svc, "_onnx_tokenizer") and svc._onnx_tokenizer is not None:
-            enc = svc._onnx_tokenizer(test_texts, padding=True, truncation=True, return_tensors="np")
+            enc = svc._onnx_tokenizer(
+                test_texts, padding=True, truncation=True, return_tensors="np"
+            )
             raw_token_counts = [int(m.sum()) for m in enc["attention_mask"]]
     except Exception as exc:
         logger.warning("P1: could not compute raw token counts: %s", exc)
@@ -235,7 +246,7 @@ def capability_probe() -> tuple[bool, dict]:
         if i < len(raw_token_counts):
             raw = raw_token_counts[i]
             # CLS exclusion removes exactly one token: n_valid == raw - 1.
-            ok = (n_valid == raw - 1)
+            ok = n_valid == raw - 1
             per_text_check.append((n_valid, raw, ok))
             if not ok:
                 cls_excluded = False
@@ -256,17 +267,27 @@ def capability_probe() -> tuple[bool, dict]:
 
     logger.info(
         "P1: colbert shapes=%s (dense=%d, sparse=%d) raw_token_counts=%s CLS-excluded=%s",
-        shapes, len(result["dense"]), len(result["sparse"]), raw_token_counts, cls_excluded,
+        shapes,
+        len(result["dense"]),
+        len(result["sparse"]),
+        raw_token_counts,
+        cls_excluded,
     )
 
     if not cls_excluded:
-        return False, {"reason": "CLS exclusion did not reduce seq dim by 1", "shapes": shapes, "per_text_check": per_text_check}
+        return False, {
+            "reason": "CLS exclusion did not reduce seq dim by 1",
+            "shapes": shapes,
+            "per_text_check": per_text_check,
+        }
+    max_seq_len = max(raw_token_counts) if raw_token_counts else 0
     return True, {"shapes": shapes, "max_seq_len": max_seq_len}
 
 
 def latency_spike(query: str = "what is karma", warm_iters: int = _WARM_ITERS) -> tuple[bool, dict]:
     """20-doc batched _colbert_maxsim_rerank; pass if warm P95 < 2000ms."""
     import numpy as np
+
     from services.embedding_service import EmbeddingService
 
     documents = [{"text": t} for t in CANDIDATE_DOCS[:_NUM_DOCS]]
@@ -295,7 +316,12 @@ def latency_spike(query: str = "what is karma", warm_iters: int = _WARM_ITERS) -
     }
     logger.info(
         "P2: cold=%.1fms warm_p50=%.1fms warm_p95=%.1fms variance=%.1fms² (n=%d, docs=%d)",
-        cold_ms, warm_p50, warm_p95, variance, warm_iters, len(documents),
+        cold_ms,
+        warm_p50,
+        warm_p95,
+        variance,
+        warm_iters,
+        len(documents),
     )
 
     if warm_p95 >= _LATENCY_GATE_MS:
@@ -308,8 +334,9 @@ def latency_spike(query: str = "what is karma", warm_iters: int = _WARM_ITERS) -
 def multilingual_sanity() -> tuple[bool, list[dict]]:
     """4 language pairs: relevant doc must score > irrelevant doc via maxsim_score."""
     import numpy as np
-    from services.embedding_service import EmbeddingService
+
     from services.colbert_maxsim import maxsim_score
+    from services.embedding_service import EmbeddingService
 
     svc = EmbeddingService()
     results: list[dict] = []
@@ -322,15 +349,20 @@ def multilingual_sanity() -> tuple[bool, list[dict]]:
         rel_score = maxsim_score(q, r)
         irrel_score = maxsim_score(q, i)
         ok = rel_score > irrel_score
-        results.append({
-            "query": query,
-            "relevant_score": rel_score,
-            "irrelevant_score": irrel_score,
-            "ok": ok,
-        })
+        results.append(
+            {
+                "query": query,
+                "relevant_score": rel_score,
+                "irrelevant_score": irrel_score,
+                "ok": ok,
+            }
+        )
         logger.info(
             "P3: %s — relevant=%.4f irrelevant=%.4f ok=%s",
-            query, rel_score, irrel_score, ok,
+            query,
+            rel_score,
+            irrel_score,
+            ok,
         )
 
     all_ok = all(r["ok"] for r in results)
@@ -345,6 +377,7 @@ def multilingual_sanity() -> tuple[bool, list[dict]]:
 def _spearman_fallback(a: list[float], b: list[float]) -> float:
     """Pure-Python Spearman rank correlation (no scipy)."""
     import numpy as np
+
     rank_a = np.argsort(np.argsort(a)).astype(float)
     rank_b = np.argsort(np.argsort(b)).astype(float)
     n = len(a)
@@ -477,6 +510,7 @@ def _colbert_vs_crossencoder_spearman() -> tuple[bool, Optional[float], str]:
         return True, None, f"torch import failed ({exc!r}) — P4 skipped"
 
     import numpy as np
+
     from services.embedding_service import EmbeddingService
 
     svc = EmbeddingService()
@@ -500,16 +534,20 @@ def _colbert_vs_crossencoder_spearman() -> tuple[bool, Optional[float], str]:
             # min_score=-1 disables the rerank_min_score threshold filter so all
             # docs are returned in rank order (we need full rankings, not the
             # production filtered subset, to compute rank positions for Spearman).
-            cross_out = svc.rerank(
-                q, [{"text": d} for d in docs], top_k=len(docs), min_score=-1.0
-            )
+            cross_out = svc.rerank(q, [{"text": d} for d in docs], top_k=len(docs), min_score=-1.0)
             cross_order = [d["text"] for d in cross_out]
 
-            for original_idx, original_doc in enumerate(docs):
+            for _original_idx, original_doc in enumerate(docs):
                 # If a doc was dropped by a reranker's filter, assign it the
                 # worst rank (len(docs)) so the pair still contributes a signal.
-                c_pos = colbert_order.index(original_doc) if original_doc in colbert_order else len(docs)
-                x_pos = cross_order.index(original_doc) if original_doc in cross_order else len(docs)
+                c_pos = (
+                    colbert_order.index(original_doc)
+                    if original_doc in colbert_order
+                    else len(docs)
+                )
+                x_pos = (
+                    cross_order.index(original_doc) if original_doc in cross_order else len(docs)
+                )
                 colbert_rank_positions.append(c_pos)
                 cross_rank_positions.append(x_pos)
     except Exception as exc:
@@ -519,12 +557,14 @@ def _colbert_vs_crossencoder_spearman() -> tuple[bool, Optional[float], str]:
         logger.error(
             "P4: FAIL — zero rank variance (corpus not discriminating). "
             "colbert_pos=%s cross_pos=%s",
-            colbert_rank_positions, cross_rank_positions,
+            colbert_rank_positions,
+            cross_rank_positions,
         )
         return False, None, "P4: zero rank variance — corpus not discriminating enough"
 
     try:
         from scipy.stats import spearmanr
+
         spearman_corr, _p = spearmanr(colbert_rank_positions, cross_rank_positions)
         spearman_corr = float(spearman_corr)
         spearman_path = "scipy"
@@ -544,9 +584,10 @@ def _colbert_vs_crossencoder_spearman() -> tuple[bool, Optional[float], str]:
 
     if not np.isfinite(spearman_corr):
         logger.error(
-            "P4: FAIL — spearman non-finite (%s). Zero-variance ranks. "
-            "colbert_pos=%s cross_pos=%s",
-            spearman_corr, colbert_rank_positions, cross_rank_positions,
+            "P4: FAIL — spearman non-finite (%s). Zero-variance ranks. colbert_pos=%s cross_pos=%s",
+            spearman_corr,
+            colbert_rank_positions,
+            cross_rank_positions,
         )
         return False, None, "P4: zero rank variance — corpus not discriminating enough"
 
@@ -606,8 +647,7 @@ def main() -> int:
         import onnxruntime  # noqa: F401
     except ModuleNotFoundError:
         logger.info(
-            "onnxruntime is not installed — validation is opt-in. "
-            "Skipping P1/P2/P3/P4 (exit 0)."
+            "onnxruntime is not installed — validation is opt-in. Skipping P1/P2/P3/P4 (exit 0)."
         )
         print(_format_summary(results))
         return 0
@@ -643,7 +683,9 @@ def main() -> int:
     try:
         ok, pair_results = multilingual_sanity()
         results["p3"]["status"] = "PASS" if ok else "FAIL"
-        results["p3"]["detail"] = f"{sum(r['ok'] for r in pair_results)}/{len(pair_results)} pairs ok"
+        results["p3"]["detail"] = (
+            f"{sum(r['ok'] for r in pair_results)}/{len(pair_results)} pairs ok"
+        )
         if not ok:
             overall_pass = False
     except Exception as exc:

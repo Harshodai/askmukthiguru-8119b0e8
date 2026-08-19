@@ -4,7 +4,7 @@ import logging
 import uuid
 from typing import Any, Optional
 
-from app.queue.request_queue import BaseRequestQueue, QueueItem, QueueStatus, RequestPriority
+from app.queue.request_queue import BaseRequestQueue, QueueItem, RequestPriority
 
 logger = logging.getLogger(__name__)
 

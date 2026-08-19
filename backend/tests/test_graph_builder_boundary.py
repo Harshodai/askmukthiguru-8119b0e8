@@ -98,7 +98,7 @@ def test_build_all_returns_three_graphs(builder):
     graphs = builder.build_all()
     assert isinstance(graphs, dict)
     assert set(graphs.keys()) == {"fast", "standard", "deep"}
-    for tier, compiled in graphs.items():
+    for _tier, compiled in graphs.items():
         _assert_compiled_graph(compiled)
 
 

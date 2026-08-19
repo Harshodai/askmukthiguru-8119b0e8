@@ -39,7 +39,7 @@ os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 N_ITERATIONS = 100  # number of single-query timing samples
-WARMUP = 10          # warmup iterations before timing
+WARMUP = 10  # warmup iterations before timing
 
 # Representative test queries covering different lengths
 TEST_QUERIES = [
@@ -54,12 +54,14 @@ TEST_QUERIES = [
 
 def _thread_setup():
     import torch
+
     torch.set_num_threads(1)
 
 
 def _setup_baseline():
     from FlagEmbedding import BGEM3FlagModel
     from huggingface_hub import snapshot_download
+
     _thread_setup()
     # Pinned local snapshot of BAAI/bge-m3 (BGEM3FlagModel has no revision=
     # kwarg; a local dir cannot drift from a repo head).
@@ -78,6 +80,7 @@ def _setup_onnx():
     import onnxruntime as ort
     from huggingface_hub import snapshot_download
     from transformers import AutoTokenizer
+
     _thread_setup()
     # Pinned candidate + immutable revision (validated in-process).
     local_path = snapshot_download(
@@ -92,9 +95,7 @@ def _setup_onnx():
         os.path.join(local_path, "model_quantized.onnx"),
         providers=["CPUExecutionProvider"],
     )
-    tokenizer = AutoTokenizer.from_pretrained(
-        "BAAI/bge-m3", revision=BGE_M3_REVISION
-    )
+    tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-m3", revision=BGE_M3_REVISION)
     return session, tokenizer
 
 
@@ -134,8 +135,10 @@ def _measure_latency(encode_fn, queries: list[str], label: str) -> dict:
 
 def main():
     print("=== Phase 4: Latency Benchmark ===\n")
-    print(f"Thread setup: OMP_NUM_THREADS={os.environ['OMP_NUM_THREADS']}, "
-          f"MKL_NUM_THREADS={os.environ['MKL_NUM_THREADS']}")
+    print(
+        f"Thread setup: OMP_NUM_THREADS={os.environ['OMP_NUM_THREADS']}, "
+        f"MKL_NUM_THREADS={os.environ['MKL_NUM_THREADS']}"
+    )
     print(f"Iterations: {N_ITERATIONS} (after {WARMUP} warmup)")
     print(f"Queries: {len(TEST_QUERIES)} (rotated through)")
 
@@ -151,13 +154,17 @@ def main():
 
     # Define encode functions
     def baseline_encode(texts):
-        out = baseline.encode(texts, return_dense=True, return_sparse=False,
-                              return_colbert_vecs=False)
+        out = baseline.encode(
+            texts, return_dense=True, return_sparse=False, return_colbert_vecs=False
+        )
         return out["dense_vecs"]
 
     def onnx_encode(texts):
         inputs = onnx_tokenizer(
-            texts, padding=True, truncation=True, return_tensors="np",
+            texts,
+            padding=True,
+            truncation=True,
+            return_tensors="np",
         )
         ort_in = {
             "input_ids": inputs["input_ids"].astype(np.int64),
@@ -174,23 +181,24 @@ def main():
     # Verdict
     print(f"\n{'=' * 60}")
     print("FINAL VERDICT — Phase 4: Latency")
-    print('=' * 60)
+    print("=" * 60)
     print(f"  fp32 P95:   {fp32_stats['p95']:.2f}ms")
     print(f"  ONNX P95:   {onnx_stats['p95']:.2f}ms")
     print(f"  Threshold:  ONNX P95 <= fp32 P95 × 1.10 = {fp32_stats['p95'] * 1.10:.2f}ms")
 
-    speed_ratio = onnx_stats['p95'] / fp32_stats['p95']
+    speed_ratio = onnx_stats["p95"] / fp32_stats["p95"]
     if speed_ratio <= 1.10:
         print(f"  Ratio: {speed_ratio:.4f} (PASS)")
-        print(f"\n  ✅ Phase 4 PASSED — proceed to Phase 5.")
+        print("\n  ✅ Phase 4 PASSED — proceed to Phase 5.")
     else:
         print(f"  Ratio: {speed_ratio:.4f} (FAIL)")
-        print(f"\n  ❌ Phase 4 FAILED — ONNX is slower than threshold.")
+        print("\n  ❌ Phase 4 FAILED — ONNX is slower than threshold.")
         sys.exit(1)
 
 
 def _cleanup():
     import shutil
+
     if SCRATCH.exists():
         shutil.rmtree(SCRATCH)
 

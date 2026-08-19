@@ -46,6 +46,7 @@ def _aiter_chunks(chunks):
     async def _gen():
         for c in chunks:
             yield c
+
     return _gen()
 
 
@@ -64,6 +65,7 @@ def _make_state(doc_text: str, title: str) -> GraphState:
 async def test_sequential_calls_do_not_cross_contaminate_context(mock_services, monkeypatch):
     """Two calls on the same default config must each send their own context."""
     from app.config import settings as app_settings
+
     monkeypatch.setattr(app_settings, "llm_provider", "ollama")
     monkeypatch.setattr(app_settings, "use_dspy", False)
     monkeypatch.setattr(
@@ -75,6 +77,7 @@ async def test_sequential_calls_do_not_cross_contaminate_context(mock_services, 
 
     def _raise_from_settings(cls):
         raise AnthropicGatewayError("disabled in test")
+
     monkeypatch.setattr(
         "services.gateways.anthropic_gateway.AnthropicGateway.from_settings",
         classmethod(_raise_from_settings),

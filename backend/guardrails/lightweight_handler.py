@@ -238,6 +238,7 @@ _BLOCK_RESPONSES = {
     ),
 }
 
+
 # Topics that redirect to Serene Mind meditation
 def _resolve_block_response(category: str, default_message: str) -> str:
     """Look up the canned block response for a category and substitute
@@ -276,8 +277,14 @@ _SERENE_MIND_REDIRECT_TOPICS = frozenset(["self_harm", "substance_abuse"])
 # Output moderation patterns (content the bot should not produce)
 _OUTPUT_BLOCK_PATTERNS = [
     (r"\b(?:take|prescribe|recommend)\b.*\b(?:mg|pill|tablet|medicine)\b", "medical_advice"),
-    (r"\b(?:replace|substitute|instead\s+of)\b.*\b(?:doctor|therapist|psychiatrist|medication|therapy|medical\s+treatment)\b", "medical_replacement"),
-    (r"\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b.*\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|clinical\s+depression|disease)\b|\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|clinical\s+depression|disease)\b.*\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b", "disease_cure_claim"),
+    (
+        r"\b(?:replace|substitute|instead\s+of)\b.*\b(?:doctor|therapist|psychiatrist|medication|therapy|medical\s+treatment)\b",
+        "medical_replacement",
+    ),
+    (
+        r"\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b.*\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|clinical\s+depression|disease)\b|\b(?:cancer|diabetes|tumor|tumors|bipolar|schizophrenia|clinical\s+depression|disease)\b.*\b(?:cure|cures|cured|curing|heal|heals|healed|healing)\b",
+        "disease_cure_claim",
+    ),
     (r"\b(?:guaranteed|100%|risk.?free)\b.*\b(?:return|profit|income)\b", "financial_promise"),
     (r"\b(?:vote for|support|elect)\b.*\b(?:party|candidate|politician)\b", "political_advice"),
 ]
@@ -447,7 +454,9 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
                             api_key=settings.openrouter_api_key,
                         )
                     else:
-                        logger.warning(f"guardrails_llm fallback provider not configured (provider={settings.llm_provider})")
+                        logger.warning(
+                            f"guardrails_llm fallback provider not configured (provider={settings.llm_provider})"
+                        )
                 openai_client = _guardrail_openai_client
 
                 client = instructor.from_openai(

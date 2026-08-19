@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import uuid
+from datetime import UTC
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
@@ -22,9 +23,7 @@ class EpisodicMemoryDetail(BaseModel):
     insight: str = Field(
         description="A concise 3-6 word summary of the user's reflection or situation (e.g. 'Work Stress Anxiety', 'Daily Meditation Practice', 'Gratitude for Family'). Do NOT use 'User asked X'. Write in first person or noun phrase form representing their state."
     )
-    content: str = Field(
-        description="The full context of the reflection or insight."
-    )
+    content: str = Field(description="The full context of the reflection or insight.")
     state_category: str = Field(
         description="The state of consciousness this memory belongs to: 'Beautiful State', 'Suffering State', 'Shrinking Self', 'Destructive Self', 'Inert Self', or 'Neutral'."
     )
@@ -33,13 +32,13 @@ class EpisodicMemoryDetail(BaseModel):
     )
     claim: str = Field(
         default="",
-        description="The factual claim distilled from this memory, stated as a simple declarative sentence about the seeker (e.g. 'Seeker experiences anxiety about work presentations')."
+        description="The factual claim distilled from this memory, stated as a simple declarative sentence about the seeker (e.g. 'Seeker experiences anxiety about work presentations').",
     )
     confidence: float = Field(
         default=0.75,
         ge=0.0,
         le=1.0,
-        description="Confidence in this memory: 0.0-1.0. Base on the model's certainty, explicit vs inferred, and whether the seeker stated it directly."
+        description="Confidence in this memory: 0.0-1.0. Base on the model's certainty, explicit vs inferred, and whether the seeker stated it directly.",
     )
 
 
@@ -48,8 +47,10 @@ class ClaimedMemory(BaseModel):
         description="A concise declarative claim about the seeker, distilled from one or more conversation turns."
     )
     confidence: float = Field(
-        default=0.75, ge=0.0, le=1.0,
-        description="Confidence in the claim (0.0-1.0): direct self-report = higher, inferred/ambiguous = lower."
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        description="Confidence in the claim (0.0-1.0): direct self-report = higher, inferred/ambiguous = lower.",
     )
 
 
@@ -62,12 +63,11 @@ class MemoryExtraction(BaseModel):
     )
     claimed_memories: list[ClaimedMemory] = Field(
         default_factory=list,
-        description="A list of 0 or more high-confidence factual claims about the seeker drawn from the transcript. Each claim should be a standalone fact with a confidence score (0.0-1.0)."
+        description="A list of 0 or more high-confidence factual claims about the seeker drawn from the transcript. Each claim should be a standalone fact with a confidence score (0.0-1.0).",
     )
     session_summary: str = Field(
         description="A concise 1-2 sentence summary of this conversation session's core topics and user state."
     )
-
 
 
 class MemoryService:
@@ -123,7 +123,12 @@ class MemoryService:
         self, user_id: str, query: str, limit: int = 5, min_similarity: float = 0.6
     ) -> list[dict[str, Any]]:
         """Search episodic memories using semantic vector search with bio-mimetic time decay."""
-        if not self._supabase or not self._embedding_service or self._search_disabled or self._is_anonymous(user_id):
+        if (
+            not self._supabase
+            or not self._embedding_service
+            or self._search_disabled
+            or self._is_anonymous(user_id)
+        ):
             return []
         try:
             # Generate query embedding
@@ -147,9 +152,9 @@ class MemoryService:
 
             # Apply Bio-Mimetic Decay calculations
             import math
-            from datetime import datetime, timezone
+            from datetime import datetime
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             scored_memories = []
             for mem in raw_memories:
                 updated_at_str = mem.get("updated_at") or mem.get("created_at")
@@ -158,7 +163,7 @@ class MemoryService:
                         cleaned_str = updated_at_str.replace("Z", "+00:00")
                         last_updated = datetime.fromisoformat(cleaned_str)
                         if last_updated.tzinfo is None:
-                            last_updated = last_updated.replace(tzinfo=timezone.utc)
+                            last_updated = last_updated.replace(tzinfo=UTC)
                         delta_days = (now - last_updated).total_seconds() / (24.0 * 3600.0)
                     except Exception:
                         delta_days = 0.0
@@ -319,8 +324,7 @@ class MemoryService:
                     if merge_target_id:
                         # Merge: update existing row with fresher content/summary
                         update_payload = {
-                            k: v for k, v in insert_data.items()
-                            if k not in ("user_id", "source")
+                            k: v for k, v in insert_data.items() if k not in ("user_id", "source")
                         }
                         result = await asyncio.to_thread(
                             self._supabase.table("guru_memories")
@@ -331,9 +335,7 @@ class MemoryService:
                         logger.debug(f"Merged memory {merge_target_id} for {user_id}")
                     else:
                         result = await asyncio.to_thread(
-                            self._supabase.table("guru_memories")
-                            .insert(insert_data)
-                            .execute
+                            self._supabase.table("guru_memories").insert(insert_data).execute
                         )
                 except Exception as insert_err:
                     err_str = str(insert_err)
@@ -342,9 +344,7 @@ class MemoryService:
                         for col in ("claim", "confidence", "decay_score", "summary"):
                             insert_data.pop(col, None)
                         result = await asyncio.to_thread(
-                            self._supabase.table("guru_memories")
-                            .insert(insert_data)
-                            .execute
+                            self._supabase.table("guru_memories").insert(insert_data).execute
                         )
                     else:
                         raise
@@ -383,7 +383,9 @@ class MemoryService:
             end = start + page_size - 1
             result = await asyncio.to_thread(
                 self._supabase.table("guru_memories")
-                .select("id, content, source, created_at, updated_at, summary, claim, confidence, decay_score, metadata")
+                .select(
+                    "id, content, source, created_at, updated_at, summary, claim, confidence, decay_score, metadata"
+                )
                 .eq("user_id", user_id)
                 .order("created_at", desc=True)
                 .range(start, end)
@@ -451,9 +453,7 @@ class MemoryService:
                 return res_core.data[0]
 
             # Try episodic memory — re-embed so semantic search stays accurate
-            emb_dict = await asyncio.to_thread(
-                self._embedding_service.encode_single_full, content
-            )
+            emb_dict = await asyncio.to_thread(self._embedding_service.encode_single_full, content)
             res_mem = await asyncio.to_thread(
                 self._supabase.table("guru_memories")
                 .update({"content": content, "embedding": emb_dict["dense"]})
@@ -475,10 +475,7 @@ class MemoryService:
             return 0
         try:
             res = await asyncio.to_thread(
-                self._supabase.table("guru_memories")
-                .delete()
-                .eq("user_id", user_id)
-                .execute
+                self._supabase.table("guru_memories").delete().eq("user_id", user_id).execute
             )
             n = len(res.data) if res and hasattr(res, "data") and res.data else 0
             logger.info(f"forget_all_reflections user={user_id} deleted={n}")
@@ -632,7 +629,11 @@ class MemoryService:
             # Aggregate metadata from original memories for preservation
             _claims = [m.get("claim", "") for m in memories if m.get("claim")]
             _best_confidence = max(
-                (float(m.get("confidence") or 0) for m in memories if m.get("confidence") is not None),
+                (
+                    float(m.get("confidence") or 0)
+                    for m in memories
+                    if m.get("confidence") is not None
+                ),
                 default=0.75,
             )
             _summaries = [m.get("summary", "") for m in memories if m.get("summary")]
@@ -811,7 +812,7 @@ class MemoryService:
             # Validate types — models occasionally return strings instead of lists
             if isinstance(core_mems, str):
                 core_mems = [core_mems] if core_mems.strip() else []
-            
+
             validated_episodic = []
             if isinstance(episodic_mems, str):
                 if episodic_mems.strip():
@@ -820,7 +821,7 @@ class MemoryService:
                             insight=episodic_mems[:30],
                             content=episodic_mems,
                             state_category="Neutral",
-                            related_concepts=[]
+                            related_concepts=[],
                         )
                     )
             elif isinstance(episodic_mems, list):
@@ -831,7 +832,7 @@ class MemoryService:
                                 insight=m[:30],
                                 content=m,
                                 state_category="Neutral",
-                                related_concepts=[]
+                                related_concepts=[],
                             )
                         )
                     elif isinstance(m, dict):
@@ -937,7 +938,7 @@ class MemoryService:
                         # raw `claim` content. Falls back gracefully if the column is absent
                         # (PGRST204 retry in add_explicit drops it).
                         "summary": extracted.session_summary.strip(),
-                    }
+                    },
                 )
 
         # Run memory compaction check

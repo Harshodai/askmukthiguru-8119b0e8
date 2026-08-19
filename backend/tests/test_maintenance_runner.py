@@ -12,21 +12,15 @@ Verifies:
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from qdrant_client.models import CollectionsResponse
 
 from migrations.maintenance_runner import (
-    OPERATIONS,
-    CleanupStaleCollectionsOperation,
     DistributedLock,
     ExitCode,
     LightRAGEntityDedupOperation,
     MaintenanceContext,
-    Neo4jOntologyOperation,
-    QdrantContractOperation,
     QdrantPayloadIndexesOperation,
     list_operations,
     main,
@@ -81,6 +75,7 @@ def mock_redis_client():
 # 1. Operation Listing Tests
 # =============================================================================
 
+
 def test_list_operations_contains_all_registered():
     ops = list_operations()
     op_names = {item["name"] for item in ops}
@@ -114,6 +109,7 @@ def test_cli_list_json(capsys):
 
     captured = capsys.readouterr()
     import json
+
     data = json.loads(captured.out)
     assert "operations" in data
     names = [o["name"] for o in data["operations"]]
@@ -123,6 +119,7 @@ def test_cli_list_json(capsys):
 # =============================================================================
 # 2. Dry-Run Planning Tests (No Mutations Allowed)
 # =============================================================================
+
 
 def test_qdrant_contract_dry_run_does_not_mutate(mock_qdrant_client):
     ctx = MaintenanceContext(qdrant_client=mock_qdrant_client, dry_run=True)
@@ -184,8 +181,11 @@ def test_cleanup_stale_collections_dry_run_does_not_mutate(mock_qdrant_client):
 # 3. Apply Execution & Idempotency Tests
 # =============================================================================
 
+
 def test_qdrant_contract_apply_and_idempotency(mock_qdrant_client, mock_redis_client):
-    ctx = MaintenanceContext(qdrant_client=mock_qdrant_client, redis_client=mock_redis_client, dry_run=False)
+    ctx = MaintenanceContext(
+        qdrant_client=mock_qdrant_client, redis_client=mock_redis_client, dry_run=False
+    )
 
     # First apply: updates collections with m=0
     res1 = run_operation("qdrant-contract-v1", dry_run=False, ctx=ctx)
@@ -220,7 +220,9 @@ def test_neo4j_ontology_apply_and_idempotency(mock_neo4j_driver, mock_redis_clie
     from app.config import settings
 
     monkeypatch.setattr(settings, "neo4j_uri", "bolt://test", raising=False)
-    ctx = MaintenanceContext(neo4j_driver=mock_neo4j_driver, redis_client=mock_redis_client, dry_run=False)
+    ctx = MaintenanceContext(
+        neo4j_driver=mock_neo4j_driver, redis_client=mock_redis_client, dry_run=False
+    )
     with patch("app.db.seed_ontology.seed_spiritual_ontology") as mock_seed:
         # Run 1
         res1 = run_operation("neo4j-ontology-schema-v1", dry_run=False, ctx=ctx)
@@ -236,13 +238,17 @@ def test_neo4j_ontology_apply_and_idempotency(mock_neo4j_driver, mock_redis_clie
 
 
 def test_qdrant_payload_indexes_apply_and_idempotency(mock_qdrant_client, mock_redis_client):
-    ctx = MaintenanceContext(qdrant_client=mock_qdrant_client, redis_client=mock_redis_client, dry_run=False)
+    ctx = MaintenanceContext(
+        qdrant_client=mock_qdrant_client, redis_client=mock_redis_client, dry_run=False
+    )
 
     # First apply
     res1 = run_operation("qdrant-payload-indexes-v1", dry_run=False, ctx=ctx)
     assert res1.status == "SUCCESS"
     assert res1.exit_code == ExitCode.SUCCESS
-    total_fields = len(QdrantPayloadIndexesOperation.INT_FIELDS) + len(QdrantPayloadIndexesOperation.KW_FIELDS)
+    total_fields = len(QdrantPayloadIndexesOperation.INT_FIELDS) + len(
+        QdrantPayloadIndexesOperation.KW_FIELDS
+    )
     assert mock_qdrant_client.create_payload_index.call_count == total_fields
 
     # Second apply: indexes exist (mock raises conflict / already exists)
@@ -254,7 +260,9 @@ def test_qdrant_payload_indexes_apply_and_idempotency(mock_qdrant_client, mock_r
 
 def test_lightrag_entity_dedup_apply_and_idempotency(mock_redis_client):
     mock_rag = MagicMock()
-    ctx = MaintenanceContext(lightrag_instance=mock_rag, redis_client=mock_redis_client, dry_run=False)
+    ctx = MaintenanceContext(
+        lightrag_instance=mock_rag, redis_client=mock_redis_client, dry_run=False
+    )
 
     # First apply
     res1 = run_operation("lightrag-entity-dedup-v1", dry_run=False, ctx=ctx)
@@ -283,7 +291,9 @@ def test_cleanup_stale_collections_apply_and_idempotency(mock_qdrant_client, moc
     col_info.points_count = 0
     mock_qdrant_client.get_collection.return_value = col_info
 
-    ctx = MaintenanceContext(qdrant_client=mock_qdrant_client, redis_client=mock_redis_client, dry_run=False, force=True)
+    ctx = MaintenanceContext(
+        qdrant_client=mock_qdrant_client, redis_client=mock_redis_client, dry_run=False, force=True
+    )
 
     # First apply: deletes stale 384d and empty semantic_query_cache
     res1 = run_operation("cleanup-stale-collections-v1", dry_run=False, ctx=ctx)
@@ -314,7 +324,9 @@ def test_cleanup_stale_collections_apply_requires_force(mock_qdrant_client, mock
     col_info.points_count = 0
     mock_qdrant_client.get_collection.return_value = col_info
 
-    ctx = MaintenanceContext(qdrant_client=mock_qdrant_client, redis_client=mock_redis_client, dry_run=False)
+    ctx = MaintenanceContext(
+        qdrant_client=mock_qdrant_client, redis_client=mock_redis_client, dry_run=False
+    )
 
     res = run_operation("cleanup-stale-collections-v1", dry_run=False, ctx=ctx)
     assert res.status == "SKIPPED"
@@ -326,12 +338,15 @@ def test_cleanup_stale_collections_apply_requires_force(mock_qdrant_client, mock
 # 4. Distributed Redis Lock Tests
 # =============================================================================
 
+
 def test_lock_prevents_concurrent_execution(mock_qdrant_client):
     mock_redis = MagicMock()
     # Simulate lock held by another process: set with nx=True returns None
     mock_redis.set.return_value = None
 
-    ctx = MaintenanceContext(qdrant_client=mock_qdrant_client, redis_client=mock_redis, dry_run=False)
+    ctx = MaintenanceContext(
+        qdrant_client=mock_qdrant_client, redis_client=mock_redis, dry_run=False
+    )
     res = run_operation("qdrant-contract-v1", dry_run=False, ctx=ctx)
 
     assert res.status == "LOCK_HELD"
@@ -350,7 +365,9 @@ def test_lock_redis_error_returns_precondition_failed(mock_qdrant_client):
     mock_redis = MagicMock()
     mock_redis.set.side_effect = Exception("Connection refused")
 
-    ctx = MaintenanceContext(qdrant_client=mock_qdrant_client, redis_client=mock_redis, dry_run=False)
+    ctx = MaintenanceContext(
+        qdrant_client=mock_qdrant_client, redis_client=mock_redis, dry_run=False
+    )
     res = run_operation("qdrant-contract-v1", dry_run=False, ctx=ctx)
 
     assert res.status == "PRECONDITION_FAILED"
@@ -363,7 +380,9 @@ def test_lock_error_with_force_proceeds(mock_qdrant_client):
     mock_redis = MagicMock()
     mock_redis.set.side_effect = Exception("Connection refused")
 
-    ctx = MaintenanceContext(qdrant_client=mock_qdrant_client, redis_client=mock_redis, dry_run=False, force=True)
+    ctx = MaintenanceContext(
+        qdrant_client=mock_qdrant_client, redis_client=mock_redis, dry_run=False, force=True
+    )
     res = run_operation("qdrant-contract-v1", dry_run=False, ctx=ctx)
 
     assert res.status == "SUCCESS"
@@ -374,6 +393,7 @@ def test_lock_error_with_force_proceeds(mock_qdrant_client):
 # =============================================================================
 # 5. Precondition Failure Handling
 # =============================================================================
+
 
 def test_precondition_failure_when_qdrant_unreachable():
     failing_client = MagicMock()
@@ -396,6 +416,7 @@ def test_unknown_operation_returns_invalid_operation():
 # 6. Read-Only Startup Guarantee in app.main
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_startup_body_does_not_execute_maintenance_mutations():
     """Verify that _background_startup_body in app.main makes 0 schema/collection mutations."""
@@ -414,11 +435,12 @@ async def test_startup_body_does_not_execute_maintenance_mutations():
 
     mock_app = MagicMock()
 
-    with patch("app.db.seed_ontology.seed_spiritual_ontology") as mock_seed, \
-         patch("app.main.init_observability") as mock_obs, \
-         patch("app.main.telemetry_worker.start") as mock_tel, \
-         patch("services.config_watcher.start_config_watcher", new=AsyncMock()):
-
+    with (
+        patch("app.db.seed_ontology.seed_spiritual_ontology") as mock_seed,
+        patch("app.main.init_observability"),
+        patch("app.main.telemetry_worker.start"),
+        patch("services.config_watcher.start_config_watcher", new=AsyncMock()),
+    ):
         await _background_startup_body(mock_container, mock_app)
 
         # 1. Neo4j ontology seeding must NOT be called on startup

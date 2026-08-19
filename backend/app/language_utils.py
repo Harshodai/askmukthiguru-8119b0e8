@@ -60,7 +60,7 @@ def detect_message_lang(text: str) -> str:
             return _SCRIPT_TO_LANG.get(script, "en")
     # Catch-all: any non-Latin codepoint above U+02FF (CJK, Cyrillic, Thai,
     # Greek, etc.) is non-English even if not in the enumerated Indic ranges.
-    if any(ord(c) > 0x02FF and not ("\u00C0" <= c <= "\u024F") for c in text):
+    if any(ord(c) > 0x02FF and not ("\u00c0" <= c <= "\u024f") for c in text):
         return "non_en"
     try:
         detected = LanguageRouter().detect(text)

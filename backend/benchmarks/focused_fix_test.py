@@ -143,7 +143,7 @@ def _check_coherence(text: str) -> tuple[bool, list[str]]:
         issues.append("too_short")
 
     # Ensure first word is capitalized and not a single repeated word
-    first_word = text.strip().split()[0]
+    text.strip().split()[0]
     if len(set(text.strip().split())) == 1:
         issues.append("single_repeated_word")
 
@@ -272,7 +272,9 @@ async def test_simple_factual_query(
 
     # Basic keyword presence (generous — at least one of these)
     lowered = response_text.lower()
-    if not any(k in lowered for k in ("soul sync", "meditation", "breathe", "humming", "intention")):
+    if not any(
+        k in lowered for k in ("soul sync", "meditation", "breathe", "humming", "intention")
+    ):
         checks.append("missing_keywords")
 
     verdict = Verdict.PASS if len(checks) == 0 else Verdict.FAIL
@@ -321,16 +323,31 @@ async def test_guardrail_refusal(
 
     lowered = response_text.lower()
     refusal_signals = [
-        "cannot", "unable", "sorry", "not appropriate",
-        "spiritual guide", "off-topic", "off topic",
+        "cannot",
+        "unable",
+        "sorry",
+        "not appropriate",
+        "spiritual guide",
+        "off-topic",
+        "off topic",
     ]
     polite_redirect = [
-        "as a spiritual guide", "my purpose is", "i am here",
-        "focus on", "intended purpose", "here to assist",
-        "not within", "not able to", "beyond my scope",
-        "redirect", "guide you toward", "instead, i",
-        "i can help you with", "let me help you",
-        "how about we", "perhaps you meant",
+        "as a spiritual guide",
+        "my purpose is",
+        "i am here",
+        "focus on",
+        "intended purpose",
+        "here to assist",
+        "not within",
+        "not able to",
+        "beyond my scope",
+        "redirect",
+        "guide you toward",
+        "instead, i",
+        "i can help you with",
+        "let me help you",
+        "how about we",
+        "perhaps you meant",
         "i understand you're asking",
     ]
     has_refusal = any(s in lowered for s in refusal_signals)
@@ -357,13 +374,24 @@ async def test_guardrail_refusal(
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def run_focused_tests(base_url: str, timeout: float, test_key: str | None = None, concurrency: int = 1) -> list[FocusedResult]:
+async def run_focused_tests(
+    base_url: str, timeout: float, test_key: str | None = None, concurrency: int = 1
+) -> list[FocusedResult]:
     limits = httpx.Limits(max_connections=concurrency * 2, max_keepalive_connections=concurrency)
     async with httpx.AsyncClient(limits=limits) as client:
         tests = [
-            ("tier2_capability_query", test_tier2_capability_query(client, base_url, timeout, test_key=test_key)),
-            ("simple_factual_query", test_simple_factual_query(client, base_url, timeout, test_key=test_key)),
-            ("guardrail_refusal", test_guardrail_refusal(client, base_url, timeout, test_key=test_key)),
+            (
+                "tier2_capability_query",
+                test_tier2_capability_query(client, base_url, timeout, test_key=test_key),
+            ),
+            (
+                "simple_factual_query",
+                test_simple_factual_query(client, base_url, timeout, test_key=test_key),
+            ),
+            (
+                "guardrail_refusal",
+                test_guardrail_refusal(client, base_url, timeout, test_key=test_key),
+            ),
         ]
         if concurrency > 1:
             print(f"⏳ Running {len(tests)} tests in parallel (concurrency={concurrency})...")
@@ -416,8 +444,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Focused smoke test for RAG bug fixes")
     parser.add_argument("--base-url", default="http://localhost:8000", help="Backend base URL")
     parser.add_argument("--timeout", type=float, default=120.0, help="Request timeout seconds")
-    parser.add_argument("--test-key", default=os.environ.get("BENCHMARK_SECRET"), help="X-Test-Key value for auth (must match BENCHMARK_SECRET)")
-    parser.add_argument("--concurrency", type=int, default=1, help="Run tests in parallel with N concurrent requests")
+    parser.add_argument(
+        "--test-key",
+        default=os.environ.get("BENCHMARK_SECRET"),
+        help="X-Test-Key value for auth (must match BENCHMARK_SECRET)",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=1,
+        help="Run tests in parallel with N concurrent requests",
+    )
     parser.add_argument("--output", type=Path, default=None, help="JSON report output path")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
     args = parser.parse_args()
@@ -432,7 +469,9 @@ def main() -> int:
     print(f"   Timeout: {args.timeout}s\n")
 
     try:
-        results = asyncio.run(run_focused_tests(args.base_url, args.timeout, args.test_key, args.concurrency))
+        results = asyncio.run(
+            run_focused_tests(args.base_url, args.timeout, args.test_key, args.concurrency)
+        )
     except KeyboardInterrupt:
         logger.warning("Interrupted by user.")
         return 130

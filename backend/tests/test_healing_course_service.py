@@ -34,9 +34,7 @@ def _fake_supabase(active_course_data=None):
     mock = MagicMock()
     resp = MagicMock()
     resp.data = active_course_data
-    mock.table.return_value.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = (
-        resp
-    )
+    mock.table.return_value.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = resp
     return mock
 
 
@@ -272,9 +270,13 @@ async def test_assign_returns_none_when_supabase_missing():
 @pytest.mark.asyncio
 async def test_assign_returns_none_on_db_error():
     supabase = MagicMock()
-    supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.side_effect = Exception("Supabase down")
+    supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.side_effect = Exception(
+        "Supabase down"
+    )
 
-    result = await assign_course_if_needed(supabase, "user-1", CourseTrigger("anxiety", "consecutive_2", "test"))
+    result = await assign_course_if_needed(
+        supabase, "user-1", CourseTrigger("anxiety", "consecutive_2", "test")
+    )
 
     assert result is None
 
@@ -333,7 +335,9 @@ async def test_maybe_assign_disabled_flag(monkeypatch):
 
 
 def test_trigger_payload_is_json_safe():
-    trigger = CourseTrigger(signal="grief", pattern="consecutive_2", reason="2 consecutive distress turns")
+    trigger = CourseTrigger(
+        signal="grief", pattern="consecutive_2", reason="2 consecutive distress turns"
+    )
     payload = trigger_payload(trigger, "walking-through-grief")
     assert payload == {
         "slug": "walking-through-grief",

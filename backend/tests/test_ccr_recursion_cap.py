@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 import rag.nodes as nodes
 from rag.nodes.generation import generate_answer
@@ -58,12 +59,8 @@ async def test_first_ccr_retrieve_works():
     compressed_doc = {"text": "compressed", "source_url": "https://example.com/doc"}
 
     # Force the test through the legacy Ollama path so _MockProvider is invoked.
-    provider = _MockProvider(
-        "Some answer [RETRIEVE: https://example.com/doc]"
-    )
-    provider.answers.append(
-        "original uncompressed text thanks to the retrieved document"
-    )
+    provider = _MockProvider("Some answer [RETRIEVE: https://example.com/doc]")
+    provider.answers.append("original uncompressed text thanks to the retrieved document")
     nodes.init_services(
         ollama=provider,
         embedder=_MockEmbedder(),

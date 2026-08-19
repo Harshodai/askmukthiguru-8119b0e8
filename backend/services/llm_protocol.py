@@ -19,11 +19,15 @@ from typing import Protocol
 class IGenerator(Protocol):
     """Protocol for synchronous and streaming text generation."""
 
-    async def generate(self, system_prompt: str, user_prompt: str, context: str = "", **kwargs) -> str:
+    async def generate(
+        self, system_prompt: str, user_prompt: str, context: str = "", **kwargs
+    ) -> str:
         """Generate a complete text response."""
         ...
 
-    async def generate_stream(self, system_prompt: str, user_prompt: str, context: str = "", **kwargs) -> AsyncIterator[str]:
+    async def generate_stream(
+        self, system_prompt: str, user_prompt: str, context: str = "", **kwargs
+    ) -> AsyncIterator[str]:
         """Generate a streaming text response, yielding tokens as they arrive."""
         ...
 
@@ -64,4 +68,5 @@ class ILLMService(IGenerator, IClassifier, IAvailable, Protocol):
     Any concrete LLM service (OllamaService, SarvamCloudService, etc.)
     is expected to satisfy this protocol.
     """
+
     pass

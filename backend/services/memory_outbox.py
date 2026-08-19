@@ -1,4 +1,5 @@
 """Durable queue and consent ledger for asynchronous memory persistence."""
+
 from __future__ import annotations
 
 import asyncio
@@ -6,7 +7,7 @@ import inspect
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 MAX_PAYLOAD_BYTES = 256_000
@@ -56,7 +57,7 @@ class MemoryOutbox:
         granted: bool,
         consent_version: str = DEFAULT_CONSENT_VERSION,
     ) -> dict[str, Any]:
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         payload = {
             "user_id": user_id,
             "tenant_id": tenant_id,
@@ -107,9 +108,7 @@ class MemoryOutbox:
             "consent_receipt_id": consent_receipt_id,
             "status": "pending",
         }
-        rows = self._rows(
-            await self._execute(self._client.table("memory_outbox").insert(row))
-        )
+        rows = self._rows(await self._execute(self._client.table("memory_outbox").insert(row)))
         if not rows:
             raise MemoryOutboxError("Supabase did not return an outbox receipt")
         return rows[0]
@@ -124,7 +123,7 @@ class MemoryOutbox:
     async def mark_processed(self, outbox_id: str) -> None:
         values = {
             "status": "done",
-            "processed_at": datetime.now(timezone.utc).isoformat(),
+            "processed_at": datetime.now(UTC).isoformat(),
             "error": None,
         }
         query = self._client.table("memory_outbox").update(values)
@@ -135,7 +134,7 @@ class MemoryOutbox:
         values = {
             "status": "failed",
             "error": error.replace("\x00", " ")[:1000],
-            "processed_at": datetime.now(timezone.utc).isoformat(),
+            "processed_at": datetime.now(UTC).isoformat(),
         }
         query = self._client.table("memory_outbox").update(values)
         query = query.eq("id", outbox_id).eq("locked_by", self._worker_id)
@@ -163,9 +162,7 @@ class MemoryOutbox:
             "error": error[:1000] if error else None,
         }
         rows = self._rows(
-            await self._execute(
-                self._client.table("memory_deletion_receipts").insert(row)
-            )
+            await self._execute(self._client.table("memory_deletion_receipts").insert(row))
         )
         return rows[0] if rows else row
 

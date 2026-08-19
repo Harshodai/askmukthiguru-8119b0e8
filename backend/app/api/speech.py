@@ -54,7 +54,16 @@ async def speech_to_text_endpoint(
     Transcribe uploaded audio file using Sarvam Cloud STT or fallback to local Whisper.
     """
     MAX_AUDIO_BYTES = 25 * 1024 * 1024
-    ALLOWED_AUDIO_TYPES = {"audio/webm", "audio/wav", "audio/wave", "audio/mp3", "audio/mpeg", "audio/ogg", "audio/x-m4a", "audio/mp4"}
+    ALLOWED_AUDIO_TYPES = {
+        "audio/webm",
+        "audio/wav",
+        "audio/wave",
+        "audio/mp3",
+        "audio/mpeg",
+        "audio/ogg",
+        "audio/x-m4a",
+        "audio/mp4",
+    }
 
     # P1-BE-8: the cap MUST be enforced before any decode/transcribe work.
     # Order matters here:
@@ -70,7 +79,10 @@ async def speech_to_text_endpoint(
         raise HTTPException(status_code=413, detail="Audio file too large. Maximum size is 25MB.")
     base_type = (file.content_type or "").split(";")[0].strip()
     if not base_type or base_type not in ALLOWED_AUDIO_TYPES:
-        raise HTTPException(status_code=415, detail=f"Unsupported audio format. Supported: {', '.join(sorted(ALLOWED_AUDIO_TYPES))}")
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported audio format. Supported: {', '.join(sorted(ALLOWED_AUDIO_TYPES))}",
+        )
 
     content = await file.read(MAX_AUDIO_BYTES + 1)
     if not content:
@@ -142,7 +154,9 @@ async def speech_to_text_endpoint(
                 os.remove(tmp_path)
     except Exception as e:
         logger.error(f"Local Whisper fallback failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Speech transcription failed. Please try again.")
+        raise HTTPException(
+            status_code=500, detail="Speech transcription failed. Please try again."
+        )
 
 
 @router.post("/speech/tts")
@@ -256,6 +270,7 @@ async def text_to_speech_endpoint(
                         from services.provenance_ontology_service import (
                             get_provenance_ontology_service,
                         )
+
                         prov_service = get_provenance_ontology_service(
                             neo4j_driver=getattr(container, "neo4j_driver", None)
                         )
@@ -306,4 +321,8 @@ async def translate_endpoint(
         source_language_code=req.source_language_code,
         target_language_code=req.target_language_code,
     )
-    return {"translated_text": translated, "source": req.source_language_code, "target": req.target_language_code}
+    return {
+        "translated_text": translated,
+        "source": req.source_language_code,
+        "target": req.target_language_code,
+    }

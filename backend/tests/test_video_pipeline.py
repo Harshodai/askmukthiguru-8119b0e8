@@ -58,7 +58,9 @@ class TestVideoPipeline(unittest.TestCase):
         async def fake_upsert(chunks, source):
             upserted.append((len(chunks), source))
             # still exercise the embed path so the dummy embedder is hit
-            await original_upsert.__wrapped__(self.pipe, chunks, source) if hasattr(original_upsert, "__wrapped__") else None
+            await original_upsert.__wrapped__(self.pipe, chunks, source) if hasattr(
+                original_upsert, "__wrapped__"
+            ) else None
 
         self.pipe._extract_audio = fake_extract  # type: ignore
         self.pipe._transcribe = fake_transcribe  # type: ignore

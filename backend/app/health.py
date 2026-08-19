@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os as _os
 import sys as _sys
+
 _SCRIPT_DIR = _os.path.dirname(_os.path.abspath(__file__))
 if _SCRIPT_DIR in _sys.path:
     _sys.path.remove(_SCRIPT_DIR)
@@ -60,7 +61,9 @@ class ContainerHealthChecker:
             "ollama": ollama_ok,
             "guardrails": container.guardrails.is_available,
             "guardrails_provider": container.guardrails.provider_name,
-            "semantic_cache": container.semantic_cache.is_available if container.semantic_cache else False,
+            "semantic_cache": container.semantic_cache.is_available
+            if container.semantic_cache
+            else False,
             "lightrag_degraded": container.lightrag_degraded,
             "embedding": True,
             "qdrant_count": qdrant_count,

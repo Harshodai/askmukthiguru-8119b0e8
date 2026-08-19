@@ -141,8 +141,15 @@ LANGHANAM_SANSKRIT_TERMS: tuple[str, ...] = (
 # out: a one-line "Namaste" does not need a teaching register.
 LANGHANAM_ELIGIBLE_INTENTS: frozenset[str] = frozenset(
     {
-        "TEACHING", "DOCTRINE", "QUERY", "COMPARATIVE", "RELATIONAL",
-        "DISTRESS", "FACTUAL", "FOLLOW_UP", "GUIDED_TOUR",
+        "TEACHING",
+        "DOCTRINE",
+        "QUERY",
+        "COMPARATIVE",
+        "RELATIONAL",
+        "DISTRESS",
+        "FACTUAL",
+        "FOLLOW_UP",
+        "GUIDED_TOUR",
     }
 )
 
@@ -154,10 +161,12 @@ _DETERMINER_LOOKBEHIND = (
 )
 
 _FILLER_RE = re.compile(
-    r"\b(?:" + "|".join(
+    r"\b(?:"
+    + "|".join(
         _DETERMINER_LOOKBEHIND + re.escape(f) if f in ("kind of", "sort of") else re.escape(f)
         for f in LANGHANAM_FILLERS
-    ) + r")\b",
+    )
+    + r")\b",
     re.IGNORECASE,
 )
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")

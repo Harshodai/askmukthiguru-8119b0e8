@@ -39,11 +39,15 @@ def _fake_supabase_client(*_args, **_kwargs) -> MagicMock:
 
 def _override_user(user: dict | None) -> None:
     if user is None:
+
         async def reject():
-            raise HTTPException(status_code=401, detail="Authentication required or session expired")
+            raise HTTPException(
+                status_code=401, detail="Authentication required or session expired"
+            )
 
         app.dependency_overrides[get_current_user_from_supabase] = reject
     else:
+
         async def fixed_user():
             return user
 

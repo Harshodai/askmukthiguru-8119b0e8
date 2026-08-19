@@ -34,9 +34,7 @@ def test_gemini_success_sarvam_not_called(monkeypatch):
     from services.translation.routing_provider import RoutingTranslationProvider
 
     monkeypatch.setattr(_settings, "gemini_translation_enabled", True, raising=False)
-    monkeypatch.setattr(
-        _settings, "sarvam_api_key", "real-key-not-dummy", raising=False
-    )
+    monkeypatch.setattr(_settings, "sarvam_api_key", "real-key-not-dummy", raising=False)
 
     gemini = _fake_provider(translate="नमस्ते", health=True)
     sarvam = _fake_provider(translate="hindi", health=True)

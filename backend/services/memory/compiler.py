@@ -10,9 +10,7 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import Any, Optional
-
-from app.config import settings
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +24,7 @@ _COMPILED_PATH = _OKF_DIR / "compiled.json"
 
 def _load_okf_entries() -> list[dict[str, Any]]:
     from services.memory.okf_store import OKFStore
+
     store = OKFStore()
     return [
         {
@@ -51,6 +50,7 @@ def _load_okf_entries() -> list[dict[str, Any]]:
 def _embed_texts(texts: list[str]) -> list[list[float]]:
     """Return dense embeddings using the project's EmbeddingService."""
     from services.embedding_service import EmbeddingService
+
     svc = EmbeddingService()
     # Blocking call — run in thread so caller can await if desired
     return svc.encode(texts)
@@ -85,22 +85,24 @@ def compile_okf() -> Path:
     compiled: list[dict[str, Any]] = []
     for idx, emb in enumerate(embeddings):
         e = entries[idx]
-        compiled.append({
-            "path": e["path"],
-            "type": e["type"],
-            "title": e["title"],
-            "description": e.get("description", ""),
-            "tags": e["tags"],
-            "source": e["source"],
-            "resource": e.get("resource", e["source"]),
-            "teacher": e.get("teacher", "both"),
-            "body": e["body"][:2000],
-            "embedding": emb if embed_ok else [],
-            "status": e.get("status", "stable"),
-            "generated": e.get("generated"),
-            "verified": e.get("verified"),
-            "sources": e.get("sources", []),
-        })
+        compiled.append(
+            {
+                "path": e["path"],
+                "type": e["type"],
+                "title": e["title"],
+                "description": e.get("description", ""),
+                "tags": e["tags"],
+                "source": e["source"],
+                "resource": e.get("resource", e["source"]),
+                "teacher": e.get("teacher", "both"),
+                "body": e["body"][:2000],
+                "embedding": emb if embed_ok else [],
+                "status": e.get("status", "stable"),
+                "generated": e.get("generated"),
+                "verified": e.get("verified"),
+                "sources": e.get("sources", []),
+            }
+        )
 
     output = {"version": 2, "entries": compiled}
     _COMPILED_PATH.write_text(json.dumps(output, ensure_ascii=False), encoding="utf-8")

@@ -40,21 +40,22 @@ def _marker_index(match: re.Match) -> int:
 
 
 class CitationStyle(Enum):
-    INLINE_NUMERIC = "inline_numeric"      # [1] [2] … (Perplexity-style)
-    AUTHOR_TITLE = "author_title"          # (Ekam Teaching, 2023)
-    FOOTNOTE = "footnote"                  # superscript + footnote list
+    INLINE_NUMERIC = "inline_numeric"  # [1] [2] … (Perplexity-style)
+    AUTHOR_TITLE = "author_title"  # (Ekam Teaching, 2023)
+    FOOTNOTE = "footnote"  # superscript + footnote list
 
 
 @dataclass
 class Source:
     """One retrieved context item's provenance."""
+
     id: str
     title: str = ""
     teacher: Optional[str] = None
-    source_text: Optional[str] = None     # scripture / discourse / book
+    source_text: Optional[str] = None  # scripture / discourse / book
     year: Optional[str] = None
     url: Optional[str] = None
-    channel: str = "vector"               # vector | graph | doctrine
+    channel: str = "vector"  # vector | graph | doctrine
     extra: dict = field(default_factory=dict)
 
 
@@ -68,15 +69,16 @@ class Reference:
 
 @dataclass
 class CitedAnswer:
-    text: str                      # answer with inline markers preserved
+    text: str  # answer with inline markers preserved
     references: list[Reference]
     citation_count: int
-    grounded: bool                 # True if every claim region has a citation
+    grounded: bool  # True if every claim region has a citation
 
 
 # ---------------------------------------------------------------------------
 # Reference formatting (the cite-style-converter heart)
 # ---------------------------------------------------------------------------
+
 
 def format_reference(src: Source, style: CitationStyle = CitationStyle.INLINE_NUMERIC) -> str:
     """Render a consistent human citation label for a teaching source."""
@@ -101,8 +103,10 @@ def format_reference(src: Source, style: CitationStyle = CitationStyle.INLINE_NU
 # Resolution
 # ---------------------------------------------------------------------------
 
-def resolve(answer: str, context_items: list[Any],
-            style: CitationStyle = CitationStyle.INLINE_NUMERIC) -> CitedAnswer:
+
+def resolve(
+    answer: str, context_items: list[Any], style: CitationStyle = CitationStyle.INLINE_NUMERIC
+) -> CitedAnswer:
     """Map inline `[^n]` markers to sources and build the reference list.
 
     `context_items` are the retrieved items (dicts or objects) in the SAME
@@ -120,8 +124,9 @@ def resolve(answer: str, context_items: list[Any],
             seen_order.append(n)
 
     references = [
-        Reference(n=n, source=sources[n], label=format_reference(sources[n], style),
-                  url=sources[n].url)
+        Reference(
+            n=n, source=sources[n], label=format_reference(sources[n], style), url=sources[n].url
+        )
         for n in seen_order
     ]
 
@@ -183,9 +188,11 @@ def strip_orphan_markers(answer: str, context_items: list[Any]) -> str:
     """Remove `[^n]` / `[[CITE:n]]` markers that point past the provided context
     (the model hallucinated a citation index). Prevents dead reference chips."""
     max_n = len(context_items)
+
     def _keep(m):
         n = _marker_index(m)
         return m.group(0) if 1 <= n <= max_n else ""
+
     return _MARKER_RE.sub(_keep, answer)
 
 
@@ -195,8 +202,14 @@ def strip_orphan_markers(answer: str, context_items: list[Any]) -> str:
 
 if __name__ == "__main__":
     ctx = [
-        {"id": "d1", "title": "Breath Awareness", "teacher": "Sri Preethaji",
-         "source": "Ekam Discourse", "year": "2023", "url": "https://\u2026/breath"},
+        {
+            "id": "d1",
+            "title": "Breath Awareness",
+            "teacher": "Sri Preethaji",
+            "source": "Ekam Discourse",
+            "year": "2023",
+            "url": "https://\u2026/breath",
+        },
         {"id": "d2", "title": "On Presence", "source": "Ekam Teaching", "year": "2022"},
     ]
     ans = (

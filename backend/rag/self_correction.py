@@ -12,7 +12,7 @@ Design Patterns:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class CorrectionStrategy:
     """Base class for how to repair a failed node."""
 
-    async def repair(self, state: Dict[str, Any], error: Exception) -> Dict[str, Any]:
+    async def repair(self, state: dict[str, Any], error: Exception) -> dict[str, Any]:
         """Return a new state dict that should succeed on retry."""
         raise NotImplementedError
 
@@ -28,7 +28,7 @@ class CorrectionStrategy:
 class RewriteQueryCorrection(CorrectionStrategy):
     """Repair by rewriting the user query to be clearer."""
 
-    async def repair(self, state: Dict[str, Any], error: Exception) -> Dict[str, Any]:
+    async def repair(self, state: dict[str, Any], error: Exception) -> dict[str, Any]:
         state["rewrite_count"] = state.get("rewrite_count", 0) + 1
         state["needs_rewrite"] = True
         return state
@@ -37,7 +37,7 @@ class RewriteQueryCorrection(CorrectionStrategy):
 class FallbackCorrection(CorrectionStrategy):
     """Repair by falling back to a simpler graph or default response."""
 
-    async def repair(self, state: Dict[str, Any], error: Exception) -> Dict[str, Any]:
+    async def repair(self, state: dict[str, Any], error: Exception) -> dict[str, Any]:
         state["use_fallback"] = True
         return state
 
@@ -53,12 +53,12 @@ class SelfCorrectionOrchestrator:
 
     def __init__(self, max_retries: int = 3):
         self.max_retries = max_retries
-        self.strategies: List[CorrectionStrategy] = [
+        self.strategies: list[CorrectionStrategy] = [
             RewriteQueryCorrection(),
             FallbackCorrection(),
         ]
 
-    async def run(self, command, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def run(self, command, state: dict[str, Any]) -> dict[str, Any]:
         """
         Execute the command, retrying with corrections on failure.
 

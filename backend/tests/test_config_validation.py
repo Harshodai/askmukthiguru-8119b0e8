@@ -97,7 +97,9 @@ def test_embedding_dimension_validation():
     with pytest.raises(ValueError, match="requires embedding_dimension=1024"):
         Settings(embedding_model="intfloat/multilingual-e5-large", embedding_dimension=384)
 
-    s_e5_large = Settings(embedding_model="intfloat/multilingual-e5-large", embedding_dimension=1024)
+    s_e5_large = Settings(
+        embedding_model="intfloat/multilingual-e5-large", embedding_dimension=1024
+    )
     assert s_e5_large.embedding_dimension == 1024
 
 
@@ -118,7 +120,9 @@ def test_reranker_backend_validation():
 
 
 def test_production_test_auth_restriction():
-    with pytest.raises(ValueError, match="enable_test_auth must be False when is_production is True"):
+    with pytest.raises(
+        ValueError, match="enable_test_auth must be False when is_production is True"
+    ):
         Settings(
             is_production=True,
             enable_test_auth=True,
@@ -144,7 +148,9 @@ def test_anon_quota_degraded_limit_validation():
     assert s_equal.anon_quota_degraded_limit == 5
 
     # Degraded limit greater than normal limit is rejected
-    with pytest.raises(ValueError, match="anon_quota_degraded_limit .* must be <= anon_quota_messages"):
+    with pytest.raises(
+        ValueError, match="anon_quota_degraded_limit .* must be <= anon_quota_messages"
+    ):
         Settings(anon_quota_messages=5, anon_quota_degraded_limit=6)
 
 
@@ -167,7 +173,9 @@ def test_allowed_hosts_and_forwarded_ips_normalization():
     assert s.allowed_hosts == "localhost,127.0.0.1,example.com"
     assert s.forwarded_allow_ips == "10.0.0.0/8,127.0.0.1"
 
-    with pytest.raises(ValueError, match="Wildcard '\\*' in allowed_hosts is forbidden in production"):
+    with pytest.raises(
+        ValueError, match="Wildcard '\\*' in allowed_hosts is forbidden in production"
+    ):
         Settings(
             is_production=True,
             enable_test_auth=False,
@@ -176,7 +184,9 @@ def test_allowed_hosts_and_forwarded_ips_normalization():
             brain_kek="ZGV2LW9ubHktMzJiYXNlNjR1cmwtZW5jb2RlZC1rZXk=",
         )
 
-    with pytest.raises(ValueError, match="Wildcard '\\*' in forwarded_allow_ips is forbidden in production"):
+    with pytest.raises(
+        ValueError, match="Wildcard '\\*' in forwarded_allow_ips is forbidden in production"
+    ):
         Settings(
             is_production=True,
             enable_test_auth=False,
@@ -210,7 +220,9 @@ def test_brain_kek_required_in_production(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_graphrag_total_timeout_gte_traversal():
-    with pytest.raises(ValueError, match="graphrag_total_timeout .* must be >= graphrag_traversal_timeout"):
+    with pytest.raises(
+        ValueError, match="graphrag_total_timeout .* must be >= graphrag_traversal_timeout"
+    ):
         Settings(graphrag_traversal_timeout=30.0, graphrag_total_timeout=10.0)
 
     s = Settings(graphrag_traversal_timeout=10.0, graphrag_total_timeout=10.0)

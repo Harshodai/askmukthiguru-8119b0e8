@@ -25,7 +25,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +46,7 @@ def clone_sample_to_shadow(
 
     Returns the number of points written.
     """
-    from qdrant_client.http.models import Distance, VectorParams, PointStruct
+    from qdrant_client.http.models import Distance, PointStruct, VectorParams
 
     points, _ = client.scroll(
         collection_name=source_collection,
@@ -96,7 +96,9 @@ def compare_collections(
     baseline_searcher = QdrantSearcher(client, baseline_collection)
     shadow_searcher = QdrantSearcher(client, shadow_collection)
 
-    baseline_result = QdrantSearchQualityTester(baseline_searcher, embedder).evaluate_strategy("dense")
+    baseline_result = QdrantSearchQualityTester(baseline_searcher, embedder).evaluate_strategy(
+        "dense"
+    )
     shadow_result = QdrantSearchQualityTester(shadow_searcher, embedder).evaluate_strategy("dense")
 
     return {
@@ -111,17 +113,23 @@ def compare_collections(
             "min_ndcg": shadow_result["min_ndcg"],
         },
         "shadow_wins": shadow_result["mean_ndcg"] > baseline_result["mean_ndcg"],
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--source-collection", default="spiritual_wisdom_contextual")
-    parser.add_argument("--shadow-collection", default=None, help="Default: {source}_shadow_{timestamp}")
-    parser.add_argument("--candidate-model", required=True, help="e.g. intfloat/multilingual-e5-large")
+    parser.add_argument(
+        "--shadow-collection", default=None, help="Default: {source}_shadow_{timestamp}"
+    )
+    parser.add_argument(
+        "--candidate-model", required=True, help="e.g. intfloat/multilingual-e5-large"
+    )
     parser.add_argument("--sample-size", type=int, default=500)
     args = parser.parse_args(argv)
 
@@ -130,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
     from services.qdrant.client import QdrantClientManager
 
     shadow_collection = args.shadow_collection or (
-        f"{args.source_collection}_shadow_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+        f"{args.source_collection}_shadow_{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
     )
 
     client_mgr = QdrantClientManager(collection=args.source_collection)
@@ -150,11 +158,17 @@ def main(argv: list[str] | None = None) -> int:
         logger.error("No points written to shadow collection — aborting comparison")
         return 1
 
-    result = compare_collections(client, args.source_collection, shadow_collection, candidate_embedder)
+    result = compare_collections(
+        client, args.source_collection, shadow_collection, candidate_embedder
+    )
 
     print("\n=== Shadow Collection Experiment ===")
-    print(f"Baseline ({result['baseline']['collection']}): mean_ndcg={result['baseline']['mean_ndcg']:.3f}")
-    print(f"Shadow   ({result['shadow']['collection']}): mean_ndcg={result['shadow']['mean_ndcg']:.3f}")
+    print(
+        f"Baseline ({result['baseline']['collection']}): mean_ndcg={result['baseline']['mean_ndcg']:.3f}"
+    )
+    print(
+        f"Shadow   ({result['shadow']['collection']}): mean_ndcg={result['shadow']['mean_ndcg']:.3f}"
+    )
     print(f"Shadow wins: {result['shadow_wins']}")
     print(
         "\nNOTE: this is an offline sample comparison, not a live A/B test. "

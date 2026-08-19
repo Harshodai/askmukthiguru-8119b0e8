@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 
+from app.tracing import trace_rag_node
 from rag.meditation import (
     format_meditation_response,
     get_distress_response,
@@ -17,7 +18,6 @@ from rag.prompts import CASUAL_SYSTEM_PROMPT, STIMULUS_RAG_PROMPT
 from rag.states import GraphState
 from services.serene_mind_engine import DistressAssessment, DistressLevel
 
-from app.tracing import trace_rag_node
 from . import _services
 from .utils import _trace_update, get_node_timeout, log_metrics, settings
 
@@ -34,13 +34,19 @@ _INTENT_CACHE_TTL = 3600  # 1 hour
 # Query patterns live in rag.query_patterns so intent routing and graph
 # selection pull from a single source. Aliased here with the original
 # leading-underscore names so existing call sites are unchanged.
+from rag.doc_utils import doc_text
 from rag.query_patterns import (
     DOCTRINE_CAPABILITY_PATTERNS as _CAPABILITY_PATTERNS,
+)
+from rag.query_patterns import (
     DOCTRINE_SIMPLE_PATTERNS as _SIMPLE_QUERY_PATTERNS,
+)
+from rag.query_patterns import (
     DOCTRINE_TEMPORAL_PATTERNS as _TEMPORAL_PATTERNS,
+)
+from rag.query_patterns import (
     detect_tier4_deep_cues as _detect_tier4_deep_cues,
 )
-from rag.doc_utils import doc_text
 
 
 def _cache_hint(intent: str) -> dict:
@@ -67,21 +73,18 @@ def _map_router_route_to_intent(route_name: str) -> tuple[str, str, bool] | None
     requires (a) one line in this function, (b) the YAML definition. No other code change.
     """
     mapping = {
-        "SAFETY_VIOLATION":  ("SAFETY_VIOLATION", "tier2_simple", False),
-        "DISTRESS":          ("DISTRESS",         "tier2_simple", False),
-        "MEDITATION":        ("MEDITATION",       "tier2_simple", False),
-        "ADVERSARIAL":       ("ADVERSARIAL",      "tier3_complex", False),
-        "TEMPORAL":          ("FACTUAL",          "tier3_complex", True),
-        "CASUAL":            ("CASUAL",           "tier2_simple", False),
-        "CAPABILITY":        ("FACTUAL",          "tier2_simple", False),
-        "FACTUAL":           ("FACTUAL",          "tier2_simple", False),
-        "COMPARATIVE":       ("COMPARATIVE",      "tier3_complex", False),
-        "DEEP":              ("FACTUAL",          "tier4_deep",   False),
+        "SAFETY_VIOLATION": ("SAFETY_VIOLATION", "tier2_simple", False),
+        "DISTRESS": ("DISTRESS", "tier2_simple", False),
+        "MEDITATION": ("MEDITATION", "tier2_simple", False),
+        "ADVERSARIAL": ("ADVERSARIAL", "tier3_complex", False),
+        "TEMPORAL": ("FACTUAL", "tier3_complex", True),
+        "CASUAL": ("CASUAL", "tier2_simple", False),
+        "CAPABILITY": ("FACTUAL", "tier2_simple", False),
+        "FACTUAL": ("FACTUAL", "tier2_simple", False),
+        "COMPARATIVE": ("COMPARATIVE", "tier3_complex", False),
+        "DEEP": ("FACTUAL", "tier4_deep", False),
     }
     return mapping.get(route_name)
-
-
-from rag.query_patterns import detect_tier4_deep_cues as _detect_tier4_deep_cues
 
 
 @trace_rag_node("intent_router")
@@ -100,21 +103,36 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
         # Check distress keywords before defaulting to FACTUAL (finding #47)
         try:
             from services.serene_mind_engine import DistressLevel
+
             serene_mind = _services._serene_mind
             if serene_mind is not None:
-                keyword_assessment = serene_mind.assess_distress(question, state.get("chat_history", []))
+                keyword_assessment = serene_mind.assess_distress(
+                    question, state.get("chat_history", [])
+                )
                 if keyword_assessment.level >= DistressLevel.MODERATE:
                     intent = "DISTRESS"
                     query_tier = "tier2_simple"
         except Exception as e:
             logger.warning("Serene Mind distress check failed in fallback: %s", e)
             crisis_keywords = {
-                "suicide", "suicidal", "kill myself", "want to die", "end my life", 
-                "harm myself", "self harm", "depressed", "worthless", "hopeless", 
-                "slit my wrist", "overdose", "jump off"
+                "suicide",
+                "suicidal",
+                "kill myself",
+                "want to die",
+                "end my life",
+                "harm myself",
+                "self harm",
+                "depressed",
+                "worthless",
+                "hopeless",
+                "slit my wrist",
+                "overdose",
+                "jump off",
             }
             if any(kw in lower_q for kw in crisis_keywords):
-                logger.warning("Crisis keyword matched in fallback-of-fallback. Routing to DISTRESS.")
+                logger.warning(
+                    "Crisis keyword matched in fallback-of-fallback. Routing to DISTRESS."
+                )
                 intent = "DISTRESS"
                 query_tier = "tier2_simple"
         if any(pat in lower_q for pat in _TEMPORAL_PATTERNS):
@@ -128,9 +146,11 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
             "needs_web_search": needs_web_search,
             **_cache_hint(intent),
             "evaluation_trace": _trace_update(
-                state, intent=intent, query_tier=query_tier,
+                state,
+                intent=intent,
+                query_tier=query_tier,
                 routing_reason="intent_fallback_with_distress_check",
-                needs_web_search=needs_web_search
+                needs_web_search=needs_web_search,
             ),
         }
 
@@ -179,19 +199,23 @@ def _early_filter(
         chat_history = state.get("chat_history", [])
         try:
             from services.serene_mind_engine import DistressLevel
+
             keyword_assessment = serene_mind.assess_distress(question, chat_history)
             if keyword_assessment.level >= DistressLevel.MODERATE:
                 logger.info(
                     "Intent Router: Serene Mind keyword detected %s distress "
                     "(confidence=%.2f), routing to DISTRESS",
-                    keyword_assessment.level.name, keyword_assessment.confidence,
+                    keyword_assessment.level.name,
+                    keyword_assessment.confidence,
                 )
                 return {
                     "intent": "DISTRESS",
                     "query_tier": "tier2_simple",
                     "confidence_tier": "high",
                     "evaluation_trace": _trace_update(
-                        state, intent="DISTRESS", query_tier="tier2_simple",
+                        state,
+                        intent="DISTRESS",
+                        query_tier="tier2_simple",
                         routing_reason="serene_mind_keyword_distress",
                         distress_level=keyword_assessment.level.name,
                         distress_confidence=keyword_assessment.confidence,
@@ -201,18 +225,32 @@ def _early_filter(
         except Exception as e:
             logger.warning("Serene Mind keyword distress check failed: %s", e)
             crisis_keywords = {
-                "suicide", "suicidal", "kill myself", "want to die", "end my life", 
-                "harm myself", "self harm", "depressed", "worthless", "hopeless", 
-                "slit my wrist", "overdose", "jump off"
+                "suicide",
+                "suicidal",
+                "kill myself",
+                "want to die",
+                "end my life",
+                "harm myself",
+                "self harm",
+                "depressed",
+                "worthless",
+                "hopeless",
+                "slit my wrist",
+                "overdose",
+                "jump off",
             }
             if any(kw in lower_q for kw in crisis_keywords):
-                logger.warning("Crisis keyword matched in fallback-of-fallback. Routing to DISTRESS.")
+                logger.warning(
+                    "Crisis keyword matched in fallback-of-fallback. Routing to DISTRESS."
+                )
                 return {
                     "intent": "DISTRESS",
                     "query_tier": "tier2_simple",
                     "confidence_tier": "high",
                     "evaluation_trace": _trace_update(
-                        state, intent="DISTRESS", query_tier="tier2_simple",
+                        state,
+                        intent="DISTRESS",
+                        query_tier="tier2_simple",
                         routing_reason="fallback_of_fallback_keyword_distress",
                     ),
                 }
@@ -226,7 +264,9 @@ def _early_filter(
                 "confidence_tier": "high",
                 "final_answer": _LOGISTICS_UNAVAILABLE_ANSWER,
                 "evaluation_trace": _trace_update(
-                    state, intent="CASUAL", query_tier="tier2_simple",
+                    state,
+                    intent="CASUAL",
+                    query_tier="tier2_simple",
                     routing_reason="live_logistics_disabled",
                 ),
             }
@@ -236,8 +276,11 @@ def _early_filter(
             "confidence_tier": "high",
             "needs_web_search": True,
             "evaluation_trace": _trace_update(
-                state, intent="LIVE_LOGISTICS", query_tier="tier2_simple",
-                routing_reason="official_live_logistics", needs_web_search=True,
+                state,
+                intent="LIVE_LOGISTICS",
+                query_tier="tier2_simple",
+                routing_reason="official_live_logistics",
+                needs_web_search=True,
             ),
         }
 
@@ -253,7 +296,9 @@ def _early_filter(
             "confidence_tier": "low",
             "needs_web_search": True,
             "evaluation_trace": _trace_update(
-                state, intent="FACTUAL", query_tier="tier3_complex",
+                state,
+                intent="FACTUAL",
+                query_tier="tier3_complex",
                 routing_reason="temporal_query_heuristic",
                 needs_web_search=True,
             ),
@@ -261,6 +306,7 @@ def _early_filter(
 
     # ---- Regex Pre-Router Check ----
     from rag.intent_prerouter import preroute_intent
+
     pre_intent = preroute_intent(question)
     if pre_intent:
         logger.info("Intent Router: Regex Pre-Router matched intent: %s", pre_intent)
@@ -272,7 +318,9 @@ def _early_filter(
             "confidence_tier": "high" if mapped_intent != "CASUAL" else "medium",
             **_cache_hint(mapped_intent),
             "evaluation_trace": _trace_update(
-                state, intent=mapped_intent, query_tier=query_tier,
+                state,
+                intent=mapped_intent,
+                query_tier=query_tier,
                 routing_reason="regex_prerouter",
             ),
         }
@@ -296,12 +344,26 @@ def _is_followup_heuristic(question: str, chat_history: list) -> bool:
 
     # Follow-up phrases — multi-word patterns that strongly signal continuation
     followup_phrases = [
-        "tell me more", "what about", "how about", "explain more",
-        "go deeper", "say more", "tell me about that", "more about",
-        "what does that mean", "what do you mean", "why is that",
-        "how is that", "what about that", "can you elaborate",
-        "can you tell me more", "elaborate on that", "tell me about it",
-        "explain that", "tell me more about", "further explain",
+        "tell me more",
+        "what about",
+        "how about",
+        "explain more",
+        "go deeper",
+        "say more",
+        "tell me about that",
+        "more about",
+        "what does that mean",
+        "what do you mean",
+        "why is that",
+        "how is that",
+        "what about that",
+        "can you elaborate",
+        "can you tell me more",
+        "elaborate on that",
+        "tell me about it",
+        "explain that",
+        "tell me more about",
+        "further explain",
         "go into more detail",
     ]
     for phrase in followup_phrases:
@@ -310,8 +372,17 @@ def _is_followup_heuristic(question: str, chat_history: list) -> bool:
 
     # Referential single words — pronouns and deictic markers
     referential_words = {
-        "it", "that", "this", "these", "those", "they", "them",
-        "there", "more", "also", "further",
+        "it",
+        "that",
+        "this",
+        "these",
+        "those",
+        "they",
+        "them",
+        "there",
+        "more",
+        "also",
+        "further",
     }
 
     words = set(lower_q.split())
@@ -339,20 +410,48 @@ def _compute_complexity_score(question: str, chat_history: list[dict]) -> float:
     word_count = min(len(words) / 20.0, 1.0)
     q_count = min((question.count("?") + question.count(";")) / 3.0, 1.0)
     lower_q = question.lower()
-    causal_markers = ("why ", "how does", "how do ", "compare", "relationship between", "versus", "distinguish")
+    causal_markers = (
+        "why ",
+        "how does",
+        "how do ",
+        "compare",
+        "relationship between",
+        "versus",
+        "distinguish",
+    )
     causal = 1.0 if any(m in lower_q for m in causal_markers) else 0.0
-    doctrine_entities = ("deeksha", "ekam", "soul sync", "four sacred secrets", "beautiful state",
-                         "sri preethaji", "sri krishnaji", "aham", "golden light", "manifest 2026",
-                         "universal intelligence", "spiritual vision", "inner truth", "oneness")
+    doctrine_entities = (
+        "deeksha",
+        "ekam",
+        "soul sync",
+        "four sacred secrets",
+        "beautiful state",
+        "sri preethaji",
+        "sri krishnaji",
+        "aham",
+        "golden light",
+        "manifest 2026",
+        "universal intelligence",
+        "spiritual vision",
+        "inner truth",
+        "oneness",
+    )
     entity_density = min(sum(1 for e in doctrine_entities if e in lower_q) / 3.0, 1.0)
     conv_depth = min(len(chat_history or []) / 10.0, 1.0)
-    score = 0.20 * q_count + 0.35 * causal + 0.20 * entity_density + 0.10 * word_count + 0.15 * conv_depth
+    score = (
+        0.20 * q_count
+        + 0.35 * causal
+        + 0.20 * entity_density
+        + 0.10 * word_count
+        + 0.15 * conv_depth
+    )
     return round(min(max(score, 0.0), 1.0), 3)
 
 
 async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     """Internal implementation of the intent router."""
     from rag.nodes.utils import emit_status
+
     await emit_status(config, "Understanding your question...")
 
     question = state["question"]
@@ -372,7 +471,9 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 "complexity_score": complexity_score,
                 "final_answer": _LOGISTICS_UNAVAILABLE_ANSWER,
                 "evaluation_trace": _trace_update(
-                    state, intent="CASUAL", query_tier="tier2_simple",
+                    state,
+                    intent="CASUAL",
+                    query_tier="tier2_simple",
                     routing_reason="live_logistics_disabled",
                     complexity_score=complexity_score,
                 ),
@@ -388,8 +489,11 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             "complexity_score": complexity_score,
             "needs_web_search": True,
             "evaluation_trace": _trace_update(
-                state, intent="LIVE_LOGISTICS", query_tier="tier2_simple",
-                routing_reason="official_live_logistics", complexity_score=complexity_score,
+                state,
+                intent="LIVE_LOGISTICS",
+                query_tier="tier2_simple",
+                routing_reason="official_live_logistics",
+                complexity_score=complexity_score,
                 needs_web_search=True,
             ),
         }
@@ -403,15 +507,19 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             "query_tier": _qt,
             "complexity_score": complexity_score,
             "confidence_tier": (
-                "high" if _qt in ("tier2_simple", "fast") and pre_intent != "CASUAL"
-                else "low" if _qt in ("tier3_complex", "tier4_deep")
+                "high"
+                if _qt in ("tier2_simple", "fast") and pre_intent != "CASUAL"
+                else "low"
+                if _qt in ("tier3_complex", "tier4_deep")
                 else "medium"
             ),
             **_cache_hint(pre_intent),
             "evaluation_trace": _trace_update(
-                state, intent=pre_intent, query_tier=_qt,
+                state,
+                intent=pre_intent,
+                query_tier=_qt,
                 routing_reason="pre_classified_from_pipeline_coordinator",
-                complexity_score=complexity_score
+                complexity_score=complexity_score,
             ),
         }
     ollama = _services._ollama
@@ -426,7 +534,11 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
         if is_meditation_complete(meditation_step):
             return {"intent": "CASUAL", "meditation_step": 0, "complexity_score": complexity_score}
         if should_start_meditation(question):
-            return {"intent": "MEDITATION_CONTINUE", "meditation_step": meditation_step, "complexity_score": complexity_score}
+            return {
+                "intent": "MEDITATION_CONTINUE",
+                "meditation_step": meditation_step,
+                "complexity_score": complexity_score,
+            }
         return {"intent": "CASUAL", "meditation_step": 0, "complexity_score": complexity_score}
 
     serene_mind = _services._serene_mind
@@ -444,10 +556,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     # When rag_heuristic_followup is True, detect pronouns/references to previous
     # queries using a cheap regex check instead of an LLM call. If detected,
     # assign FACTUAL/tier2_simple without going through the classifier.
-    if (
-        getattr(settings, "rag_heuristic_followup", False)
-        and state.get("chat_history")
-    ):
+    if getattr(settings, "rag_heuristic_followup", False) and state.get("chat_history"):
         followup = _is_followup_heuristic(question, state["chat_history"])
         if followup:
             logger.info(
@@ -462,7 +571,9 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 "follow_up_detected": True,
                 **_cache_hint("FACTUAL"),
                 "evaluation_trace": _trace_update(
-                    state, intent="FACTUAL", query_tier="tier2_simple",
+                    state,
+                    intent="FACTUAL",
+                    query_tier="tier2_simple",
                     routing_reason="heuristic_followup",
                     follow_up_detected=True,
                     complexity_score=complexity_score,
@@ -491,15 +602,20 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 mapped_intent, query_tier, needs_web = mapped
                 logger.info(
                     "Intent Router: SemanticRouter matched %s (score=%.3f, reason=%s) -> intent=%s",
-                    router_match.route, router_match.score, router_match.reason, mapped_intent,
+                    router_match.route,
+                    router_match.score,
+                    router_match.reason,
+                    mapped_intent,
                 )
                 return {
                     "intent": mapped_intent,
                     "query_tier": query_tier,
                     "complexity_score": complexity_score,
                     "confidence_tier": (
-                        "high" if query_tier in ("tier2_simple", "fast") and mapped_intent != "CASUAL"
-                        else "low" if query_tier in ("tier3_complex", "tier4_deep")
+                        "high"
+                        if query_tier in ("tier2_simple", "fast") and mapped_intent != "CASUAL"
+                        else "low"
+                        if query_tier in ("tier3_complex", "tier4_deep")
                         else "medium"
                     ),
                     "needs_web_search": needs_web,
@@ -526,16 +642,20 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
             "confidence_tier": "high",
             **_cache_hint("FACTUAL"),
             "evaluation_trace": _trace_update(
-                state, intent="FACTUAL", query_tier="tier2_simple",
+                state,
+                intent="FACTUAL",
+                query_tier="tier2_simple",
                 routing_reason="heuristic_capability",
-                complexity_score=complexity_score
+                complexity_score=complexity_score,
             ),
         }
 
     # ---- Heuristic fast-path #2: pattern-based simple factual ----
     for pattern in _SIMPLE_QUERY_PATTERNS:
         if re.search(pattern, lower_q):
-            logger.info(f"Intent Router: heuristic fast-path — simple factual match ({pattern}), fast")
+            logger.info(
+                f"Intent Router: heuristic fast-path — simple factual match ({pattern}), fast"
+            )
             return {
                 "intent": "FACTUAL",
                 "query_tier": "tier2_simple",
@@ -543,13 +663,13 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 "confidence_tier": "high",
                 **_cache_hint("FACTUAL"),
                 "evaluation_trace": _trace_update(
-                    state, intent="FACTUAL", query_tier="tier2_simple",
+                    state,
+                    intent="FACTUAL",
+                    query_tier="tier2_simple",
                     routing_reason="heuristic_simple",
-                    complexity_score=complexity_score
+                    complexity_score=complexity_score,
                 ),
             }
-
-
 
     # ---- Cache check ----
     cache_key = lower_q.strip()
@@ -570,15 +690,19 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 "query_tier": tier,
                 "complexity_score": complexity_score,
                 "confidence_tier": (
-                    "high" if tier in ("tier2_simple", "fast") and cached_intent != "CASUAL"
-                    else "low" if tier in ("tier3_complex", "tier4_deep")
+                    "high"
+                    if tier in ("tier2_simple", "fast") and cached_intent != "CASUAL"
+                    else "low"
+                    if tier in ("tier3_complex", "tier4_deep")
                     else "medium"
                 ),
                 **_cache_hint(cached_intent),
                 "evaluation_trace": _trace_update(
-                    state, intent=cached_intent, query_tier=tier,
+                    state,
+                    intent=cached_intent,
+                    query_tier=tier,
                     routing_reason="cache_hit",
-                    complexity_score=complexity_score
+                    complexity_score=complexity_score,
                 ),
             }
 
@@ -587,24 +711,31 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     # Skips the LLM entirely for ~90% of queries and guarantees <50 ms.
     try:
         from rag.nodes.on_device_intent import classify_with_reason as _on_device_classify
+
         on_device_result = _on_device_classify(question)
         if on_device_result:
             intent, tier, routing_reason = on_device_result
-            logger.info(f"Intent Router: on-device classifier match — {intent} | {tier} ({routing_reason})")
+            logger.info(
+                f"Intent Router: on-device classifier match — {intent} | {tier} ({routing_reason})"
+            )
             return {
                 "intent": intent,
                 "query_tier": tier,
                 "complexity_score": complexity_score,
                 "confidence_tier": (
-                    "high" if tier in ("tier2_simple", "fast") and intent != "CASUAL"
-                    else "low" if tier in ("tier3_complex", "tier4_deep")
+                    "high"
+                    if tier in ("tier2_simple", "fast") and intent != "CASUAL"
+                    else "low"
+                    if tier in ("tier3_complex", "tier4_deep")
                     else "medium"
                 ),
                 **_cache_hint(intent),
                 "evaluation_trace": _trace_update(
-                    state, intent=intent, query_tier=tier,
+                    state,
+                    intent=intent,
+                    query_tier=tier,
                     routing_reason=routing_reason,
-                    complexity_score=complexity_score
+                    complexity_score=complexity_score,
                 ),
             }
     except Exception as e:
@@ -682,14 +813,19 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
         "query_tier": query_tier,
         "complexity_score": complexity_score,
         "confidence_tier": (
-            "high" if query_tier in ("tier2_simple", "fast") and intent != "CASUAL"
-            else "low" if query_tier in ("tier3_complex", "tier4_deep")
+            "high"
+            if query_tier in ("tier2_simple", "fast") and intent != "CASUAL"
+            else "low"
+            if query_tier in ("tier3_complex", "tier4_deep")
             else "medium"
         ),
         **_cache_hint(intent),
         "evaluation_trace": _trace_update(
-            state, intent=intent, query_tier=query_tier, routing_reason="classifier",
-            complexity_score=complexity_score
+            state,
+            intent=intent,
+            query_tier=query_tier,
+            routing_reason="classifier",
+            complexity_score=complexity_score,
         ),
     }
 
@@ -709,19 +845,26 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
     intent = state.get("intent", "CASUAL")
     chat_history = state.get("chat_history", [])
 
-    _english_only = lambda q: bool(q and q.isascii() and q.isprintable())  # narrow guard
+    def _english_only(q):
+        return bool(q and q.isascii() and q.isprintable())  # narrow guard
 
     # Direct resolution for Conversation Recall (no vector search needed) — English only
-    if intent == "CONVERSATION_RECALL" or any(p in state.get("question", "").lower() for p in ("what did i just ask", "what did i ask you", "what was my last question", "what were we talking about")):
-        user_messages = [
-            m.get("content", "") for m in chat_history if m.get("role") == "user"
-        ]
+    if intent == "CONVERSATION_RECALL" or any(
+        p in state.get("question", "").lower()
+        for p in (
+            "what did i just ask",
+            "what did i ask you",
+            "what was my last question",
+            "what were we talking about",
+        )
+    ):
+        user_messages = [m.get("content", "") for m in chat_history if m.get("role") == "user"]
         q_raw = state.get("question", "")
         if _english_only(q_raw):
             if user_messages:
                 last_q = user_messages[-1]
                 return {
-                    "final_answer": f"You previously asked: \"{last_q}\"\n\nHow may I help you reflect on this or explore further? 🙏",
+                    "final_answer": f'You previously asked: "{last_q}"\n\nHow may I help you reflect on this or explore further? 🙏',
                     "intent": "CONVERSATION_RECALL",
                     "citations": [],
                 }
@@ -733,7 +876,16 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
         # Fall through to LLM for non-English so GURU_SYSTEM_PROMPT preserves language/script
 
     # Direct resolution for App Orientation — English only
-    if intent == "APP_ORIENTATION" or any(p in state.get("question", "").lower() for p in ("what is this app", "how does ask mukthi guru work", "what does this app do", "about this app", "who created this app")):
+    if intent == "APP_ORIENTATION" or any(
+        p in state.get("question", "").lower()
+        for p in (
+            "what is this app",
+            "how does ask mukthi guru work",
+            "what does this app do",
+            "about this app",
+            "who created this app",
+        )
+    ):
         q_raw = state.get("question", "")
         if _english_only(q_raw):
             return {
@@ -753,16 +905,34 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
         # Fall through to LLM for non-English so GURU_SYSTEM_PROMPT preserves language/script
 
     _SPIRITUAL_PRACTICE_SIGNALS = [
-        r"\bpractice\b", r"\bpracticing\b", r"\bhow\s+(do|can|should)\s+i\b",
-        r"\bsoul\s+sync\b", r"\bdeeksha\b", r"\bmeditat", r"\bbeautiful\s+state\b",
-        r"\bsacred\s+secret", r"\bconsciousness", r"\benlightenment\b",
-        r"\boneness", r"\bekam\b", r"\bpreethaji\b", r"\bkrishnaji\b",
-        r"\bteach\b", r"\bguide\b", r"\bguideline\b", r"\binstruction",
-        r"\bstep", r"\bmethod\b", r"\bprocess\b", r"\bhow\s+to\b",
+        r"\bpractice\b",
+        r"\bpracticing\b",
+        r"\bhow\s+(do|can|should)\s+i\b",
+        r"\bsoul\s+sync\b",
+        r"\bdeeksha\b",
+        r"\bmeditat",
+        r"\bbeautiful\s+state\b",
+        r"\bsacred\s+secret",
+        r"\bconsciousness",
+        r"\benlightenment\b",
+        r"\boneness",
+        r"\bekam\b",
+        r"\bpreethaji\b",
+        r"\bkrishnaji\b",
+        r"\bteach\b",
+        r"\bguide\b",
+        r"\bguideline\b",
+        r"\binstruction",
+        r"\bstep",
+        r"\bmethod\b",
+        r"\bprocess\b",
+        r"\bhow\s+to\b",
     ]
     lower = state.get("question", "").lower()
     if any(re.search(p, lower, re.I) for p in _SPIRITUAL_PRACTICE_SIGNALS):
-        logger.info("handle_casual guard: query contains spiritual practice signals, redirecting to FACTUAL")
+        logger.info(
+            "handle_casual guard: query contains spiritual practice signals, redirecting to FACTUAL"
+        )
         return {
             "intent": "FACTUAL",
             "query_tier": "tier2_simple",
@@ -770,11 +940,12 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
             "evaluation_trace": _trace_update(
                 state,
                 handle_casual="redirected_to_factual",
-                casual_redirect_reason="spiritual_practice_signals_detected"
+                casual_redirect_reason="spiritual_practice_signals_detected",
             ),
         }
 
     from rag.nodes.utils import emit_status
+
     await emit_status(config, "Saying hello...")
 
     ollama = _services._ollama
@@ -812,6 +983,7 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
 async def handle_distress(state: GraphState, config: dict = None) -> dict:
     """Handle distress with COMPASSIONATE TEACHINGS + meditation offer."""
     from rag.nodes.utils import emit_status
+
     await emit_status(config, "Holding space for what you're feeling...")
 
     question = state["question"]
@@ -827,8 +999,8 @@ async def handle_distress(state: GraphState, config: dict = None) -> dict:
     relevant_docs = state.get("relevant_docs", [])
     if not relevant_docs:
         try:
+            from rag.nodes.reranking import grade_documents, rerank_documents
             from rag.nodes.retrieval import retrieve_documents
-            from rag.nodes.reranking import rerank_documents, grade_documents
 
             local_state = dict(state)
             local_state.setdefault("query_rewrites", [state.get("question", "")])
@@ -871,9 +1043,7 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
                     "Distress generation returned empty response. Falling back to template."
                 )
                 response = (
-                    serene_mind.get_response(assessment)
-                    if serene_mind
-                    else get_distress_response()
+                    serene_mind.get_response(assessment) if serene_mind else get_distress_response()
                 )
         except Exception as e:
             logger.error(f"Distress generation failed: {e}")
@@ -881,13 +1051,14 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
                 serene_mind.get_response(assessment) if serene_mind else get_distress_response()
             )
     else:
-        response = (
-            serene_mind.get_response(assessment) if serene_mind else get_distress_response()
-        )
+        response = serene_mind.get_response(assessment) if serene_mind else get_distress_response()
 
     if assessment.level >= DistressLevel.SEVERE:
         from services.crisis_helplines import format_helplines_block
-        crisis_info = "\n\n" + format_helplines_block(intro="🆘 **Crisis Support (available 24/7):**")
+
+        crisis_info = "\n\n" + format_helplines_block(
+            intro="🆘 **Crisis Support (available 24/7):**"
+        )
         response = crisis_info + "\n\n" + response
 
     # handle_distress returns straight to END (graph_strategies.py), bypassing
@@ -898,6 +1069,7 @@ Retrieved teachings from Sri Preethaji and Sri Krishnaji:
     # answer can free-generate a fake video ID. Reuse the same cleanup the
     # QUERY path already applies instead of duplicating URL-validation logic.
     from rag.nodes.generation import _clean_inline_citations
+
     response = _clean_inline_citations(response)
 
     logger.info(
@@ -947,6 +1119,7 @@ async def handle_meditation(state: GraphState, config: dict = None) -> dict:
     FACTUAL/QUERY path. This preserves the no-misleading-answer guarantee.
     """
     from rag.nodes.utils import emit_status
+
     await emit_status(config, "Guiding you into the practice...")
 
     raw_step = state.get("meditation_step", 0)
@@ -966,6 +1139,7 @@ async def handle_meditation(state: GraphState, config: dict = None) -> dict:
     # step <= start_step so the script fires on the very first invocation.
     fresh = step <= start_step
     from rag.meditation import _INTERROGATIVE_STEMS_EN, _INTERROGATIVE_STEMS_HINGLISH
+
     is_interrogative = question.endswith("?") or any(
         stem in question[:40] for stem in _INTERROGATIVE_STEMS_EN + _INTERROGATIVE_STEMS_HINGLISH
     )
@@ -1002,9 +1176,7 @@ async def handle_meditation(state: GraphState, config: dict = None) -> dict:
 
     # ---- Case 3: step > MAX_STEP — session legitimately complete ------------
     if step > start_step:
-        logger.info(
-            "Meditation session complete (step=%s). Emitting canonical close.", step
-        )
+        logger.info("Meditation session complete (step=%s). Emitting canonical close.", step)
         return {
             "final_answer": get_meditation_complete_message(),
             "meditation_step": 0,
@@ -1067,4 +1239,3 @@ def route_after_grading(state: GraphState) -> str:
         return "rewrite"
     else:
         return "fallback"
-

@@ -21,20 +21,17 @@ API Reference:
 All LLM calls funnel through this service. No other module talks to Sarvam directly.
 """
 
-import asyncio
 import json
 import logging
 import os
 import re
-import time
 from collections.abc import AsyncIterator
 from typing import Optional
 
-from anyio import Lock as AsyncLock
 import httpx
+from anyio import Lock as AsyncLock
 
 from app.config import settings
-from services.gateways import SarvamHTTPGateway
 from rag.prompts import (
     BATCH_GRADE_PROMPT,
     COMBINED_VERIFICATION_PROMPT,
@@ -49,6 +46,7 @@ from rag.prompts import (
     SUMMARIZE_PROMPT,
     VERIFICATION_PROMPT,
 )
+from services.gateways import SarvamHTTPGateway
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +59,6 @@ except ImportError:  # OpenTelemetry is optional in local/minimal installs.
     StatusCode = None
 
 
-from services.sarvam_exceptions import NonRetryableError, QuotaExceededError
-
-
 # ---------------------------------------------------------------------------
 # Circuit Breaker — fail-fast when API is down, auto-recover
 # ---------------------------------------------------------------------------
@@ -73,6 +68,7 @@ from services.circuit_breaker import (
     CircuitOpenException,
     DefaultCircuitBreaker,
 )
+from services.sarvam_exceptions import QuotaExceededError
 
 # ---------------------------------------------------------------------------
 # Sarvam Cloud Service
@@ -98,17 +94,25 @@ class SarvamCloudService:
                 "Set it in your .env file or environment variables."
             )
 
-        self._base_url = settings.sarvam_30b_endpoint or getattr(settings, "sarvam_base_url", "https://api.sarvam.ai/v1")
+        self._base_url = settings.sarvam_30b_endpoint or getattr(
+            settings, "sarvam_base_url", "https://api.sarvam.ai/v1"
+        )
         self._gen_model = settings.sarvam_cloud_model
         self._cls_model = settings.sarvam_cloud_classify_model
         self._timeout = getattr(settings, "llm_timeout", 60)
         self._max_retries = getattr(settings, "llm_max_retries", 3)
         # Use provider-agnostic circuit breaker from shared module
         from app.constants import CircuitBreakerProvider
-        sarvam_config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.SARVAM_CLOUD.value)
+
+        sarvam_config = CircuitBreakerConfig.from_provider(
+            CircuitBreakerProvider.SARVAM_CLOUD.value
+        )
         self._circuit = DefaultCircuitBreaker(sarvam_config)
         from services.circuit_breaker import get_circuit_breaker_registry
-        get_circuit_breaker_registry().register(CircuitBreakerProvider.SARVAM_CLOUD.value, self._circuit)
+
+        get_circuit_breaker_registry().register(
+            CircuitBreakerProvider.SARVAM_CLOUD.value, self._circuit
+        )
         self._last_request_time = 0.0
         self._rate_limit_lock = AsyncLock()
         self._max_tokens_limit = 4096
@@ -262,7 +266,9 @@ class SarvamCloudService:
     ) -> str:
         """Delegated to SarvamHTTPGateway — all transport logic removed."""
         if self._http is None:
-            raise RuntimeError("SarvamHTTPGateway is not initialized (no API key and/or endpoint mode configured)")
+            raise RuntimeError(
+                "SarvamHTTPGateway is not initialized (no API key and/or endpoint mode configured)"
+            )
         return await self._http.call(
             messages=messages,
             model=model,
@@ -272,8 +278,6 @@ class SarvamCloudService:
             operation=operation,
             **kwargs,
         )
-
-
 
     def _start_llm_span(self, model: str, operation: str, attempt: int):
         """Create an optional OTel span for a Sarvam request."""
@@ -316,6 +320,7 @@ class SarvamCloudService:
         # Update request-scoped token accumulator
         try:
             from services.cost_tracker import token_accumulator_var
+
             acc = token_accumulator_var.get()
             if acc is not None:
                 acc.tokens_in += usage.get("prompt_tokens") or 0
@@ -530,7 +535,9 @@ class SarvamCloudService:
                         )
                         self._max_tokens_limit = tier_limit
                         kwargs_copy = {**kwargs, "max_tokens": tier_limit}
-                        async for chunk in self.generate_stream(system_prompt, user_prompt, context, **kwargs_copy):
+                        async for chunk in self.generate_stream(
+                            system_prompt, user_prompt, context, **kwargs_copy
+                        ):
                             yield chunk
                         return
                     else:
@@ -563,9 +570,12 @@ class SarvamCloudService:
                 # Record streaming token usage in accumulator
                 try:
                     from services.cost_tracker import token_accumulator_var
+
                     acc = token_accumulator_var.get()
                     if acc is not None:
-                        prompt_tokens = int(sum(len((msg.get("content") or "").split()) for msg in messages) * 1.3)
+                        prompt_tokens = int(
+                            sum(len((msg.get("content") or "").split()) for msg in messages) * 1.3
+                        )
                         completion_tokens = int(len(buffer.split()) * 1.3)
                         acc.tokens_in += prompt_tokens
                         acc.tokens_out += completion_tokens
@@ -728,9 +738,7 @@ class SarvamCloudService:
                 default=False,
                 description="True if the user is in distress, sad, or asking for help with negative emotions",
             )
-            confidence: float = Field(
-                default=0.5, description="Confidence score from 0.0 to 1.0"
-            )
+            confidence: float = Field(default=0.5, description="Confidence score from 0.0 to 1.0")
             reason: str = Field(
                 default="No reason provided",
                 description="Brief reason for the assessment",
@@ -797,6 +805,7 @@ class SarvamCloudService:
                 max_retries=1,
             )
             import json
+
             data = json.loads(resp.strip())
             return {
                 "is_distress": bool(data.get("is_distress", False)),

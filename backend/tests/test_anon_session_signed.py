@@ -10,9 +10,8 @@ Locks in:
 Invariant L-K3-1: comparisons use hmac.compare_digest (verified by code
 inspection of verify_anon_session_token — these tests exercise behavior).
 """
-from __future__ import annotations
 
-import secrets
+from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException

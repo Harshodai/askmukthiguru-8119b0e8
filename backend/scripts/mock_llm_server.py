@@ -19,7 +19,6 @@ import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-
 _CANNED_RESPONSE = (
     "The essence of inner stillness is not found by silencing thought, but by "
     "witnessing it without identification. In the teaching of the Gurus, stillness "

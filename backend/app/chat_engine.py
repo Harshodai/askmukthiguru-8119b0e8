@@ -35,15 +35,16 @@ import asyncio
 import hashlib
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Optional
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 from fastapi import HTTPException
 
 from app.config import settings
-from app.metrics import TTFT_SECONDS
 from app.dependencies import ServiceContainer
 from app.grounding import grounding_state_for
+from app.metrics import TTFT_SECONDS
 from app.release_manifest import get_release_manifest
 from app.schemas import ChatRequest
 from rag.memory import normalize_session_id
@@ -87,9 +88,8 @@ class ChatResult:
         self.audio_url: Optional[str] = None
         self.kg_concept_nodes: list[str] = []
         self.daily_practice_card: Optional[dict[str, Any]] = None
-        self.grounding_state: str = 'abstained'
+        self.grounding_state: str = "abstained"
         self.release_manifest: Optional[dict[str, Any]] = None
-
 
 
 class ChatChunk:
@@ -100,7 +100,7 @@ class ChatChunk:
         text: str = "",
         is_final: bool = False,
         citations: Optional[list[str]] = None,
-        grounding_state: str = 'abstained',
+        grounding_state: str = "abstained",
         release_manifest: Optional[dict[str, Any]] = None,
     ):
         self.text = text
@@ -183,6 +183,7 @@ class ChatEngine:
         """Lazy init of PipelineCoordinator (batch path)."""
         if self._coordinator is None:
             from app.pipeline import PipelineCoordinator
+
             self._coordinator = PipelineCoordinator(self._container)
         return self._coordinator
 
@@ -190,6 +191,7 @@ class ChatEngine:
         """Lazy init of ChatStreamRequestOrchestrator (streaming host)."""
         if self._stream_coordinator is None:
             from app.stream_orchestrator import ChatStreamRequestOrchestrator
+
             self._stream_coordinator = ChatStreamRequestOrchestrator(self._container)
         return self._stream_coordinator
 
@@ -202,6 +204,7 @@ class ChatEngine:
         """
         if self._coalescer is None:
             from app.coalescer import build_coalescer
+
             self._coalescer = build_coalescer(
                 redis_url=getattr(settings, "redis_url", None), ttl=60.0
             )
@@ -276,7 +279,7 @@ class ChatEngine:
                 if chat_request.incognito
                 else await coalescer.get_or_run(coalesce_key, _run)
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"Pipeline timeout for user {user_id}")
             raise HTTPException(
                 status_code=504,
@@ -309,7 +312,9 @@ class ChatEngine:
         result.kg_concept_nodes = list(getattr(pipeline_result, "kg_concept_nodes", []) or [])
         result.daily_practice_card = getattr(pipeline_result, "daily_practice_card", None)
         result.grounding_state = grounding_state_for(pipeline_result)
-        result.release_manifest = getattr(pipeline_result, "release_manifest", None) or get_release_manifest().to_dict()
+        result.release_manifest = (
+            getattr(pipeline_result, "release_manifest", None) or get_release_manifest().to_dict()
+        )
 
         if not chat_request.incognito:
             # Content-bearing telemetry is disabled for ephemeral chats.
@@ -356,7 +361,7 @@ class ChatEngine:
                     break
                 try:
                     item = await asyncio.wait_for(stream_queue.get(), timeout=1.0)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     if pipeline_task.done():
                         break
                     continue
@@ -369,7 +374,9 @@ class ChatEngine:
                         if chunk_text and not first_token_observed:
                             first_token_observed = True
                             try:
-                                TTFT_SECONDS.labels(provider="pipeline").observe(time.monotonic() - stream_started_at)
+                                TTFT_SECONDS.labels(provider="pipeline").observe(
+                                    time.monotonic() - stream_started_at
+                                )
                             except Exception:
                                 logger.debug("TTFT metric emission failed", exc_info=True)
                         yield ChatChunk(text=chunk_text, is_final=False)
@@ -380,7 +387,9 @@ class ChatEngine:
                     if chunk_text and not first_token_observed:
                         first_token_observed = True
                         try:
-                            TTFT_SECONDS.labels(provider="pipeline").observe(time.monotonic() - stream_started_at)
+                            TTFT_SECONDS.labels(provider="pipeline").observe(
+                                time.monotonic() - stream_started_at
+                            )
                         except Exception:
                             logger.debug("TTFT metric emission failed", exc_info=True)
                     yield ChatChunk(text=chunk_text)
@@ -403,7 +412,7 @@ class ChatEngine:
                 text="I'm experiencing a temporary issue. Please try again.",
                 is_final=True,
                 citations=[],
-                grounding_state='system_error',
+                grounding_state="system_error",
                 release_manifest=get_release_manifest().to_dict(),
             )
             return
@@ -411,18 +420,25 @@ class ChatEngine:
 
         # Final chunk — tone adaptation already ran inside the pipeline
         # (ToneAdapterStage), so the assembled result is the final voice.
-        final_text = pipeline_result.final_answer if pipeline_result else "".join(assembled_text).strip()
+        final_text = (
+            pipeline_result.final_answer if pipeline_result else "".join(assembled_text).strip()
+        )
         if final_text and not first_token_observed:
             try:
-                TTFT_SECONDS.labels(provider="pipeline").observe(time.monotonic() - stream_started_at)
+                TTFT_SECONDS.labels(provider="pipeline").observe(
+                    time.monotonic() - stream_started_at
+                )
             except Exception:
                 logger.debug("TTFT metric emission failed", exc_info=True)
         yield ChatChunk(
             text=final_text,
             is_final=True,
             citations=citations,
-            grounding_state=grounding_state_for(pipeline_result) if pipeline_result else 'system_error',
-            release_manifest=getattr(pipeline_result, "release_manifest", None) or get_release_manifest().to_dict(),
+            grounding_state=grounding_state_for(pipeline_result)
+            if pipeline_result
+            else "system_error",
+            release_manifest=getattr(pipeline_result, "release_manifest", None)
+            or get_release_manifest().to_dict(),
         )
 
     async def _log_telemetry(
@@ -434,6 +450,7 @@ class ChatEngine:
     ) -> None:
         try:
             from app.telemetry_sink import SupabaseTelemetrySink
+
             sink = SupabaseTelemetrySink()
             await sink.log_query_trace(
                 query_id=result.trace_id,
@@ -443,7 +460,9 @@ class ChatEngine:
                 model=result.model_used or "unknown",
                 latency_ms=result.latency_ms,
                 status="ok",
-                created_at=result.created_at if hasattr(result, 'created_at') else datetime.now(timezone.utc).isoformat(),
+                created_at=result.created_at
+                if hasattr(result, "created_at")
+                else datetime.now(UTC).isoformat(),
                 response_text=result.final_answer,
                 citations=result.citations,
                 faithfulness=result.faithfulness_score,
@@ -472,7 +491,9 @@ class ChatEngine:
                 if http_url:
                     out.append(http_url)
                 else:
-                    title = c.get("title") or c.get("doc_id") or c.get("source") or c.get("quote") or ""
+                    title = (
+                        c.get("title") or c.get("doc_id") or c.get("source") or c.get("quote") or ""
+                    )
                     if title and title != "unknown":
                         out.append(str(title))
             else:
@@ -492,18 +513,16 @@ if __name__ == "__main__":
         public = ["chat", "chat_stream", "chat_advanced", "chat_advanced_stream"]
         print("public methods:", ", ".join(public))
 
-        assert hasattr(engine, "chat") and inspect.iscoroutinefunction(
-            engine.chat
-        ), "chat must be coroutine"
+        assert hasattr(engine, "chat") and inspect.iscoroutinefunction(engine.chat), (
+            "chat must be coroutine"
+        )
         assert hasattr(engine, "chat_advanced") and inspect.iscoroutinefunction(
             engine.chat_advanced
         ), "chat_advanced must be coroutine"
-        assert inspect.isasyncgenfunction(
-            engine.chat_stream
-        ), "chat_stream must be async generator"
-        assert inspect.isasyncgenfunction(
-            engine.chat_advanced_stream
-        ), "chat_advanced_stream must be async generator"
+        assert inspect.isasyncgenfunction(engine.chat_stream), "chat_stream must be async generator"
+        assert inspect.isasyncgenfunction(engine.chat_advanced_stream), (
+            "chat_advanced_stream must be async generator"
+        )
 
         print("C3 OK")
 

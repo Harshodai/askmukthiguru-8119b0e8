@@ -1,4 +1,5 @@
 """Machine-readable public capability states for truthful product behaviour."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -24,7 +25,9 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
     """Describe capability policy and process-local availability without secrets."""
     vector_available = getattr(container, "qdrant", None) is not None
     embedding_available = getattr(container, "embedding", None) is not None
-    graph_available = bool(getattr(container, "standard_graph", None)) and not getattr(container, "lightrag_degraded", True)
+    graph_available = bool(getattr(container, "standard_graph", None)) and not getattr(
+        container, "lightrag_degraded", True
+    )
     # The chat endpoints use the Redis-backed job_queue controlled by
     # QUEUE_ENABLED. ``use_request_queue`` is a separate legacy in-process
     # request queue and must not be exposed as the public chat queue state.
@@ -39,7 +42,9 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
             "retrieval": _state(True, vector_available and embedding_available),
             "knowledge_graph": _state(settings.knowledge_graph_query_enabled, graph_available),
             "memory_write": _state(settings.feature_memory_write),
-            "live_information": _state(settings.web_search_enabled, getattr(container, "web_search", None) is not None),
+            "live_information": _state(
+                settings.web_search_enabled, getattr(container, "web_search", None) is not None
+            ),
             "live_logistics": _state(
                 settings.live_logistics_enabled,
                 settings.web_search_enabled and getattr(container, "web_search", None) is not None,
@@ -63,7 +68,9 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
 
 
 @router.get("/capabilities")
-async def capabilities_endpoint(container: ServiceContainer = Depends(get_container)) -> JSONResponse:
+async def capabilities_endpoint(
+    container: ServiceContainer = Depends(get_container),
+) -> JSONResponse:
     """Expose current safe capability state for UI, operational checks, and release evidence."""
     if not app_dependencies.startup_complete:
         return JSONResponse(

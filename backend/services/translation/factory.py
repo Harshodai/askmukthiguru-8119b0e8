@@ -41,9 +41,7 @@ class TranslationProviderFactory:
             try:
                 gemini_provider = GeminiTranslationProvider()
             except Exception as e:
-                logger.warning(
-                    f"GeminiTranslationProvider unavailable, will use Sarvam only: {e}"
-                )
+                logger.warning(f"GeminiTranslationProvider unavailable, will use Sarvam only: {e}")
                 gemini_provider = None
 
         return RoutingTranslationProvider(

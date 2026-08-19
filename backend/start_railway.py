@@ -69,6 +69,7 @@ async def _run_real_lifespan():
 
     def _import_real_app():
         from app.main import app, lifespan
+
         return app, lifespan
 
     # Initialized BEFORE any await/task creation so the cleanup path can never
@@ -132,7 +133,7 @@ async def app(scope, receive, send):
 
         try:
             await asyncio.wait_for(lifespan_task, timeout=60)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Real lifespan shutdown timed out after 60s")
         except asyncio.CancelledError:
             logger.warning("Real lifespan task was cancelled")
@@ -173,10 +174,18 @@ if __name__ == "__main__":
         logger.info("Starting Mukthi Guru Celery Beat scheduler")
         import subprocess
         import sys
-        proc = subprocess.run([
-            sys.executable, "-m", "celery", "-A", "celery_config",
-            "beat", "--loglevel=INFO",
-        ])
+
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "celery",
+                "-A",
+                "celery_config",
+                "beat",
+                "--loglevel=INFO",
+            ]
+        )
         sys.exit(proc.returncode)
 
     # When SERVICE_TYPE=celery, start the Celery worker instead of the ASGI server.
@@ -188,15 +197,20 @@ if __name__ == "__main__":
         from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
         cmd = [
-            sys.executable, "-m", "celery",
-            "-A", "celery_config",
+            sys.executable,
+            "-m",
+            "celery",
+            "-A",
+            "celery_config",
             "worker",
-            "-Q", "ingestion,embedding,indexing,okf,memory",
+            "-Q",
+            "ingestion,embedding,indexing,okf,memory",
             f"--concurrency={os.environ.get('CELERY_CONCURRENCY', '2')}",
             "--without-gossip",
             "--without-mingle",
             "--without-heartbeat",
-            "-l", "info",
+            "-l",
+            "info",
         ]
         worker = subprocess.Popen(cmd)
 

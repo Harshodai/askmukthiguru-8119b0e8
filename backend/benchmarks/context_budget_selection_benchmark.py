@@ -18,8 +18,8 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from rag.doc_utils import sort_docs_canonically  # noqa: E402
 from rag.compressor import cap_to_token_budget  # noqa: E402
+from rag.doc_utils import sort_docs_canonically  # noqa: E402
 from services.context_compressor import ContextBudgetManager  # noqa: E402
 
 KNOWLEDGE_BUDGET = 1536  # fast/tier2_simple tier, the tightest budget — most likely to truncate
@@ -34,7 +34,14 @@ def _make_doc_set(n_docs: int, seed: int) -> list[dict]:
         # doc and a long, barely-relevant one are equally plausible in real retrieval
         length_chars = rng.randint(800, 3000)
         text = f"doc-{i}-{seed} " * (length_chars // 8)
-        docs.append({"title": f"Doc {i}", "text": text, "source_url": f"https://example/{i}", "rerank_score": relevance})
+        docs.append(
+            {
+                "title": f"Doc {i}",
+                "text": text,
+                "source_url": f"https://example/{i}",
+                "rerank_score": relevance,
+            }
+        )
     return docs
 
 
@@ -51,7 +58,9 @@ def old_method(docs: list[dict]) -> list[dict]:
 def new_method(docs: list[dict]) -> list[dict]:
     """New behavior: relevance-select first (ContextBudgetManager), then hash-sort survivors."""
     wrapped = [{"content": d["text"], "relevance": d["rerank_score"], "_orig": d} for d in docs]
-    mgr = ContextBudgetManager(total_budget=KNOWLEDGE_BUDGET, system_prompt_reserve=0.0001, history_reserve=0.0001)
+    mgr = ContextBudgetManager(
+        total_budget=KNOWLEDGE_BUDGET, system_prompt_reserve=0.0001, history_reserve=0.0001
+    )
     result = mgr.compress(wrapped)
     return [w["_orig"] for w in result["selected_chunks"]]
 
@@ -84,8 +93,12 @@ def run_benchmark(n_trials: int = 200) -> dict:
         "trials": n_trials,
         "top_doc_survival_rate_old": top_doc_survived_old / n_trials,
         "top_doc_survival_rate_new": top_doc_survived_new / n_trials,
-        "avg_relevance_of_kept_content_old": sum(avg_relevance_old) / len(avg_relevance_old) if avg_relevance_old else 0.0,
-        "avg_relevance_of_kept_content_new": sum(avg_relevance_new) / len(avg_relevance_new) if avg_relevance_new else 0.0,
+        "avg_relevance_of_kept_content_old": sum(avg_relevance_old) / len(avg_relevance_old)
+        if avg_relevance_old
+        else 0.0,
+        "avg_relevance_of_kept_content_new": sum(avg_relevance_new) / len(avg_relevance_new)
+        if avg_relevance_new
+        else 0.0,
     }
 
 
@@ -101,7 +114,7 @@ if __name__ == "__main__":
     assert results["top_doc_survival_rate_new"] >= results["top_doc_survival_rate_old"], (
         "New method should never lose to the old one on top-doc survival"
     )
-    assert results["avg_relevance_of_kept_content_new"] >= results["avg_relevance_of_kept_content_old"], (
-        "New method should never lose to the old one on average kept relevance"
-    )
+    assert (
+        results["avg_relevance_of_kept_content_new"] >= results["avg_relevance_of_kept_content_old"]
+    ), "New method should never lose to the old one on average kept relevance"
     print("\nPASS: new method matches or beats the old one on both metrics.")

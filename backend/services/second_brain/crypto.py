@@ -72,6 +72,7 @@ class VaultIntegrityError(VaultError):
 # Encoding helpers
 # ---------------------------------------------------------------------------
 
+
 def _b64e(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).decode("ascii")
 
@@ -89,6 +90,7 @@ def zeroize(buf: bytearray) -> None:
 # ---------------------------------------------------------------------------
 # DEK generation / wrap / unwrap
 # ---------------------------------------------------------------------------
+
 
 def generate_dek() -> bytes:
     """Generate a fresh 256-bit Data-Encryption-Key."""
@@ -123,6 +125,7 @@ def unwrap_dek(blob: str, kek: bytes) -> bytes:
 # Payload encryption (AES-256-GCM, versioned, AAD-bound)
 # ---------------------------------------------------------------------------
 
+
 def encrypt_payload(dek: bytes, plaintext: bytes, *, aad: bytes = b"") -> str:
     """Encrypt arbitrary bytes under the user DEK. AAD binds the ciphertext
     to its context (e.g. b"<user_id>:node:<node_id>") so a ciphertext row
@@ -153,6 +156,7 @@ def decrypt_payload(dek: bytes, blob: str, *, aad: bytes = b"") -> bytes:
 # Mode B: passphrase-derived KEK (Argon2id)
 # ---------------------------------------------------------------------------
 
+
 def derive_kek_from_passphrase(
     passphrase: str,
     salt: bytes,
@@ -181,7 +185,7 @@ def derive_kek_from_passphrase(
 
 def derive_server_kek(env_value: str) -> bytes:
     """Normalize the server KEK from an env var.
-    
+
     Accepts only a base64url-encoded 32-byte key. Raises ValueError
     for invalid or wrong-length values so misconfiguration causes
     startup failure rather than silently producing a weak key.
@@ -193,15 +197,14 @@ def derive_server_kek(env_value: str) -> bytes:
             f"BRAIN_KEK must be base64url-encoded 32-byte key, got un-decodable value: {exc}"
         ) from exc
     if len(raw) != _KEY_LEN:
-        raise ValueError(
-            f"BRAIN_KEK must decode to exactly {_KEY_LEN} bytes, got {len(raw)}"
-        )
+        raise ValueError(f"BRAIN_KEK must decode to exactly {_KEY_LEN} bytes, got {len(raw)}")
     return raw
 
 
 # ---------------------------------------------------------------------------
 # Deterministic blind index (search without decryption)
 # ---------------------------------------------------------------------------
+
 
 def blind_index(dek: bytes, term: str) -> str:
     """HMAC-based blind index for exact-match lookups over encrypted rows.
@@ -218,6 +221,7 @@ def blind_index(dek: bytes, term: str) -> str:
 # Session unlock token (Mode B request-scoped key transport)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class UnlockedVault:
     """Request-scoped handle holding an unwrapped DEK.
@@ -230,7 +234,7 @@ class UnlockedVault:
     _dek: bytearray
 
     @classmethod
-    def from_dek(cls, dek: bytes) -> "UnlockedVault":
+    def from_dek(cls, dek: bytes) -> UnlockedVault:
         return cls(bytearray(dek))
 
     @property
@@ -246,7 +250,7 @@ class UnlockedVault:
     def close(self) -> None:
         zeroize(self._dek)
 
-    def __enter__(self) -> "UnlockedVault":
+    def __enter__(self) -> UnlockedVault:
         return self
 
     def __exit__(self, *exc) -> None:
@@ -276,6 +280,9 @@ if __name__ == "__main__":
     salt = os.urandom(16)
     kek_b = derive_kek_from_passphrase("correct horse battery staple", salt)
     wrapped_b = wrap_dek(dek, kek_b)
-    assert unwrap_dek(wrapped_b, derive_kek_from_passphrase("correct horse battery staple", salt)) == dek
+    assert (
+        unwrap_dek(wrapped_b, derive_kek_from_passphrase("correct horse battery staple", salt))
+        == dek
+    )
 
     print("vault crypto self-test: OK")

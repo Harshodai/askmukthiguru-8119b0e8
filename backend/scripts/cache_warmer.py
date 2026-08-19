@@ -12,11 +12,9 @@ Run on startup or via cron:
 """
 
 import asyncio
-import json
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -113,11 +111,9 @@ class CacheWarmer:
             logger.error("No semantic cache adapter — cannot warm")
             return self.stats
 
-        from services.embedding_service import EmbeddingService
         from app.dependencies import get_container
 
-        container = get_container()
-        embedder = container.embedding
+        get_container()
 
         total_q = sum(len(v) for v in CACHE_WARMER_QUESTIONS.values())
         print(f"Direct warm: embedding {total_q} questions into semantic cache...")
@@ -157,12 +153,15 @@ class CacheWarmer:
         This is the preferred mode — responses are identical to production queries
         and the pipeline_coordinator automatically writes to semantic cache on success.
         """
-        print("Pipeline warm: executing ChatRequestOrchestrator directly with doctrine questions...")
+        print(
+            "Pipeline warm: executing ChatRequestOrchestrator directly with doctrine questions..."
+        )
 
+        from fastapi import BackgroundTasks
+
+        from app.dependencies import get_container
         from app.orchestrator import ChatRequestOrchestrator
         from app.schemas import ChatRequest
-        from fastapi import BackgroundTasks
-        from app.dependencies import get_container
 
         # Inject Mock LLM Strategy to bypass restricted sandbox network constraints
         container = get_container()
@@ -196,6 +195,7 @@ class CacheWarmer:
                     tokens = (await self.generate(system_prompt, user_prompt, **kwargs)).split()
                     for t in tokens:
                         yield t + " "
+
                 return stream()
 
             async def classify(self, text, **kwargs):
@@ -208,7 +208,10 @@ class CacheWarmer:
                 return {"distress": "none", "severity": 0, "reason": "No distress detected."}
 
             async def grade_relevance(self, question, doc_texts, **kwargs):
-                return [{"id": i, "relevant": True, "reason": "Doc is highly relevant."} for i in range(len(doc_texts))]
+                return [
+                    {"id": i, "relevant": True, "reason": "Doc is highly relevant."}
+                    for i in range(len(doc_texts))
+                ]
 
             async def check_faithfulness(self, answer, context, **kwargs):
                 return {"faithful": "yes", "score": 1.0, "reason": "Grounded."}
@@ -235,10 +238,7 @@ class CacheWarmer:
                     self.stats["total"] += 1
                     try:
                         bg_tasks = BackgroundTasks()
-                        chat_body = ChatRequest(
-                            messages=[],
-                            user_message=question
-                        )
+                        chat_body = ChatRequest(messages=[], user_message=question)
                         # Call orchestrator directly (bypassing rate limiters, SSE, and queues)
                         await orchestrator.orchestrate(
                             request=MockRequest(),
@@ -250,7 +250,7 @@ class CacheWarmer:
                                 "is_superuser": True,
                                 "provider": "test",
                                 "tenant_id": "00000000-0000-0000-0000-000000000000",
-                            }
+                            },
                         )
                         self.stats["warmed"] += 1
                         print(f"  WARMED: {question[:60]}")
@@ -297,9 +297,9 @@ async def main():
         logger.error(f"Cache warming failed: {e}")
         raise
 
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print("Cache Warming Complete")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"Total Questions: {stats['total']}")
     print(f"Warmed: {stats['warmed']}")
     print(f"Skipped (already cached): {stats['skipped']}")

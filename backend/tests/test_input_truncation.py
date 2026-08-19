@@ -1,17 +1,20 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi.testclient import TestClient
+
 from fastapi import Request
+from fastapi.testclient import TestClient
+
+from app.dependencies import get_container
 from app.main import app
 from app.sanitization import sanitize_user_input
 from services.auth_service import get_current_user_from_supabase
-from services.tenant_context import set_tenant_from_request, TenantContext
-from app.dependencies import get_container
+from services.tenant_context import TenantContext, set_tenant_from_request
+
 
 def test_sanitize_user_input_with_custom_limit():
     long_input = "a" * 3000
     cleaned = sanitize_user_input(long_input, max_length=10000)
     assert len(cleaned) == 3000
+
 
 def test_chat_endpoint_accepts_long_input():
     client = TestClient(app)
@@ -39,16 +42,16 @@ def test_chat_endpoint_accepts_long_input():
         # Mock RAG orchestrator
         with patch("app.orchestrator.ChatRequestOrchestrator.orchestrate") as mock_orch:
             mock_orch.return_value = {"status": "success"}
-            
+
             response = client.post(
                 "/api/chat",
                 json={
                     "messages": [{"role": "user", "content": "hello"}],
-                    "user_message": "a" * 3000
-                }
+                    "user_message": "a" * 3000,
+                },
             )
             assert response.status_code == 200
-            
+
             # Assert the message passed to orchestrator is indeed 3000 chars, not truncated to 2000
             args = mock_orch.call_args[0]
             chat_body = args[1]

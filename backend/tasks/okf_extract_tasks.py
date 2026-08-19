@@ -42,6 +42,7 @@ def extract_okf_entries(
     try:
         import sys
         from pathlib import Path
+
         _base = Path(__file__).resolve().parent.parent
         if str(_base) not in sys.path:
             sys.path.insert(0, str(_base))
@@ -61,7 +62,8 @@ def extract_okf_entries(
         mode = "approved" if auto_approve else "staging"
         logger.info(
             "OKF extraction via Celery: %d entries → %s",
-            len(paths), mode,
+            len(paths),
+            mode,
         )
         return {
             "status": "ok",

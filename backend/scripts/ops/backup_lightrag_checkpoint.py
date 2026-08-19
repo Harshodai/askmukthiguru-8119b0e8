@@ -8,6 +8,7 @@ Usage:
   cd backend
   .venv/bin/python scripts/ops/backup_lightrag_checkpoint.py [--db-path ./lightrag_data/doc_status.db]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -15,7 +16,7 @@ import json
 import os
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 DEFAULT_DB_PATH = os.getenv("LIGHTRAG_DB", "./lightrag_data/doc_status.db")
 BACKUP_DIR = "./data/lightrag_backups"
@@ -32,13 +33,15 @@ def main() -> None:
         return
 
     os.makedirs(args.out_dir, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     out_file = os.path.join(args.out_dir, f"lightrag_checkpoint_{ts}.json")
 
     try:
         with sqlite3.connect(args.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='document_status';")
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='document_status';"
+            )
             if not cursor.fetchone():
                 print("WARN: Table 'document_status' not found in database.")
                 return

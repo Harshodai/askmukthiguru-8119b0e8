@@ -17,9 +17,9 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]  # backend/scripts/ → backend/
 sys.path.insert(0, str(ROOT))
 
-from ingest.pipeline import extract_doctrine_tags  # noqa: E402
 from app.config import settings as app_settings  # noqa: E402
 from app.dependencies import get_container  # noqa: E402
+from ingest.pipeline import extract_doctrine_tags  # noqa: E402
 
 
 def _point_text(payload: dict[str, Any]) -> str:

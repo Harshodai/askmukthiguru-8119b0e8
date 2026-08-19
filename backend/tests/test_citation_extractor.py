@@ -41,8 +41,14 @@ def test_extracts_best_matching_doc() -> None:
     state = {
         "answer": "The beautiful state is a state of connection and joy.",
         "relevant_docs": [
-            {"text": "The beautiful state is connection, joy, love.", "metadata": {"source": "okf"}},
-            {"text": "Irrelevant document about something else entirely.", "metadata": {"source": "other"}},
+            {
+                "text": "The beautiful state is connection, joy, love.",
+                "metadata": {"source": "okf"},
+            },
+            {
+                "text": "Irrelevant document about something else entirely.",
+                "metadata": {"source": "other"},
+            },
         ],
     }
     result = extract_citations(state)

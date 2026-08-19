@@ -68,9 +68,7 @@ async def cancel_job(
     reservation_id = request_data.get("quota_reservation_id")
     if reservation_id:
         try:
-            await container.anon_quota_service.release(
-                request_data.get("user", {}), reservation_id
-            )
+            await container.anon_quota_service.release(request_data.get("user", {}), reservation_id)
         except Exception as exc:
             logger.warning(f"anon quota release on job cancel failed (non-fatal): {exc}")
     return {"status": "cancelled", "job_id": job_id}

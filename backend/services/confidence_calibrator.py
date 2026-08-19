@@ -1,9 +1,12 @@
 """Optional empirical calibration for answer confidence."""
+
 from __future__ import annotations
+
 import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
+
 
 @dataclass(frozen=True)
 class CalibrationResult:
@@ -11,8 +14,10 @@ class CalibrationResult:
     status: str
     artifact: str | None = None
 
+
 class ConfidenceCalibrator:
     """Use held-out calibration points; never fabricate a probability mapping."""
+
     def __init__(self, artifact_path: str | None = None) -> None:
         self.artifact_path = artifact_path or os.getenv("CONFIDENCE_CALIBRATION_PATH")
         self._points: tuple[tuple[float, float], ...] = ()
@@ -27,7 +32,10 @@ class ConfidenceCalibrator:
             points = tuple((float(p["raw"]), float(p["calibrated"])) for p in data["points"])
             if len(points) < 3 or any(not 0 <= x <= 1 or not 0 <= y <= 1 for x, y in points):
                 raise ValueError("calibration points must be in [0,1]")
-            if any(points[i][0] >= points[i + 1][0] or points[i][1] > points[i + 1][1] for i in range(len(points) - 1)):
+            if any(
+                points[i][0] >= points[i + 1][0] or points[i][1] > points[i + 1][1]
+                for i in range(len(points) - 1)
+            ):
                 raise ValueError("calibration points must be monotonic")
             self._points = points
             self.status = "empirical"

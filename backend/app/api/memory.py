@@ -7,12 +7,13 @@ import datetime as _dt
 import html
 import logging
 import re
-from typing import Annotated, Any, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 
 from app.config import settings
+from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
 from services import kg_analytics
 from services.auth_service import auth_bridge, get_current_user_from_supabase
@@ -81,12 +82,16 @@ async def list_episodes_endpoint(
     """List the authenticated user's recent conversation episodes, paginated."""
     svc = getattr(container, "episodic_memory_service", None)
     if svc is None or not svc.available:
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
     page = max(1, page)
     page_size = max(1, min(page_size, 100))
     rows = await svc.retrieve_recent(user["id"], limit=page_size)
     episodes = [_episode_from_row(r) for r in rows]
-    return EpisodeListResponse(episodes=episodes, total=len(episodes), page=page, page_size=page_size)
+    return EpisodeListResponse(
+        episodes=episodes, total=len(episodes), page=page, page_size=page_size
+    )
 
 
 @router.get("/memory/episodes/search", response_model=list[EpisodeResponse])
@@ -99,7 +104,9 @@ async def search_episodes_endpoint(
     """Substring search over the authenticated user's episodes (query + answer)."""
     svc = getattr(container, "episodic_memory_service", None)
     if svc is None or not svc.available:
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
     if not q or not q.strip():
         return []
     rows = await svc.search(user["id"], q, limit=limit)
@@ -163,9 +170,13 @@ async def list_memories_endpoint(
 ) -> MemoryListResponse:
     """List episodic memories for the authenticated user, paginated."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
 
-    result = await container.memory_service.list_memories(user["id"], page=page, page_size=page_size)
+    result = await container.memory_service.list_memories(
+        user["id"], page=page, page_size=page_size
+    )
     memories = []
     for m in result["memories"]:
         created_iso = m.get("created_at")
@@ -203,7 +214,9 @@ async def get_core_memory_endpoint(
 ) -> CoreMemoryResponse:
     """Retrieve core profile preferences aggregated with core facts."""
     if not container.user_profile:
-        raise HTTPException(status_code=501, detail="Profile features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Profile features are not available at this time."
+        )
 
     profile = await container.user_profile.get_or_create_profile(user["id"])
 
@@ -224,10 +237,10 @@ async def get_core_memory_endpoint(
     )
 
     try:
-        updated_at_dt = _dt.datetime.fromtimestamp(profile.updated_at, _dt.timezone.utc)
+        updated_at_dt = _dt.datetime.fromtimestamp(profile.updated_at, _dt.UTC)
         updated_at_iso = updated_at_dt.isoformat()
     except Exception:
-        updated_at_iso = _dt.datetime.now(_dt.timezone.utc).isoformat()
+        updated_at_iso = _dt.datetime.now(_dt.UTC).isoformat()
 
     return CoreMemoryResponse(
         profile=core_profile,
@@ -243,7 +256,9 @@ async def add_memory_endpoint(
 ) -> GuruMemoryResponse:
     """Manually add an explicit memory."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
 
     content = body.text.strip()
     if not content:
@@ -279,7 +294,9 @@ async def forget_memory_endpoint(
 ) -> dict:
     """Forget/delete a specific memory by its ID."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
 
     success = await container.memory_service.forget(user["id"], body.memory_id)
     if not success:
@@ -296,7 +313,9 @@ async def edit_memory_endpoint(
 ) -> dict:
     """Edit/correct a specific memory's text by its ID."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
 
     content = body.text.strip()
     if not content:
@@ -316,7 +335,9 @@ async def delete_all_reflections_endpoint(
 ) -> dict:
     """Delete all of the user's episodic memories (reflections). Core facts are durable."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
     count = await container.memory_service.forget_all_reflections(user["id"])
     return {"status": "ok", "deleted": count}
 
@@ -334,7 +355,9 @@ async def regenerate_summary_endpoint(
     Profile Memory tab).
     """
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
     count = await container.memory_service.regenerate_summary(user["id"])
     return {"status": "ok", "updated": count}
 
@@ -347,19 +370,23 @@ async def list_summaries_endpoint(
 ) -> list[dict]:
     """List recent session summaries for the authenticated user."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
     rows = await container.memory_service.recent_summaries(user["id"], limit=limit)
     out = []
     for r in rows:
         created = r.get("created_at")
         if not isinstance(created, str):
             created = created.isoformat() if created else ""
-        out.append({
-            "id": str(r.get("id", "")),
-            "session_id": str(r.get("session_id", "")),
-            "summary": r.get("summary", ""),
-            "created_at": created,
-        })
+        out.append(
+            {
+                "id": str(r.get("id", "")),
+                "session_id": str(r.get("session_id", "")),
+                "summary": r.get("summary", ""),
+                "created_at": created,
+            }
+        )
     return out
 
 
@@ -372,13 +399,17 @@ async def get_persona_endpoint(
     from services.layered_memory.persona_store import get_persona
 
     if not getattr(container, "supabase_client", None):
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
     content, updated_at = await get_persona(container.supabase_client, user["id"])
     return {"content": content or "", "updated_at": updated_at or ""}
 
 
 @router.post("/memory/persona/regenerate")
+@limiter.limit(settings.memory_generation_rate_limit)
 async def regenerate_persona_endpoint(
+    request: Request,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -388,7 +419,9 @@ async def regenerate_persona_endpoint(
     from services.layered_memory.persona_store import get_persona, save_persona
 
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
     atoms = await get_recent_atoms(container.memory_service, user["id"], limit=50)
     existing, _ = await get_persona(container.supabase_client, user["id"])
     persona = await generate_persona(atoms, existing)
@@ -397,7 +430,9 @@ async def regenerate_persona_endpoint(
 
 
 @router.post("/memory/reflect")
+@limiter.limit(settings.memory_generation_rate_limit)
 async def reflect_endpoint(
+    request: Request,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -408,8 +443,12 @@ async def reflect_endpoint(
     from services.layered_memory.skill_generator import generate_skills, get_skills, save_skills
     from services.tenant_context import TenantContext
 
-    if not getattr(container, "memory_service", None) or not getattr(container, "supabase_client", None):
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+    if not getattr(container, "memory_service", None) or not getattr(
+        container, "supabase_client", None
+    ):
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
     tenant_id = TenantContext.get()
     atoms = await get_recent_atoms(container.memory_service, user["id"], limit=50)
     if not atoms:
@@ -432,9 +471,14 @@ async def reflect_endpoint(
 
 def _reset_turn_counter(user_id: str) -> None:
     try:
-        import json, os
+        import json
+        import os
+
         import redis as sync_redis
-        r = sync_redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
+
+        r = sync_redis.from_url(
+            os.environ.get("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True
+        )
         key = f"turn_counter:{user_id}"
         r.set(key, json.dumps({"count": 0, "last_ts": __import__("time").time()}), ex=7200)
     except Exception as _e:
@@ -457,7 +501,9 @@ async def list_skills_endpoint(
 
 
 @router.post("/memory/skills/regenerate")
+@limiter.limit(settings.memory_generation_rate_limit)
 async def regenerate_skills_endpoint(
+    request: Request,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
@@ -466,7 +512,9 @@ async def regenerate_skills_endpoint(
     from services.tenant_context import TenantContext
 
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
     tenant_id = TenantContext.get()
     atoms = await container.memory_service.get_recent_atoms(user["id"], limit=30)
     atoms_text = "\n".join(a.get("content", "") for a in atoms) if atoms else ""
@@ -485,7 +533,9 @@ async def relevant_memories_endpoint(
 ) -> list[dict]:
     """Return memories semantically relevant to a query via match_user_memories RPC."""
     if not getattr(container, "memory_service", None):
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
     rows = await container.memory_service.search_semantic(
         user["id"], body.query, limit=body.limit, min_similarity=0.6
     )
@@ -494,12 +544,14 @@ async def relevant_memories_endpoint(
         created = r.get("created_at")
         if not isinstance(created, str):
             created = created.isoformat() if created else ""
-        out.append({
-            "id": str(r.get("id", "")),
-            "content": r.get("content", ""),
-            "similarity": float(r.get("similarity", 0.0)),
-            "created_at": created,
-        })
+        out.append(
+            {
+                "id": str(r.get("id", "")),
+                "content": r.get("content", ""),
+                "similarity": float(r.get("similarity", 0.0)),
+                "created_at": created,
+            }
+        )
     return out
 
 
@@ -511,22 +563,26 @@ async def list_conversation_continuity_endpoint(
 ) -> list[dict]:
     """List recent conversation memories (for continuity display)."""
     if not container.user_profile:
-        raise HTTPException(status_code=501, detail="Profile features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Profile features are not available at this time."
+        )
     rows = await container.user_profile.get_recent_memories(user["id"], limit=limit)
     out = []
     for m in rows:
         started = m.started_at
         if not isinstance(started, str):
             try:
-                started = _dt.datetime.fromtimestamp(float(started), _dt.timezone.utc).isoformat()
+                started = _dt.datetime.fromtimestamp(float(started), _dt.UTC).isoformat()
             except Exception:
                 started = str(started)
-        out.append({
-            "session_id": m.session_id,
-            "started_at": started,
-            "key_insights": m.key_insights or [],
-            "follow_up_suggestions": m.follow_up_suggestions or [],
-        })
+        out.append(
+            {
+                "session_id": m.session_id,
+                "started_at": started,
+                "key_insights": m.key_insights or [],
+                "follow_up_suggestions": m.follow_up_suggestions or [],
+            }
+        )
     return out
 
 
@@ -574,9 +630,13 @@ async def personal_knowledge_graph_endpoint(
     Supports view="ontology" to get the public teaching ontology.
     Anonymous access is allowed when no credentials are present.
     """
-    svc = getattr(container, "memory_service_v2", None) or getattr(container, "memory_service", None)
+    svc = getattr(container, "memory_service_v2", None) or getattr(
+        container, "memory_service", None
+    )
     if svc is None:
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
 
     user_id = await _resolve_kg_user_id(request)
 
@@ -641,9 +701,13 @@ async def export_knowledge_graph_endpoint(
     if not settings.kg_export_enabled:
         raise HTTPException(status_code=501, detail="Knowledge graph export is not enabled.")
 
-    svc = getattr(container, "memory_service_v2", None) or getattr(container, "memory_service", None)
+    svc = getattr(container, "memory_service_v2", None) or getattr(
+        container, "memory_service", None
+    )
     if svc is None:
-        raise HTTPException(status_code=501, detail="Memory features are not available at this time.")
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
 
     user_id = await _resolve_kg_user_id(request)
 
@@ -651,19 +715,22 @@ async def export_knowledge_graph_endpoint(
 
     try:
         html_content = await asyncio.wait_for(
-            asyncio.to_thread(kg_analytics.export_d3blocks_html, result, title=html.escape(body.title)),
+            asyncio.to_thread(
+                kg_analytics.export_d3blocks_html, result, title=html.escape(body.title)
+            ),
             timeout=30.0,
         )
     except ImportError as e:
         raise HTTPException(status_code=501, detail=str(e))
-    except asyncio.TimeoutError:
+    except TimeoutError:
         raise HTTPException(status_code=500, detail="Export failed: timed out")
     except Exception:
         logger.exception("Knowledge graph export failed")
         raise HTTPException(status_code=500, detail="Export failed")
 
-    from fastapi.responses import StreamingResponse
     from io import StringIO
+
+    from fastapi.responses import StreamingResponse
 
     filename = f"{_sanitize_filename(body.title)}_map.html"
     return StreamingResponse(
@@ -671,6 +738,7 @@ async def export_knowledge_graph_endpoint(
         media_type="text/html",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
 
 class MemoryConsentRequest(BaseModel):
     granted: bool
@@ -698,9 +766,7 @@ async def set_memory_consent_endpoint(
     )
     pending_deleted = 0
     if not body.granted:
-        pending_deleted = await outbox.delete_user_rows(
-            user_id=user["id"], tenant_id=tenant_id
-        )
+        pending_deleted = await outbox.delete_user_rows(user_id=user["id"], tenant_id=tenant_id)
     return {
         "status": "granted" if body.granted else "revoked",
         "receipt_id": receipt.get("id"),
@@ -709,9 +775,7 @@ async def set_memory_consent_endpoint(
     }
 
 
-async def _delete_supabase_memory_rows(
-    client: Any, table: str, user_id: str
-) -> int:
+async def _delete_supabase_memory_rows(client: Any, table: str, user_id: str) -> int:
     def _delete() -> Any:
         return client.table(table).delete().eq("user_id", user_id).execute()
 
@@ -790,9 +854,7 @@ async def delete_all_memory_endpoint(
             collection = memory_service._get_memory_collection()
             selector = models.Filter(
                 must=[
-                    models.FieldCondition(
-                        key="user_id", match=models.MatchValue(value=user_id)
-                    ),
+                    models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
                     models.FieldCondition(
                         key="tenant_id", match=models.MatchValue(value=tenant_id)
                     ),

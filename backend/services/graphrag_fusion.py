@@ -26,8 +26,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Optional
+from typing import Optional
 
 # Deep variable-length traversals (r*1..N) grow super-linearly — a caller or
 # config mistake (or a hostile request field) must never escalate into a
@@ -40,12 +41,13 @@ logger = logging.getLogger("graphrag")
 # Types
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ContextItem:
     text: str
     score: float
-    channel: str                 # "vector" | "graph"
-    provenance: dict = field(default_factory=dict)   # source, hop, relation, uri
+    channel: str  # "vector" | "graph"
+    provenance: dict = field(default_factory=dict)  # source, hop, relation, uri
     token_estimate: int = 0
 
     def __post_init__(self):
@@ -84,6 +86,7 @@ GraphTraverseFn = Callable[[list[str], int], Awaitable[list[dict]]]
 # Reciprocal Rank Fusion
 # ---------------------------------------------------------------------------
 
+
 def _rrf(rank: int, k: int = 60) -> float:
     return 1.0 / (k + rank)
 
@@ -101,9 +104,15 @@ def reciprocal_rank_fusion(
     for rank, h in enumerate(vector_hits):
         key = _norm(h["text"])
         scores[key] = scores.get(key, 0.0) + _rrf(rank, rrf_k)
-        items.setdefault(key, ContextItem(
-            text=h["text"], score=0.0, channel="vector",
-            provenance={"source": h.get("source"), "id": h.get("id")}))
+        items.setdefault(
+            key,
+            ContextItem(
+                text=h["text"],
+                score=0.0,
+                channel="vector",
+                provenance={"source": h.get("source"), "id": h.get("id")},
+            ),
+        )
 
     for rank, h in enumerate(graph_hits):
         key = _norm(h["text"])
@@ -115,9 +124,16 @@ def reciprocal_rank_fusion(
             scores[key] += 0.05  # dual-channel corroboration bonus
         else:
             items[key] = ContextItem(
-                text=h["text"], score=0.0, channel="graph",
-                provenance={"uri": h.get("uri"), "relation": h.get("relation"),
-                            "hop": h.get("hop"), "source": h.get("source")})
+                text=h["text"],
+                score=0.0,
+                channel="graph",
+                provenance={
+                    "uri": h.get("uri"),
+                    "relation": h.get("relation"),
+                    "hop": h.get("hop"),
+                    "source": h.get("source"),
+                },
+            )
 
     fused = list(items.values())
     for key, it in items.items():
@@ -133,6 +149,7 @@ def _norm(text: str) -> str:
 # ---------------------------------------------------------------------------
 # Fusion engine
 # ---------------------------------------------------------------------------
+
 
 class GraphRAGFusion:
     def __init__(
@@ -197,7 +214,7 @@ class GraphRAGFusion:
                 sem.acquire(),
                 timeout=max(0.0, deadline - loop.time()),
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "GraphRAG retrieval deadline (%.1fs) expired while waiting for a concurrency slot",
                 self.total_timeout,
@@ -216,7 +233,7 @@ class GraphRAGFusion:
                     asyncio.gather(vector_task, graph_task),
                     timeout=max(0.0, deadline - loop.time()),
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     "GraphRAG retrieval aggregate deadline (%.1fs) exceeded, cancelling outstanding subtasks",
                     self.total_timeout,
@@ -262,7 +279,7 @@ class GraphRAGFusion:
                 self._vector(question, self.vector_top_k),
                 timeout=self.per_traversal_timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("vector channel timed out after %.1fs", self.per_traversal_timeout)
             return []
         except Exception as exc:
@@ -284,7 +301,7 @@ class GraphRAGFusion:
                 timeout=self.per_traversal_timeout,
             )
             return hits, entities
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("graph channel timed out after %.1fs", self.per_traversal_timeout)
             return [], []
         except Exception as exc:
@@ -307,11 +324,13 @@ class GraphRAGFusion:
 # Wiring: adapted to this repo's actual services
 # ---------------------------------------------------------------------------
 
+
 async def wire_example():
     """Wire GraphRAGFusion to the repo's real Qdrant, Neo4j, and embedder."""
 
     async def vector_search(q: str, k: int):
         from rag.nodes import _services
+
         embedder = _services._embedder
         qdrant = _services._qdrant
         vec = await asyncio.to_thread(embedder.encode_single_full, q)
@@ -322,17 +341,25 @@ async def wire_example():
             sparse_vector=vec["sparse"],
             query=q,
         )
-        return [{"id": h.get("id"), "text": h.get("text", ""),
-                 "score": h.get("score", 0.0), "source": h.get("source", "")} for h in hits]
+        return [
+            {
+                "id": h.get("id"),
+                "text": h.get("text", ""),
+                "score": h.get("score", 0.0),
+                "source": h.get("source", ""),
+            }
+            for h in hits
+        ]
 
     async def resolve_entities(q: str) -> list[str]:
         from domain.spiritual_ontology import SEED_CONCEPTS
+
         ql = q.lower()
-        return [c.uri for c in SEED_CONCEPTS
-                if any(w in ql for w in c.label.lower().split())]
+        return [c.uri for c in SEED_CONCEPTS if any(w in ql for w in c.label.lower().split())]
 
     async def traverse_graph(uris: list[str], max_hops: int):
         from app.dependencies import get_container
+
         cypher = """
         MATCH path = (c:Concept {uri: $uri})-[r*1..$hops]-(n)
         RETURN n.text AS text, n.uri AS uri, type(last(relationships(path))) AS relation,
@@ -344,18 +371,22 @@ async def wire_example():
         if driver is None:
             return rows
         for u in uris:
+
             def _run(u=u):
                 with driver.session() as session:
                     return list(session.run(cypher, {"uri": u, "hops": max_hops}))
+
             records = await asyncio.to_thread(_run)
             for record in records:
-                rows.append({
-                    "uri": record.get("uri"),
-                    "text": record.get("text"),
-                    "relation": record.get("relation"),
-                    "hop": record.get("hop", 0),
-                    "source": record.get("source"),
-                })
+                rows.append(
+                    {
+                        "uri": record.get("uri"),
+                        "text": record.get("text"),
+                        "relation": record.get("relation"),
+                        "hop": record.get("hop", 0),
+                        "source": record.get("source"),
+                    }
+                )
         return rows
 
     return GraphRAGFusion(vector_search, resolve_entities, traverse_graph)
@@ -366,18 +397,43 @@ async def wire_example():
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+
     async def fake_vector(q, k):
-        return [{"id": "v1", "text": "Breath awareness calms the mind.", "score": 0.9, "source": "doc:1"},
-                {"id": "v2", "text": "Presence arises from stillness.", "score": 0.8, "source": "doc:2"}]
+        return [
+            {
+                "id": "v1",
+                "text": "Breath awareness calms the mind.",
+                "score": 0.9,
+                "source": "doc:1",
+            },
+            {
+                "id": "v2",
+                "text": "Presence arises from stillness.",
+                "score": 0.8,
+                "source": "doc:2",
+            },
+        ]
 
     async def fake_entities(q):
         return ["https://askmukthiguru.org/ontology/practice/breath-awareness"]
 
     async def fake_graph(uris, hops):
-        return [{"uri": uris[0], "text": "Breath awareness leads to Presence.",
-                 "relation": "LEADS_TO_STATE", "hop": 1, "source": "seed"},
-                {"uri": "x", "text": "Breath awareness calms the mind.",
-                 "relation": "RELATED", "hop": 1, "source": "seed"}]
+        return [
+            {
+                "uri": uris[0],
+                "text": "Breath awareness leads to Presence.",
+                "relation": "LEADS_TO_STATE",
+                "hop": 1,
+                "source": "seed",
+            },
+            {
+                "uri": "x",
+                "text": "Breath awareness calms the mind.",
+                "relation": "RELATED",
+                "hop": 1,
+                "source": "seed",
+            },
+        ]
 
     async def main():
         eng = GraphRAGFusion(fake_vector, fake_entities, fake_graph, token_budget=200)
@@ -392,4 +448,5 @@ if __name__ == "__main__":
             print(f"  [{i.channel}] score={i.score} hop={i.provenance.get('hop')} :: {i.text[:45]}")
 
     import asyncio as _a
+
     _a.run(main())

@@ -19,7 +19,9 @@ def test_request_resource_observation_records_metrics_without_request_content(mo
     monkeypatch.setattr(runtime_metrics, "PROCESS_RSS_BYTES", rss)
     monkeypatch.setattr(runtime_metrics, "PROCESS_CPU_SECONDS", cpu)
     monkeypatch.setattr(runtime_metrics, "REQUEST_CPU_SECONDS", request_cpu)
-    monkeypatch.setattr(runtime_metrics, "process_snapshot", lambda: {"rss_bytes": 1024, "cpu_seconds": 4.5})
+    monkeypatch.setattr(
+        runtime_metrics, "process_snapshot", lambda: {"rss_bytes": 1024, "cpu_seconds": 4.5}
+    )
 
     assert runtime_metrics.observe_request_resources(-2) == {"rss_bytes": 1024, "cpu_seconds": 4.5}
     rss.set.assert_called_once_with(1024)

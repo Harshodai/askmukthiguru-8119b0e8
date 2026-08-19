@@ -1,7 +1,9 @@
 from pathlib import Path
 
-
-MIGRATION = Path(__file__).parents[2] / "supabase/migrations/20260814080000_harden_source_release_atomicity.sql"
+MIGRATION = (
+    Path(__file__).parents[2]
+    / "supabase/migrations/20260814080000_harden_source_release_atomicity.sql"
+)
 
 
 def test_source_release_atomicity_migration_has_idempotency_and_single_active_indexes():

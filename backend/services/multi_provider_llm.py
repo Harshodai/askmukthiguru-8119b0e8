@@ -110,7 +110,11 @@ class MultiProviderLLMService:
                 name="OpenRouter",
                 api_key_env="OPENROUTER_API_KEY",
                 base_url="https://openrouter.ai/api/v1",
-                models=["google/gemini-flash-1.5-8b", "mistralai/mixtral-8x7b-instruct", "gpt-4o-mini"],
+                models=[
+                    "google/gemini-flash-1.5-8b",
+                    "mistralai/mixtral-8x7b-instruct",
+                    "gpt-4o-mini",
+                ],
                 default_model="google/gemini-flash-1.5-8b",
                 rpm=200,
                 timeout=30.0,
@@ -119,16 +123,18 @@ class MultiProviderLLMService:
                 name="Nvidia NIM",
                 api_key_env="NIM_API_KEY",
                 base_url="https://integrate.api.nvidia.com/v1",
-                models=["minimaxai/minimax-m2.7", "meta/llama-3.1-8b-instruct", "nvidia/nemotron-3-super-120b-a12b"],
+                models=[
+                    "minimaxai/minimax-m2.7",
+                    "meta/llama-3.1-8b-instruct",
+                    "nvidia/nemotron-3-super-120b-a12b",
+                ],
                 default_model="minimaxai/minimax-m2.7",
                 rpm=30,
                 timeout=60.0,
             ),
         }
 
-        self.circuit_breakers = {
-            name: CircuitBreaker(name=name) for name in self.providers
-        }
+        self.circuit_breakers = {name: CircuitBreaker(name=name) for name in self.providers}
 
         self.rate_limiters = {
             name: TokenBucket(rate=cfg.rpm / 60.0, capacity=max(1, cfg.rpm // 10))
@@ -189,9 +195,7 @@ class MultiProviderLLMService:
             if not self.rate_limiters[p].consume():
                 continue
             try:
-                return await self._try_provider(
-                    session, p, model, prompt, max_tokens, temperature
-                )
+                return await self._try_provider(session, p, model, prompt, max_tokens, temperature)
             except Exception as e:
                 self.circuit_breakers[p].record_failure()
                 last_error = e

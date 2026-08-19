@@ -44,14 +44,18 @@ async def test_targeted_subgraph_query_binds_corpus_scope(monkeypatch):
         driver = _Driver()
         monkeypatch.setattr(retrieval.settings, "neo4j_uri", "bolt://test", raising=False)
         monkeypatch.setattr("ingest.pipeline.extract_doctrine_tags", lambda _query: ["meditation"])
-        monkeypatch.setattr("app.dependencies.get_container", lambda: SimpleNamespace(neo4j_driver=driver))
+        monkeypatch.setattr(
+            "app.dependencies.get_container", lambda: SimpleNamespace(neo4j_driver=driver)
+        )
 
-        context = await retrieval.query_neo4j_subgraph("How do I meditate?", corpus_id="teacher-a-corpus")
+        context = await retrieval.query_neo4j_subgraph(
+            "How do I meditate?", corpus_id="teacher-a-corpus"
+        )
 
         assert "Targeted Subgraph Context" in context
         cypher, params = driver.session_instance.calls[0]
-        assert "coalesce(r.tenant_id, \"oneness\") = $tenant_id" in cypher
-        assert "coalesce(r.corpus_id, \"askmukthiguru\") = $corpus_id" in cypher
+        assert 'coalesce(r.tenant_id, "oneness") = $tenant_id' in cypher
+        assert 'coalesce(r.corpus_id, "askmukthiguru") = $corpus_id' in cypher
         assert params["corpus_id"] == "teacher-a-corpus"
         assert params["tenant_id"] == "oneness"
     finally:

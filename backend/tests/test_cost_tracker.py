@@ -118,9 +118,7 @@ def test_usage_report_uses_minimal_projection_and_preserves_aggregates(monkeypat
     )
     monkeypatch.setattr(cost_tracker, "_get_client", lambda: client)
 
-    report = CostTracker().get_usage_report(
-        tenant_id="tenant-a", user_id="u1", days=7
-    )
+    report = CostTracker().get_usage_report(tenant_id="tenant-a", user_id="u1", days=7)
 
     assert client.table_instance.projection == (
         "user_id,session_id,model,provider,tokens_in,tokens_out,cost_usd"
@@ -161,9 +159,7 @@ def test_daily_usage_uses_minimal_projection_and_sorts_days(monkeypatch):
 
     daily = CostTracker().get_daily_usage("tenant-a", days=2)
 
-    assert client.table_instance.projection == (
-        "created_at,tokens_in,tokens_out,cost_usd"
-    )
+    assert client.table_instance.projection == ("created_at,tokens_in,tokens_out,cost_usd")
     assert daily == [
         {
             "date": "2026-08-14",
@@ -186,9 +182,7 @@ def test_budget_checks_are_throttled_per_tenant_not_globally(monkeypatch):
     daily_usage = MagicMock(return_value=[{"cost_usd": 0.01}])
     monkeypatch.setattr(tracker, "get_daily_usage", daily_usage)
     monotonic_values = iter([100.0, 101.0, 102.0])
-    monkeypatch.setattr(
-        cost_tracker.time, "monotonic", lambda: next(monotonic_values)
-    )
+    monkeypatch.setattr(cost_tracker.time, "monotonic", lambda: next(monotonic_values))
 
     tracker._maybe_check_budget("tenant-a")
     tracker._maybe_check_budget("tenant-a")
@@ -207,9 +201,7 @@ def test_failed_budget_check_can_retry(monkeypatch):
     daily_usage = MagicMock(side_effect=RuntimeError("temporary failure"))
     monkeypatch.setattr(tracker, "get_daily_usage", daily_usage)
     monotonic_values = iter([200.0, 201.0])
-    monkeypatch.setattr(
-        cost_tracker.time, "monotonic", lambda: next(monotonic_values)
-    )
+    monkeypatch.setattr(cost_tracker.time, "monotonic", lambda: next(monotonic_values))
 
     tracker._maybe_check_budget("tenant-a")
     tracker._maybe_check_budget("tenant-a")

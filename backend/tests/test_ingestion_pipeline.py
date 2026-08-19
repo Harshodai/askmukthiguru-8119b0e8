@@ -58,7 +58,9 @@ def test_split_text_minimal_metadata(mock_pipeline):
 
 def test_embed_and_index_teacher_tagging(mock_pipeline):
     # Mock embedding and Qdrant services
-    mock_pipeline._embedder.encode_batch = MagicMock(return_value={"dense": [[0.1]*384], "sparse": [None]})
+    mock_pipeline._embedder.encode_batch = MagicMock(
+        return_value={"dense": [[0.1] * 384], "sparse": [None]}
+    )
     mock_pipeline._qdrant.upsert_chunks = MagicMock(return_value=1)
     mock_pipeline._qdrant.check_source_exists = MagicMock(return_value=False)
 
@@ -69,7 +71,7 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
         title="Isha Kriya Yoga",
         content_type="video",
         speaker="Sadhguru",
-        tags=["meditation"]
+        tags=["meditation"],
     )
 
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
@@ -84,7 +86,7 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
         title="Golden Age Movement",
         content_type="video",
         speaker="Unknown",
-        tags=["grace"]
+        tags=["grace"],
     )
 
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
@@ -98,7 +100,7 @@ def test_embed_and_index_teacher_tagging(mock_pipeline):
         title="Teachings of Prabhupada",
         content_type="video",
         speaker="Prabhupada",
-        tags=["devotion"]
+        tags=["devotion"],
     )
 
     called_args = mock_pipeline._qdrant.upsert_chunks.call_args[0]
@@ -140,9 +142,7 @@ def test_ingest_raw_text_metadata_propagation(mock_pipeline, monkeypatch):
         "ingest.pipeline.IngestionCheckpoint.save", lambda self, chunk_id, metadata=None: None
     )
     # Disable injection scanning so our small test chunk isn't dropped
-    monkeypatch.setattr(
-        "ingest.pipeline.scan_chunks_for_injection", lambda chunks: (chunks, [])
-    )
+    monkeypatch.setattr("ingest.pipeline.scan_chunks_for_injection", lambda chunks: (chunks, []))
 
     result = asyncio.run(
         mock_pipeline.ingest_raw_text(
@@ -195,8 +195,12 @@ def test_ingest_video_audio_fallback_enriches_missing_metadata(mock_pipeline, mo
             "language": "en",
         },
     )
-    monkeypatch.setattr("ingest.pipeline.IngestionCheckpoint.is_processed", lambda self, chunk_id: False)
-    monkeypatch.setattr("ingest.pipeline.IngestionCheckpoint.save", lambda self, chunk_id, metadata=None: None)
+    monkeypatch.setattr(
+        "ingest.pipeline.IngestionCheckpoint.is_processed", lambda self, chunk_id: False
+    )
+    monkeypatch.setattr(
+        "ingest.pipeline.IngestionCheckpoint.save", lambda self, chunk_id, metadata=None: None
+    )
     monkeypatch.setattr("ingest.pipeline.is_valid_text_deterministic", lambda text: (True, ""))
     mock_pipeline._corrector.correct_transcript = AsyncMock(side_effect=lambda text, url: text)
     mock_pipeline._auditor.run = AsyncMock(
@@ -207,7 +211,9 @@ def test_ingest_video_audio_fallback_enriches_missing_metadata(mock_pipeline, mo
     mock_pipeline._enrich_text = MagicMock(return_value={})
     monkeypatch.setattr(
         "ingest.chunkers.youtube_chunker.chunk_youtube_transcript",
-        lambda video_id, text, chunk_size=0, chunk_overlap=0, languages=None: [{"text": "chunk one"}],
+        lambda video_id, text, chunk_size=0, chunk_overlap=0, languages=None: [
+            {"text": "chunk one"}
+        ],
     )
     mock_pipeline._augment_chunks = AsyncMock(return_value=["chunk one"])
     mock_pipeline._backup_before_reindex = MagicMock(return_value="backup")

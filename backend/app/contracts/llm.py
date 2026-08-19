@@ -26,7 +26,9 @@ class LLMService(Protocol):
         """Fast classification using the lightweight model."""
         ...
 
-    async def generate_stream(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> AsyncIterator[str]:
+    async def generate_stream(
+        self, system_prompt: str, user_prompt: str, **kwargs: Any
+    ) -> AsyncIterator[str]:
         """Stream generation tokens (returns async generator / iterable)."""
         ...
 
@@ -44,10 +46,11 @@ class LLMService(Protocol):
         """Assess whether a message signals emotional distress."""
         ...
 
-
     # ── Relevance / grading ──────────────────────────────────────────────
 
-    async def grade_relevance(self, *, question: str, doc_texts: list[str], **kwargs: Any) -> list[dict[str, Any]]:
+    async def grade_relevance(
+        self, *, question: str, doc_texts: list[str], **kwargs: Any
+    ) -> list[dict[str, Any]]:
         """Batch grade relevance of documents against a question.
 
         Returns a list where each item is:
@@ -57,7 +60,9 @@ class LLMService(Protocol):
 
     # ── Faithfulness / verification ──────────────────────────────────────
 
-    async def check_faithfulness(self, *, answer: str, context: str, **kwargs: Any) -> dict[str, Any]:
+    async def check_faithfulness(
+        self, *, answer: str, context: str, **kwargs: Any
+    ) -> dict[str, Any]:
         """Check whether `answer` is faithful to `context`.
 
         Returns:
@@ -91,7 +96,9 @@ class LLMService(Protocol):
 
     # ── Translation ────────────────────────────────────────────────────
 
-    async def translate_text(self, *, text: str, source_lang: str, target_lang: str, **kwargs: Any) -> str:
+    async def translate_text(
+        self, *, text: str, source_lang: str, target_lang: str, **kwargs: Any
+    ) -> str:
         """Translate text between languages."""
         ...
 

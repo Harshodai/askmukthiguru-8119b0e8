@@ -92,7 +92,11 @@ class RPMRateLimiter:
             "total_requests": self.total_requests,
             "throttled_requests": self.throttled_requests,
             "total_wait_seconds": round(self.total_wait_s, 1),
-            "effective_rpm": round(self.total_requests / max(1, self.total_wait_s + self.total_requests * 0.1) * 60, 1) if self.total_requests else 0,
+            "effective_rpm": round(
+                self.total_requests / max(1, self.total_wait_s + self.total_requests * 0.1) * 60, 1
+            )
+            if self.total_requests
+            else 0,
         }
 
 
@@ -225,6 +229,7 @@ def _get_sim_model():
         return _SIM_MODEL
     try:
         from sentence_transformers import SentenceTransformer
+
         _SIM_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
     except Exception:
         _SIM_MODEL = False
@@ -239,7 +244,10 @@ def _semantic_similarity(text: str, keywords: list[str]) -> float:
         text_emb = model.encode(text)
         kw_embs = model.encode(keywords)
         import numpy as np
-        sims = np.dot(kw_embs, text_emb) / (np.linalg.norm(kw_embs, axis=1) * np.linalg.norm(text_emb) + 1e-10)
+
+        sims = np.dot(kw_embs, text_emb) / (
+            np.linalg.norm(kw_embs, axis=1) * np.linalg.norm(text_emb) + 1e-10
+        )
         matches = sum(1 for s in sims if s > 0.50)
         return matches / len(keywords)
     except Exception:
@@ -298,23 +306,72 @@ def reject_check(text: str, rejects: list[str]) -> tuple[bool, list[str]]:
     hits = []
     # Negation patterns that indicate the model is correctly refuting the phrase
     negation_prefixes = [
-        "no ", "not ", "isn't ", "doesn't ", "don't ", "never ", "cannot ",
-        "there is no ", "there are no ", "does not ", "is not ", "are not ",
-        "not a ", "no such ", "doesn't exist", "not exist", "no mention of ",
-        "not mention", "doesn't mention", "doesn't teach", "does not teach",
-        "not teach", "not organized by", "not sourced from", "not the same",
-        "not justify", "not charge", "not gold", "not 45 minutes",
-        "not dedicated to", "not state", "not mind-control",
+        "no ",
+        "not ",
+        "isn't ",
+        "doesn't ",
+        "don't ",
+        "never ",
+        "cannot ",
+        "there is no ",
+        "there are no ",
+        "does not ",
+        "is not ",
+        "are not ",
+        "not a ",
+        "no such ",
+        "doesn't exist",
+        "not exist",
+        "no mention of ",
+        "not mention",
+        "doesn't mention",
+        "doesn't teach",
+        "does not teach",
+        "not teach",
+        "not organized by",
+        "not sourced from",
+        "not the same",
+        "not justify",
+        "not charge",
+        "not gold",
+        "not 45 minutes",
+        "not dedicated to",
+        "not state",
+        "not mind-control",
     ]
     # Post-positioned negation: negation words that appear AFTER the matched phrase
     # e.g. "Fifth Sacred Secret is not taught", "Manifest 2026 does not exist"
     negation_suffixes = [
-        " is not", " are not", " was not", " were not", " does not", " do not",
-        " has no", " have no", " isn't", " aren't", " wasn't", " weren't",
-        " doesn't", " don't", " cannot", " can't", " has never", " have never",
-        " did not", " didn't", " have not", " has not", " do not exist",
-        " does not exist", " is false", " is incorrect", " is fabricated",
-        " is not taught", " is not real", " is not a",
+        " is not",
+        " are not",
+        " was not",
+        " were not",
+        " does not",
+        " do not",
+        " has no",
+        " have no",
+        " isn't",
+        " aren't",
+        " wasn't",
+        " weren't",
+        " doesn't",
+        " don't",
+        " cannot",
+        " can't",
+        " has never",
+        " have never",
+        " did not",
+        " didn't",
+        " have not",
+        " has not",
+        " do not exist",
+        " does not exist",
+        " is false",
+        " is incorrect",
+        " is fabricated",
+        " is not taught",
+        " is not real",
+        " is not a",
     ]
     for r in rejects:
         r_lower = r.lower()
@@ -333,7 +390,7 @@ def reject_check(text: str, rejects: list[str]) -> tuple[bool, list[str]]:
             is_negated_prefix = any(neg in prefix for neg in negation_prefixes)
             # Check the 60 chars AFTER this occurrence for suffix negation words
             suffix_start = pos + len(r_lower)
-            suffix = text_lower[suffix_start:suffix_start + 60]
+            suffix = text_lower[suffix_start : suffix_start + 60]
             is_negated_suffix = any(neg in suffix for neg in negation_suffixes)
             is_negated = is_negated_prefix or is_negated_suffix
             if not is_negated:
@@ -605,12 +662,14 @@ async def flush_caches(base_url: str, skip: bool = False) -> None:
     host = parsed.host or "localhost"
     try:
         import socket as _socket
+
         s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
         s.settimeout(5.0)
         s.connect((host, 6379))
         s.close()
         # Redis is reachable — try redis-cli fallback (works on host if installed)
         import subprocess
+
         redis_pass = os.getenv("REDIS_PASSWORD", "")
         cmd = f"redis-cli -h {host} -p 6379"
         if redis_pass:
@@ -625,13 +684,18 @@ async def flush_caches(base_url: str, skip: bool = False) -> None:
             redis_pass_arg = f"-a '{redis_pass}'" if redis_pass else ""
             ret2 = subprocess.run(
                 f"docker exec mukthiguru-redis redis-cli {redis_pass_arg} flushall",
-                shell=True, capture_output=True, text=True, timeout=10,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if ret2.returncode == 0:
                 print("  ✅ Redis flushed via docker exec (all keys removed).")
                 flushed_any = True
             else:
-                print(f"  ⚠️  redis-cli not available on host and docker exec failed: {ret2.stderr.strip()[:80]}")
+                print(
+                    f"  ⚠️  redis-cli not available on host and docker exec failed: {ret2.stderr.strip()[:80]}"
+                )
     except Exception as e:
         print(f"  ⚠️  Redis flush skipped (not reachable on host: {str(e)[:60]})")
 
@@ -640,16 +704,18 @@ async def flush_caches(base_url: str, skip: bool = False) -> None:
         qdrant_host = host
         collection = "semantic_query_cache"
         async with httpx.AsyncClient() as c:
-            r = await c.delete(
-                f"http://{qdrant_host}:6333/collections/{collection}", timeout=10.0
-            )
+            r = await c.delete(f"http://{qdrant_host}:6333/collections/{collection}", timeout=10.0)
             if r.status_code in (200, 202):
                 print(f"  ✅ Qdrant collection '{collection}' deleted.")
                 # Recreate empty collection so app can write immediately
                 from qdrant_client.http.models import Distance, VectorParams  # noqa
+
                 try:
                     import qdrant_client
-                    client = qdrant_client.QdrantClient(url=f"http://{qdrant_host}:6333", timeout=10)
+
+                    client = qdrant_client.QdrantClient(
+                        url=f"http://{qdrant_host}:6333", timeout=10
+                    )
                     client.create_collection(
                         collection_name=collection,
                         vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
@@ -657,7 +723,9 @@ async def flush_caches(base_url: str, skip: bool = False) -> None:
                     print(f"  ✅ Qdrant collection '{collection}' recreated (empty).")
                     flushed_any = True
                 except ImportError:
-                    print(f"  ℹ️  qdrant_client not installed on host — collection deleted, app will recreate on next cache write.")
+                    print(
+                        "  ℹ️  qdrant_client not installed on host — collection deleted, app will recreate on next cache write."
+                    )
                     flushed_any = True
             elif r.status_code == 404:
                 print(f"  ℹ️  Qdrant collection '{collection}' does not exist (already clean).")
@@ -709,6 +777,7 @@ Original Query: {query}"""
 
 _llm_service = None
 
+
 async def init_llm_service():
     global _llm_service
     if _llm_service is not None:
@@ -717,13 +786,17 @@ async def init_llm_service():
     try:
         from app.config import settings
         from services.llm import LLMProviderFactory
+
         provider = settings.llm_provider.lower()
         _llm_service = LLMProviderFactory.create_provider(provider)
-        print(f"  🤖 Query Rewriter: Initialized active provider ({provider}) via LLMProviderFactory")
+        print(
+            f"  🤖 Query Rewriter: Initialized active provider ({provider}) via LLMProviderFactory"
+        )
     except Exception as e:
         print(f"  ⚠️ Could not initialize active LLM service for query rewriter: {e}")
         _llm_service = None
     return _llm_service
+
 
 async def generate_variants_for_query(item: dict, category: str) -> list[dict]:
     """Generates complex, Hinglish, and adversarial variants of a given query using the active LLM service."""
@@ -744,7 +817,7 @@ async def generate_variants_for_query(item: dict, category: str) -> list[dict]:
             system_prompt=system_prompt,
             user_prompt=REWRITE_PROMPT_COMPLEX.format(query=original_q),
             temperature=0.3,
-            max_tokens=256
+            max_tokens=256,
         )
         complex_q = complex_q.strip().strip('"').strip("'")
         if complex_q and complex_q != original_q:
@@ -763,7 +836,7 @@ async def generate_variants_for_query(item: dict, category: str) -> list[dict]:
             system_prompt=system_prompt,
             user_prompt=REWRITE_PROMPT_HINGLISH.format(query=original_q),
             temperature=0.3,
-            max_tokens=256
+            max_tokens=256,
         )
         hinglish_q = hinglish_q.strip().strip('"').strip("'")
         if hinglish_q and hinglish_q != original_q:
@@ -782,7 +855,7 @@ async def generate_variants_for_query(item: dict, category: str) -> list[dict]:
             system_prompt=system_prompt,
             user_prompt=REWRITE_PROMPT_ADVERSARIAL.format(query=original_q),
             temperature=0.3,
-            max_tokens=256
+            max_tokens=256,
         )
         adversarial_q = adversarial_q.strip().strip('"').strip("'")
         if adversarial_q and adversarial_q != original_q:
@@ -938,11 +1011,23 @@ async def run_suite_category(
             resp_lower_ref = resp.lower()
             # Strong unambiguous refutation signals — always counted wherever they appear
             strong_signals = [
-                "there is no", "does not exist", "not found", "cannot find",
-                "not teach", "no such", "fabricated", "incorrect",
-                "does not mention", "don't know of any",
-                "couldn't find", "could not find", "no reference", "not aware",
-                "not part of", "nothing called", "no information",
+                "there is no",
+                "does not exist",
+                "not found",
+                "cannot find",
+                "not teach",
+                "no such",
+                "fabricated",
+                "incorrect",
+                "does not mention",
+                "don't know of any",
+                "couldn't find",
+                "could not find",
+                "no reference",
+                "not aware",
+                "not part of",
+                "nothing called",
+                "no information",
             ]
             # Weak signals: "is not" / "are not" are too common in general prose;
             # only count them when they appear within 80 chars of a reject_if phrase,
@@ -956,7 +1041,7 @@ async def run_suite_category(
                     pos = resp_lower_ref.find(rp)
                     if pos == -1:
                         continue
-                    window = resp_lower_ref[max(0, pos - 80): pos + len(rp) + 80]
+                    window = resp_lower_ref[max(0, pos - 80) : pos + len(rp) + 80]
                     if any(ws in window for ws in weak_signals):
                         has_anchored_weak = True
                         break
@@ -1029,7 +1114,6 @@ async def run_suite_category(
     else:
         for item in execution_items:
             await process_item(item)
-
 
 
 async def run_multi_turn_suite(
@@ -1743,7 +1827,9 @@ def save_report(
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--endpoint", default="http://localhost:8000")
-    parser.add_argument("--test-key", default=os.getenv("BENCHMARK_SECRET") or os.getenv("JWT_SECRET"))
+    parser.add_argument(
+        "--test-key", default=os.getenv("BENCHMARK_SECRET") or os.getenv("JWT_SECRET")
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--min-score", type=float, default=0.95)
     parser.add_argument("--min-category-score", type=float, default=0.90)
@@ -1767,7 +1853,7 @@ async def main():
     nim_keys = os.getenv("NIM_API_KEY", "")
     num_keys = len([k for k in nim_keys.split(",") if k.strip()])
     num_keys = max(1, num_keys)
-    
+
     env_concurrency = os.getenv("BENCHMARK_CONCURRENCY", "")
     if env_concurrency.lower() == "parallel":
         default_concurrency = num_keys
@@ -1820,7 +1906,9 @@ async def main():
         remaining_budget = args.limit
         available = {cat: len(QUERIES[cat]) for cat in QUERIES.keys()}
         category_limits = {cat: 0 for cat in QUERIES.keys()}
-        while remaining_budget > 0 and any(available[cat] > category_limits[cat] for cat in QUERIES.keys()):
+        while remaining_budget > 0 and any(
+            available[cat] > category_limits[cat] for cat in QUERIES.keys()
+        ):
             for cat in QUERIES.keys():
                 if remaining_budget <= 0:
                     break
@@ -1843,26 +1931,47 @@ async def main():
             print(f"🚀 Running category: {category} (limit: {cat_limit})...")
             if category == "multi_turn":
                 await run_multi_turn_suite(
-                    results, client, args.endpoint, args.test_key, args.dry_run, limit=cat_limit, concurrency=args.concurrency
+                    results,
+                    client,
+                    args.endpoint,
+                    args.test_key,
+                    args.dry_run,
+                    limit=cat_limit,
+                    concurrency=args.concurrency,
                 )
             else:
                 await run_suite_category(
-                    category, results, client, args.endpoint, args.test_key, args.dry_run, args.complex_variants, limit=cat_limit, concurrency=args.concurrency
+                    category,
+                    results,
+                    client,
+                    args.endpoint,
+                    args.test_key,
+                    args.dry_run,
+                    args.complex_variants,
+                    limit=cat_limit,
+                    concurrency=args.concurrency,
                 )
         if not args.dry_run:
             await run_stability_suite(
-                results, client, args.endpoint, args.test_key, args.stability_runs, concurrency=args.concurrency
+                results,
+                client,
+                args.endpoint,
+                args.test_key,
+                args.stability_runs,
+                concurrency=args.concurrency,
             )
 
     # Post-process: enforce --limit after all suites (including stability)
     if args.limit and len(results) > args.limit:
-        results = results[:args.limit]
+        results = results[: args.limit]
         print(f"  📊 Truncated to --limit {args.limit}")
 
     # Post-process: filter by --graph-variant if specified
     if args.graph_variant:
         filtered_results = [r for r in results if r.graph_variant == args.graph_variant]
-        print(f"\n  📊 Graph variant filter: {args.graph_variant} — {len(filtered_results)}/{len(results)} results match")
+        print(
+            f"\n  📊 Graph variant filter: {args.graph_variant} — {len(filtered_results)}/{len(results)} results match"
+        )
         results = filtered_results
 
     scores = calculate_scores(results, infra)
@@ -1871,9 +1980,11 @@ async def main():
     # Print RPM stats
     if _rate_limiter:
         rpm_stats = _rate_limiter.stats()
-        print(f"\n  📊 RPM Stats: {rpm_stats['total_requests']} requests, "
-              f"{rpm_stats['throttled_requests']} throttled, "
-              f"{rpm_stats['total_wait_seconds']}s total wait")
+        print(
+            f"\n  📊 RPM Stats: {rpm_stats['total_requests']} requests, "
+            f"{rpm_stats['throttled_requests']} throttled, "
+            f"{rpm_stats['total_wait_seconds']}s total wait"
+        )
 
     save_report(results, infra, scores, total_score, args.endpoint, args.min_score)
 
@@ -1891,7 +2002,9 @@ async def main():
         if not args.limit:
             sys.exit(1)
         else:
-            print("\n  ⚠️  Bypassing exit code 1 because a query limit (--limit) was specified for debugging.")
+            print(
+                "\n  ⚠️  Bypassing exit code 1 because a query limit (--limit) was specified for debugging."
+            )
 
     print("\n  ✅ Release gate passed.")
 

@@ -31,10 +31,10 @@ from __future__ import annotations
 import logging
 import math
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterable
 
 import yaml
 
@@ -88,9 +88,7 @@ class Route:
 # ---------------------------------------------------------------------------
 
 
-_CONFIG_PATH_DEFAULT = (
-    Path(__file__).resolve().parents[1] / "config" / "router_routes.yaml"
-)
+_CONFIG_PATH_DEFAULT = Path(__file__).resolve().parents[1] / "config" / "router_routes.yaml"
 
 
 def _resolve_config_path() -> Path:
@@ -100,9 +98,7 @@ def _resolve_config_path() -> Path:
         candidate = Path(override).expanduser().resolve()
         if candidate.is_file():
             return candidate
-        logger.warning(
-            "router_config_path=%s does not exist, falling back to default.", candidate
-        )
+        logger.warning("router_config_path=%s does not exist, falling back to default.", candidate)
     return _CONFIG_PATH_DEFAULT
 
 
@@ -162,9 +158,7 @@ class LinguisticConfig:
 
     def __init__(self, cfg: dict) -> None:
         stems = cfg.get("interrogative_stems") or {}
-        self.interrogative_stems: tuple[str, ...] = tuple(
-            _flatten_lists(stems.values())
-        )
+        self.interrogative_stems: tuple[str, ...] = tuple(_flatten_lists(stems.values()))
         # Explicit regex patterns for capability-question detection, replacing
         # the previous prefix-based allowlist. Each pattern captures specific
         # phrasing of queries asking about the guru's capabilities while
@@ -174,8 +168,7 @@ class LinguisticConfig:
         # genuine crisis language. Used by exclude_if_capability_question.
         raw_patterns = cfg.get("capability_question_patterns") or {}
         self.capability_question_patterns: tuple[re.Pattern, ...] = tuple(
-            re.compile(p, re.IGNORECASE)
-            for p in _flatten_lists(raw_patterns.values())
+            re.compile(p, re.IGNORECASE) for p in _flatten_lists(raw_patterns.values())
         )
         verbs = cfg.get("imperative_verbs") or {}
         self.imperative_verbs: tuple[str, ...] = tuple(_flatten_lists(verbs.values()))
@@ -261,7 +254,7 @@ class IntentSemanticRouter:
 
     @classmethod
     @lru_cache(maxsize=1)
-    def get_default(cls) -> "IntentSemanticRouter":
+    def get_default(cls) -> IntentSemanticRouter:
         """Singleton accessor — preserves the in-process centroid cache."""
         return cls()
 
@@ -278,13 +271,10 @@ class IntentSemanticRouter:
                         threshold=float(raw.get("threshold", self._default_threshold)),
                         utterances=[str(u) for u in (raw.get("utterances") or [])],
                         regex_patterns=[
-                            re.compile(p, re.IGNORECASE)
-                            for p in (raw.get("regex") or [])
+                            re.compile(p, re.IGNORECASE) for p in (raw.get("regex") or [])
                         ],
                         require_imperative=bool(raw.get("require_imperative", False)),
-                        exclude_if_interrogative=bool(
-                            raw.get("exclude_if_interrogative", False)
-                        ),
+                        exclude_if_interrogative=bool(raw.get("exclude_if_interrogative", False)),
                         exclude_if_capability_question=bool(
                             raw.get("exclude_if_capability_question", False)
                         ),
@@ -306,9 +296,7 @@ class IntentSemanticRouter:
         for route in self._routes:
             if not route.utterances:
                 continue
-            route.utterance_vectors = [
-                self._encoder.encode(u) for u in route.utterances
-            ]
+            route.utterance_vectors = [self._encoder.encode(u) for u in route.utterances]
         self._primed = True
         logger.info("SemanticRouter primed with %d routes.", len(self._routes))
 
@@ -365,7 +353,8 @@ class IntentSemanticRouter:
                     if pattern.search(text):
                         logger.debug(
                             "router:regex route=%s score=1.0 query=%r",
-                            route.name, text[:80],
+                            route.name,
+                            text[:80],
                         )
                         return RouteMatch(route=route.name, score=1.0, reason="regex")
 
@@ -382,7 +371,8 @@ class IntentSemanticRouter:
                 top3 = scored[:3]
                 logger.debug(
                     "router:match route=%s score=%.4f top3=%s query=%r",
-                    route.name, score,
+                    route.name,
+                    score,
                     [(r, f"{s:.4f}") for s, r in top3],
                     text[:80],
                 )
@@ -390,12 +380,14 @@ class IntentSemanticRouter:
                 if len(top3) >= 2 and (top3[0][0] - top3[1][0]) < 0.05:
                     logger.warning(
                         "router:near_tie winner=%s(%.4f) runner_up=%s(%.4f) gap=%.4f query=%r",
-                        top3[0][1], top3[0][0], top3[1][1], top3[1][0],
-                        top3[0][0] - top3[1][0], text[:80],
+                        top3[0][1],
+                        top3[0][0],
+                        top3[1][1],
+                        top3[1][0],
+                        top3[0][0] - top3[1][0],
+                        text[:80],
                     )
-                return RouteMatch(
-                    route=route.name, score=score, reason="embedding"
-                )
+                return RouteMatch(route=route.name, score=score, reason="embedding")
 
         # No route fired — log top-3 for threshold-tuning visibility.
         if scored:

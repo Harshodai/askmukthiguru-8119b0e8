@@ -19,6 +19,7 @@ def _run(coro):
 
 def _build_service_with_supabase(supabase_mock):
     from services.memory_service import MemoryService
+
     emb = MagicMock()
     emb.encode_single_full = MagicMock(return_value={"dense": [0.0] * 1024})
     svc = MemoryService(supabase_client=supabase_mock, embedding_service=emb, llm_service=None)
@@ -116,4 +117,5 @@ if __name__ == "__main__":
     import sys
 
     import pytest
+
     sys.exit(pytest.main([__file__, "-v"]))

@@ -34,9 +34,12 @@ from app.config import settings
 from app.dependencies import get_container
 from app.language_utils import guardrail_text_for
 from app.security_utils import TTLRateLimiter
-from services.auth_service import get_current_user_from_supabase, get_optional_user, require_aal2  # auth guard
-from services.ontology_exporter import OntologyExporter
 from domain.spiritual_ontology import ONTOLOGY_VERSION, SEED_CONCEPTS, SEED_RELATIONS
+from services.auth_service import (  # auth guard
+    get_optional_user,
+    require_aal2,
+)
+from services.ontology_exporter import OntologyExporter
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +71,19 @@ _WS_RE = re.compile(r"\s+")
 # first, so 'SET\t' / 'SE/**/T' normalize to a plain 'SET' token and can't
 # dodge this the way the old uppercased-substring check could be dodged.
 _WRITE_TOKENS = {
-    "CREATE", "MERGE", "SET", "DELETE", "DETACH", "REMOVE", "DROP",
-    "CALL", "LOAD", "PERIODIC", "COMMIT", "START", "FOREACH",
+    "CREATE",
+    "MERGE",
+    "SET",
+    "DELETE",
+    "DETACH",
+    "REMOVE",
+    "DROP",
+    "CALL",
+    "LOAD",
+    "PERIODIC",
+    "COMMIT",
+    "START",
+    "FOREACH",
 }
 
 # Read-only CALL subprocedures this endpoint explicitly allows: schema
@@ -112,7 +126,9 @@ def _find_call_tokens(query: str) -> list[int]:
                     i += 1
                 i += 1
             i += 1
-        elif query[i:i+4].upper() == "CALL" and (i + 4 >= len(query) or not query[i+4].isalnum() or query[i+4] == "_"):
+        elif query[i : i + 4].upper() == "CALL" and (
+            i + 4 >= len(query) or not query[i + 4].isalnum() or query[i + 4] == "_"
+        ):
             positions.append(i)
             i += 4
         else:
@@ -144,8 +160,12 @@ def _assert_read_only(normalized: str) -> None:
 
 
 class SparqlRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=settings.kg_max_query_len,
-                        description="SPARQL or Cypher query string (read-only)")
+    query: str = Field(
+        ...,
+        min_length=1,
+        max_length=settings.kg_max_query_len,
+        description="SPARQL or Cypher query string (read-only)",
+    )
     inference: bool = Field(
         False,
         description="If true, also invoke n10s.inference.nodesLabelled for inferred labels.",
@@ -211,7 +231,7 @@ async def kg_sparql(req: SparqlRequest, user=Depends(require_aal2)) -> SparqlRes
 
     query = raw_query
     if query.upper().startswith("CYPHER:"):
-        query = query[len("CYPHER:"):].strip()
+        query = query[len("CYPHER:") :].strip()
         if not query:
             raise HTTPException(status_code=400, detail="Empty query after CYPHER: prefix.")
 
@@ -252,18 +272,24 @@ async def kg_sparql(req: SparqlRequest, user=Depends(require_aal2)) -> SparqlRes
     try:
         async with _KG_QUERY_SEMAPHORE:
             columns, rows = await asyncio.wait_for(asyncio.to_thread(_run), timeout=timeout_s)
-    except (asyncio.TimeoutError, TimeoutError):
+    except TimeoutError:
         logger.warning("kg/sparql query timed out (>%.0fs) user=%s", timeout_s, uid)
         raise HTTPException(status_code=504, detail="Query timed out.")
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001
         logger.warning("kg/sparql query failed: %s", exc)
-        raise HTTPException(status_code=400, detail="Query execution failed. Check syntax and try again.")
+        raise HTTPException(
+            status_code=400, detail="Query execution failed. Check syntax and try again."
+        )
 
     logger.info(
         "kg_audit user=%s len=%d rows=%d ms=%.0f query=%s",
-        uid, len(normalized), len(rows), (time.monotonic() - started) * 1000, normalized[:300],
+        uid,
+        len(normalized),
+        len(rows),
+        (time.monotonic() - started) * 1000,
+        normalized[:300],
     )
 
     # Inference hook: when requested, document that n10s.inference.nodesLabelled
@@ -276,7 +302,9 @@ async def kg_sparql(req: SparqlRequest, user=Depends(require_aal2)) -> SparqlRes
             "to expand results with inferred labels."
         )
 
-    return SparqlResponse(columns=columns, rows=rows, count=len(rows), inference=req.inference, note=note)
+    return SparqlResponse(
+        columns=columns, rows=rows, count=len(rows), inference=req.inference, note=note
+    )
 
 
 # ── E6.5: query-driven subgraph for the KG visualizer ──────────────────────────
@@ -332,7 +360,9 @@ _KG_SUBGRAPH_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=30)
 @router.get("/kg/subgraph", response_model=SubgraphResponse)
 async def kg_subgraph(
     request: Request,
-    query: str = Query(..., min_length=1, description="Concept or keyword to center the subgraph on"),
+    query: str = Query(
+        ..., min_length=1, description="Concept or keyword to center the subgraph on"
+    ),
     limit: int = Query(20, ge=1, le=100),
     user: dict = Depends(get_optional_user),
 ) -> SubgraphResponse:
@@ -442,7 +472,7 @@ async def export_ontology(
             asyncio.to_thread(exporter.materialize_from_graph),
             timeout=30.0,
         )
-    except (asyncio.TimeoutError, TimeoutError) as _to_exc:  # noqa: BLE001
+    except TimeoutError as _to_exc:  # noqa: BLE001
         logger.warning("ontology/export timed out (>30s): %s", _to_exc)
         raise HTTPException(status_code=504, detail="Ontology export timed out (>30s).")
     except Exception as exc:  # noqa: BLE001
@@ -498,7 +528,11 @@ async def ontology_version(
                     "MATCH (n) WHERE n.ontology_version IS NOT NULL "
                     "RETURN n.ontology_version AS v LIMIT 1"
                 ).single()
-                persisted_version = str(version_row["v"]) if version_row and version_row.get("v") else ONTOLOGY_VERSION
+                persisted_version = (
+                    str(version_row["v"])
+                    if version_row and version_row.get("v")
+                    else ONTOLOGY_VERSION
+                )
                 # Count only records matching the persisted version.
                 c = session.run(
                     "MATCH (n) WHERE any(l IN labels(n) WHERE l IN "
@@ -520,9 +554,7 @@ async def ontology_version(
                 }
 
         try:
-            result = await asyncio.wait_for(
-                asyncio.to_thread(_version_and_counts), timeout=30.0
-            )
+            result = await asyncio.wait_for(asyncio.to_thread(_version_and_counts), timeout=30.0)
             return OntologyVersionResponse(
                 version=result["version"],
                 concept_count=result["concept_count"],
@@ -561,8 +593,8 @@ if __name__ == "__main__":
     _assert_read_only(_normalize("CALL db.labels()"))
     # writes the old uppercased-substring guard missed are all now blocked
     assert _blocked("MATCH (n) DETACH DELETE n")
-    assert _blocked("MATCH (n) SET\tn.x = 1")                       # whitespace variant
-    assert _blocked("MATCH (n) CALL/**/apoc.create.node([],{})")     # comment-split phrase
+    assert _blocked("MATCH (n) SET\tn.x = 1")  # whitespace variant
+    assert _blocked("MATCH (n) CALL/**/apoc.create.node([],{})")  # comment-split phrase
     assert _blocked("LOAD CSV FROM 'file:///etc/passwd' AS row RETURN row")
     assert _blocked("MATCH (n) FOREACH (x IN [1] | CREATE (m))")
     assert _blocked("CALL dbms.security.createUser('x','y',false)")  # non-allowlisted CALL

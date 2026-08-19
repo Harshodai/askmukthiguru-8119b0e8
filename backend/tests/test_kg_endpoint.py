@@ -50,13 +50,14 @@ def _admin_override():
 # against the old substring denylist.
 # --------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "query",
     [
         "MATCH (n) DETACH DELETE n",
-        "MATCH (n) SET\tn.x = 1",                       # whitespace variant
+        "MATCH (n) SET\tn.x = 1",  # whitespace variant
         "MATCH (n) SET\nn.x = 1",
-        "MATCH (n) CALL/**/apoc.create.node([],{})",     # comment-split phrase
+        "MATCH (n) CALL/**/apoc.create.node([],{})",  # comment-split phrase
         "LOAD CSV FROM 'file:///etc/passwd' AS row RETURN row",
         "MATCH (n) FOREACH (x IN [1] | CREATE (m))",
         "CALL dbms.security.createUser('x','y',false)",  # non-allowlisted CALL
@@ -66,7 +67,7 @@ def _admin_override():
     ],
 )
 def test_write_bypass_payloads_are_blocked(query):
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017
         _assert_read_only(_normalize(query))
 
 
@@ -79,8 +80,10 @@ def test_legit_reads_pass_the_guard():
 # Endpoint tests
 # --------------------------------------------------------------------------
 
+
 def test_kg_sparql_rejects_write_without_touching_driver():
     """Blocked queries must 400 without ever touching Neo4j."""
+
     async def _mock_check_input(_q):
         return {"blocked": False}
 
@@ -100,8 +103,8 @@ def test_kg_sparql_requires_admin():
 
 
 def test_kg_subgraph_allows_anonymous_and_normalizes_teacher(monkeypatch):
-    import app.dependencies
     import app.api.kg as kg_module
+    import app.dependencies
 
     class _FakeDriver:
         def session(self):
@@ -122,8 +125,8 @@ def test_kg_subgraph_allows_anonymous_and_normalizes_teacher(monkeypatch):
 
 
 def test_kg_subgraph_rate_limits_anonymous(monkeypatch):
-    import app.dependencies
     import app.api.kg as kg_module
+    import app.dependencies
     from app.api.kg import _KG_SUBGRAPH_RATE_LIMITER
 
     class _FakeDriver:
@@ -182,7 +185,10 @@ def test_kg_sparql_runs_inside_managed_read_transaction():
     with patch("app.api.kg.get_container", return_value=container):
         resp = client.post(
             "/api/kg/sparql",
-            json={"query": "MATCH (n:Concept {name: 'Beautiful State'}) RETURN n.name AS name", "limit": 10},
+            json={
+                "query": "MATCH (n:Concept {name: 'Beautiful State'}) RETURN n.name AS name",
+                "limit": 10,
+            },
         )
 
     assert resp.status_code == 200
@@ -194,4 +200,5 @@ def test_kg_sparql_runs_inside_managed_read_transaction():
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(pytest.main([__file__, "-q"]))

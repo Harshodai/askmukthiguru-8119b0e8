@@ -39,8 +39,7 @@ def chunk_youtube_transcript(
     segments = _fetch_segments(video_id, languages)
     if not segments:
         logger.info(
-            f"[{video_id}] No segments available via API, "
-            f"falling back to standard splitter"
+            f"[{video_id}] No segments available via API, falling back to standard splitter"
         )
         return _fallback_split(text, chunk_size, chunk_overlap)
 
@@ -93,9 +92,15 @@ def _fetch_segments(video_id: str, languages: list[str]) -> Optional[list[dict]]
         if fetched:
             return [
                 {
-                    "text": getattr(s, "text", s.get("text", "") if isinstance(s, dict) else str(s)),
-                    "start": getattr(s, "start", s.get("start", 0.0) if isinstance(s, dict) else 0.0),
-                    "duration": getattr(s, "duration", s.get("duration", 0.0) if isinstance(s, dict) else 0.0),
+                    "text": getattr(
+                        s, "text", s.get("text", "") if isinstance(s, dict) else str(s)
+                    ),
+                    "start": getattr(
+                        s, "start", s.get("start", 0.0) if isinstance(s, dict) else 0.0
+                    ),
+                    "duration": getattr(
+                        s, "duration", s.get("duration", 0.0) if isinstance(s, dict) else 0.0
+                    ),
                 }
                 for s in fetched
             ]
@@ -129,9 +134,7 @@ def _build_chunk(segments: list[dict], video_id: str) -> dict:
     }
 
 
-def _find_overlap_segments(
-    segments: list[dict], overlap_chars: int
-) -> list[dict]:
+def _find_overlap_segments(segments: list[dict], overlap_chars: int) -> list[dict]:
     """Walk backwards through segments to collect ~overlap_chars worth for next chunk."""
     cumulative = 0
     result = []
@@ -155,10 +158,7 @@ def _fallback_split(text: str, chunk_size: int, chunk_overlap: int) -> list[dict
         chunk_overlap=chunk_overlap,
         separators=["\n\n", "\n", ". ", " ", ""],
     )
-    return [
-        {"text": t, "metadata": {}}
-        for t in splitter.split_text(text)
-    ]
+    return [{"text": t, "metadata": {}} for t in splitter.split_text(text)]
 
 
 if __name__ == "__main__":

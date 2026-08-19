@@ -92,6 +92,7 @@ def _calculate_cost(tokens_in: int, tokens_out: int, provider: str) -> float:
 
 def _get_client():
     from app.telemetry_db import _get_client as _supa_client
+
     return _supa_client()
 
 
@@ -150,17 +151,19 @@ class CostTracker:
             logger.warning("Supabase client unavailable — skipping cost record")
             return
         try:
-            client.table("token_usage").insert({
-                "tenant_id": normalized_tenant,
-                "user_id": user_id or "",
-                "session_id": session_id or "",
-                "model": model or "",
-                "provider": provider or "ollama",
-                "tokens_in": normalized_tokens_in,
-                "tokens_out": normalized_tokens_out,
-                "cost_usd": cost,
-                "endpoint": endpoint or "/api/chat",
-            }).execute()
+            client.table("token_usage").insert(
+                {
+                    "tenant_id": normalized_tenant,
+                    "user_id": user_id or "",
+                    "session_id": session_id or "",
+                    "model": model or "",
+                    "provider": provider or "ollama",
+                    "tokens_in": normalized_tokens_in,
+                    "tokens_out": normalized_tokens_out,
+                    "cost_usd": cost,
+                    "endpoint": endpoint or "/api/chat",
+                }
+            ).execute()
         except Exception as e:
             logger.error(f"Failed to record token usage: {e}")
             return
@@ -195,20 +198,25 @@ class CostTracker:
             logger.warning(
                 "Cost budget alert: tenant=%s today=$%.4f projected_monthly=$%.2f "
                 "exceeds budget=$%.2f (~₹3,000/month envelope)",
-                tenant_key, float(today_cost), float(projected_monthly), float(budget),
+                tenant_key,
+                float(today_cost),
+                float(projected_monthly),
+                float(budget),
             )
             client = _get_client()
             if client:
                 try:
-                    client.table("alert_events").insert({
-                        "value": float(projected_monthly),
-                        "message": (
-                            f"Cost budget alert: tenant={tenant_key} "
-                            f"today=${float(today_cost):.4f} "
-                            f"projected_monthly=${float(projected_monthly):.2f} "
-                            f"exceeds budget=${float(budget):.2f}"
-                        ),
-                    }).execute()
+                    client.table("alert_events").insert(
+                        {
+                            "value": float(projected_monthly),
+                            "message": (
+                                f"Cost budget alert: tenant={tenant_key} "
+                                f"today=${float(today_cost):.4f} "
+                                f"projected_monthly=${float(projected_monthly):.2f} "
+                                f"exceeds budget=${float(budget):.2f}"
+                            ),
+                        }
+                    ).execute()
                 except Exception as e:
                     logger.error(f"Failed to write budget alert to alert_events: {e}")
 
@@ -221,16 +229,24 @@ class CostTracker:
         client = _get_client()
         if not client:
             return UsageReport(
-                tenant_id=tenant_id or "all", period_days=days,
-                total_tokens_in=0, total_tokens_out=0, total_tokens=0,
-                total_cost_usd=0.0, unique_users=0, unique_sessions=0,
-                by_model={}, by_provider={},
+                tenant_id=tenant_id or "all",
+                period_days=days,
+                total_tokens_in=0,
+                total_tokens_out=0,
+                total_tokens=0,
+                total_cost_usd=0.0,
+                unique_users=0,
+                unique_sessions=0,
+                by_model={},
+                by_provider={},
             )
 
         since = datetime.now(UTC) - __import__("datetime").timedelta(days=days)
-        query = client.table("token_usage").select(
-            "user_id,session_id,model,provider,tokens_in,tokens_out,cost_usd"
-        ).gte("created_at", since.isoformat())
+        query = (
+            client.table("token_usage")
+            .select("user_id,session_id,model,provider,tokens_in,tokens_out,cost_usd")
+            .gte("created_at", since.isoformat())
+        )
         if tenant_id:
             query = query.eq("tenant_id", tenant_id)
         if user_id:
@@ -267,8 +283,10 @@ class CostTracker:
             for bucket, key in ((by_model, model), (by_provider, provider)):
                 if key not in bucket:
                     bucket[key] = {
-                        "tokens_in": 0, "tokens_out": 0,
-                        "cost_usd": _ZERO, "calls": 0,
+                        "tokens_in": 0,
+                        "tokens_out": 0,
+                        "cost_usd": _ZERO,
+                        "calls": 0,
                     }
                 details = bucket[key]
                 details["tokens_in"] += tokens_in
@@ -313,7 +331,8 @@ class CostTracker:
                 .eq("tenant_id", tenant_id)
                 .gte("created_at", since.isoformat())
                 .execute()
-                .data or []
+                .data
+                or []
             )
         except Exception as e:
             logger.error(f"Failed to fetch daily usage: {e}")
@@ -325,9 +344,7 @@ class CostTracker:
             if not raw:
                 continue
             day = str(raw)[:10]
-            bucket = day_buckets.setdefault(
-                day, {"tokens": 0, "cost": _ZERO, "calls": 0}
-            )
+            bucket = day_buckets.setdefault(day, {"tokens": 0, "cost": _ZERO, "calls": 0})
             bucket["tokens"] += _non_negative_int(row.get("tokens_in"))
             bucket["tokens"] += _non_negative_int(row.get("tokens_out"))
             bucket["cost"] += _non_negative_decimal(row.get("cost_usd"))
@@ -371,4 +388,6 @@ class TokenAccumulator:
     estimated_cost_usd: float = 0.0
 
 
-token_accumulator_var: ContextVar[Optional[TokenAccumulator]] = ContextVar("token_accumulator", default=None)
+token_accumulator_var: ContextVar[Optional[TokenAccumulator]] = ContextVar(
+    "token_accumulator", default=None
+)

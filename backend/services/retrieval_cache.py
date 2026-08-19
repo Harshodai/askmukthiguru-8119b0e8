@@ -56,7 +56,12 @@ def put(embedding: list[float], tenant_id: str, doc_ids: list[str]) -> None:
         return
     key = _bucket_key(embedding, tenant_id)
     _cache[key] = doc_ids
-    logger.debug("retrieval_cache PUT key=%s n_docs=%d ttl=%ds", key[:8], len(doc_ids), settings.retrieval_cache_ttl)
+    logger.debug(
+        "retrieval_cache PUT key=%s n_docs=%d ttl=%ds",
+        key[:8],
+        len(doc_ids),
+        settings.retrieval_cache_ttl,
+    )
 
 
 def invalidate(tenant_id: str) -> int:

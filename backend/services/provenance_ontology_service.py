@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import datetime as _dt
 import logging
-from typing import Any, Callable, Dict, List, Optional
-import uuid
+from collections.abc import Callable
+from typing import Any, Optional
 
 from app.schemas.compliance_provenance import (
     AIProvenanceManifest,
@@ -50,7 +50,7 @@ class ProvenanceOntologyService:
     ) -> None:
         self.neo4j_driver = neo4j_driver
         self._neo4j_driver_accessor = neo4j_driver_accessor
-        self._in_memory_records: Dict[str, Dict[str, Any]] = {}
+        self._in_memory_records: dict[str, dict[str, Any]] = {}
 
     @property
     def _resolved_driver(self) -> Any:
@@ -76,7 +76,7 @@ class ProvenanceOntologyService:
             "json_ld": json_ld,
             "prompt_hash": prompt_hash,
             "latency_ms": latency_ms,
-            "recorded_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+            "recorded_at": _dt.datetime.now(_dt.UTC).isoformat(),
         }
 
         driver = self._resolved_driver
@@ -131,7 +131,7 @@ class ProvenanceOntologyService:
                 MERGE (act)-[:WAS_ASSOCIATED_WITH]->(ag)
                 """
 
-                params: Dict[str, Any] = {
+                params: dict[str, Any] = {
                     "artifact_id": manifest.artifact_id,
                     "modality": manifest.modality.value,
                     "origin_type": manifest.origin_type.value,
@@ -222,7 +222,7 @@ class ProvenanceOntologyService:
             )
             return False
 
-    def get_provenance_manifest(self, artifact_id: str) -> Optional[Dict[str, Any]]:
+    def get_provenance_manifest(self, artifact_id: str) -> Optional[dict[str, Any]]:
         """
         Retrieve W3C PROV-O JSON-LD manifest for a specific artifact ID.
         Queries Neo4j or memory fallback.
@@ -274,7 +274,9 @@ class ProvenanceOntologyService:
                             artifact_id=resp_node.get("artifact_id", artifact_id),
                             modality=resp_node.get("modality", ArtifactModality.TEXT_CHAT.value),
                             origin_type=resp_node.get("origin_type", OriginType.AI_GENERATED.value),
-                            risk_tier=resp_node.get("risk_tier", EUComplianceRiskTier.TRANSPARENCY_ART50.value),
+                            risk_tier=resp_node.get(
+                                "risk_tier", EUComplianceRiskTier.TRANSPARENCY_ART50.value
+                            ),
                             agent=agent_desc,
                             sources=sources_list,
                             content_hash=resp_node.get("content_hash") or None,
@@ -303,7 +305,7 @@ class ProvenanceOntologyService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         limit: int = 50,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Search provenance records by origin_type, model, and date range.
         """
@@ -312,17 +314,23 @@ class ProvenanceOntologyService:
             try:
                 with driver.session() as session:
                     clauses = ["MATCH (resp:GuruResponse)"]
-                    clauses.append("OPTIONAL MATCH (resp)-[:WAS_GENERATED_BY]->(act:InferenceActivity)")
-                    clauses.append("OPTIONAL MATCH (act)-[:WAS_ASSOCIATED_WITH]->(ag:SoftwareAgent)")
+                    clauses.append(
+                        "OPTIONAL MATCH (resp)-[:WAS_GENERATED_BY]->(act:InferenceActivity)"
+                    )
+                    clauses.append(
+                        "OPTIONAL MATCH (act)-[:WAS_ASSOCIATED_WITH]->(ag:SoftwareAgent)"
+                    )
 
                     where_conditions: list[str] = []
-                    params: Dict[str, Any] = {"limit": limit}
+                    params: dict[str, Any] = {"limit": limit}
 
                     if origin_type:
                         where_conditions.append("resp.origin_type = $origin_type")
                         params["origin_type"] = origin_type
                     if model_name:
-                        where_conditions.append("(act.model_name = $model_name OR ag.model_name = $model_name)")
+                        where_conditions.append(
+                            "(act.model_name = $model_name OR ag.model_name = $model_name)"
+                        )
                         params["model_name"] = model_name
                     if start_date:
                         where_conditions.append("resp.generated_at >= $start_date")
@@ -350,25 +358,27 @@ class ProvenanceOntologyService:
 
                     cypher = "\n".join(clauses)
                     result = session.run(cypher, **params)
-                    records: List[Dict[str, Any]] = []
+                    records: list[dict[str, Any]] = []
                     for row in result:
-                        records.append({
-                            "artifact_id": row["artifact_id"],
-                            "modality": row["modality"],
-                            "origin_type": row["origin_type"],
-                            "risk_tier": row["risk_tier"],
-                            "generated_at": row["generated_at"],
-                            "content_hash": row["content_hash"],
-                            "model_name": row["model_name"],
-                            "provider": row["provider"],
-                            "agent_name": row["agent_name"],
-                        })
+                        records.append(
+                            {
+                                "artifact_id": row["artifact_id"],
+                                "modality": row["modality"],
+                                "origin_type": row["origin_type"],
+                                "risk_tier": row["risk_tier"],
+                                "generated_at": row["generated_at"],
+                                "content_hash": row["content_hash"],
+                                "model_name": row["model_name"],
+                                "provider": row["provider"],
+                                "agent_name": row["agent_name"],
+                            }
+                        )
                     return records
             except Exception as exc:
                 logger.warning("ProvenanceOntologyService: Search failed (%s)", exc)
 
         # In-memory search fallback
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         for rec in reversed(list(self._in_memory_records.values())):
             m = rec.get("manifest", {})
             agent = m.get("agent", {})
@@ -385,22 +395,24 @@ class ProvenanceOntologyService:
             if end_date and rec_date and str(rec_date) > end_date:
                 continue
 
-            results.append({
-                "artifact_id": m.get("artifact_id"),
-                "modality": m.get("modality"),
-                "origin_type": rec_origin,
-                "risk_tier": m.get("risk_tier"),
-                "generated_at": str(rec_date),
-                "content_hash": m.get("content_hash"),
-                "model_name": rec_model,
-                "provider": agent.get("provider"),
-                "agent_name": agent.get("name"),
-            })
+            results.append(
+                {
+                    "artifact_id": m.get("artifact_id"),
+                    "modality": m.get("modality"),
+                    "origin_type": rec_origin,
+                    "risk_tier": m.get("risk_tier"),
+                    "generated_at": str(rec_date),
+                    "content_hash": m.get("content_hash"),
+                    "model_name": rec_model,
+                    "provider": agent.get("provider"),
+                    "agent_name": agent.get("name"),
+                }
+            )
             if len(results) >= limit:
                 break
         return results
 
-    def get_eu_compliance_stats(self) -> Dict[str, Any]:
+    def get_eu_compliance_stats(self) -> dict[str, Any]:
         """
         Aggregate overview of AI generation volume, risk tiers, origin types,
         and Article 50 transparency compliance.
@@ -423,6 +435,7 @@ class ProvenanceOntologyService:
                     rec = session.run(cypher).single()
                     if rec and rec["total_artifacts"] > 0:
                         from collections import Counter
+
                         total = rec["total_artifacts"]
                         origin_counts = dict(Counter(rec["origin_types"]))
                         modality_counts = dict(Counter(rec["modalities"]))
@@ -444,6 +457,7 @@ class ProvenanceOntologyService:
 
         # Fallback to in-memory stats
         from collections import Counter
+
         total = len(self._in_memory_records)
         origins = []
         mods = []

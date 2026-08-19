@@ -131,8 +131,12 @@ class LightRAGService:
         os.environ["NEO4J_PASSWORD"] = settings.neo4j_password
         os.environ["NEO4J_MAX_CONNECTION_POOL_SIZE"] = str(settings.neo4j_max_connection_pool_size)
         os.environ["NEO4J_CONNECTION_TIMEOUT"] = str(settings.neo4j_connection_timeout_s)
-        os.environ["NEO4J_CONNECTION_ACQUISITION_TIMEOUT"] = str(settings.neo4j_connection_acquisition_timeout_s)
-        os.environ["NEO4J_MAX_TRANSACTION_RETRY_TIME"] = str(settings.neo4j_max_transaction_retry_time_s)
+        os.environ["NEO4J_CONNECTION_ACQUISITION_TIMEOUT"] = str(
+            settings.neo4j_connection_acquisition_timeout_s
+        )
+        os.environ["NEO4J_MAX_TRANSACTION_RETRY_TIME"] = str(
+            settings.neo4j_max_transaction_retry_time_s
+        )
         os.environ["NEO4J_MAX_CONNECTION_LIFETIME"] = str(settings.neo4j_max_connection_lifetime_s)
         os.environ["NEO4J_KEEP_ALIVE"] = str(settings.neo4j_keep_alive).lower()
 
@@ -145,43 +149,50 @@ class LightRAGService:
         def sanitize_extraction_output(text: str) -> str:
             """Sanitize extraction to remove thinking blocks, clean up quotes, backslashes, and malformed types."""
             import re
-            
+
             # Remove thinking blocks if any
             text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
             # Remove ```json wrapper if present
             text = re.sub(r"```json\s*", "", text)
             text = re.sub(r"\s*```", "", text)
-            
+
             cleaned_lines = []
             for line in text.splitlines():
                 line_str = line.strip()
                 if not line_str:
                     cleaned_lines.append("")
                     continue
-                
+
                 # Match parenthesized tuples: ("field1", "field2", "field3", ...)
                 if line_str.startswith("(") and line_str.endswith(")"):
                     # Find quoted values inside the tuple
-                    fields = re.findall(r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\'', line_str)
+                    fields = re.findall(
+                        r'"([^"\\]*(?:\\.[^"\\]*)*)"|\'([^\'\\]*(?:\\.[^\'\\]*)*)\'', line_str
+                    )
                     field_values = [f[0] or f[1] for f in fields]
-                    
+
                     if len(field_values) >= 3:
                         # Clean each field of literal double quotes and backslashes
                         for i in range(min(len(field_values), 3)):
                             val = field_values[i]
-                            val = val.replace('"', '').replace('\\', '')
-                            
+                            val = val.replace('"', "").replace("\\", "")
+
                             # Normalize entity_type (2nd field of a 3-field entity tuple)
                             if len(field_values) == 3 and i == 1:
                                 val_clean = val.strip().upper()
-                                if not val_clean or len(val_clean) > 50 or "INCORRECT" in val_clean or "DELIMITER" in val_clean:
+                                if (
+                                    not val_clean
+                                    or len(val_clean) > 50
+                                    or "INCORRECT" in val_clean
+                                    or "DELIMITER" in val_clean
+                                ):
                                     val_clean = "CONCEPT"
                                 val = val_clean
                             field_values[i] = val
-                        
+
                         # Rebuild quoted fields
                         quoted_fields = [f'"{f}"' for f in field_values]
-                        
+
                         # If relationship tuple (4+ fields), preserve weight as number
                         if len(field_values) >= 4:
                             weight_part = line_str.split(",")[-1].strip(" )\"'")
@@ -190,7 +201,7 @@ class LightRAGService:
                                 quoted_fields[-1] = str(weight)
                             except ValueError:
                                 pass
-                        
+
                         cleaned_lines.append(f"({', '.join(quoted_fields)})")
                     else:
                         if len(line_str) > 100:
@@ -201,13 +212,13 @@ class LightRAGService:
                     if "incorrect" in line_str.lower() or "delimiter" in line_str.lower():
                         continue
                     cleaned_lines.append(line_str)
-                    
+
             return "\n".join(cleaned_lines).strip()
 
         # Dynamically bridge our main generative LLM to LightRAG
         # We use a fast, non-reasoning classifier model for LightRAG's internal operations.
         # This keeps graph extraction, summaries, and keyword search fast and clean.
-        
+
         async def llm_func(prompt, system_prompt=None, history_messages=None, **kwargs) -> str:
             from app.dependencies import get_container
 
@@ -245,7 +256,7 @@ class LightRAGService:
             # Prevents reasoning model runaway (15+ KB thinking traces, 15-30s latency)
             # from blocking LightRAG keyword extraction and defeating the anti-hallucination pipeline.
             openrouter = getattr(container, "openrouter", None)
-            
+
             response = ""
             if openrouter and getattr(settings, "openrouter_api_key", None):
                 kwargs["model"] = settings.openrouter_classify_model
@@ -299,12 +310,14 @@ class LightRAGService:
 
                     response = await _openrouter_with_retry()
                 except Exception as e:
-                    logger.warning(f"LightRAG: OpenRouter task failed after retries ({e}), falling back to default LLM")
+                    logger.warning(
+                        f"LightRAG: OpenRouter task failed after retries ({e}), falling back to default LLM"
+                    )
                     response = ""
 
             if not response:
                 provider = settings.llm_provider.lower()
-                
+
                 # For Sarvam Cloud, use classification model to prevent reasoning runaway
                 if provider == "sarvam_cloud":
                     kwargs["model"] = settings.model_for_classification
@@ -338,7 +351,7 @@ class LightRAGService:
                         context=context,
                         **kwargs,
                     )
-                
+
                 # For OpenRouter, use _generate_fast (which uses classify model internally)
                 elif provider == "openrouter":
                     response = await container.openrouter._generate_fast(
@@ -349,7 +362,7 @@ class LightRAGService:
                         max_retries=2,
                         **kwargs,
                     )
-                
+
                 # For Ollama and other providers, use _generate_fast
                 else:
                     # Force the fast classification model for ALL LightRAG internals.
@@ -365,7 +378,7 @@ class LightRAGService:
 
             if is_extraction and isinstance(response, str):
                 response = sanitize_extraction_output(response)
-                
+
             return response
 
         # Use our local BGE-M3 model already loaded in memory instead of calling Ollama API
@@ -398,7 +411,9 @@ class LightRAGService:
         def _check_neo4j():
             from neo4j import GraphDatabase
 
-            auth = (settings.neo4j_user, settings.neo4j_password) if settings.neo4j_password else None
+            auth = (
+                (settings.neo4j_user, settings.neo4j_password) if settings.neo4j_password else None
+            )
             driver = GraphDatabase.driver(
                 settings.neo4j_uri,
                 auth=auth,
@@ -412,12 +427,13 @@ class LightRAGService:
             driver.verify_connectivity()
             driver.close()
 
-
         try:
             await asyncio.to_thread(_check_neo4j)
             logger.info("Neo4j connectivity verified.")
         except Exception as e:
-            logger.error(f"❌ Neo4j unreachable: {e}. GraphRAG requires Neo4j connectivity. Halting startup.")
+            logger.error(
+                f"❌ Neo4j unreachable: {e}. GraphRAG requires Neo4j connectivity. Halting startup."
+            )
             raise RuntimeError(f"Neo4j connection failed: {e}") from e
 
         @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10))
@@ -444,6 +460,7 @@ class LightRAGService:
             # Inject Custom Spiritual Guidance into LightRAG Prompts
             try:
                 import lightrag.prompt
+
                 spiritual_guidance = (
                     "\n\n"
                     "---Spiritual Domain Guidance---\n"
@@ -456,8 +473,12 @@ class LightRAGService:
                 if "entity_extraction_system_prompt" in lightrag.prompt.PROMPTS:
                     lightrag.prompt.PROMPTS["entity_extraction_system_prompt"] += spiritual_guidance
                 if "entity_extraction_json_system_prompt" in lightrag.prompt.PROMPTS:
-                    lightrag.prompt.PROMPTS["entity_extraction_json_system_prompt"] += spiritual_guidance
-                logger.info("Spiritual domain guidance and custom entity types injected into LightRAG prompts.")
+                    lightrag.prompt.PROMPTS["entity_extraction_json_system_prompt"] += (
+                        spiritual_guidance
+                    )
+                logger.info(
+                    "Spiritual domain guidance and custom entity types injected into LightRAG prompts."
+                )
             except Exception as pe:
                 logger.warning(f"Failed to inject custom spiritual prompts to LightRAG: {pe}")
 
@@ -483,7 +504,9 @@ class LightRAGService:
         Supported Modes: 'local' (entities), 'global' (community summaries), 'hybrid' (both)
         """
         # ponytail: 5min TTL cache for identical queries
-        cache_key = hashlib.md5(f"{query}:{mode}:{only_need_context}".encode(), usedforsecurity=False).hexdigest()
+        cache_key = hashlib.md5(
+            f"{query}:{mode}:{only_need_context}".encode(), usedforsecurity=False
+        ).hexdigest()
         with self._cache_lock:
             cached = self._query_cache.get(cache_key)
         if cached is not None:

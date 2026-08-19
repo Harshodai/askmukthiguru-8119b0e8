@@ -19,6 +19,7 @@ async def anon_session():
     """
     return issue_anon_session_token()
 
+
 router.include_router(
     fastapi_users.get_auth_router(auth_backend),
     prefix="/jwt",

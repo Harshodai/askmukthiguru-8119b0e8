@@ -6,7 +6,6 @@ CRUD for study_notebooks (metadata) and study_notebook_items (saved turns).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 from app.config import settings  # noqa: F401
@@ -29,10 +28,16 @@ class NotebookService:
         if not self.available:
             return None
         try:
-            resp = self._client.table(_TABLE).insert({
-                "user_id": user_id,
-                "title": title,
-            }).execute()
+            resp = (
+                self._client.table(_TABLE)
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "title": title,
+                    }
+                )
+                .execute()
+            )
             data = getattr(resp, "data", None) or []
             return data[0] if data else None
         except Exception as e:
@@ -43,7 +48,13 @@ class NotebookService:
         if not self.available:
             return []
         try:
-            resp = self._client.table(_TABLE).select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+            resp = (
+                self._client.table(_TABLE)
+                .select("*")
+                .eq("user_id", user_id)
+                .order("created_at", desc=True)
+                .execute()
+            )
             return list(getattr(resp, "data", None) or [])
         except Exception as e:
             logger.warning("notebook.list failed: %s", e)
@@ -54,7 +65,9 @@ class NotebookService:
             return False
         try:
             # RLS ensures user only deletes own notebook; cascade deletes items
-            self._client.table(_TABLE).delete().eq("id", notebook_id).eq("user_id", user_id).execute()
+            self._client.table(_TABLE).delete().eq("id", notebook_id).eq(
+                "user_id", user_id
+            ).execute()
             return True
         except Exception as e:
             logger.warning("notebook.delete failed: %s", e)
@@ -72,17 +85,31 @@ class NotebookService:
         if not self.available:
             return None
         try:
-            verify = self._client.table(_TABLE).select("id").eq("id", notebook_id).eq("user_id", user_id).execute()
+            verify = (
+                self._client.table(_TABLE)
+                .select("id")
+                .eq("id", notebook_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
             if not getattr(verify, "data", None):
-                logger.warning("notebook.add_item: notebook %s not owned by %s", notebook_id, user_id)
+                logger.warning(
+                    "notebook.add_item: notebook %s not owned by %s", notebook_id, user_id
+                )
                 return None
-            resp = self._client.table(_ITEMS).insert({
-                "notebook_id": notebook_id,
-                "query": query,
-                "answer": answer,
-                "citations": citations or [],
-                "source_episode_id": source_episode_id,
-            }).execute()
+            resp = (
+                self._client.table(_ITEMS)
+                .insert(
+                    {
+                        "notebook_id": notebook_id,
+                        "query": query,
+                        "answer": answer,
+                        "citations": citations or [],
+                        "source_episode_id": source_episode_id,
+                    }
+                )
+                .execute()
+            )
             data = getattr(resp, "data", None) or []
             return data[0] if data else None
         except Exception as e:
@@ -93,50 +120,98 @@ class NotebookService:
         if not self.available:
             return []
         try:
-            verify = self._client.table(_TABLE).select("id").eq("id", notebook_id).eq("user_id", user_id).execute()
+            verify = (
+                self._client.table(_TABLE)
+                .select("id")
+                .eq("id", notebook_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
             if not getattr(verify, "data", None):
-                logger.warning("notebook.list_items: notebook %s not owned by %s", notebook_id, user_id)
+                logger.warning(
+                    "notebook.list_items: notebook %s not owned by %s", notebook_id, user_id
+                )
                 return []
-            resp = self._client.table(_ITEMS).select("*").eq("notebook_id", notebook_id).order("created_at", desc=True).limit(limit).execute()
+            resp = (
+                self._client.table(_ITEMS)
+                .select("*")
+                .eq("notebook_id", notebook_id)
+                .order("created_at", desc=True)
+                .limit(limit)
+                .execute()
+            )
             return list(getattr(resp, "data", None) or [])
         except Exception as e:
             logger.warning("notebook.list_items failed: %s", e)
             return []
 
-
-    async def update_item(self, user_id: str, notebook_id: str, item_id: str, answer: str) -> dict | None:
+    async def update_item(
+        self, user_id: str, notebook_id: str, item_id: str, answer: str
+    ) -> dict | None:
         if not self.available:
             return None
         try:
-            verify = self._client.table(_TABLE).select("id").eq("id", notebook_id).eq("user_id", user_id).execute()
+            verify = (
+                self._client.table(_TABLE)
+                .select("id")
+                .eq("id", notebook_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
             if not getattr(verify, "data", None):
-                logger.warning("notebook.update_item: notebook %s not owned by %s", notebook_id, user_id)
+                logger.warning(
+                    "notebook.update_item: notebook %s not owned by %s", notebook_id, user_id
+                )
                 return None
-            resp = self._client.table(_ITEMS).update({"answer": answer}).eq("id", item_id).eq("notebook_id", notebook_id).execute()
+            resp = (
+                self._client.table(_ITEMS)
+                .update({"answer": answer})
+                .eq("id", item_id)
+                .eq("notebook_id", notebook_id)
+                .execute()
+            )
             data = getattr(resp, "data", None) or []
             return data[0] if data else None
         except Exception as e:
             logger.warning("notebook.update_item failed: %s", e)
             return None
 
+
 if __name__ == "__main__":  # ponytail: self-check
     import asyncio
 
     class _MockResp:
-        def __init__(self, data): self.data = data
+        def __init__(self, data):
+            self.data = data
 
     class _MockTable:
-        def __init__(self, *_): pass
-        def insert(self, _): return self
-        def select(self, *_): return self
-        def eq(self, *_): return self
-        def order(self, *_): return self
-        def limit(self, *_): return self
-        def delete(self): return self
-        def execute(self): return _MockResp([{"id": "nb1"}])
+        def __init__(self, *_):
+            pass
+
+        def insert(self, _):
+            return self
+
+        def select(self, *_):
+            return self
+
+        def eq(self, *_):
+            return self
+
+        def order(self, *_):
+            return self
+
+        def limit(self, *_):
+            return self
+
+        def delete(self):
+            return self
+
+        def execute(self):
+            return _MockResp([{"id": "nb1"}])
 
     class _MockClient:
-        def table(self, _): return _MockTable()
+        def table(self, _):
+            return _MockTable()
 
     async def _demo():
         svc = NotebookService(_MockClient())

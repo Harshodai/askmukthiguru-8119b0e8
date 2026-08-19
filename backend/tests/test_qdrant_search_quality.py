@@ -12,7 +12,6 @@ Baseline: memory/qdrant_quality_baseline.json (updated on success)
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
@@ -154,7 +153,9 @@ class QdrantSearchQualityTester:
         self._embedder = embedding_service
         self._reranker = reranker_service
 
-    def ndcg_at_k(self, ranked_sources: list[str], relevant_sources: list[str], k: int = 10) -> float:
+    def ndcg_at_k(
+        self, ranked_sources: list[str], relevant_sources: list[str], k: int = 10
+    ) -> float:
         """Compute NDCG@K using standard log2(rank+1) formulation.
 
         Reference: Järvelin & Kekäläinen (2002), "Cumulated gain-based evaluation
@@ -248,7 +249,9 @@ class QdrantSearchQualityTester:
             n_empty = sum(1 for s in ranked_sources if not s)
             if n_empty > 0:
                 sample = results[0] if results else {}
-                payload_keys = list((sample.get("payload") or {}).keys()) if isinstance(sample, dict) else []
+                payload_keys = (
+                    list((sample.get("payload") or {}).keys()) if isinstance(sample, dict) else []
+                )
                 logger.warning(
                     "NDCG: %d/%d source filenames are empty — source extraction "
                     "incomplete; check Qdrant payload field names. Sample result keys: %s; payload keys: %s",
@@ -309,7 +312,9 @@ def test_qdrant_search_quality_hybrid(qdrant_searcher, embedding_service):
 
 
 @pytest.mark.integration
-def test_qdrant_search_quality_hybrid_reranked(qdrant_searcher, embedding_service, reranker_service):
+def test_qdrant_search_quality_hybrid_reranked(
+    qdrant_searcher, embedding_service, reranker_service
+):
     """Hybrid + reranking search quality."""
     if reranker_service is None:
         pytest.skip("Reranker not available")
@@ -337,8 +342,7 @@ def test_qdrant_search_quality_baseline_regression(qdrant_searcher, embedding_se
 
         # Regression threshold: allow 2% drop
         assert current["mean_ndcg"] >= baseline_ndcg - 0.02, (
-            f"Hybrid NDCG regressed: {current['mean_ndcg']:.3f} "
-            f"(baseline: {baseline_ndcg:.3f})"
+            f"Hybrid NDCG regressed: {current['mean_ndcg']:.3f} (baseline: {baseline_ndcg:.3f})"
         )
 
     # Update baseline

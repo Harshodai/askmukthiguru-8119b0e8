@@ -7,10 +7,9 @@ metrics across local NIM/vLLM instances and cloud LLM API providers.
 from __future__ import annotations
 
 import hashlib
-import threading
-import time
 import logging
-from typing import Dict, Any, Optional
+import threading
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +19,7 @@ _cache_lock = threading.Lock()
 # In-memory metrics accumulator for cache statistics
 # NOTE: This accumulator is per-process. For multi-worker deployments,
 # aggregate via Prometheus counter/histogram metrics.
-_cache_stats: Dict[str, Any] = {
+_cache_stats: dict[str, Any] = {
     "total_requests": 0,
     "cache_hits": 0,
     "cache_misses": 0,
@@ -44,7 +43,7 @@ def record_prompt_cache_event(
     cached_tokens: int = 0,
     total_tokens: int = 0,
     ttft_ms: Optional[float] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Record a prompt invocation event and compute cache hit status."""
     global _cache_stats
     with _cache_lock:
@@ -95,7 +94,7 @@ def record_prompt_cache_event(
     return result
 
 
-def get_prompt_cache_stats() -> Dict[str, Any]:
+def get_prompt_cache_stats() -> dict[str, Any]:
     """Retrieve cumulative prompt cache performance statistics."""
     with _cache_lock:
         total = _cache_stats["total_requests"]

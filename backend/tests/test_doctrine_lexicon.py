@@ -20,7 +20,9 @@ def lexicon() -> DoctrineLexicon:
             # OCR'd source: carries genuine fragments, as the real PDF does.
             "books": ["Peace is not a piece. The soul is not soil. ealth ense"],
             # Clean HTML: no OCR damage, so every word is a valid target.
-            "site": ["The Ojas Shakti practice builds immunity. Chanting Humsa follows the breath."],
+            "site": [
+                "The Ojas Shakti practice builds immunity. Chanting Humsa follows the breath."
+            ],
             "english": ["peace piece soul soil soar steel knots vows breath immunity"],
         },
         corpus_texts=[("v1", "Ojas is strength.")],

@@ -93,10 +93,18 @@ SAVE_OFFERS: dict[str, dict[str, str]] = {
 # 4-email win-back sequence (delay_days relative to cancellation confirm).
 # template_key is the slug stored in cancellations.win_back_emails_sent.
 POST_CANCEL_EMAILS: list[dict[str, Any]] = [
-    {"delay_days": 0, "template_key": "day0", "subject": "Your Mukthi Guru journey — what happens next"},
+    {
+        "delay_days": 0,
+        "template_key": "day0",
+        "subject": "Your Mukthi Guru journey — what happens next",
+    },
     {"delay_days": 3, "template_key": "day3", "subject": "A small gift for your journey ahead"},
     {"delay_days": 14, "template_key": "day14", "subject": "How are you feeling?"},
-    {"delay_days": 30, "template_key": "day30", "subject": "Your scheduled deletion date is approaching"},
+    {
+        "delay_days": 30,
+        "template_key": "day30",
+        "subject": "Your scheduled deletion date is approaching",
+    },
 ]
 
 RETENTION_TO_DAYS: dict[str, int] = {
@@ -211,6 +219,7 @@ def _supabase_service_client() -> Any:
     if not settings.supabase_url or not key:
         raise HTTPException(status_code=503, detail="Persistence backend unavailable.")
     from supabase import create_client
+
     return create_client(settings.supabase_url, key)
 
 
@@ -445,15 +454,19 @@ async def confirm_cancellation(
     cancellation_id: Optional[str] = None
     try:
         client = _supabase_client(request)
-        resp = client.table("cancellations").insert(
-            {
-                "user_id": uid,
-                "status": "scheduled",
-                "data_retention": payload.data_retention,
-                "scheduled_deletion": deletion_date.isoformat(),
-                "win_back_emails_sent": [],
-            }
-        ).execute()
+        resp = (
+            client.table("cancellations")
+            .insert(
+                {
+                    "user_id": uid,
+                    "status": "scheduled",
+                    "data_retention": payload.data_retention,
+                    "scheduled_deletion": deletion_date.isoformat(),
+                    "win_back_emails_sent": [],
+                }
+            )
+            .execute()
+        )
         if resp.data:
             cancellation_id = resp.data[0].get("id")
         # Isolated best-effort — insertion success is the critical path.
@@ -550,15 +563,22 @@ async def reactivate_account(
         raise HTTPException(status_code=401, detail="Authentication required.")
     try:
         client = _supabase_client(request)
-        resp = client.table("cancellations").update(
-            {"status": "reactivated", "reactivated_at": datetime.now(UTC).isoformat()}
-        ).eq("user_id", uid).eq("status", "scheduled").execute()
+        resp = (
+            client.table("cancellations")
+            .update({"status": "reactivated", "reactivated_at": datetime.now(UTC).isoformat()})
+            .eq("user_id", uid)
+            .eq("status", "scheduled")
+            .execute()
+        )
         if resp.data:
             row = resp.data[0]
             created_str = row.get("created_at")
             if created_str:
                 try:
-                    elapsed = (datetime.now(UTC) - datetime.fromisoformat(created_str.replace("Z", "+00:00"))).days
+                    elapsed = (
+                        datetime.now(UTC)
+                        - datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+                    ).days
                     if elapsed <= 7:
                         _churn_metrics.reactivations_7d += 1
                     elif elapsed <= 30:
@@ -620,7 +640,9 @@ def _load_churn_metrics_from_db(request: Request) -> ChurnMetrics:
         client = _supabase_service_client()
 
         # Cancellations count.
-        all_cancellations = client.table("cancellations").select("created_at,reactivated_at,status").execute()
+        all_cancellations = (
+            client.table("cancellations").select("created_at,reactivated_at,status").execute()
+        )
         cancel_rows = all_cancellations.data or []
         cancel_attempts = len(cancel_rows)
 
@@ -634,7 +656,9 @@ def _load_churn_metrics_from_db(request: Request) -> ChurnMetrics:
                 created_str = row.get("created_at")
                 if created_str:
                     try:
-                        elapsed = (now_utc - datetime.fromisoformat(created_str.replace("Z", "+00:00"))).days
+                        elapsed = (
+                            now_utc - datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+                        ).days
                     except Exception:
                         elapsed = 999
                 else:

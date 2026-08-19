@@ -14,14 +14,14 @@ Key Features:
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from typing import Any, Dict, List, Optional, Annotated
+from typing import Any, Optional
 
 from app.config import settings
 from rag.prompts import AGENTIC_TRAVERSAL_SYSTEM_PROMPT
 from rag.states import GraphState
-from .tools import get_concept_details, get_adjacent_concepts, get_graph_traversal_context
+
+from .tools import get_adjacent_concepts, get_concept_details
 
 logger = logging.getLogger(__name__)
 
@@ -89,26 +89,33 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
                     current_step += 1
 
                     if concept_result.get("node_data"):
-                        traversal_context.append({
-                            "concept_id": concept_id,
-                            "node_data": concept_result["node_data"],
-                            "step": current_step,
-                            "reasoning": f"Starting concept from doctrine tags",
-                        })
+                        traversal_context.append(
+                            {
+                                "concept_id": concept_id,
+                                "node_data": concept_result["node_data"],
+                                "step": current_step,
+                                "reasoning": "Starting concept from doctrine tags",
+                            }
+                        )
 
                     if current_step < max_steps:
                         adj_result = await get_adjacent_concepts(concept_id, state)
                         current_step += 1
-                        traversal_context.append({
-                            "concept_id": f"adjacent_to_{concept_id}",
-                            "adjacent_concepts": adj_result["adjacent_concepts"],
-                            "relation_summary": adj_result["relation_summary"],
-                            "step": current_step,
-                            "reasoning": f"Initial connectivity exploration from {concept_id}",
-                        })
+                        traversal_context.append(
+                            {
+                                "concept_id": f"adjacent_to_{concept_id}",
+                                "adjacent_concepts": adj_result["adjacent_concepts"],
+                                "relation_summary": adj_result["relation_summary"],
+                                "step": current_step,
+                                "reasoning": f"Initial connectivity exploration from {concept_id}",
+                            }
+                        )
 
         except Exception as e:
-            logger.warning(f"Failed to initialize graph traversal: {e}", extra={"request_id": request_id} if request_id else {})
+            logger.warning(
+                f"Failed to initialize graph traversal: {e}",
+                extra={"request_id": request_id} if request_id else {},
+            )
             return {
                 "graph_traversal_error": f"Initialization failed: {str(e)}",
                 "graph_traversal_context": [],
@@ -116,9 +123,7 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
 
     # ReAct loop
     while current_step < max_steps:
-        logger.debug(
-            f"[Agentic Graph Traversal] Step {current_step + 1}/{max_steps}"
-        )
+        logger.debug(f"[Agentic Graph Traversal] Step {current_step + 1}/{max_steps}")
 
         # Prepare context for LLM decision making
         context_summary = _prepare_context_summary(traversal_context)
@@ -133,9 +138,7 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
         )
 
         if next_action.get("action") == "DONE":
-            logger.info(
-                f"Agentic Graph Traversal completed at step {current_step + 1}"
-            )
+            logger.info(f"Agentic Graph Traversal completed at step {current_step + 1}")
             break
 
         if next_action.get("action") == "STOP":
@@ -160,14 +163,19 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
             current_step += 1
 
         except Exception as e:
-            logger.error(f"Error in Agentic Graph Traversal action: {e}", extra={"request_id": request_id} if request_id else {})
+            logger.error(
+                f"Error in Agentic Graph Traversal action: {e}",
+                extra={"request_id": request_id} if request_id else {},
+            )
             break
 
     # Mark traversal as complete if we exited normally
     result = {
         "graph_traversal_context": traversal_context,
         "graph_traversal_steps": current_step,
-        "graph_traversal_done": next_action.get("done", False) if "next_action" in locals() else False,
+        "graph_traversal_done": next_action.get("done", False)
+        if "next_action" in locals()
+        else False,
     }
 
     # Add to relevant_docs if we have meaningful traversal data
@@ -190,7 +198,7 @@ async def agentic_graph_traversal(state: GraphState, config: dict = None) -> dic
     return result
 
 
-def _prepare_context_summary(traversal_context: List[Dict]) -> Dict[str, Any]:
+def _prepare_context_summary(traversal_context: list[dict]) -> dict[str, Any]:
     """Prepare a concise summary of current traversal state for the LLM."""
     if not traversal_context:
         return {
@@ -236,12 +244,12 @@ def _prepare_context_summary(traversal_context: List[Dict]) -> Dict[str, Any]:
 
 async def _ask_llm_to_decide(
     question: str,
-    context_summary: Dict,
+    context_summary: dict,
     step: int,
     max_steps: int,
     *,
     request_id: str | None = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Ask the fast model to decide what to do next in the traversal."""
     try:
         from services.ollama_service import OllamaService
@@ -249,9 +257,7 @@ async def _ask_llm_to_decide(
         ollama = OllamaService()
 
         # Build actual entity IDs from traversed context, not just counts.
-        traversed_ids = [
-            c.get("entity_id") for c in context_summary.get("concepts_found", [])
-        ]
+        traversed_ids = [c.get("entity_id") for c in context_summary.get("concepts_found", [])]
         candidate_ids = [eid for eid in traversed_ids if eid] or ["none yet"]
         candidate_concepts = "\n".join(f"- {eid}" for eid in candidate_ids)
 
@@ -294,7 +300,7 @@ async def _ask_llm_to_decide(
         }
 
 
-def _parse_llm_traversal_decision(response: str, context_summary: Dict) -> Dict[str, Any]:
+def _parse_llm_traversal_decision(response: str, context_summary: dict) -> dict[str, Any]:
     """Parse the LLM's traversal decision from its response.
 
     Prefer a strict JSON response. Fall back to heuristic text matching for
@@ -379,12 +385,12 @@ def _parse_llm_traversal_decision(response: str, context_summary: Dict) -> Dict[
 
 
 async def _execute_traversal_action(
-    action: Dict[str, Any],
+    action: dict[str, Any],
     state: GraphState,
     step: int,
     *,
     request_id: str | None = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[dict[str, Any]]:
     """Execute the LLM-decided traversal action."""
     action_name = action.get("action")
     entity_id = action.get("entity_id")
@@ -397,13 +403,15 @@ async def _execute_traversal_action(
 
             context_chunks = []
             if result.get("node_data"):
-                context_chunks.append({
-                    "concept_id": entity_id,
-                    "node_data": result["node_data"],
-                    "navigation_hints": result.get("navigation_hints", []),
-                    "step": step,
-                    "reasoning": f"Explored concept '{entity_id}' per request: {reasoning}",
-                })
+                context_chunks.append(
+                    {
+                        "concept_id": entity_id,
+                        "node_data": result["node_data"],
+                        "navigation_hints": result.get("navigation_hints", []),
+                        "step": step,
+                        "reasoning": f"Explored concept '{entity_id}' per request: {reasoning}",
+                    }
+                )
 
             return {"context_chunks": context_chunks}
 
@@ -412,14 +420,16 @@ async def _execute_traversal_action(
             result = await get_adjacent_concepts(entity_id, state)
 
             context_chunks = []
-            context_chunks.append({
-                "concept_id": entity_id,
-                "adjacent_concepts": result["adjacent_concepts"],
-                "relation_summary": result["relation_summary"],
-                "traversal_options": result["traversal_options"],
-                "step": step,
-                "reasoning": f"Navigated from '{entity_id}' to explore connections: {reasoning}",
-            })
+            context_chunks.append(
+                {
+                    "concept_id": entity_id,
+                    "adjacent_concepts": result["adjacent_concepts"],
+                    "relation_summary": result["relation_summary"],
+                    "traversal_options": result["traversal_options"],
+                    "step": step,
+                    "reasoning": f"Navigated from '{entity_id}' to explore connections: {reasoning}",
+                }
+            )
 
             return {"context_chunks": context_chunks}
 
@@ -441,7 +451,7 @@ async def _execute_traversal_action(
         return None
 
 
-def _extract_concepts_from_docs(docs: List[Dict]) -> List[str]:
+def _extract_concepts_from_docs(docs: list[dict]) -> list[str]:
     """Extract likely ontology entity concepts from relevant docs as fallback."""
     concepts: set[str] = set()
     for doc in docs:
@@ -452,12 +462,13 @@ def _extract_concepts_from_docs(docs: List[Dict]) -> List[str]:
                 concepts.add(candidate.strip())
         # Simple pattern for **Concept Name** mentions.
         import re
+
         for match in re.finditer(r"\*\*([A-Z][A-Za-z\s'-]{2,40})\*\*", text):
             concepts.add(match.group(1).strip())
     return list(concepts)[:5]
 
 
-def _has_meaningful_traversal(traversal_context: List[Dict]) -> bool:
+def _has_meaningful_traversal(traversal_context: list[dict]) -> bool:
     """Check if the traversal yielded meaningful data for answering the question."""
     if not traversal_context:
         return False
@@ -465,14 +476,13 @@ def _has_meaningful_traversal(traversal_context: List[Dict]) -> bool:
     # Consider meaningful if we have concept details or meaningful connections
     has_node_data = any("node_data" in chunk for chunk in traversal_context)
     has_relationships = any(
-        "adjacent_concepts" in chunk and chunk["adjacent_concepts"]
-        for chunk in traversal_context
+        "adjacent_concepts" in chunk and chunk["adjacent_concepts"] for chunk in traversal_context
     )
 
     return has_node_data or has_relationships
 
 
-def _format_traversal_as_document(traversal_context: List[Dict]) -> Dict[str, Any]:
+def _format_traversal_as_document(traversal_context: list[dict]) -> dict[str, Any]:
     """Format the traversal context as a structured document for inclusion in relevant_docs."""
     if not traversal_context:
         return {}
@@ -510,13 +520,17 @@ def _format_traversal_as_document(traversal_context: List[Dict]) -> Dict[str, An
     content_lines = []
     content_lines.append("## Graph Traversal Context")
     content_lines.append("")
-    content_lines.append(f"Retrieved {len(traversed_concepts)} spiritual concepts and {len(all_relationships)} relationships.")
+    content_lines.append(
+        f"Retrieved {len(traversed_concepts)} spiritual concepts and {len(all_relationships)} relationships."
+    )
     content_lines.append("")
 
     # Add concepts with proper formatting
     content_lines.append("### Concepts Explored")
     for concept in traversed_concepts:
-        content_lines.append(f"- **{concept.get('name', 'Unknown')}** ({concept.get('type', 'Unknown')})")
+        content_lines.append(
+            f"- **{concept.get('name', 'Unknown')}** ({concept.get('type', 'Unknown')})"
+        )
         content_lines.append(f"  Entity ID: {concept.get('entity_id', '')}")
         content_lines.append(f"  Description: {concept.get('description', '')}")
         if concept.get("properties"):
@@ -544,6 +558,6 @@ def _format_traversal_as_document(traversal_context: List[Dict]) -> Dict[str, An
             "traversal_step": len(set(chunk.get("step", 0) for chunk in traversal_context)),
             "concepts_traversed": len(traversed_concepts),
             "relationships_discovered": len(all_relationships),
-            "traversal_timestamp": ""  # Will be filled by pipeline
+            "traversal_timestamp": "",  # Will be filled by pipeline
         },
     }

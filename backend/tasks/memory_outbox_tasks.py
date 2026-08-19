@@ -1,4 +1,5 @@
 """Celery consumer for durable, consented memory outbox rows."""
+
 from __future__ import annotations
 
 import asyncio
@@ -43,36 +44,43 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
             if profile is not None:
                 try:
                     import time
+
                     from services.user_profile_service import ConversationMemory
+
                     insights = [
                         item if isinstance(item, str) else item.get("title", "")
                         for item in (payload.get("citations") or [])
                     ]
                     record = ConversationMemory(
-                        session_id=row["session_id"], user_id=user_id,
+                        session_id=row["session_id"],
+                        user_id=user_id,
                         started_at=time.time(),
                         messages=[
                             {"role": "user", "content": payload["user_message"]},
                             {"role": "assistant", "content": payload["assistant_answer"]},
                         ],
                         key_insights=insights,
-                        emotional_arc=[{
-                            "timestamp": time.time(),
-                            "distress_level": payload.get("distress_level", 0),
-                            "provoked": False,
-                            "topic": payload.get("intent"),
-                            "signal": "general",
-                        }],
+                        emotional_arc=[
+                            {
+                                "timestamp": time.time(),
+                                "distress_level": payload.get("distress_level", 0),
+                                "provoked": False,
+                                "topic": payload.get("intent"),
+                                "signal": "general",
+                            }
+                        ],
                         follow_up_suggestions=[],
                     )
                     await profile.save_conversation_memory(record)
                 except Exception as exc:
                     logger.warning("Outbox profile persistence failed: %s", exc)
             prior = list(payload.get("prior_messages") or [])
-            prior.extend([
-                {"role": "user", "content": payload["user_message"]},
-                {"role": "assistant", "content": payload["assistant_answer"]},
-            ])
+            prior.extend(
+                [
+                    {"role": "user", "content": payload["user_message"]},
+                    {"role": "assistant", "content": payload["assistant_answer"]},
+                ]
+            )
             await memory_service.extract_and_write(user_id, row["session_id"], prior)
             if episodic is not None:
                 await episodic.log_episode(
@@ -84,6 +92,7 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                 )
             try:
                 from services.layered_memory.l1_extractor import extract_atoms
+
                 atoms = await extract_atoms(
                     user_msg=payload["user_message"],
                     assistant_msg=payload["assistant_answer"],
@@ -96,16 +105,23 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
                 logger.warning("Outbox L1 enrichment failed: %s", exc)
             try:
                 from services.layered_memory.l2_scene_compressor import (
-                    compress_turns_to_scene, save_scene_block,
+                    compress_turns_to_scene,
+                    save_scene_block,
                 )
-                block = await compress_turns_to_scene([
-                    {"role": "user", "content": payload["user_message"]},
-                    {"role": "assistant", "content": payload["assistant_answer"]},
-                ])
+
+                block = await compress_turns_to_scene(
+                    [
+                        {"role": "user", "content": payload["user_message"]},
+                        {"role": "assistant", "content": payload["assistant_answer"]},
+                    ]
+                )
                 if block and getattr(container, "supabase_client", None):
                     await save_scene_block(
-                        container.supabase_client, user_id, tenant_id,
-                        row["session_id"], block,
+                        container.supabase_client,
+                        user_id,
+                        tenant_id,
+                        row["session_id"],
+                        block,
                     )
             except Exception as exc:
                 logger.warning("Outbox L2 enrichment failed: %s", exc)

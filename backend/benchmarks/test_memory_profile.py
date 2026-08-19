@@ -37,10 +37,10 @@ async def test_memory_profile_graph_execution():
             {
                 "title": "Four Sacred Secrets",
                 "text": "The first secret is spiritual vision — the ability to see beyond "
-                        "the surface of life into the deeper truth of who you are. "
-                        "When you cultivate spiritual vision, you begin to perceive the "
-                        "unseen reality that underlies all of existence. This is the "
-                        "foundation of the Four Sacred Secrets teachings." * 10,
+                "the surface of life into the deeper truth of who you are. "
+                "When you cultivate spiritual vision, you begin to perceive the "
+                "unseen reality that underlies all of existence. This is the "
+                "foundation of the Four Sacred Secrets teachings." * 10,
                 "source_url": "https://ekam.org/four-sacred-secrets",
                 "chunk_index": i,
             }
@@ -54,13 +54,16 @@ async def test_memory_profile_graph_execution():
             "citations": [d["source_url"] for d in sample_docs],
             "chat_history": [
                 {"role": "user", "content": "Tell me about the Four Sacred Secrets"},
-                {"role": "assistant", "content": "The Four Sacred Secrets are foundational teachings..."},
+                {
+                    "role": "assistant",
+                    "content": "The Four Sacred Secrets are foundational teachings...",
+                },
             ],
             "intent": "FACTUAL",
             "confidence_score": 8.0,
             "is_faithful": True,
             "memory_context": "User has practiced Soul Sync meditation for 3 months and has "
-                              "completed the first two sacred secrets practices.",
+            "completed the first two sacred secrets practices.",
             "detected_language": "en",
             "query_tier": "standard",
             "answer": "Spiritual vision is the capacity to see beyond appearances...",
@@ -119,21 +122,15 @@ async def test_memory_profile_conversation_history():
         # Simulate a long conversation history
         history = []
         for i in range(50):
-            history.append({"role": "user", "content": f"Question number {i + 1} about spiritual practices."})
-            history.append({"role": "assistant", "content": f"This is a detailed answer to question {i + 1}. " * 20})
-
-        state: GraphState = {
-            "question": "What is next?",
-            "rewritten_query": "next step in practice",
-            "relevant_docs": [],
-            "citations": [],
-            "chat_history": history,
-            "intent": "FACTUAL",
-            "confidence_score": 7.0,
-            "is_faithful": True,
-            "detected_language": "en",
-            "query_tier": "standard",
-        }
+            history.append(
+                {"role": "user", "content": f"Question number {i + 1} about spiritual practices."}
+            )
+            history.append(
+                {
+                    "role": "assistant",
+                    "content": f"This is a detailed answer to question {i + 1}. " * 20,
+                }
+            )
 
         snapshot = tracemalloc.take_snapshot()
         top_stats = snapshot.statistics("lineno")

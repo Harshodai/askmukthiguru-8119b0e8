@@ -1,7 +1,7 @@
 """Unit tests for SemanticChunker (semantic embedding-distance topic-shift chunking)."""
 
 from unittest.mock import MagicMock
-import numpy as np
+
 import pytest
 
 from ingest.semantic_chunker import SemanticChunker
@@ -14,7 +14,7 @@ def mock_embedder():
     v1 = [1.0] + [0.0] * 1023
     v2 = [0.9] + [0.1] + [0.0] * 1022
     v3 = [0.0, 1.0] + [0.0] * 1022
-    
+
     embedder.encode_batch.return_value = {
         "dense": [v1, v1, v2, v3, v3],
     }
@@ -36,7 +36,7 @@ def test_semantic_chunker_topic_shift_boundary_detection(mock_embedder):
         max_chunk_chars=1000,
         distance_percentile_threshold=50.0,
     )
-    
+
     sentences = [
         "First topic sentence one.",
         "First topic sentence two.",
@@ -46,7 +46,7 @@ def test_semantic_chunker_topic_shift_boundary_detection(mock_embedder):
     ]
     text = " ".join(sentences)
     chunks = chunker.split(text)
-    
+
     assert len(chunks) >= 2
     assert "First topic" in chunks[0]
     assert "Second completely different" in chunks[-1]

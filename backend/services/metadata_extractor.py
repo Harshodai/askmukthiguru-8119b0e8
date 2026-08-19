@@ -16,7 +16,8 @@ import logging
 import os
 import time
 
-from langdetect import DetectorFactory, detect as langdetect_detect
+from langdetect import DetectorFactory
+from langdetect import detect as langdetect_detect
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -57,7 +58,9 @@ def _load_cache() -> dict:
                 logger.warning("metadata_cache.json schema invalid — resetting")
                 return {}
             if data.get("_schema_version") != CACHE_SCHEMA_VERSION:
-                logger.warning(f"Cache schema version mismatch (expected {CACHE_SCHEMA_VERSION}), resetting")
+                logger.warning(
+                    f"Cache schema version mismatch (expected {CACHE_SCHEMA_VERSION}), resetting"
+                )
                 return {}
             # Filter expired entries
             now = time.time()
@@ -68,7 +71,9 @@ def _load_cache() -> dict:
                 if isinstance(entry, dict) and "cached_at" in entry:
                     cached_at = entry["cached_at"]
                     if not isinstance(cached_at, (int, float)):
-                        logger.warning(f"[{vid}] Cache entry has invalid cached_at timestamp, resetting entry")
+                        logger.warning(
+                            f"[{vid}] Cache entry has invalid cached_at timestamp, resetting entry"
+                        )
                         continue
                     if now - cached_at <= CACHE_TTL_SECONDS:
                         valid[vid] = {k: v for k, v in entry.items() if k != "cached_at"}
@@ -91,7 +96,7 @@ def _save_cache(cache: dict):
                 "cached_at": meta.get("cached_at", time.time()),
             }
             for vid, meta in cache.items()
-        }
+        },
     }
     with open(CACHE_PATH, "w", encoding="utf-8") as f:
         json.dump(cache_with_meta, f, indent=2, ensure_ascii=False)
@@ -157,10 +162,7 @@ def _extract_title_speaker_sync(text: str) -> dict:
         mode=instructor.Mode.JSON,
     )
 
-    prompt = (
-        "Extract the video title and speaker name from the following transcript.\n\n"
-        f"{sample}"
-    )
+    prompt = f"Extract the video title and speaker name from the following transcript.\n\n{sample}"
 
     try:
         resp = client.chat.completions.create(

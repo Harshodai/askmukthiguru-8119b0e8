@@ -1,10 +1,11 @@
 """Low-overhead, privacy-safe runtime capacity instrumentation."""
+
 from __future__ import annotations
 
 import os
 import resource
 import sys
-from typing import Mapping
+from collections.abc import Mapping
 
 from app.metrics import (
     PROCESS_CPU_SECONDS,

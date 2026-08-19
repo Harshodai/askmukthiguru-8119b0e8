@@ -36,7 +36,9 @@ def check_qdrant_version(client) -> None:
         parsed = _parse_version(version_str)
 
         if not parsed:
-            logger.info(f"Qdrant version check: could not parse version string {version_str!r}, skipping")
+            logger.info(
+                f"Qdrant version check: could not parse version string {version_str!r}, skipping"
+            )
             return
 
         if parsed < MIN_QDRANT_VERSION:
@@ -46,7 +48,9 @@ def check_qdrant_version(client) -> None:
                 "hybrid search may not work correctly. Upgrade Qdrant when possible."
             )
         else:
-            logger.info(f"Qdrant version check: {version_str} OK (>= {'.'.join(map(str, MIN_QDRANT_VERSION))})")
+            logger.info(
+                f"Qdrant version check: {version_str} OK (>= {'.'.join(map(str, MIN_QDRANT_VERSION))})"
+            )
     except Exception as exc:
         # Never let a version-check hiccup take down startup — this is advisory only.
         logger.info(f"Qdrant version check skipped (non-fatal): {exc}")

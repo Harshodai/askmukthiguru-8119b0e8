@@ -5,12 +5,12 @@ import logging
 import os
 import re
 import smtplib
-from pathlib import Path
 import time
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
+from pathlib import Path
 from typing import Optional
 
 from app.config import settings
@@ -41,7 +41,6 @@ def send_support_email(
     safe_from = _sanitize_header(from_email, max_len=254)
     full_subject = f"[AskMukthiGuru] {safe_category}: {safe_subject}"
 
-
     if settings.smtp_host and settings.smtp_user and settings.smtp_password:
         return _send_via_smtp(
             to=dest,
@@ -55,11 +54,7 @@ def send_support_email(
 
 
 def _build_body(name: str, from_email: str, message: str) -> str:
-    return (
-        f"Name: {name or 'Not provided'}\n"
-        f"From: {from_email}\n"
-        f"---\n{message}\n"
-    )
+    return f"Name: {name or 'Not provided'}\nFrom: {from_email}\n---\n{message}\n"
 
 
 def _send_via_smtp(
@@ -135,8 +130,10 @@ def _save_to_disk(
         except OSError:
             logger.debug("Could not tighten support message file mode", exc_info=True)
 
-        files = sorted(storage_dir.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
-        for stale in files[settings.support_storage_max_entries:]:
+        files = sorted(
+            storage_dir.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True
+        )
+        for stale in files[settings.support_storage_max_entries :]:
             try:
                 stale.unlink()
             except OSError:

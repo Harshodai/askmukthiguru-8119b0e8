@@ -15,13 +15,13 @@ Example::
 
 from __future__ import annotations
 
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 U = TypeVar("U")
 
 
-class Result(Generic[T]):
+class Result[T]:
     """Monad-like Result — either Ok(value) or Err(error)."""
 
     def __init__(self, *, value: T | None = None, error: Any | None = None) -> None:
@@ -33,11 +33,11 @@ class Result(Generic[T]):
     # ------------------------------------------------------------------
 
     @classmethod
-    def ok(cls, value: T) -> "Result[T]":
+    def ok(cls, value: T) -> Result[T]:
         return cls(value=value)
 
     @classmethod
-    def err(cls, error: Any) -> "Result[T]":
+    def err(cls, error: Any) -> Result[T]:
         return cls(error=error)
 
     # ------------------------------------------------------------------
@@ -70,19 +70,19 @@ class Result(Generic[T]):
         """Return value or the result of calling fn with the error."""
         return self._value if self.is_ok else fn(self._error)  # type: ignore[return-value]
 
-    def map(self, fn: Any) -> "Result[U]":
+    def map(self, fn: Any) -> Result[U]:
         """Apply fn to value if Ok, pass Err through."""
         if self.is_ok:
             return Result.ok(fn(self._value))
         return Result.err(self._error)  # type: ignore[return-value]
 
-    def map_err(self, fn: Any) -> "Result[T]":
+    def map_err(self, fn: Any) -> Result[T]:
         """Map the error side."""
         if self.is_err:
             return Result.err(fn(self._error))
         return self
 
-    def and_then(self, fn: Any) -> "Result[U]":
+    def and_then(self, fn: Any) -> Result[U]:
         """Chain another fallible operation."""
         if self.is_ok:
             return fn(self._value)

@@ -4,9 +4,12 @@ Contract: callers MUST slice off the CLS token before passing arrays
 (matching FlagEmbedding's `colbert_vecs[:tokens_num - 1]`). Both query
 and doc embeddings must be L2-normalized per token (BGE-M3 default).
 """
+
 from __future__ import annotations
+
 import logging
 from typing import Optional
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -100,7 +103,9 @@ if __name__ == "__main__":
     irrel_score = maxsim_score(q, irrelevant)
     print(f"relevant score: {rel_score:.4f}")
     print(f"irrelevant score: {irrel_score:.4f}")
-    assert rel_score > irrel_score, f"FAIL: relevant ({rel_score}) should beat irrelevant ({irrel_score})"
+    assert rel_score > irrel_score, (
+        f"FAIL: relevant ({rel_score}) should beat irrelevant ({irrel_score})"
+    )
 
     # Test mask: put high-sim tokens in the MASKED region, so masking must drop the score.
     # Construct a doc where tokens 0-7 are near-copies of query, then mask those exact tokens.
@@ -117,9 +122,15 @@ if __name__ == "__main__":
     unmasked_score = maxsim_score(q, relevant_for_mask)
     print(f"unmasked (high-sim at start): {unmasked_score:.4f}")
     print(f"masked (high-sim tokens masked out): {masked_score:.4f}")
-    assert unmasked_score > 0.5, f"unmasked should be high (high-sim tokens present), got {unmasked_score}"
-    assert masked_score < unmasked_score, f"masking high-sim tokens MUST drop the score, got {masked_score} vs {unmasked_score}"
-    assert masked_score < 0.2, f"masked score should be low (only random tokens remain), got {masked_score}"
+    assert unmasked_score > 0.5, (
+        f"unmasked should be high (high-sim tokens present), got {unmasked_score}"
+    )
+    assert masked_score < unmasked_score, (
+        f"masking high-sim tokens MUST drop the score, got {masked_score} vs {unmasked_score}"
+    )
+    assert masked_score < 0.2, (
+        f"masked score should be low (only random tokens remain), got {masked_score}"
+    )
 
     # Empty arrays edge cases
     empty_q = np.zeros((0, dim), dtype=np.float32)
@@ -131,7 +142,9 @@ if __name__ == "__main__":
     scores = batch_maxsim(q, [relevant, irrelevant])
     print(f"batch scores: {scores}")
     assert scores[0] > scores[1], "batch should rank relevant first"
-    assert abs(scores[0] - rel_score) < 1e-6 and abs(scores[1] - irrel_score) < 1e-6, "batch should match single"
+    assert abs(scores[0] - rel_score) < 1e-6 and abs(scores[1] - irrel_score) < 1e-6, (
+        "batch should match single"
+    )
 
     short = rng.standard_normal((3, dim)).astype(np.float32)
     short = short / np.linalg.norm(short, axis=1, keepdims=True)
@@ -140,4 +153,6 @@ if __name__ == "__main__":
     print(f"short doc score: {short_score:.4f}")
     assert short_score == 0.0, "docs with < _MIN_DOC_TOKENS valid tokens should return 0.0"
 
-    print("PASS — MaxSim scorer ranks relevant > irrelevant, mask works, batch matches single, degenerate guarded, empty arrays guarded")
+    print(
+        "PASS — MaxSim scorer ranks relevant > irrelevant, mask works, batch matches single, degenerate guarded, empty arrays guarded"
+    )

@@ -10,11 +10,12 @@ BENCHMARK_DIR = Path(__file__).resolve().parent
 REPORT_DIR = BENCHMARK_DIR / "reports"
 DASHBOARD_PATH = REPORT_DIR / "dashboard.html"
 
+
 def load_reports():
     ruthless_data = {}
     native_data = []
     comprehensive_data = {}
-    
+
     ruthless_path = REPORT_DIR / "ruthless_report.json"
     if ruthless_path.exists():
         try:
@@ -22,7 +23,7 @@ def load_reports():
                 ruthless_data = json.load(f)
         except Exception as e:
             print(f"⚠️ Error loading ruthless report: {e}")
-            
+
     native_path = REPORT_DIR / "native_eval_report.json"
     if native_path.exists():
         try:
@@ -54,13 +55,16 @@ def load_reports():
 def collect_docker_logs() -> dict[str, str]:
     """Collect docker compose logs for each service. Best-effort — returns empty on failure."""
     import subprocess
+
     services = ["backend", "celery-worker", "qdrant", "redis", "neo4j"]
     logs = {}
     for svc in services:
         try:
             ret = subprocess.run(
                 ["docker", "compose", "logs", "--tail", "200", svc],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             if ret.returncode == 0 and ret.stdout.strip():
                 logs[svc] = ret.stdout[-10000:]  # cap at ~10k chars
@@ -69,6 +73,7 @@ def collect_docker_logs() -> dict[str, str]:
         except Exception as e:
             logs[svc] = f"(collection failed: {e})"
     return logs
+
 
 def build_sdlc_tab_html(sdlc: dict) -> str:
     """Render the SDLC benchmark (sdlc_rag_benchmark.py) report as a dashboard tab.
@@ -85,11 +90,11 @@ def build_sdlc_tab_html(sdlc: dict) -> str:
 
     rows = "".join(
         f"""<tr>
-            <td>{c.get('name', '')}</td>
-            <td>{c.get('total', 0)}</td>
-            <td style="color: var(--success)">{c.get('passed', 0)}</td>
-            <td style="color: var(--danger, #e74c3c)">{c.get('failed', 0)}</td>
-            <td>{c.get('avg_latency_ms', 0):.0f} ms</td>
+            <td>{c.get("name", "")}</td>
+            <td>{c.get("total", 0)}</td>
+            <td style="color: var(--success)">{c.get("passed", 0)}</td>
+            <td style="color: var(--danger, #e74c3c)">{c.get("failed", 0)}</td>
+            <td>{c.get("avg_latency_ms", 0):.0f} ms</td>
         </tr>"""
         for c in categories
     )
@@ -123,23 +128,23 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
     timestamp = ruthless.get("timestamp", time.time())
     run_id = ruthless.get("run_id", "N/A")
     backend_url = ruthless.get("backend", "http://localhost:8000")
-    
-    formatted_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
-    
+
+    formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timestamp))
+
     infra = ruthless.get("infrastructure", [])
     results = ruthless.get("results", [])
     categories = ruthless.get("categories", {})
-    
+
     # Calculate stats
     total_tests = len(results)
     passed_tests = sum(1 for r in results if r.get("passed", False))
     failed_tests = total_tests - passed_tests
     pass_rate = (passed_tests / total_tests) if total_tests > 0 else 0.0
-    
+
     latencies = [r.get("latency_ms", 0.0) for r in results if r.get("latency_ms") is not None]
     avg_latency = (sum(latencies) / len(latencies)) if latencies else 0.0
-    max_latency = max(latencies) if latencies else 0.0
-    
+    max(latencies) if latencies else 0.0
+
     # Category scores mapping
     category_rows_html = ""
     for cat_id, cat_data in categories.items():
@@ -147,12 +152,12 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
         cat_weight = cat_data.get("weight", 0.0)
         cat_verdict = cat_data.get("verdict", "FAIL")
         cat_name = cat_data.get("name", cat_id)
-        
+
         status_class = "pass" if cat_verdict == "PASS" else "fail"
         status_dot = "🟢" if cat_verdict == "PASS" else "🔴"
-        
+
         details_list = "".join(f"<li>{d}</li>" for d in cat_data.get("details", []))
-        
+
         category_rows_html += f"""
         <div class="category-card {status_class}">
             <div class="category-header">
@@ -179,7 +184,7 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
         card_class = "infra-up" if is_up else "infra-down"
         err = inf.get("error", "")
         err_html = f'<div class="infra-error">{err}</div>' if err else ""
-        
+
         infra_cards_html += f"""
         <div class="infra-card {card_class}">
             <div class="infra-service">{service_name}</div>
@@ -191,29 +196,31 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
 
     # Test Results Rows
     results_rows_html = ""
-    for idx, r in enumerate(results):
+    for _idx, r in enumerate(results):
         r_passed = r.get("passed", True)
         status_class = "row-pass" if r_passed else "row-fail"
         status_badge = "PASS" if r_passed else "FAIL"
-        
+
         category = r.get("category", "")
         query = r.get("query", "")
         response = r.get("response", "")
         latency = r.get("latency_ms", 0.0)
         citations = r.get("citations", [])
         failure_type = r.get("failure_type", "")
-        
+
         variant_type = r.get("variant_type")
         original_q = r.get("original_q")
-        
+
         variant_tag_html = ""
         if variant_type:
-            variant_tag_html = f'<span class="badge variant-{variant_type}">{variant_type.upper()} VARIANT</span>'
-            
+            variant_tag_html = (
+                f'<span class="badge variant-{variant_type}">{variant_type.upper()} VARIANT</span>'
+            )
+
         original_q_html = ""
         if original_q:
             original_q_html = f'<div class="original-query">Original: "{original_q}"</div>'
-            
+
         citations_html = ""
         if citations:
             cites_li = "".join(f"<li>{c}</li>" for c in citations)
@@ -223,15 +230,17 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
                 <ul>{cites_li}</ul>
             </div>
             """
-            
+
         trace_id = r.get("trace_id", "")
         error_str = r.get("error", "")
-        backend_logs = r.get("backend_logs", "")
+        r.get("backend_logs", "")
 
         node_timings = r.get("node_timings", {})
         timings_html = ""
         if node_timings:
-            timings_items = "".join(f'<span class="timing-chip">{k}: {v:.0f}ms</span>' for k, v in node_timings.items())
+            timings_items = "".join(
+                f'<span class="timing-chip">{k}: {v:.0f}ms</span>' for k, v in node_timings.items()
+            )
             timings_html = f'<div class="timings-container">{timings_items}</div>'
 
         trace_html = ""
@@ -240,12 +249,14 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
 
         error_html = ""
         if error_str:
-            error_html = f'<div class="error-stack-box"><strong>Error:</strong><pre>{error_str}</pre></div>'
-            
+            error_html = (
+                f'<div class="error-stack-box"><strong>Error:</strong><pre>{error_str}</pre></div>'
+            )
+
         fail_reason = ""
         if failure_type:
             fail_reason = f'<div class="fail-reason-box">⚠️ Failure: {failure_type.replace("_", " ").title()}</div>'
-            
+
         metrics_grid = f"""
         <div class="metrics-grid">
             <div class="metric-item">
@@ -266,9 +277,9 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
             </div>
         </div>
         """
-        
+
         results_rows_html += f"""
-        <div class="test-card {status_class}" data-category="{category}" data-status="{status_badge}" data-variant="{variant_type or 'original'}" data-search="{query.lower()} {response.lower()}">
+        <div class="test-card {status_class}" data-category="{category}" data-status="{status_badge}" data-variant="{variant_type or "original"}" data-search="{query.lower()} {response.lower()}">
             <div class="test-card-summary" onclick="toggleDetails(this)">
                 <div class="test-meta">
                     <span class="badge status-{status_badge.lower()}">{status_badge}</span>
@@ -291,8 +302,8 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
                 {citations_html}
                 {timings_html}
                 <div class="debug-details">
-                    <span>Intent: {r.get("intent", "N/A")}</span> | 
-                    <span>Trace: {trace_id[:24] if trace_id else "N/A"}</span> | 
+                    <span>Intent: {r.get("intent", "N/A")}</span> |
+                    <span>Trace: {trace_id[:24] if trace_id else "N/A"}</span> |
                     <span>Layer: {r.get("layer_tested", "N/A")}</span>
                 </div>
             </div>
@@ -306,17 +317,17 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
         avg_prec = sum(r.get("precision", 0.0) for r in native) / len(native)
         avg_faith = sum(r.get("faithfulness", 0.0) for r in native) / len(native)
         avg_lat = sum(r.get("latency_s", 0.0) for r in native) / len(native)
-        
+
         native_rows = ""
         for n in native:
             sec_val = f"{n.get('security_score', 0.0):.0%}"
             prec_val = f"{n.get('precision', 0.0):.0%}"
             faith_val = f"{n.get('faithfulness', 0.0):.0%}"
-            
+
             native_rows += f"""
             <div class="native-eval-card">
-                <div class="native-query">"{n.get('query')}"</div>
-                <div class="native-meta">Category: {n.get('category')} | Latency: {n.get('latency_s'):.2f}s</div>
+                <div class="native-query">"{n.get("query")}"</div>
+                <div class="native-meta">Category: {n.get("category")} | Latency: {n.get("latency_s"):.2f}s</div>
                 <div class="native-scores">
                     <div class="native-score-chip">🛡️ Security: {sec_val}</div>
                     <div class="native-score-chip">🎯 Precision: {prec_val}</div>
@@ -324,17 +335,23 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
                 </div>
             </div>
             """
-            
+
     # Latency Distribution Chart (SVG bar chart)
     latency_buckets = {"<1s": 0, "1-3s": 0, "3-5s": 0, "5-10s": 0, "10-30s": 0, ">30s": 0}
     for r in results:
         lat = r.get("latency_ms", 0) / 1000
-        if lat < 1: latency_buckets["<1s"] += 1
-        elif lat < 3: latency_buckets["1-3s"] += 1
-        elif lat < 5: latency_buckets["3-5s"] += 1
-        elif lat < 10: latency_buckets["5-10s"] += 1
-        elif lat < 30: latency_buckets["10-30s"] += 1
-        else: latency_buckets[">30s"] += 1
+        if lat < 1:
+            latency_buckets["<1s"] += 1
+        elif lat < 3:
+            latency_buckets["1-3s"] += 1
+        elif lat < 5:
+            latency_buckets["3-5s"] += 1
+        elif lat < 10:
+            latency_buckets["5-10s"] += 1
+        elif lat < 30:
+            latency_buckets["10-30s"] += 1
+        else:
+            latency_buckets[">30s"] += 1
     max_bucket = max(latency_buckets.values()) or 1
     bar_height = 140
     bar_width = 55
@@ -343,9 +360,9 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
     for label, count in latency_buckets.items():
         h = (count / max_bucket) * bar_height
         y = bar_height - h
-        bars_svg += f'<rect x="{x}" y="{y}" width="{bar_width-10}" height="{max(h, 2)}" rx="3" fill="var(--primary)" opacity="0.8"><title>{count} queries ({label})</title></rect>'
-        bars_svg += f'<text x="{x + (bar_width-10)/2}" y="{bar_height + 14}" text-anchor="middle" font-size="10" fill="var(--text-muted)">{label}</text>'
-        bars_svg += f'<text x="{x + (bar_width-10)/2}" y="{y - 6}" text-anchor="middle" font-size="11" fill="var(--text-color)" font-weight="600">{count}</text>'
+        bars_svg += f'<rect x="{x}" y="{y}" width="{bar_width - 10}" height="{max(h, 2)}" rx="3" fill="var(--primary)" opacity="0.8"><title>{count} queries ({label})</title></rect>'
+        bars_svg += f'<text x="{x + (bar_width - 10) / 2}" y="{bar_height + 14}" text-anchor="middle" font-size="10" fill="var(--text-muted)">{label}</text>'
+        bars_svg += f'<text x="{x + (bar_width - 10) / 2}" y="{y - 6}" text-anchor="middle" font-size="11" fill="var(--text-color)" font-weight="600">{count}</text>'
         x += bar_width
     chart_svg_width = x + 10
 
@@ -373,28 +390,28 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
         comp_rate = comp_passed / comp_total if comp_total else 0
         comp_rows = ""
         for cr in comprehensive["results"]:
-            c_sym = "✅" if cr.get("passed") else "❌"
+            "✅" if cr.get("passed") else "❌"
             c_q = cr.get("query", "")[:60]
             comp_rows += f"""
-            <div class="test-card {'row-pass' if cr.get('passed') else 'row-fail'}">
+            <div class="test-card {"row-pass" if cr.get("passed") else "row-fail"}">
                 <div class="test-card-summary" onclick="toggleDetails(this)">
                     <div class="test-meta">
-                        <span class="badge status-{'pass' if cr.get('passed') else 'fail'}">{'PASS' if cr.get('passed') else 'FAIL'}</span>
-                        <span class="test-category-badge">{cr.get('category', '')}</span>
-                        <span class="test-latency">{cr.get('latency_ms', 0):.0f}ms</span>
+                        <span class="badge status-{"pass" if cr.get("passed") else "fail"}">{"PASS" if cr.get("passed") else "FAIL"}</span>
+                        <span class="test-category-badge">{cr.get("category", "")}</span>
+                        <span class="test-latency">{cr.get("latency_ms", 0):.0f}ms</span>
                     </div>
                     <div class="test-query-summary">{c_q}</div>
                 </div>
                 <div class="test-card-details">
                     <div class="metrics-grid">
-                        <div class="metric-item"><span class="m-label">KW Score</span><span class="m-val">{cr.get('keyword_score', 0):.2f}</span></div>
-                        <div class="metric-item"><span class="m-label">Intent</span><span class="m-val">{cr.get('intent', 'N/A')}</span></div>
-                        <div class="metric-item"><span class="m-label">Intent Match</span><span class="m-val">{'✅' if cr.get('intent_match') else '❌'}</span></div>
-                        <div class="metric-item"><span class="m-label">Difficulty</span><span class="m-val">{cr.get('difficulty', '')}</span></div>
+                        <div class="metric-item"><span class="m-label">KW Score</span><span class="m-val">{cr.get("keyword_score", 0):.2f}</span></div>
+                        <div class="metric-item"><span class="m-label">Intent</span><span class="m-val">{cr.get("intent", "N/A")}</span></div>
+                        <div class="metric-item"><span class="m-label">Intent Match</span><span class="m-val">{"✅" if cr.get("intent_match") else "❌"}</span></div>
+                        <div class="metric-item"><span class="m-label">Difficulty</span><span class="m-val">{cr.get("difficulty", "")}</span></div>
                     </div>
-                    {('<div class="fail-reason-box">Error: ' + cr.get('error', '') + '</div>') if cr.get('error') else ''}
-                    <div class="response-box"><strong>Response:</strong><p>{cr.get('response', '')[:600]}</p></div>
-                    {('<div class="citations-container"><strong>Citations:</strong><ul>' + ''.join(f'<li>{c}</li>' for c in cr.get('citations', [])) + '</ul></div>') if cr.get('citations') else ''}
+                    {('<div class="fail-reason-box">Error: ' + cr.get("error", "") + "</div>") if cr.get("error") else ""}
+                    <div class="response-box"><strong>Response:</strong><p>{cr.get("response", "")[:600]}</p></div>
+                    {('<div class="citations-container"><strong>Citations:</strong><ul>' + "".join(f"<li>{c}</li>" for c in cr.get("citations", [])) + "</ul></div>") if cr.get("citations") else ""}
                 </div>
             </div>"""
         comp_html = f"""
@@ -1464,7 +1481,7 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
         <div class="infra-grid">
             {infra_cards_html}
         </div>
-        
+
         <div class="score-panel" style="text-align: left; align-items: flex-start; max-width: 800px;">
             <h3 style="font-family: 'Outfit'; font-size: 1.25rem; margin-bottom: 1rem; color: var(--primary);">Spiritual RAG Pipeline Architecture</h3>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
@@ -1507,10 +1524,10 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
         function switchTab(evt, tabId) {{
             const contents = document.querySelectorAll('.tab-content');
             contents.forEach(c => c.classList.remove('active'));
-            
+
             const buttons = document.querySelectorAll('.tab-btn');
             buttons.forEach(b => b.classList.remove('active'));
-            
+
             document.getElementById(tabId).classList.add('active');
             evt.currentTarget.classList.add('active');
         }}
@@ -1526,20 +1543,20 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
             const categoryFilter = document.getElementById('categoryFilter').value;
             const statusFilter = document.getElementById('statusFilter').value;
             const variantFilter = document.getElementById('variantFilter').value;
-            
+
             const cards = document.querySelectorAll('#testList .test-card');
-            
+
             cards.forEach(card => {{
                 const searchData = card.getAttribute('data-search') || '';
                 const cardCategory = card.getAttribute('data-category') || '';
                 const cardStatus = card.getAttribute('data-status') || '';
                 const cardVariant = card.getAttribute('data-variant') || 'original';
-                
+
                 const matchesSearch = !searchQuery || searchData.includes(searchQuery);
                 const matchesCategory = categoryFilter === 'ALL' || cardCategory === categoryFilter;
                 const matchesStatus = statusFilter === 'ALL' || cardStatus === statusFilter;
                 const matchesVariant = variantFilter === 'ALL' || cardVariant === variantFilter;
-                
+
                 if (matchesSearch && matchesCategory && matchesStatus && matchesVariant) {{
                     card.style.display = 'block';
                 }} else {{
@@ -1553,6 +1570,7 @@ def build_html(ruthless, native, comprehensive, docker_logs, sdlc=None):
 """
     return html
 
+
 def main():
     print("🚀 Generating dashboard.html...")
     ruthless, native, comprehensive, sdlc = load_reports()
@@ -1565,12 +1583,13 @@ def main():
     docker_logs = collect_docker_logs()
 
     html = build_html(ruthless, native, comprehensive, docker_logs, sdlc=sdlc)
-    
+
     os.makedirs(REPORT_DIR, exist_ok=True)
     with open(DASHBOARD_PATH, "w") as f:
         f.write(html)
-        
+
     print(f"✨ Dashboard generated successfully: {DASHBOARD_PATH}")
+
 
 if __name__ == "__main__":
     main()

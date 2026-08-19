@@ -19,7 +19,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-import time
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Optional
@@ -29,34 +28,111 @@ logger = logging.getLogger(__name__)
 
 # ── Doctrine keywords (inlined to avoid ContainerBuilder OOM) ──────────────
 
+
 @lru_cache(maxsize=1)
 def _spiritual_keywords() -> frozenset[str]:
     """Cached set of all spiritual doctrine synonyms for keyword scanning."""
-    return frozenset([
-        "beautiful state", "suffering state", "surrender", "oneness", "consciousness",
-        "ekam", "deeksha", "soul sync", "four sacred secrets", "preethaji", "krishnaji",
-        "sri preethaji", "sri krishnaji", "sri bhagavan", "sri amma", "sri amma bhagavan",
-        "anandagiri", "sparsha deeksha", "smarana deeksha", "prana deeksha", "netra deeksha",
-        "ojas", "hiranyagarbha", "brahmarandhra", "namaskara mudra", "saptapadi",
-        "hamsa soham ekam", "vastu purusha mandala", "matra shastra", "neelakantha",
-        "nagabharana", "ajna chakra", "sat-chit-ananda", "shivaratri", "antaryamin",
-        "sthitha pragna", "ekam tapas", "ekam sattva", "ekam mithra", "ekam dhyana",
-        "ekam mukthi", "ekam siddha", "ekam arogya", "ekam abhyasa", "moola mantra",
-        "meditation", "dharma", "karma", "moksha", "atma", "brahman", "samsara",
-        "guru", "sadhna", "sadhana", "mahavakya", "satsang", "sankalpa", "vairagya",
-        "bhakti", "jnana", "kriya", "mantra", "maya", "jeevan mukta", "paramatma",
-        "enlightenment", "liberation", "spiritual", "awakening", "mindfulness",
-        "inner peace", "divine", "sacred", "soul", "awareness", "presence",
-        "stillness", "silence", "transformation", "healing", "devotion", "bliss",
-        "gratitude", "compassion", "love", "peace", "unity",
-    ])
+    return frozenset(
+        [
+            "beautiful state",
+            "suffering state",
+            "surrender",
+            "oneness",
+            "consciousness",
+            "ekam",
+            "deeksha",
+            "soul sync",
+            "four sacred secrets",
+            "preethaji",
+            "krishnaji",
+            "sri preethaji",
+            "sri krishnaji",
+            "sri bhagavan",
+            "sri amma",
+            "sri amma bhagavan",
+            "anandagiri",
+            "sparsha deeksha",
+            "smarana deeksha",
+            "prana deeksha",
+            "netra deeksha",
+            "ojas",
+            "hiranyagarbha",
+            "brahmarandhra",
+            "namaskara mudra",
+            "saptapadi",
+            "hamsa soham ekam",
+            "vastu purusha mandala",
+            "matra shastra",
+            "neelakantha",
+            "nagabharana",
+            "ajna chakra",
+            "sat-chit-ananda",
+            "shivaratri",
+            "antaryamin",
+            "sthitha pragna",
+            "ekam tapas",
+            "ekam sattva",
+            "ekam mithra",
+            "ekam dhyana",
+            "ekam mukthi",
+            "ekam siddha",
+            "ekam arogya",
+            "ekam abhyasa",
+            "moola mantra",
+            "meditation",
+            "dharma",
+            "karma",
+            "moksha",
+            "atma",
+            "brahman",
+            "samsara",
+            "guru",
+            "sadhna",
+            "sadhana",
+            "mahavakya",
+            "satsang",
+            "sankalpa",
+            "vairagya",
+            "bhakti",
+            "jnana",
+            "kriya",
+            "mantra",
+            "maya",
+            "jeevan mukta",
+            "paramatma",
+            "enlightenment",
+            "liberation",
+            "spiritual",
+            "awakening",
+            "mindfulness",
+            "inner peace",
+            "divine",
+            "sacred",
+            "soul",
+            "awareness",
+            "presence",
+            "stillness",
+            "silence",
+            "transformation",
+            "healing",
+            "devotion",
+            "bliss",
+            "gratitude",
+            "compassion",
+            "love",
+            "peace",
+            "unity",
+        ]
+    )
 
 
 # ── Result dataclass ──────────────────────────────────────────────────────────
 
+
 @dataclass
 class QualityResult:
     """Result of the data quality gate for a piece of content."""
+
     passed: bool
     score: int  # 0–100
     tier_reached: int  # 1, 2, or 3 (highest tier that ran before pass/fail)
@@ -72,12 +148,13 @@ class QualityResult:
 
 # ── Tier 1: Deterministic checks ─────────────────────────────────────────────
 
+
 class DeterministicChecker:
     """Fast, zero-cost deterministic content validation."""
 
-    MIN_LENGTH = 100           # characters
-    MAX_HTML_RATIO = 0.15      # >15% HTML tags = likely scraped junk
-    MAX_REPEAT_RATIO = 0.15    # top n-gram >15% of words = repetitive noise
+    MIN_LENGTH = 100  # characters
+    MAX_HTML_RATIO = 0.15  # >15% HTML tags = likely scraped junk
+    MAX_REPEAT_RATIO = 0.15  # top n-gram >15% of words = repetitive noise
     MIN_WORD_COUNT = 20
     NGRAM_SIZE = 3
 
@@ -86,7 +163,12 @@ class DeterministicChecker:
         if not url:
             return False
         url_lower = url.lower()
-        return "shorts/" in url_lower or "reel/" in url_lower or "tiktok.com" in url_lower or "instagram.com" in url_lower
+        return (
+            "shorts/" in url_lower
+            or "reel/" in url_lower
+            or "tiktok.com" in url_lower
+            or "instagram.com" in url_lower
+        )
 
     def check(self, text: str, source_url: str = "") -> tuple[bool, int, list[str]]:
         """
@@ -125,10 +207,14 @@ class DeterministicChecker:
             repeat_ratio = self._check_repetition(words)
             if repeat_ratio > self.MAX_REPEAT_RATIO:
                 if repeat_ratio > 0.25:
-                    reasons.append(f"Severe repetitive noise detected (n-gram density={repeat_ratio:.1%})")
+                    reasons.append(
+                        f"Severe repetitive noise detected (n-gram density={repeat_ratio:.1%})"
+                    )
                     penalty += 60
                 else:
-                    reasons.append(f"Repetitive content detected (n-gram density={repeat_ratio:.1%})")
+                    reasons.append(
+                        f"Repetitive content detected (n-gram density={repeat_ratio:.1%})"
+                    )
                     penalty += 25
 
         # Spiritual relevance keyword hit (bonus — reduces penalty)
@@ -139,6 +225,7 @@ class DeterministicChecker:
 
         # Information density (Task E2.5) — thin content penalty
         from app.config import settings
+
         density_min = float(getattr(settings, "quality_min_information_density", 0.35))
         density = information_density(stripped)
         if density < density_min:
@@ -172,12 +259,56 @@ class DeterministicChecker:
 # ── Tier 1+: Information density / fact-check / bias stubs (Task E2.5) ────────
 
 # Minimal stopword set so density scoring ignores filler words.
-_DENSITY_STOPWORDS = frozenset({
-    "the", "a", "an", "and", "or", "but", "is", "are", "was", "were", "be", "been",
-    "of", "to", "in", "on", "for", "with", "as", "by", "at", "from", "it", "this",
-    "that", "these", "those", "i", "you", "we", "they", "he", "she", "his", "her",
-    "not", "so", "if", "then", "than", "do", "does", "did", "have", "has", "had",
-})
+_DENSITY_STOPWORDS = frozenset(
+    {
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "but",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "of",
+        "to",
+        "in",
+        "on",
+        "for",
+        "with",
+        "as",
+        "by",
+        "at",
+        "from",
+        "it",
+        "this",
+        "that",
+        "these",
+        "those",
+        "i",
+        "you",
+        "we",
+        "they",
+        "he",
+        "she",
+        "his",
+        "her",
+        "not",
+        "so",
+        "if",
+        "then",
+        "than",
+        "do",
+        "does",
+        "did",
+        "have",
+        "has",
+        "had",
+    }
+)
 
 
 def information_density(text: str) -> float:
@@ -198,9 +329,15 @@ def information_density(text: str) -> float:
 
 # Tiny built-in blocklist for the bias-detection stub. Extend via
 # settings.quality_bias_blocklist (comma-separated) for production use.
-_BIAS_BLOCKLIST_STUB = frozenset({
-    "heretic", "infidel", "blasphemy", "cultist", "heathen",
-})
+_BIAS_BLOCKLIST_STUB = frozenset(
+    {
+        "heretic",
+        "infidel",
+        "blasphemy",
+        "cultist",
+        "heathen",
+    }
+)
 
 
 def detect_bias(text: str, extra_blocklist: str = "") -> list[str]:
@@ -304,7 +441,7 @@ class LLMQualityScorer:
                 timeout=self._timeout,
             )
             return self._parse_json_response(raw)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("LLM quality score timed out — quarantining as UNKNOWN")
             return 0, ["QUALITY_UNKNOWN: LLM timeout; manual review required"]
         except Exception as e:
@@ -336,7 +473,7 @@ class LLMQualityScorer:
     def _sample_text(self, text: str, sample_size: int, positions: int) -> str:
         """Sample text from start, middle, and end positions."""
         if len(text) <= sample_size * positions:
-            return text[:sample_size * positions]
+            return text[: sample_size * positions]
 
         step = len(text) // positions
         samples = []
@@ -347,6 +484,7 @@ class LLMQualityScorer:
 
 
 # ── Tier 3: Supabase staging queue ────────────────────────────────────────────
+
 
 class StagingQueue:
     """Writes rejected/borderline content to Supabase for human review."""
@@ -372,17 +510,25 @@ class StagingQueue:
 
         try:
             result = await asyncio.to_thread(
-                lambda: self._client.table("staging_quality_queue").insert({
-                    "source_url": source_url,
-                    "content_preview": content_preview[:2000],
-                    "quality_score": quality_score,
-                    "fail_reasons": fail_reasons,
-                    "content_hash": content_hash,
-                    "status": "pending",
-                }).execute()
+                lambda: (
+                    self._client.table("staging_quality_queue")
+                    .insert(
+                        {
+                            "source_url": source_url,
+                            "content_preview": content_preview[:2000],
+                            "quality_score": quality_score,
+                            "fail_reasons": fail_reasons,
+                            "content_hash": content_hash,
+                            "status": "pending",
+                        }
+                    )
+                    .execute()
+                )
             )
             staging_id = result.data[0]["id"] if result.data else None
-            logger.info(f"Staged for review: {source_url} (score={quality_score}) → id={staging_id}")
+            logger.info(
+                f"Staged for review: {source_url} (score={quality_score}) → id={staging_id}"
+            )
             return staging_id
         except Exception as e:
             logger.warning(f"Staging queue write failed: {e}")
@@ -390,6 +536,7 @@ class StagingQueue:
 
 
 # ── Main Gate Orchestrator ────────────────────────────────────────────────────
+
 
 class DataQualityGate:
     """
@@ -411,6 +558,7 @@ class DataQualityGate:
         enabled: Optional[bool] = None,
     ):
         from app.config import settings
+
         self._llm_scorer = LLMQualityScorer(llm_service) if llm_service else None
         self._staging = StagingQueue(supabase_client)
         self._deterministic = DeterministicChecker()
@@ -419,20 +567,11 @@ class DataQualityGate:
             raw_threshold = getattr(settings, "quality_gate_threshold", None)
         if raw_threshold is None:
             raw_threshold = self.DEFAULT_THRESHOLD
-        self._threshold = (
-            quality_threshold
-            if quality_threshold is not None
-            else int(raw_threshold)
-        )
+        self._threshold = quality_threshold if quality_threshold is not None else int(raw_threshold)
         raw_enabled = getattr(settings, "data_audit_enabled", None)
         if raw_enabled is None:
             raw_enabled = True
-        self._enabled = (
-            enabled
-            if enabled is not None
-            else bool(raw_enabled)
-        )
-
+        self._enabled = enabled if enabled is not None else bool(raw_enabled)
 
     async def run(self, text: str, source_url: str = "") -> QualityResult:
         """
@@ -440,12 +579,16 @@ class DataQualityGate:
         If not enabled, always returns PASS with score=100.
         """
         import hashlib
+
         content_hash = hashlib.sha256(text.encode()).hexdigest()[:16]
 
         if not self._enabled:
             return QualityResult(
-                passed=True, score=100, tier_reached=0,
-                reasons=["Quality gate disabled"], source_url=source_url,
+                passed=True,
+                score=100,
+                tier_reached=0,
+                reasons=["Quality gate disabled"],
+                source_url=source_url,
                 content_hash=content_hash,
             )
 
@@ -453,8 +596,11 @@ class DataQualityGate:
         t1_ok, t1_penalty, t1_reasons = self._deterministic.check(text, source_url)
         if not t1_ok:
             result = QualityResult(
-                passed=False, score=0, tier_reached=1,
-                reasons=t1_reasons, source_url=source_url,
+                passed=False,
+                score=0,
+                tier_reached=1,
+                reasons=t1_reasons,
+                source_url=source_url,
                 content_hash=content_hash,
             )
             result.staging_id = await self._staging.submit(
@@ -469,8 +615,7 @@ class DataQualityGate:
         if self._llm_scorer:
             llm_score, llm_reasons = await self._llm_scorer.score(text, source_url)
             quality_unknown = any(
-                str(reason).startswith("QUALITY_UNKNOWN:")
-                for reason in llm_reasons
+                str(reason).startswith("QUALITY_UNKNOWN:") for reason in llm_reasons
             )
             # Blend T1 (40%) and LLM (60%) scores for robustness
             final_score = int(score_from_t1 * 0.4 + llm_score * 0.6)
@@ -500,7 +645,9 @@ class DataQualityGate:
             result.staging_id = await self._staging.submit(
                 source_url, text[:500], final_score, all_reasons, content_hash
             )
-            logger.warning(f"Quality gate T2 FAIL: {source_url} score={final_score} — staged for review")
+            logger.warning(
+                f"Quality gate T2 FAIL: {source_url} score={final_score} — staged for review"
+            )
         else:
             logger.info(f"Quality gate PASS: {source_url} score={final_score}/100")
 
@@ -537,7 +684,9 @@ class DataQualityGate:
 
         # If > 30% of sampled chunks fail → reject entire batch
         if len(failed_indices) / max(len(indices_to_check), 1) > 0.3:
-            logger.warning(f"Batch quality fail: {len(failed_indices)}/{len(indices_to_check)} chunks failed → rejecting all")
+            logger.warning(
+                f"Batch quality fail: {len(failed_indices)}/{len(indices_to_check)} chunks failed → rejecting all"
+            )
             return [], results
 
         return chunks, results
@@ -550,10 +699,12 @@ if __name__ == "__main__":
     checker = DeterministicChecker()
 
     # Good spiritual text
-    good = "Sri Preethaji teaches us that the Beautiful State is a state of inner calm, " \
-           "not dependent on external circumstances. Through Soul Sync meditation, we learn " \
-           "to access this state moment by moment, regardless of what is happening around us. " \
-           "This is the essence of the Four Sacred Secrets taught at Ekam World Centre."
+    good = (
+        "Sri Preethaji teaches us that the Beautiful State is a state of inner calm, "
+        "not dependent on external circumstances. Through Soul Sync meditation, we learn "
+        "to access this state moment by moment, regardless of what is happening around us. "
+        "This is the essence of the Four Sacred Secrets taught at Ekam World Centre."
+    )
     ok, pen, reasons = checker.check(good)
     print(f"Good text: passed={ok} penalty={pen} reasons={reasons}")
 
@@ -588,7 +739,8 @@ if __name__ == "__main__":
     )
     fabricated, s2 = gate_summary_faithfulness(
         "Krishnaji promises followers guaranteed wealth and eternal youth.",
-        sources, _FakeScorer(),
+        sources,
+        _FakeScorer(),
     )
     assert supported is True, f"supported summary should pass (score={s1})"
     assert fabricated is False, f"fabrication should be gated out (score={s2})"

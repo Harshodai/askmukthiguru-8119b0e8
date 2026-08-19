@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 import string
 from pathlib import Path
 
@@ -160,13 +159,17 @@ class DoctrineCache:
 
     def _load_json(self, path: str) -> None:
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 data = json.load(fh)
             # Accept both flat dict and list-of-dict formats
             if isinstance(data, dict):
                 self._raw = data
             elif isinstance(data, list):
-                self._raw = {item["question"]: item["answer"] for item in data if "question" in item and "answer" in item}
+                self._raw = {
+                    item["question"]: item["answer"]
+                    for item in data
+                    if "question" in item and "answer" in item
+                }
             else:
                 raise ValueError("Expected dict or list")
             self._build_index()
@@ -178,13 +181,16 @@ class DoctrineCache:
     def _load_from_supabase(self) -> None:
         """Load doctrine FAQs from Supabase table ``doctrine_faqs``."""
         try:
-            import asyncio
             # supabase client is synchronous; wrap in to_thread if we ever need async,
             # but init runs in sync context during service construction.
             res = self._supabase.table("doctrine_faqs").select("question,answer").execute()
             rows = getattr(res, "data", []) or []
             if rows:
-                self._raw = {row["question"]: row["answer"] for row in rows if "question" in row and "answer" in row}
+                self._raw = {
+                    row["question"]: row["answer"]
+                    for row in rows
+                    if "question" in row and "answer" in row
+                }
                 self._build_index()
                 logger.info("Loaded doctrine cache from Supabase (%d entries)", len(self._raw))
         except Exception as e:

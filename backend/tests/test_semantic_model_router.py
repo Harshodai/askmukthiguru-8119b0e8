@@ -41,6 +41,7 @@ class _FakeEmbedding:
 # Majority vote
 # ---------------------------------------------------------------------------
 
+
 def test_majority_vote_single():
     assert SemanticModelRouter._majority_vote(["fast"]) == "fast"
     assert SemanticModelRouter._majority_vote(["deep"]) == "deep"
@@ -55,14 +56,13 @@ def test_majority_vote_tie_fast_wins_deep():
 
 
 def test_majority_vote_three_way_tie():
-    assert (
-        SemanticModelRouter._majority_vote(["fast", "standard", "deep"]) == "standard"
-    )
+    assert SemanticModelRouter._majority_vote(["fast", "standard", "deep"]) == "standard"
 
 
 # ---------------------------------------------------------------------------
 # Cosine similarity
 # ---------------------------------------------------------------------------
+
 
 def test_cosine_similarity_identical():
     q = [1.0, 0.0, 0.0]
@@ -81,6 +81,7 @@ def test_cosine_similarity_empty_candidates():
 # ---------------------------------------------------------------------------
 # Classify
 # ---------------------------------------------------------------------------
+
 
 def test_classify_empty_query():
     fake = _FakeEmbedding()
@@ -128,6 +129,7 @@ def test_precompute_caches_vectors():
 # ---------------------------------------------------------------------------
 # classify_with_score
 # ---------------------------------------------------------------------------
+
 
 def test_classify_with_score_returns_confidence():
     fake = _FakeEmbedding()

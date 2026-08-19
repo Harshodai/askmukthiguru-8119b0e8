@@ -39,10 +39,18 @@ class FakeAsyncClient:
         if "completions" in url:
             model = json.get("model", "") if json else ""
             if json and ("meta/llama-3.1-8b-instruct" in model):
-                return FakeResponse(data={
-                    "choices": [{"message": {"content": "{\"intent\": \"FACTUAL\", \"complexity\": \"simple\"}"}}],
-                    "usage": {"prompt_tokens": 5, "completion_tokens": 6}
-                })
+                return FakeResponse(
+                    data={
+                        "choices": [
+                            {
+                                "message": {
+                                    "content": '{"intent": "FACTUAL", "complexity": "simple"}'
+                                }
+                            }
+                        ],
+                        "usage": {"prompt_tokens": 5, "completion_tokens": 6},
+                    }
+                )
             return FakeResponse()
         return FakeResponse(status_code=404)
 
@@ -56,10 +64,11 @@ class FakeAsyncClient:
 async def test_nim_service_generate(monkeypatch):
     monkeypatch.setattr(settings, "nim_api_key", "test-api-key")
     monkeypatch.setattr(settings, "nim_generation_model", "some-other-model")
-    
+
     # Capture client initialization
     async def fake_get_client(self):
         return FakeAsyncClient()
+
     monkeypatch.setattr(NimService, "_get_http_client", fake_get_client)
 
     service = NimService()
@@ -70,9 +79,10 @@ async def test_nim_service_generate(monkeypatch):
 @pytest.mark.asyncio
 async def test_nim_provider_delegation(monkeypatch):
     monkeypatch.setattr(settings, "nim_api_key", "test-api-key")
-    
+
     async def fake_get_client(self):
         return FakeAsyncClient()
+
     monkeypatch.setattr(NimService, "_get_http_client", fake_get_client)
 
     service = NimService()

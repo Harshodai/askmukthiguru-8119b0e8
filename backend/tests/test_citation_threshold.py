@@ -15,7 +15,10 @@ from services.citation_service import _check_grounding
 def _jaccard_band_answer() -> tuple[str, list[dict]]:
     """Sentence with 3-gram Jaccard ~0.22 (above old 0.18, below new 0.30)."""
     docs = [
-        {"title": "Ekam Teaching", "text": "meditation on the breath is the ancient teaching of ekam wisdom"},
+        {
+            "title": "Ekam Teaching",
+            "text": "meditation on the breath is the ancient teaching of ekam wisdom",
+        },
     ]
     answer = "the practice of breathing teaches calm and wisdom to every seeker"
     return answer, docs
@@ -47,7 +50,10 @@ def test_high_jaccard_cited():
     """Sentence at ~0.65 Jaccard clears the new 0.30 threshold and is cited."""
     answer = "meditation on the breath and the teaching of ekam wisdom are one"
     docs = [
-        {"title": "Ekam Teaching", "text": "meditation on the breath is the ancient teaching of ekam wisdom"},
+        {
+            "title": "Ekam Teaching",
+            "text": "meditation on the breath is the ancient teaching of ekam wisdom",
+        },
     ]
     cited = _cite_sentences(answer, docs, intent="MEDITATION")
     assert "[[CITE:1]]" in cited

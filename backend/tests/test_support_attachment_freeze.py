@@ -1,4 +1,5 @@
 """Regression tests for the text-only public support boundary."""
+
 from __future__ import annotations
 
 from io import BytesIO
@@ -11,15 +12,17 @@ from app.api import support
 
 
 def _request() -> Request:
-    return Request({
-        "type": "http",
-        "method": "POST",
-        "path": "/api/support/contact",
-        "headers": [],
-        "client": ("127.0.0.1", 1234),
-        "server": ("testserver", 80),
-        "scheme": "http",
-    })
+    return Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/api/support/contact",
+            "headers": [],
+            "client": ("127.0.0.1", 1234),
+            "server": ("testserver", 80),
+            "scheme": "http",
+        }
+    )
 
 
 @pytest.mark.asyncio
@@ -57,7 +60,9 @@ async def test_text_only_support_request_is_still_allowed(monkeypatch: pytest.Mo
 
 
 @pytest.mark.asyncio
-async def test_support_honeypot_is_accepted_without_sending(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_support_honeypot_is_accepted_without_sending(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     called = False
 
     def _send(**_: object) -> bool:

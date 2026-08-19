@@ -23,11 +23,23 @@ import re
 # Capability / meta questions ("what can you do", "who are you", ...).
 # Substring match on the lowercased question.
 DOCTRINE_CAPABILITY_PATTERNS: list[str] = [
-    "what can you", "what do you know", "what topics", "what kind of things",
-    "what can you answer", "what teachings do you have", "what is in your repository",
-    "what do you store", "what information do you have", "how can you help",
-    "what questions can you", "what are you able to", "tell me about yourself",
-    "what do you do", "who are you", "what do you offer", "how do you work",
+    "what can you",
+    "what do you know",
+    "what topics",
+    "what kind of things",
+    "what can you answer",
+    "what teachings do you have",
+    "what is in your repository",
+    "what do you store",
+    "what information do you have",
+    "how can you help",
+    "what questions can you",
+    "what are you able to",
+    "tell me about yourself",
+    "what do you do",
+    "who are you",
+    "what do you offer",
+    "how do you work",
 ]
 
 # Doctrine-bound simple queries. Use ``re.search`` so multi-word phrases such
@@ -49,11 +61,28 @@ DOCTRINE_SIMPLE_PATTERNS: list[str] = [
 # Temporal / real-time query markers. Substring match on the lowercased
 # question; triggers web search and tier3_complex routing.
 DOCTRINE_TEMPORAL_PATTERNS: list[str] = [
-    "this month", "next festival", "upcoming", "when is", "schedule",
-    "calendar", "latest", "current events", "this year", "next year",
-    "next month", "last month", "this week", "next week", "today",
-    "recent", "announcement", "program", "scope of manifest",
-    "manifest scope", "ekam events", "oneness events",
+    "this month",
+    "next festival",
+    "upcoming",
+    "when is",
+    "schedule",
+    "calendar",
+    "latest",
+    "current events",
+    "this year",
+    "next year",
+    "next month",
+    "last month",
+    "this week",
+    "next week",
+    "today",
+    "recent",
+    "announcement",
+    "program",
+    "scope of manifest",
+    "manifest scope",
+    "ekam events",
+    "oneness events",
 ]
 
 
@@ -78,41 +107,86 @@ HEURISTIC_SIMPLE_PATTERNS: list[str] = [
 
 # Comparative / analytical / multi-hop query markers.
 HEURISTIC_DEEP_PATTERNS: list[str] = [
-    r"\bcompare\b", r"\bcontrast\b", r"\bdifference between\b",
-    r"\bsimilarities between\b", r"\bversus\b", r"\bvs\b",
-    r"\brelationship between\b", r"\bhow are .* connected\b",
-    r"\bpros and cons\b", r"\badvantages? and disadvantages?\b",
-    r"\bevolution of\b", r"\bover time\b", r"\bacross different\b",
-    r"\btrick question\b", r"\btrap\b", r"\bfooled\b",
-    r"\btest the bot\b", r"\btry to confuse\b",
+    r"\bcompare\b",
+    r"\bcontrast\b",
+    r"\bdifference between\b",
+    r"\bsimilarities between\b",
+    r"\bversus\b",
+    r"\bvs\b",
+    r"\brelationship between\b",
+    r"\bhow are .* connected\b",
+    r"\bpros and cons\b",
+    r"\badvantages? and disadvantages?\b",
+    r"\bevolution of\b",
+    r"\bover time\b",
+    r"\bacross different\b",
+    r"\btrick question\b",
+    r"\btrap\b",
+    r"\bfooled\b",
+    r"\btest the bot\b",
+    r"\btry to confuse\b",
 ]
 
 # Doctrine keyword fast-path triggers (common spiritual terms + founder
 # names). Substring match on the lowercased query.
 DOCTRINE_FAST_PATH_KEYWORDS: list[str] = [
     # Core teachings
-    "four sacred secrets", "four secrets", "sacred secret",
-    "deeksha", "oneness blessing",
-    "soul sync", "soul-sync",
-    "ekam", "varadaiahpalem",
-    "manifest 2026", "manifest 2025", "12 powers",
-    "beautiful state", "beautiful state teachings",
-    "preethaji", "krishnaji", "founder",
-    "loka seva", "ekam world",
+    "four sacred secrets",
+    "four secrets",
+    "sacred secret",
+    "deeksha",
+    "oneness blessing",
+    "soul sync",
+    "soul-sync",
+    "ekam",
+    "varadaiahpalem",
+    "manifest 2026",
+    "manifest 2025",
+    "12 powers",
+    "beautiful state",
+    "beautiful state teachings",
+    "preethaji",
+    "krishnaji",
+    "founder",
+    "loka seva",
+    "ekam world",
     # Expanded for broader fast-path coverage
-    "meditation", "serene mind", "breath", "breathing",
-    "consciousness", "oneness", "surrender", "bliss",
-    "suffering", "soul", "spiritual", "divine", "enlightenment",
-    "karma", "dharma", "moksha", "atma", "guru",
-    "peace", "love", "gratitude", "compassion", "wisdom",
+    "meditation",
+    "serene mind",
+    "breath",
+    "breathing",
+    "consciousness",
+    "oneness",
+    "surrender",
+    "bliss",
+    "suffering",
+    "soul",
+    "spiritual",
+    "divine",
+    "enlightenment",
+    "karma",
+    "dharma",
+    "moksha",
+    "atma",
+    "guru",
+    "peace",
+    "love",
+    "gratitude",
+    "compassion",
+    "wisdom",
 ]
 
 # Multi-part guard: queries containing conjunctions/comparatives should not
 # be fast-pathed even when doctrine keywords are present (avoids routing
 # "What is deeksha and how do I practice it?" to the fast graph).
 HEURISTIC_MULTI_PART_INDICATORS: list[str] = [
-    r"\band\b", r"\balso\b", r"\bplus\b", r"\bbesides\b",
-    r"\bin addition\b", r"\bfurthermore\b", r"\bmoreover\b",
+    r"\band\b",
+    r"\balso\b",
+    r"\bplus\b",
+    r"\bbesides\b",
+    r"\bin addition\b",
+    r"\bfurthermore\b",
+    r"\bmoreover\b",
 ]
 
 # Broader regex-based simple-query detection. Consumed via ``re.search`` on

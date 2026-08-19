@@ -22,7 +22,6 @@ import json
 import os
 import sys
 import time
-from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -35,7 +34,6 @@ sys.path.insert(0, str(BACKEND_ROOT))
 os.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")
 
 from benchmarks.question_bank import QUERIES  # noqa: E402
-
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -207,9 +205,7 @@ async def run_benchmark():
         report.avg_without_lightrag_ms = round(
             sum(r.without_lightrag_time_ms for r in valid) / len(valid), 2
         )
-        report.avg_overlap = round(
-            sum(r.overlap_ratio for r in valid) / len(valid), 3
-        )
+        report.avg_overlap = round(sum(r.overlap_ratio for r in valid) / len(valid), 3)
         report.avg_doc_delta = round(
             sum(r.with_lightrag_doc_count - r.without_lightrag_doc_count for r in valid)
             / len(valid),

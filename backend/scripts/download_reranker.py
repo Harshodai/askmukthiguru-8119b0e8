@@ -3,15 +3,18 @@
 Run during Docker image build to avoid cold-start model downloads:
   python scripts/download_reranker.py
 """
+
 import os
 
-os.environ.update({
-    "SENTENCE_TRANSFORMERS_HOME": os.environ.get(
-        "SENTENCE_TRANSFORMERS_HOME", "/app/model_cache/sentence_transformers"
-    ),
-    "HF_HOME": os.environ.get("HF_HOME", "/app/model_cache/huggingface"),
-    "TRANSFORMERS_CACHE": os.environ.get("TRANSFORMERS_CACHE", "/app/model_cache/huggingface"),
-})
+os.environ.update(
+    {
+        "SENTENCE_TRANSFORMERS_HOME": os.environ.get(
+            "SENTENCE_TRANSFORMERS_HOME", "/app/model_cache/sentence_transformers"
+        ),
+        "HF_HOME": os.environ.get("HF_HOME", "/app/model_cache/huggingface"),
+        "TRANSFORMERS_CACHE": os.environ.get("TRANSFORMERS_CACHE", "/app/model_cache/huggingface"),
+    }
+)
 
 from sentence_transformers import CrossEncoder  # noqa: E402
 
@@ -22,6 +25,7 @@ CPU_RERANKER = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 
 # GPU/MPS reranker: 568M param bge model — only loaded on GPU servers (Railway GPU, A100)
 GPU_RERANKER = "BAAI/bge-reranker-v2-m3"
+
 
 def main() -> None:
     print(f"Downloading CPU reranker: {CPU_RERANKER}")

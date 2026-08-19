@@ -18,14 +18,14 @@ import logging
 import threading
 import time
 from functools import lru_cache
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
 from app.config import settings
 
 try:
-    from turbovec import TurboQuantIndex, IdMapIndex
+    from turbovec import IdMapIndex, TurboQuantIndex
 
     _HAVE_TURBOVEC = True
 except ImportError:
@@ -163,7 +163,13 @@ class TurboQuantCache:
             fid = all_fids[int(pos)]
             meta = self._metadata.get(fid)
             if meta is not None:
-                results.append({"id": int(fid), "score": score_val, "metadata": {k: v for k, v in meta.items() if k != "_embedding"}})
+                results.append(
+                    {
+                        "id": int(fid),
+                        "score": score_val,
+                        "metadata": {k: v for k, v in meta.items() if k != "_embedding"},
+                    }
+                )
         return results
 
     def refresh(self, qdrant_service: Any = None) -> None:
@@ -235,9 +241,7 @@ class TurboQuantCache:
                 self._index.add(np.array([emb], dtype=np.float32))
         self._prepared = False
 
-    def _numpy_search(
-        self, qvec: np.ndarray, k: int, threshold: float
-    ) -> list[dict]:
+    def _numpy_search(self, qvec: np.ndarray, k: int, threshold: float) -> list[dict]:
         """Fallback numpy brute-force cosine similarity."""
         if not self._metadata:
             return []
@@ -271,11 +275,13 @@ class TurboQuantCache:
                 continue
             fid = valid_ids[idx]
             meta = self._metadata.get(fid, {})
-            results.append({
-                "id": int(fid),
-                "score": score,
-                "metadata": {k: v for k, v in meta.items() if k != "_embedding"},
-            })
+            results.append(
+                {
+                    "id": int(fid),
+                    "score": score,
+                    "metadata": {k: v for k, v in meta.items() if k != "_embedding"},
+                }
+            )
         return results
 
     def _reset(self) -> None:

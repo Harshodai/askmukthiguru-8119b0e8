@@ -69,9 +69,7 @@ def _make_container():
     # stream-orchestrator claims/releases quota after the done event, so bind
     # awaitable check_and_record/claim/release explicitly.
     quota_mock = MagicMock()
-    quota_mock.check_and_record = AsyncMock(
-        return_value=SimpleNamespace(quota_exceeded=False)
-    )
+    quota_mock.check_and_record = AsyncMock(return_value=SimpleNamespace(quota_exceeded=False))
     quota_mock.claim = AsyncMock()
     quota_mock.release = AsyncMock()
     container.anon_quota_service = quota_mock

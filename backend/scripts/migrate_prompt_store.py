@@ -16,8 +16,11 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.config import get_settings
+from datetime import UTC
+
 from supabase import create_client
+
+from app.config import get_settings
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -69,10 +72,11 @@ def migrate():
 
         created_ts = row["created_at"]
         try:
-            from datetime import datetime, timezone
-            created_iso = datetime.fromtimestamp(created_ts, tz=timezone.utc).isoformat()
+            from datetime import datetime
+
+            created_iso = datetime.fromtimestamp(created_ts, tz=UTC).isoformat()
         except Exception:
-            created_iso = datetime.now(timezone.utc).isoformat()
+            created_iso = datetime.now(UTC).isoformat()
 
         payload = {
             "name": name,
@@ -87,7 +91,9 @@ def migrate():
         try:
             client.table("prompt_versions").insert(payload).execute()
             migrated += 1
-            logger.info(f"  Migrated {name} v{version} ({'active' if payload['active'] else 'inactive'})")
+            logger.info(
+                f"  Migrated {name} v{version} ({'active' if payload['active'] else 'inactive'})"
+            )
         except Exception as e:
             logger.error(f"  Failed to migrate {name} v{version}: {e}")
 

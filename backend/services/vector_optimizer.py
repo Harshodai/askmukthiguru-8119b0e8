@@ -57,7 +57,7 @@ class VectorIndexOptimizer:
         """
         try:
             info = self._client.get_collection(self._collection)
-            config = info.config if hasattr(info, "config") else None
+            info.config if hasattr(info, "config") else None
             optimizer_status = getattr(info, "optimizer_status", {})
             points_count = getattr(info, "points_count", 0) or 0
             segments_count = getattr(info, "segments_count", 0) or 0
@@ -68,7 +68,7 @@ class VectorIndexOptimizer:
 
             # Determine health status heuristics
             if segments_count > 50 or fragmentation_pct > 40:
-                status = "red"    # Too many segments or high fragmentation
+                status = "red"  # Too many segments or high fragmentation
             elif segments_count > 20 or fragmentation_pct > 30:
                 status = "yellow"  # Many segments — benefit from optimization
             else:
@@ -100,7 +100,9 @@ class VectorIndexOptimizer:
 
             # Trigger auto-reopt if fragmentation is high
             if fragmentation_pct > 30:
-                logger.info(f"VectorIndexOptimizer: auto-triggering reopt (fragmentation={fragmentation_pct}%)")
+                logger.info(
+                    f"VectorIndexOptimizer: auto-triggering reopt (fragmentation={fragmentation_pct}%)"
+                )
                 self.trigger_optimizer()
 
             return health
@@ -128,8 +130,8 @@ class VectorIndexOptimizer:
             self._client.update_collection(
                 collection_name=self._collection,
                 optimizer_config=OptimizersConfigDiff(
-                    indexing_threshold=20_000,   # Trigger index build at 20k vectors
-                    memmap_threshold=50_000,     # Use mmap above 50k points
+                    indexing_threshold=20_000,  # Trigger index build at 20k vectors
+                    memmap_threshold=50_000,  # Use mmap above 50k points
                 ),
             )
             logger.info(f"VectorIndexOptimizer: optimizer triggered on '{self._collection}'")

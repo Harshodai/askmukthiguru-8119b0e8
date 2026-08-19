@@ -192,25 +192,32 @@ async def test_analyze_distress_trend_disabled_config(monkeypatch):
 # --- M1 regression: question/gerund-framed crisis ideation must not bypass ---
 # Before the fix these returned NONE (0.00) because the CRISIS regex required
 # the literal "want to die" and the intent tie-break ranked FACTUAL over DISTRESS.
-@pytest.mark.parametrize("text", [
-    "i want to die",
-    "how do i stop wanting to die",
-    "how do i end it all",
-    "i've been planning how to leave this world",
-])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "i want to die",
+        "how do i stop wanting to die",
+        "how do i end it all",
+        "i've been planning how to leave this world",
+    ],
+)
 def test_question_framed_ideation_detected_as_crisis(text):
     assert SereneMindEngine().assess_distress(text).level.value >= DistressLevel.SEVERE.value, text
 
 
-@pytest.mark.parametrize("text", [
-    "what is a beautiful state",
-    "how do i meditate",
-    "tell me about the four sacred secrets",
-])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "what is a beautiful state",
+        "how do i meditate",
+        "tell me about the four sacred secrets",
+    ],
+)
 def test_doctrine_queries_are_not_distress(text):
     assert SereneMindEngine().assess_distress(text).level == DistressLevel.NONE, text
 
 
 def test_distress_wins_intent_tiebreak_over_factual():
     from rag.nodes.on_device_intent import classify
+
     assert classify("how do i end it all") == "DISTRESS"

@@ -2,10 +2,12 @@
 Cross-provider failover for Sarvam Cloud.
 Falls back to Krutrim API when Sarvam provider is unavailable.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
+from typing import Optional
 
 from services.krutrim_service import KrutrimService
 
@@ -24,7 +26,9 @@ class SarvamFailoverService:
         self._primary = primary_service
         self._krutrim = krutrim
 
-    async def generate(self, system_prompt: str, user_prompt: str, context: str = "", **kwargs) -> str:
+    async def generate(
+        self, system_prompt: str, user_prompt: str, context: str = "", **kwargs
+    ) -> str:
         try:
             return await self._primary.generate(system_prompt, user_prompt, context, **kwargs)
         except Exception as exc:
@@ -33,12 +37,18 @@ class SarvamFailoverService:
                 return await self._krutrim.generate(system_prompt, user_prompt, **kwargs)
             raise
 
-    async def generate_stream(self, system_prompt: str, user_prompt: str, context: str = "", **kwargs) -> AsyncIterator[str]:
+    async def generate_stream(
+        self, system_prompt: str, user_prompt: str, context: str = "", **kwargs
+    ) -> AsyncIterator[str]:
         try:
-            async for token in self._primary.generate_stream(system_prompt, user_prompt, context, **kwargs):
+            async for token in self._primary.generate_stream(
+                system_prompt, user_prompt, context, **kwargs
+            ):
                 yield token
         except Exception as exc:
-            logger.warning(f"Primary LLM streaming failed: {exc}. Trying Krutrim non-streaming fallback...")
+            logger.warning(
+                f"Primary LLM streaming failed: {exc}. Trying Krutrim non-streaming fallback..."
+            )
             if self._krutrim:
                 result = await self._krutrim.generate(system_prompt, user_prompt, **kwargs)
                 yield result
@@ -53,4 +63,4 @@ class SarvamFailoverService:
 
     @property
     def circuit_breaker_registry(self):
-        return getattr(self._primary, '_circuit', None)
+        return getattr(self._primary, "_circuit", None)

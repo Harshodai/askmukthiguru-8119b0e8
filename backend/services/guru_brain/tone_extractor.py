@@ -12,7 +12,7 @@ import logging
 import re
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,9 @@ class ToneExtractor:
     def __init__(self, llm_service: Any = None) -> None:
         self.llm_service = llm_service
 
-    def rule_based_speaker_diarization(self, text: str, default_guru: str = "preethaji") -> list[dict[str, str]]:
+    def rule_based_speaker_diarization(
+        self, text: str, default_guru: str = "preethaji"
+    ) -> list[dict[str, str]]:
         """Fallback deterministic speaker segmenter for transcript text."""
         segments = []
         lines = text.split("\n")
@@ -125,11 +127,15 @@ class ToneExtractor:
         # If LLM service is available, use structured prompt extraction
         if self.llm_service:
             try:
-                extracted_data = await self._extract_with_llm(transcript_text, source_id, default_guru)
+                extracted_data = await self._extract_with_llm(
+                    transcript_text, source_id, default_guru
+                )
                 if extracted_data:
                     return extracted_data
             except Exception as exc:
-                logger.warning(f"ToneExtractor: LLM extraction failed ({exc}), falling back to deterministic extraction.")
+                logger.warning(
+                    f"ToneExtractor: LLM extraction failed ({exc}), falling back to deterministic extraction."
+                )
 
         # Deterministic speaker diarization fallback: filter out interviewer and unknown segments
         segments = self.rule_based_speaker_diarization(transcript_text, default_guru=default_guru)
@@ -137,7 +143,9 @@ class ToneExtractor:
 
         if not guru_segments:
             chunks = self._chunk_transcript(transcript_text, max_chars=1500)
-            fallback_guru = default_guru if default_guru in ("krishnaji", "preethaji") else "preethaji"
+            fallback_guru = (
+                default_guru if default_guru in ("krishnaji", "preethaji") else "preethaji"
+            )
             guru_segments = [{"speaker": fallback_guru, "text": c} for c in chunks]
 
         for idx, seg in enumerate(guru_segments):
@@ -240,7 +248,7 @@ class ToneExtractor:
                 end = raw_json.rfind("]")
                 if start == -1 or end == -1:
                     continue
-                items = json.loads(raw_json[start: end + 1])
+                items = json.loads(raw_json[start : end + 1])
                 for i, item in enumerate(items):
                     response_text = item.get("guru_response", "")
                     # Deduplicate by first 80 chars of response
@@ -255,10 +263,14 @@ class ToneExtractor:
                             speaker_role=item.get("guru_name", default_guru),
                             interviewer_name=item.get("interviewer_name", "Interviewer/Seeker"),
                             seeker_question=item.get("seeker_question", ""),
-                            seeker_emotional_state=item.get("seeker_emotional_state", "spiritual inquiry"),
+                            seeker_emotional_state=item.get(
+                                "seeker_emotional_state", "spiritual inquiry"
+                            ),
                             guru_response=response_text,
                             phrasing_dna=item.get("phrasing_dna", []),
-                            teaching_concept=item.get("teaching_concept", "Living in a Beautiful State"),
+                            teaching_concept=item.get(
+                                "teaching_concept", "Living in a Beautiful State"
+                            ),
                             source_id=source_id,
                             raw_segment=response_text,
                         )

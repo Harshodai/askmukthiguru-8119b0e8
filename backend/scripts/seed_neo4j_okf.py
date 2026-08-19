@@ -19,7 +19,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -30,6 +29,7 @@ env_path = backend_dir / ".env"
 if env_path.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(env_path, override=False)
     except ImportError:
         pass
@@ -37,7 +37,6 @@ if env_path.exists():
 sys.path.insert(0, str(backend_dir))
 
 from services.guru_brain.guru_kg_service import GuruKGService
-
 
 # ── 20 curated OKF Transformation Arcs ────────────────────────────────────────
 # Source: UlOt31lBhLY transcript (Marie Forleo interview) + Four Sacred Secrets doctrine
@@ -249,7 +248,9 @@ if __name__ == "__main__":
     n = seed(neo4j_uri, neo4j_user, neo4j_password)
     if n > 0:
         print(f"✅ Seeded {n}/{len(OKF_ARCS)} OKF transformation arcs into Neo4j.")
-        print("   Labels created: SeekerDilemma, RootLimitingBelief, GuruTeaching, BeautifulState, PracticeStep, GuruSpeaker")
+        print(
+            "   Labels created: SeekerDilemma, RootLimitingBelief, GuruTeaching, BeautifulState, PracticeStep, GuruSpeaker"
+        )
         print("   Relations: DRIVEN_BY, DISMANTLES, TRANSFORMS_TO, PRESCRIBES, TEACHES")
     else:
         print("❌ Seeding failed. Check Neo4j connection and credentials.")

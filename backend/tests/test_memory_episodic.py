@@ -69,10 +69,7 @@ class _MockTable:
         if self._or_filter:
             # parse "query.ilike.%t%,answer.ilike.%t%" naively
             term = self._or_filter.split("ilike.")[-1].strip("%")
-            rows = [
-                r for r in rows
-                if term in (r.get("query", "") + r.get("answer", ""))
-            ]
+            rows = [r for r in rows if term in (r.get("query", "") + r.get("answer", ""))]
         if self._order_desc:
             rows = sorted(rows, key=lambda r: r.get("created_at", ""), reverse=True)
         if self._limit is not None:

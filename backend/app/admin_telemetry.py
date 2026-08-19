@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 _QUERY_FIELDS = (
     "id",
     "created_at",
@@ -87,19 +86,10 @@ def operations_snapshot(
     """Derive bounded aggregate evidence for the operations overview."""
     safe_traces = [trace_summary(trace) for trace in traces]
     latencies = [
-        float(item["latency_ms"])
-        for item in safe_traces
-        if item.get("latency_ms") is not None
+        float(item["latency_ms"]) for item in safe_traces if item.get("latency_ms") is not None
     ]
-    failures = sum(
-        1
-        for item in safe_traces
-        if item.get("status") not in {None, "ok", "success"}
-    )
-    total_cost = sum(
-        float(item.get("cost_estimate") or 0.0)
-        for item in safe_traces
-    )
+    failures = sum(1 for item in safe_traces if item.get("status") not in {None, "ok", "success"})
+    total_cost = sum(float(item.get("cost_estimate") or 0.0) for item in safe_traces)
     readiness = release_readiness if isinstance(release_readiness, dict) else {}
     release_snapshot = {
         "enabled": bool(readiness.get("enabled", False)),
@@ -112,12 +102,8 @@ def operations_snapshot(
     return {
         "sample_size": len(safe_traces),
         "failure_count": failures,
-        "failure_rate": (
-            round(failures / len(safe_traces), 4) if safe_traces else 0.0
-        ),
-        "average_latency_ms": (
-            round(sum(latencies) / len(latencies), 2) if latencies else None
-        ),
+        "failure_rate": (round(failures / len(safe_traces), 4) if safe_traces else 0.0),
+        "average_latency_ms": (round(sum(latencies) / len(latencies), 2) if latencies else None),
         "cost_estimate_usd": round(total_cost, 6),
         "model_policy_id": model_policy_id,
         "budget_guard_enabled": budget_guard_enabled,

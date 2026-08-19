@@ -14,9 +14,7 @@ from pathlib import Path
 
 import pytest
 
-MIGRATIONS_DIR = (
-    Path(__file__).resolve().parents[2] / "supabase" / "migrations"
-)
+MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
 RECONCILE_MIGRATION = MIGRATIONS_DIR / "20260804000005_reconcile_user_brain_keys.sql"
 VAULT_MIGRATION = MIGRATIONS_DIR / "20260717191006_second_brain_vault.sql"
 KEYS_MIGRATION = MIGRATIONS_DIR / "20260718120001_second_brain_keys_table.sql"
@@ -36,21 +34,36 @@ def _union_column_set() -> set[str]:
         assert path.exists(), f"missing {path}"
         for line in path.read_text().splitlines():
             stripped = line.strip().lower()
-            if stripped.startswith(("user_id", "wrapped_dek", "wrap_mode", "kdf",
-                                    "version", "kek", "dek_wrapped", "rotated_at",
-                                    "created_at", "updated_at")):
+            if stripped.startswith(
+                (
+                    "user_id",
+                    "wrapped_dek",
+                    "wrap_mode",
+                    "kdf",
+                    "version",
+                    "kek",
+                    "dek_wrapped",
+                    "rotated_at",
+                    "created_at",
+                    "updated_at",
+                )
+            ):
                 columns.add(stripped.split()[0])
     return columns
 
 
 def test_union_source_columns(reconcile_sql):
     """Sanity: the two source migrations actually disagree (the bug)."""
-    vault_cols = {line.strip().lower().split()[0]
-                  for line in VAULT_MIGRATION.read_text().splitlines()
-                  if line.strip().lower().startswith(("wrapped_dek", "wrap_mode", "kdf", "version"))}
-    keys_cols = {line.strip().lower().split()[0]
-                 for line in KEYS_MIGRATION.read_text().splitlines()
-                 if line.strip().lower().startswith(("kek", "dek_wrapped", "updated_at"))}
+    vault_cols = {
+        line.strip().lower().split()[0]
+        for line in VAULT_MIGRATION.read_text().splitlines()
+        if line.strip().lower().startswith(("wrapped_dek", "wrap_mode", "kdf", "version"))
+    }
+    keys_cols = {
+        line.strip().lower().split()[0]
+        for line in KEYS_MIGRATION.read_text().splitlines()
+        if line.strip().lower().startswith(("kek", "dek_wrapped", "updated_at"))
+    }
     assert vault_cols.isdisjoint(keys_cols), "source migrations unexpectedly agree"
     assert "wrap_mode" in vault_cols and "kek" in keys_cols
 
@@ -85,7 +98,9 @@ def test_reconciliation_covers_service_columns():
     Every column it touches must exist after the reconciliation migration."""
     service_file = (
         Path(__file__).resolve().parents[1]
-        / "services" / "second_brain" / "second_brain_service.py"
+        / "services"
+        / "second_brain"
+        / "second_brain_service.py"
     )
     service_src = service_file.read_text()
     required = {"wrapped_dek", "wrap_mode", "kdf", "version"}

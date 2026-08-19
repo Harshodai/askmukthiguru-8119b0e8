@@ -16,8 +16,8 @@ import time
 from collections.abc import AsyncIterator, Mapping
 from typing import Any, Optional
 
-from anyio import Lock as AsyncLock
 import httpx
+from anyio import Lock as AsyncLock
 from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait_exponential
 
 
@@ -31,23 +31,17 @@ def _is_retryable_openrouter_error(exc: BaseException) -> bool:
         return False
     return isinstance(exc, (httpx.HTTPError, asyncio.TimeoutError))
 
+
 from app.config import settings
+from app.constants import CircuitBreakerProvider
 from app.model_policy import OpenRouterModelPolicy
 from app.openrouter_budget import OpenRouterBudgetGuard
-
-
-from app.constants import CircuitBreakerProvider
-from services.circuit_breaker import (
-    CircuitBreakerConfig,
-    CircuitOpenException,
-    DefaultCircuitBreaker,
-)
 from rag.prompts import (
     BATCH_GRADE_PROMPT,
     COMBINED_VERIFICATION_PROMPT,
+    COMPRESS_CONTEXT_PROMPT,
     DECOMPOSE_QUERY_PROMPT,
     FAITHFULNESS_CHECK_PROMPT,
-    GRADE_RELEVANCE_PROMPT,
     HINT_EXTRACTION_PROMPT,
     HYDE_PROMPT,
     INTENT_CLASSIFICATION_PROMPT,
@@ -55,7 +49,11 @@ from rag.prompts import (
     QUERY_REWRITE_PROMPT,
     SUMMARIZE_PROMPT,
     VERIFICATION_PROMPT,
-    COMPRESS_CONTEXT_PROMPT,
+)
+from services.circuit_breaker import (
+    CircuitBreakerConfig,
+    CircuitOpenException,
+    DefaultCircuitBreaker,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,11 +72,9 @@ _OPENROUTER_FALLBACK_RATES_PER_MILLION: dict[str, tuple[float, float]] = {
 class OpenRouterService:
     """Gateway to all LLM operations via OpenRouter Cloud API."""
 
-
     def __init__(self) -> None:
         self._policy = OpenRouterModelPolicy.from_settings(settings)
         self._budget_guard = OpenRouterBudgetGuard.from_settings(settings, self._policy)
-
 
         """Initialize the OpenRouter API client."""
         self._api_key = settings.openrouter_api_key
@@ -95,7 +91,10 @@ class OpenRouterService:
         config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.OPENROUTER.value)
         self._circuit = DefaultCircuitBreaker(config)
         from services.circuit_breaker import get_circuit_breaker_registry
-        get_circuit_breaker_registry().register(CircuitBreakerProvider.OPENROUTER.value, self._circuit)
+
+        get_circuit_breaker_registry().register(
+            CircuitBreakerProvider.OPENROUTER.value, self._circuit
+        )
 
         # Rate limiting state
         self._rpm_lock = AsyncLock()
@@ -168,13 +167,16 @@ class OpenRouterService:
 
     async def _graceful_degradation(self, messages: list[dict], operation: str = "fallback") -> str:
         """Return a graceful fallback response when OpenRouter is unavailable.
-        
+
         This avoids 500 errors — instead the user gets a meaningful message.
         """
         logger.warning(f"Using graceful degradation for {operation}")
         # Check if the last message looks like a question
         last_msg = messages[-1]["content"] if messages else ""
-        is_question = any(last_msg.lower().startswith(q) for q in ["what", "how", "who", "where", "why", "when", "can", "do", "is", "are"])
+        is_question = any(
+            last_msg.lower().startswith(q)
+            for q in ["what", "how", "who", "where", "why", "when", "can", "do", "is", "are"]
+        )
         if is_question:
             return (
                 "I'm currently experiencing a temporary connectivity issue with my knowledge base. "
@@ -207,17 +209,13 @@ class OpenRouterService:
     @staticmethod
     def _fallback_cost(tokens_in: int, tokens_out: int, model: str) -> float:
         """Estimate cost only for configured models with known public rates."""
-        input_rate, output_rate = _OPENROUTER_FALLBACK_RATES_PER_MILLION.get(
-            model, (0.0, 0.0)
-        )
+        input_rate, output_rate = _OPENROUTER_FALLBACK_RATES_PER_MILLION.get(model, (0.0, 0.0))
         return max(
             0.0,
-            (
-                max(0, int(tokens_in)) * input_rate
-                + max(0, int(tokens_out)) * output_rate
-            )
+            (max(0, int(tokens_in)) * input_rate + max(0, int(tokens_out)) * output_rate)
             / 1_000_000,
         )
+
     def _track_token_usage(
         self,
         *,
@@ -229,6 +227,7 @@ class OpenRouterService:
         """Push provider cost or an explicit fallback estimate into accounting."""
         try:
             from services.cost_tracker import token_accumulator_var
+
             acc = token_accumulator_var.get()
             if acc is not None:
                 acc.tokens_in += tokens_in
@@ -248,10 +247,12 @@ class OpenRouterService:
                 acc.model = model
                 acc.provider = "openrouter"
             from app.runtime_metrics import observe_provider_actual_cost
+
             if cost_usd is not None and cost_usd > 0:
                 observe_provider_actual_cost("openrouter", cost_usd)
         except Exception as exc:
             logger.warning(f"Failed to record openrouter token usage: {exc}")
+
     async def _call_api(
         self,
         messages: list[dict],
@@ -283,11 +284,12 @@ class OpenRouterService:
             await self._enforce_rate_limit()
 
         if not self._circuit.can_execute():
-            logger.warning(f"OpenRouter circuit breaker open — graceful degradation for {operation}")
+            logger.warning(
+                f"OpenRouter circuit breaker open — graceful degradation for {operation}"
+            )
             return await self._graceful_degradation(messages, operation=operation)
 
         reservation = await self._budget_guard.reserve()
-
 
         is_anthropic = "anthropic/" in model or "claude" in model
 
@@ -296,16 +298,18 @@ class OpenRouterService:
             if is_anthropic and msg.get("role") == "system" and msg.get("content"):
                 content = msg["content"]
                 if isinstance(content, str):
-                    payload_messages.append({
-                        "role": "system",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": content,
-                                "cache_control": {"type": "ephemeral"}
-                            }
-                        ]
-                    })
+                    payload_messages.append(
+                        {
+                            "role": "system",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": content,
+                                    "cache_control": {"type": "ephemeral"},
+                                }
+                            ],
+                        }
+                    )
                 else:
                     payload_messages.append(msg)
             else:
@@ -317,7 +321,6 @@ class OpenRouterService:
             "temperature": temperature,
             "max_tokens": max_tokens,
             "provider": self._policy.provider_preferences(),
-
         }
 
         # Handle potential parameters passed in kwargs
@@ -342,7 +345,7 @@ class OpenRouterService:
                 retry=retry_if_exception(_is_retryable_openrouter_error),
                 reraise=True,
             )
-            
+
             data = None
             async for attempt in retryer:
                 with attempt:
@@ -354,7 +357,7 @@ class OpenRouterService:
                 raise ValueError("Empty or invalid response from OpenRouter API")
 
             content = data["choices"][0]["message"]["content"]
-            
+
             # Track provider-reported usage. Token estimates remain a fallback
             # only when OpenRouter omits usage metadata.
             usage = data.get("usage", {})
@@ -363,9 +366,7 @@ class OpenRouterService:
 
             prompt_details = usage.get("prompt_tokens_details") or {}
             cached_tokens = (
-                prompt_details.get("cached_tokens")
-                or usage.get("cache_read_input_tokens")
-                or 0
+                prompt_details.get("cached_tokens") or usage.get("cache_read_input_tokens") or 0
             )
             if cached_tokens > 0:
                 logger.info(
@@ -382,7 +383,6 @@ class OpenRouterService:
             )
             await reservation.settle(cost_usd)
 
-
             return content
 
         except Exception as exc:
@@ -390,10 +390,11 @@ class OpenRouterService:
             # 429 is a transient quota signal — the service is up but throttling.
             # Only count service errors (5xx) and non-HTTP failures.
             is_rate_limit = (
-                isinstance(exc, httpx.HTTPStatusError)
-                and exc.response.status_code == 429
+                isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429
             )
-            is_connection_error = isinstance(exc, (httpx.RemoteProtocolError, httpx.ConnectError, httpx.TimeoutException))
+            is_connection_error = isinstance(
+                exc, (httpx.RemoteProtocolError, httpx.ConnectError, httpx.TimeoutException)
+            )
             if is_rate_limit or is_connection_error:
                 if is_rate_limit:
                     await self._record_rate_limit_response()
@@ -497,7 +498,7 @@ class OpenRouterService:
         **kwargs,
     ) -> str:
         """Raw generation without graceful degradation — exceptions propagate.
-        
+
         Intended for callers (e.g., translation providers) that need failures
         to bubble up for fallback logic, unlike `_generate_fast`/`translate_text`
         which swallow errors.
@@ -543,9 +544,9 @@ class OpenRouterService:
                         {
                             "type": "text",
                             "text": system_prompt,
-                            "cache_control": {"type": "ephemeral"}
+                            "cache_control": {"type": "ephemeral"},
                         }
-                    ]
+                    ],
                 }
             ]
         else:
@@ -632,13 +633,14 @@ class OpenRouterService:
             except Exception as e:
                 last_error = e
                 is_rate_limit = (
-                    isinstance(e, httpx.HTTPStatusError)
-                    and e.response.status_code == 429
+                    isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 429
                 )
                 if is_rate_limit:
                     await self._record_rate_limit_response()
-                    wait = min(2 ** attempt, 8)
-                    logger.warning(f"OpenRouter streaming 429 — retry {attempt + 1}/{self._max_retries} after {wait}s")
+                    wait = min(2**attempt, 8)
+                    logger.warning(
+                        f"OpenRouter streaming 429 — retry {attempt + 1}/{self._max_retries} after {wait}s"
+                    )
                     await asyncio.sleep(wait)
                 else:
                     self._circuit.record_failure()
@@ -666,7 +668,18 @@ class OpenRouterService:
         if not result_upper:
             return "QUERY"
 
-        for candidate in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL", "MEDITATION", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "QUERY", "CASUAL", "COMPARATIVE"]:
+        for candidate in [
+            "DISTRESS",
+            "SAFETY_VIOLATION",
+            "ADVERSARIAL",
+            "MEDITATION",
+            "FACTUAL",
+            "RELATIONAL",
+            "FOLLOW_UP",
+            "QUERY",
+            "CASUAL",
+            "COMPARATIVE",
+        ]:
             if candidate in result_upper:
                 return candidate
         return "QUERY"
@@ -700,7 +713,18 @@ class OpenRouterService:
             line = line.strip()
             if line.startswith("INTENT:"):
                 val = line.split(":", 1)[-1].strip()
-                for candidate in ["DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL", "MEDITATION", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "COMPARATIVE", "CASUAL", "QUERY"]:
+                for candidate in [
+                    "DISTRESS",
+                    "SAFETY_VIOLATION",
+                    "ADVERSARIAL",
+                    "MEDITATION",
+                    "FACTUAL",
+                    "RELATIONAL",
+                    "FOLLOW_UP",
+                    "COMPARATIVE",
+                    "CASUAL",
+                    "QUERY",
+                ]:
                     if candidate in val:
                         intent = candidate
                         break
@@ -735,8 +759,10 @@ class OpenRouterService:
             resp_clean = resp.strip()
             if resp_clean.startswith("```"):
                 # strip markdown blocks if any
-                resp_clean = re.sub(r"^```(?:json)?\n(.*?)\n```$", r"\1", resp_clean, flags=re.DOTALL).strip()
-                
+                resp_clean = re.sub(
+                    r"^```(?:json)?\n(.*?)\n```$", r"\1", resp_clean, flags=re.DOTALL
+                ).strip()
+
             first_brace = resp_clean.find("{")
             last_brace = resp_clean.rfind("}")
             if first_brace != -1 and last_brace != -1:
@@ -763,14 +789,15 @@ class OpenRouterService:
             return []
 
         numbered_docs = "\n\n".join(
-            f"Document {i + 1}:\n{doc[:1500]}"
-            for i, doc in enumerate(documents)
+            f"Document {i + 1}:\n{doc[:1500]}" for i, doc in enumerate(documents)
         )
 
         prompt = f"Question: {query}\n\n{numbered_docs}"
         result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt, **kwargs)
 
-        relevance_results = [{"relevant": False, "reason": "No response from LLM"} for _ in documents]
+        relevance_results = [
+            {"relevant": False, "reason": "No response from LLM"} for _ in documents
+        ]
 
         for line in result.strip().splitlines():
             line = line.strip()

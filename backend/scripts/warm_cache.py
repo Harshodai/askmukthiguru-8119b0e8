@@ -1,4 +1,5 @@
 """Pre-populate cache with top FAQ questions on deploy."""
+
 import asyncio
 import logging
 import os
@@ -51,12 +52,10 @@ _WARM_CACHE_CONCURRENCY = 4
 
 def create_dummy_chat_body(question: str) -> ChatRequest:
     return ChatRequest(
-        messages=[
-            MessagePayload(role="user", content=question)
-        ],
+        messages=[MessagePayload(role="user", content=question)],
         user_message=question,
         assistant_slug=None,
-        knowledge_tags=[]
+        knowledge_tags=[],
     )
 
 
@@ -106,10 +105,7 @@ async def main():
         logger.warning(f"Batch upfront embedding failed (non-critical): {e}")
 
     sem = asyncio.Semaphore(_WARM_CACHE_CONCURRENCY)
-    tasks = [
-        _warm_single_question(coordinator, q, sem)
-        for q in TOP_FAQ_QUESTIONS
-    ]
+    tasks = [_warm_single_question(coordinator, q, sem) for q in TOP_FAQ_QUESTIONS]
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
 

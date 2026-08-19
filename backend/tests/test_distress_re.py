@@ -12,6 +12,7 @@ Tests cover:
   3. preroute_intent() integration — non-distress queries → NOT "DISTRESS"
   4. Edge cases: mixed case, extra whitespace, emoji, long-text burial
 """
+
 import sys
 from pathlib import Path
 
@@ -29,7 +30,7 @@ POSITIVE_PHRASES = [
     "kill myself",
     "I'm going to hurt myself",
     "hurting myself",
-    "suicidal thoughts",          # matches "suicide" via word boundary? NO — see below
+    "suicidal thoughts",  # matches "suicide" via word boundary? NO — see below
     "I want to die",
     "want to die",
     "end my life",
@@ -63,7 +64,7 @@ ACTUALLY_MATCHING_POSITIVES = [
     "I'm having a panic attack",
     "severe anxiety",
     "I have severe anxiety right now",
-    "suicide",                    # bare word
+    "suicide",  # bare word
     "I'm having suicidal ideation and thoughts of suicide",  # contains "suicide"
 ]
 
@@ -71,11 +72,11 @@ NON_MATCHING_POSITIVES = [
     # These are distress-flavoured per the task spec, but DISTRESS_RE is
     # deliberately conservative and does NOT match them. Documenting the
     # boundary so future regex widening is a conscious decision.
-    "suicidal thoughts",          # "suicidal" ≠ "suicide"
-    "I'm going to hurt myself",   # "hurt" ≠ "hurting" — regex requires the -ing form
-    "I can't go on",              # no distress keyword
-    "better off dead",            # no distress keyword
-    "I want to live",             # "want to live" — must not match "want to die"
+    "suicidal thoughts",  # "suicidal" ≠ "suicide"
+    "I'm going to hurt myself",  # "hurt" ≠ "hurting" — regex requires the -ing form
+    "I can't go on",  # no distress keyword
+    "better off dead",  # no distress keyword
+    "I want to live",  # "want to live" — must not match "want to die"
 ]
 
 NEGATIVE_PHRASES = [
@@ -83,8 +84,8 @@ NEGATIVE_PHRASES = [
     "how to meditate",
     "what is karma",
     "tell me about consciousness",
-    "I feel sad today",            # sad ≠ distress
-    "I'm stressed about work",    # stress ≠ self-harm
+    "I feel sad today",  # sad ≠ distress
+    "I'm stressed about work",  # stress ≠ self-harm
     "What is Soul Sync?",
     "Who is Preethaji?",
     "Explain the Four Sacred Secrets",
@@ -128,9 +129,7 @@ def test_distress_re_specific_design_note_case():
     "What is the relationship between suffering and inner truth?" must NOT
     match — it's a factual query that mentions distress as a topic.
     """
-    assert DISTRESS_RE.search(
-        "What is the relationship between suffering and inner truth?"
-    ) is None
+    assert DISTRESS_RE.search("What is the relationship between suffering and inner truth?") is None
 
 
 # ---------------------------------------------------------------------------
@@ -206,11 +205,11 @@ def test_distress_re_extra_whitespace_in_keyword():
     alternations (kill\\s*myself, want\\s*to\\s*die, end\\s*my\\s*life,
     self[-\\s]*harm). Verify those tolerate extra spaces.
     """
-    assert DISTRESS_RE.search("kill   myself") is not None   # kill\s*myself
-    assert DISTRESS_RE.search("want  to  die") is not None     # want\s*to\s*die
+    assert DISTRESS_RE.search("kill   myself") is not None  # kill\s*myself
+    assert DISTRESS_RE.search("want  to  die") is not None  # want\s*to\s*die
     assert DISTRESS_RE.search("end   my   life") is not None
-    assert DISTRESS_RE.search("self  harm") is not None        # self[-\s]*harm
-    assert DISTRESS_RE.search("self-harm") is not None         # hyphen variant
+    assert DISTRESS_RE.search("self  harm") is not None  # self[-\s]*harm
+    assert DISTRESS_RE.search("self-harm") is not None  # hyphen variant
 
 
 def test_distress_re_leading_trailing_whitespace_preserved_by_preroute():
@@ -254,9 +253,9 @@ def test_distress_re_word_boundary_not_substring():
     """Word boundaries must prevent matching inside unrelated words."""
     # "suicide" must not match inside "suicided" is fine (it would), but
     # these substrings of benign words must NOT trigger:
-    assert DISTRESS_RE.search("diehard fan") is None          # "die" inside "diehard"
-    assert DISTRESS_RE.search("anxiety is normal") is None    # "anxiety" without "severe "
-    assert DISTRESS_RE.search("hurt myself esteem") is None    # "hurt" not "hurting"
+    assert DISTRESS_RE.search("diehard fan") is None  # "die" inside "diehard"
+    assert DISTRESS_RE.search("anxiety is normal") is None  # "anxiety" without "severe "
+    assert DISTRESS_RE.search("hurt myself esteem") is None  # "hurt" not "hurting"
 
 
 def test_distress_re_empty_and_blank():

@@ -35,18 +35,41 @@ def set_ollama(ollama_service):
 
 
 _FOLLOWUP_PHRASES = [
-    "tell me more", "what about", "how about", "explain more",
-    "go deeper", "say more", "tell me about that", "more about",
-    "what does that mean", "what do you mean", "why is that",
-    "how is that", "what about that", "can you elaborate",
-    "can you tell me more", "elaborate on that", "tell me about it",
-    "explain that", "tell me more about", "further explain",
+    "tell me more",
+    "what about",
+    "how about",
+    "explain more",
+    "go deeper",
+    "say more",
+    "tell me about that",
+    "more about",
+    "what does that mean",
+    "what do you mean",
+    "why is that",
+    "how is that",
+    "what about that",
+    "can you elaborate",
+    "can you tell me more",
+    "elaborate on that",
+    "tell me about it",
+    "explain that",
+    "tell me more about",
+    "further explain",
     "go into more detail",
 ]
 
 _REFERENTIAL_WORDS = {
-    "it", "that", "this", "these", "those", "they", "them",
-    "there", "more", "also", "further",
+    "it",
+    "that",
+    "this",
+    "these",
+    "those",
+    "they",
+    "them",
+    "there",
+    "more",
+    "also",
+    "further",
 }
 
 
@@ -145,6 +168,7 @@ async def resolve_followup(state: GraphState, config: dict = None) -> dict:
     # SSE status — let the user see that we're consulting the prior turn
     try:
         from rag.nodes.utils import emit_status
+
         await emit_status(config, "Connecting this to your previous question...")
     except Exception as _e:
         logger.debug("[followup resolution] suppressed non-critical error: %s", _e)
@@ -183,7 +207,12 @@ async def resolve_followup(state: GraphState, config: dict = None) -> dict:
 
         # Guard against models that emit code/markup instead of the rewritten question.
         # Treat the LLM output as unusable and fall back to the original question.
-        if resolved.startswith("def ") or resolved.startswith("class ") or "```" in resolved or "import " in resolved:
+        if (
+            resolved.startswith("def ")
+            or resolved.startswith("class ")
+            or "```" in resolved
+            or "import " in resolved
+        ):
             logger.warning(
                 f"Follow-up resolution returned code/markup instead of text; using original question. "
                 f"Output preview: {resolved[:80]!r}"

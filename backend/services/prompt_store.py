@@ -30,14 +30,14 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-UTC = timezone.utc
+UTC = UTC
 
 
 # Default teacher personality fragments (Phase E5 stub).
@@ -94,6 +94,7 @@ def build_teacher_prompt(teacher_id: Optional[str], base_prompt: str) -> str:
 
 def _get_client():
     from app.telemetry_db import _get_client as _supa_client
+
     return _supa_client()
 
 
@@ -256,14 +257,10 @@ class PromptStore:
         if not client:
             return []
         try:
-            res = (
-                client.table("prompt_versions")
-                .select("name")
-                .execute()
-            )
+            res = client.table("prompt_versions").select("name").execute()
             seen: set[str] = set()
             names: list[str] = []
-            for r in (res.data or []):
+            for r in res.data or []:
                 n = r.get("name")
                 if n and n not in seen:
                     seen.add(n)
@@ -291,7 +288,9 @@ class PromptStore:
                 return None
 
             client.table("prompt_versions").update({"active": False}).eq("name", name).execute()
-            client.table("prompt_versions").update({"active": True}).eq("name", name).eq("version", version).execute()
+            client.table("prompt_versions").update({"active": True}).eq("name", name).eq(
+                "version", version
+            ).execute()
 
             logger.info(f"PromptStore: rolled back '{name}' to v{version}")
             return self.get_active(name)
@@ -301,6 +300,7 @@ class PromptStore:
 
     def seed_from_module(self, module_name: str = "rag.prompts") -> int:
         import importlib
+
         try:
             module = importlib.import_module(module_name)
         except ImportError as exc:

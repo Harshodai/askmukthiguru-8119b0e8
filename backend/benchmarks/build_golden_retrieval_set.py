@@ -21,6 +21,7 @@ Usage:
     docker exec <ctr> python /app/benchmarks/build_golden_retrieval_set.py \
         --collection spiritual_wisdom --out /tmp/golden_retrieval_v1.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -98,7 +99,9 @@ def _normalize_terms(terms: list[str]) -> list[str]:
     return cleaned
 
 
-def _label(chunks: list[dict], terms: list[str], source_level: bool = False) -> tuple[set[str], int]:
+def _label(
+    chunks: list[dict], terms: list[str], source_level: bool = False
+) -> tuple[set[str], int]:
     """Return (distinct source_urls, matching chunk count).
 
     Chunk-level (default): a chunk must contain ALL terms; its source_url
@@ -138,10 +141,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--url", default="http://localhost:6333")
     p.add_argument("--question-bank", default="/app/benchmarks/question_bank.py")
     p.add_argument("--out", required=True, type=Path)
-    p.add_argument("--min-chunks", type=int, default=1,
-                   help="Queries with fewer matching chunks are dropped.")
-    p.add_argument("--source-level", action="store_true",
-                   help="Label sources whose chunks collectively cover all terms (multi-hop).")
+    p.add_argument(
+        "--min-chunks", type=int, default=1, help="Queries with fewer matching chunks are dropped."
+    )
+    p.add_argument(
+        "--source-level",
+        action="store_true",
+        help="Label sources whose chunks collectively cover all terms (multi-hop).",
+    )
     args = p.parse_args(argv)
 
     client = QdrantClient(url=args.url, timeout=120)
@@ -164,7 +171,9 @@ def main(argv: list[str] | None = None) -> int:
             continue
         sources, n_chunks = _label(chunks, terms, source_level=args.source_level)
         if n_chunks < args.min_chunks:
-            dropped.append({**item, "reason": f"only {n_chunks} chunks matched", "n_matched": n_chunks})
+            dropped.append(
+                {**item, "reason": f"only {n_chunks} chunks matched", "n_matched": n_chunks}
+            )
             continue
         labeled.append(
             {
@@ -187,9 +196,11 @@ def main(argv: list[str] | None = None) -> int:
         "version": "v1",
         "collection": args.collection,
         "generated": "2026-08-01",
-        "labeling": ("source-level all-terms coverage over full corpus scroll (verified question bank)"
-                     if args.source_level
-                     else "all-must_mention-terms match over full corpus scroll (verified question bank)"),
+        "labeling": (
+            "source-level all-terms coverage over full corpus scroll (verified question bank)"
+            if args.source_level
+            else "all-must_mention-terms match over full corpus scroll (verified question bank)"
+        ),
         "items": labeled,
     }
     args.out.write_text(json.dumps(out, indent=2))

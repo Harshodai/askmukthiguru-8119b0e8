@@ -37,7 +37,7 @@ def _post_chat(endpoint: str, payload: dict, test_key: str) -> tuple[int, str]:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:  # nosec B310 -- configured chaos-test endpoint
             return resp.status, resp.read().decode()[:200]
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode()[:200]

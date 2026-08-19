@@ -4,14 +4,15 @@ Production path uses Redis; falls back to an in-memory adapter when Redis is
 unavailable so the app keeps working in sandboxes/single-node dev. The service
 reads limits from app.config.settings so callers only pass a session id.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 
 from app.config import settings
-from services.anon_quota_port import AnonQuotaPort, QuotaResult
 from services.anon_quota_memory import AnonQuotaMemoryAdapter
+from services.anon_quota_port import AnonQuotaPort, QuotaResult
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ _CLAIM_TTL_FLOOR = 900.0
 class _LazyRedisAdapter(AnonQuotaPort):
     """Placeholder adapter that initializes the real Redis adapter lazily."""
 
-    def __init__(self, service: "AnonQuotaService") -> None:
+    def __init__(self, service: AnonQuotaService) -> None:
         self._service = service
 
     async def check_and_record(
@@ -106,9 +107,12 @@ class AnonQuotaService:
                 logger.info("AnonQuota: using Redis adapter")
                 self._adapter = adapter
             except Exception as exc:
-                logger.warning(f"AnonQuota: Redis adapter failed ({exc}), falling back to in-memory")
+                logger.warning(
+                    f"AnonQuota: Redis adapter failed ({exc}), falling back to in-memory"
+                )
                 try:
                     from app.metrics import ANON_QUOTA_DEGRADED_MODE
+
                     ANON_QUOTA_DEGRADED_MODE.labels(event="cold_start_fallback").inc()
                 except Exception:
                     pass

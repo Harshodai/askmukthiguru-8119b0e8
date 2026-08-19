@@ -23,7 +23,6 @@ n10s 5.x NOTES:
 from __future__ import annotations
 
 import logging
-import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -97,7 +96,9 @@ def init_neosemantics(driver) -> dict[str, Any]:
             rec = session.run(
                 "SHOW PROCEDURES YIELD name WHERE name STARTS WITH 'n10s.validation' RETURN count(*) AS n"
             ).single()
-            results["schema_check"] = f"n10s.schema.check not in n10s 5.x; validation procs available: {rec['n'] if rec else 0}"
+            results["schema_check"] = (
+                f"n10s.schema.check not in n10s 5.x; validation procs available: {rec['n'] if rec else 0}"
+            )
     except Exception as exc:  # noqa: BLE001
         results["schema_check"] = f"error: {exc}"
 

@@ -1,5 +1,5 @@
-import re
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +26,14 @@ class PIIScanner:
             ("ip_address", cls.IP_REGEX),
         ]:
             for match in pattern.finditer(text):
-                findings.append({
-                    "type": name,
-                    "start": match.start(),
-                    "end": match.end(),
-                    "value": match.group(),
-                })
+                findings.append(
+                    {
+                        "type": name,
+                        "start": match.start(),
+                        "end": match.end(),
+                        "value": match.group(),
+                    }
+                )
         return {
             "has_pii": len(findings) > 0,
             "types": list({f["type"] for f in findings}),

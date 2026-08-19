@@ -60,6 +60,7 @@ async def run_louvain(
     if not available:
         return []
     try:
+
         def _run() -> list[dict[str, Any]]:
             with neo4j_driver.session() as session:
                 # Project (idempotent-ish: drop first)
@@ -69,7 +70,9 @@ async def run_louvain(
                     logger.debug("[kg algorithms] suppressed non-critical error: %s", _e)
                 session.run(
                     "CALL gds.graph.project($name, $node, $rel)",
-                    name=graph_name, node=node_label, rel=relationship_type,
+                    name=graph_name,
+                    node=node_label,
+                    rel=relationship_type,
                 ).consume()
                 rows = session.run(
                     f"CALL gds.louvain.stream('{graph_name}') "
@@ -77,6 +80,7 @@ async def run_louvain(
                     "RETURN gds.util.asNode(nodeId).entity_id AS node_id, communityId"
                 )
                 return [{"node_id": r["node_id"], "communityId": r["communityId"]} for r in rows]
+
         return await asyncio.to_thread(_run)
     except Exception as e:
         logger.warning(f"run_louvain failed: {e}")
@@ -101,6 +105,7 @@ async def run_pagerank(
     if not available:
         return []
     try:
+
         def _run() -> list[dict[str, Any]]:
             with neo4j_driver.session() as session:
                 try:
@@ -109,7 +114,9 @@ async def run_pagerank(
                     logger.debug("[kg algorithms] suppressed non-critical error: %s", _e)
                 session.run(
                     "CALL gds.graph.project($name, $node, $rel)",
-                    name=graph_name, node=node_label, rel=relationship_type,
+                    name=graph_name,
+                    node=node_label,
+                    rel=relationship_type,
                 ).consume()
                 rows = session.run(
                     f"CALL gds.pageRank.stream('{graph_name}', {{maxIterations: $iter}}) "
@@ -119,6 +126,7 @@ async def run_pagerank(
                     iter=max_iterations,
                 )
                 return [{"node_id": r["node_id"], "score": r["score"]} for r in rows]
+
         return await asyncio.to_thread(_run)
     except Exception as e:
         logger.warning(f"run_pagerank failed: {e}")
@@ -128,6 +136,7 @@ async def run_pagerank(
 if __name__ == "__main__":
     # Self-check — no live Neo4j needed. None driver -> [] for both.
     import asyncio as _a
+
     assert _a.run(run_louvain(None)) == []
     assert _a.run(run_pagerank(None)) == []
     # _gds_procedure_available with None -> False, cached.

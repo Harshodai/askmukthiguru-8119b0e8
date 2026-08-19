@@ -17,24 +17,20 @@ Design choices:
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import os
 import tempfile
 import time
-import uuid
+import urllib.request
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
-import aiohttp
-import urllib.request
 from qdrant_client import QdrantClient
 
 from app.config import settings
-from ingest.boundary_chunker import BoundaryChunker
 from ingest.deduplication import LSHNearDupIndex
 from services.contextual_chunking_service import ContextualChunkingService
 from services.embedding_service import EmbeddingService
@@ -90,6 +86,8 @@ _WARN_STAGE_COVERAGE: float = 0.95
 # Tied to SemanticChunker's min_chunk_chars=300: below roughly that size the
 # chunker cannot preserve coverage even when working correctly.
 _MIN_DOC_CHARS_FOR_COVERAGE: int = 500
+
+
 def _resolve_state_file() -> Path:
     """Locate the resume checkpoint, working both in the repo and in the image.
 
@@ -111,8 +109,8 @@ def _resolve_state_file() -> Path:
 
     here = Path(__file__).resolve()
     for candidate in (
-        here.parents[2] / "scripts" / "ingestion",   # repo: backend/ingest/… -> repo root
-        here.parents[1] / "scripts" / "ingestion",   # image: /app/ingest/…   -> /app
+        here.parents[2] / "scripts" / "ingestion",  # repo: backend/ingest/… -> repo root
+        here.parents[1] / "scripts" / "ingestion",  # image: /app/ingest/…   -> /app
     ):
         if candidate.parent.is_dir():
             return candidate / "ingestion_state.json"
@@ -129,7 +127,6 @@ _STATE_KEY_SECTIONS: str = "contextual_reingest_processed_sections"
 def _ollama_model_available_sync(base_url: str, model: str, timeout: float = 10.0) -> bool:
     """Synchronous check that Ollama is reachable and *model* is in its tag list."""
     import json as _json
-    import socket as _socket
 
     url = f"{base_url.rstrip('/')}/api/tags"
     try:
@@ -140,7 +137,7 @@ def _ollama_model_available_sync(base_url: str, model: str, timeout: float = 10.
             data = _json.loads(resp.read().decode("utf-8"))
             names = {m.get("name", "") for m in data.get("models", [])}
             return model in names
-    except (_socket.timeout, urllib.error.URLError, ConnectionError, Exception) as exc:
+    except (TimeoutError, urllib.error.URLError, ConnectionError, Exception) as exc:
         logger.debug("Ollama availability check failed for %s/%s: %s", url, model, exc)
         return False
 
@@ -173,7 +170,9 @@ class _OpenRouterContextualizer:
         api_key: Optional[str] = None,
         skip_health_check: bool = False,
     ) -> None:
-        if settings.is_production and os.environ.get("ALLOW_OPENROUTER_REINGEST", "").strip().lower() not in {"1", "true", "yes"}:
+        if settings.is_production and os.environ.get(
+            "ALLOW_OPENROUTER_REINGEST", ""
+        ).strip().lower() not in {"1", "true", "yes"}:
             raise RuntimeError(
                 "_OpenRouterContextualizer is a dev-only exception and disabled in production. "
                 "Inference must remain local with no external API calls. Chunk and document text are sent to the hosted endpoint."
@@ -189,7 +188,7 @@ class _OpenRouterContextualizer:
             )
 
     @property
-    def service(self) -> "_OpenRouterContextualizer":
+    def service(self) -> _OpenRouterContextualizer:
         """Return self so ContextualChunkingService can call .generate()."""
         return self
 
@@ -244,7 +243,10 @@ class _OpenRouterContextualizer:
                 last_exc = exc
                 logger.warning(
                     "OpenRouter contextualizer (%s) failed on attempt %d/%d: %s",
-                    self._model, attempt + 1, max_retries + 1, exc,
+                    self._model,
+                    attempt + 1,
+                    max_retries + 1,
+                    exc,
                 )
         raise RuntimeError(
             f"OpenRouter contextualizer failed after {max_retries + 1} attempts: {last_exc}"
@@ -274,8 +276,12 @@ class _LocalOllamaContextualizer:
         skip_health_check: bool = False,
     ) -> None:
         self._base_url = base_url or settings.ollama_base_url or "http://localhost:11434"
-        self._primary_model = primary_model or os.environ.get("OLLAMA_REINGEST_MODEL", "gemini-3-flash-preview:cloud")
-        self._fallback_model = fallback_model or os.environ.get("OLLAMA_REINGEST_FALLBACK_MODEL", "deepseek-v4-flash:cloud")
+        self._primary_model = primary_model or os.environ.get(
+            "OLLAMA_REINGEST_MODEL", "gemini-3-flash-preview:cloud"
+        )
+        self._fallback_model = fallback_model or os.environ.get(
+            "OLLAMA_REINGEST_FALLBACK_MODEL", "deepseek-v4-flash:cloud"
+        )
         self._service = existing_service
         self._current_model = self._primary_model
         self._using_fallback = False
@@ -302,7 +308,7 @@ class _LocalOllamaContextualizer:
             )
 
     @property
-    def service(self) -> "_LocalOllamaContextualizer":
+    def service(self) -> _LocalOllamaContextualizer:
         """Return self so ContextualChunkingService can call .generate()."""
         return self
 
@@ -316,7 +322,8 @@ class _LocalOllamaContextualizer:
         **kwargs: Any,
     ) -> str:
         """Generate via raw Ollama AsyncClient, with optional fallback swap."""
-        from ollama import AsyncClient, ResponseError as OllamaResponseError
+        from ollama import AsyncClient
+        from ollama import ResponseError as OllamaResponseError
 
         async def _call(model: str) -> str:
             client = AsyncClient(host=self._base_url)
@@ -355,7 +362,7 @@ class _LocalOllamaContextualizer:
                     max_retries + 1,
                     exc,
                 )
-            except asyncio.TimeoutError as exc:
+            except TimeoutError as exc:
                 last_exc = exc
                 logger.warning(
                     "Contextualizer model %s timed out on attempt %d/%d",
@@ -607,7 +614,9 @@ class ContextualReingestEngine:
                     payload = rec.payload or {}
                     text = payload.get("parent_text") or payload.get("text", "")
                     if text:
-                        self._get_dedup_index().add(text, {"authority_tier": payload.get("authority_tier", "primary")})
+                        self._get_dedup_index().add(
+                            text, {"authority_tier": payload.get("authority_tier", "primary")}
+                        )
                 if next_offset is None:
                     break
                 offset = next_offset
@@ -711,6 +720,7 @@ class ContextualReingestEngine:
             texts.append(txt.strip())
         full_doc = "\n\n".join(t for t in texts if t)
         from services.doctrine_terms import apply_corrections
+
         return apply_corrections(full_doc)
 
     @staticmethod
@@ -868,6 +878,7 @@ class ContextualReingestEngine:
     def _rechunk(self, full_text: str, payloads: list[dict[str, Any]]) -> list[str]:
         """Re-chunk document using Semantic Topic-Shift Chunker."""
         from ingest.semantic_chunker import SemanticChunker
+
         embedder = getattr(self, "_embedding", None)
         chunker = SemanticChunker(
             embedding_service=embedder,
@@ -921,18 +932,26 @@ class ContextualReingestEngine:
             logger.info(
                 "Skipping LLM correction for %s (content_type=%r is already edited "
                 "prose); applying dictionary corrections only",
-                source_url, content_type,
+                source_url,
+                content_type,
             )
             from services.doctrine_terms import apply_corrections
+
             return apply_corrections(full_text)
         try:
             from ingest.corrector import TranscriptCorrector
+
             contextualizer = self._contextualizer_service()
             corrector = TranscriptCorrector(contextualizer.service)
             return await corrector.correct_transcript(full_text, source_url=source_url)
         except Exception as exc:
-            logger.warning("LLM transcript correction failed for %s (%s); falling back to dictionary cleanup", source_url, exc)
+            logger.warning(
+                "LLM transcript correction failed for %s (%s); falling back to dictionary cleanup",
+                source_url,
+                exc,
+            )
             from services.doctrine_terms import apply_corrections
+
             return apply_corrections(full_text)
 
     @staticmethod
@@ -974,7 +993,11 @@ class ContextualReingestEngine:
         if ratio < _WARN_STAGE_COVERAGE:
             logger.warning(
                 "%s dropped %.1f%% of %s (%d -> %d chars) — under review threshold %.0f%%",
-                stage, (1 - ratio) * 100, source_url, before_len, after_len,
+                stage,
+                (1 - ratio) * 100,
+                source_url,
+                before_len,
+                after_len,
                 _WARN_STAGE_COVERAGE * 100,
             )
 
@@ -1010,10 +1033,7 @@ class ContextualReingestEngine:
         groups: list[tuple[str, list[dict[str, Any]]]] = []
         for payload in payloads:
             key = str(
-                payload.get("node_id")
-                or payload.get("page_range")
-                or payload.get("title")
-                or ""
+                payload.get("node_id") or payload.get("page_range") or payload.get("title") or ""
             ).strip()
             if groups and groups[-1][0] == key:
                 groups[-1][1].append(payload)
@@ -1036,7 +1056,8 @@ class ContextualReingestEngine:
                 "Contextual re-ingest: %s has %d structural sections — processing "
                 "each as its own document so chunks, parents and contextual "
                 "headers stay inside a section",
-                source_url, len(sections),
+                source_url,
+                len(sections),
             )
 
         target_service = self._target_service()
@@ -1049,7 +1070,8 @@ class ContextualReingestEngine:
         # just no longer coupled to writing everything in one call.
         if not done and target_service.check_source_exists(source_url):
             logger.info(
-                "Contextual re-ingest: deleting existing target points for %s", source_url,
+                "Contextual re-ingest: deleting existing target points for %s",
+                source_url,
             )
             target_service.delete_by_source(source_url)
 
@@ -1086,7 +1108,10 @@ class ContextualReingestEngine:
             next_index += len(metadatas)
 
             written = target_service.upsert_chunks(
-                chunks, dense, metadatas, sparse_vectors=sparse,
+                chunks,
+                dense,
+                metadatas,
+                sparse_vectors=sparse,
             )
             written_total += written
             done.append(label)
@@ -1095,19 +1120,26 @@ class ContextualReingestEngine:
             logger.info(
                 "Contextual re-ingest: wrote %d chunks for section %s (%d/%d sections, "
                 "%d chunks so far)",
-                written, label, len(done), len(sections), written_total,
+                written,
+                label,
+                len(done),
+                len(sections),
+                written_total,
             )
 
         if not written_total:
             logger.warning(
                 "Contextual re-ingest: every chunk from %s was rejected — this "
-                "source needs re-ingestion from origin, not migration", source_url,
+                "source needs re-ingestion from origin, not migration",
+                source_url,
             )
             return 0
 
         logger.info(
             "Contextual re-ingest: wrote %d chunks for %s to %s",
-            written_total, source_url, self._target_collection,
+            written_total,
+            source_url,
+            self._target_collection,
         )
         return written_total
 
@@ -1197,7 +1229,13 @@ class ContextualReingestEngine:
             eta = rate * (total - done)
             logger.info(
                 "Embedding %s: batch %d/%d — %d/%d chunks (%.1fs elapsed, ETA %.0fs)",
-                source_url, batch_num, n_batches, done, total, elapsed, eta,
+                source_url,
+                batch_num,
+                n_batches,
+                done,
+                total,
+                elapsed,
+                eta,
             )
 
         # §6.3 late chunking — replace the dense vector with one pooled from the
@@ -1241,7 +1279,10 @@ class ContextualReingestEngine:
             logger.info(
                 "Late chunking: %d/%d dense vectors pooled from the document, "
                 "%d mean-pooled standalone (span not located) for %s",
-                replaced, len(dense_vectors), recovered, source_url,
+                replaced,
+                len(dense_vectors),
+                recovered,
+                source_url,
             )
 
         # One collection, one pooling mode — asserted, not assumed. A mixed
@@ -1268,7 +1309,7 @@ class ContextualReingestEngine:
         # fires and the empty string wins. That is how every green point ended up
         # with topic="" instead of the intended fallback.
         first = payloads[0] if payloads else {}
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(UTC).isoformat()
 
         # Parent-child. The child is what gets embedded and searched; the parent
         # is what `retrieval.py` substitutes before generation (searcher.py reads
@@ -1287,7 +1328,7 @@ class ContextualReingestEngine:
         origin = self._origin_index_map(payloads, spans, len(full_text))
 
         metadatas: list[dict[str, Any]] = []
-        for i, chunk in enumerate(contextual_chunks):
+        for i, _chunk in enumerate(contextual_chunks):
             src_payload = payloads[origin[i]] if i < len(origin) and payloads else first
             parent_id, parent_text = parents[i] if i < len(parents) else ("", "")
             meta = {
@@ -1302,9 +1343,17 @@ class ContextualReingestEngine:
                 # are ~0.757 cosine apart, so a collection must not mix them and a
                 # searcher must pool its query the same way.
                 "pooling": pooling_modes[i] if i < len(pooling_modes) else "cls",
-                "source_type": first.get("source_type") or first.get("content_type") or "transcript",
+                "source_type": first.get("source_type")
+                or first.get("content_type")
+                or "transcript",
                 "language": first.get("language") or "en",
-                "tags": list({t.strip().lower() for t in (first.get("tags") or ["general"]) if t and str(t).strip()}),
+                "tags": list(
+                    {
+                        t.strip().lower()
+                        for t in (first.get("tags") or ["general"])
+                        if t and str(t).strip()
+                    }
+                ),
                 "chunk_index": i,
                 "raptor_level": 0,
                 "source_version": _SOURCE_VERSION_BUMP,
@@ -1348,8 +1397,11 @@ class ContextualReingestEngine:
             logger.warning(
                 "Contextual re-ingest: dropped %d/%d chunks from %s failing the "
                 "quality gate. First: %r in %r",
-                len(_rejected), len(contextual_chunks), source_url,
-                _rejected[0][1], _rejected[0][2],
+                len(_rejected),
+                len(contextual_chunks),
+                source_url,
+                _rejected[0][1],
+                _rejected[0][2],
             )
             _dense = embeddings["dense"]
             _sparse = embeddings.get("sparse", [])
@@ -1366,6 +1418,7 @@ class ContextualReingestEngine:
             embeddings.get("dense", []),
             embeddings.get("sparse", []),
         )
+
 
 async def _smoke_test() -> None:
     """Self-check: dry-run the smallest YouTube source available locally."""

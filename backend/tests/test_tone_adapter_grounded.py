@@ -3,6 +3,7 @@
 The production pipeline must never run a second LLM rewrite after citations are
 attached. Grounded voice is composed once, during source-aware generation.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock

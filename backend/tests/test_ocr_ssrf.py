@@ -65,7 +65,9 @@ async def test_private_ip_rejected():
 async def test_metadata_endpoint_rejected():
     """Cloud metadata endpoint (link-local) must be rejected at connection time."""
     backend = SSRFBlockingNetworkBackend(parent=_RecordingBackend())
-    with patch("services.ocr_service.socket.getaddrinfo", return_value=_addrinfo("169.254.169.254")):
+    with patch(
+        "services.ocr_service.socket.getaddrinfo", return_value=_addrinfo("169.254.169.254")
+    ):
         with pytest.raises(ValueError, match="private/internal"):
             await backend.connect_tcp("evil.example.com", 443)
 
@@ -96,9 +98,15 @@ async def test_large_download_rejected():
     )
     with (
         patch("services.ocr_service.httpx.AsyncClient", return_value=_FakeClient(response)),
-        patch.object(ocr_service.OCRService, "_extract_from_file", return_value={"error": "unexpected success path"}),
+        patch.object(
+            ocr_service.OCRService,
+            "_extract_from_file",
+            return_value={"error": "unexpected success path"},
+        ),
     ):
-        result = await ocr_service.OCRService().extract_text_from_url("https://example.com/image.png")
+        result = await ocr_service.OCRService().extract_text_from_url(
+            "https://example.com/image.png"
+        )
     assert result["error"]
     assert "too large" in result["error"].lower()
 
@@ -114,9 +122,15 @@ async def test_stream_cap_enforced():
     with (
         patch("services.ocr_service.httpx.AsyncClient", return_value=_FakeClient(response)),
         patch("services.ocr_service.MAX_IMAGE_BYTES", 8192),
-        patch.object(ocr_service.OCRService, "_extract_from_file", return_value={"error": "unexpected success path"}),
+        patch.object(
+            ocr_service.OCRService,
+            "_extract_from_file",
+            return_value={"error": "unexpected success path"},
+        ),
     ):
-        result = await ocr_service.OCRService().extract_text_from_url("https://example.com/image.png")
+        result = await ocr_service.OCRService().extract_text_from_url(
+            "https://example.com/image.png"
+        )
     assert result["error"]
     assert "too large" in result["error"].lower()
 
@@ -131,7 +145,13 @@ async def test_octet_stream_rejected_without_opt_in():
     )
     with (
         patch("services.ocr_service.httpx.AsyncClient", return_value=_FakeClient(response)),
-        patch.object(ocr_service.OCRService, "_extract_from_file", return_value={"error": "unexpected success path"}),
+        patch.object(
+            ocr_service.OCRService,
+            "_extract_from_file",
+            return_value={"error": "unexpected success path"},
+        ),
     ):
-        result = await ocr_service.OCRService().extract_text_from_url("https://example.com/image.bin")
+        result = await ocr_service.OCRService().extract_text_from_url(
+            "https://example.com/image.bin"
+        )
     assert "does not point to an image" in result["error"]

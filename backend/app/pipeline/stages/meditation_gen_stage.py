@@ -8,12 +8,12 @@ always remains the default fallback.
 
 from __future__ import annotations
 
-from app.pipeline.result import PipelineResult
 import json
 import logging
 import re
 from typing import TYPE_CHECKING
 
+from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 
 if TYPE_CHECKING:
@@ -56,7 +56,7 @@ class MeditationGenStage(Stage):
 
     name = "meditation_gen"
 
-    async def run(self, ctx: "PipelineContext") -> "PipelineResult | None":
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         import rag.prompts as prompts
 
         # Guard 1: only fire when proactive Serene Mind is triggered
@@ -72,7 +72,11 @@ class MeditationGenStage(Stage):
 
         # Guard 3: crisis-level queries never get any meditation
         from services.serene_mind_engine import DistressLevel
-        if proactive.get("level") == DistressLevel.CRISIS.name or proactive.get("level") == DistressLevel.SEVERE.name:
+
+        if (
+            proactive.get("level") == DistressLevel.CRISIS.name
+            or proactive.get("level") == DistressLevel.SEVERE.name
+        ):
             logger.info("MeditationGen skipped — %s level, helplines only", proactive.get("level"))
             return None
 
@@ -99,7 +103,9 @@ class MeditationGenStage(Stage):
             raw = await llm.generate(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
-                timeout=getattr(llm, "_config", {}).get("timeout", 60) if hasattr(llm, "_config") else 60,
+                timeout=getattr(llm, "_config", {}).get("timeout", 60)
+                if hasattr(llm, "_config")
+                else 60,
             )
 
             # Parse JSON response
@@ -109,7 +115,9 @@ class MeditationGenStage(Stage):
 
             # Guard 4: verify step IDs match GUIDED_STEPS
             if not self._validate_steps(parsed):
-                logger.warning("MeditationGen generated steps don't match Serene Mind structure — discarding")
+                logger.warning(
+                    "MeditationGen generated steps don't match Serene Mind structure — discarding"
+                )
                 return None
 
             custom_meditation = {
@@ -230,11 +238,37 @@ if __name__ == "__main__":
         "source_teaching": "Four Sacred Secrets, Ch. 4",
         "steps": [
             {"id": "arrive", "title": "Arrive", "instruction": "...", "durationSeconds": 20},
-            {"id": "observe-body", "title": "Observe the Body", "instruction": "...", "durationSeconds": 45},
-            {"id": "observe-breath", "title": "Observe the Breath", "instruction": "...", "durationSeconds": 60, "breathPattern": {"inhale": 4, "hold": 0, "exhale": 6}},
-            {"id": "observe-sound", "title": "Observe the Sound", "instruction": "...", "durationSeconds": 45},
-            {"id": "compassion", "title": "Be with Compassion", "instruction": "...", "durationSeconds": 45},
-            {"id": "complete", "title": "Carry the Stillness", "instruction": "...", "durationSeconds": 10},
+            {
+                "id": "observe-body",
+                "title": "Observe the Body",
+                "instruction": "...",
+                "durationSeconds": 45,
+            },
+            {
+                "id": "observe-breath",
+                "title": "Observe the Breath",
+                "instruction": "...",
+                "durationSeconds": 60,
+                "breathPattern": {"inhale": 4, "hold": 0, "exhale": 6},
+            },
+            {
+                "id": "observe-sound",
+                "title": "Observe the Sound",
+                "instruction": "...",
+                "durationSeconds": 45,
+            },
+            {
+                "id": "compassion",
+                "title": "Be with Compassion",
+                "instruction": "...",
+                "durationSeconds": 45,
+            },
+            {
+                "id": "complete",
+                "title": "Carry the Stillness",
+                "instruction": "...",
+                "durationSeconds": 10,
+            },
         ],
     }
     assert s._validate_steps(good), "Valid steps should pass validation"

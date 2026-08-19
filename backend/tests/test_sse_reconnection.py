@@ -20,7 +20,10 @@ class ReplayRedis:
             (
                 "job:stream:job-1:events",
                 [
-                    ("1710000000000-2", {"data": json.dumps({"event": "token", "data": "replayed"})}),
+                    (
+                        "1710000000000-2",
+                        {"data": json.dumps({"event": "token", "data": "replayed"})},
+                    ),
                     ("1710000000000-3", {"data": "__COMPLETE__"}),
                 ],
             )

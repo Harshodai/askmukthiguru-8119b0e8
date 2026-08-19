@@ -65,6 +65,6 @@ def test_missing_index_warns_instead_of_failing_silently(tmp_path, monkeypatch, 
     with caplog.at_level(logging.WARNING, logger=retrieval.logger.name):
         assert retrieval._load_okf_entries() == []
 
-    assert any(
-        "OKF compiled index missing" in r.message for r in caplog.records
-    ), "missing OKF index was swallowed without a warning"
+    assert any("OKF compiled index missing" in r.message for r in caplog.records), (
+        "missing OKF index was swallowed without a warning"
+    )

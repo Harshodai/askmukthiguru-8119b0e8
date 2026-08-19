@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import importlib
 import sys
-from unittest.mock import patch
 
 import pytest
 
@@ -110,7 +109,9 @@ def test_fallback_when_import_fails(monkeypatch):
     # Poison the import: insert a failing importer for ``lettucedetect`` and
     # the ``huggingface_hub`` snapshot path. ``_load_real_detector`` catches
     # ImportError and returns None, which routes to the heuristic.
-    real_modules = {k: sys.modules.get(k) for k in list(sys.modules) if k.startswith("lettucedetect")}
+    real_modules = {
+        k: sys.modules.get(k) for k in list(sys.modules) if k.startswith("lettucedetect")
+    }
     for k in list(sys.modules):
         if k.startswith("lettucedetect"):
             del sys.modules[k]

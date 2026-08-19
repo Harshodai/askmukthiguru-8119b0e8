@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 from app.config import settings
 from services.layered_memory.models import MemoryAtom, MemoryType
@@ -33,11 +33,17 @@ def _build_client() -> tuple[Any, str] | None:
             settings.sarvam_cloud_classify_model or "sarvam-30b",
         )
     if provider == "openrouter":
-        return AsyncOpenAI(base_url=settings.openrouter_base_url, api_key=settings.openrouter_api_key), settings.model_for_classification
+        return AsyncOpenAI(
+            base_url=settings.openrouter_base_url, api_key=settings.openrouter_api_key
+        ), settings.model_for_classification
     if provider == "nim":
-        return AsyncOpenAI(base_url=settings.nim_base_url, api_key=settings.nim_api_key), settings.nim_classify_model
+        return AsyncOpenAI(
+            base_url=settings.nim_base_url, api_key=settings.nim_api_key
+        ), settings.nim_classify_model
     if provider == "ollama":
-        return AsyncOpenAI(base_url=settings.ollama_base_url, api_key="ollama"), settings.model_for_classification
+        return AsyncOpenAI(
+            base_url=settings.ollama_base_url, api_key="ollama"
+        ), settings.model_for_classification
     return None
 
 
@@ -79,7 +85,9 @@ async def extract_atoms(
                     {"role": "system", "content": L1_SYSTEM_PROMPT},
                     {
                         "role": "user",
-                        "content": build_l1_user_prompt(user_msg, assistant_msg, prior_messages, previous_scene_name),
+                        "content": build_l1_user_prompt(
+                            user_msg, assistant_msg, prior_messages, previous_scene_name
+                        ),
                     },
                 ],
                 temperature=0.0,
@@ -138,7 +146,9 @@ async def get_recent_atoms(
 
 if __name__ == "__main__":
     atoms = asyncio.run(
-        extract_atoms("I meditate every morning for 20 minutes.", "That is a beautiful practice.", [])
+        extract_atoms(
+            "I meditate every morning for 20 minutes.", "That is a beautiful practice.", []
+        )
     )
     for a in atoms:
         print(a)

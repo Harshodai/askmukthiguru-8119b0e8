@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import logging
 import re
 import sys
@@ -28,9 +27,7 @@ from typing import Any
 _BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_BACKEND))
 
-logging.basicConfig(
-    level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 logger = logging.getLogger(__name__)
 
 # Inside Docker _BACKEND=/app so parent=/ — correct to /app/
@@ -44,15 +41,61 @@ _VALID_TYPES = {"teaching", "practice", "glossary", "qa", "reflection"}
 # ── doctrine tags (inlined to avoid ingest.pipeline import → ContainerBuilder OOM) ──
 
 _DOCTRINE_SYNONYMS: dict[str, list[str]] = {
-    "beautiful state": ["beautiful state", "blissful state", "state of bliss", "state of calm", "state of joy", "no-stress state"],
-    "suffering state": ["suffering state", "state of suffering", "painful state", "state of pain", "stressful state"],
-    "surrender": ["surrender", "letting go", "giving up control", "relinquishing", "total surrender"],
+    "beautiful state": [
+        "beautiful state",
+        "blissful state",
+        "state of bliss",
+        "state of calm",
+        "state of joy",
+        "no-stress state",
+    ],
+    "suffering state": [
+        "suffering state",
+        "state of suffering",
+        "painful state",
+        "state of pain",
+        "stressful state",
+    ],
+    "surrender": [
+        "surrender",
+        "letting go",
+        "giving up control",
+        "relinquishing",
+        "total surrender",
+    ],
     "oneness": ["oneness", "unity", "non-duality", "non-dual", "advaita", "non separation"],
-    "consciousness": ["consciousness", "awareness", "higher consciousness", "divine consciousness", "universal consciousness"],
-    "ekam": ["ekam", "ekam world", "world centre for enlightenment", "world center for enlightenment"],
-    "deeksha": ["deeksha", "oneness blessing", "divine blessing", "energy transmission", "sacred transfer"],
-    "soul sync": ["soul sync", "soul synchronization", "breath meditation", "breath awareness meditation"],
-    "four sacred secrets": ["four sacred secrets", "4 sacred secrets", "sacred secrets", "the four secrets"],
+    "consciousness": [
+        "consciousness",
+        "awareness",
+        "higher consciousness",
+        "divine consciousness",
+        "universal consciousness",
+    ],
+    "ekam": [
+        "ekam",
+        "ekam world",
+        "world centre for enlightenment",
+        "world center for enlightenment",
+    ],
+    "deeksha": [
+        "deeksha",
+        "oneness blessing",
+        "divine blessing",
+        "energy transmission",
+        "sacred transfer",
+    ],
+    "soul sync": [
+        "soul sync",
+        "soul synchronization",
+        "breath meditation",
+        "breath awareness meditation",
+    ],
+    "four sacred secrets": [
+        "four sacred secrets",
+        "4 sacred secrets",
+        "sacred secrets",
+        "the four secrets",
+    ],
     "sri preethaji": ["sri preethaji", "preethaji", "preetha ji", "sree preethaji"],
     "sri krishnaji": ["sri krishnaji", "krishnaji", "krishna ji", "sree krishnaji"],
     "meditation": ["meditation", "dhyana", "dhyan", "contemplation", "mindfulness practice"],
@@ -63,7 +106,13 @@ _DOCTRINE_SYNONYMS: dict[str, list[str]] = {
     "brahman": ["brahman", "brahman", "universal self", "supreme reality", "absolute reality"],
     "samsara": ["samsara", "cycle of birth", "rebirth", "worldly cycle"],
     "guru": ["guru", "master", "spiritual teacher", "spiritual guide", "enlightened master"],
-    "sadhna": ["sadhna", "sadhana", "spiritual practice", "spiritual discipline", "spiritual sadhana"],
+    "sadhna": [
+        "sadhna",
+        "sadhana",
+        "spiritual practice",
+        "spiritual discipline",
+        "spiritual sadhana",
+    ],
     "sadhak": ["sadhak", "seeker", "spiritual seeker", "practitioner", "devotee"],
     "mahavakya": ["mahavakya", "great saying", "great pronouncement", "vedic statement"],
     "satsang": ["satsang", "spiritual gathering", "spiritual discourse", "divine gathering"],
@@ -74,35 +123,121 @@ _DOCTRINE_SYNONYMS: dict[str, list[str]] = {
     "kriya": ["kriya", "action", "spiritual action", "sacred action", "purificatory practice"],
     "mantra": ["mantra", "sacred sound", "sacred syllable", "divine chant", "spiritual chant"],
     "mayic force": ["mayic force", "illusion force", "deluding force", "maya", "illusory power"],
-    "dharma prabhu": ["dharma prabhu", "lord of dharma", "lord of righteousness", "divine lawkeeper"],
-    "jeevan mukta": ["jeevan mukta", "jeevanmukta", "liberated while living", "living liberated one"],
+    "dharma prabhu": [
+        "dharma prabhu",
+        "lord of dharma",
+        "lord of righteousness",
+        "divine lawkeeper",
+    ],
+    "jeevan mukta": [
+        "jeevan mukta",
+        "jeevanmukta",
+        "liberated while living",
+        "living liberated one",
+    ],
     "paramatma": ["paramatma", "paramatman", "supreme soul", "universal soul", "supreme self"],
-    "prarabdha": ["prarabdha", "prarabdha karma", "matured karma", "destined karma", "fruit of past actions"],
-    "universal intelligence": ["universal intelligence", "divine field", "cosmic consciousness", "divine intelligence", "universal consciousness field"],
-    "inner stillness": ["inner stillness", "stillness", "inner quiet", "quiet presence", "inner calm"],
+    "prarabdha": [
+        "prarabdha",
+        "prarabdha karma",
+        "matured karma",
+        "destined karma",
+        "fruit of past actions",
+    ],
+    "universal intelligence": [
+        "universal intelligence",
+        "divine field",
+        "cosmic consciousness",
+        "divine intelligence",
+        "universal consciousness field",
+    ],
+    "inner stillness": [
+        "inner stillness",
+        "stillness",
+        "inner quiet",
+        "quiet presence",
+        "inner calm",
+    ],
     "warring self": ["warring self", "divided self", "conflicted self", "inner conflict"],
-    "self-centric thinking": ["self-centric thinking", "self-centered thinking", "self-preoccupation", "obsessive thinking", "ego-centric thinking"],
-    "heart awakening": ["heart awakening", "heart opening", "open heart", "awakening of the heart", "heart center opening"],
+    "self-centric thinking": [
+        "self-centric thinking",
+        "self-centered thinking",
+        "self-preoccupation",
+        "obsessive thinking",
+        "ego-centric thinking",
+    ],
+    "heart awakening": [
+        "heart awakening",
+        "heart opening",
+        "open heart",
+        "awakening of the heart",
+        "heart center opening",
+    ],
     "compassion": ["compassion", "loving kindness", "kindness", "karuna", "empathy"],
     "intuition": ["intuition", "intuitive knowing", "inner knowing", "heart knowledge"],
-    "awakening": ["awakening", "spiritual awakening", "inner awakening", "transformation", "consciousness shift"],
+    "awakening": [
+        "awakening",
+        "spiritual awakening",
+        "inner awakening",
+        "transformation",
+        "consciousness shift",
+    ],
     "grace": ["grace", "divine grace", "blessing", "divine favor", "anugraha"],
     "presence": ["presence", "being present", "present moment", "now", "mindfulness"],
     "inner truth": ["inner truth", "truth within", "deep truth", "essential truth", "core truth"],
     "collective meditation": ["collective meditation", "group meditation", "community meditation"],
     "divine manifest": ["divine manifest", "manifest divine", "creator manifest", "god with form"],
-    "divine unmanifest": ["divine unmanifest", "unmanifest divine", "formless divine", "god without form"],
-    "synchronicity": ["synchronicity", "meaningful coincidence", "divine timing", "cosmic alignment"],
+    "divine unmanifest": [
+        "divine unmanifest",
+        "unmanifest divine",
+        "formless divine",
+        "god without form",
+    ],
+    "synchronicity": [
+        "synchronicity",
+        "meaningful coincidence",
+        "divine timing",
+        "cosmic alignment",
+    ],
     "prosperity": ["prosperity", "abundance", "flourishing", "well-being", "wealth"],
-    "karmic clearing": ["karmic clearing", "karma clearing", "karmic release", "karmic debt clearing"],
-    "spiritual vision": ["spiritual vision", "divine vision", "higher vision", "sacred vision", "purpose"],
-    "science of purification": ["science of purification", "purification process", "inner purification"],
-    "truth of suffering": ["truth of suffering", "seeing suffering", "nature of suffering", "root of suffering"],
-    "dissolving into the beautiful state": ["dissolving", "dissolving into", "merging with beautiful state", "dissolving suffering"],
+    "karmic clearing": [
+        "karmic clearing",
+        "karma clearing",
+        "karmic release",
+        "karmic debt clearing",
+    ],
+    "spiritual vision": [
+        "spiritual vision",
+        "divine vision",
+        "higher vision",
+        "sacred vision",
+        "purpose",
+    ],
+    "science of purification": [
+        "science of purification",
+        "purification process",
+        "inner purification",
+    ],
+    "truth of suffering": [
+        "truth of suffering",
+        "seeing suffering",
+        "nature of suffering",
+        "root of suffering",
+    ],
+    "dissolving into the beautiful state": [
+        "dissolving",
+        "dissolving into",
+        "merging with beautiful state",
+        "dissolving suffering",
+    ],
     "sadhguru": ["sadhguru", "jaggi vasudev", "isha foundation"],
     "amma bhagavan": ["amma bhagavan", "sri amma bhagavan", "oneness movement"],
     "oo academy": ["o and o academy", "oo academy", "o&o academy"],
-    "heart explosion": ["heart explosion", "explosion of the heart", "heart burst", "sudden heart opening"],
+    "heart explosion": [
+        "heart explosion",
+        "explosion of the heart",
+        "heart burst",
+        "sudden heart opening",
+    ],
 }
 
 
@@ -211,11 +346,13 @@ async def _gather_neo4j_entities() -> list[dict[str, str]]:
                     "n.entity_type AS type LIMIT 200"
                 )
                 for r in result:
-                    entities.append({
-                        "name": r["name"] or "",
-                        "desc": r["desc"] or "",
-                        "type": r["type"] or "concept",
-                    })
+                    entities.append(
+                        {
+                            "name": r["name"] or "",
+                            "desc": r["desc"] or "",
+                            "type": r["type"] or "concept",
+                        }
+                    )
             return entities
 
         entities = await asyncio.to_thread(_fetch)
@@ -236,12 +373,15 @@ async def _gather_lightrag_relationships(
 
     # Memory guard: bypass if available memory is too low to prevent SIGKILL
     try:
-        with open("/proc/meminfo", "r") as f:
+        with open("/proc/meminfo") as f:
             for line in f:
                 if "MemAvailable" in line:
                     avail_mb = int(line.split()[1]) // 1024
                     if avail_mb < 1500:  # 1.5 GB threshold
-                        logger.warning("Low memory available (%d MB) — bypassing LightRAG queries to prevent SIGKILL", avail_mb)
+                        logger.warning(
+                            "Low memory available (%d MB) — bypassing LightRAG queries to prevent SIGKILL",
+                            avail_mb,
+                        )
                         return results
                     break
     except Exception as exc:
@@ -338,32 +478,35 @@ async def _get_topic_clusters(
         titles = list({c.get("title", "") for c in topic_chunks if c.get("title")})
 
         # Truncate chunk texts to avoid prompt overload (3000 chars max)
-        combined_text = "\n\n".join(
-            c.get("text", "")[:500] for c in topic_chunks[:8]
-        )[:3000]
+        combined_text = "\n\n".join(c.get("text", "")[:500] for c in topic_chunks[:8])[:3000]
 
         # Find relevant entities (inlined _extract_doctrine_tags — avoids OOM)
         topic_tags = _extract_doctrine_tags(
             topic_key + " " + " ".join(c.get("text", "")[:200] for c in topic_chunks[:5])
         )
         relevant_entities = [
-            e for e in entities
-            if any(t.lower() in (e.get("name", "") + " " + e.get("desc", "")).lower()
-                   for t in topic_tags)
+            e
+            for e in entities
+            if any(
+                t.lower() in (e.get("name", "") + " " + e.get("desc", "")).lower()
+                for t in topic_tags
+            )
         ]
         if not relevant_entities:
             relevant_entities = entities[:10]  # ponytail: use top entities as context
 
-        clusters.append({
-            "topic_key": topic_key,
-            "chunk_count": len(topic_chunks),
-            "speakers": speakers,
-            "sources": sources,
-            "titles": titles,
-            "combined_text": combined_text,
-            "entities": relevant_entities,
-            "tags": topic_tags,
-        })
+        clusters.append(
+            {
+                "topic_key": topic_key,
+                "chunk_count": len(topic_chunks),
+                "speakers": speakers,
+                "sources": sources,
+                "titles": titles,
+                "combined_text": combined_text,
+                "entities": relevant_entities,
+                "tags": topic_tags,
+            }
+        )
 
     # Gather LightRAG context for each cluster (parallel async) — skip in dry-run
     if not skip_heavy:
@@ -377,7 +520,11 @@ async def _get_topic_clusters(
 
     logger.info(
         "Clusters: %d topics (limit=%s, topic=%s, video=%s, skip_heavy=%s)",
-        len(clusters), limit, target_topic or "any", target_video_id or "any", skip_heavy,
+        len(clusters),
+        limit,
+        target_topic or "any",
+        target_video_id or "any",
+        skip_heavy,
     )
     return clusters
 
@@ -402,20 +549,20 @@ def _build_okf_prompt(cluster: dict[str, Any]) -> tuple[str, str]:
         "type: teaching  # one of: teaching, practice, glossary, qa, reflection\n"
         'title: "Title Here"\n'
         'source: "YouTube https://www.youtube.com/watch?v=VIDEO_ID"\n'
-        'tags: [tag1, tag2]\n'
+        "tags: [tag1, tag2]\n"
         'teacher: "Sri Preethaji"  # or Sri Krishnaji, or "both" for joint teachings\n'
         "---\n\n"
         "# Title\n\n"
         "## Summary\n"
         "A clear, concise summary grounded ONLY in the provided transcripts.\n\n"
         "## Key Teachings\n"
-        "- Teaching point 1 (with speaker attribution: \"Sri Preethaji says...\")\n"
+        '- Teaching point 1 (with speaker attribution: "Sri Preethaji says...")\n'
         "- Teaching point 2\n\n"
         "## Quotes\n"
-        "> \"Exact quote from transcript\" — Sri Krishnaji\n\n"
+        '> "Exact quote from transcript" — Sri Krishnaji\n\n'
         "## Related Concepts\n"
         "- concept name: brief description\n\n"
-        "Do NOT include preamble like \"Here is the entry\" — output ONLY the "
+        'Do NOT include preamble like "Here is the entry" — output ONLY the '
         "YAML frontmatter and markdown body."
     )
 
@@ -437,7 +584,7 @@ def _build_okf_prompt(cluster: dict[str, Any]) -> tuple[str, str]:
         f"{entity_lines or '(none)'}\n\n"
         f"─── ENTITY RELATIONSHIPS (from LightRAG) ───\n\n"
         f"{lr_context or '(none)'}\n\n"
-        f"Generate ONE OKF markdown entry for the topic \"{cluster['topic_key']}\" "
+        f'Generate ONE OKF markdown entry for the topic "{cluster["topic_key"]}" '
         f"using ONLY the content above. Choose the most appropriate type "
         f"(teaching/practice/glossary/qa/reflection).\n"
     )
@@ -449,7 +596,7 @@ async def _call_llm(system: str, user: str) -> str:
     """Generate OKF entry via the configured LLM provider with auto-failover."""
     from app.config import settings
 
-    provider = getattr(settings, "llm_provider", "sarvam_cloud")
+    getattr(settings, "llm_provider", "sarvam_cloud")
 
     # Try multi-provider LLM first
     try:
@@ -521,7 +668,7 @@ def _parse_okf_response(raw: str) -> dict[str, Any] | None:
         return None
 
     fm_text = fm_match.group(1)
-    body = text[fm_match.end():].strip()
+    body = text[fm_match.end() :].strip()
 
     # Parse frontmatter manually (avoid YAML dependency)
     frontmatter: dict[str, Any] = {}
@@ -544,9 +691,7 @@ def _parse_okf_response(raw: str) -> dict[str, Any] | None:
         return None
 
     if frontmatter.get("type") not in _VALID_TYPES:
-        logger.warning(
-            "Invalid type %r — defaulting to 'teaching'", frontmatter.get("type")
-        )
+        logger.warning("Invalid type %r — defaulting to 'teaching'", frontmatter.get("type"))
         frontmatter["type"] = "teaching"
 
     # Normalise teacher value
@@ -585,8 +730,11 @@ async def extract_okf(
     """Main extraction pipeline: scan stores → cluster → LLM synthesize → write."""
     logger.info(
         "OKF extraction start: topic=%s, video=%s, limit=%d, auto=%s, dry=%s",
-        target_topic or "any", target_video_id or "any",
-        limit, auto_approve, dry_run,
+        target_topic or "any",
+        target_video_id or "any",
+        limit,
+        auto_approve,
+        dry_run,
     )
 
     # 1. Gather data from all stores
@@ -614,24 +762,24 @@ async def extract_okf(
     for i, cluster in enumerate(clusters):
         logger.info(
             "[%d/%d] Generating OKF entry for: %s (%d chunks)",
-            i + 1, len(clusters), cluster["topic_key"], cluster["chunk_count"],
+            i + 1,
+            len(clusters),
+            cluster["topic_key"],
+            cluster["chunk_count"],
         )
 
         system, user = _build_okf_prompt(cluster)
 
         if dry_run:
-            logger.info("DRY-RUN prompt (system=%d chars, user=%d chars)",
-                        len(system), len(user))
-            logger.info("Would write to: %s/%s.md",
-                        target_dir, _slug(cluster["topic_key"]))
+            logger.info("DRY-RUN prompt (system=%d chars, user=%d chars)", len(system), len(user))
+            logger.info("Would write to: %s/%s.md", target_dir, _slug(cluster["topic_key"]))
             continue
 
         try:
             raw = await _call_llm(system, user)
             parsed = _parse_okf_response(raw)
             if not parsed:
-                logger.warning("Failed to parse LLM output for %s — skipping",
-                               cluster["topic_key"])
+                logger.warning("Failed to parse LLM output for %s — skipping", cluster["topic_key"])
                 continue
 
             source_url = cluster.get("sources", [""])[0] if cluster.get("sources") else None
@@ -652,8 +800,7 @@ async def extract_okf(
             written.append(path)
             logger.info("  → %s", path)
         except Exception as exc:
-            logger.error("Entry generation failed for %s: %s",
-                         cluster["topic_key"], exc)
+            logger.error("Entry generation failed for %s: %s", cluster["topic_key"], exc)
 
     # 4. Compile if auto-approved
     if auto_approve and written:
@@ -668,7 +815,9 @@ async def extract_okf(
 
     logger.info(
         "OKF extraction done: %d entries written to %s (staged=%s)",
-        len(written), target_dir, not auto_approve,
+        len(written),
+        target_dir,
+        not auto_approve,
     )
     return written
 
@@ -680,20 +829,26 @@ def main() -> int:
     p = argparse.ArgumentParser(
         description="LLM-powered OKF extraction from Qdrant, Neo4j, and LightRAG",
     )
-    p.add_argument("--all", action="store_true",
-                   help="Extract from all available sources")
-    p.add_argument("--topic", default=None,
-                   help="Extract specific topic (e.g. 'beautiful state')")
-    p.add_argument("--video-id", default=None,
-                   help="Extract from a specific YouTube video ID")
-    p.add_argument("--limit", type=int, default=20,
-                   help="Max topic clusters to process (default: 20)")
-    p.add_argument("--auto-approve", action="store_true",
-                   help="Write directly to memory/okf/ and trigger compile")
-    p.add_argument("--dry-run", action="store_true",
-                   help="Show what would be generated without writing files")
-    p.add_argument("--chunk-limit", type=int, default=None,
-                   help="Max Qdrant chunks to scan (default: unlimited)")
+    p.add_argument("--all", action="store_true", help="Extract from all available sources")
+    p.add_argument("--topic", default=None, help="Extract specific topic (e.g. 'beautiful state')")
+    p.add_argument("--video-id", default=None, help="Extract from a specific YouTube video ID")
+    p.add_argument(
+        "--limit", type=int, default=20, help="Max topic clusters to process (default: 20)"
+    )
+    p.add_argument(
+        "--auto-approve",
+        action="store_true",
+        help="Write directly to memory/okf/ and trigger compile",
+    )
+    p.add_argument(
+        "--dry-run", action="store_true", help="Show what would be generated without writing files"
+    )
+    p.add_argument(
+        "--chunk-limit",
+        type=int,
+        default=None,
+        help="Max Qdrant chunks to scan (default: unlimited)",
+    )
     args = p.parse_args()
 
     if not args.all and not args.topic and not args.video_id:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import time
@@ -10,11 +9,19 @@ import uuid
 from typing import Optional
 
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, FieldCondition, Filter, MatchValue, PointIdsList, PointStruct, VectorParams
+from qdrant_client.http.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PointIdsList,
+    PointStruct,
+    VectorParams,
+)
 
 from app.config import settings
-from rag.corpus_scope import CorpusScope
 from domain.ports.cache_port import ICacheRepository
+from rag.corpus_scope import CorpusScope
 from services.cache.constants import _CACHE_TTL
 from services.cache.exceptions import CacheInitializationError
 from services.embedding_service import EmbeddingService
@@ -114,8 +121,9 @@ class SemanticCacheAdapter(ICacheRepository):
             logger.warning(f"Semantic cache collection init issue: {e}")
 
     def _scope(self) -> CorpusScope:
-        return CorpusScope(tenant_id=TenantContext.get() or "default", corpus_id=settings.default_corpus_id)
-
+        return CorpusScope(
+            tenant_id=TenantContext.get() or "default", corpus_id=settings.default_corpus_id
+        )
 
     def _redis_key(scope: CorpusScope, point_id: str) -> str:
         teacher = scope.teacher_id or "all"
@@ -124,7 +132,9 @@ class SemanticCacheAdapter(ICacheRepository):
     def _make_id(self, query: str, scope: CorpusScope | None = None) -> str:
         """Deterministic identity bound to tenant, corpus, teacher, and query."""
         scope = scope or self._scope()
-        normalized = "|".join([scope.tenant_id, scope.corpus_id, scope.teacher_id or "", query.strip().lower()])
+        normalized = "|".join(
+            [scope.tenant_id, scope.corpus_id, scope.teacher_id or "", query.strip().lower()]
+        )
         namespace = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
         return str(uuid.uuid5(namespace, normalized))
 
@@ -160,10 +170,12 @@ class SemanticCacheAdapter(ICacheRepository):
                 query=emb,
                 limit=1,
                 score_threshold=target_threshold,
-                query_filter=Filter(must=[
-                    FieldCondition(key="tenant_id", match=MatchValue(value=scope.tenant_id)),
-                    FieldCondition(key="corpus_id", match=MatchValue(value=scope.corpus_id)),
-                ]),
+                query_filter=Filter(
+                    must=[
+                        FieldCondition(key="tenant_id", match=MatchValue(value=scope.tenant_id)),
+                        FieldCondition(key="corpus_id", match=MatchValue(value=scope.corpus_id)),
+                    ]
+                ),
             ).points
 
             if results:
@@ -225,7 +237,18 @@ class SemanticCacheAdapter(ICacheRepository):
             # Upsert vector to Qdrant (payload is minimal, just original query for debugging)
             self._qdrant.upsert(
                 collection_name=self._collection,
-                points=[PointStruct(id=point_id, vector=emb, payload={"query": query, "tenant_id": scope.tenant_id, "corpus_id": scope.corpus_id, "teacher_id": scope.teacher_id})],
+                points=[
+                    PointStruct(
+                        id=point_id,
+                        vector=emb,
+                        payload={
+                            "query": query,
+                            "tenant_id": scope.tenant_id,
+                            "corpus_id": scope.corpus_id,
+                            "teacher_id": scope.teacher_id,
+                        },
+                    )
+                ],
             )
 
             # Save actual response payload to Redis with TTL
@@ -338,10 +361,14 @@ class SemanticCacheAdapter(ICacheRepository):
                 redis_key = f"mukthiguru:semcache:{tenant_id}:{point_id}"
                 self._redis.delete(redis_key)
                 invalidated += 1
-                logger.debug(f"Semantic cache: invalidated entry {point_id} (similarity={hit.score:.4f})")
+                logger.debug(
+                    f"Semantic cache: invalidated entry {point_id} (similarity={hit.score:.4f})"
+                )
 
             if invalidated > 0:
-                logger.info(f"Semantic cache: invalidated {invalidated} entries by embedding similarity")
+                logger.info(
+                    f"Semantic cache: invalidated {invalidated} entries by embedding similarity"
+                )
 
             return invalidated
 

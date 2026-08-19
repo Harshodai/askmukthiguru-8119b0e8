@@ -17,10 +17,9 @@ from qdrant_client.http.models import (
 )
 
 from app.config import settings
-from services.tenant_context import TenantContext, get_tenant_collection
-
 from services.qdrant.metrics import track_upsert_latency
 from services.qdrant.utils import QdrantUtils
+from services.tenant_context import TenantContext, get_tenant_collection
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +57,7 @@ class QdrantIndexer:
     """Handles chunk upsert, source-level deletion, backup, and counts."""
 
     def __init__(self, client: QdrantClient, collection: Optional[str] = None) -> None:
-        from services.tenant_context import TenantContext, get_tenant_collection
-        
+
         self._client = client
         if collection:
             self._collection = collection
@@ -113,8 +111,11 @@ class QdrantIndexer:
             logger.warning(
                 "upsert_chunks: rejected %d/%d chunks failing the quality gate "
                 "(collection=%s). First: %r in %r",
-                len(rejected), len_texts, self._collection,
-                rejected[0][1], rejected[0][2],
+                len(rejected),
+                len_texts,
+                self._collection,
+                rejected[0][1],
+                rejected[0][2],
             )
             texts = [texts[i] for i in keep]
             vectors = [vectors[i] for i in keep]
@@ -126,7 +127,8 @@ class QdrantIndexer:
         if not texts:
             logger.warning(
                 "upsert_chunks: every chunk was rejected by the quality gate "
-                "(collection=%s) — nothing written", self._collection,
+                "(collection=%s) — nothing written",
+                self._collection,
             )
             return 0
 
@@ -141,10 +143,7 @@ class QdrantIndexer:
         # ------------------------------------------------------------------
         from services.text_quality_filter import collapse_repeats, is_repeat_alarm
 
-        sources = [
-            m.get("source_url") or "__missing_source__"
-            for m in metadatas
-        ]
+        sources = [m.get("source_url") or "__missing_source__" for m in metadatas]
         point_ids = [
             self._utils.make_point_id(
                 m.get("source_url", ""),
@@ -164,10 +163,16 @@ class QdrantIndexer:
             (logger.error if alarm else logger.warning)(
                 "upsert_chunks: collapsed %d duplicate chunks across %d distinct "
                 "texts (collection=%s). Worst: %d copies of %r from source %r.%s",
-                dropped_total, len(repeats), self._collection,
-                worst_count, worst_text, worst_source,
+                dropped_total,
+                len(repeats),
+                self._collection,
+                worst_count,
+                worst_text,
+                worst_source,
                 " A repeat run this long indicates an upstream generator loop — "
-                "investigate the writer, not just this batch." if alarm else "",
+                "investigate the writer, not just this batch."
+                if alarm
+                else "",
             )
 
             # Reconcile stale Qdrant points for dropped duplicate chunks before upsert
@@ -189,13 +194,13 @@ class QdrantIndexer:
             point_ids = [point_ids[i] for i in keep_unique]
             if sparse_vectors:
                 sparse_vectors = [
-                    sparse_vectors[i] if i < len(sparse_vectors) else {}
-                    for i in keep_unique
+                    sparse_vectors[i] if i < len(sparse_vectors) else {} for i in keep_unique
                 ]
 
         points = []
-        for i, (text, vector, meta, point_id) in enumerate(zip(texts, vectors, metadatas, point_ids)):
-
+        for i, (text, vector, meta, point_id) in enumerate(
+            zip(texts, vectors, metadatas, point_ids)
+        ):
             # Build named vector dict
             vector_dict = {"dense": vector}
             if sparse_vectors and i < len(sparse_vectors):
@@ -332,7 +337,9 @@ class QdrantIndexer:
                 logger.warning(f"No backup data found for {source_url} in {backup_collection}")
                 return False
 
-            restore_points = [PointStruct(id=p.id, vector=p.vector, payload=p.payload) for p in points]
+            restore_points = [
+                PointStruct(id=p.id, vector=p.vector, payload=p.payload) for p in points
+            ]
             self._client.upsert(collection_name=self._collection, points=restore_points)
             logger.info(f"Restored {len(restore_points)} points from backup for {source_url}")
             return True

@@ -157,8 +157,12 @@ class GraphState(TypedDict):
 
     # CoVe
     verification: Optional[dict]
-    confidence_score: Annotated[Optional[float], keep_latest]  # 1-10 confidence from combined verification
-    faithfulness_score: Annotated[Optional[float], keep_latest]  # Self-RAG / LettuceDetect faithfulness score
+    confidence_score: Annotated[
+        Optional[float], keep_latest
+    ]  # 1-10 confidence from combined verification
+    faithfulness_score: Annotated[
+        Optional[float], keep_latest
+    ]  # Self-RAG / LettuceDetect faithfulness score
 
     # Guardrails
     input_blocked: bool
@@ -175,7 +179,9 @@ class GraphState(TypedDict):
 
     # Context Engineering
     context_layers: Optional[dict]  # {persona, knowledge, instructions, user_state}
-    selected_docs: Optional[list]  # post-budget survivors from context_engineer (read by generate_answer)
+    selected_docs: Optional[
+        list
+    ]  # post-budget survivors from context_engineer (read by generate_answer)
 
     # Explainable Retrieval
     citation_reasoning: Annotated[dict, add_dicts]  # {url: reasoning}
@@ -192,7 +198,9 @@ class GraphState(TypedDict):
     attachment_context: Optional[str]
     ab_model: Optional[str]  # "primary" or "krutrim" for A/B testing
     query_tier: Annotated[Optional[str], keep_latest]  # "fast" vs "standard" vs "deep"
-    complexity_score: Annotated[Optional[float], keep_latest]  # 0.0-1.0, multi-signal score from intent_router
+    complexity_score: Annotated[
+        Optional[float], keep_latest
+    ]  # 0.0-1.0, multi-signal score from intent_router
     model_used: Optional[str]
     model_provider: Optional[str]
     route_decision: Optional[str]

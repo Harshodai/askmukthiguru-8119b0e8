@@ -36,13 +36,13 @@ Public API:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
 import time
+from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Mapping
+from typing import Any
 
 import aiohttp
 
@@ -124,12 +124,12 @@ class AnthropicGatewayConfig:
     max_tokens: int
     temperature: float
     timeout_s: int
-    system_cache_ttl: str             # "5m" | "1h" | "" (no cache)
+    system_cache_ttl: str  # "5m" | "1h" | "" (no cache)
     extended_thinking_enabled: bool
     extended_thinking_budget_tokens: int
 
     @classmethod
-    def from_settings(cls) -> "AnthropicGatewayConfig":
+    def from_settings(cls) -> AnthropicGatewayConfig:
         """Resolve config from `app.config.settings` with sane defaults.
         Falls back to env vars if Settings hasn't been initialised."""
 
@@ -163,7 +163,9 @@ class AnthropicGatewayConfig:
                 if isinstance(_get("anthropic_extended_thinking_enabled", "0"), str)
                 else _get("anthropic_extended_thinking_enabled", False)
             ),
-            extended_thinking_budget_tokens=int(_get("anthropic_extended_thinking_budget_tokens", 0)),
+            extended_thinking_budget_tokens=int(
+                _get("anthropic_extended_thinking_budget_tokens", 0)
+            ),
         )
 
 
@@ -200,7 +202,7 @@ class AnthropicGateway:
         self._enabled = bool(self.config.api_key)
 
     @classmethod
-    def from_settings(cls) -> "AnthropicGateway":
+    def from_settings(cls) -> AnthropicGateway:
         return cls(AnthropicGatewayConfig.from_settings())
 
     @property
@@ -242,7 +244,11 @@ class AnthropicGateway:
         if self.config.system_cache_ttl:
             block["cache_control"] = {
                 "type": "ephemeral",
-                **({"ttl": self.config.system_cache_ttl} if self.config.system_cache_ttl != "5m" else {}),
+                **(
+                    {"ttl": self.config.system_cache_ttl}
+                    if self.config.system_cache_ttl != "5m"
+                    else {}
+                ),
             }
         return [block]
 
@@ -299,7 +305,10 @@ class AnthropicGateway:
                 {"role": "user", "content": self._build_user_message(user_message, documents)}
             ],
         }
-        if self.config.extended_thinking_enabled and self.config.extended_thinking_budget_tokens > 0:
+        if (
+            self.config.extended_thinking_enabled
+            and self.config.extended_thinking_budget_tokens > 0
+        ):
             payload["thinking"] = {
                 "type": "enabled",
                 "budget_tokens": self.config.extended_thinking_budget_tokens,
@@ -346,7 +355,7 @@ class AnthropicGateway:
                         f"Anthropic API returned {resp.status}: {text[:300]}"
                     )
                 data = await resp.json()
-        except (asyncio.TimeoutError, aiohttp.ClientError) as exc:
+        except (TimeoutError, aiohttp.ClientError) as exc:
             raise AnthropicGatewayError(f"transport: {exc}") from exc
 
         return self._parse_response(data, latency_ms)
@@ -396,7 +405,7 @@ class AnthropicGateway:
                     line = raw_line.decode("utf-8", errors="ignore").strip()
                     if not line or not line.startswith("data:"):
                         continue
-                    data_payload = line[len("data:"):].strip()
+                    data_payload = line[len("data:") :].strip()
                     if data_payload == "[DONE]":
                         return
                     try:
@@ -409,7 +418,7 @@ class AnthropicGateway:
                             text_chunk = delta.get("text") or ""
                             if text_chunk:
                                 yield text_chunk
-        except (asyncio.TimeoutError, aiohttp.ClientError) as exc:
+        except (TimeoutError, aiohttp.ClientError) as exc:
             raise AnthropicGatewayError(f"transport: {exc}") from exc
 
     # ---- response parsing ----

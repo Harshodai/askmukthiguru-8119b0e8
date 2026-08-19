@@ -46,7 +46,12 @@ async def get_metrics(
 
     def _fetch_metrics() -> UserMetrics:
         try:
-            conv = supabase.table("conversations").select("id", count="exact").eq("user_id", user_id).execute()
+            conv = (
+                supabase.table("conversations")
+                .select("id", count="exact")
+                .eq("user_id", user_id)
+                .execute()
+            )
         except Exception:
             conv = None
 
@@ -61,12 +66,22 @@ async def get_metrics(
         except Exception:
             # Fallback if inner join syntax unsupported by mock/version
             try:
-                msgs = supabase.table("chat_messages").select("id", count="exact").eq("user_id", user_id).execute()
+                msgs = (
+                    supabase.table("chat_messages")
+                    .select("id", count="exact")
+                    .eq("user_id", user_id)
+                    .execute()
+                )
             except Exception:
                 msgs = None
 
         try:
-            sessions = supabase.table("meditation_sessions").select("duration_seconds").eq("user_id", user_id).execute()
+            sessions = (
+                supabase.table("meditation_sessions")
+                .select("duration_seconds")
+                .eq("user_id", user_id)
+                .execute()
+            )
         except Exception:
             sessions = None
 
@@ -82,7 +97,12 @@ async def get_metrics(
         except Exception:
             course = None
 
-        total_minutes = sum(s.get("duration_seconds", 0) or 0 for s in (sessions.data if sessions else []) or []) / 60.0
+        total_minutes = (
+            sum(
+                s.get("duration_seconds", 0) or 0 for s in (sessions.data if sessions else []) or []
+            )
+            / 60.0
+        )
         return UserMetrics(
             total_conversations=(conv.count if conv else 0) or 0,
             total_messages=(msgs.count if msgs else 0) or 0,

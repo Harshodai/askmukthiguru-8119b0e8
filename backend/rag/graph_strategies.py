@@ -28,6 +28,7 @@ from app.config import settings
 from rag.nodes import (
     agentic_graph_traversal,
     context_engineer,
+    cross_teacher_reasoning,
     decompose_query,
     enrich_context,
     extract_citations,
@@ -48,10 +49,9 @@ from rag.nodes import (
     rewrite_query,
     verify_answer,
     web_search_node,
-    cross_teacher_reasoning,
 )
-from rag.resolve_followup import resolve_followup
 from rag.nodes.intent import route_after_grading
+from rag.resolve_followup import resolve_followup
 from rag.states import GraphState
 
 
@@ -65,7 +65,16 @@ def route_after_intent_fast(state: GraphState) -> str:
         return "meditation"
     elif intent == "LIVE_LOGISTICS":
         return "temporal"
-    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION", "GUIDED_TOUR", "COMPARATIVE"]:
+    elif intent in [
+        "QUERY",
+        "FACTUAL",
+        "RELATIONAL",
+        "FOLLOW_UP",
+        "ADVERSARIAL",
+        "SAFETY_VIOLATION",
+        "GUIDED_TOUR",
+        "COMPARATIVE",
+    ]:
         if needs_web_search:
             return "temporal"
         return "query"
@@ -77,7 +86,7 @@ def route_after_intent_fast(state: GraphState) -> str:
 
 def route_after_intent(state: GraphState) -> str:
     """Route after intent classification, checking for web search needs.
-    
+
     Standard strategy routes DISTRESS to the retrieval chain ('query') so we can ground
     our response in spiritual teachings, rather than bypassing it immediately.
     """
@@ -89,7 +98,16 @@ def route_after_intent(state: GraphState) -> str:
         return "meditation"
     elif intent == "LIVE_LOGISTICS":
         return "temporal"
-    elif intent in ["QUERY", "FACTUAL", "RELATIONAL", "FOLLOW_UP", "ADVERSARIAL", "SAFETY_VIOLATION", "GUIDED_TOUR", "COMPARATIVE"]:
+    elif intent in [
+        "QUERY",
+        "FACTUAL",
+        "RELATIONAL",
+        "FOLLOW_UP",
+        "ADVERSARIAL",
+        "SAFETY_VIOLATION",
+        "GUIDED_TOUR",
+        "COMPARATIVE",
+    ]:
         if needs_web_search:
             return "temporal"
         return "query"
@@ -97,6 +115,7 @@ def route_after_intent(state: GraphState) -> str:
         return "casual"
     else:
         return "casual"
+
 
 if TYPE_CHECKING:
     from langgraph.graph.state import CompiledStateGraph
@@ -109,6 +128,7 @@ logger = logging.getLogger(__name__)
 # Routing helpers (previously in graph.py) — moved here to keep graph wiring
 # fully encapsulated inside the strategies.
 # ---------------------------------------------------------------------------
+
 
 def _route_after_reflection(state: GraphState) -> str:
     """Route after self-reflection."""
@@ -226,7 +246,9 @@ class StandardGraphStrategy(GraphStrategy):
         graph.add_node("cross_teacher_reasoning", cross_teacher_reasoning)
 
         # --- Parallel entry: intent_router + handle_distress_check ---
-        graph.add_conditional_edges(START, parallel_start, ["intent_router", "handle_distress_check"])
+        graph.add_conditional_edges(
+            START, parallel_start, ["intent_router", "handle_distress_check"]
+        )
         graph.add_edge("intent_router", "resolve_parallel")
         graph.add_edge("handle_distress_check", "resolve_parallel")
 
@@ -254,7 +276,11 @@ class StandardGraphStrategy(GraphStrategy):
         # Agentic graph traversal is invoked only for COMPARATIVE intent.
         # All other intents route directly to reranking.
         def _route_after_retrieve(state: GraphState) -> str:
-            return "agentic_graph_traversal" if state.get("intent") == "COMPARATIVE" else "rerank_documents"
+            return (
+                "agentic_graph_traversal"
+                if state.get("intent") == "COMPARATIVE"
+                else "rerank_documents"
+            )
 
         graph.add_conditional_edges(
             "retrieve_documents",
@@ -367,7 +393,9 @@ class FastGraphStrategy(GraphStrategy):
         graph.add_node("web_search", web_search_node)
 
         # --- Parallel entry: intent_router + handle_distress_check ---
-        graph.add_conditional_edges(START, parallel_start, ["intent_router", "handle_distress_check"])
+        graph.add_conditional_edges(
+            START, parallel_start, ["intent_router", "handle_distress_check"]
+        )
         graph.add_edge("intent_router", "resolve_parallel")
         graph.add_edge("handle_distress_check", "resolve_parallel")
 
@@ -421,13 +449,15 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
     answer = state.get("answer", "")
     relevant_docs = state.get("relevant_docs", [])
     context = "\n\n".join(
-        d.get("text") or d.get("content", "")
-        for d in relevant_docs if isinstance(d, dict)
+        d.get("text") or d.get("content", "") for d in relevant_docs if isinstance(d, dict)
     )
 
     if not answer or not context or len(context.strip()) < 200:
         logger.warning("deep_contradiction_gate: insufficient answer/context for deep verification")
-        return {"needs_correction": True, "reflection_feedback": "Deep verification skipped: insufficient context"}
+        return {
+            "needs_correction": True,
+            "reflection_feedback": "Deep verification skipped: insufficient context",
+        }
 
     from rag.nodes import _services
 
@@ -443,15 +473,21 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
                 }
             return {"needs_correction": False}
         except Exception as exc:
-            logger.warning(f"deep_contradiction_gate: gateway verify failed ({exc}), falling back to LettuceDetect")
+            logger.warning(
+                f"deep_contradiction_gate: gateway verify failed ({exc}), falling back to LettuceDetect"
+            )
 
     lettuce_detect = _services._lettuce_detect
     if lettuce_detect is None:
-        logger.warning("deep_contradiction_gate: no verification service available, marking as needing correction")
+        logger.warning(
+            "deep_contradiction_gate: no verification service available, marking as needing correction"
+        )
         return {"needs_correction": True, "reflection_feedback": "Deep verification unavailable"}
 
     try:
-        result = await asyncio.to_thread(lettuce_detect.score_faithfulness, state.get("question", ""), context, answer)
+        result = await asyncio.to_thread(
+            lettuce_detect.score_faithfulness, state.get("question", ""), context, answer
+        )
         is_faithful = result.get("is_faithful", False)
         score = result.get("score", 0.0)
         if score < settings.faithfulness_floor:
@@ -544,7 +580,7 @@ _STRATEGY_FACTORIES = {
 
 
 @lru_cache(maxsize=4)
-def build_cached(strategy_name: str) -> "CompiledStateGraph":
+def build_cached(strategy_name: str) -> CompiledStateGraph:
     """Compile a strategy ONCE and return the cached CompiledStateGraph.
 
     Caller must have called ``init_services`` with valid services beforehand

@@ -7,8 +7,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scripts.ops.cleanup_inactive_user_data import cleanup_anonymous_session_summaries
-
 
 def _import_cleanup_mod(patched_supabase):
     """Reimport the ops module so create_client resolves to the patch."""
@@ -23,6 +21,7 @@ def _import_cleanup_mod(patched_supabase):
         sys.modules.pop("scripts.ops.cleanup_inactive_user_data", None)
         sys.modules.pop("scripts.ops", None)
         from scripts.ops import cleanup_inactive_user_data as cleanup_mod
+
         return cleanup_mod
 
 
@@ -51,14 +50,9 @@ def _make_supabase(rows):
 
                 def lt_side(*args, **kwargs):
                     cutoff = (datetime.utcnow() - timedelta(days=30)).isoformat()
-                    stale = [
-                        r for r in rows
-                        if r[1] is None and r[2] < cutoff
-                    ]
+                    stale = [r for r in rows if r[1] is None and r[2] < cutoff]
                     lt_mock = MagicMock()
-                    lt_mock.execute.return_value = SimpleNamespace(
-                        count=len(stale), data=stale
-                    )
+                    lt_mock.execute.return_value = SimpleNamespace(count=len(stale), data=stale)
                     return lt_mock
 
                 is_mock.lt.side_effect = lt_side

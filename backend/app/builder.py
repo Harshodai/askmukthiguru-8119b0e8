@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os as _os
 import sys as _sys
+
 _SCRIPT_DIR = _os.path.dirname(_os.path.abspath(__file__))
 if _SCRIPT_DIR in _sys.path:
     _sys.path.remove(_SCRIPT_DIR)

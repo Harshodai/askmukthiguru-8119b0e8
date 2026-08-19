@@ -7,8 +7,6 @@ SHA-256 digest (first 16 hex chars) of the message.
 
 import hashlib
 
-import pytest
-
 from app.pipeline.stages.graph_stage import _coalesce_key
 
 

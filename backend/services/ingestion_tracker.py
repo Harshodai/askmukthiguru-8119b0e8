@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import time
 from typing import Any, Optional
 
@@ -43,9 +42,7 @@ class _InMemoryIngestionTracker(IngestionTracker):
     def get_all(self) -> dict[str, Any]:
         return self._data.copy()
 
-    def mark_error(
-        self, url: str, error_message: str, tags: Optional[list[str]] = None
-    ) -> None:
+    def mark_error(self, url: str, error_message: str, tags: Optional[list[str]] = None) -> None:
         self._data[url] = {
             "url": url,
             "message": error_message,
@@ -129,9 +126,7 @@ class SupabaseIngestionTracker(IngestionTracker):
             logger.warning(f"SupabaseIngestionTracker.get_all failed: {e}")
             return {}
 
-    def mark_error(
-        self, url: str, error_message: str, tags: Optional[list[str]] = None
-    ) -> None:
+    def mark_error(self, url: str, error_message: str, tags: Optional[list[str]] = None) -> None:
         try:
             now = time.time()
             self._client.table("ingest_jobs").upsert(
@@ -163,5 +158,7 @@ def build_tracker(
         try:
             return SupabaseIngestionTracker(url, key)
         except Exception as e:
-            logger.warning(f"Failed to create SupabaseIngestionTracker: {e}. Falling back to in-memory.")
+            logger.warning(
+                f"Failed to create SupabaseIngestionTracker: {e}. Falling back to in-memory."
+            )
     return _InMemoryIngestionTracker()

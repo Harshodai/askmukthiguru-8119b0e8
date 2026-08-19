@@ -3,27 +3,36 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import asdict
 import json
 import logging
 import re
 import time
+from dataclasses import asdict
 from functools import wraps
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from app.config import settings
 from app.chat_uploads import MAX_SINGLE_BYTES, extract_chat_attachments
+from app.config import settings
 from app.core.limiter import limiter
+from app.core.user_usage_monitor import get_user_monitor
 from app.dependencies import ServiceContainer, get_container
-from app.schemas import ChatRequest, ChatResponse, MessagePayload
 from app.grounding import grounding_state_for
 from app.release_manifest import get_release_manifest
 from app.sanitization import sanitize_user_input
+from app.schemas import ChatRequest, ChatResponse, MessagePayload
 from app.security_utils import is_benchmark_request
-from rag.memory import build_memory_context
 from services.anon_quota_port import QuotaResult
 from services.auth_service import (
     get_current_user_from_supabase,
@@ -32,7 +41,6 @@ from services.auth_service import (
     resolve_anon_identity,
 )
 from services.cost_tracker import TokenAccumulator, get_cost_tracker, token_accumulator_var
-from app.core.user_usage_monitor import get_user_monitor
 from services.tenant_context import TenantContext, set_tenant_from_request
 
 logger = logging.getLogger(__name__)
@@ -47,6 +55,7 @@ _ATTACHMENT_EXTRACTION_SEMAPHORE = asyncio.Semaphore(2)
 @limiter.limit(settings.chat_upload_rate_limit)
 async def chat_upload_endpoint(
     request: Request,
+    user: dict = Depends(get_current_user_from_supabase),
     files: list[UploadFile] = File(...),
     language_code: Optional[str] = Form(None),
     container: ServiceContainer = Depends(get_container),
@@ -78,7 +87,7 @@ async def chat_upload_endpoint(
                 ),
                 timeout=45.0,
             )
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         raise HTTPException(status_code=408, detail="Attachment processing timed out") from exc
     except ValueError as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
@@ -88,7 +97,8 @@ async def chat_upload_endpoint(
 # Anonymous chat quota (progressive auth)
 # ---------------------------------------------------------------------------
 
-def _anon_quota_response(quota: "QuotaResult") -> JSONResponse:
+
+def _anon_quota_response(quota: QuotaResult) -> JSONResponse:
     """Standard 429 response when an anonymous session hits its message quota."""
     headers = {}
     if quota.retry_after_seconds:
@@ -157,6 +167,7 @@ async def _release_anon_quota(
     except Exception as exc:
         logger.debug(f"anon quota release failed (non-fatal): {exc}")
 
+
 # P1-OPS-8: upstream backpressure for chat. A single replica can be
 # overwhelmed by concurrent chat requests; the LLM circuit breaker only
 # protects downstream. When MAX_CONCURRENT_CHAT requests are in flight we
@@ -191,7 +202,7 @@ def backpressure_semaphore(func):
         sem = _get_chat_semaphore()
         try:
             await asyncio.wait_for(sem.acquire(), timeout=0.01)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return JSONResponse(
                 status_code=503,
                 content={"detail": "Server busy, try again shortly"},
@@ -209,7 +220,11 @@ def get_chat_backpressure() -> dict:
     """Current chat admission-control state, surfaced in /api/health."""
     sem = _chat_semaphore
     if sem is None:
-        return {"max_concurrent": settings.max_concurrent_chat, "in_flight": 0, "admission_limited": False}
+        return {
+            "max_concurrent": settings.max_concurrent_chat,
+            "in_flight": 0,
+            "admission_limited": False,
+        }
     return {
         "max_concurrent": settings.max_concurrent_chat,
         "in_flight": max(0, settings.max_concurrent_chat - sem._value),
@@ -217,7 +232,9 @@ def get_chat_backpressure() -> dict:
     }
 
 
-async def populate_server_side_history(chat_body: ChatRequest, user: dict, container: ServiceContainer, is_benchmark: bool) -> None:
+async def populate_server_side_history(
+    chat_body: ChatRequest, user: dict, container: ServiceContainer, is_benchmark: bool
+) -> None:
     """Retrieves conversation history from Supabase for security (prevents client history injection)."""
     if chat_body.incognito:
         # An ephemeral request must not read a prior durable conversation.
@@ -240,7 +257,9 @@ async def populate_server_side_history(chat_body: ChatRequest, user: dict, conta
 
     sc = container.supabase_client
     if not sc:
-        logger.warning("Supabase client is not available in container. Preserving client messages as fallback.")
+        logger.warning(
+            "Supabase client is not available in container. Preserving client messages as fallback."
+        )
         if not chat_body.messages:
             chat_body.messages = []
         return
@@ -251,17 +270,16 @@ async def populate_server_side_history(chat_body: ChatRequest, user: dict, conta
         # supabase-py v2 async mode) to eliminate thread pool pressure.
         # asyncio.to_thread() is correct but consumes a thread per call.
         resp = await asyncio.to_thread(
-            sc.table("conversations")
-            .select("user_id")
-            .eq("id", chat_body.session_id)
-            .execute
+            sc.table("conversations").select("user_id").eq("id", chat_body.session_id).execute
         )
         if not resp.data:
             raise HTTPException(status_code=404, detail="Conversation not found")
 
         owner_id = resp.data[0].get("user_id")
         if str(owner_id) != str(user_id):
-            raise HTTPException(status_code=403, detail="Unauthorized access to conversation history")
+            raise HTTPException(
+                status_code=403, detail="Unauthorized access to conversation history"
+            )
 
         # Fetch actual messages for the session.
         # PERF-2 TODO: Same async migration applies here.
@@ -292,11 +310,14 @@ async def populate_server_side_history(chat_body: ChatRequest, user: dict, conta
 
 def record_token_usage(endpoint: str):
     """Decorator that records token usage for a request after the handler returns."""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            request = kwargs.get("request") or next((arg for arg in args if isinstance(arg, Request)), None)
-            chat_body = kwargs.get("chat_body") or next((arg for arg in args if hasattr(arg, "user_message")), None)
+            kwargs.get("request") or next((arg for arg in args if isinstance(arg, Request)), None)
+            chat_body = kwargs.get("chat_body") or next(
+                (arg for arg in args if hasattr(arg, "user_message")), None
+            )
             user = kwargs.get("user") or {}
 
             user_id = user.get("id", "anonymous") if isinstance(user, dict) else "anonymous"
@@ -328,7 +349,9 @@ def record_token_usage(endpoint: str):
                     except Exception as e:
                         logger.warning(f"Failed to record token usage: {e}")
                 token_accumulator_var.reset(token)
+
         return wrapper
+
     return decorator
 
 
@@ -339,8 +362,10 @@ def _cache_language_key(message: str, language: str) -> str:
 
 from pydantic import BaseModel
 
+
 class TitleRequest(BaseModel):
     first_message: str
+
 
 @router.post("/chat/title")
 @limiter.limit("20/minute")
@@ -367,7 +392,7 @@ async def generate_title_endpoint(
             user_prompt=user_prompt,
         )
 
-        title = raw_title.strip().replace('"', '').replace("'", "").strip()
+        title = raw_title.strip().replace('"', "").replace("'", "").strip()
         if title:
             if len(title) > 50:
                 title = title[:47] + "..."
@@ -416,7 +441,12 @@ async def chat_endpoint(
         await _release_anon_quota(user, container, quota)
         raise
 
-    if container.job_queue and settings.queue_enabled and not is_benchmark and not chat_body.incognito:
+    if (
+        container.job_queue
+        and settings.queue_enabled
+        and not is_benchmark
+        and not chat_body.incognito
+    ):
         from app.services.job_queue import QueueFullError
 
         chat_body_dict = chat_body.model_dump()
@@ -443,7 +473,10 @@ async def chat_endpoint(
             await _release_anon_quota(user, container, quota)
             return JSONResponse(
                 status_code=429,
-                content={"error": "Too Many Requests", "detail": "Server is busy. Please try again shortly."},
+                content={
+                    "error": "Too Many Requests",
+                    "detail": "Server is busy. Please try again shortly.",
+                },
                 headers={"Retry-After": "5"},
             )
 
@@ -558,17 +591,17 @@ async def chat_v2_endpoint(
         daily_practice_card=result.daily_practice_card,
         live_logistics_events=getattr(result, "live_logistics_events", []),
         answer_evidence=(
-            None if getattr(result, "answer_evidence", None) is None
+            None
+            if getattr(result, "answer_evidence", None) is None
             else asdict(result.answer_evidence)
         ),
         guidance_plan=(
-            None if getattr(result, "guidance_plan", None) is None
-            else asdict(result.guidance_plan)
+            None if getattr(result, "guidance_plan", None) is None else asdict(result.guidance_plan)
         ),
         grounding_state=grounding_state_for(result),
-        release_manifest=getattr(result, "release_manifest", None) or get_release_manifest().to_dict(),
+        release_manifest=getattr(result, "release_manifest", None)
+        or get_release_manifest().to_dict(),
     )
-
 
 
 @router.post("/chat/stream")
@@ -607,7 +640,12 @@ async def chat_stream_endpoint(
         await _release_anon_quota(user, container, quota)
         raise
 
-    if container.job_queue and settings.queue_enabled and not is_benchmark and not chat_body.incognito:
+    if (
+        container.job_queue
+        and settings.queue_enabled
+        and not is_benchmark
+        and not chat_body.incognito
+    ):
         from app.services.job_queue import QueueFullError
 
         chat_body_dict = chat_body.model_dump()
@@ -634,7 +672,10 @@ async def chat_stream_endpoint(
             await _release_anon_quota(user, container, quota)
             return JSONResponse(
                 status_code=429,
-                content={"error": "Too Many Requests", "detail": "Server is busy. Please try again shortly."},
+                content={
+                    "error": "Too Many Requests",
+                    "detail": "Server is busy. Please try again shortly.",
+                },
                 headers={"Retry-After": "5"},
             )
 
@@ -683,14 +724,11 @@ async def chat_stream_poll(
         raise HTTPException(status_code=404, detail="Job not found or expired")
 
     import redis.asyncio as aioredis
+
     r = aioredis.from_url(settings.redis_url, decode_responses=True)
     stream_key = f"job:stream:{job_id}:events"
     requested_last_id = (request.headers.get("last-event-id") or "0").strip()
-    last_event_id = (
-        requested_last_id
-        if re.fullmatch(r"\d+-\d+", requested_last_id)
-        else "0"
-    )
+    last_event_id = requested_last_id if re.fullmatch(r"\d+-\d+", requested_last_id) else "0"
 
     async def _sse():
         last_id = last_event_id
@@ -700,9 +738,7 @@ async def chat_stream_poll(
         try:
             while time.time() < deadline:
                 try:
-                    results = await r.xread(
-                        {stream_key: last_id}, count=10, block=2000
-                    )
+                    results = await r.xread({stream_key: last_id}, count=10, block=2000)
                 except Exception:
                     await asyncio.sleep(0.5)
                     continue
@@ -721,18 +757,22 @@ async def chat_stream_poll(
                             await asyncio.sleep(0.5)
                             continue
                         if status in ("completed", "failed") and last_id != "0":
-                            fallback = last_done_data or json.dumps({"grounding_state": "system_error"})
+                            fallback = last_done_data or json.dumps(
+                                {"grounding_state": "system_error"}
+                            )
                             yield f"event: done\ndata: {fallback}\n\n"
                             return
                     continue
 
-                for stream_name, entries in results:
+                for _stream_name, entries in results:
                     for entry_id, fields in entries:
                         last_id = entry_id
                         data = fields.get("data", "")
                         event_id = f"id: {entry_id}\n"
                         if data == "__COMPLETE__":
-                            fallback = last_done_data or json.dumps({"grounding_state": "system_error"})
+                            fallback = last_done_data or json.dumps(
+                                {"grounding_state": "system_error"}
+                            )
                             yield f"{event_id}event: done\ndata: {fallback}\n\n"
                             return
                         if data == "__ERROR__":
@@ -901,10 +941,11 @@ async def get_concept_graph(
                 {"source": "Soul Stage", "target": "Serene Mind", "type": "RELATED_TO"},
                 {"source": "Deeksha", "target": "Ekam", "type": "REFERS_TO"},
                 {"source": "Four Sacred Secrets", "target": "Soul Stage", "type": "CONTAINS"},
-            ]
+            ],
         }
 
     try:
+
         def _query_graph():
             driver = container.neo4j_driver
             if driver is None:
@@ -938,11 +979,7 @@ async def get_concept_graph(
                     if tgt not in nodes:
                         nodes[tgt] = {"id": tgt, "group": record["target_label"] or "Concept"}
 
-                    links.append({
-                        "source": src,
-                        "target": tgt,
-                        "type": record["rel_type"]
-                    })
+                    links.append({"source": src, "target": tgt, "type": record["rel_type"]})
             return {"nodes": list(nodes.values()), "links": links}
 
         return await asyncio.to_thread(_query_graph)
@@ -958,5 +995,5 @@ async def get_concept_graph(
             "links": [
                 {"source": "Soul Stage", "target": "Serene Mind", "type": "RELATED_TO"},
                 {"source": "Deeksha", "target": "Ekam", "type": "REFERS_TO"},
-            ]
+            ],
         }

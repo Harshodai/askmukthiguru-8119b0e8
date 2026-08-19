@@ -21,9 +21,7 @@ def is_supadata_available() -> bool:
     return bool(key)
 
 
-def fetch_transcript_supadata(
-    video_id: str, language: str = "en"
-) -> Optional[dict]:
+def fetch_transcript_supadata(video_id: str, language: str = "en") -> Optional[dict]:
     """
     Fetch a YouTube transcript via the Supadata API.
 

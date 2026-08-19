@@ -119,13 +119,23 @@ def health_check(self) -> dict:
 
 # ---- Ingest job progress tracking (PostgreSQL via Supabase) ----
 
-def update_job_progress(job_id: str, status: str, progress_pct: int = 0, chunks_indexed: int = 0, error_message: str = None, worker_id: str = None) -> None:
+
+def update_job_progress(
+    job_id: str,
+    status: str,
+    progress_pct: int = 0,
+    chunks_indexed: int = 0,
+    error_message: str = None,
+    worker_id: str = None,
+) -> None:
     """Update ingest_jobs row. Best-effort — failures are logged, not raised."""
     try:
         from app.config import settings
+
         if not settings.supabase_url or not settings.supabase_key:
             return
         from supabase import create_client
+
         client = create_client(settings.supabase_url, settings.supabase_key)
 
         updates = {"status": status, "progress_pct": progress_pct, "chunks_indexed": chunks_indexed}
@@ -142,10 +152,11 @@ def update_job_progress(job_id: str, status: str, progress_pct: int = 0, chunks_
     except Exception as e:
         # Don't fail the task — progress tracking is non-critical
         import logging
+
         logging.getLogger(__name__).warning(f"Job progress update failed for {job_id}: {e}")
 
 
 def retry_backoff(self, exc: Exception) -> None:
     """Exponential backoff: 2^retry * base_delay (30s max)."""
-    delay = min(2 ** self.request.retries * 5, 30)
+    delay = min(2**self.request.retries * 5, 30)
     raise self.retry(exc=exc, countdown=delay)

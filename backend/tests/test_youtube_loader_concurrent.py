@@ -18,17 +18,18 @@ async def test_fetch_transcripts_concurrent_exception_safety():
             raise RuntimeError("YouTube API error")
         return {"text": f"Transcript for {title}", "method": "youtube_captions"}
 
-    with patch("ingest.youtube_loader.fetch_transcript_hybrid", side_effect=mock_fetch_hybrid), \
-         patch("app.config.settings.ingestion_concurrency", 2):
-        
+    with (
+        patch("ingest.youtube_loader.fetch_transcript_hybrid", side_effect=mock_fetch_hybrid),
+        patch("app.config.settings.ingestion_concurrency", 2),
+    ):
         results = await fetch_transcripts_concurrent(video_list)
-        
+
         assert len(results) == 2
-        
+
         # First video should be recorded as a failure and not raise an exception
         assert results[0]["method"] == "failed"
         assert "YouTube API error" in results[0]["error"]
-        
+
         # Second video should succeed
         assert results[1]["method"] == "youtube_captions"
         assert results[1]["text"] == "Transcript for Video 2"

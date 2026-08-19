@@ -27,6 +27,7 @@ class LLMProvider(abc.ABC):
         hard_limit = budget * 2
         if estimated > budget:
             import logging
+
             logger = logging.getLogger("TokenBudgetGuard")
             if estimated > hard_limit:
                 logger.error(
@@ -51,6 +52,7 @@ class LLMProvider(abc.ABC):
         if len(words) <= max_words:
             return text
         import logging
+
         logging.getLogger("TokenBudgetGuard").warning(
             f"Truncating text from {len(words)} to {max_words} words to fit budget {budget} tokens."
         )
@@ -67,7 +69,9 @@ class LLMProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def generate_stream(self, system_prompt: str, user_prompt: str, **kwargs: Any) -> AsyncIterator[str]:
+    async def generate_stream(
+        self, system_prompt: str, user_prompt: str, **kwargs: Any
+    ) -> AsyncIterator[str]:
         """Stream generation tokens."""
         pass
 
@@ -86,14 +90,17 @@ class LLMProvider(abc.ABC):
         """Assess whether a message signals emotional distress."""
         pass
 
-
     @abc.abstractmethod
-    async def grade_relevance(self, *, question: str, doc_texts: list[str], **kwargs: Any) -> list[dict[str, Any]]:
+    async def grade_relevance(
+        self, *, question: str, doc_texts: list[str], **kwargs: Any
+    ) -> list[dict[str, Any]]:
         """Batch grade relevance of documents against a question."""
         pass
 
     @abc.abstractmethod
-    async def check_faithfulness(self, *, answer: str, context: str, **kwargs: Any) -> dict[str, Any]:
+    async def check_faithfulness(
+        self, *, answer: str, context: str, **kwargs: Any
+    ) -> dict[str, Any]:
         """Check whether answer is faithful to context."""
         pass
 
@@ -123,7 +130,9 @@ class LLMProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def translate_text(self, *, text: str, source_lang: str, target_lang: str, **kwargs: Any) -> str:
+    async def translate_text(
+        self, *, text: str, source_lang: str, target_lang: str, **kwargs: Any
+    ) -> str:
         """Translate text between languages."""
         pass
 

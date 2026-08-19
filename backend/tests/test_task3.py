@@ -224,16 +224,15 @@ async def test_retrieval_bm25_uses_native_sparse_vector(mock_retrieval_services,
 
 def test_bm25_sparse_search_uses_qdrant_sparse_query():
     """_bm25_sparse_search should encode the query and query Qdrant sparse vector."""
-    from rag.nodes.retrieval import _bm25_sparse_search
     from unittest.mock import MagicMock
+
+    from rag.nodes.retrieval import _bm25_sparse_search
 
     mock_embedder = MagicMock()
     mock_embedder.encode_single_full.return_value = {"dense": [0.1] * 384, "sparse": {"1": 0.5}}
 
     mock_qdrant = MagicMock()
-    mock_qdrant.search.return_value = [
-        {"text": "sparse hit", "score": 0.85, "source_url": "url1"}
-    ]
+    mock_qdrant.search.return_value = [{"text": "sparse hit", "score": 0.85, "source_url": "url1"}]
 
     results = _bm25_sparse_search("meditation", mock_embedder, mock_qdrant, limit=3)
 

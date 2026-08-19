@@ -32,9 +32,9 @@ _TEXT_CASES = [
     "what is the meaning of liberation",
     "a" * 300,
     "x" * 500,
-    "कर्म योग क्या है",                      # Hindi
-    "ధ్యానం అంటే ఏమిటి",                        # Telugu
-    "मृत्यु के बाद क्या होता है",              # Hindi long
+    "कर्म योग क्या है",  # Hindi
+    "ధ్యానం అంటే ఏమిటి",  # Telugu
+    "मृत्यु के बाद क्या होता है",  # Hindi long
     "emoji 😊 mixed 123 !@#$%^&*()",
     "camelCaseQuery and snake_case_query",
     "नमस्ते. Hello. नमस्ते.",
@@ -62,9 +62,7 @@ def test_classify_categories_are_known(query: str) -> None:
 def test_inject_never_shorter_than_original(query: str) -> None:
     """Injecting keywords can only add or preserve length, never shorten."""
     result = inject_doctrine_keywords(query)
-    assert len(result) >= len(query), (
-        f"inject shortened query: {len(query)} -> {len(result)}"
-    )
+    assert len(result) >= len(query), f"inject shortened query: {len(query)} -> {len(result)}"
 
 
 @pytest.mark.parametrize("query", _TEXT_CASES)
@@ -72,9 +70,7 @@ def test_inject_preserves_original_query_as_prefix(query: str) -> None:
     """Original query must appear as a prefix in the injected result."""
     result = inject_doctrine_keywords(query)
     assert result.startswith(query), (
-        f"Original query not preserved as prefix.\n"
-        f"Query:  {query!r}\n"
-        f"Result: {result!r}"
+        f"Original query not preserved as prefix.\nQuery:  {query!r}\nResult: {result!r}"
     )
 
 

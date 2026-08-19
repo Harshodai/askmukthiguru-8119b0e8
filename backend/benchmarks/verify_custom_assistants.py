@@ -7,11 +7,12 @@ Performs API queries and checks postgres database telemetry records.
 import argparse
 import asyncio
 import os
+import subprocess
 import sys
 import uuid
-import httpx
-import subprocess
 from pathlib import Path
+
+import httpx
 
 # Add backend directory to path so app.config is importable when run standalone.
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -31,9 +32,7 @@ async def query_chat_api(config: dict, payload: dict) -> httpx.Response:
     async with httpx.AsyncClient(timeout=400.0) as client:
         headers = {"X-Test-Key": config["benchmark_secret"]}
         response = await client.post(
-            f"{config['base_url']}/api/chat",
-            json=payload,
-            headers=headers
+            f"{config['base_url']}/api/chat", json=payload, headers=headers
         )
         return response
 
@@ -41,10 +40,19 @@ async def query_chat_api(config: dict, payload: dict) -> httpx.Response:
 def build_telemetry_check_command(config: dict, expected_slug: str) -> list[str]:
     """Build a parameterized command to check telemetry without string interpolation in SQL."""
     return [
-        "docker", "exec", "-i", config["db_container"],
-        "psql", "-U", "postgres", "-d", "postgres",
-        "-v", f"slug={expected_slug}",
-        "-c", "SELECT assistant_slug FROM public.chat_queries WHERE assistant_slug = :'slug' LIMIT 1;"
+        "docker",
+        "exec",
+        "-i",
+        config["db_container"],
+        "psql",
+        "-U",
+        "postgres",
+        "-d",
+        "postgres",
+        "-v",
+        f"slug={expected_slug}",
+        "-c",
+        "SELECT assistant_slug FROM public.chat_queries WHERE assistant_slug = :'slug' LIMIT 1;",
     ]
 
 
@@ -56,13 +64,7 @@ def check_db_telemetry(config: dict, expected_slug: str) -> bool:
         env = os.environ.copy()
         env["PATH"] = f"/Users/harshodaikolluru/.docker/bin:{env.get('PATH', '')}"
 
-        res = subprocess.run(
-            cmd,
-            env=env,
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        res = subprocess.run(cmd, env=env, capture_output=True, text=True, check=True)
         print(f"Postgres telemetry output:\n{res.stdout}")
         return expected_slug in res.stdout
     except subprocess.CalledProcessError as e:
@@ -77,10 +79,25 @@ def check_db_telemetry(config: dict, expected_slug: str) -> bool:
 
 async def main():
     parser = argparse.ArgumentParser(description="E2E validation for Custom Assistants.")
-    parser.add_argument("--backend-url", default=None, help="Backend base URL (default: $BACKEND_URL or http://localhost:8000)")
-    parser.add_argument("--db-container", default=None, help="Docker container name for Supabase Postgres (default: $SUPABASE_DB_CONTAINER or supabase_db)")
-    parser.add_argument("--benchmark-secret", default=None, help="Benchmark test key (default: $BENCHMARK_SECRET)")
-    parser.add_argument("--wait-telemetry", type=float, default=2.0, help="Seconds to wait for telemetry sink (default: 2)")
+    parser.add_argument(
+        "--backend-url",
+        default=None,
+        help="Backend base URL (default: $BACKEND_URL or http://localhost:8000)",
+    )
+    parser.add_argument(
+        "--db-container",
+        default=None,
+        help="Docker container name for Supabase Postgres (default: $SUPABASE_DB_CONTAINER or supabase_db)",
+    )
+    parser.add_argument(
+        "--benchmark-secret", default=None, help="Benchmark test key (default: $BENCHMARK_SECRET)"
+    )
+    parser.add_argument(
+        "--wait-telemetry",
+        type=float,
+        default=2.0,
+        help="Seconds to wait for telemetry sink (default: 2)",
+    )
     args = parser.parse_args()
 
     config = build_config(args)
@@ -96,7 +113,7 @@ async def main():
     print("Scenario 1: Sending request without assistant block (baseline)...")
     payload_baseline = {
         "messages": [{"role": "user", "content": "What is the Beautiful State?"}],
-        "user_message": "What is the Beautiful State?"
+        "user_message": "What is the Beautiful State?",
     }
     resp1 = await query_chat_api(config, payload_baseline)
     if resp1.status_code == 200:
@@ -113,8 +130,8 @@ async def main():
         "assistant": {
             "slug": assistant_slug,
             "system_prompt": "You are a general spiritual assistant.",
-            "knowledge_tags": ["general"]
-        }
+            "knowledge_tags": ["general"],
+        },
     }
     resp2 = await query_chat_api(config, payload_general)
     if resp2.status_code == 200:
@@ -145,8 +162,8 @@ async def main():
         "assistant": {
             "slug": f"sky-assistant-{test_id}",
             "system_prompt": "You are a sky teachings assistant.",
-            "knowledge_tags": ["sky"]
-        }
+            "knowledge_tags": ["sky"],
+        },
     }
     resp3 = await query_chat_api(config, payload_sky)
     if resp3.status_code == 200:

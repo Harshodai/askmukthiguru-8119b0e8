@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
-from typing import Any, Callable, Optional
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, timedelta
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,13 @@ class RetentionService:
     async def _load_state(self, user_id: str) -> StreakState:
         if not user_id or not user_id.strip():
             return StreakState()
-        res = self._supabase.table("user_streaks").select("*").eq("user_id", user_id).maybe_single().execute()
+        res = (
+            self._supabase.table("user_streaks")
+            .select("*")
+            .eq("user_id", user_id)
+            .maybe_single()
+            .execute()
+        )
         row = res.data if res.data else {}
         if not row:
             return StreakState()
@@ -85,21 +91,25 @@ class RetentionService:
         )
 
     async def _save_state(self, user_id: str, state: StreakState) -> None:
-        self._supabase.table("user_streaks").upsert({
-            "user_id": user_id,
-            "current_streak": state.current,
-            "longest_streak": state.longest,
-            "last_active_date": state.last_active,
-            "freezes_available": state.freezes_available,
-            "total_practice_days": state.total_days,
-        }).execute()
+        self._supabase.table("user_streaks").upsert(
+            {
+                "user_id": user_id,
+                "current_streak": state.current,
+                "longest_streak": state.longest,
+                "last_active_date": state.last_active,
+                "freezes_available": state.freezes_available,
+                "total_practice_days": state.total_days,
+            }
+        ).execute()
 
     async def _log_event(self, user_id: str, event: str, **props) -> None:
-        self._supabase.table("retention_events").insert({
-            "user_id": user_id,
-            "event": event,
-            "props": props,
-        }).execute()
+        self._supabase.table("retention_events").insert(
+            {
+                "user_id": user_id,
+                "event": event,
+                "props": props,
+            }
+        ).execute()
 
     async def get_streak(self, user_id: str) -> StreakState:
         return await self._load_state(user_id)
@@ -108,7 +118,6 @@ class RetentionService:
         if not user_id or not user_id.strip():
             return StreakState()
         try:
-            from datetime import timezone as tz
             rpc_on = (on or date.today()).isoformat()
             res = self._supabase.rpc(
                 "record_practice",
@@ -124,7 +133,9 @@ class RetentionService:
                     total_days=row.get("total_practice_days", 0),
                 )
         except Exception:
-            logger.warning("atomic record_practice failed, falling back to client-side", exc_info=True)
+            logger.warning(
+                "atomic record_practice failed, falling back to client-side", exc_info=True
+            )
 
         state = await self._load_state(user_id)
         before = state.current
@@ -141,9 +152,11 @@ class RetentionService:
         state = await self._load_state(user_id)
         return self._engine.at_risk(state, today=today)
 
-    async def retention_curve(self, horizon_days: int = 30, eval_ts: Optional[float] = None) -> dict[int, float]:
+    async def retention_curve(
+        self, horizon_days: int = 30, eval_ts: Optional[float] = None
+    ) -> dict[int, float]:
         """Calculate retention curve.
-        
+
         Args:
             horizon_days: Maximum retention horizon (e.g., 30 for D30)
             eval_ts: Explicit evaluation timestamp (Unix epoch). Defaults to current time.
@@ -154,36 +167,76 @@ class RetentionService:
         # so cohorts have time to mature through D30 while we evaluate at eval_ts
         max_horizon = horizon_days
         cutoff = now_ts - max_horizon * 86400 - max_horizon * 86400  # 2x horizon for signup window
-        cutoff_iso = datetime.fromtimestamp(cutoff, tz=timezone.utc).isoformat()
+        cutoff_iso = datetime.fromtimestamp(cutoff, tz=UTC).isoformat()
         # Activity window ends at eval_ts
-        activity_cutoff_iso = datetime.fromtimestamp(now_ts, tz=timezone.utc).isoformat()
-        signups_res = self._supabase.table("retention_events").select("user_id, created_at").eq("event", EV_SIGNUP).gte("created_at", cutoff_iso).execute()
-        activity_res = self._supabase.table("retention_events").select("user_id, created_at").eq("event", EV_PRACTICE).gte("created_at", cutoff_iso).lte("created_at", activity_cutoff_iso).execute()
+        activity_cutoff_iso = datetime.fromtimestamp(now_ts, tz=UTC).isoformat()
+        signups_res = (
+            self._supabase.table("retention_events")
+            .select("user_id, created_at")
+            .eq("event", EV_SIGNUP)
+            .gte("created_at", cutoff_iso)
+            .execute()
+        )
+        activity_res = (
+            self._supabase.table("retention_events")
+            .select("user_id, created_at")
+            .eq("event", EV_PRACTICE)
+            .gte("created_at", cutoff_iso)
+            .lte("created_at", activity_cutoff_iso)
+            .execute()
+        )
 
         signups = []
-        for r in (signups_res.data or []):
+        for r in signups_res.data or []:
             ts = r.get("created_at")
             if ts:
-                signups.append({"user_id": r["user_id"], "ts": datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()})
+                signups.append(
+                    {
+                        "user_id": r["user_id"],
+                        "ts": datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp(),
+                    }
+                )
 
         activities = []
-        for r in (activity_res.data or []):
+        for r in activity_res.data or []:
             ts = r.get("created_at")
             if ts:
-                activities.append({"user_id": r["user_id"], "ts": datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()})
+                activities.append(
+                    {
+                        "user_id": r["user_id"],
+                        "ts": datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp(),
+                    }
+                )
 
-        return _retention_curve(signups, activities, horizons=tuple(range(1, horizon_days + 1)) if horizon_days <= 30 else (1, 7, 30), eval_ts=now_ts)
+        return _retention_curve(
+            signups,
+            activities,
+            horizons=tuple(range(1, horizon_days + 1)) if horizon_days <= 30 else (1, 7, 30),
+            eval_ts=now_ts,
+        )
 
 
-def _retention_curve(signup_events: list[dict], activity_events: list[dict],
-                     horizons=(1, 7, 30), eval_ts: Optional[float] = None) -> dict[int, float]:
+def _retention_curve(
+    signup_events: list[dict],
+    activity_events: list[dict],
+    horizons=(1, 7, 30),
+    eval_ts: Optional[float] = None,
+) -> dict[int, float]:
     last_seen: dict[str, float] = {}
     for e in activity_events:
         u, ts = e["user_id"], e["ts"]
         last_seen[u] = max(last_seen.get(u, 0.0), ts)
 
     out: dict[int, float] = {}
-    now = eval_ts if eval_ts is not None else (max(e["ts"] for e in activity_events) if activity_events else (max((e["ts"] for e in signup_events), default=0)))
+    now = (
+        eval_ts
+        if eval_ts is not None
+        else (
+            max(e["ts"] for e in activity_events)
+            if activity_events
+            else (max((e["ts"] for e in signup_events), default=0))
+        )
+    )
     signups = {e["user_id"]: e["ts"] for e in signup_events}
     for h in horizons:
         retained = 0

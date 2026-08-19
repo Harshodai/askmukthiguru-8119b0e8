@@ -46,7 +46,7 @@ return 1
 
 @dataclass
 class BudgetReservation:
-    guard: "OpenRouterBudgetGuard | None"
+    guard: OpenRouterBudgetGuard | None
     amount_usd: float = 0.0
 
     async def settle(self, actual_cost_usd: float | None) -> None:
@@ -78,15 +78,13 @@ class OpenRouterBudgetGuard:
         self._client: Any = None
 
     @classmethod
-    def from_settings(cls, settings: Any, policy: Any) -> "OpenRouterBudgetGuard":
+    def from_settings(cls, settings: Any, policy: Any) -> OpenRouterBudgetGuard:
         return cls(
             enabled=bool(getattr(settings, "openrouter_budget_guard_enabled", False)),
             redis_url=settings.redis_url,
             daily_budget_usd=policy.daily_budget_usd,
             monthly_budget_usd=policy.monthly_budget_usd,
-            max_request_cost_usd=float(
-                getattr(settings, "openrouter_max_request_cost_usd", 0.03)
-            ),
+            max_request_cost_usd=float(getattr(settings, "openrouter_max_request_cost_usd", 0.03)),
             fail_closed=bool(getattr(settings, "openrouter_budget_fail_closed", True)),
         )
 
@@ -106,12 +104,21 @@ class OpenRouterBudgetGuard:
         current = now or datetime.now(UTC)
         next_day = (current + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
         if current.month == 12:
-            next_month = current.replace(year=current.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            next_month = current.replace(
+                year=current.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0
+            )
         else:
-            next_month = current.replace(month=current.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            next_month = current.replace(
+                month=current.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0
+            )
         day_key = f"askmukthiguru:openrouter-spend:day:{current:%Y-%m-%d}"
         month_key = f"askmukthiguru:openrouter-spend:month:{current:%Y-%m}"
-        return day_key, month_key, max(1, int((next_day - current).total_seconds())), max(1, int((next_month - current).total_seconds()))
+        return (
+            day_key,
+            month_key,
+            max(1, int((next_day - current).total_seconds())),
+            max(1, int((next_month - current).total_seconds())),
+        )
 
     async def reserve(self) -> BudgetReservation:
         if not self._enabled:

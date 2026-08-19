@@ -18,10 +18,11 @@ import time
 from typing import Optional
 from urllib.parse import urlparse
 
-from anyio import Lock as AsyncLock
 import httpx
+from anyio import Lock as AsyncLock
 
 from app.config import settings
+from services.circuit_breaker import DefaultCircuitBreaker
 from services.sarvam_exceptions import CircuitOpenException, NonRetryableError, QuotaExceededError
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ class SarvamHTTPGateway:
     # Lifecycle
     # ------------------------------------------------------------------
 
-    def __init__(self, circuit: Optional["DefaultCircuitBreaker"] = None) -> None:
+    def __init__(self, circuit: Optional[DefaultCircuitBreaker] = None) -> None:
         """
         Args:
             circuit: Shared circuit breaker instance. When the caller (e.g.
@@ -98,7 +99,9 @@ class SarvamHTTPGateway:
             from app.constants import CircuitBreakerProvider
             from services.circuit_breaker import CircuitBreakerConfig, DefaultCircuitBreaker
 
-            sarvam_config = CircuitBreakerConfig.from_provider(CircuitBreakerProvider.SARVAM_CLOUD.value)
+            sarvam_config = CircuitBreakerConfig.from_provider(
+                CircuitBreakerProvider.SARVAM_CLOUD.value
+            )
             self._circuit = DefaultCircuitBreaker(sarvam_config)
 
         # Rate limiting
@@ -116,7 +119,9 @@ class SarvamHTTPGateway:
 
         key_count = len(self._api_keys)
         if key_count > 1:
-            logger.info(f"SarvamHTTPGateway ready — {key_count} API keys loaded, key rotation enabled")
+            logger.info(
+                f"SarvamHTTPGateway ready — {key_count} API keys loaded, key rotation enabled"
+            )
         else:
             logger.info(f"SarvamHTTPGateway ready — base_url={self._base_url}")
 
@@ -147,7 +152,9 @@ class SarvamHTTPGateway:
             )
         return base_url
 
-    async def _rotate_api_key(self, excluded: Optional[set[int]] = None) -> Optional[tuple[int, str]]:
+    async def _rotate_api_key(
+        self, excluded: Optional[set[int]] = None
+    ) -> Optional[tuple[int, str]]:
         """Rotate to the next untried API key in the comma-separated list.
 
         While holding ``_key_lock``, searches the key ring for the next index
@@ -166,7 +173,9 @@ class SarvamHTTPGateway:
                     continue
                 self._api_key = self._api_keys[self._key_index]
                 os.environ["SARVAM_API_KEY"] = self._api_key
-                logger.info(f"Rotated Sarvam API key to key {self._key_index + 1}/{len(self._api_keys)}")
+                logger.info(
+                    f"Rotated Sarvam API key to key {self._key_index + 1}/{len(self._api_keys)}"
+                )
                 return (self._key_index, self._api_key)
             return None
 
@@ -182,7 +191,9 @@ class SarvamHTTPGateway:
             if self._http_client is None:
                 limits = httpx.Limits(
                     max_connections=getattr(settings, "http_max_connections", 100),
-                    max_keepalive_connections=getattr(settings, "http_max_keepalive_connections", 20),
+                    max_keepalive_connections=getattr(
+                        settings, "http_max_keepalive_connections", 20
+                    ),
                     keepalive_expiry=getattr(settings, "http_keepalive_expiry", 30.0),
                 )
                 self._http_client = httpx.AsyncClient(
@@ -263,11 +274,29 @@ class SarvamHTTPGateway:
         if not reasoning_effort and model.startswith("sarvam-"):
             op = (operation or "").lower()
             fast_tags = (
-                "classification", "intent", "grade", "followup", "decompose",
-                "tree", "hyde", "sufficiency", "rerank", "extraction", "summarize",
-                "keyword", "extract",
+                "classification",
+                "intent",
+                "grade",
+                "followup",
+                "decompose",
+                "tree",
+                "hyde",
+                "sufficiency",
+                "rerank",
+                "extraction",
+                "summarize",
+                "keyword",
+                "extract",
             )
-            complex_tags = ("complex", "cove", "multi_hop", "verify", "faithfulness", "self_rag", "reflect")
+            complex_tags = (
+                "complex",
+                "cove",
+                "multi_hop",
+                "verify",
+                "faithfulness",
+                "self_rag",
+                "reflect",
+            )
             if any(tag in op for tag in fast_tags):
                 reasoning_effort = getattr(settings, "sarvam_reasoning_effort_fast", "low")
             elif any(tag in op for tag in complex_tags):
@@ -292,8 +321,12 @@ class SarvamHTTPGateway:
         is_structured = kwargs.pop("is_structured", False)
         passed_format = kwargs.pop("response_format", None)
         op_lower = (operation or "").lower()
-        wants_json = is_structured or passed_format == {"type": "json_object"} or any(tag in op_lower for tag in ("extraction", "keyword", "extract"))
-        
+        wants_json = (
+            is_structured
+            or passed_format == {"type": "json_object"}
+            or any(tag in op_lower for tag in ("extraction", "keyword", "extract"))
+        )
+
         # If wants JSON, and NOT a reasoning model, we force JSON format at API level.
         # If it IS a reasoning model (sarvam-30b/sarvam-105b), forcing JSON format
         # causes reasoning runaway/loops, so we DO NOT force it and instead extract it below.
@@ -318,7 +351,9 @@ class SarvamHTTPGateway:
             wait=wait_exponential(multiplier=1, min=1, max=8),
             retry=retry_if_not_exception_type((NonRetryableError, QuotaExceededError)),
             reraise=True,  # surface the last HTTPStatusError, not tenacity.RetryError (parity with other providers)
-            before_sleep=lambda rs: logger.warning(f"Sarvam call failed attempt {rs.attempt_number}. Retrying..."),
+            before_sleep=lambda rs: logger.warning(
+                f"Sarvam call failed attempt {rs.attempt_number}. Retrying..."
+            ),
         ):
             with attempt:
                 attempt_num = attempt.retry_state.attempt_number
@@ -344,7 +379,7 @@ class SarvamHTTPGateway:
                                 "llm.model_name": model,
                                 "llm.operation": operation,
                                 "llm.request.attempt": attempt_num,
-                            }
+                            },
                         )
 
                     if span_ctx is not None:
@@ -395,9 +430,14 @@ class SarvamHTTPGateway:
                                 continue  # retry immediately within while loop
 
                         # Self-healing on 422 (context window)
-                        if resp.status_code == 422 and "exceeds the model context window" in resp.text:
+                        if (
+                            resp.status_code == 422
+                            and "exceeds the model context window" in resp.text
+                        ):
                             if payload.get("model") == "sarvam-m":
-                                logger.warning("Context exceeded on sarvam-m; upgrading → sarvam-30b")
+                                logger.warning(
+                                    "Context exceeded on sarvam-m; upgrading → sarvam-30b"
+                                )
                                 payload["model"] = "sarvam-30b"
                                 payload["max_tokens"] = min(payload.get("max_tokens", 4096), 4096)
                                 if span_ctx is not None:
@@ -412,7 +452,9 @@ class SarvamHTTPGateway:
                                     prompt_t, window_t = int(m.group(1)), int(m.group(2))
                                     allowed = window_t - prompt_t - 50
                                     if allowed > 0:
-                                        logger.warning(f"Context exceeded; reducing max_tokens → {allowed}")
+                                        logger.warning(
+                                            f"Context exceeded; reducing max_tokens → {allowed}"
+                                        )
                                         payload["max_tokens"] = allowed
                                         if span_ctx is not None:
                                             span_ctx.__exit__(None, None, None)
@@ -436,7 +478,8 @@ class SarvamHTTPGateway:
                             # handles the 429 via its exponential backoff.
                             logger.warning(
                                 "Sarvam 429 — all %d API key(s) exhausted for this attempt; "
-                                "yielding to tenacity retry", len(self._api_keys)
+                                "yielding to tenacity retry",
+                                len(self._api_keys),
                             )
 
                         resp.raise_for_status()
@@ -447,12 +490,16 @@ class SarvamHTTPGateway:
                             span.set_attribute("http.status_code", resp.status_code)
                             usage = data.get("usage", {})
                             span.set_attribute("llm.token_count.prompt", usage.get("prompt_tokens"))
-                            span.set_attribute("llm.token_count.completion", usage.get("completion_tokens"))
+                            span.set_attribute(
+                                "llm.token_count.completion", usage.get("completion_tokens")
+                            )
                             span.set_attribute("llm.token_count.total", usage.get("total_tokens"))
 
                         choice = data.get("choices", [{}])[0]
                         content = (choice.get("message", {}) or {}).get("content", "") or ""
-                        reasoning = (choice.get("message", {}) or {}).get("reasoning_content", "") or ""
+                        reasoning = (choice.get("message", {}) or {}).get(
+                            "reasoning_content", ""
+                        ) or ""
 
                         # If user wants JSON, extract from content or reasoning (reasoning as fallback if content is empty)
                         combined_text = content
@@ -471,6 +518,7 @@ class SarvamHTTPGateway:
                         # Record token usage in cost tracker
                         try:
                             from services.cost_tracker import token_accumulator_var
+
                             acc = token_accumulator_var.get()
                             if acc is not None:
                                 usage = data.get("usage", {})
@@ -508,13 +556,20 @@ class SarvamHTTPGateway:
             block_strip = block.strip()
             if not block_strip:
                 continue
-            if operation in ("grading", "combined_verify", "verify_claims", "classification", "classification_fallback"):
+            if operation in (
+                "grading",
+                "combined_verify",
+                "verify_claims",
+                "classification",
+                "classification_fallback",
+            ):
                 try:
                     json.loads(block_strip)
                     return block_strip
                 except Exception:
                     try:
                         import json_repair
+
                         if json_repair.loads(block_strip):
                             return block_strip
                     except Exception as _e:
@@ -522,7 +577,12 @@ class SarvamHTTPGateway:
             else:
                 if operation == "extraction":
                     block_lower = block_strip.lower()
-                    if "<|#|>" in block_strip or "entity" in block_lower or "relation" in block_lower or "\t" in block_strip:
+                    if (
+                        "<|#|>" in block_strip
+                        or "entity" in block_lower
+                        or "relation" in block_lower
+                        or "\t" in block_strip
+                    ):
                         return block_strip
                 else:
                     return block_strip
@@ -537,6 +597,7 @@ class SarvamHTTPGateway:
             except Exception:
                 try:
                     import json_repair
+
                     repaired = json_repair.repair(potential)
                     if repaired:
                         return repaired
@@ -553,6 +614,7 @@ class SarvamHTTPGateway:
             except Exception:
                 try:
                     import json_repair
+
                     repaired = json_repair.repair(potential)
                     if repaired:
                         return repaired
@@ -562,7 +624,15 @@ class SarvamHTTPGateway:
 
         if operation == "extraction":
             lines = [line.strip() for line in text.splitlines() if line.strip()]
-            extracted = [line for line in lines if "<|#|>" in line or (line.count('"') >= 4 and ("entity" in line.lower() or "relation" in line.lower() or "\t" in line))]
+            extracted = [
+                line
+                for line in lines
+                if "<|#|>" in line
+                or (
+                    line.count('"') >= 4
+                    and ("entity" in line.lower() or "relation" in line.lower() or "\t" in line)
+                )
+            ]
             if extracted:
                 return "\n".join(extracted)
 
@@ -577,8 +647,10 @@ class SarvamHTTPGateway:
         class FakeSpan:
             def __enter__(self):
                 return self
+
             def __exit__(self, *args):
                 pass
+
             pass
 
         if not _has_otel:
@@ -595,4 +667,3 @@ class SarvamHTTPGateway:
         if _has_otel and span and hasattr(span, "record_exception"):
             span.record_exception(exc)
             span.set_status(trace.status.Status(trace.status.StatusCode.ERROR))  # type: ignore[attr-defined]
-

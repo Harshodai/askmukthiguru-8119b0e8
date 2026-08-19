@@ -4,19 +4,24 @@ from __future__ import annotations
 
 import logging
 import re
-import time
-import uuid
-from datetime import datetime, timezone
+import unicodedata
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from pydantic import BaseModel, Field
 
-from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container
 from app.security_utils import is_valid_youtube_url
-from app.telemetry_db import log_ingestion_run
 from ingest.image_loader import is_image_url
 from services.auth_service import require_aal2
 from services.tenant_context import set_tenant_from_request
@@ -76,7 +81,9 @@ async def ingest_endpoint(
 
     url_safe, url_reason = check_url_safety(url)
     if not url_safe:
-        raise HTTPException(status_code=400, detail=f"URL rejected by security guardrails: {url_reason}")
+        raise HTTPException(
+            status_code=400, detail=f"URL rejected by security guardrails: {url_reason}"
+        )
 
     is_yt = "youtube.com" in url or "youtu.be" in url
     if is_yt:
@@ -100,20 +107,27 @@ async def ingest_endpoint(
         job_id = None
         if container.supabase_client:
             try:
-                resp = container.supabase_client.table("ingest_jobs").insert({
-                    "source_url": url,
-                    "status": "pending",
-                    "progress_pct": 0,
-                }).execute()
+                resp = (
+                    container.supabase_client.table("ingest_jobs")
+                    .insert(
+                        {
+                            "source_url": url,
+                            "status": "pending",
+                            "progress_pct": 0,
+                        }
+                    )
+                    .execute()
+                )
                 if resp.data:
                     job_id = resp.data[0]["id"]
             except Exception as e:
                 logger.warning(f"Failed to create parent job in Supabase: {e}")
 
         from tasks.ingest_tasks import ingest_playlist
+
         # Pass job_id as Celery task_id so /ingest/status/{task_id} can match ingest_jobs.id
         dispatch_kwargs = {"task_id": job_id} if job_id else {}
-        task = ingest_playlist.apply_async(
+        ingest_playlist.apply_async(
             args=[url, "en", tags, job_id, ingest_body.max_accuracy], **dispatch_kwargs
         )
         return IngestResponse(
@@ -128,20 +142,27 @@ async def ingest_endpoint(
     job_id = None
     if container.supabase_client:
         try:
-            resp = container.supabase_client.table("ingest_jobs").insert({
-                "source_url": url,
-                "status": "pending",
-                "progress_pct": 0,
-            }).execute()
+            resp = (
+                container.supabase_client.table("ingest_jobs")
+                .insert(
+                    {
+                        "source_url": url,
+                        "status": "pending",
+                        "progress_pct": 0,
+                    }
+                )
+                .execute()
+            )
             if resp.data:
                 job_id = resp.data[0]["id"]
         except Exception as e:
             logger.warning(f"Failed to create job in Supabase: {e}")
 
     from tasks.ingest_tasks import orchestrate_ingestion
+
     # Pass job_id as Celery task_id so /ingest/status/{task_id} can match ingest_jobs.id
     dispatch_kwargs = {"task_id": job_id} if job_id else {}
-    task = orchestrate_ingestion.apply_async(
+    orchestrate_ingestion.apply_async(
         args=[url, "en", None, job_id, tags],
         kwargs={"max_accuracy": ingest_body.max_accuracy},
         **dispatch_kwargs,
@@ -166,11 +187,19 @@ class RawTextIngestRequest(BaseModel):
     speaker: str = Field(default="Sri Preethaji & Sri Krishnaji", description="Speaker attribution")
     tags: list[str] = Field(default=["general"])
     max_accuracy: bool = Field(default=True)
-    quality_state: str = Field(default="trusted", description="Quality state: must be 'trusted' or 'trusted_after_review'")
-    transcript_hash: Optional[str] = Field(default=None, description="SHA-256 hash of transcript text")
-    artifact_manifest_hash: Optional[str] = Field(default=None, description="Corpus artifact manifest hash")
+    quality_state: str = Field(
+        default="trusted", description="Quality state: must be 'trusted' or 'trusted_after_review'"
+    )
+    transcript_hash: Optional[str] = Field(
+        default=None, description="SHA-256 hash of transcript text"
+    )
+    artifact_manifest_hash: Optional[str] = Field(
+        default=None, description="Corpus artifact manifest hash"
+    )
     pipeline_version: str = Field(default="2.0.0", description="Pipeline version")
-    idempotency_key: Optional[str] = Field(default=None, description="Idempotency key: sha256(canonical_json(video_id, hash, version))")
+    idempotency_key: Optional[str] = Field(
+        default=None, description="Idempotency key: sha256(canonical_json(video_id, hash, version))"
+    )
 
 
 MAX_RAW_TEXT_CHARS = 2_000_000  # ~2MB of text — a single video transcript is a few KB-100KB
@@ -200,6 +229,7 @@ async def ingest_raw_text_endpoint(
         )
 
     import unicodedata
+
     text = (body.text or "").replace("\x00", "")
     text = unicodedata.normalize("NFC", text).strip()
     if not text:
@@ -223,9 +253,12 @@ async def ingest_raw_text_endpoint(
         try:
             # Idempotency check: look up existing job with matching source_url
             if body.idempotency_key:
-                existing = container.supabase_client.table("ingest_jobs").select("id, status").eq(
-                    "source_url", source_url
-                ).execute()
+                existing = (
+                    container.supabase_client.table("ingest_jobs")
+                    .select("id, status")
+                    .eq("source_url", source_url)
+                    .execute()
+                )
                 for row in getattr(existing, "data", []) or []:
                     if row.get("status") in ["success", "completed"]:
                         return IngestResponse(
@@ -235,17 +268,24 @@ async def ingest_raw_text_endpoint(
                             job_id=row.get("id"),
                         )
 
-            resp = container.supabase_client.table("ingest_jobs").insert({
-                "source_url": source_url,
-                "status": "pending",
-                "progress_pct": 0,
-            }).execute()
+            resp = (
+                container.supabase_client.table("ingest_jobs")
+                .insert(
+                    {
+                        "source_url": source_url,
+                        "status": "pending",
+                        "progress_pct": 0,
+                    }
+                )
+                .execute()
+            )
             if resp.data:
                 job_id = resp.data[0]["id"]
         except Exception as e:
             logger.warning(f"Failed to create job in Supabase: {e}")
 
     from tasks.ingest_tasks import ingest_document_task
+
     dispatch_kwargs = {"task_id": job_id} if job_id else {}
     ingest_document_task.apply_async(
         args=[text, source_url, title, tag_list, body.max_accuracy, job_id, speaker],
@@ -286,7 +326,9 @@ async def ingest_upload_endpoint(
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
     if len(content) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=400, detail=f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit")
+        raise HTTPException(
+            status_code=400, detail=f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit"
+        )
 
     import io
 
@@ -294,7 +336,11 @@ async def ingest_upload_endpoint(
 
     try:
         with PdfReader(io.BytesIO(content)) as doc:
-            pages_text = [(p.extract_text() or "").strip() for p in doc.pages if (p.extract_text() or "").strip()]
+            pages_text = [
+                (p.extract_text() or "").strip()
+                for p in doc.pages
+                if (p.extract_text() or "").strip()
+            ]
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not parse PDF: {e}")
 
@@ -310,17 +356,24 @@ async def ingest_upload_endpoint(
     job_id = None
     if container.supabase_client:
         try:
-            resp = container.supabase_client.table("ingest_jobs").insert({
-                "source_url": source_url,
-                "status": "pending",
-                "progress_pct": 0,
-            }).execute()
+            resp = (
+                container.supabase_client.table("ingest_jobs")
+                .insert(
+                    {
+                        "source_url": source_url,
+                        "status": "pending",
+                        "progress_pct": 0,
+                    }
+                )
+                .execute()
+            )
             if resp.data:
                 job_id = resp.data[0]["id"]
         except Exception as e:
             logger.warning(f"Failed to create job in Supabase: {e}")
 
     from tasks.ingest_tasks import ingest_document_task
+
     dispatch_kwargs = {"task_id": job_id} if job_id else {}
     ingest_document_task.apply_async(
         args=[text, source_url, title, tag_list, max_accuracy, job_id],
@@ -401,7 +454,12 @@ async def ingest_task_status_endpoint(
 
     try:
         if container.supabase_client:
-            db = container.supabase_client.table("ingest_jobs").select("*").eq("id", task_id).execute()
+            db = (
+                container.supabase_client.table("ingest_jobs")
+                .select("*")
+                .eq("id", task_id)
+                .execute()
+            )
             if db.data:
                 row = db.data[0]
                 resp.job_id = row.get("id")

@@ -15,6 +15,7 @@ Usage:
 # YouTube transcripts into OKF entries) is a future task; this CLI only formats
 # author-supplied content so we never fabricate teachings.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -34,8 +35,9 @@ def _slug(title: str) -> str:
     return s or "entry"
 
 
-def write_entry(title: str, type_: str, body: str, video_id: str | None,
-                source: str | None, tags: list[str]) -> Path:
+def write_entry(
+    title: str, type_: str, body: str, video_id: str | None, source: str | None, tags: list[str]
+) -> Path:
     if type_ not in _VALID_TYPES:
         raise ValueError(f"invalid type {type_!r}; must be one of {_VALID_TYPES}")
     if not title.strip() or not body.strip():
@@ -66,7 +68,9 @@ def main() -> int:
     args = p.parse_args()
     body = Path(args.body_file).read_text(encoding="utf-8") if args.body_file else sys.stdin.read()
     tags = [t.strip() for t in args.tags.split(",") if t.strip()]
-    src = args.source or (f"YouTube https://www.youtube.com/watch?v={args.video_id}" if args.video_id else None)
+    src = args.source or (
+        f"YouTube https://www.youtube.com/watch?v={args.video_id}" if args.video_id else None
+    )
     path = write_entry(args.title, args.type, body, args.video_id, src, tags)
     print(f"OKF entry written → {path}")
     return 0

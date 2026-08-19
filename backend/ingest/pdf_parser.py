@@ -1,9 +1,10 @@
 """PDF parser helper module using pypdf and non-blocking HTTP fetching."""
 
 from __future__ import annotations
+
 import io
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from services.http_client_pool import get_client
 
@@ -41,11 +42,18 @@ async def download_and_parse_pdf(
         raw_text = "\n\n".join(pages_text)
 
     import unicodedata
-    raw_text = raw_text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+
+    raw_text = (
+        raw_text.replace("\x00", "")
+        .replace("<|begin_of_text|>", "")
+        .replace("<|eot_id|>", "")
+        .replace("<|end_of_text|>", "")
+    )
     raw_text = unicodedata.normalize("NFC", raw_text).strip()
 
     try:
         from services.doctrine_terms import apply_corrections
+
         return apply_corrections(raw_text)
     except Exception:
         return raw_text

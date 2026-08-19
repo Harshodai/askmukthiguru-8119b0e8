@@ -36,7 +36,9 @@ _whisperx_lock = threading.Lock()
 
 def _evict_stale_whisperx_locked(now: float) -> None:
     """Evict expired entries. Caller MUST hold _whisperx_lock."""
-    stale = [vid for vid, (_res, ts) in _whisperx_results.items() if now - ts > _WHISPERX_TTL_SECONDS]
+    stale = [
+        vid for vid, (_res, ts) in _whisperx_results.items() if now - ts > _WHISPERX_TTL_SECONDS
+    ]
     for vid in stale:
         _whisperx_results.pop(vid, None)
 
@@ -97,7 +99,9 @@ def download_audio(video_id: str, output_dir: str) -> Optional[str]:
             cmd.extend(["--cookies", c_path])
             logger.info(f"[{video_id}] Using cookies from: {c_path}")
         else:
-            logger.info(f"[{video_id}] No cookies available — relying on Android player-client for auth")
+            logger.info(
+                f"[{video_id}] No cookies available — relying on Android player-client for auth"
+            )
 
         # Resolve JS runtime for executing signature challenges (nsig/n-parameter)
         import shutil
@@ -271,7 +275,9 @@ def transcribe_with_whisper(
         logger.debug("[whisper local] suppressed non-critical error: %s", _e)
     try:
         result = mlx_whisper.transcribe(
-            audio_path, path_or_hf_repo=model, verbose=False,
+            audio_path,
+            path_or_hf_repo=model,
+            verbose=False,
             language=language if language != "en" else None,
             initial_prompt=get_whisper_initial_prompt(),
             **decode_kwargs,
@@ -286,7 +292,9 @@ def transcribe_with_whisper(
         try:
             cache_whisperx_result(video_id, dict(result))
         except Exception as cache_err:
-            logger.debug(f"[{video_id}] whisperx result cache store failed (non-fatal): {cache_err}")
+            logger.debug(
+                f"[{video_id}] whisperx result cache store failed (non-fatal): {cache_err}"
+            )
 
         # mlx-whisper segments carry avg_logprob/no_speech_prob like upstream Whisper,
         # so the asr_gate confidence floors apply here too (not just whisperx/faster-whisper).
@@ -403,7 +411,9 @@ def transcribe_with_whisper_enhanced(
             hf_token=getattr(settings, "hf_token", None),
         )
     except Exception as exc:
-        logger.warning(f"[{video_id}] WhisperX transcribe_with_alignment raised {exc} — falling back to MLX Whisper")
+        logger.warning(
+            f"[{video_id}] WhisperX transcribe_with_alignment raised {exc} — falling back to MLX Whisper"
+        )
         return transcribe_with_whisper(video_id, audio_path, model=model, language=language)
 
     if result is None:
@@ -469,15 +479,37 @@ def score_transcript(text: str, video_id: str = "") -> float:
     # 3. Domain term score (up to 0.2)
     try:
         from ingest.quality_gate import _spiritual_keywords
+
         domain_terms = list(_spiritual_keywords())
     except Exception:
         domain_terms = [
-            "enlighten", "consciousness", "meditation", "awareness", "liberation",
-            "freedom", "mind", "suffering", "joy", "presence", "spiritual",
-            "mukthi", "preethaji", "krishnaji", "ekam", "dharma", "karma",
-            "awakening", "wisdom", "inner", "beautiful state", "suffering state", "soul sync",
+            "enlighten",
+            "consciousness",
+            "meditation",
+            "awareness",
+            "liberation",
+            "freedom",
+            "mind",
+            "suffering",
+            "joy",
+            "presence",
+            "spiritual",
+            "mukthi",
+            "preethaji",
+            "krishnaji",
+            "ekam",
+            "dharma",
+            "karma",
+            "awakening",
+            "wisdom",
+            "inner",
+            "beautiful state",
+            "suffering state",
+            "soul sync",
         ]
-    found = sum(1 for t in domain_terms if re.search(r"\b" + re.escape(t) + r"\b", text, re.IGNORECASE))
+    found = sum(
+        1 for t in domain_terms if re.search(r"\b" + re.escape(t) + r"\b", text, re.IGNORECASE)
+    )
     domain_score = min(found / 8, 1.0) * 0.2
 
     # 4. Repetition penalty (up to -0.1)
@@ -589,6 +621,8 @@ def council_pick_best(
         "whisper_score": wh_score,
         "winner": winner_name,
     }
+
+
 if __name__ == "__main__":
     # Self-check: cache helpers round-trip + TTL eviction.
     cache_whisperx_result("test_vid", {"segments": [{"start": 0.0, "text": "hi"}]})

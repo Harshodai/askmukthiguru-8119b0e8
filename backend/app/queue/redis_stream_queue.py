@@ -45,6 +45,7 @@ class RedisStreamQueue(BaseRequestQueue):
     async def _get_redis(self):
         if self._redis is None:
             import redis.asyncio as aioredis
+
             self._redis = aioredis.from_url(self._redis_url, decode_responses=True)
         return self._redis
 
@@ -58,7 +59,7 @@ class RedisStreamQueue(BaseRequestQueue):
 
     async def start(self) -> None:
         self._running = True
-        r = await self._get_redis()
+        await self._get_redis()
         for stream_key in set(_STREAM_KEYS.values()):
             await self._ensure_group(stream_key)
         logger.info(
@@ -129,7 +130,11 @@ class RedisStreamQueue(BaseRequestQueue):
             user_id=data.get("user_id", ""),
             is_stream=data.get("is_stream", "0") == "1",
             status=QueueStatus.PROCESSING,
-            metadata={"stream_key": stream_key, "message_id": msg_id, "consumer": consumer_id or self._consumer_id},
+            metadata={
+                "stream_key": stream_key,
+                "message_id": msg_id,
+                "consumer": consumer_id or self._consumer_id,
+            },
         )
         return item
 
@@ -147,8 +152,10 @@ class RedisStreamQueue(BaseRequestQueue):
                     stream_key, self._consumer_group, min="-", max="+", count=10
                 )
                 for entry in entries:
-                    entry_data = entry.get("data") or {}
-                    if entry.get("entry_id") and entry.get("consumer") == (consumer_id or self._consumer_id):
+                    entry.get("data") or {}
+                    if entry.get("entry_id") and entry.get("consumer") == (
+                        consumer_id or self._consumer_id
+                    ):
                         await r.xack(stream_key, self._consumer_group, entry["entry_id"])
                         return True
             except Exception:
@@ -164,7 +171,9 @@ class RedisStreamQueue(BaseRequestQueue):
                     if data.get("job_id") == job_id:
                         return QueueItem(
                             job_id=job_id,
-                            priority=RequestPriority(int(data.get("priority", RequestPriority.STANDARD.value))),
+                            priority=RequestPriority(
+                                int(data.get("priority", RequestPriority.STANDARD.value))
+                            ),
                             request_data=json.loads(data.get("request_data", "{}")),
                             user_id=data.get("user_id", ""),
                             is_stream=data.get("is_stream", "0") == "1",

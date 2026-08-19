@@ -13,13 +13,11 @@ Coverage:
 from __future__ import annotations
 
 import asyncio
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
-import sys
-
 import rag.nodes.agentic_graph_traversal  # noqa: F401  (loads submodule; pkg attr is shadowed)
+
 agt = sys.modules["rag.nodes.agentic_graph_traversal"]
 from rag.nodes.tools import (
     get_adjacent_concepts,
@@ -71,8 +69,12 @@ def _base_state(**overrides) -> GraphState:
 
 def _sample_node_record(entity_id="Karma", name="Karma", node_type="Concept"):
     """Build a fake Neo4j record for get_concept_details _query."""
-    node = {"entity_id": entity_id, "name": name, "type": node_type,
-            "description": "Action and consequence."}
+    node = {
+        "entity_id": entity_id,
+        "name": name,
+        "type": node_type,
+        "description": "Action and consequence.",
+    }
 
     class _Rel:
         def __init__(self, rtype, end):
@@ -101,6 +103,7 @@ def _sample_node_record(entity_id="Karma", name="Karma", node_type="Concept"):
 
 def _make_driver_for_details():
     """Driver whose session().execute_read runs the callback with a tx-like object."""
+
     class _Tx:
         def run(self, cypher, entity_id=None):
             return _sample_node_record()
@@ -133,7 +136,9 @@ def test_gating_triggers_for_comparative_tier2():
     ]
     with patch("services.ollama_service.OllamaService") as MockOllama:
         instance = MockOllama.return_value
-        instance._generate_fast = AsyncMock(return_value='{"action": "DONE", "reasoning": "enough"}')
+        instance._generate_fast = AsyncMock(
+            return_value='{"action": "DONE", "reasoning": "enough"}'
+        )
         result = asyncio.run(agt.agentic_graph_traversal(state))
     assert "relevant_docs" in result
     assert result["graph_traversal_done"] is True
@@ -167,24 +172,18 @@ def test_parse_llm_decision_done():
 
 
 def test_parse_llm_decision_stop():
-    out = agt._parse_llm_traversal_decision(
-        "stop: something went wrong", {"concepts_found": []}
-    )
+    out = agt._parse_llm_traversal_decision("stop: something went wrong", {"concepts_found": []})
     assert out["action"] == "STOP"
 
 
 def test_parse_llm_decision_explore_with_entity():
-    out = agt._parse_llm_traversal_decision(
-        'explore karma for detail', {"concepts_found": []}
-    )
+    out = agt._parse_llm_traversal_decision("explore karma for detail", {"concepts_found": []})
     assert out["action"] == "EXPLORE"
     assert "karma" in out["entity_id"]
 
 
 def test_parse_llm_decision_navigate_quoted():
-    out = agt._parse_llm_traversal_decision(
-        'navigate to "Beautiful State"', {"concepts_found": []}
-    )
+    out = agt._parse_llm_traversal_decision('navigate to "Beautiful State"', {"concepts_found": []})
     assert out["action"] == "NAVIGATE"
     assert out["entity_id"] == "Beautiful State"
 
@@ -201,12 +200,29 @@ def test_has_meaningful_traversal_false():
 
 def test_format_traversal_as_document():
     ctx = [
-        {"concept_id": "Karma", "node_data": {
-            "entity_id": "Karma", "name": "Karma", "type": "Concept",
-            "description": "Cause and effect.", "properties": {}}, "step": 0},
-        {"concept_id": "Karma", "adjacent_concepts": [
-            {"entity_id": "Samsara", "name": "Samsara", "relation_type": "LEADS_TO",
-             "relation_description": "leads to"}], "step": 1},
+        {
+            "concept_id": "Karma",
+            "node_data": {
+                "entity_id": "Karma",
+                "name": "Karma",
+                "type": "Concept",
+                "description": "Cause and effect.",
+                "properties": {},
+            },
+            "step": 0,
+        },
+        {
+            "concept_id": "Karma",
+            "adjacent_concepts": [
+                {
+                    "entity_id": "Samsara",
+                    "name": "Samsara",
+                    "relation_type": "LEADS_TO",
+                    "relation_description": "leads to",
+                }
+            ],
+            "step": 1,
+        },
     ]
     doc = agt._format_traversal_as_document(ctx)
     assert doc["source"] == "neo4j_agentic_traversal"
@@ -223,10 +239,23 @@ def test_prepare_context_summary_empty():
 
 def test_prepare_context_summary_populated():
     ctx = [
-        {"concept_id": "Karma", "node_data": {"entity_id": "Karma", "name": "Karma",
-                                              "type": "Concept", "description": "d"}, "step": 0},
-        {"concept_id": "adj", "adjacent_concepts": [
-            {"entity_id": "Samsara", "relation_type": "R", "relation_description": "x"}], "step": 1},
+        {
+            "concept_id": "Karma",
+            "node_data": {
+                "entity_id": "Karma",
+                "name": "Karma",
+                "type": "Concept",
+                "description": "d",
+            },
+            "step": 0,
+        },
+        {
+            "concept_id": "adj",
+            "adjacent_concepts": [
+                {"entity_id": "Samsara", "relation_type": "R", "relation_description": "x"}
+            ],
+            "step": 1,
+        },
     ]
     summary = agt._prepare_context_summary(ctx)
     assert len(summary["concepts_found"]) == 1
@@ -264,8 +293,14 @@ def test_get_adjacent_concepts():
             return self._d[k]
 
     recs = [
-        _Rec(source="Karma", target="Samsara", relation_type="LEADS_TO",
-             relation_description="leads to", target_name="Samsara", target_type="Concept"),
+        _Rec(
+            source="Karma",
+            target="Samsara",
+            relation_type="LEADS_TO",
+            relation_description="leads to",
+            target_name="Samsara",
+            target_type="Concept",
+        ),
     ]
 
     class _Result:
@@ -313,11 +348,21 @@ def test_get_graph_traversal_context():
 def test_full_react_loop_first_step_done():
     state = _base_state()
     state["graph_traversal_context"] = [
-        {"concept_id": "Karma", "node_data": {"entity_id": "Karma", "name": "Karma",
-                                              "type": "Concept", "description": "d"}, "step": 0}
+        {
+            "concept_id": "Karma",
+            "node_data": {
+                "entity_id": "Karma",
+                "name": "Karma",
+                "type": "Concept",
+                "description": "d",
+            },
+            "step": 0,
+        }
     ]
-    with patch("services.ollama_service.OllamaService") as MockOllama, \
-         patch("ingest.pipeline.extract_doctrine_tags", return_value=["Karma"]):
+    with (
+        patch("services.ollama_service.OllamaService") as MockOllama,
+        patch("ingest.pipeline.extract_doctrine_tags", return_value=["Karma"]),
+    ):
         instance = MockOllama.return_value
         instance._generate_fast = AsyncMock(
             return_value='{"action": "DONE", "reasoning": "enough context"}'

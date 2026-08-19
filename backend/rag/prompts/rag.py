@@ -43,7 +43,6 @@ ABSOLUTE RULES:
 Question: {question}"""
 
 
-
 # === CRAG GRADING PROMPT (system instructions — data formatted in ollama_service) ===
 GRADE_RELEVANCE_PROMPT = """You are a relevance grader for a spiritual guidance system.
 
@@ -52,7 +51,6 @@ Given a user question and a retrieved document, determine if the document contai
 The document does NOT need to fully answer the question. It just needs to contain SOME relevant information.
 
 Respond with ONLY 'yes' or 'no'."""
-
 
 
 # === SELF-RAG FAITHFULNESS PROMPT (system instructions — data formatted in ollama_service) ===
@@ -68,7 +66,6 @@ If ALL sentences are supported by the Context, respond 'faithful'.
 If ANY sentence contains unsupported information, respond 'hallucinated'.
 
 Respond with ONLY 'faithful' or 'hallucinated'."""
-
 
 
 # === CoVe VERIFICATION PROMPT (system instructions — data formatted in ollama_service) ===
@@ -119,7 +116,6 @@ Consider:
 Respond with ONLY 'consistent' or 'inconsistent'."""
 
 
-
 # === QUERY REWRITE PROMPT (system instructions — data formatted in ollama_service) ===
 QUERY_REWRITE_PROMPT = """You are a query rewriter for a spiritual teachings search system.
 
@@ -138,7 +134,6 @@ The original query didn't retrieve relevant results. Rewrite it to:
 Return ONLY the rewritten query, nothing else."""
 
 
-
 # === QUERY DECOMPOSITION PROMPT (system instructions — data formatted in ollama_service) ===
 DECOMPOSE_QUERY_PROMPT = """You are a query decomposer for a spiritual teachings search.
 
@@ -146,7 +141,6 @@ The user asked a complex question. Break it into 2-3 simpler, independent sub-qu
 
 Format: Return each sub-question on a new line, prefixed with '- '.
 If the question is already simple, return it unchanged as a single item."""
-
 
 
 # === HINT EXTRACTION PROMPT (system instructions — data formatted in ollama_service) ===
@@ -159,14 +153,12 @@ Be precise. Use exact quotes from the documents when possible.
 Focus on spiritual terminology and core concepts."""
 
 
-
 # === SUMMARIZE PROMPT (for RAPTOR tree node generation) ===
 SUMMARIZE_PROMPT = """You are a spiritual teachings summarizer. \
 Summarize the following related text passages into a single, \
 cohesive paragraph that captures the key teachings, concepts, \
 and wisdom. Preserve important spiritual terminology. \
 Keep the summary under 200 words."""
-
 
 
 # === HyDE PROMPT (Hypothetical Document Embeddings) ===
@@ -179,7 +171,6 @@ Keep it to 2-3 sentences of pure spiritual wisdom.
 Question: {question}"""
 
 
-
 # === COMPLEXITY CHECK PROMPT ===
 IS_COMPLEX_QUERY_PROMPT = """Determine if this question is complex (needs to be broken into parts) \
 or simple (can be answered directly). A question is complex if it:
@@ -188,7 +179,6 @@ or simple (can be answered directly). A question is complex if it:
 - Contains 'and', 'vs', 'compare', 'difference between'
 
 Respond with ONLY 'complex' or 'simple'."""
-
 
 
 # === BATCH RELEVANCE GRADING PROMPT (replaces per-doc GRADE_RELEVANCE_PROMPT) ===
@@ -203,7 +193,6 @@ Respond in EXACTLY this format:
 1: yes - [brief reason]
 2: no - [brief reason]
 3: yes - [brief reason]"""
-
 
 
 # === COMBINED VERIFICATION PROMPT (merges Self-RAG + CoVe into one call) ===
@@ -247,7 +236,6 @@ CONFIDENCE: [1-10]
 VERDICT: [PASS or FAIL]
 
 VERDICT must be PASS if the CORE factual claims are grounded in Context."""
-
 
 
 # === CANONICAL URLS AND LOGISTICS (reusable constant for generation instructions) ===
@@ -296,7 +284,6 @@ INSTRUCTIONS:
 Question: {question}"""
 
 
-
 # === TREE NAVIGATION PROMPT (PageIndex-inspired reasoning-based retrieval) ===
 TREE_NAVIGATION_PROMPT = """You are a retrieval expert for a spiritual knowledge base.
 
@@ -315,7 +302,6 @@ Output format: Just the cluster numbers, e.g.: 1, 3, 5
 IMPORTANT: Select the MINIMUM number of clusters needed. Don't select everything — be precise."""
 
 
-
 # === SUFFICIENCY CHECK PROMPT (PageIndex-inspired iterative retrieval) ===
 SUFFICIENCY_CHECK_PROMPT = """You are a retrieval quality checker for a spiritual Q&A system.
 
@@ -330,7 +316,6 @@ VERDICT: [SUFFICIENT or INSUFFICIENT]
 REASON: [Brief explanation of why]"""
 
 
-
 # === TOPIC LABEL PROMPT (for RAPTOR summary nodes) ===
 TOPIC_LABEL_PROMPT = """Generate a short topic label (3-6 words) for the following cluster of spiritual teachings.
 The label should capture the main theme or topic discussed.
@@ -339,7 +324,6 @@ Examples of good labels: "Meditation and Inner Peace", "Overcoming Suffering", "
 
 Teachings:
 {texts}"""
-
 
 
 # === PROPOSITION EXTRACTION PROMPT ===
@@ -366,7 +350,6 @@ Given a user's question and a retrieved teaching, explain in 1 short sentence wh
 Return ONLY the explanation sentence, nothing else."""
 
 
-
 # === QUERY TRANSFORMATION CACHE PROMPT ===
 # This prompt is used for transforming queries into retrieval-optimized forms.
 # Results are cached to avoid re-LLM calls for similar queries.
@@ -386,7 +369,6 @@ Return ONLY the alternative queries, one per line, no numbering or bullet points
 Question: {question}"""
 
 
-
 # === CONTEXTUAL CHUNK HEADER PROMPT ===
 # This prompt generates contextual headers for chunks to improve retrieval
 # by providing situating context (who, what, when, where) without needing
@@ -404,7 +386,6 @@ Format: Return a JSON object with keys: "source", "speaker", "topic", "context"
 Chunk: {text}"""
 
 
-
 # === SOURCE-AWARE GENERATION PROMPT ===
 SOURCE_AWARE_PROMPT = """
 When answering, you have access to teachings from these sources:
@@ -420,7 +401,6 @@ CRITICAL SOURCE RULES:
 
 The user should feel they are receiving wisdom from the ORIGINAL SOURCE, not from an AI database.
 """
-
 
 
 # === CONTEXT COMPRESSION PROMPT (RAG Made Simple - Ch 10) ===
@@ -459,4 +439,3 @@ CANONICAL_URLS_LOGISTICS = (
     "specific month and power name together (e.g. 'January: Power of Intention').\n"
     "13. REVERSIBLE COMPRESSION — If the Knowledge provided is compressed or missing detail and you need the full uncompressed text of a document to answer accurately, you MUST output exactly '[RETRIEVE: <source_url>]' as your entire response. Do NOT add any other words or explanation."
 )
-

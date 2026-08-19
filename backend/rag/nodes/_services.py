@@ -63,7 +63,20 @@ def init_services(
     from services.lettuce_detect_service import LettuceDetectService
     from services.reranker_service import RerankerService
 
-    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _semantic_cache, _sarvam_cloud, _doctrine_service, _llm_gateway, _graphrag_fusion
+    global \
+        _ollama, \
+        _embedder, \
+        _qdrant, \
+        _lightrag, \
+        _serene_mind, \
+        _lettuce_detect, \
+        _reranker, \
+        _web_search, \
+        _semantic_cache, \
+        _sarvam_cloud, \
+        _doctrine_service, \
+        _llm_gateway, \
+        _graphrag_fusion
 
     _ollama = ollama
     _embedder = embedder
@@ -92,6 +105,7 @@ def init_services(
     # back to the LLM path with no regression.
     try:
         from app.config import settings
+
         if getattr(settings, "use_semantic_router", True):
             from services.semantic_router import IntentSemanticRouter
 
@@ -101,15 +115,29 @@ def init_services(
                 router.prime(encode_fn)
     except Exception as exc:  # noqa: BLE001 — never block startup over router
         import logging as _logging
+
         _logging.getLogger(__name__).warning(
             "SemanticRouter prime failed at init_services: %s. "
-            "Intent routing will fall back to LLM classifier.", exc
+            "Intent routing will fall back to LLM classifier.",
+            exc,
         )
 
 
 def clear_services() -> None:
     """Clear all injected service references. Called during container shutdown."""
-    global _ollama, _embedder, _qdrant, _lightrag, _serene_mind, _lettuce_detect, _reranker, _web_search, _semantic_cache, _sarvam_cloud, _doctrine_service, _graphrag_fusion
+    global \
+        _ollama, \
+        _embedder, \
+        _qdrant, \
+        _lightrag, \
+        _serene_mind, \
+        _lettuce_detect, \
+        _reranker, \
+        _web_search, \
+        _semantic_cache, \
+        _sarvam_cloud, \
+        _doctrine_service, \
+        _graphrag_fusion
     _ollama = None
     _embedder = None
     _qdrant = None
@@ -159,18 +187,22 @@ def _resolve_router_encoder(embedder: Any):
         return embedder.encode_single
 
     if hasattr(embedder, "encode_single_full") and callable(embedder.encode_single_full):
+
         def _encode(text: str) -> list[float]:
             result = embedder.encode_single_full(text)
             if isinstance(result, dict):
                 dense = result.get("dense") or result.get("embedding") or []
                 return list(dense)
             return list(result)
+
         return _encode
 
     if hasattr(embedder, "encode") and callable(embedder.encode):
+
         def _encode_st(text: str) -> list[float]:
             vec = embedder.encode(text)
             return list(vec.tolist() if hasattr(vec, "tolist") else vec)
+
         return _encode_st
 
     return None

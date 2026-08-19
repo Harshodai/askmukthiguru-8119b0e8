@@ -43,7 +43,10 @@ class TestBoundaryChunker:
             # Normalize trailing punctuation before comparing.
             def _normalize(s: str) -> str:
                 return s.rstrip(".!? ")
-            overlap = set(_normalize(c) for c in chunks[0].split(". ")) & set(_normalize(c) for c in chunks[1].split(". "))
+
+            overlap = set(_normalize(c) for c in chunks[0].split(". ")) & set(
+                _normalize(c) for c in chunks[1].split(". ")
+            )
             assert overlap, "Expected at least one overlapping whole sentence"
 
     def test_chunk_with_contextual_headers(self):
@@ -57,7 +60,9 @@ class TestBoundaryChunker:
         assert len(chunks) > 0
         for chunk in chunks:
             assert "[Source: Teaching | Speaker: Sri Krishnaji | Topic: Meditation]" in chunk
-            assert "First sentence" in chunk or "Second sentence" in chunk or "Third sentence" in chunk
+            assert (
+                "First sentence" in chunk or "Second sentence" in chunk or "Third sentence" in chunk
+            )
 
     def test_oversized_fallback_respects_max_size(self):
         from ingest.boundary_chunker import BoundaryChunker
@@ -190,7 +195,9 @@ class TestRetrievalDedup:
 
         monkeypatch.setattr(
             "rag.nodes.retrieval.settings",
-            types.SimpleNamespace(retrieval_deduplication_enabled=True, retrieval_dedup_threshold=0.85),
+            types.SimpleNamespace(
+                retrieval_deduplication_enabled=True, retrieval_dedup_threshold=0.85
+            ),
         )
         docs = [
             {"text": "The beautiful state is a state of calm and joy.", "score": 0.9},
@@ -208,7 +215,9 @@ class TestRetrievalDedup:
 
         monkeypatch.setattr(
             "rag.nodes.retrieval.settings",
-            types.SimpleNamespace(retrieval_deduplication_enabled=True, retrieval_dedup_threshold=0.85),
+            types.SimpleNamespace(
+                retrieval_deduplication_enabled=True, retrieval_dedup_threshold=0.85
+            ),
         )
         docs = [
             {"text": "Breath restores peace.", "score": 0.9},
@@ -237,7 +246,9 @@ class TestDedupNewestBySource:
         assert len(result) == 2
         assert any(d["source_version"] == 2 and d["source_id"] == "abc" for d in result)
         result_ids = {d["source_id"] for d in result}
-        assert result_ids == {"abc", "def"}, f"Expected both source IDs 'abc' and 'def', got {result_ids}"
+        assert result_ids == {"abc", "def"}, (
+            f"Expected both source IDs 'abc' and 'def', got {result_ids}"
+        )
 
     def test_no_change_when_all_unique(self):
         from rag.nodes.retrieval import _dedup_newest_by_source

@@ -49,9 +49,17 @@ class MemoryTierResult:
 class MemoryServiceV2(MemoryService):
     """Three-tier memory service with isolated fallback per tier."""
 
-    def __init__(self, supabase_client=None, embedding_service=None, llm_service=None,
-                 *, guru_slug: str = "default", use_global_memory: bool = False,
-                 neo4j_driver=None, neo4j_driver_accessor=None):
+    def __init__(
+        self,
+        supabase_client=None,
+        embedding_service=None,
+        llm_service=None,
+        *,
+        guru_slug: str = "default",
+        use_global_memory: bool = False,
+        neo4j_driver=None,
+        neo4j_driver_accessor=None,
+    ):
         super().__init__(supabase_client, embedding_service, llm_service)
         self.guru_slug = guru_slug
         self.use_global_memory = use_global_memory
@@ -85,6 +93,7 @@ class MemoryServiceV2(MemoryService):
         """Classify user reflection/memory to extract insight, state category, and related concepts."""
         try:
             import json as _json
+
             from openai import AsyncOpenAI
 
             # Build client based on active LLM provider
@@ -128,7 +137,7 @@ class MemoryServiceV2(MemoryService):
                 f"3. related_concepts: List of concept names this relates to (e.g. 'Meditation', 'Karma', 'Soul Sync', 'Consciousness', 'Ekam', 'Dharma', 'Oneness', 'Surrender', 'Awareness', 'Connection').\n\n"
                 f"Return ONLY this JSON:\n"
                 f'{{"insight": "...", "state_category": "...", "related_concepts": []}}\n\n'
-                f"Analyze this personal reflection: \"{content}\""
+                f'Analyze this personal reflection: "{content}"'
             )
 
             response = await asyncio.wait_for(
@@ -146,7 +155,10 @@ class MemoryServiceV2(MemoryService):
             raw_content = (response.choices[0].message.content or "").strip()
             if raw_content.startswith("```"):
                 import re as _re
-                raw_content = _re.sub(r"^```(?:json)?\n?(.*?)\n?```$", r"\1", raw_content, flags=_re.DOTALL).strip()
+
+                raw_content = _re.sub(
+                    r"^```(?:json)?\n?(.*?)\n?```$", r"\1", raw_content, flags=_re.DOTALL
+                ).strip()
             first_brace = raw_content.find("{")
             last_brace = raw_content.rfind("}")
             if first_brace != -1 and last_brace != -1:
@@ -178,7 +190,12 @@ class MemoryServiceV2(MemoryService):
                 "session_id": session_id,
             }
             await self.add_explicit(
-                user_id, atom.content, is_core=False, source="l1_atom", run_compaction=False, metadata=classified
+                user_id,
+                atom.content,
+                is_core=False,
+                source="l1_atom",
+                run_compaction=False,
+                metadata=classified,
             )
 
     async def add_explicit(
@@ -223,13 +240,13 @@ class MemoryServiceV2(MemoryService):
         if not is_core:
             if not classified:
                 classified = await self.classify_memory_content(content)
-            
+
             # Ensure classification results exist
             if not classified:
                 classified = {
                     "insight": content[:30],
                     "state_category": "Neutral",
-                    "related_concepts": []
+                    "related_concepts": [],
                 }
             else:
                 if "insight" not in classified:
@@ -240,15 +257,17 @@ class MemoryServiceV2(MemoryService):
                     classified["related_concepts"] = []
 
         # Step 2: Save to Supabase (using updated base implementation)
-        res = await super().add_explicit(user_id, content, is_core, source, run_compaction, classified)
+        res = await super().add_explicit(
+            user_id, content, is_core, source, run_compaction, classified
+        )
 
         # Step 3: Write to Neo4j
         if not is_core and res and "id" in res:
             try:
                 driver = await asyncio.to_thread(self._get_neo4j)
                 if driver:
-                    import uuid
                     from services.tenant_context import TenantContext
+
                     tenant_id = TenantContext.get()
                     mem_id = str(res["id"])
                     insight = classified.get("insight") or content[:30]
@@ -268,7 +287,7 @@ class MemoryServiceV2(MemoryService):
                                     SET m.is_superseded = true,
                                         m.decay_score = 0.05
                                     """,
-                                    old_id=merge_target_id
+                                    old_id=merge_target_id,
                                 )
                                 # 2. Create the new memory node, and link to User + old memory node
                                 session.run(
@@ -292,7 +311,7 @@ class MemoryServiceV2(MemoryService):
                                     insight=insight,
                                     state_category=state_cat,
                                     tenant_id=tenant_id,
-                                    old_id=merge_target_id
+                                    old_id=merge_target_id,
                                 )
                                 target_mem_id = new_mem_id
                             else:
@@ -326,7 +345,7 @@ class MemoryServiceV2(MemoryService):
                                 MERGE (m)-[:RELATES_TO]->(c)
                                 """,
                                 memory_id=target_mem_id,
-                                state_cat=state_cat
+                                state_cat=state_cat,
                             )
 
                             # 4. Relate to concepts
@@ -354,12 +373,14 @@ class MemoryServiceV2(MemoryService):
             try:
                 driver = await asyncio.to_thread(self._get_neo4j)
                 if driver:
+
                     def _delete():
                         with driver.session() as session:
                             session.run(
                                 "MATCH (m:GlobalMemory {id: $memory_id}) DETACH DELETE m",
-                                memory_id=memory_id
+                                memory_id=memory_id,
                             )
+
                     await asyncio.to_thread(_delete)
             except Exception as e:
                 logger.warning(f"Neo4j forget failed (non-fatal): {e}")
@@ -378,7 +399,9 @@ class MemoryServiceV2(MemoryService):
                 self._redis = None
         return self._redis
 
-    async def set_ephemeral(self, user_id: str, key: str, value: Any, ttl: int = EPHEMERAL_TTL) -> bool:
+    async def set_ephemeral(
+        self, user_id: str, key: str, value: Any, ttl: int = EPHEMERAL_TTL
+    ) -> bool:
         redis = await self._get_redis()
         tenant_id = TenantContext.get()
         cache_key = f"ephemeral:{tenant_id}:{user_id}:{key}"
@@ -452,7 +475,10 @@ class MemoryServiceV2(MemoryService):
         """Get Qdrant client for global memory collection."""
         try:
             from qdrant_client import QdrantClient
-            qdrant_url = os.environ.get("QDRANT_URL_V2") or os.environ.get("QDRANT_URL", "http://qdrant:6333")
+
+            qdrant_url = os.environ.get("QDRANT_URL_V2") or os.environ.get(
+                "QDRANT_URL", "http://qdrant:6333"
+            )
             qdrant_api_key = settings.qdrant_api_key or None
             return QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         except Exception:
@@ -476,6 +502,7 @@ class MemoryServiceV2(MemoryService):
             return False
         try:
             from qdrant_client.http.models import Distance, VectorParams
+
             from app.config import settings
 
             existing = {c.name for c in client.get_collections().collections}
@@ -505,6 +532,7 @@ class MemoryServiceV2(MemoryService):
         if self._neo4j_driver is None:
             try:
                 from neo4j import GraphDatabase
+
                 self._neo4j_driver = GraphDatabase.driver(
                     settings.neo4j_uri,
                     auth=(settings.neo4j_user, settings.neo4j_password),
@@ -546,21 +574,24 @@ class MemoryServiceV2(MemoryService):
             client = await asyncio.to_thread(self._get_qdrant_v2)
             if client:
                 from qdrant_client.http import models
+
                 point_id = memory_id
                 await asyncio.to_thread(
                     client.upsert,
                     collection_name=self._get_memory_collection(guru_slug, use_global_memory),
-                    points=[models.PointStruct(
-                        id=point_id,
-                        vector=embedding,
-                        payload={
-                            "user_id": user_id,
-                            "tenant_id": tenant_id,
-                            "content": content,
-                            "metadata": metadata or {},
-                            "created_at": time.time(),
-                        },
-                    )],
+                    points=[
+                        models.PointStruct(
+                            id=point_id,
+                            vector=embedding,
+                            payload={
+                                "user_id": user_id,
+                                "tenant_id": tenant_id,
+                                "content": content,
+                                "metadata": metadata or {},
+                                "created_at": time.time(),
+                            },
+                        )
+                    ],
                 )
                 success = True
         except Exception as e:
@@ -569,7 +600,6 @@ class MemoryServiceV2(MemoryService):
         try:
             driver = await asyncio.to_thread(self._get_neo4j)
             if driver:
-
                 # ponytail: to_thread wraps sync neo4j driver; migrate to AsyncGraphDatabase past 100 concurrent users
                 def _write():
                     with driver.session() as session:
@@ -614,6 +644,7 @@ class MemoryServiceV2(MemoryService):
                 return []
 
             from qdrant_client.http import models
+
             if not user_id:
                 logger.warning("Global memory search rejected without user scope")
                 return []
@@ -621,7 +652,9 @@ class MemoryServiceV2(MemoryService):
             filter_cond = models.Filter(
                 must=[
                     models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)),
-                    models.FieldCondition(key="tenant_id", match=models.MatchValue(value=tenant_id)),
+                    models.FieldCondition(
+                        key="tenant_id", match=models.MatchValue(value=tenant_id)
+                    ),
                 ]
             )
 
@@ -659,6 +692,7 @@ class MemoryServiceV2(MemoryService):
                 return []
 
             from services.tenant_context import TenantContext
+
             tenant_id = TenantContext.get()
 
             def _query():
@@ -705,7 +739,9 @@ class MemoryServiceV2(MemoryService):
         embedding = None
         if self._embedding_service:
             try:
-                emb_dict = await asyncio.to_thread(self._embedding_service.encode_single_full, query)
+                emb_dict = await asyncio.to_thread(
+                    self._embedding_service.encode_single_full, query
+                )
                 embedding = emb_dict.get("dense")
             except Exception as _e:
                 logger.debug("[memory service] suppressed non-critical error: %s", _e)
@@ -729,7 +765,9 @@ class MemoryServiceV2(MemoryService):
         async def _tier2():
             start = time.monotonic()
             try:
-                memories = await self.search_semantic(user_id, query, limit=limit, min_similarity=0.6)
+                memories = await self.search_semantic(
+                    user_id, query, limit=limit, min_similarity=0.6
+                )
                 return MemoryTierResult(
                     source="semantic",
                     memories=memories,
@@ -824,6 +862,7 @@ class MemoryServiceV2(MemoryService):
         try:
             driver = await asyncio.to_thread(self._get_neo4j)
             if driver is not None:
+
                 def _neighbors():
                     with driver.session() as session:
                         res = session.run(
@@ -833,6 +872,7 @@ class MemoryServiceV2(MemoryService):
                             concept=concept,
                         )
                         return [rec.get("neighbor") for rec in res if rec.get("neighbor")]
+
                 result["ontology_neighbors"] = await asyncio.to_thread(_neighbors)
         except Exception as e:
             logger.warning(f"get_user_subgraph: ontology neighbors failed: {e}")
@@ -844,7 +884,9 @@ class MemoryServiceV2(MemoryService):
     _KG_CACHE: dict[tuple, tuple[dict, float]] = {}
     _KG_TTL = 60.0
 
-    async def build_personal_knowledge_graph(self, user_id: Optional[str], view: str = "personal") -> dict[str, list[dict]]:
+    async def build_personal_knowledge_graph(
+        self, user_id: Optional[str], view: str = "personal"
+    ) -> dict[str, list[dict]]:
         """Build a {nodes, edges} knowledge graph for the user.
 
         - view=="ontology" or no user_id → public teaching ontology (limit 200).
@@ -864,8 +906,14 @@ class MemoryServiceV2(MemoryService):
         # made large graphs quadratic during construction.
         edges_seen: set[tuple[str, str, Optional[str]]] = set()
 
-        def _add_node(uid: str, label: str, ntype: str, teacher: str | None = None,
-                      state_category: str | None = None, content: str | None = None) -> None:
+        def _add_node(
+            uid: str,
+            label: str,
+            ntype: str,
+            teacher: str | None = None,
+            state_category: str | None = None,
+            content: str | None = None,
+        ) -> None:
             if uid not in nodes:
                 nodes[uid] = {
                     "id": uid,
@@ -873,7 +921,7 @@ class MemoryServiceV2(MemoryService):
                     "type": ntype,
                     "teacher": teacher,
                     "state_category": state_category,
-                    "content": content
+                    "content": content,
                 }
 
         def _add_edge(src: str, dst: str, label: str | None = None) -> None:
@@ -888,6 +936,7 @@ class MemoryServiceV2(MemoryService):
             try:
                 driver = await asyncio.to_thread(self._get_neo4j)
                 if driver is not None:
+
                     def _query_ontology():
                         with driver.session() as session:
                             res1 = session.run(
@@ -904,26 +953,38 @@ class MemoryServiceV2(MemoryService):
                                 "  AND type(r) IN ['EXPOUNDS', 'PRACTICE_FOR', 'CONTRASTS_WITH', 'SYNONYMOUS_WITH'] "
                                 "RETURN c1.entity_id AS source, c2.entity_id AS target, type(r) AS rel_type"
                             )
-                            edges_data = [r.data() for r in res2 if r.get("source") and r.get("target")]
+                            edges_data = [
+                                r.data() for r in res2 if r.get("source") and r.get("target")
+                            ]
                             return ontology, edges_data
-                    
+
                     ontology, edges_data = await asyncio.to_thread(_query_ontology)
                     for c in ontology:
                         eid = c["eid"]
                         labels = c.get("labels", ["Concept"])
-                        ntype = next((lbl for lbl in labels if lbl in ("Concept", "Teacher", "Practice")), "Concept")
+                        ntype = next(
+                            (lbl for lbl in labels if lbl in ("Concept", "Teacher", "Practice")),
+                            "Concept",
+                        )
                         _add_node(f"concept:{eid}", eid, ntype, eid if ntype == "Teacher" else None)
                     for edge in edges_data:
-                        _add_edge(f"concept:{edge['source']}", f"concept:{edge['target']}", edge['rel_type'])
+                        _add_edge(
+                            f"concept:{edge['source']}",
+                            f"concept:{edge['target']}",
+                            edge["rel_type"],
+                        )
             except Exception as e:
                 logger.warning(f"build_personal_knowledge_graph ontology view failed: {e}")
             result = {"nodes": list(nodes.values()), "edges": edges}
             enriched = copy.deepcopy(result)
-            _do_enrich = lambda: kg_analytics.enrich_graph(enriched, enabled=settings.kg_analytics_enabled)
+
+            def _do_enrich():
+                return kg_analytics.enrich_graph(enriched, enabled=settings.kg_analytics_enabled)
+
             try:
                 await asyncio.wait_for(asyncio.to_thread(_do_enrich), timeout=30.0)
                 result = enriched
-            except (asyncio.TimeoutError, Exception):
+            except (TimeoutError, Exception):
                 pass
             self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)
             return result
@@ -942,15 +1003,17 @@ class MemoryServiceV2(MemoryService):
         try:
             driver = await asyncio.to_thread(self._get_neo4j)
             if driver is not None:
+
                 def _query_memories():
                     with driver.session() as session:
                         res = session.run(
                             "MATCH (u:User {id: $uid})-[:HAS_MEMORY]->(m:GlobalMemory) "
                             "WHERE m.is_superseded IS NULL OR NOT m.is_superseded = true "
                             "RETURN m.id AS id, m.content AS content, m.insight AS insight, m.state_category AS state_category, m.created_at AS created_at",
-                            uid=user_id
+                            uid=user_id,
                         )
                         return [r.data() for r in res]
+
                 neo4j_mems = await asyncio.to_thread(_query_memories)
         except Exception as e:
             logger.warning(f"Failed to query Neo4j memories: {e}")
@@ -965,10 +1028,7 @@ class MemoryServiceV2(MemoryService):
         notebook_items = []
         try:
             notebooks_res = await asyncio.to_thread(
-                self._supabase.table("study_notebooks")
-                .select("id")
-                .eq("user_id", user_id)
-                .execute
+                self._supabase.table("study_notebooks").select("id").eq("user_id", user_id).execute
             )
             notebook_ids = [nb.get("id") for nb in (notebooks_res.data or []) if nb.get("id")]
             if notebook_ids:
@@ -993,7 +1053,13 @@ class MemoryServiceV2(MemoryService):
         _add_node(f"user:{user_id}", "You", "User")
 
         # Set up state categories as base concepts so they exist in our graph
-        state_categories = ["Beautiful State", "Suffering State", "Shrinking Self", "Destructive Self", "Inert Self"]
+        state_categories = [
+            "Beautiful State",
+            "Suffering State",
+            "Shrinking Self",
+            "Destructive Self",
+            "Inert Self",
+        ]
         for sc in state_categories:
             _add_node(f"concept:{sc}", sc, "Concept")
 
@@ -1024,7 +1090,7 @@ class MemoryServiceV2(MemoryService):
                 continue
             content = m.get("content", "")
             claim = m.get("claim") or content[:30]
-            
+
             # Extract state category if possible
             state_cat = "Neutral"
             _add_node(f"memory:{mid}", claim, "Memory", state_category=state_cat, content=content)
@@ -1034,15 +1100,17 @@ class MemoryServiceV2(MemoryService):
         referenced_concept_ids = set()
         if neo4j_mems:
             try:
+
                 def _query_memory_ontology_rels():
                     with driver.session() as session:
                         res = session.run(
                             "MATCH (m:GlobalMemory)-[r:RELATES_TO]->(c) "
                             "WHERE m.id IN $mids AND (c:Concept OR c:Teacher OR c:Practice) "
                             "RETURN m.id AS mid, c.entity_id AS cid, labels(c)[0] AS clabel",
-                            mids=list(processed_memory_ids)
+                            mids=list(processed_memory_ids),
                         )
                         return [r.data() for r in res]
+
                 rels = await asyncio.to_thread(_query_memory_ontology_rels)
                 for r in rels:
                     mid = r["mid"]
@@ -1059,10 +1127,14 @@ class MemoryServiceV2(MemoryService):
         # For any memories that were not in Neo4j, do keyword matching fallback
         concept_keywords = {sc.lower(): sc for sc in state_categories}
         try:
+
             def _get_all_concepts():
                 with driver.session() as session:
-                    res = session.run("MATCH (c) WHERE c:Concept OR c:Teacher OR c:Practice RETURN c.entity_id AS eid")
+                    res = session.run(
+                        "MATCH (c) WHERE c:Concept OR c:Teacher OR c:Practice RETURN c.entity_id AS eid"
+                    )
                     return [r["eid"] for r in res]
+
             all_concepts = await asyncio.to_thread(_get_all_concepts)
             for cid in all_concepts:
                 concept_keywords[cid.lower()] = cid
@@ -1089,10 +1161,10 @@ class MemoryServiceV2(MemoryService):
             query = item.get("query", "")
             answer = item.get("answer", "")
             label = query[:30] + ("..." if len(query) > 30 else "")
-            
+
             _add_node(f"notebook:{nid}", label, "NotebookItem", content=f"Q: {query}\nA: {answer}")
             _add_edge(f"user:{user_id}", f"notebook:{nid}", "SAVED_NOTE")
-            
+
             # Find related concepts using content keyword matching
             full_text = (query + " " + answer).lower()
             for kw, cid in concept_keywords.items():
@@ -1105,6 +1177,7 @@ class MemoryServiceV2(MemoryService):
         # Query and add relationships between the matched ontology concepts
         if concept_ids_in_graph:
             try:
+
                 def _query_concept_rels():
                     with driver.session() as session:
                         res = session.run(
@@ -1114,12 +1187,13 @@ class MemoryServiceV2(MemoryService):
                             "  AND c1.entity_id IN $cids AND c2.entity_id IN $cids "
                             "  AND type(r) IN ['EXPOUNDS', 'PRACTICE_FOR', 'CONTRASTS_WITH', 'SYNONYMOUS_WITH'] "
                             "RETURN c1.entity_id AS source, c2.entity_id AS target, type(r) AS rel_type",
-                            cids=list(concept_ids_in_graph)
+                            cids=list(concept_ids_in_graph),
                         )
                         return [r.data() for r in res]
+
                 concept_rels = await asyncio.to_thread(_query_concept_rels)
                 for r in concept_rels:
-                    _add_edge(f"concept:{r['source']}", f"concept:{r['target']}", r['rel_type'])
+                    _add_edge(f"concept:{r['source']}", f"concept:{r['target']}", r["rel_type"])
             except Exception as e:
                 logger.warning(f"Failed to query concept rels: {e}")
 
@@ -1130,11 +1204,15 @@ class MemoryServiceV2(MemoryService):
         try:
             by_state: dict[str, list[str]] = {}
             for n in nodes.values():
-                if n["type"] == "Memory" and n.get("state_category") and n["state_category"] != "Neutral":
+                if (
+                    n["type"] == "Memory"
+                    and n.get("state_category")
+                    and n["state_category"] != "Neutral"
+                ):
                     by_state.setdefault(n["state_category"], []).append(n["id"])
             _peer_cap = 40  # ponytail: bump if UI clarity holds at higher densities
             _added = 0
-            for state, mids in by_state.items():
+            for _state, mids in by_state.items():
                 if len(mids) < 2:
                     continue
                 # Chain memories in a ring so each has ≤2 peer edges — dense
@@ -1154,7 +1232,7 @@ class MemoryServiceV2(MemoryService):
         try:
             _concept_peer_cap = 40
             _concept_peers_added = 0
-            for c_key, items in concept_nodes.items():
+            for _c_key, items in concept_nodes.items():
                 unique_items = list(dict.fromkeys(items))
                 if len(unique_items) < 2:
                     continue
@@ -1172,11 +1250,14 @@ class MemoryServiceV2(MemoryService):
 
         result = {"nodes": list(nodes.values()), "edges": edges}
         enriched = copy.deepcopy(result)
-        _do_enrich = lambda: kg_analytics.enrich_graph(enriched, enabled=settings.kg_analytics_enabled)
+
+        def _do_enrich():
+            return kg_analytics.enrich_graph(enriched, enabled=settings.kg_analytics_enabled)
+
         try:
             await asyncio.wait_for(asyncio.to_thread(_do_enrich), timeout=30.0)
             result = enriched
-        except (asyncio.TimeoutError, Exception):
+        except (TimeoutError, Exception):
             pass
         self._KG_CACHE[cache_key] = (result, time.time() + self._KG_TTL)
         # Evict old cache entries (bounded).

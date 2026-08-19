@@ -17,7 +17,9 @@ def test_calculate_scores_includes_eval_dimensions():
             latency_ms=100,
             status=200,
             intent="FACTUAL",
-            citations=["https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"],
+            citations=[
+                "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"
+            ],
             response="amazon.in",
             keyword_score=1.0,
             passed=True,

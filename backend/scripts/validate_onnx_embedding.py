@@ -13,8 +13,6 @@ Usage:
 
 from __future__ import annotations
 
-import json
-import math
 import os
 import sys
 import tempfile
@@ -88,20 +86,24 @@ def _extract_queries() -> list[dict]:
             continue
         for i, item in enumerate(items):
             if isinstance(item, dict) and "q" in item:
-                queries.append({
-                    "q": item["q"],
-                    "category": category,
-                    "index": i,
-                })
+                queries.append(
+                    {
+                        "q": item["q"],
+                        "category": category,
+                        "index": i,
+                    }
+                )
             elif isinstance(item, dict) and "turns" in item:
                 # multi_turn scenario
                 for j, turn in enumerate(item["turns"]):
                     if "q" in turn:
-                        queries.append({
-                            "q": turn["q"],
-                            "category": f"{category}_turn",
-                            "index": j,
-                        })
+                        queries.append(
+                            {
+                                "q": turn["q"],
+                                "category": f"{category}_turn",
+                                "index": j,
+                            }
+                        )
     return queries
 
 
@@ -143,9 +145,10 @@ class BaselineEncoder:
     def encode_dense(self, texts: list[str]) -> np.ndarray:
         all_vecs = []
         for i in range(0, len(texts), BATCH_SIZE):
-            batch = texts[i:i + BATCH_SIZE]
-            output = self._encoder.encode(batch, return_dense=True, return_sparse=False,
-                                          return_colbert_vecs=False)
+            batch = texts[i : i + BATCH_SIZE]
+            output = self._encoder.encode(
+                batch, return_dense=True, return_sparse=False, return_colbert_vecs=False
+            )
             all_vecs.append(np.array(output["dense_vecs"]))
         return np.concatenate(all_vecs, axis=0)
 
@@ -173,9 +176,7 @@ class OnnxEncoder:
             model_file,
             providers=["CPUExecutionProvider"],
         )
-        self._tokenizer = AutoTokenizer.from_pretrained(
-            "BAAI/bge-m3", revision=BGE_M3_REVISION
-        )
+        self._tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-m3", revision=BGE_M3_REVISION)
         print(f"  Loaded in {time.monotonic() - t0:.1f}s")
 
     def _download(self) -> str:
@@ -198,9 +199,12 @@ class OnnxEncoder:
     def encode_dense(self, texts: list[str]) -> np.ndarray:
         all_vecs = []
         for i in range(0, len(texts), BATCH_SIZE):
-            batch = texts[i:i + BATCH_SIZE]
+            batch = texts[i : i + BATCH_SIZE]
             inputs = self._tokenizer(
-                batch, padding=True, truncation=True, return_tensors="np",
+                batch,
+                padding=True,
+                truncation=True,
+                return_tensors="np",
             )
             ort_inputs = {
                 "input_ids": inputs["input_ids"].astype(np.int64),
@@ -212,13 +216,14 @@ class OnnxEncoder:
         return np.concatenate(all_vecs, axis=0)
 
 
-def _score_and_report(baseline: BaselineEncoder, onnx: OnnxEncoder,
-                      queries: list[dict], label: str) -> dict:
+def _score_and_report(
+    baseline: BaselineEncoder, onnx: OnnxEncoder, queries: list[dict], label: str
+) -> dict:
     """Compute per-query cosine similarity, report stats, return results."""
     texts = [q["q"] for q in queries]
     print(f"\n{'=' * 60}")
     print(f"Scoring {len(texts)} queries ({label})")
-    print('=' * 60)
+    print("=" * 60)
 
     # Encode
     t0 = time.monotonic()
@@ -244,12 +249,14 @@ def _score_and_report(baseline: BaselineEncoder, onnx: OnnxEncoder,
         cs = _cosine_similarity(bv, ov)
         cos_sims.append(cs)
         if cs < MIN_COS_THRESHOLD:
-            outliers.append({
-                "index": i,
-                "category": queries[i].get("category", "?"),
-                "text": texts[i][:100],
-                "cosine": cs,
-            })
+            outliers.append(
+                {
+                    "index": i,
+                    "category": queries[i].get("category", "?"),
+                    "text": texts[i][:100],
+                    "cosine": cs,
+                }
+            )
 
     cos_arr = np.array(cos_sims)
     mean_cos = float(cos_arr.mean())
@@ -257,7 +264,7 @@ def _score_and_report(baseline: BaselineEncoder, onnx: OnnxEncoder,
     p5 = float(np.percentile(cos_arr, 5))
     p50 = float(np.percentile(cos_arr, 50))
 
-    print(f"\n  Results:")
+    print("\n  Results:")
     print(f"    Mean cosine: {mean_cos:.6f}  (threshold: >= {MEAN_COS_THRESHOLD})")
     print(f"    Min cosine:  {min_cos:.6f}  (threshold: >= {MIN_COS_THRESHOLD})")
     print(f"    P5 cosine:   {p5:.6f}")
@@ -307,14 +314,15 @@ def main():
     literal_results = _score_and_report(baseline, onnx, queries, "literal queries")
 
     # 2. Score on paraphrased variants
-    para_queries = [{"q": p, "category": "paraphrased", "index": i}
-                    for i, p in enumerate(PARAPHRASED)]
+    para_queries = [
+        {"q": p, "category": "paraphrased", "index": i} for i, p in enumerate(PARAPHRASED)
+    ]
     para_results = _score_and_report(baseline, onnx, para_queries, "paraphrased variants")
 
     # 3. Verify that original ↔ paraphrase pairs are stable
     print(f"\n{'=' * 60}")
     print("Original ↔ Paraphrase Pair Stability Check")
-    print('=' * 60)
+    print("=" * 60)
     pair_instabilities = []
     for orig_text, para_text in ORIGINAL_PARAPHRASE_MAP:
         orig_vec_b = baseline.encode_dense([orig_text])
@@ -329,13 +337,15 @@ def main():
         delta = abs(cs_orig - cs_para)
 
         if delta > 0.01:
-            pair_instabilities.append({
-                "orig": orig_text[:60],
-                "para": para_text[:60],
-                "cs_orig": cs_orig,
-                "cs_para": cs_para,
-                "delta": delta,
-            })
+            pair_instabilities.append(
+                {
+                    "orig": orig_text[:60],
+                    "para": para_text[:60],
+                    "cs_orig": cs_orig,
+                    "cs_para": cs_para,
+                    "delta": delta,
+                }
+            )
             print(f"  ⚠ Delta={delta:.4f}: orig={cs_orig:.4f} para={cs_para:.4f}")
         else:
             print(f"  ✓ Delta={delta:.4f}: orig={cs_orig:.4f} para={cs_para:.4f}")
@@ -345,31 +355,34 @@ def main():
     # Final verdict
     print(f"\n{'=' * 60}")
     print("FINAL VERDICT — Phase 2: Cosine Similarity Validation")
-    print('=' * 60)
+    print("=" * 60)
 
-    overall_pass = (
-        literal_results["passed"]
-        and para_results["passed"]
-        and pair_stable
+    overall_pass = literal_results["passed"] and para_results["passed"] and pair_stable
+
+    print(
+        f"  Literal queries:     {'PASS' if literal_results['passed'] else 'FAIL'}"
+        f"  (mean={literal_results['mean']:.4f}, min={literal_results['min']:.4f})"
     )
-
-    print(f"  Literal queries:     {'PASS' if literal_results['passed'] else 'FAIL'}"
-          f"  (mean={literal_results['mean']:.4f}, min={literal_results['min']:.4f})")
-    print(f"  Paraphrased queries: {'PASS' if para_results['passed'] else 'FAIL'}"
-          f"  (mean={para_results['mean']:.4f}, min={para_results['min']:.4f})")
-    print(f"  Pair stability:      {'PASS' if pair_stable else 'FAIL'}"
-          f"  ({len(pair_instabilities)} unstable pairs)")
+    print(
+        f"  Paraphrased queries: {'PASS' if para_results['passed'] else 'FAIL'}"
+        f"  (mean={para_results['mean']:.4f}, min={para_results['min']:.4f})"
+    )
+    print(
+        f"  Pair stability:      {'PASS' if pair_stable else 'FAIL'}"
+        f"  ({len(pair_instabilities)} unstable pairs)"
+    )
     print(f"  Overall:             {'PASS' if overall_pass else 'FAIL'}")
 
     if not overall_pass:
-        print(f"\n  ❌ Phase 2 FAILED — do not proceed to Phase 3 without resolving.")
+        print("\n  ❌ Phase 2 FAILED — do not proceed to Phase 3 without resolving.")
         sys.exit(1)
     else:
-        print(f"\n  ✅ Phase 2 PASSED — proceed to Phase 3.")
+        print("\n  ✅ Phase 2 PASSED — proceed to Phase 3.")
 
 
 def _cleanup():
     import shutil
+
     if SCRATCH.exists():
         shutil.rmtree(SCRATCH)
         print(f"Cleaned up: {SCRATCH}")

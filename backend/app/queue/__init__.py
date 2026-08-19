@@ -1,5 +1,5 @@
-from app.queue.request_queue import BaseRequestQueue, QueueItem, QueueStatus, RequestPriority
 from app.queue.in_process_queue import InProcessQueue
+from app.queue.request_queue import BaseRequestQueue, QueueItem, QueueStatus, RequestPriority
 
 __all__ = ["BaseRequestQueue", "InProcessQueue", "QueueItem", "QueueStatus", "RequestPriority"]
 

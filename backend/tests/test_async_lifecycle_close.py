@@ -1,4 +1,5 @@
 """Regression coverage for awaitable service shutdown methods."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

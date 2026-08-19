@@ -3,6 +3,7 @@
 Public exports are preserved so existing `from services.cache_service import ...`
 callers continue to work after the package split.
 """
+
 from services.cache.exceptions import CacheInitializationError
 from services.cache.factory import CacheFactory, CacheMode
 from services.cache.hot_cache_adapter import HotCache, hot_cache

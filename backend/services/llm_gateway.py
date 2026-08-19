@@ -24,8 +24,9 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Literal, Optional
+from typing import Any, Literal, Optional
 
 from services.circuit_breaker import (
     CircuitBreakerConfig,
@@ -95,7 +96,9 @@ class LLMGateway:
         # breaker the concrete service already holds internally (e.g.
         # OpenRouterService._circuit) — this one gates whether the gateway
         # attempts the call at all.
-        self._primary_breaker = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider(primary_name))
+        self._primary_breaker = DefaultCircuitBreaker(
+            CircuitBreakerConfig.from_provider(primary_name)
+        )
         self._secondary_breaker = (
             DefaultCircuitBreaker(CircuitBreakerConfig.from_provider(secondary_name))
             if secondary is not None
@@ -129,12 +132,15 @@ class LLMGateway:
         self._inflight.add(key)
         try:
             return await self._coalescer.get_or_run(
-                key, lambda: self._generate_routed(system_prompt, user_prompt, context, task, **kwargs)
+                key,
+                lambda: self._generate_routed(system_prompt, user_prompt, context, task, **kwargs),
             )
         finally:
             self._inflight.discard(key)
 
-    def _cache_key(self, system_prompt: str, user_prompt: str, context: str, task: str, kwargs: dict) -> str:
+    def _cache_key(
+        self, system_prompt: str, user_prompt: str, context: str, task: str, kwargs: dict
+    ) -> str:
         payload = json.dumps(
             {
                 "provider": self._primary_name,
@@ -161,11 +167,15 @@ class LLMGateway:
             logger.warning(f"LLMGateway: primary '{self._primary_name}' circuit OPEN — rejected")
             open_exc = CircuitOpenException(self._primary_name)
             if self._cross_provider_fallback_enabled and self._secondary is not None:
-                return await self._generate_secondary(system_prompt, user_prompt, context, open_exc, **kwargs)
+                return await self._generate_secondary(
+                    system_prompt, user_prompt, context, open_exc, **kwargs
+                )
             raise open_exc
 
         try:
-            result = await self._primary.generate(system_prompt, user_prompt, context=context, **kwargs)
+            result = await self._primary.generate(
+                system_prompt, user_prompt, context=context, **kwargs
+            )
             self._primary_breaker.record_success()
             return result
         except Exception as primary_exc:
@@ -176,7 +186,11 @@ class LLMGateway:
             if self._primary_model_fallback:
                 try:
                     result = await self._primary.generate(
-                        system_prompt, user_prompt, context=context, model=self._primary_model_fallback, **kwargs
+                        system_prompt,
+                        user_prompt,
+                        context=context,
+                        model=self._primary_model_fallback,
+                        **kwargs,
                     )
                     self._primary_breaker.record_success()
                     self.metrics.fallbacks += 1
@@ -191,27 +205,42 @@ class LLMGateway:
                     primary_exc = fb_exc
 
             if self._cross_provider_fallback_enabled and self._secondary is not None:
-                return await self._generate_secondary(system_prompt, user_prompt, context, primary_exc, **kwargs)
+                return await self._generate_secondary(
+                    system_prompt, user_prompt, context, primary_exc, **kwargs
+                )
             raise primary_exc
 
     async def _generate_secondary(
-        self, system_prompt: str, user_prompt: str, context: str, upstream_exc: Exception, **kwargs: Any
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        context: str,
+        upstream_exc: Exception,
+        **kwargs: Any,
     ) -> str:
         if not self._secondary_breaker.can_execute():
             self.metrics.circuit_rejections += 1
-            logger.warning(f"LLMGateway: secondary '{self._secondary_name}' circuit OPEN — rejected")
+            logger.warning(
+                f"LLMGateway: secondary '{self._secondary_name}' circuit OPEN — rejected"
+            )
             raise upstream_exc
         try:
             self._enforce_max_tokens(kwargs.get("operation", "standard"), kwargs)
-            result = await self._secondary.generate(system_prompt, user_prompt, context=context, **kwargs)
+            result = await self._secondary.generate(
+                system_prompt, user_prompt, context=context, **kwargs
+            )
             self._secondary_breaker.record_success()
             self.metrics.fallbacks += 1
-            logger.info(f"LLMGateway: cross-provider fallback to '{self._secondary_name}' succeeded")
+            logger.info(
+                f"LLMGateway: cross-provider fallback to '{self._secondary_name}' succeeded"
+            )
             return result
         except Exception as secondary_exc:
             self._secondary_breaker.record_failure(secondary_exc)
             self.metrics.record_error(self._secondary_name)
-            logger.error(f"LLMGateway: secondary '{self._secondary_name}' also failed: {secondary_exc}")
+            logger.error(
+                f"LLMGateway: secondary '{self._secondary_name}' also failed: {secondary_exc}"
+            )
             raise secondary_exc
 
     def _enforce_max_tokens(self, task: str, kwargs: dict[str, Any]) -> None:
@@ -228,9 +257,7 @@ class LLMGateway:
 
             deep_tasks = {"deep"}
             ceiling = (
-                settings.llm_max_tokens_deep
-                if task in deep_tasks
-                else settings.llm_max_tokens_fast
+                settings.llm_max_tokens_deep if task in deep_tasks else settings.llm_max_tokens_fast
             )
             caller_max = kwargs.get("max_tokens")
             if caller_max is None:
@@ -266,20 +293,26 @@ class LLMGateway:
             verify_ceiling = 512
         if not self._primary_breaker.can_execute():
             self.metrics.circuit_rejections += 1
-            logger.warning(f"LLMGateway: primary '{self._primary_name}' circuit OPEN — verify rejected")
+            logger.warning(
+                f"LLMGateway: primary '{self._primary_name}' circuit OPEN — verify rejected"
+            )
             open_exc = CircuitOpenException(self._primary_name)
             if self._cross_provider_fallback_enabled and self._secondary is not None:
                 return await self._verify_secondary(answer, context, open_exc, verify_ceiling)
             raise open_exc
 
         try:
-            result = await self._primary.verify_answer(answer=answer, context=context, max_tokens=verify_ceiling)
+            result = await self._primary.verify_answer(
+                answer=answer, context=context, max_tokens=verify_ceiling
+            )
             self._primary_breaker.record_success()
             return result
         except Exception as primary_exc:
             self._primary_breaker.record_failure(primary_exc)
             self.metrics.record_error(self._primary_name)
-            logger.warning(f"LLMGateway: primary '{self._primary_name}' verify failed: {primary_exc}")
+            logger.warning(
+                f"LLMGateway: primary '{self._primary_name}' verify failed: {primary_exc}"
+            )
 
             if self._primary_model_fallback:
                 try:
@@ -316,18 +349,26 @@ class LLMGateway:
             raise upstream_exc
         if not self._secondary_breaker.can_execute():
             self.metrics.circuit_rejections += 1
-            logger.warning(f"LLMGateway: secondary '{self._secondary_name}' circuit OPEN — verify rejected")
+            logger.warning(
+                f"LLMGateway: secondary '{self._secondary_name}' circuit OPEN — verify rejected"
+            )
             raise upstream_exc
         try:
-            result = await self._secondary.verify_answer(answer=answer, context=context, max_tokens=verify_ceiling)
+            result = await self._secondary.verify_answer(
+                answer=answer, context=context, max_tokens=verify_ceiling
+            )
             self._secondary_breaker.record_success()
             self.metrics.fallbacks += 1
-            logger.info(f"LLMGateway: cross-provider verify fallback to '{self._secondary_name}' succeeded")
+            logger.info(
+                f"LLMGateway: cross-provider verify fallback to '{self._secondary_name}' succeeded"
+            )
             return result
         except Exception as secondary_exc:
             self._secondary_breaker.record_failure(secondary_exc)
             self.metrics.record_error(self._secondary_name)
-            logger.error(f"LLMGateway: secondary '{self._secondary_name}' verify also failed: {secondary_exc}")
+            logger.error(
+                f"LLMGateway: secondary '{self._secondary_name}' verify also failed: {secondary_exc}"
+            )
             raise secondary_exc
 
     async def generate_stream(
@@ -371,7 +412,9 @@ class LLMGateway:
         opt-in path guarded by cross_provider_fallback_enabled elsewhere)."""
         if not self._primary_breaker.can_execute():
             self.metrics.circuit_rejections += 1
-            logger.warning(f"LLMGateway(stream): primary '{self._primary_name}' circuit OPEN — rejected")
+            logger.warning(
+                f"LLMGateway(stream): primary '{self._primary_name}' circuit OPEN — rejected"
+            )
             raise CircuitOpenException(self._primary_name)
 
         emitted = False
@@ -385,16 +428,21 @@ class LLMGateway:
         except Exception as primary_exc:
             self._primary_breaker.record_failure(primary_exc)
             self.metrics.record_error(self._primary_name)
-            logger.warning(f"LLMGateway(stream): primary '{self._primary_name}' failed: {primary_exc}")
+            logger.warning(
+                f"LLMGateway(stream): primary '{self._primary_name}' failed: {primary_exc}"
+            )
             if emitted or not self._primary_model_fallback:
                 raise
-            
+
             fallback_kwargs = kwargs.copy()
             fallback_kwargs.pop("model", None)
             try:
                 async for chunk in self._primary.generate_stream(
-                    system_prompt, user_prompt, context=context,
-                    model=self._primary_model_fallback, **fallback_kwargs,
+                    system_prompt,
+                    user_prompt,
+                    context=context,
+                    model=self._primary_model_fallback,
+                    **fallback_kwargs,
                 ):
                     yield chunk
                 self._primary_breaker.record_success()

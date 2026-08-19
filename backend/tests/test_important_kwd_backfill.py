@@ -56,7 +56,7 @@ async def test_dry_run_reports_missing_and_skips_filled():
         )
 
     assert scanned == 2
-    assert needs_fill == 1          # p_missing has no important_kwd
+    assert needs_fill == 1  # p_missing has no important_kwd
     assert filled == 0
     mock_raw.set_payload.assert_not_called()
 
@@ -97,7 +97,7 @@ async def test_apply_writes_payload_with_tags():
     all_tags = [c.kwargs["payload"]["important_kwd"] for c in calls]
     for tags in all_tags:
         assert isinstance(tags, list)
-        assert len(tags) >= 0   # may be empty if no doctrine terms matched
+        assert len(tags) >= 0  # may be empty if no doctrine terms matched
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +120,9 @@ async def test_limit_stops_after_n_points():
 
     with patch("scripts.ops.backfill_important_kwd.get_container", return_value=mock_container):
         scanned, needs_fill, filled = await run(
-            apply=True, collection="test_coll", limit=3,
+            apply=True,
+            collection="test_coll",
+            limit=3,
         )
 
     assert scanned == 3

@@ -10,13 +10,15 @@ from app.security_utils import is_benchmark_request
 
 logger = logging.getLogger(__name__)
 
-_HEALTH_EXEMPT_PATHS = frozenset({
-    "/api/health",
-    "/api/healthz",
-    "/api/ready",
-    "/metrics",
-    "/health",
-})
+_HEALTH_EXEMPT_PATHS = frozenset(
+    {
+        "/api/health",
+        "/api/healthz",
+        "/api/ready",
+        "/metrics",
+        "/health",
+    }
+)
 
 
 def _rate_limit_key_func(request: Request) -> str:

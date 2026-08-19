@@ -17,8 +17,8 @@ from services.guru_voice_langhanam import (
     strip_fillers,
 )
 
-
 # --- Reference voice -------------------------------------------------------
+
 
 def test_reference_voice_has_five_to_seven_paragraphs():
     paragraphs = [p.strip() for p in REFERENCE_VOICE.split("\n\n") if p.strip()]
@@ -40,6 +40,7 @@ def test_reference_voice_has_no_fillers():
 
 
 # --- No-filler detection ---------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "text",
@@ -74,6 +75,7 @@ def test_strip_fillers_does_not_remove_legit_words():
 
 # --- Direct address --------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "text",
     [
@@ -93,6 +95,7 @@ def test_direct_address_absent_in_passive_text():
 
 # --- Single-teaching guard -------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "text",
     [
@@ -106,12 +109,14 @@ def test_combined_teachings_detected(text):
 
 
 def test_single_teaching_text_passes_guard():
-    assert detect_combined_teachings(
-        "The first langhanam is fasting from food. Practice it daily."
-    ) == []
+    assert (
+        detect_combined_teachings("The first langhanam is fasting from food. Practice it daily.")
+        == []
+    )
 
 
 # --- Sanskrit terms --------------------------------------------------------
+
 
 def test_sanskrit_terms_detected():
     assert contains_sanskrit_terms("vaak Shakti grows when you speak truth.")
@@ -123,6 +128,7 @@ def test_no_sanskrit_terms():
 
 
 # --- Sentence helpers ------------------------------------------------------
+
 
 def test_split_sentences_and_mean_length():
     text = "First sentence. Second, longer sentence here!"
@@ -138,6 +144,7 @@ def test_mean_sentence_length_empty():
 
 
 # --- Variant A: system-prompt rendering ------------------------------------
+
 
 def test_render_langhanam_system_prompt_appends_voice_block():
     base = "You are Mukthi Guru."

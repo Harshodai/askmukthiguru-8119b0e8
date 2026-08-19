@@ -1,18 +1,18 @@
 """Aggregate health, readiness, circuit-breaker, and metrics endpoints."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
-import time
 import threading
-from datetime import timezone
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse, Response
 from fastapi import status as http_status
+from fastapi.responses import JSONResponse, Response
 
-from app.config import settings
 import app.dependencies as _app_deps
+from app.config import settings
 from app.dependencies import ServiceContainer, get_container
 from app.metrics import HEALTH_CHECK_TOTAL, metrics_endpoint
 from app.runtime_metrics import observe_queue_depths
@@ -86,13 +86,15 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     """
     if not _app_deps.startup_complete:
         HEALTH_CHECK_TOTAL.labels(result="not_ready").inc()
-        return JSONResponse({
-            "ready": False,
-            "status": "starting",
-            "message": "Server is still starting up",
-            "startup_error": _app_deps.startup_error,
-            "services": {},
-        })
+        return JSONResponse(
+            {
+                "ready": False,
+                "status": "starting",
+                "message": "Server is still starting up",
+                "startup_error": _app_deps.startup_error,
+                "services": {},
+            }
+        )
 
     loop = asyncio.get_running_loop()
     results = {}
@@ -103,10 +105,20 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
             ok = await asyncio.wait_for(coro, timeout=3.0)
             latency = int((time.perf_counter() - s) * 1000)
             results[name] = {"ok": ok, "latency_ms": latency, "critical": critical}
-        except asyncio.TimeoutError:
-            results[name] = {"ok": False, "latency_ms": 3000, "critical": critical, "error": "timeout"}
+        except TimeoutError:
+            results[name] = {
+                "ok": False,
+                "latency_ms": 3000,
+                "critical": critical,
+                "error": "timeout",
+            }
         except Exception as exc:
-            results[name] = {"ok": False, "latency_ms": int((time.perf_counter() - s) * 1000), "critical": critical, "error": str(exc)[:200]}
+            results[name] = {
+                "ok": False,
+                "latency_ms": int((time.perf_counter() - s) * 1000),
+                "critical": critical,
+                "error": str(exc)[:200],
+            }
 
     # Infrastructure
     await check("qdrant", loop.run_in_executor(None, container.qdrant.health_check), critical=True)
@@ -133,12 +145,22 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
         dim = len(vec) if vec is not None else None
         embed_ok = dim == settings.embedding_dimension
         results["embedding"] = {
-            "ok": bool(embed_ok), "latency_ms": 0, "critical": True, "dim": dim,
+            "ok": bool(embed_ok),
+            "latency_ms": 0,
+            "critical": True,
+            "dim": dim,
         }
         if not embed_ok:
-            results["embedding"]["error"] = f"dim {dim} != configured {settings.embedding_dimension}"
+            results["embedding"]["error"] = (
+                f"dim {dim} != configured {settings.embedding_dimension}"
+            )
     except Exception as exc:
-        results["embedding"] = {"ok": False, "latency_ms": 0, "critical": True, "error": str(exc)[:200]}
+        results["embedding"] = {
+            "ok": False,
+            "latency_ms": 0,
+            "critical": True,
+            "error": str(exc)[:200],
+        }
 
     # Guardrails
     results["guardrails"] = {
@@ -161,9 +183,21 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     }
 
     # Graphs
-    results["fast_graph"] = {"ok": container.fast_graph is not None, "latency_ms": 0, "critical": True}
-    results["standard_graph"] = {"ok": container.standard_graph is not None, "latency_ms": 0, "critical": True}
-    results["deep_graph"] = {"ok": container.deep_graph is not None, "latency_ms": 0, "critical": False}
+    results["fast_graph"] = {
+        "ok": container.fast_graph is not None,
+        "latency_ms": 0,
+        "critical": True,
+    }
+    results["standard_graph"] = {
+        "ok": container.standard_graph is not None,
+        "latency_ms": 0,
+        "critical": True,
+    }
+    results["deep_graph"] = {
+        "ok": container.deep_graph is not None,
+        "latency_ms": 0,
+        "critical": False,
+    }
 
     job_queue = getattr(container, "job_queue", None)
     queue_size = getattr(job_queue, "queue_size", 0) if job_queue else 0
@@ -203,16 +237,19 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
 
     HEALTH_CHECK_TOTAL.labels(result="ready" if critical_ok else "not_ready").inc()
 
-    return JSONResponse({
-        "ready": critical_ok,
-        "status": "healthy" if all_ok else ("degraded" if critical_ok else "unhealthy"),
-        "services": results,
-    })
+    return JSONResponse(
+        {
+            "ready": critical_ok,
+            "status": "healthy" if all_ok else ("degraded" if critical_ok else "unhealthy"),
+            "services": results,
+        }
+    )
 
 
 async def _check_redis(container) -> bool:
     try:
         import redis.asyncio as aioredis
+
         r = aioredis.from_url(settings.redis_url, decode_responses=True)
         await asyncio.wait_for(r.ping(), timeout=2.0)
         await r.close()
@@ -234,7 +271,9 @@ async def _check_neo4j(container) -> bool:
 
 
 @router.get("/api/health/services")
-async def services_health_endpoint(container: ServiceContainer = Depends(get_container)) -> JSONResponse:
+async def services_health_endpoint(
+    container: ServiceContainer = Depends(get_container),
+) -> JSONResponse:
     """Alias for /api/health — comprehensive service health with go/no-go per service."""
     return await health_endpoint(container)
 
@@ -279,17 +318,21 @@ async def readiness_endpoint(container: ServiceContainer = Depends(get_container
                 "qdrant": health.get("qdrant", False),
                 "llm": health.get("ollama", False),
                 "circuit_breaker": circuit_state,
-                "message": "Critical services not ready" if (health.get("qdrant", False) and health.get("ollama", False)) else "Circuit breaker OPEN",
+                "message": "Critical services not ready"
+                if (health.get("qdrant", False) and health.get("ollama", False))
+                else "Circuit breaker OPEN",
             },
         )
 
-    return JSONResponse({
-        "ready": True,
-        "qdrant": True,
-        "llm": True,
-        "circuit_breaker": circuit_state,
-        "total_chunks": -1,  # Redacted
-    })
+    return JSONResponse(
+        {
+            "ready": True,
+            "qdrant": True,
+            "llm": True,
+            "circuit_breaker": circuit_state,
+            "total_chunks": -1,  # Redacted
+        }
+    )
 
 
 def _require_admin(user: dict) -> None:
@@ -392,7 +435,11 @@ async def debug_headers(
         raise HTTPException(status_code=404, detail="Not found")
     _require_admin(user)
     headers = dict(request.headers)
-    auth_headers = {k: v for k, v in headers.items() if k.lower() in ('authorization', 'cookie', 'x-test-key', 'content-type')}
+    auth_headers = {
+        k: v
+        for k, v in headers.items()
+        if k.lower() in ("authorization", "cookie", "x-test-key", "content-type")
+    }
     return {
         "all_headers_count": len(headers),
         "auth_headers": auth_headers,

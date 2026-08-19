@@ -31,11 +31,7 @@ def test_translate_text_calls_openrouter_with_gemini_model(monkeypatch):
     fake_or.is_available = True
 
     provider = GeminiTranslationProvider(openrouter_service=fake_or)
-    out = _run(
-        provider.translate_text(
-            text="Hello, world", source_lang="en", target_lang="hi"
-        )
-    )
+    out = _run(provider.translate_text(text="Hello, world", source_lang="en", target_lang="hi"))
 
     assert out == "नमस्ते"
     fake_or.generate_raw.assert_awaited_once()
@@ -56,11 +52,7 @@ def test_translate_text_reraises_on_openrouter_exception(monkeypatch):
 
     provider = GeminiTranslationProvider(openrouter_service=fake_or)
     with pytest.raises(RuntimeError, match="503"):
-        _run(
-            provider.translate_text(
-                text="Hello [1]", source_lang="en", target_lang="hi"
-            )
-        )
+        _run(provider.translate_text(text="Hello [1]", source_lang="en", target_lang="hi"))
 
 
 def test_translate_text_preserves_citation_markers_when_or_returns_markers(monkeypatch):
@@ -76,9 +68,7 @@ def test_translate_text_preserves_citation_markers_when_or_returns_markers(monke
 
     provider = GeminiTranslationProvider(openrouter_service=fake_or)
     out = _run(
-        provider.translate_text(
-            text="Answer with citation [1]", source_lang="en", target_lang="hi"
-        )
+        provider.translate_text(text="Answer with citation [1]", source_lang="en", target_lang="hi")
     )
     assert "[1]" in out
 

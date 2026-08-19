@@ -14,7 +14,12 @@ from app.orchestrator_utils import (
     _format_scored_memory_block,
     prepare_user_memory,
 )
-from services.memory_service import ClaimedMemory, EpisodicMemoryDetail, MemoryExtraction, MemoryService
+from services.memory_service import (
+    ClaimedMemory,
+    EpisodicMemoryDetail,
+    MemoryExtraction,
+    MemoryService,
+)
 
 
 def test_claim_subject_normalizes_pronouns():
@@ -86,6 +91,7 @@ async def test_claim_confidence_extraction_writes_columns():
     mock_completions.return_value = mock_response
 
     import openai
+
     class MockAsyncOpenAI:
         def __init__(self, *args, **kwargs):
             self.chat = mock_client.chat
@@ -181,7 +187,9 @@ async def test_scored_retrieval_dedupes_by_subject():
 
     with patch.object(settings, "feature_memory_enabled", True):
         memory_context, _ = await prepare_user_memory(
-            container, "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6", [{"role": "user", "content": "Tell me about my practice"}]
+            container,
+            "a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6",
+            [{"role": "user", "content": "Tell me about my practice"}],
         )
 
     assert "```memory-context" in memory_context
@@ -204,10 +212,8 @@ def test_memory_extraction_model_claimed_and_episodic():
                 confidence=0.88,
             )
         ],
-        claimed_memories=[
-            ClaimedMemory(claim="Seeker prefers morning practice", confidence=0.82)
-        ],
-        session_summary="Discussed practice."
+        claimed_memories=[ClaimedMemory(claim="Seeker prefers morning practice", confidence=0.82)],
+        session_summary="Discussed practice.",
     )
     assert extraction.claimed_memories[0].claim == "Seeker prefers morning practice"
     assert extraction.episodic_memories[0].confidence == 0.88
@@ -215,4 +221,5 @@ def test_memory_extraction_model_claimed_and_episodic():
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(pytest.main([__file__, "-q"]))

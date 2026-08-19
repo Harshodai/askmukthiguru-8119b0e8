@@ -64,9 +64,7 @@ async def test_telemetry_invalidate_on_hallucination_flag(sink, fake_adapter):
     container.semantic_cache = fake_adapter
 
     with patch("app.telemetry_sink.get_container", return_value=container):
-        await sink._invalidate_semantic_cache_if_flagged(
-            hallucination_flag=True, query_text=query
-        )
+        await sink._invalidate_semantic_cache_if_flagged(hallucination_flag=True, query_text=query)
 
     expected_id = fake_adapter._make_id(query)
     assert fake_adapter.deleted_qdrant_ids == [expected_id]
@@ -80,9 +78,7 @@ async def test_telemetry_no_invalidation_without_flag(sink, fake_adapter):
     container.semantic_cache = fake_adapter
 
     with patch("app.telemetry_sink.get_container", return_value=container):
-        await sink._invalidate_semantic_cache_if_flagged(
-            hallucination_flag=False, query_text=query
-        )
+        await sink._invalidate_semantic_cache_if_flagged(hallucination_flag=False, query_text=query)
 
     assert fake_adapter.deleted_qdrant_ids == []
     assert fake_adapter.deleted_redis_keys == []
@@ -96,9 +92,7 @@ async def test_telemetry_no_invalidation_when_adapter_unavailable(sink, fake_ada
     container.semantic_cache = fake_adapter
 
     with patch("app.telemetry_sink.get_container", return_value=container):
-        await sink._invalidate_semantic_cache_if_flagged(
-            hallucination_flag=True, query_text=query
-        )
+        await sink._invalidate_semantic_cache_if_flagged(hallucination_flag=True, query_text=query)
 
     assert fake_adapter.deleted_qdrant_ids == []
     assert fake_adapter.deleted_redis_keys == []
@@ -114,9 +108,7 @@ async def test_feedback_thumbs_down_invalidates_semantic_cache(sink, fake_adapte
 
     with patch("app.telemetry_sink.get_container", return_value=container):
         # The route schedules this exact background task on thumbs-down.
-        await sink._invalidate_semantic_cache_if_flagged(
-            hallucination_flag=True, query_text=query
-        )
+        await sink._invalidate_semantic_cache_if_flagged(hallucination_flag=True, query_text=query)
 
     expected_id = fake_adapter._make_id(query)
     assert fake_adapter.deleted_qdrant_ids == [expected_id]

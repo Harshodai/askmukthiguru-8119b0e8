@@ -1,4 +1,5 @@
 """Regression tests for server-authoritative assistant corpus scope resolution."""
+
 from __future__ import annotations
 
 import json
@@ -47,6 +48,7 @@ def test_missing_persona_uses_default_public_corpus(monkeypatch):
     assert scope is not None
     assert scope.corpus_id == "askmukthiguru"
     assert scope.teacher_id is None
+
 
 def test_pending_or_disabled_scope_is_not_rollout_eligible(monkeypatch):
     _set_registry(

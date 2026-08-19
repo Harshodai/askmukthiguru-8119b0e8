@@ -9,15 +9,14 @@ Incorporates advances from PersoDPO (2026) and IRPO (2025):
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import uuid
 from typing import Any, Optional
 
 from qdrant_client.http import models as qmodels
 
-from app.config import settings
 from services.qdrant_service import QdrantService
+
 from .tone_extractor import PersonaToneExemplar
 
 logger = logging.getLogger(__name__)
@@ -25,13 +24,58 @@ logger = logging.getLogger(__name__)
 COLLECTION_NAME = "guru_tone_podcast"
 
 # IRPO ranking — stopwords to exclude from token overlap scoring
-_STOPWORDS: frozenset[str] = frozenset([
-    "i", "a", "an", "the", "to", "do", "is", "in", "it", "of", "for",
-    "and", "or", "but", "me", "my", "we", "you", "your", "he", "she",
-    "this", "that", "what", "how", "can", "be", "am", "are", "was",
-    "have", "has", "want", "need", "feel", "more", "with", "from",
-    "at", "by", "as", "on", "up", "so", "if", "not", "no", "then",
-])
+_STOPWORDS: frozenset[str] = frozenset(
+    [
+        "i",
+        "a",
+        "an",
+        "the",
+        "to",
+        "do",
+        "is",
+        "in",
+        "it",
+        "of",
+        "for",
+        "and",
+        "or",
+        "but",
+        "me",
+        "my",
+        "we",
+        "you",
+        "your",
+        "he",
+        "she",
+        "this",
+        "that",
+        "what",
+        "how",
+        "can",
+        "be",
+        "am",
+        "are",
+        "was",
+        "have",
+        "has",
+        "want",
+        "need",
+        "feel",
+        "more",
+        "with",
+        "from",
+        "at",
+        "by",
+        "as",
+        "on",
+        "up",
+        "so",
+        "if",
+        "not",
+        "no",
+        "then",
+    ]
+)
 
 
 class GuruBrainService:
@@ -46,7 +90,6 @@ class GuruBrainService:
         self.qdrant_service = qdrant_service or qdrant_client
         self.embedding_service = embedding_service
         self._in_memory_store: list[PersonaToneExemplar] = []
-
 
     def _get_client(self) -> Any:
         if self.qdrant_service is not None:
@@ -66,7 +109,11 @@ class GuruBrainService:
 
             if COLLECTION_NAME in collection_names:
                 info = await asyncio.to_thread(client.get_collection, COLLECTION_NAME)
-                current_size = info.config.params.vectors.size if hasattr(info.config.params.vectors, "size") else 1024
+                current_size = (
+                    info.config.params.vectors.size
+                    if hasattr(info.config.params.vectors, "size")
+                    else 1024
+                )
                 if current_size != vector_size:
                     logger.error(
                         f"GuruBrainService: Qdrant collection '{COLLECTION_NAME}' dimension mismatch ({current_size} != {vector_size}). Preserving existing collection."
@@ -74,7 +121,9 @@ class GuruBrainService:
                     return False
 
             if COLLECTION_NAME not in collection_names:
-                logger.info(f"GuruBrainService: Creating Qdrant collection '{COLLECTION_NAME}' (size={vector_size}).")
+                logger.info(
+                    f"GuruBrainService: Creating Qdrant collection '{COLLECTION_NAME}' (size={vector_size})."
+                )
                 await asyncio.to_thread(
                     client.create_collection,
                     collection_name=COLLECTION_NAME,
@@ -141,7 +190,9 @@ class GuruBrainService:
                     collection_name=COLLECTION_NAME,
                     points=points,
                 )
-                logger.info(f"GuruBrainService: Successfully upserted {len(points)} points ({dim}d) into Qdrant '{COLLECTION_NAME}'.")
+                logger.info(
+                    f"GuruBrainService: Successfully upserted {len(points)} points ({dim}d) into Qdrant '{COLLECTION_NAME}'."
+                )
             except Exception as exc:
                 logger.error(f"GuruBrainService: Failed to upsert to Qdrant: {exc}")
 
@@ -217,12 +268,16 @@ class GuruBrainService:
                             )
                         )
             except Exception as exc:
-                logger.warning(f"GuruBrainService: Qdrant search failed ({exc}), using memory fallback.")
+                logger.warning(
+                    f"GuruBrainService: Qdrant search failed ({exc}), using memory fallback."
+                )
 
         if not raw_results:
             raw_results = self._in_memory_store
             if guru_name and guru_name.lower() in ("krishnaji", "preethaji"):
-                raw_results = [item for item in raw_results if item.guru_name.lower() == guru_name.lower()]
+                raw_results = [
+                    item for item in raw_results if item.guru_name.lower() == guru_name.lower()
+                ]
 
         if not raw_results:
             logger.warning(
@@ -271,12 +326,19 @@ class GuruBrainService:
             "--- REAL Q&A INTERACTION EXEMPLARS ---",
         ]
 
-
         for i, ex in enumerate(exemplars, 1):
-            guru_disp = "Sri Krishnaji" if ex.guru_name == "krishnaji" else ("Sri Preethaji" if ex.guru_name == "preethaji" else "Sri Krishnaji & Sri Preethaji")
+            guru_disp = (
+                "Sri Krishnaji"
+                if ex.guru_name == "krishnaji"
+                else (
+                    "Sri Preethaji"
+                    if ex.guru_name == "preethaji"
+                    else "Sri Krishnaji & Sri Preethaji"
+                )
+            )
             blocks.append(f"\n[Exemplar {i} — {guru_disp}]")
-            blocks.append(f"Seeker Question ({ex.interviewer_name}): \"{ex.seeker_question}\"")
-            blocks.append(f"Guru Authentic Response: \"{ex.guru_response}\"")
+            blocks.append(f'Seeker Question ({ex.interviewer_name}): "{ex.seeker_question}"')
+            blocks.append(f'Guru Authentic Response: "{ex.guru_response}"')
             if ex.phrasing_dna:
                 blocks.append(f"Phrasing Markers: {', '.join(ex.phrasing_dna)}")
 
@@ -289,10 +351,10 @@ def get_guru_brain_service(
 ) -> GuruBrainService:
     try:
         from app.dependencies import get_container
+
         container = get_container()
         if container and getattr(container, "guru_brain_service", None):
             return container.guru_brain_service
     except Exception as _e:
         logger.debug("[guru brain] suppressed non-critical error: %s", _e)
     return GuruBrainService(qdrant_service=qdrant_service, embedding_service=embedding_service)
-

@@ -189,6 +189,7 @@ async def execute_cypher(query: str, neo4j_driver: Any, *, limit: int = 50) -> l
         logger.warning(f"execute_cypher: refused non-read-only query: {query[:120]}")
         return []
     try:
+
         def _run() -> list[dict[str, Any]]:
             with neo4j_driver.session() as session:
                 result = session.run(query)
@@ -198,6 +199,7 @@ async def execute_cypher(query: str, neo4j_driver: Any, *, limit: int = 50) -> l
                         break
                     rows.append(dict(rec))
                 return rows
+
         return await __import__("asyncio").to_thread(_run)
     except Exception as e:
         logger.warning(f"execute_cypher failed: {e}")
@@ -217,6 +219,7 @@ if __name__ == "__main__":
     assert _is_read_only("// hi\nMATCH (n) RETURN n")
     # nl2cypher with no llm -> no-op
     import asyncio as _a
+
     out = _a.run(nl2cypher("What is karma?", None))
     assert "unanswerable" in out
     # execute_cypher with no driver -> []

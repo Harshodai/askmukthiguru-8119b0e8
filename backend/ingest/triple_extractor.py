@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ValidationError, field_validator
 
@@ -65,7 +65,7 @@ _SYSTEM_PROMPT = (
     "Entity types (for your reference): TEACHER (person/org), PRACTICE (technique/meditation), "
     "PRINCIPLE (doctrine/concept), EXPERIENCE (state/feeling), TEXT (scripture/book), "
     "TRADITION (lineage/school), QUALITY (virtue/trait), OBSTACLE (hindrance), TOOL (instrument), PATH (way). "
-    "Empty input -> {\"triples\": []}."
+    'Empty input -> {"triples": []}.'
 )
 
 
@@ -107,6 +107,7 @@ def _parse_triples(raw: str) -> list[dict[str, str]]:
     triples = ts.as_dicts()
     try:
         from services.doctrine_terms import apply_corrections
+
         for t in triples:
             t["subject"] = apply_corrections(t["subject"])
             t["object"] = apply_corrections(t["object"])

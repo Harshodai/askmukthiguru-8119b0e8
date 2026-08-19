@@ -11,37 +11,66 @@ import os
 
 import pytest
 
-os.environ.setdefault("BRAIN_KEK", "dGVzdC1vcGVyYXRvci1rZWstMzItYnl0ZXMteHh4eHg=")  # test only, decodes to 32B
+os.environ.setdefault(
+    "BRAIN_KEK", "dGVzdC1vcGVyYXRvci1rZWstMzItYnl0ZXMteHh4eHg="
+)  # test only, decodes to 32B
 
 from services.second_brain.crypto import UnlockedVault, VaultLockedError  # noqa: E402
 from services.second_brain.second_brain_service import SecondBrainService  # noqa: E402
-
 
 # --------------------------------------------------------------------------
 # Fakes
 # --------------------------------------------------------------------------
 
+
 class _Exec:
     def __init__(self, data=None):
         self.data = data or []
+
 
 class _Query:
     def __init__(self, store, table):
         self.store, self.table = store, table
         self._filters = []
-    def select(self, *_a, **_k): return self
-    def eq(self, col, val): self._filters.append(("eq", col, val)); return self
-    def in_(self, col, vals): self._filters.append(("in", col, vals)); return self
-    def order(self, *_a, **_k): return self
-    def range(self, *_a, **_k): return self
-    def limit(self, n): self._filters.append(("limit", None, n)); return self
-    def insert(self, row): self.store.setdefault(self.table, []).append(row); return self
+
+    def select(self, *_a, **_k):
+        return self
+
+    def eq(self, col, val):
+        self._filters.append(("eq", col, val))
+        return self
+
+    def in_(self, col, vals):
+        self._filters.append(("in", col, vals))
+        return self
+
+    def order(self, *_a, **_k):
+        return self
+
+    def range(self, *_a, **_k):
+        return self
+
+    def limit(self, n):
+        self._filters.append(("limit", None, n))
+        return self
+
+    def insert(self, row):
+        self.store.setdefault(self.table, []).append(row)
+        return self
+
     def upsert(self, row):
         rows = self.store.setdefault(self.table, [])
         rows[:] = [r for r in rows if r.get("user_id") != row.get("user_id")]
-        rows.append(row); return self
-    def delete(self): self._delete = True; return self
-    def or_(self, *_a): return self
+        rows.append(row)
+        return self
+
+    def delete(self):
+        self._delete = True
+        return self
+
+    def or_(self, *_a):
+        return self
+
     def execute(self):
         if getattr(self, "_delete", False):
             rows = self.store.get(self.table, [])
@@ -61,37 +90,58 @@ class _Query:
                 rows = rows[:val]
         return _Exec(rows)
 
+
 class FakeDB:
-    def __init__(self): self.store = {}
-    def table(self, name): return _Query(self.store, name)
-    def rpc(self, *_a, **_k): return _Query(self.store, "rpc")
+    def __init__(self):
+        self.store = {}
+
+    def table(self, name):
+        return _Query(self.store, name)
+
+    def rpc(self, *_a, **_k):
+        return _Query(self.store, "rpc")
+
 
 class FakeEmbed:
     """Matches services.embedding_service.EmbeddingService.encode_single_async."""
-    async def encode_single_async(self, text): return [float(len(text) % 7 + 1)] * 8
+
+    async def encode_single_async(self, text):
+        return [float(len(text) % 7 + 1)] * 8
+
 
 class FakeVaultIndex:
     """Matches services.second_brain.vault_index.VaultIndex's duck-typed shape:
     one shared collection, everything keyed/filtered by user_id."""
-    def __init__(self): self.points = {}  # user_id -> {item_id: vector}
-    def ensure_collection(self): pass
+
+    def __init__(self):
+        self.points = {}  # user_id -> {item_id: vector}
+
+    def ensure_collection(self):
+        pass
+
     async def upsert(self, user_id, item_id, vector, kind):
         self.points.setdefault(user_id, {})[item_id] = vector
+
     async def search(self, user_id, vector, *, limit):
         return list(self.points.get(user_id, {}))[:limit]
+
     async def delete_item(self, user_id, item_id):
         self.points.get(user_id, {}).pop(item_id, None)
+
     async def delete_all(self, user_id):
         self.points.pop(user_id, None)
 
+
 class FakeLLM:
     """Matches services.llm.base.LLMProvider.generate(system_prompt, user_prompt, **kwargs)."""
+
     async def generate(self, system_prompt, user_prompt, **_k):
         return '{"items":[{"kind":"reflection","text":"User is preparing for a job interview and feels anxious.","confidence":0.9}]}'
 
 
 class BrokenVaultIndex(FakeVaultIndex):
     """delete_item raises — simulates a Qdrant failure on the erasure path."""
+
     async def delete_item(self, user_id, item_id):
         raise RuntimeError("qdrant delete failed")
 
@@ -104,6 +154,7 @@ def make_svc():
 # Tests
 # --------------------------------------------------------------------------
 
+
 def test_provision_and_recall_roundtrip():
     svc = make_svc()
     uid = "user-1"
@@ -111,7 +162,9 @@ def test_provision_and_recall_roundtrip():
 
     async def go():
         with await svc.unlock(uid) as vault:
-            iid = await svc.add_item(uid, "reflection", "User feels anxious about interviews.", vault=vault)
+            iid = await svc.add_item(
+                uid, "reflection", "User feels anxious about interviews.", vault=vault
+            )
             assert iid
             items = await svc.personal_context(uid, "interview anxiety", vault=vault)
             assert any("anxious" in i.text for i in items)
@@ -122,6 +175,7 @@ def test_provision_and_recall_roundtrip():
             # isn't modeled by FakeVaultIndex at all; asserting the vector was written
             # is the meaningful check here)
             assert iid in svc._qdrant.points[uid]
+
     asyncio.run(go())
 
 
@@ -132,11 +186,16 @@ def test_extraction_writes_durable_item():
 
     async def go():
         with await svc.unlock(uid) as vault:
-            n = await svc.extract_and_write(uid, "I have a job interview tomorrow, so nervous",
-                                            "That's understandable...", vault=vault)
+            n = await svc.extract_and_write(
+                uid,
+                "I have a job interview tomorrow, so nervous",
+                "That's understandable...",
+                vault=vault,
+            )
             assert n == 1
             items = await svc.list_items(uid, vault=vault)
             assert len(items) == 1 and "job interview" in items[0].text
+
     asyncio.run(go())
 
 
@@ -153,6 +212,7 @@ def test_mode_b_wrong_passphrase_denied():
         with await svc.unlock(uid, passphrase="correct horse battery staple") as vault:
             iid = await svc.add_item(uid, "journal", "Private entry", vault=vault)
             assert iid
+
     asyncio.run(go())
 
 
@@ -169,12 +229,16 @@ def test_user_isolation_other_user_cannot_read():
             assert bob_items == []
             # bob's vault cannot decrypt alice's row (AAD mismatch too)
             raw = [r for r in svc._db.store["user_brain_nodes"] if r["user_id"] == "alice"][0]
-            from services.second_brain.crypto import decrypt_payload, VaultIntegrityError
+            from services.second_brain.crypto import VaultIntegrityError, decrypt_payload
+
             with pytest.raises(VaultIntegrityError):
-                decrypt_payload(vb.dek, raw["ciphertext"], aad=b"alice:journal:" + raw["id"].encode())
+                decrypt_payload(
+                    vb.dek, raw["ciphertext"], aad=b"alice:journal:" + raw["id"].encode()
+                )
         # bob's vector search never sees alice's points (separate user_id key
         # in the fake; the real VaultIndex enforces this via a Qdrant Filter)
         assert svc._qdrant.points.get("bob", {}) == {}
+
     asyncio.run(go())
 
 
@@ -186,6 +250,7 @@ def test_crypto_shred_is_irreversible():
     async def go():
         with await svc.unlock(uid) as vault:
             await svc.add_item(uid, "reflection", "to be shredded", vault=vault)
+
     asyncio.run(go())
 
     res = asyncio.run(svc.crypto_shred(uid))
@@ -219,9 +284,11 @@ def test_vector_delete_failure_fails_erasure_closed():
             await svc.forget_item(uid, iid)
         # plaintext row survives the aborted erase -> retry-safe, no orphan vector
         assert [r for r in svc._db.store["user_brain_nodes"] if r["id"] == iid]
+
     asyncio.run(go())
 
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(pytest.main([__file__, "-q"]))

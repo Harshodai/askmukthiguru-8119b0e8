@@ -32,7 +32,7 @@ def check_docker():
 def print_banner():
     print("""
 ======================================================================
-  🧘   MUKTHI GURU — UNIFIED BENCHMARK & READINESS SUITE   🧘  
+  🧘   MUKTHI GURU — UNIFIED BENCHMARK & READINESS SUITE   🧘
 ======================================================================
 """)
 
@@ -109,7 +109,11 @@ def main():
     parser.add_argument("--endpoint", default="http://localhost:8000")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--test-key")
-    parser.add_argument("--complex-variants", action="store_true", help="Generate and run complex query variants dynamically")
+    parser.add_argument(
+        "--complex-variants",
+        action="store_true",
+        help="Generate and run complex query variants dynamically",
+    )
     args = parser.parse_args()
 
     # Preflight Check: Make sure backend is up

@@ -25,11 +25,11 @@ import re
 from typing import Any, Optional
 
 from domain.spiritual_ontology import (
+    ONTOLOGY_VERSION,
     ConceptType,
     Relation,
     RelationType,
     SpiritualConcept,
-    ONTOLOGY_VERSION,
 )
 
 logger = logging.getLogger(__name__)
@@ -238,9 +238,7 @@ class OntologyExporter:
             )
         return out
 
-    def _fetch_relations(
-        self, session: Any, concepts: list[SpiritualConcept]
-    ) -> list[Relation]:
+    def _fetch_relations(self, session: Any, concepts: list[SpiritualConcept]) -> list[Relation]:
         """Pull all relationships between exported concepts."""
         if not concepts:
             return []
@@ -301,9 +299,7 @@ class OntologyExporter:
 
     # ── Serializers ────────────────────────────────────────────────────────
 
-    def to_rdf_turtle(
-        self, concepts: list[SpiritualConcept], relations: list[Relation]
-    ) -> str:
+    def to_rdf_turtle(self, concepts: list[SpiritualConcept], relations: list[Relation]) -> str:
         """Export to RDF Turtle format (stdlib-only serializer)."""
         lines: list[str] = [
             "@prefix : <https://askmukthiguru.org/ontology/> .",
@@ -317,7 +313,7 @@ class OntologyExporter:
             ": a owl:Ontology ;",
             '    rdfs:label "Ask Mukthi Guru Spiritual Ontology"@en ;',
             '    rdfs:comment "Formal ontology for spiritual concepts and practices"@en ;',
-            '    owl:versionInfo "%s" .' % ONTOLOGY_VERSION,
+            f'    owl:versionInfo "{ONTOLOGY_VERSION}" .',
             "",
         ]
 
@@ -368,15 +364,11 @@ class OntologyExporter:
             f'    :source "{src}" .',
         ]
 
-    def to_owl_xml(
-        self, concepts: list[SpiritualConcept], relations: list[Relation]
-    ) -> str:
+    def to_owl_xml(self, concepts: list[SpiritualConcept], relations: list[Relation]) -> str:
         """Export to OWL/XML format for Protege and other tools."""
         raise NotImplementedError("OWL/XML export coming in v1.1")
 
-    def to_jsonld(
-        self, concepts: list[SpiritualConcept], relations: list[Relation]
-    ) -> dict:
+    def to_jsonld(self, concepts: list[SpiritualConcept], relations: list[Relation]) -> dict:
         """Export to JSON-LD for web APIs."""
         return {
             "@context": {

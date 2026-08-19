@@ -17,7 +17,6 @@ The store reads from disk; the compiler (compiler.py) builds a compiled index.
 
 from __future__ import annotations
 
-import glob
 import logging
 import re
 from dataclasses import dataclass
@@ -135,6 +134,7 @@ def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
             raw_yaml = parts[1].strip()
             body = parts[2].strip()
             import yaml
+
             try:
                 meta = yaml.safe_load(raw_yaml) or {}
             except Exception:
@@ -177,7 +177,9 @@ class OKFStore:
                     # be cited to the seeker as a teaching of the gurus.
                     logger.warning(
                         "Skipping non-doctrine OKF entry (type=%r, allowed=%s): %s",
-                        entry_type, sorted(DOCTRINE_TYPES), p,
+                        entry_type,
+                        sorted(DOCTRINE_TYPES),
+                        p,
                     )
                     continue
 

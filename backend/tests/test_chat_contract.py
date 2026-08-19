@@ -97,6 +97,7 @@ def test_chat_response_includes_optional_fields():
     assert payload["latency_ms"] == 1200
     assert payload["faithfulness_score"] == 0.92
 
+
 def test_chat_request_has_explicit_response_preferences():
     request = ChatRequest(
         messages=[MessagePayload(role="user", content="hello")],

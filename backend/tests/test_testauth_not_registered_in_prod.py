@@ -12,6 +12,7 @@ explicit RuntimeError — never a bare boolean check, which CPython strips
 when running optimized. A source-level scan enforces that the word "assert"
 does not appear anywhere in the auth service.
 """
+
 from __future__ import annotations
 
 import os
@@ -64,23 +65,34 @@ class TestTestAuthRegistrationGates:
     def test_testauth_not_registered_in_prod(self):
         """IS_PRODUCTION=true never registers TestAuthStrategy, and rejects ENABLE_TEST_AUTH=true."""
         # 1. Reject enable_test_auth=true in production
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "true",
-            "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
-            "ENABLE_TEST_AUTH": "true",
-            "BENCHMARK_SECRET": "my-secret",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "IS_PRODUCTION": "true",
+                "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+                "ENABLE_TEST_AUTH": "true",
+                "BENCHMARK_SECRET": "my-secret",
+            },
+            clear=False,
+        ):
             from app.config import Settings
-            with pytest.raises(ValueError, match="enable_test_auth must be False when is_production is True"):
+
+            with pytest.raises(
+                ValueError, match="enable_test_auth must be False when is_production is True"
+            ):
                 Settings()
 
         # 2. When enable_test_auth=false in production, strategy is not registered
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "true",
-            "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
-            "ENABLE_TEST_AUTH": "false",
-            "BENCHMARK_SECRET": "my-secret",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "IS_PRODUCTION": "true",
+                "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+                "ENABLE_TEST_AUTH": "false",
+                "BENCHMARK_SECRET": "my-secret",
+            },
+            clear=False,
+        ):
             from app.config import Settings
 
             settings = Settings()
@@ -94,11 +106,15 @@ class TestTestAuthRegistrationGates:
     def test_testauth_absent_without_benchmark_secret(self):
         """ENABLE_TEST_AUTH=true + non-prod but empty BENCHMARK_SECRET ->
         strategy absent."""
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "false",
-            "ENABLE_TEST_AUTH": "true",
-            "BENCHMARK_SECRET": "",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "IS_PRODUCTION": "false",
+                "ENABLE_TEST_AUTH": "true",
+                "BENCHMARK_SECRET": "",
+            },
+            clear=False,
+        ):
             from app.config import Settings
 
             settings = Settings()
@@ -129,11 +145,15 @@ class TestTestAuthRegistrationGates:
         """The fixed benchmark identity is the NIL UUID sentinel — a value
         Supabase GoTrue never assigns to a real user, so it cannot collide
         with a genuine account."""
-        with patch.dict(os.environ, {
-            "IS_PRODUCTION": "false",
-            "ENABLE_TEST_AUTH": "true",
-            "BENCHMARK_SECRET": "benchmark-sentinel-check",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "IS_PRODUCTION": "false",
+                "ENABLE_TEST_AUTH": "true",
+                "BENCHMARK_SECRET": "benchmark-sentinel-check",
+            },
+            clear=False,
+        ):
             from app.config import settings
 
             settings.enable_test_auth = True

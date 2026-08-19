@@ -1,4 +1,5 @@
 """Regression coverage for Roman-script Indian language routing."""
+
 from services.language_router import LanguageCode, LanguageRouter
 
 

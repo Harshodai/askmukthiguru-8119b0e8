@@ -1,4 +1,5 @@
 """Regressions for the typed, safety-aware guidance presentation contract."""
+
 from __future__ import annotations
 
 import json

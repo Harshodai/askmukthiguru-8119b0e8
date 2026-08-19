@@ -1,4 +1,5 @@
 """Calibrated, non-numeric user-facing evidence support labels."""
+
 from __future__ import annotations
 
 from math import isfinite

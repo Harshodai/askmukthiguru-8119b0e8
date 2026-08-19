@@ -19,13 +19,13 @@ Usage:
   python backend/benchmarks/golden_eval.py --smoke 20      # 20-question subset
   python backend/benchmarks/golden_eval.py --full           # all 319
 """
+
 from __future__ import annotations
 
 import argparse
 import json
 import os
 import sys
-import time
 from pathlib import Path
 from typing import Any
 
@@ -100,7 +100,11 @@ def refusal_correctness(answer: str, expected_intent: str) -> float:
     if expected_intent != "REFUSE":
         return 1.0
     a = answer.lower()
-    return 1.0 if any(w in a for w in ("cannot", "can't", "not able", "i'm unable", "i am unable")) else 0.0
+    return (
+        1.0
+        if any(w in a for w in ("cannot", "can't", "not able", "i'm unable", "i am unable"))
+        else 0.0
+    )
 
 
 def score_item(item: dict[str, Any], resp: dict[str, Any]) -> dict[str, float]:
@@ -153,7 +157,16 @@ def main() -> int:
             resp = {}
         if not resp:
             # No backend: score 0.0 (CI gate will fail until backend is wired)
-            dims = {k: 0.0 for k in ("groundedness", "doctrinal_consistency", "tone", "citation_correctness", "refusal_correctness")}
+            dims = {
+                k: 0.0
+                for k in (
+                    "groundedness",
+                    "doctrinal_consistency",
+                    "tone",
+                    "citation_correctness",
+                    "refusal_correctness",
+                )
+            }
         else:
             dims = score_item(it, resp)
         per_item.append({"id": it["id"], "category": it["category"], **dims})
@@ -175,7 +188,17 @@ def main() -> int:
         "per_item": per_item,
     }
     args.out.write_text(json.dumps(report, indent=2))
-    print(json.dumps({"questions_total": n, "composite": composite, "passed": passed, "dimensions": dim_means}, indent=2))
+    print(
+        json.dumps(
+            {
+                "questions_total": n,
+                "composite": composite,
+                "passed": passed,
+                "dimensions": dim_means,
+            },
+            indent=2,
+        )
+    )
     return 0 if passed else 1
 
 

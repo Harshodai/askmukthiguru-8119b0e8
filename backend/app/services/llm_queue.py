@@ -157,34 +157,50 @@ class QueuedLLMProvider:
         return await self._queue.execute(LLMPriority.CLASSIFY, self._provider.classify, **kwargs)
 
     async def classify_intent_and_complexity(self, **kwargs):
-        return await self._queue.execute(LLMPriority.CLASSIFY, self._provider.classify_intent_and_complexity, **kwargs)
+        return await self._queue.execute(
+            LLMPriority.CLASSIFY, self._provider.classify_intent_and_complexity, **kwargs
+        )
 
     async def classify_distress_structured(self, message: str):
-        return await self._queue.execute(LLMPriority.CLASSIFY, self._provider.classify_distress_structured, message)
+        return await self._queue.execute(
+            LLMPriority.CLASSIFY, self._provider.classify_distress_structured, message
+        )
 
     async def grade_relevance(self, **kwargs):
-        return await self._queue.execute(LLMPriority.VERIFY, self._provider.grade_relevance, **kwargs)
+        return await self._queue.execute(
+            LLMPriority.VERIFY, self._provider.grade_relevance, **kwargs
+        )
 
     async def check_faithfulness(self, **kwargs):
-        return await self._queue.execute(LLMPriority.VERIFY, self._provider.check_faithfulness, **kwargs)
+        return await self._queue.execute(
+            LLMPriority.VERIFY, self._provider.check_faithfulness, **kwargs
+        )
 
     async def verify_answer(self, **kwargs):
         return await self._queue.execute(LLMPriority.VERIFY, self._provider.verify_answer, **kwargs)
 
     async def decompose_query(self, **kwargs):
-        return await self._queue.execute(LLMPriority.VERIFY, self._provider.decompose_query, **kwargs)
+        return await self._queue.execute(
+            LLMPriority.VERIFY, self._provider.decompose_query, **kwargs
+        )
 
     async def rewrite_query(self, **kwargs):
         return await self._queue.execute(LLMPriority.VERIFY, self._provider.rewrite_query, **kwargs)
 
     async def generate_hyde(self, **kwargs):
-        return await self._queue.execute(LLMPriority.GENERATE, self._provider.generate_hyde, **kwargs)
+        return await self._queue.execute(
+            LLMPriority.GENERATE, self._provider.generate_hyde, **kwargs
+        )
 
     async def compress_context(self, **kwargs):
-        return await self._queue.execute(LLMPriority.BACKGROUND, self._provider.compress_context, **kwargs)
+        return await self._queue.execute(
+            LLMPriority.BACKGROUND, self._provider.compress_context, **kwargs
+        )
 
     async def translate_text(self, **kwargs):
-        return await self._queue.execute(LLMPriority.BACKGROUND, self._provider.translate_text, **kwargs)
+        return await self._queue.execute(
+            LLMPriority.BACKGROUND, self._provider.translate_text, **kwargs
+        )
 
     async def health_check(self):
         return await self._provider.health_check()

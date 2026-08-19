@@ -17,10 +17,14 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Optional
 
 from app.config import settings
-from app.metrics import CONTEXT_CHUNKS_AFTER, CONTEXT_CHUNKS_BEFORE, CONTEXT_COMPRESSION_RATIO, CONTEXT_TOKENS_SAVED
+from app.metrics import (
+    CONTEXT_CHUNKS_AFTER,
+    CONTEXT_CHUNKS_BEFORE,
+    CONTEXT_COMPRESSION_RATIO,
+    CONTEXT_TOKENS_SAVED,
+)
 from services.language_router import LanguageRouter
 
 logger = logging.getLogger(__name__)
@@ -145,9 +149,9 @@ class ContextBudgetManager:
         compressed = "\n\n".join(packed)
         total_tokens = sys_tokens + history_tokens + tokens_used
         tokens_before = _estimate_tokens(
-            system_prompt + conversation_history + "\n\n".join(
-                c.get("content") or c.get("text", "") for c in chunks
-            )
+            system_prompt
+            + conversation_history
+            + "\n\n".join(c.get("content") or c.get("text", "") for c in chunks)
         )
 
         ratio = tokens_used / max(tokens_before, 1)

@@ -1,9 +1,12 @@
 """Token-bucket rate limit middleware for /api/chat.
 Per-tenant + per-user token buckets with Redis-backed Lua script."""
+
 from __future__ import annotations
+
 import time
-from typing import Awaitable, Callable
-from fastapi import Request, Response, HTTPException
+from collections.abc import Awaitable, Callable
+
+from fastapi import HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 LUA_TOKEN_BUCKET = """
@@ -50,6 +53,7 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, redis_url: str, capacity: int = 20, refill_per_sec: float = 20 / 60):
         super().__init__(app)
         import redis.asyncio as redis
+
         self.r = redis.from_url(redis_url, decode_responses=True)
         self.capacity = capacity
         self.refill = refill_per_sec
@@ -61,6 +65,7 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
 
         # Bypass rate limits when IS_PRODUCTION is false
         import os
+
         if os.getenv("IS_PRODUCTION", "true").lower() == "false":
             return await call_next(request)
 
@@ -69,16 +74,22 @@ class TokenBucketMiddleware(BaseHTTPMiddleware):
                 self.script = self.r.register_script(LUA_TOKEN_BUCKET)
 
             from services.tenant_context import TenantContext
+
             tenant_id = TenantContext.get()
             user_id = TenantContext.get_user_id()
 
             host = request.client.host if request.client else "unknown"
             subject = user_id or request.headers.get("x-user-id") or host
             key = f"rl:chat:{tenant_id}:{subject}"
-            allowed, remaining = await self.script(keys=[key], args=[self.capacity, self.refill, time.time(), 1])
+            allowed, remaining = await self.script(
+                keys=[key], args=[self.capacity, self.refill, time.time(), 1]
+            )
             if not int(allowed):
                 from fastapi.responses import JSONResponse
-                return JSONResponse(status_code=429, content={"error": "rate_limited", "remaining": 0})
+
+                return JSONResponse(
+                    status_code=429, content={"error": "rate_limited", "remaining": 0}
+                )
             resp = await call_next(request)
             resp.headers["X-RateLimit-Remaining"] = str(int(remaining))
             return resp

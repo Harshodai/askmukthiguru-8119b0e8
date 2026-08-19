@@ -9,7 +9,7 @@ a persona older than settings.persona_max_age_days.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 os.environ.setdefault("PERSONA_ENCRYPTION_SECRET", "a" * 32)
@@ -26,7 +26,9 @@ def _mock_supabase(select_data: dict | None) -> MagicMock:
     client = MagicMock()
     table = client.table.return_value
 
-    select_execute = table.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute
+    select_execute = (
+        table.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute
+    )
     select_execute.side_effect = AsyncMock(return_value=MagicMock(data=select_data))
 
     upsert_execute = table.upsert.return_value.execute
@@ -69,12 +71,12 @@ async def test_save_persona_sets_updated_at_in_payload():
 
 
 def test_is_persona_fresh_within_window():
-    recent = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    recent = (datetime.now(UTC) - timedelta(days=1)).isoformat()
     assert _is_persona_fresh(recent, max_age_days=30) is True
 
 
 def test_is_persona_fresh_rejects_stale():
-    old = (datetime.now(timezone.utc) - timedelta(days=45)).isoformat()
+    old = (datetime.now(UTC) - timedelta(days=45)).isoformat()
     assert _is_persona_fresh(old, max_age_days=30) is False
 
 

@@ -25,8 +25,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
-import re
-from typing import Any, Optional
+from typing import Optional
 from urllib.parse import urlparse
 
 from services.circuit_breaker import (
@@ -38,7 +37,6 @@ from services.web_search_guardrails import (
     SearchRateLimiter,
     apply_input_guardrails,
     apply_result_guardrails,
-    check_url_safety,
     deduplicate_results,
     log_search_audit,
 )
@@ -49,6 +47,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Domain whitelist helpers
 # ---------------------------------------------------------------------------
+
 
 def _extract_domain(url: str) -> str:
     """Extract lowercase netloc from a URL."""
@@ -74,6 +73,7 @@ def _is_domain_allowed(url: str, allowed_domains: list[str]) -> bool:
 # Search Provider Strategy Interface
 # ---------------------------------------------------------------------------
 
+
 class SearchProvider:
     """Abstract search provider."""
 
@@ -88,34 +88,23 @@ class DuckDuckGoProvider(SearchProvider):
         self._client = None
 
     async def search(self, query: str, max_results: int) -> list[dict]:
-        try:
-            from ddgs import DDGS
-        except ImportError:
-            try:
-                from duckduckgo_search import DDGS
-            except ImportError:
-                logger.warning("Neither ddgs nor duckduckgo-search installed; skipping web search")
-                return []
-
-        # DDGS is sync; run in thread pool. Network/API failures propagate to the
-        # caller (WebSearchService.search) so its circuit breaker can see them --
-        # swallowing here made the breaker see nothing but zero-result "successes".
+        # DDGS is sync; run in thread pool so provider failures reach the circuit breaker.
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None, self._ddg_sync_search, query, max_results
-        )
+        return await loop.run_in_executor(None, self._ddg_sync_search, query, max_results)
 
     def _ddg_sync_search(self, query: str, max_results: int) -> list[dict]:
         try:
             from ddgs import DDGS
         except ImportError:
-            from duckduckgo_search import DDGS
+            from duckduckgo_search import DDGS as LegacyDDGS
+
+            DDGS = LegacyDDGS
 
         results = []
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        
+
         try:
             # New ddgs package constructor does not accept headers parameter
             ddgs_client = DDGS()
@@ -157,9 +146,7 @@ class SearXNGProvider(SearchProvider):
         # would otherwise accept.
         port = parsed.port
         if port is not None and not (1 <= port <= 65535):
-            raise ValueError(
-                f"Invalid SearXNG base URL (port must be 1-65535): {base_url!r}"
-            )
+            raise ValueError(f"Invalid SearXNG base URL (port must be 1-65535): {base_url!r}")
         if parsed.scheme != "https":
             host = parsed.hostname
             try:
@@ -185,7 +172,9 @@ class SearXNGProvider(SearchProvider):
         # so its circuit breaker can see them -- swallowing here made the breaker
         # see nothing but zero-result "successes".
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            async with session.get(
+                url, params=params, timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
                 resp.raise_for_status()
                 data = await resp.json()
                 results = []
@@ -203,6 +192,7 @@ class SearXNGProvider(SearchProvider):
 # ---------------------------------------------------------------------------
 # Main Service
 # ---------------------------------------------------------------------------
+
 
 class WebSearchService:
     """
@@ -230,6 +220,7 @@ class WebSearchService:
         # entry for web search; from_provider() falls back to default thresholds).
         self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("web_search"))
         from services.circuit_breaker import get_circuit_breaker_registry
+
         get_circuit_breaker_registry().register("web_search", self._circuit)
 
         if self.provider_name == "searxng" and searxng_url:

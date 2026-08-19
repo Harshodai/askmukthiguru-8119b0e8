@@ -156,15 +156,20 @@ def validate_shacl(data_turtle: str, *, shapes_path: str = SHACL_SHAPES_PATH) ->
     try:
         from pyshacl import validate as _pyshacl_validate
     except ImportError:
-        return {"available": False, "conforms": None,
-                "report": "pyshacl not installed — run `pip install pyshacl` to enable SHACL validation."}
+        return {
+            "available": False,
+            "conforms": None,
+            "report": "pyshacl not installed — run `pip install pyshacl` to enable SHACL validation.",
+        }
 
-    with open(shapes_path, "r", encoding="utf-8") as f:
+    with open(shapes_path, encoding="utf-8") as f:
         shapes_turtle = f.read()
 
     conforms, _report_graph, report_text = _pyshacl_validate(
-        data_turtle, shacl_graph=shapes_turtle,
-        data_graph_format="turtle", shacl_graph_format="turtle",
+        data_turtle,
+        shacl_graph=shapes_turtle,
+        data_graph_format="turtle",
+        shacl_graph_format="turtle",
     )
     return {"available": True, "conforms": bool(conforms), "report": report_text}
 
@@ -183,6 +188,8 @@ if __name__ == "__main__":
     result = validate_shacl("@prefix ex: <http://example.org/> . ex:x a ex:Y .")
     assert "available" in result
 
-    print(f"upper_ontology_mapping self-check: OK — "
-          f"{len(ConceptType)} ConceptTypes, {len(RelationType)} RelationTypes all mapped; "
-          f"pyshacl available={result['available']}")
+    print(
+        f"upper_ontology_mapping self-check: OK — "
+        f"{len(ConceptType)} ConceptTypes, {len(RelationType)} RelationTypes all mapped; "
+        f"pyshacl available={result['available']}"
+    )

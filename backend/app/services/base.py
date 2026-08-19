@@ -54,9 +54,7 @@ class BaseRepository:
     def get(self, record_id: Any) -> Optional[dict[str, Any]]:
         """Get a single record by id."""
         self.on_before_action("get", record_id=record_id)
-        response = (
-            self._client.table(self._table).select("*").eq("id", record_id).execute()
-        )
+        response = self._client.table(self._table).select("*").eq("id", record_id).execute()
         result = response.data[0] if response.data else None
         self.on_after_action("get", result=result, record_id=record_id)
         return result
@@ -97,9 +95,7 @@ class BaseRepository:
     def update(self, record_id: Any, updates: dict[str, Any]) -> Optional[dict[str, Any]]:
         """Update a record by id. Returns the updated record."""
         self.on_before_action("update", record_id=record_id, updates=updates)
-        response = (
-            self._client.table(self._table).update(updates).eq("id", record_id).execute()
-        )
+        response = self._client.table(self._table).update(updates).eq("id", record_id).execute()
         result = response.data[0] if response.data else None
         self.on_after_action("update", result=result, record_id=record_id)
         return result

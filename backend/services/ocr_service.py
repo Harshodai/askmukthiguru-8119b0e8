@@ -10,6 +10,7 @@ Design Patterns:
 Supports: English, Hindi, Telugu (configurable via OCR_LANGUAGES env var)
 Runs on CPU to leave GPU free for the LLM.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -94,7 +95,9 @@ class SSRFBlockingNetworkBackend(httpcore.AsyncNetworkBackend):
         timeout: float | None = None,
         socket_options: typing.Iterable[tuple] | None = None,
     ) -> httpcore.AsyncNetworkStream:
-        return await self._parent.connect_unix_socket(path, timeout=timeout, socket_options=socket_options)
+        return await self._parent.connect_unix_socket(
+            path, timeout=timeout, socket_options=socket_options
+        )
 
     async def sleep(self, seconds: float) -> None:
         return await self._parent.sleep(seconds)
@@ -208,7 +211,9 @@ class OCRService:
                 # Reject oversized downloads before streaming begins
                 content_length = response.headers.get("content-length", "")
                 if content_length.isdigit() and int(content_length) > MAX_IMAGE_BYTES:
-                    raise ValueError(f"Image too large. Maximum size is {MAX_IMAGE_BYTES // (1024 * 1024)}MB.")
+                    raise ValueError(
+                        f"Image too large. Maximum size is {MAX_IMAGE_BYTES // (1024 * 1024)}MB."
+                    )
 
                 # Save to temp file for EasyOCR, enforcing the cap mid-stream too
                 with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:

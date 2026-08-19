@@ -53,10 +53,13 @@ async def warm() -> int:
         for i, q in enumerate(queries):
             start = time.time()
             try:
-                resp = await client.post("/api/chat", json={
-                    "messages": [],
-                    "user_message": q,
-                })
+                resp = await client.post(
+                    "/api/chat",
+                    json={
+                        "messages": [],
+                        "user_message": q,
+                    },
+                )
                 if resp.status_code == 200:
                     cached += 1
             except Exception as exc:

@@ -53,7 +53,9 @@ def test_no_hardcoded_helplines():
 
     source = DISTRESS_PROMPT
     for token in ("9152987821", "9820466726", "1860-2662-345", "044-24640050", "741741", "988"):
-        assert token not in source, f"old hardcoded helpline token {token!r} still in DISTRESS_PROMPT"
+        assert token not in source, (
+            f"old hardcoded helpline token {token!r} still in DISTRESS_PROMPT"
+        )
 
     assert not phone_like.search(source), (
         "DISTRESS_PROMPT source still contains a hardcoded phone-like number"

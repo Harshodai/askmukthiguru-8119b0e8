@@ -1,24 +1,24 @@
 from __future__ import annotations
 
-import logging
 import datetime as _dt
-from urllib.parse import urlparse
+import logging
 from typing import Any, Literal, Optional
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from services.user_profile_service import LanguagePreference, SpiritualLevel
 from app.schemas.compliance_provenance import (
     AIProvenanceManifest,
-    ArtifactModality,
-    ComplianceStandard,
-    ContentCategory,
-    EUComplianceRiskTier,
-    GroundingSourceReference,
-    OriginType,
-    SoftwareAgentDescriptor,
-    WatermarkType,
+    ArtifactModality,  # noqa: F401
+    ComplianceStandard,  # noqa: F401
+    ContentCategory,  # noqa: F401
+    EUComplianceRiskTier,  # noqa: F401
+    GroundingSourceReference,  # noqa: F401
+    OriginType,  # noqa: F401
+    SoftwareAgentDescriptor,  # noqa: F401
+    WatermarkType,  # noqa: F401
 )
+from services.user_profile_service import LanguagePreference, SpiritualLevel
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +33,8 @@ class ReleaseManifestPublic(BaseModel):
     """
 
     release_id: str = Field(..., description="Release identifier")
-    policy_version: Optional[str] = Field(
-        default=None, description="Model policy version"
-    )
-    schema_version: Optional[str] = Field(
-        default=None, description="Response schema version"
-    )
+    policy_version: Optional[str] = Field(default=None, description="Model policy version")
+    schema_version: Optional[str] = Field(default=None, description="Response schema version")
 
 
 class MessagePayload(BaseModel):
@@ -52,9 +48,7 @@ class MessagePayload(BaseModel):
     def _normalize_role(cls, v: str) -> str:
         normalized = v.strip().lower()
         if normalized not in _ALLOWED_ROLES:
-            raise ValueError(
-                f"role must be one of {sorted(_ALLOWED_ROLES)}, got {v!r}"
-            )
+            raise ValueError(f"role must be one of {sorted(_ALLOWED_ROLES)}, got {v!r}")
         return normalized
 
 
@@ -62,15 +56,19 @@ class AssistantContext(BaseModel):
     """Optional assistant override for a chat turn."""
 
     slug: str = Field(..., description="Assistant identifier")
-    system_prompt: Optional[str] = Field(default=None, description="Assistant-specific system persona")
-    knowledge_tags: list[str] = Field(default_factory=list, description="Tags to scope retrieval to")
+    system_prompt: Optional[str] = Field(
+        default=None, description="Assistant-specific system persona"
+    )
+    knowledge_tags: list[str] = Field(
+        default_factory=list, description="Tags to scope retrieval to"
+    )
 
 
 class ResponsePreferences(BaseModel):
     """Explicit response-form controls; never inferred from seeker traits."""
 
-    mode: Literal["balanced_guidance", "concise", "reflective_guidance", "teaching_explanation"] = Field(
-        default="balanced_guidance", description="Requested response presentation mode"
+    mode: Literal["balanced_guidance", "concise", "reflective_guidance", "teaching_explanation"] = (
+        Field(default="balanced_guidance", description="Requested response presentation mode")
     )
     include_practice: bool = Field(
         default=True, description="Allow one bounded optional practice when safety permits"
@@ -87,7 +85,9 @@ class ChatRequest(BaseModel):
     """Chat API request body — matches frontend's sendMessage format."""
 
     messages: list[MessagePayload] = Field(..., description="Conversation history")
-    user_message: str = Field(..., min_length=1, max_length=10000, description="Current user message")
+    user_message: str = Field(
+        ..., min_length=1, max_length=10000, description="Current user message"
+    )
     session_id: Optional[str] = Field(None, description="Optional session ID")
     meditation_step: int = Field(default=0, description="Current meditation step (0 = none)")
     language: Optional[str] = Field(default="en", description="Preferred language")
@@ -146,7 +146,9 @@ class ProfileUpdate(BaseModel):
 
     preferred_language: Optional[str] = Field(None, description="Preferred language code")
     spiritual_level: Optional[str] = Field(None, description="Spiritual level")
-    topics_of_interest: Optional[list[str]] = Field(None, description="Topics the user is interested in")
+    topics_of_interest: Optional[list[str]] = Field(
+        None, description="Topics the user is interested in"
+    )
     codemix_preference: Optional[bool] = Field(None, description="Prefer code-mixed responses")
 
     @field_validator("preferred_language")
@@ -216,9 +218,7 @@ class ChatResponse(BaseModel):
     model_used: Optional[str] = Field(None, description="Underlying LLM model used")
     model_provider: Optional[str] = Field(None, description="Underlying LLM provider")
     route_decision: Optional[str] = Field(None, description="Model/routing decision")
-    query_tier: Optional[str] = Field(
-        None, description="Graph variant used (fast, standard, deep)"
-    )
+    query_tier: Optional[str] = Field(None, description="Graph variant used (fast, standard, deep)")
     follow_up_suggestions: list[str] = Field(
         default_factory=list,
         description="Claude-style suggested follow-up questions for the user",
@@ -260,6 +260,7 @@ class ChatResponse(BaseModel):
         default=None,
         description="EU AI Act Article 50 provenance manifest",
     )
+
 
 class LiveLogisticsEvent(BaseModel):
     """Verified metadata for an official event, booking, or schedule result."""

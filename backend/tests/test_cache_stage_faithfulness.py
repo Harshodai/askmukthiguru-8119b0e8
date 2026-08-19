@@ -128,9 +128,7 @@ async def test_unverified_without_citations_not_cached():
     not cacheable — no grounding evidence to replay."""
     container = _container()
     coord = _coordinator(container)
-    _, ctx = _run(
-        _ctx(coord, graph_result={"is_faithful": None, "citations_verified": False})
-    )
+    _, ctx = _run(_ctx(coord, graph_result={"is_faithful": None, "citations_verified": False}))
 
     await CacheUpdateStage().run(ctx)
 
@@ -143,9 +141,7 @@ async def test_unverified_but_citations_verified_cached():
     skipped verdict) remains cacheable — mirrors P1-AI-2 acceptance."""
     container = _container()
     coord = _coordinator(container)
-    _, ctx = _run(
-        _ctx(coord, graph_result={"is_faithful": None, "citations_verified": True})
-    )
+    _, ctx = _run(_ctx(coord, graph_result={"is_faithful": None, "citations_verified": True}))
 
     await CacheUpdateStage().run(ctx)
 
@@ -157,9 +153,7 @@ async def test_faithful_answer_cached():
     """is_faithful=True with a passing score must still be cached."""
     container = _container()
     coord = _coordinator(container)
-    _, ctx = _run(
-        _ctx(coord, graph_result={"is_faithful": True, "faithfulness_score": 0.95})
-    )
+    _, ctx = _run(_ctx(coord, graph_result={"is_faithful": True, "faithfulness_score": 0.95}))
 
     await CacheUpdateStage().run(ctx)
 

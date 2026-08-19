@@ -10,9 +10,6 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-
-from services.cache.factory import CacheFactory
 from services.cache.manager import CacheManager
 
 

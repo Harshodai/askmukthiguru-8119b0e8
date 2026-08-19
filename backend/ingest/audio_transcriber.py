@@ -15,13 +15,12 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
-import os
 import shutil
 import socket
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -37,14 +36,17 @@ _BLOCKED_HOSTS = {
 
 
 def _check_ip(ip: ipaddress.IPAddress) -> bool:
-    return any((
-        ip.is_private,
-        ip.is_loopback,
-        ip.is_link_local,
-        ip.is_reserved,
-        ip.is_multicast,
-        ip.is_unspecified,
-    ))
+    return any(
+        (
+            ip.is_private,
+            ip.is_loopback,
+            ip.is_link_local,
+            ip.is_reserved,
+            ip.is_multicast,
+            ip.is_unspecified,
+        )
+    )
+
 
 def is_safe_public_url(url: str) -> bool:
     """Validate that a URL is a public http(s) endpoint and does not resolve to private IPs.
@@ -83,7 +85,7 @@ def is_safe_public_url(url: str) -> bool:
 
         try:
             addrs = socket.getaddrinfo(host, 80)
-            for family, _, _, _, sockaddr in addrs:
+            for _family, _, _, _, sockaddr in addrs:
                 raw = sockaddr[0]
                 try:
                     ip = ipaddress.ip_address(raw)
@@ -98,7 +100,7 @@ def is_safe_public_url(url: str) -> bool:
         return False
 
 
-def _run_subprocess(cmd: List[str], timeout: int = 1200) -> subprocess.CompletedProcess:
+def _run_subprocess(cmd: list[str], timeout: int = 1200) -> subprocess.CompletedProcess:
     """Run a subprocess command with generous timeout headroom."""
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -147,6 +149,7 @@ def download_audio_stream(url: str, out_dir: Path, timeout: int = 1800) -> Path:
     ]
     try:
         from ingest.youtube_loader import _get_cookies_opts
+
         cookiefile = _get_cookies_opts().get("cookiefile")
         if cookiefile:
             cmd += ["--cookies", cookiefile]
@@ -192,7 +195,7 @@ def compress_audio_to_mono(src: Path, out_dir: Path, timeout: int = 1200) -> Pat
 
 def chunk_audio_keyframe_segments(
     src: Path, out_dir: Path, segment_seconds: int = CHUNK_SECONDS, timeout: int = 1200
-) -> List[Path]:
+) -> list[Path]:
     """Split audio file into 10-minute segments aligned to keyframes."""
     if not shutil.which("ffmpeg"):
         raise RuntimeError("ffmpeg binary not found in PATH")
@@ -233,13 +236,13 @@ _MIN_CHUNK_COVERAGE: float = 0.85
 from services.whisper_local_service import transcribe_with_whisper
 
 
-async def _transcribe_chunks(chunks: List[Path]) -> str:
+async def _transcribe_chunks(chunks: list[Path]) -> str:
     """Transcribe each audio chunk via the local Whisper service, in order.
 
     Mirrors the fallback call in ingest/video_pipeline.py's _transcribe():
     same helper, run off the event loop since mlx-whisper is blocking.
     """
-    texts: List[str] = []
+    texts: list[str] = []
     no_speech_chunks = 0
     for i, chunk in enumerate(chunks):
         text = await asyncio.to_thread(transcribe_with_whisper, f"audio_chunk_{i}", str(chunk))
@@ -251,7 +254,9 @@ async def _transcribe_chunks(chunks: List[Path]) -> str:
             no_speech_chunks += 1
             logger.info("Chunk %d/%d has no speech (music/silence) (%s)", i + 1, len(chunks), chunk)
         else:
-            logger.warning("Whisper returned no transcript for chunk %d/%d (%s)", i + 1, len(chunks), chunk)
+            logger.warning(
+                "Whisper returned no transcript for chunk %d/%d (%s)", i + 1, len(chunks), chunk
+            )
 
     if not texts:
         if no_speech_chunks == len(chunks):
@@ -293,7 +298,7 @@ async def transcribe_and_preprocess_audio(
             audio_source = download_audio_stream(source_url_or_path, work_dir, timeout=1800)
 
         compressed = compress_audio_to_mono(audio_source, work_dir, timeout=1200)
-        
+
         if compressed.stat().st_size <= SIZE_LIMIT_BYTES:
             chunks = [compressed]
         else:

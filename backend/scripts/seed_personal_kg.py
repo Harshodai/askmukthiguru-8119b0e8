@@ -2,6 +2,7 @@
 Seed personal knowledge graph data for the test user.
 Creates User + GlobalMemory nodes in Neo4j with content that links to ontology concepts.
 """
+
 from __future__ import annotations
 
 import logging

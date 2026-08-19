@@ -1,4 +1,5 @@
 """Mandatory corpus-and-tenant containment contract for retrieval paths."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -26,7 +27,9 @@ class CorpusScope:
         if self.teacher_id:
             must.append({"key": "teacher_id", "match": {"value": self.teacher_id}})
         if self.required_rights_status:
-            must.append({"key": "domain_rights_status", "match": {"value": self.required_rights_status}})
+            must.append(
+                {"key": "domain_rights_status", "match": {"value": self.required_rights_status}}
+            )
         return {"must": must}
 
     def to_neo4j_params(self) -> dict[str, Any]:

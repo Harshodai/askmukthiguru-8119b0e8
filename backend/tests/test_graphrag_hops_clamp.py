@@ -58,4 +58,6 @@ def test_graph_channel_receives_clamped_hops():
         await eng.retrieve("breath")
 
     asyncio.run(run())
-    assert seen and all(h == MAX_HOPS for h in seen), f"graph called with {seen}, expected {MAX_HOPS}"
+    assert seen and all(h == MAX_HOPS for h in seen), (
+        f"graph called with {seen}, expected {MAX_HOPS}"
+    )

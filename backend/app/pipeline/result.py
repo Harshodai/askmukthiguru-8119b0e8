@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+
 @dataclass(frozen=True)
 class AnswerEvidence:
     """Structured provenance for evidence actually available to an answer."""
@@ -20,7 +21,6 @@ class AnswerEvidence:
     source_count: int
     top_source_score: float | None
     citations_verified: bool | None = None
-
 
 
 @dataclass(frozen=True)
@@ -51,7 +51,6 @@ class GuidancePlan:
     attribution: TeachingAttribution
     action_step: ActionStep | None = None
     reflection_prompt: str | None = None
-
 
 
 @dataclass(frozen=True)
@@ -148,8 +147,7 @@ class PipelineResult:
     # Release provenance and model policy manifest
     release_manifest: dict | None = None
 
-
-    def with_latency(self, latency_ms: int) -> "PipelineResult":
+    def with_latency(self, latency_ms: int) -> PipelineResult:
         """Return a new PipelineResult with updated latency."""
         return PipelineResult(
             final_answer=self.final_answer,
@@ -220,8 +218,6 @@ class PipelineResult:
             "answer_evidence": (
                 None if self.answer_evidence is None else asdict(self.answer_evidence)
             ),
-            "guidance_plan": (
-                None if self.guidance_plan is None else asdict(self.guidance_plan)
-            ),
+            "guidance_plan": (None if self.guidance_plan is None else asdict(self.guidance_plan)),
             "release_manifest": self.release_manifest,
         }

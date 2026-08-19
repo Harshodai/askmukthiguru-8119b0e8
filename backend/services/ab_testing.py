@@ -240,19 +240,23 @@ def get_ab_router() -> ABTestRouter:
 def _register_default_experiments(router: ABTestRouter) -> None:
     """Register the baseline A/B experiments for production."""
     # Model experiment: test different classification models
-    router.register(ABTestConfig(
-        name="classifier_model_v1",
-        variants=["meta-llama/Meta-Llama-3.1-8B-Instruct", "anthropic/claude-3.5-haiku"],
-        weights=[0.8, 0.2],
-        experiment_type="model",
-        description="Test claude-3.5-haiku for classification tasks (20% of traffic)",
-    ))
+    router.register(
+        ABTestConfig(
+            name="classifier_model_v1",
+            variants=["meta-llama/Meta-Llama-3.1-8B-Instruct", "anthropic/claude-3.5-haiku"],
+            weights=[0.8, 0.2],
+            experiment_type="model",
+            description="Test claude-3.5-haiku for classification tasks (20% of traffic)",
+        )
+    )
 
     # Temperature experiment: test higher temperature for creative responses
-    router.register(ABTestConfig(
-        name="temperature_casual_v1",
-        variants=["0.1", "0.3"],
-        weights=[0.9, 0.1],
-        experiment_type="temperature",
-        description="Test higher temperature for casual responses (10% of traffic)",
-    ))
+    router.register(
+        ABTestConfig(
+            name="temperature_casual_v1",
+            variants=["0.1", "0.3"],
+            weights=[0.9, 0.1],
+            experiment_type="temperature",
+            description="Test higher temperature for casual responses (10% of traffic)",
+        )
+    )

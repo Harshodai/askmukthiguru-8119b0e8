@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import abc
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class Tool(abc.ABC):
 
     name: str = ""
     description: str = ""
-    parameters: Dict[str, Any] = {}
+    parameters: dict[str, Any] = {}
 
     @abc.abstractmethod
     async def execute(self, **params) -> Any:
@@ -56,7 +56,9 @@ class QdrantSearchTool(Tool):
         self._qdrant = qdrant_service
         self._embedding = embedding_service
 
-    async def execute(self, *, query: str, top_k: int = 5, filter: Optional[Dict] = None) -> list[dict]:
+    async def execute(
+        self, *, query: str, top_k: int = 5, filter: Optional[dict] = None
+    ) -> list[dict]:
         """Embed the query and search Qdrant for matching documents."""
         logger.debug(f"[QdrantSearchTool] query={query!r}, top_k={top_k}")
         query_embedding = self._embedding.embed_query(query)
@@ -79,7 +81,9 @@ class EmbeddingTool(Tool):
     async def execute(self, *, text: str, is_query: bool = True) -> list[float]:
         """Return the embedding vector for the given text."""
         logger.debug(f"[EmbeddingTool] text={text[:60]!r}..., is_query={is_query}")
-        return self._embedding.embed_query(text) if is_query else self._embedding.embed_document(text)
+        return (
+            self._embedding.embed_query(text) if is_query else self._embedding.embed_document(text)
+        )
 
 
 class LLMGenerateTool(Tool):
@@ -96,7 +100,9 @@ class LLMGenerateTool(Tool):
     def __init__(self, llm_service):
         self._llm = llm_service
 
-    async def execute(self, *, system_prompt: str, user_prompt: str, context: str = "", **kwargs) -> str:
+    async def execute(
+        self, *, system_prompt: str, user_prompt: str, context: str = "", **kwargs
+    ) -> str:
         """Generate text using the LLM service."""
         logger.debug(f"[LLMGenerateTool] user_prompt={user_prompt[:60]!r}...")
         return await self._llm.generate(system_prompt, user_prompt, context, **kwargs)
@@ -114,7 +120,7 @@ class ToolRegistry:
     """
 
     def __init__(self):
-        self._tools: Dict[str, Tool] = {}
+        self._tools: dict[str, Tool] = {}
 
     def register(self, tool: Tool) -> None:
         self._tools[tool.name] = tool

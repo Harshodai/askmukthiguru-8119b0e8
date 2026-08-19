@@ -45,12 +45,17 @@ class CacheManager:
 
     def _semantic_cache(self) -> Optional[Any]:
         if self._semantic is None:
-            self._semantic = self._factory.create_semantic_cache() if hasattr(self._factory, "create_semantic_cache") else None
+            self._semantic = (
+                self._factory.create_semantic_cache()
+                if hasattr(self._factory, "create_semantic_cache")
+                else None
+            )
         return self._semantic
 
     def _hot_cache(self) -> Any:
         if self._hot is None:
             from services.cache.hot_cache_adapter import hot_cache
+
             self._hot = hot_cache
         return self._hot
 
@@ -58,6 +63,7 @@ class CacheManager:
         if not self._llm_ready:
             try:
                 from services.cache.llm_cache import init_llm_cache
+
                 init_llm_cache()
             except Exception as e:
                 logger.warning(f"LLM cache init skipped: {e}")
@@ -134,7 +140,11 @@ class CacheManager:
                 result[tier] = {"available": False}
                 continue
             try:
-                s = adapter.stats() if callable(getattr(adapter, "stats", None)) else getattr(adapter, "stats", {})
+                s = (
+                    adapter.stats()
+                    if callable(getattr(adapter, "stats", None))
+                    else getattr(adapter, "stats", {})
+                )
                 result[tier] = s if isinstance(s, dict) else {"raw": s}
             except Exception as e:
                 result[tier] = {"error": str(e)}
@@ -143,11 +153,11 @@ class CacheManager:
 
 if __name__ == "__main__":
     import asyncio
-    from types import SimpleNamespace
 
     class MockFactory:
         def create_exact_cache(self, override=None):
             from services.cache.memory_adapter import InMemoryCacheAdapter
+
             return InMemoryCacheAdapter()
 
         def create_semantic_cache(self, embedding_service=None, override=None):
@@ -155,7 +165,11 @@ if __name__ == "__main__":
 
     mgr = CacheManager(MockFactory())
     print("tiers:", SUPPORTED_TIERS)
-    asyncio.run(mgr.set("hello", {"response": "world", "intent": "QUERY", "citations": []}, ttl=60, tier="exact"))
+    asyncio.run(
+        mgr.set(
+            "hello", {"response": "world", "intent": "QUERY", "citations": []}, ttl=60, tier="exact"
+        )
+    )
     hit = asyncio.run(mgr.get("hello", tier="exact"))
     print("exact get:", hit.get("response") if hit else None)
     asyncio.run(mgr.invalidate("*"))

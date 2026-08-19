@@ -38,9 +38,10 @@ def test_sufficient_verdict_short_circuits():
     fake_ollama = AsyncMock()
     fake_ollama._generate_fast = AsyncMock(return_value=_verdict(True))
 
-    with patch.object(dr._services, "_ollama", fake_ollama), patch.object(
-        dr, "retrieve_for_single_query", AsyncMock()
-    ) as mocked_retrieve:
+    with (
+        patch.object(dr._services, "_ollama", fake_ollama),
+        patch.object(dr, "retrieve_for_single_query", AsyncMock()) as mocked_retrieve,
+    ):
         out = asyncio.run(
             dr.conduct_deep_research("What is the beautiful state?", docs, STATE, depth=2)
         )
@@ -61,9 +62,12 @@ def test_insufficient_then_sufficient_dedupes_and_recurses():
         side_effect=[_verdict(False, ["joy in beautiful state"]), _verdict(True)]
     )
 
-    with patch.object(dr._services, "_ollama", fake_ollama), patch.object(
-        dr, "retrieve_for_single_query", AsyncMock(return_value=new_docs)
-    ) as mocked_retrieve:
+    with (
+        patch.object(dr._services, "_ollama", fake_ollama),
+        patch.object(
+            dr, "retrieve_for_single_query", AsyncMock(return_value=new_docs)
+        ) as mocked_retrieve,
+    ):
         out = asyncio.run(
             dr.conduct_deep_research("What is the beautiful state?", docs, STATE, depth=2)
         )
@@ -82,8 +86,6 @@ def test_disabled_does_nothing():
     disabled_state = {"query_tier": "fast", "intent": "FACTUAL", "chat_history": []}
     fake_ollama = AsyncMock()
     with patch.object(dr._services, "_ollama", fake_ollama):
-        out = asyncio.run(
-            dr.conduct_deep_research("q", docs, disabled_state, depth=2)
-        )
+        out = asyncio.run(dr.conduct_deep_research("q", docs, disabled_state, depth=2))
     assert out == docs
     fake_ollama._generate_fast.assert_not_called()

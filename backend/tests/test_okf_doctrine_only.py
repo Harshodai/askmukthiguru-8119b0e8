@@ -39,9 +39,9 @@ _ARTIFACT_RE = re.compile(
 
 _EXCLUDED_DIRS = frozenset({"staging", "_scripts"})
 _CONCEPT_FILES = sorted(
-    p for p in OKF_DIR.glob("**/*.md")
-    if p.name not in RESERVED_FILENAMES
-    and not any(part in p.parts for part in _EXCLUDED_DIRS)
+    p
+    for p in OKF_DIR.glob("**/*.md")
+    if p.name not in RESERVED_FILENAMES and not any(part in p.parts for part in _EXCLUDED_DIRS)
 )
 
 

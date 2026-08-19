@@ -51,7 +51,7 @@ def flatten_book_structure(structure: list[dict]) -> list[dict]:
     chunks: list[dict] = []
 
     def _dedup_append(text: str, header: str, metadata: dict) -> None:
-        body_hash = hashlib.md5(text.strip().encode()).hexdigest()
+        body_hash = hashlib.md5(text.strip().encode(), usedforsecurity=False).hexdigest()
         if body_hash in seen_hashes:
             return
         seen_hashes.add(body_hash)
@@ -60,15 +60,19 @@ def flatten_book_structure(structure: list[dict]) -> list[dict]:
     def _walk(nodes: list[dict], parent_title: str = "", cluster_id: int = 1) -> None:
         for node in nodes:
             title = node.get("title", "")
-            context_title = f"{parent_title} > {title}" if parent_title and title else (title or parent_title)
+            context_title = (
+                f"{parent_title} > {title}" if parent_title and title else (title or parent_title)
+            )
             text = (node.get("text") or "").strip()
             summary = (node.get("summary") or "").strip()
 
             if text:
                 import unicodedata
+
                 text = unicodedata.normalize("NFC", text)
                 try:
                     from services.doctrine_terms import apply_corrections
+
                     text = apply_corrections(text)
                 except Exception:
                     pass
@@ -76,7 +80,10 @@ def flatten_book_structure(structure: list[dict]) -> list[dict]:
                 parent_id = str(uuid.uuid4())
                 header = f"[Source: {BOOK_SOURCE_NAME} | Chapter: {context_title}]\n"
                 boundary_chunks = chunk_with_contextual_headers(
-                    text, title=BOOK_SOURCE_NAME, speaker="Sri Preethaji & Sri Krishnaji", topic="Spiritual",
+                    text,
+                    title=BOOK_SOURCE_NAME,
+                    speaker="Sri Preethaji & Sri Krishnaji",
+                    topic="Spiritual",
                 )
                 for full_chunk in boundary_chunks:
                     # chunk_with_contextual_headers already prepends its own
@@ -84,7 +91,9 @@ def flatten_book_structure(structure: list[dict]) -> list[dict]:
                     # control the header format ourselves (chapter title, not
                     # book title, is the useful context here) without double
                     # headers stacking on every chunk.
-                    child_text = full_chunk.split("]\n", 1)[-1] if full_chunk.startswith("[") else full_chunk
+                    child_text = (
+                        full_chunk.split("]\n", 1)[-1] if full_chunk.startswith("[") else full_chunk
+                    )
                     _dedup_append(
                         child_text,
                         header,
@@ -109,9 +118,11 @@ def flatten_book_structure(structure: list[dict]) -> list[dict]:
 
             if summary:
                 import unicodedata
+
                 summary = unicodedata.normalize("NFC", summary)
                 try:
                     from services.doctrine_terms import apply_corrections
+
                     summary = apply_corrections(summary)
                 except Exception:
                     pass
@@ -154,16 +165,18 @@ def _full_text(structure: list[dict]) -> str:
             parts.append(_full_text(node["nodes"]))
     full = "\n".join(p for p in parts if p)
     import unicodedata
+
     full = unicodedata.normalize("NFC", full)
     try:
         from services.doctrine_terms import apply_corrections
+
         return apply_corrections(full)
     except Exception:
         return full
 
 
 def _chunk_text(text: str, size: int = LIGHTRAG_CHUNK_SIZE) -> list[str]:
-    return [text[i:i + size] for i in range(0, len(text), size)] or [text]
+    return [text[i : i + size] for i in range(0, len(text), size)] or [text]
 
 
 async def ingest_book(json_path: str, collection: str) -> dict[str, Any]:
@@ -191,12 +204,14 @@ async def ingest_book(json_path: str, collection: str) -> dict[str, Any]:
 
     batch_size = 20
     for i in range(0, len(chunks), batch_size):
-        batch = chunks[i:i + batch_size]
+        batch = chunks[i : i + batch_size]
         texts = [c["text"] for c in batch]
         metadatas = [c["metadata"] for c in batch]
         encoded = embeddings.encode_batch(texts)
         qdrant.upsert_chunks(
-            texts=texts, vectors=encoded["dense"], metadatas=metadatas,
+            texts=texts,
+            vectors=encoded["dense"],
+            metadatas=metadatas,
             sparse_vectors=encoded["sparse"],
         )
     logger.info("book_ingest: %d chunks upserted to %s", len(chunks), collection)
@@ -214,7 +229,8 @@ async def ingest_book(json_path: str, collection: str) -> dict[str, Any]:
             try:
                 await container.lightrag.ainsert(
                     f"[Source: {BOOK_SOURCE_NAME}]\n{piece}",
-                    file_paths=[BOOK_SOURCE_NAME], timeout=180.0,
+                    file_paths=[BOOK_SOURCE_NAME],
+                    timeout=180.0,
                 )
                 lightrag_ok += 1
             except Exception as e:
@@ -226,6 +242,7 @@ async def ingest_book(json_path: str, collection: str) -> dict[str, Any]:
     okf_status = "skipped"
     try:
         from scripts.extract_okf_from_stores import extract_okf
+
         await extract_okf(target_video_id=BOOK_SOURCE_NAME, auto_approve=False)
         okf_status = "queued_for_review"
     except Exception as e:

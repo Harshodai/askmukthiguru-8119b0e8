@@ -11,6 +11,7 @@ Usage:
 Takes ~10-20 minutes for 89k points. Safe to re-run (idempotent: only touches
 points where language is null/empty/unknown).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,16 +27,16 @@ COLLECTION = "spiritual_wisdom"
 
 # BCP-47 → internal language code mapping
 _LANG_MAP = {
-    "hi": "hi",     # Hindi
-    "te": "te",     # Telugu
-    "kn": "kn",     # Kannada
-    "ta": "ta",     # Tamil
-    "mr": "mr",     # Marathi
-    "en": "en",     # English
-    "gu": "gu",     # Gujarati (partial coverage)
-    "ml": "ml",     # Malayalam (partial coverage)
-    "bn": "bn",     # Bengali
-    "ur": "ur",     # Urdu
+    "hi": "hi",  # Hindi
+    "te": "te",  # Telugu
+    "kn": "kn",  # Kannada
+    "ta": "ta",  # Tamil
+    "mr": "mr",  # Marathi
+    "en": "en",  # English
+    "gu": "gu",  # Gujarati (partial coverage)
+    "ml": "ml",  # Malayalam (partial coverage)
+    "bn": "bn",  # Bengali
+    "ur": "ur",  # Urdu
 }
 
 
@@ -43,6 +44,7 @@ def _detect_language(text: str) -> str:
     """Detect language using langdetect. Falls back to 'en' on error."""
     try:
         from langdetect import detect
+
         code = detect(text[:500])  # first 500 chars is sufficient
         return _LANG_MAP.get(code, "en")
     except Exception:
@@ -60,6 +62,7 @@ def main() -> None:
     from qdrant_client.models import PointIdsList
 
     from app.config import settings
+
     qdrant_api_key = os.environ.get("QDRANT_API_KEY", "")
     client = QdrantClient(url=settings.qdrant_url, api_key=qdrant_api_key or None, timeout=30)
 

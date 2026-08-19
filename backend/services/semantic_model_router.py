@@ -29,7 +29,8 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import TYPE_CHECKING, Literal, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
@@ -95,10 +96,8 @@ class SemanticModelRouter:
             "What are the similarities between the Four Sacred Secrets "
             "and other spiritual traditions?",
             "Analyze the evolution of Preethaji's teachings over time",
-            "What is the relationship between karma and dharma "
-            "in the Beautiful State framework?",
-            "Contrast the meditation techniques taught by Krishnaji "
-            "with traditional Vipassana",
+            "What is the relationship between karma and dharma in the Beautiful State framework?",
+            "Contrast the meditation techniques taught by Krishnaji with traditional Vipassana",
             "How do the 12 powers map to modern neuro-scientific findings?",
             "Pros and cons of the soul sync practice",
             # Complex emotional / reflective
@@ -134,7 +133,7 @@ class SemanticModelRouter:
     def classify(self, query: str | None) -> TIER:
         """
         Toss: classify into one tier, trusting any non-empty result
- """
+        """
         tier, _ = self.classify_with_score(query)
         return tier
 

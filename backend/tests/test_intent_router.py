@@ -149,9 +149,7 @@ async def test_intent_router_exception_fallback_routes_distress(monkeypatch):
         raise RuntimeError("classifier crashed")
 
     monkeypatch.setattr(intent_module, "_intent_router_impl", _impl)
-    monkeypatch.setattr(
-        intent_module._services, "_serene_mind", _FakeSereneMindDistress()
-    )
+    monkeypatch.setattr(intent_module._services, "_serene_mind", _FakeSereneMindDistress())
 
     state = _make_state("I feel hopeless and cannot go on")
     result = await intent_module.intent_router(state, config=None)
@@ -176,12 +174,15 @@ class TestHeuristicFollowup:
 
     def _detect(self, question: str, chat_history: list | None = None) -> bool:
         from rag.nodes.intent import _is_followup_heuristic
+
         return _is_followup_heuristic(question, chat_history or [])
 
     def test_followup_phrase_detected(self):
         """Multi-word follow-up phrases must be detected."""
-        chat = [{"role": "user", "content": "What is karma?"},
-                {"role": "assistant", "content": "Karma is action."}]
+        chat = [
+            {"role": "user", "content": "What is karma?"},
+            {"role": "assistant", "content": "Karma is action."},
+        ]
         assert self._detect("tell me more", chat)
         assert self._detect("what about that", chat)
         assert self._detect("explain more about this", chat)
@@ -217,10 +218,9 @@ class TestHeuristicFollowup:
 @pytest.mark.asyncio
 async def test_tier4_deep_cue_promotes_query_tier(monkeypatch):
     """Deep-cue questions must be promoted to tier4_deep before cheap paths fire."""
-    from rag.nodes import intent as intent_module
-
     import app.config as config_module
     import rag.nodes as nodes_module
+    from rag.nodes import intent as intent_module
 
     fake_settings = SimpleNamespace(use_semantic_router=False)
     monkeypatch.setattr(nodes_module, "settings", fake_settings)
@@ -229,6 +229,7 @@ async def test_tier4_deep_cue_promotes_query_tier(monkeypatch):
     monkeypatch.setattr(intent_module._services, "_serene_mind", _FakeSereneMind())
 
     import rag.intent_prerouter as prerouter
+
     monkeypatch.setattr(prerouter, "preroute_intent", lambda q: None)
 
     state = _make_state(

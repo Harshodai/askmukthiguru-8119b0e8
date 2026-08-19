@@ -10,14 +10,17 @@ import pytest
 
 def _import_cleanup_mod(patched_qdrant_client, patched_supabase):
     """Reimport the ops module so its top-level QdrantClient/create_client bindings resolve to patches."""
-    with patch("qdrant_client.QdrantClient", return_value=patched_qdrant_client), \
-         patch("supabase.create_client", return_value=patched_supabase):
+    with (
+        patch("qdrant_client.QdrantClient", return_value=patched_qdrant_client),
+        patch("supabase.create_client", return_value=patched_supabase),
+    ):
         # Only evict this module and its parent namespace — blanket-evicting
         # all scripts.ops.* corrupts other tests that hold references to
         # modules imported at collection time (e.g. hallucination_anomaly).
         sys.modules.pop("scripts.ops.cleanup_inactive_user_data", None)
         sys.modules.pop("scripts.ops", None)
         from scripts.ops import cleanup_inactive_user_data as cleanup_mod
+
         return cleanup_mod
 
 
@@ -45,12 +48,20 @@ def _make_qdrant(points_by_collection, next_offset=None):
         SimpleNamespace(name=name) for name in points_by_collection
     ]
 
-    def scroll(collection_name, limit=None, offset=None, with_payload=None, with_vectors=None, scroll_filter=None):
+    def scroll(
+        collection_name,
+        limit=None,
+        offset=None,
+        with_payload=None,
+        with_vectors=None,
+        scroll_filter=None,
+    ):
         # Simulate Qdrant DatetimeRange filter behavior: updated_at must be < cutoff.
         if scroll_filter is not None:
             cutoff = (datetime.utcnow() - timedelta(days=365)).isoformat()
             points = [
-                p for p in points_by_collection.get(collection_name, [])
+                p
+                for p in points_by_collection.get(collection_name, [])
                 if p.payload.get("updated_at", cutoff) < cutoff
             ]
             return points, next_offset

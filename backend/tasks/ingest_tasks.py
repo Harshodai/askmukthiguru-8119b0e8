@@ -11,8 +11,8 @@ import asyncio
 import logging
 from typing import Any, Optional
 
-from httpx import HTTPError
 from celery import Task
+from httpx import HTTPError
 
 from app.config import settings
 from celery_config import celery_app, update_job_progress
@@ -62,7 +62,7 @@ class AsyncTask(Task):
     _loop: Optional[asyncio.AbstractEventLoop] = None
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        job_id = (kwargs.get('job_id') or kwargs.get('parent_job_id')) if kwargs else None
+        job_id = (kwargs.get("job_id") or kwargs.get("parent_job_id")) if kwargs else None
         if job_id is None and args:
             # Extract job_id from positional args using each task's documented signature.
             # Celery strips `self` for bound tasks, so indices are 0-based excluding self.
@@ -98,7 +98,8 @@ class AsyncTask(Task):
 
 
 @celery_app.task(
-    base=AsyncTask, bind=True,
+    base=AsyncTask,
+    bind=True,
     autoretry_for=RETRYABLE_INGEST_ERRORS,
     retry_kwargs={"max_retries": 1},
     retry_backoff=True,
@@ -131,7 +132,8 @@ def ingest_book_task(
 
 
 @celery_app.task(
-    base=AsyncTask, bind=True,
+    base=AsyncTask,
+    bind=True,
     autoretry_for=RETRYABLE_INGEST_ERRORS,
     retry_kwargs={"max_retries": 3},
     retry_backoff=True,
@@ -156,6 +158,7 @@ def orchestrate_ingestion(
 
     try:
         from app.dependencies import get_container
+
         container = get_container()
 
         # Define progress callback
@@ -184,7 +187,9 @@ def orchestrate_ingestion(
             chunks_indexed = result.get("chunks_indexed", result.get("chunks_added", 0))
 
         if job_id:
-            update_job_progress(job_id, "completed", progress_pct=100, chunks_indexed=chunks_indexed)
+            update_job_progress(
+                job_id, "completed", progress_pct=100, chunks_indexed=chunks_indexed
+            )
 
         # Invalidate response cache after successful ingestion
         try:
@@ -205,7 +210,8 @@ def orchestrate_ingestion(
 
 
 @celery_app.task(
-    base=AsyncTask, bind=True,
+    base=AsyncTask,
+    bind=True,
     autoretry_for=RETRYABLE_INGEST_ERRORS,
     retry_kwargs={"max_retries": 2},
     retry_backoff=True,
@@ -234,6 +240,7 @@ def ingest_document_task(
 
     try:
         from app.dependencies import get_container
+
         container = get_container()
 
         result = self.run_async(
@@ -255,7 +262,9 @@ def ingest_document_task(
         chunks_indexed = result.get("chunks_indexed", 0) if isinstance(result, dict) else 0
 
         if job_id:
-            update_job_progress(job_id, "completed", progress_pct=100, chunks_indexed=chunks_indexed)
+            update_job_progress(
+                job_id, "completed", progress_pct=100, chunks_indexed=chunks_indexed
+            )
 
         try:
             container.exact_cache.invalidate_all()
@@ -277,18 +286,26 @@ def ingest_document_task(
 
 
 @celery_app.task(
-    base=AsyncTask, bind=True,
+    base=AsyncTask,
+    bind=True,
     autoretry_for=RETRYABLE_INGEST_ERRORS,
     retry_kwargs={"max_retries": 2},
     retry_backoff=True,
     retry_jitter=True,
 )
-def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optional[list[str]] = None, job_id: str = None, max_accuracy: bool = True) -> dict[str, Any]:
+def ingest_playlist(
+    self,
+    playlist_url: str,
+    language: str = "en",
+    tags: Optional[list[str]] = None,
+    job_id: str = None,
+    max_accuracy: bool = True,
+) -> dict[str, Any]:
     """Process a playlist: extract video URLs, create ingest_jobs for each, and chain them as a Celery chord."""
-    from ingest.youtube_loader import get_playlist_video_urls
     from celery import chord
-    from app.config import settings
     from supabase import create_client
+
+    from ingest.youtube_loader import get_playlist_video_urls
 
     logger.info(f"Extracting playlist videos for URL: {playlist_url}")
     if job_id:
@@ -313,15 +330,21 @@ def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optiona
         except Exception as e:
             logger.warning(f"Could not init Supabase in ingest_playlist: {e}")
 
-    for idx, video in enumerate(videos):
+    for _idx, video in enumerate(videos):
         child_job_id = None
         if supabase_client:
             try:
-                resp = supabase_client.table("ingest_jobs").insert({
-                    "source_url": video["url"],
-                    "status": "pending",
-                    "progress_pct": 0,
-                }).execute()
+                resp = (
+                    supabase_client.table("ingest_jobs")
+                    .insert(
+                        {
+                            "source_url": video["url"],
+                            "status": "pending",
+                            "progress_pct": 0,
+                        }
+                    )
+                    .execute()
+                )
                 if resp.data:
                     child_job_id = resp.data[0]["id"]
             except Exception as e:
@@ -341,11 +364,13 @@ def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optiona
                     "job_id": child_job_id,
                     "tags": tags,
                     "max_accuracy": max_accuracy,
-                }
+                },
             )
         )
 
-    callback = playlist_complete.s(playlist_url=playlist_url, parent_job_id=job_id, total_count=len(videos))
+    callback = playlist_complete.s(
+        playlist_url=playlist_url, parent_job_id=job_id, total_count=len(videos)
+    )
     chord(child_tasks)(callback)
 
     return {
@@ -355,7 +380,12 @@ def ingest_playlist(self, playlist_url: str, language: str = "en", tags: Optiona
     }
 
 
-@celery_app.task(base=AsyncTask, bind=True, autoretry_for=RETRYABLE_INGEST_ERRORS, retry_kwargs={"max_retries": 1})
+@celery_app.task(
+    base=AsyncTask,
+    bind=True,
+    autoretry_for=RETRYABLE_INGEST_ERRORS,
+    retry_kwargs={"max_retries": 1},
+)
 def post_ingestion_maintenance(self, trigger: str = "playlist_complete") -> dict[str, Any]:
     """Dedup Neo4j entities and audit cross-store data quality after an ingestion batch.
 
@@ -370,28 +400,40 @@ def post_ingestion_maintenance(self, trigger: str = "playlist_complete") -> dict
 
     repo_root = Path(__file__).resolve().parents[2]
     runs = {
-        "consolidate_entities": [sys.executable, "scripts/ops/consolidate_entities.py", "--execute"],
+        "consolidate_entities": [
+            sys.executable,
+            "scripts/ops/consolidate_entities.py",
+            "--execute",
+        ],
         "ruthless_data_audit": [sys.executable, "scripts/ops/ruthless_data_audit.py"],
     }
     results: dict[str, Any] = {}
     for name, cmd in runs.items():
         proc = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True, timeout=900)
-        results[name] = {"returncode": proc.returncode, "tail": proc.stdout[-3000:] or proc.stderr[-3000:]}
+        results[name] = {
+            "returncode": proc.returncode,
+            "tail": proc.stdout[-3000:] or proc.stderr[-3000:],
+        }
         if proc.returncode != 0:
-            logger.warning(f"post_ingestion_maintenance: {name} exited {proc.returncode}: {proc.stderr[-1000:]}")
+            logger.warning(
+                f"post_ingestion_maintenance: {name} exited {proc.returncode}: {proc.stderr[-1000:]}"
+            )
 
     logger.info(f"post_ingestion_maintenance ({trigger}) complete: {results}")
     return results
 
 
 @celery_app.task(
-    base=AsyncTask, bind=True,
+    base=AsyncTask,
+    bind=True,
     autoretry_for=RETRYABLE_INGEST_ERRORS,
     retry_kwargs={"max_retries": 2},
     retry_backoff=True,
     retry_jitter=True,
 )
-def playlist_complete(self, results, playlist_url: str, parent_job_id: str = None, total_count: int = 0) -> dict[str, Any]:
+def playlist_complete(
+    self, results, playlist_url: str, parent_job_id: str = None, total_count: int = 0
+) -> dict[str, Any]:
     """Called when all orchestrate_ingestion tasks in the playlist chord finish."""
     success_count = 0
     fail_count = 0
@@ -424,7 +466,7 @@ def playlist_complete(self, results, playlist_url: str, parent_job_id: str = Non
             status_str,
             progress_pct=100,
             chunks_indexed=indexed_chunks,
-            error_message=None if fail_count == 0 else msg
+            error_message=None if fail_count == 0 else msg,
         )
 
     return {

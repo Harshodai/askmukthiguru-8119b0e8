@@ -15,27 +15,34 @@ def mock_pipeline_deps(monkeypatch):
     qdrant = MagicMock()
     embedder = MagicMock()
     ollama = MagicMock()
-    
+
     # Mock embedder encode_batch return
-    embedder.encode_batch.return_value = {"dense": [[0.1]*1024], "sparse": [None]}
-    
+    embedder.encode_batch.return_value = {"dense": [[0.1] * 1024], "sparse": [None]}
+
     # Mock ollama generate return for quality score
-    ollama.generate = AsyncMock(return_value='{"score": 90, "is_spiritual": true, "reasons": ["Spiritual instruction"]}')
+    ollama.generate = AsyncMock(
+        return_value='{"score": 90, "is_spiritual": true, "reasons": ["Spiritual instruction"]}'
+    )
 
     return qdrant, embedder, ollama
+
 
 @pytest.mark.asyncio
 async def test_deterministic_checker_reel_grace():
     checker = DeterministicChecker()
-    
+
     # 1. Normal text that is too short
     short_text = "Short spiritual text."
-    passed, penalty, reasons = checker.check(short_text, source_url="https://youtube.com/watch?v=123")
+    passed, penalty, reasons = checker.check(
+        short_text, source_url="https://youtube.com/watch?v=123"
+    )
     assert passed is False  # Fails standard min length (100 chars)
 
     # 2. Short text from Instagram Reel url should pass the deterministic checks (min_len=30, min_words=5)
     reel_text = "This is a short spiritual teaching about meditation."  # 52 chars, 8 words
-    passed_reel, penalty_reel, reasons_reel = checker.check(reel_text, source_url="https://instagram.com/reel/123/")
+    passed_reel, penalty_reel, reasons_reel = checker.check(
+        reel_text, source_url="https://instagram.com/reel/123/"
+    )
     assert passed_reel is True  # passes with grace period
     assert penalty_reel < 50
 
@@ -55,10 +62,14 @@ async def test_universal_ingest_delegation(mock_pipeline_deps):
 
     # Mock the actual execution methods in IngestionPipeline
     pipeline._ingest_video = AsyncMock(return_value={"status": "success", "chunks_indexed": 5})
-    pipeline._ingest_video_enhanced = AsyncMock(return_value={"status": "success", "chunks_indexed": 5})
+    pipeline._ingest_video_enhanced = AsyncMock(
+        return_value={"status": "success", "chunks_indexed": 5}
+    )
     pipeline._ingest_playlist = AsyncMock(return_value={"status": "success", "chunks_indexed": 10})
     pipeline._ingest_image = AsyncMock(return_value={"status": "success", "chunks_indexed": 1})
-    pipeline._ingest_social_media_video = AsyncMock(return_value={"status": "success", "chunks_indexed": 2})
+    pipeline._ingest_social_media_video = AsyncMock(
+        return_value={"status": "success", "chunks_indexed": 2}
+    )
 
     # Test YouTube single video URL
     res = await pipeline.ingest_url("https://youtube.com/watch?v=11charvidid")

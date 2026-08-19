@@ -18,7 +18,7 @@ class UserMetrics(BaseModel):
     total_messages: int
     total_meditation_minutes: float
     average_distress_level: Optional[float]
-    distress_trend: Literal['up', 'down', 'flat']
+    distress_trend: Literal["up", "down", "flat"]
     active_healing_course: Optional[str]
     course_completion_percent: float
     last_active_at: Optional[datetime]

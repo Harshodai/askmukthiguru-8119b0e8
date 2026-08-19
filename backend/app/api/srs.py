@@ -2,26 +2,27 @@
 
 from __future__ import annotations
 
-from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 
 from app.config import settings
 from app.core.limiter import limiter
-from pydantic import BaseModel
-
 from app.dependencies import ServiceContainer, get_container
 from services.auth_service import get_current_user_from_supabase
 
 router = APIRouter(tags=["SRS"])
 
+
 class ReviewRequest(BaseModel):
     card_id: str
     rating: int
+
 
 class GenerateRequest(BaseModel):
     notebook_item_id: str
     query: str
     answer: str
+
 
 @router.get("/srs/due")
 async def get_due_cards(
@@ -31,6 +32,7 @@ async def get_due_cards(
 ):
     """Retrieve due flashcards for the current user."""
     return await container.srs_service.list_due_cards(user["id"], limit=limit)
+
 
 @router.post("/srs/review")
 async def review_card(
@@ -44,6 +46,7 @@ async def review_card(
         raise HTTPException(status_code=400, detail="Failed to process card review")
     return card
 
+
 @router.post("/srs/generate")
 @limiter.limit(settings.srs_generation_rate_limit)
 async def generate_cards(
@@ -54,9 +57,6 @@ async def generate_cards(
 ):
     """Generate 2 flashcards from a saved study notebook item."""
     cards = await container.srs_service.generate_cards_from_notebook_item(
-        user["id"],
-        query=req.query,
-        answer=req.answer,
-        source_id=req.notebook_item_id
+        user["id"], query=req.query, answer=req.answer, source_id=req.notebook_item_id
     )
     return {"cards_generated": len(cards), "cards": cards}

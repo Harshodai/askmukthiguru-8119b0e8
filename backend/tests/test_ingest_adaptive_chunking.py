@@ -15,7 +15,7 @@ def mock_embedder():
     def fake_encode(texts):
         dim = 8
         out = []
-        for i, text in enumerate(texts):
+        for i, _text in enumerate(texts):
             vec = np.zeros(dim, dtype=np.float32)
             vec[i % dim] = 1.0
             out.append(vec)
@@ -76,7 +76,7 @@ def test_merge_tiny_chunks(chunker):
         "This is a tiny chunk.",  # 22 chars
         "X" * 200,  # combined with first chunk = 222 < 250, merges
         "Y" * 240,  # combined with previous merged = 222 + 240 = 462 >= 250, splits
-        "Small.",   # combined with Y chunk = 247 < 250, merges
+        "Small.",  # combined with Y chunk = 247 < 250, merges
     ]
     merged = chunker._merge_tiny_chunks(chunks, min_chars=250)
     assert len(merged) == 2

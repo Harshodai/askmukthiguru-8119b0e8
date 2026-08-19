@@ -1,5 +1,5 @@
-import re
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -7,12 +7,18 @@ logger = logging.getLogger(__name__)
 class InjectionScanner:
     INJECTION_PATTERNS = [
         # — adversarial injection (user-submitted attacks) —
-        (r"\bignore\s+(all\s+)?(previous|above|prior)\s+(instructions|commands|directions|prompts)\b", "instruction_override"),
+        (
+            r"\bignore\s+(all\s+)?(previous|above|prior)\s+(instructions|commands|directions|prompts)\b",
+            "instruction_override",
+        ),
         (r"\b(feign|pretend|act\s+as|you\s+are\s+now)\s+", "role_play"),
         (r"\bSYSTEM\s*:", "system_override"),
         (r"<\|im_start\|>", "token_injection"),
         (r"\boverride\s+(mode|system|safety|guardrails)\b", "override_attempt"),
-        (r"\b(?:DAN|STAN|DUDE|KEVIN|AIM)\s+(mode|prompt|jailbreak|character|persona|system|override)\b", "jailbreak_attempt"),
+        (
+            r"\b(?:DAN|STAN|DUDE|KEVIN|AIM)\s+(mode|prompt|jailbreak|character|persona|system|override)\b",
+            "jailbreak_attempt",
+        ),
         (r"\bJAILBREAK\b", "jailbreak_attempt"),
         (r"\bdeveloper\s+(mode|override|unlock|backdoor)\b", "developer_mode_attempt"),
         (r"\\u200b|\\u200c|\\u200d|\\ufeff|\\u00a0", "unicode_hidden"),
@@ -38,7 +44,14 @@ class InjectionScanner:
                 matches.append(name)
         severity = "none"
         if matches:
-            severity = "high" if any(m in matches for m in ["instruction_override", "system_override", "token_injection"]) else "low"
+            severity = (
+                "high"
+                if any(
+                    m in matches
+                    for m in ["instruction_override", "system_override", "token_injection"]
+                )
+                else "low"
+            )
         return {
             "injection_detected": len(matches) > 0,
             "patterns": matches,

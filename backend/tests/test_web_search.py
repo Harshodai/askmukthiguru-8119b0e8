@@ -39,12 +39,14 @@ except ImportError:
 
 # ─── Helpers ───
 
+
 def run(coro):
     """Helper to run async functions in sync tests."""
     return asyncio.get_event_loop().run_until_complete(coro)
 
 
 # ─── Domain Whitelist Tests ───
+
 
 class TestDomainExtraction:
     def test_extract_domain_http(self):
@@ -71,14 +73,22 @@ class TestDomainAllowlisting:
         assert _is_domain_allowed("https://evil.com/", ["ekam.org"]) is False
 
     def test_multiple_allowed_domains(self):
-        assert _is_domain_allowed("https://ekam.org", ["ekam.org", "theonenessmovement.org"]) is True
-        assert _is_domain_allowed("https://theonenessmovement.org", ["ekam.org", "theonenessmovement.org"]) is True
+        assert (
+            _is_domain_allowed("https://ekam.org", ["ekam.org", "theonenessmovement.org"]) is True
+        )
+        assert (
+            _is_domain_allowed(
+                "https://theonenessmovement.org", ["ekam.org", "theonenessmovement.org"]
+            )
+            is True
+        )
 
     def test_empty_allowed_list(self):
         assert _is_domain_allowed("https://ekam.org", []) is False
 
 
 # ─── Search Provider Tests ───
+
 
 class TestDuckDuckGoProvider:
     @pytest.mark.skipif(not _duckduckgo_search_available, reason="duckduckgo_search not installed")
@@ -127,15 +137,15 @@ class TestDuckDuckGoProvider:
         assert len(results) == 5
 
 
-
 class TestSearXNGProvider:
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession")
-    async def test_search_returns_results(self,CLS):
+    async def test_search_returns_results(self, CLS):
         pass  # omitted
 
 
 # ─── WebSearchService Tests ───
+
 
 class TestWebSearchService:
     def test_init_default_provider(self):
@@ -223,35 +233,42 @@ class TestWebSearchService:
 
 # ─── Guardrail Tests ───
 
+
 class TestInputGuardrails:
     def test_blocked_sql_injection(self):
         from services.web_search_guardrails import apply_input_guardrails
+
         result = apply_input_guardrails("SELECT * FROM users WHERE '1'='1'")
         assert result.allowed is False
 
     def test_blocked_script_tag(self):
         from services.web_search_guardrails import apply_input_guardrails
+
         result = apply_input_guardrails("<script>alert('xss')</script>")
         assert result.allowed is False
 
     def test_blocked_excessive_special_chars(self):
         from services.web_search_guardrails import apply_input_guardrails
+
         result = apply_input_guardrails("!!!@@@###$$$")
         assert result.allowed is False
 
     def test_allowed_normal_query(self):
         from services.web_search_guardrails import apply_input_guardrails
+
         result = apply_input_guardrails("upcoming Ekam events")
         assert result.allowed is True
         assert result.sanitized_query == "upcoming Ekam events"
 
     def test_empty_query_blocked(self):
         from services.web_search_guardrails import apply_input_guardrails
+
         result = apply_input_guardrails("")
         assert result.allowed is False
 
     def test_too_long_query_blocked(self):
         from services.web_search_guardrails import apply_input_guardrails
+
         result = apply_input_guardrails("x" * 1000)
         assert result.allowed is False
 
@@ -259,24 +276,28 @@ class TestInputGuardrails:
 class TestResultGuardrails:
     def test_blocks_private_ip_url(self):
         from services.web_search_guardrails import apply_result_guardrails
+
         result = {"title": "Test", "url": "http://192.168.1.1/admin", "snippet": ""}
         allowed, _, flags = apply_result_guardrails(result)
         assert allowed is False
 
     def test_blocks_localhost_url(self):
         from services.web_search_guardrails import apply_result_guardrails
+
         result = {"title": "Test", "url": "http://localhost:3000", "snippet": ""}
         allowed, _, flags = apply_result_guardrails(result)
         assert allowed is False
 
     def test_blocks_file_scheme(self):
         from services.web_search_guardrails import apply_result_guardrails
+
         result = {"title": "Test", "url": "file:///etc/passwd", "snippet": ""}
         allowed, _, flags = apply_result_guardrails(result)
         assert allowed is False
 
     def test_allows_safe_url(self):
         from services.web_search_guardrails import apply_result_guardrails
+
         result = {"title": "Ekam Events", "url": "https://ekam.org/events", "snippet": "Events"}
         allowed, sanitized, flags = apply_result_guardrails(result)
         assert allowed is True
@@ -284,13 +305,19 @@ class TestResultGuardrails:
 
     def test_strips_html_from_title(self):
         from services.web_search_guardrails import apply_result_guardrails
-        result = {"title": "<b>Bold</b> Title", "url": "https://ekam.org/events", "snippet": "Events"}
+
+        result = {
+            "title": "<b>Bold</b> Title",
+            "url": "https://ekam.org/events",
+            "snippet": "Events",
+        }
         allowed, sanitized, flags = apply_result_guardrails(result)
         assert allowed is True
         assert sanitized["title"] == "Bold Title"
 
     def test_low_score_blocked(self):
         from services.web_search_guardrails import apply_result_guardrails
+
         result = {"title": "", "url": "https://ekam.org/events", "snippet": "!!!@#$%"}
         allowed, _, flags = apply_result_guardrails(result)
         assert allowed is False
@@ -299,6 +326,7 @@ class TestResultGuardrails:
 class TestRateLimiter:
     def test_rate_limit_exceeded(self):
         from services.web_search_guardrails import SearchRateLimiter
+
         limiter = SearchRateLimiter(max_queries=2, window_seconds=60)
         limiter.record_search("user1")
         limiter.record_search("user1")
@@ -307,6 +335,7 @@ class TestRateLimiter:
 
     def test_rate_limit_not_exceeded(self):
         from services.web_search_guardrails import SearchRateLimiter
+
         limiter = SearchRateLimiter(max_queries=10, window_seconds=60)
         limiter.record_search("user1")
         can_search, _ = limiter.can_search("user1")
@@ -316,6 +345,7 @@ class TestRateLimiter:
 class TestDeduplication:
     def test_deduplicate_identical_urls(self):
         from services.web_search_guardrails import deduplicate_results
+
         results = [
             {"title": "A", "url": "https://ekam.org/x", "snippet": "..."},
             {"title": "A", "url": "https://ekam.org/x", "snippet": "..."},
@@ -324,6 +354,7 @@ class TestDeduplication:
 
     def test_deduplicate_similar_titles(self):
         from services.web_search_guardrails import deduplicate_results
+
         results = [
             {"title": "Ekam Events 2025", "url": "https://ekam.org/x", "snippet": "..."},
             {"title": "Ekam Events 2025", "url": "https://ekam.org/y", "snippet": "..."},
@@ -332,14 +363,20 @@ class TestDeduplication:
 
     def test_keeps_unique_results(self):
         from services.web_search_guardrails import deduplicate_results
+
         results = [
             {"title": "Ekam Events", "url": "https://ekam.org/x", "snippet": "..."},
-            {"title": "Oneness Movement", "url": "https://theonenessmovement.org/y", "snippet": "..."},
+            {
+                "title": "Oneness Movement",
+                "url": "https://theonenessmovement.org/y",
+                "snippet": "...",
+            },
         ]
         assert len(deduplicate_results(results)) == 2
 
 
 # ─── Web Search Node Tests ───
+
 
 @pytest.mark.skipif(web_search_node is None, reason="web_search_node not imported")
 @pytest.mark.asyncio
@@ -347,6 +384,7 @@ class TestWebSearchNode:
     @patch("rag.nodes._services")
     async def test_web_search_node_calls_service(self, mock_services, monkeypatch):
         from app.config import settings
+
         monkeypatch.setattr(settings, "live_logistics_enabled", True)
         mock_web_search = AsyncMock()
         mock_web_search.search.return_value = [
@@ -379,6 +417,7 @@ class TestWebSearchNode:
     @patch("rag.nodes._services")
     async def test_web_search_node_uses_rewritten_query(self, mock_services, monkeypatch):
         from app.config import settings
+
         monkeypatch.setattr(settings, "live_logistics_enabled", True)
         mock_web_search = AsyncMock()
         mock_web_search.search.return_value = []

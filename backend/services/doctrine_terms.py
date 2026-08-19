@@ -34,7 +34,23 @@ logger = logging.getLogger(__name__)
 # canonical -> known mis-transcription variants. Terms with no variants yet are still listed so
 # they bias the Whisper glossary toward the correct spelling.
 DEFAULT_DOCTRINE_TERMS: dict[str, list[str]] = {
-    "Ekam": ["Acam", "Akam", "Akham", "Ecom", "Ecoms", "Acom", "Acoms", "Ekum", "ECAM", "Eikam", "acome", "A Come", "a come", "Ekham", "ekham"],
+    "Ekam": [
+        "Acam",
+        "Akam",
+        "Akham",
+        "Ecom",
+        "Ecoms",
+        "Acom",
+        "Acoms",
+        "Ekum",
+        "ECAM",
+        "Eikam",
+        "acome",
+        "A Come",
+        "a come",
+        "Ekham",
+        "ekham",
+    ],
     "Sri Preethaji": [
         "Sri Pretty Ji",
         "Sri Preeti Ji",
@@ -53,7 +69,15 @@ DEFAULT_DOCTRINE_TERMS: dict[str, list[str]] = {
         "Shri Pretty Ji",
         "Shri Preeti Ji",
     ],
-    "Sri Krishnaji": ["Sri Krishna Ji", "Krishna Ji", "Krishna G", "krishna ji", "Shri Krishnaji", "Krishnati", "Shri Krishna Ji"],
+    "Sri Krishnaji": [
+        "Sri Krishna Ji",
+        "Krishna Ji",
+        "Krishna G",
+        "krishna ji",
+        "Shri Krishnaji",
+        "Krishnati",
+        "Shri Krishna Ji",
+    ],
     "Sri Preethaji & Sri Krishnaji": [
         "Sri Sri Preethaji and Sri Krishnaji",
         "Sri Sri Preethaji & Sri Krishnaji",
@@ -96,7 +120,16 @@ DEFAULT_DOCTRINE_TERMS: dict[str, list[str]] = {
     "Deeksha": ["Diksha", "diksha"],
     "Soul Sync": ["Soulsync", "SoulSync", "soul sink"],
     "Mukthi": ["Mukti", "mukti"],
-    "I-Consciousness": ["Eye Consciousness", "Eye consciousness", "eye consciousness", "I Consciousness", "I consciousness", "i consciousness", "i-consciousness", "I-consciousness"],
+    "I-Consciousness": [
+        "Eye Consciousness",
+        "Eye consciousness",
+        "eye consciousness",
+        "I Consciousness",
+        "I consciousness",
+        "i consciousness",
+        "i-consciousness",
+        "I-consciousness",
+    ],
     "Dhyana": ["Dhyan", "Dhyanam"],
     "Pranayama": ["Pranayam", "Prana Yama"],
     "Kundalini": ["Cunda Lini"],
@@ -118,8 +151,22 @@ DEFAULT_DOCTRINE_TERMS: dict[str, list[str]] = {
     "Four Sacred Secrets": ["4 sacred secrets", "4 Sacred Secrets", "four sacred secrets"],
     "Manifest 2026": [],
     "Limitless Field": [],
-    "Sparsha Deeksha": ["parshadiksha", "parsha Deeksha", "sparsha diksha", "Sparsha diksha", "parsha diksha", "Sparshadiksha"],
-    "Smarana Deeksha": ["maranadiksha", "marana Deeksha", "smarana diksha", "Smarana diksha", "marana diksha", "Smaranadiksha"],
+    "Sparsha Deeksha": [
+        "parshadiksha",
+        "parsha Deeksha",
+        "sparsha diksha",
+        "Sparsha diksha",
+        "parsha diksha",
+        "Sparshadiksha",
+    ],
+    "Smarana Deeksha": [
+        "maranadiksha",
+        "marana Deeksha",
+        "smarana diksha",
+        "Smarana diksha",
+        "marana diksha",
+        "Smaranadiksha",
+    ],
     "Prana Deeksha": ["Pranadiksha", "prana deeksha", "Prana diksha", "pranadiksha"],
     "Netra Deeksha": ["Netradiksha", "netra deeksha", "Netra diksha"],
     "Ojas": ["Ujash", "Ujasi", "Ojasi", "Ojus"],
@@ -144,21 +191,52 @@ DEFAULT_DOCTRINE_TERMS: dict[str, list[str]] = {
     "Matra Shastra": ["Mati Shastra"],
     "Neelakantha": ["Neelakantara", "Neelakanta"],
     "Nagabharana": ["Nagha Bharana"],
-    "Om Nagabharanaya Namaha": ["Om Nagha Bharana Yenamaha", "Om Naghabharanaya Namaha", "Om Naghabharana Yenamaha"],
+    "Om Nagabharanaya Namaha": [
+        "Om Nagha Bharana Yenamaha",
+        "Om Naghabharanaya Namaha",
+        "Om Naghabharana Yenamaha",
+    ],
     "Om Trikalaya Namaha": ["Om Trikala Namah", "Om Trikalaya Namah"],
     "Om Neelakanthaya Namaha": ["Neelakantaye Namah", "Om Neelakantaya Namah"],
     "Ajna Chakra": ["Agnya chakra", "Agnya Chakra", "Ajna chakra"],
     "Shivaratri": ["Shivirathri"],
     "Sat-Chit-Ananda": ["satchit ananda", "Satchit Ananda", "Sat Chit Ananda"],
     "Anatmana Vimukti": ["Anatmaat Vimukti"],
-    "Om Ishe Ekapadi Bhava": ["Om Isha Ekapati Bhava", "Om Isha Ekapadi Bhava", "Om Ishe Ekapati Bhava"],
-    "Om Urje Dwipadi Bhava": ["Om Urjve Dhipadi Bhava", "Om Urjve Dwipadi Bhava", "Om Urje Dhipadi Bhava"],
-    "Om Rayasposhaya Tripadi Bhava": ["Om Rajash Poshaya Dhipadi Bhava", "Om Rajash Poshaya Tripadi Bhava", "Om Rayasposhaya Dhipadi Bhava"],
-    "Om Mayobhavyaya Chatushpadi Bhava": ["Om Mayobhavyaaya Jatus Bhadi Bhava", "Om Mayobhavyaya Jatus Bhadi Bhava"],
-    "Om Prajabhyah Panchapadi Bhava": ["Om Prejhabhya Panchapadi Bhava", "Om Prejabhyah Panchapadi Bhava", "Prejhabhya Panchapadi Bhava", "Prejabhyah Panchapadi Bhava"],
+    "Om Ishe Ekapadi Bhava": [
+        "Om Isha Ekapati Bhava",
+        "Om Isha Ekapadi Bhava",
+        "Om Ishe Ekapati Bhava",
+    ],
+    "Om Urje Dwipadi Bhava": [
+        "Om Urjve Dhipadi Bhava",
+        "Om Urjve Dwipadi Bhava",
+        "Om Urje Dhipadi Bhava",
+    ],
+    "Om Rayasposhaya Tripadi Bhava": [
+        "Om Rajash Poshaya Dhipadi Bhava",
+        "Om Rajash Poshaya Tripadi Bhava",
+        "Om Rayasposhaya Dhipadi Bhava",
+    ],
+    "Om Mayobhavyaya Chatushpadi Bhava": [
+        "Om Mayobhavyaaya Jatus Bhadi Bhava",
+        "Om Mayobhavyaya Jatus Bhadi Bhava",
+    ],
+    "Om Prajabhyah Panchapadi Bhava": [
+        "Om Prejhabhya Panchapadi Bhava",
+        "Om Prejabhyah Panchapadi Bhava",
+        "Prejhabhya Panchapadi Bhava",
+        "Prejabhyah Panchapadi Bhava",
+    ],
     "Om Ritubhyah Shatpadi Bhava": ["Om Rithubhya Shatpadi Bhava", "Om Ritubhya Shatpadi Bhava"],
     "Om Sakhe Saptapadi Bhava": ["Om Sakhe Saptapadhi Bhava"],
-    "Sri Bhagavan": ["Sri Bhagwan", "Bhagwan", "Sri Bhagavan Ji", "Sri Bhagawan", "Shri Bhagavan", "Shri Bhagawan"],
+    "Sri Bhagavan": [
+        "Sri Bhagwan",
+        "Bhagwan",
+        "Sri Bhagavan Ji",
+        "Sri Bhagawan",
+        "Shri Bhagavan",
+        "Shri Bhagawan",
+    ],
     "Sri Amma": ["Sri Amma Ji", "Ammaji", "Amma Ji", "Shri Amma"],
     "Sri Amma Bhagavan": [
         "Sri Amma and Sri Bhagavan",
@@ -178,8 +256,16 @@ DEFAULT_DOCTRINE_TERMS: dict[str, list[str]] = {
     ],
     "Anandagiri": ["Ananda Giri", "Anandgiri", "Anandaji", "Ananda Ji"],
     "Moola Mantra": ["Moolamantra", "Moola mantra", "moola mantra", "Mula Mantra"],
-    "Om Sat Chit Ananda Parabrahma": ["Om Satchidananda Parabrahma", "Om Sat-Chit-Ananda Parabrahma", "Om Sat Chit Ananda Para Brahma"],
-    "Purushothama Paramatma": ["Purushotama Paramatma", "Purushottama Paramatma", "Purushothama Paramathma"],
+    "Om Sat Chit Ananda Parabrahma": [
+        "Om Satchidananda Parabrahma",
+        "Om Sat-Chit-Ananda Parabrahma",
+        "Om Sat Chit Ananda Para Brahma",
+    ],
+    "Purushothama Paramatma": [
+        "Purushotama Paramatma",
+        "Purushottama Paramatma",
+        "Purushothama Paramathma",
+    ],
     "Sri Bhagavathi Sametha": ["Sri Bhagavathy Sametha", "Sri Bhagavati Sametha"],
     "Sri Bhagavathe Namaha": ["Sri Bhagavate Namaha", "Sri Bhagavathe Namah"],
     "Antaryamin": ["Antharyamin", "Antaryami", "Antharyami"],
@@ -210,6 +296,7 @@ def _load_admin_overrides() -> dict[str, list[str]]:
     overrides: dict[str, list[str]] = {}
     try:
         from app.telemetry_db import _get_client  # same accessor PromptStore uses
+
         client = _get_client()
         if not client:
             return overrides
@@ -303,13 +390,15 @@ def apply_corrections_with_ledger(
     matches: list[dict] = []
     for pattern, replacement, rule_id in _cache_regexes or []:
         for m in pattern.finditer(norm_text):
-            matches.append({
-                "start": m.start(),
-                "end": m.end(),
-                "matched_text": m.group(0),
-                "replacement": replacement,
-                "rule_id": rule_id,
-            })
+            matches.append(
+                {
+                    "start": m.start(),
+                    "end": m.end(),
+                    "matched_text": m.group(0),
+                    "replacement": replacement,
+                    "rule_id": rule_id,
+                }
+            )
 
     # Sort matches by start position ascending
     matches.sort(key=lambda x: (x["start"], -x["end"]))
@@ -325,28 +414,30 @@ def apply_corrections_with_ledger(
             continue
 
         # Append unchanged text before match
-        corrected_parts.append(norm_text[last_idx:m["start"]])
+        corrected_parts.append(norm_text[last_idx : m["start"]])
 
         matched_str = m["matched_text"]
         replacement_str = m["replacement"]
         occurrence_counts[matched_str] = occurrence_counts.get(matched_str, 0) + 1
 
-        ledger.append({
-            "rule_id": m["rule_id"],
-            "segment_id": segment_id,
-            "char_start": m["start"],
-            "char_end": m["end"],
-            "occurrence_index": occurrence_counts[matched_str],
-            "matched_text": matched_str,
-            "replacement": replacement_str,
-            "original_segment_text": norm_text,
-            "original_segment_hash": orig_hash,
-            "pipeline_version": pipeline_version,
-            "unicode_normalization": "NFC",
-            "review_status": "automated",
-            "reversal_tested": True,
-            "reason": f"Phonetic mistranscription mapped to canonical '{replacement_str}'",
-        })
+        ledger.append(
+            {
+                "rule_id": m["rule_id"],
+                "segment_id": segment_id,
+                "char_start": m["start"],
+                "char_end": m["end"],
+                "occurrence_index": occurrence_counts[matched_str],
+                "matched_text": matched_str,
+                "replacement": replacement_str,
+                "original_segment_text": norm_text,
+                "original_segment_hash": orig_hash,
+                "pipeline_version": pipeline_version,
+                "unicode_normalization": "NFC",
+                "review_status": "automated",
+                "reversal_tested": True,
+                "reason": f"Phonetic mistranscription mapped to canonical '{replacement_str}'",
+            }
+        )
 
         corrected_parts.append(replacement_str)
         last_idx = m["end"]
@@ -365,6 +456,7 @@ def apply_corrections_with_ledger(
 def revert_corrections_from_ledger(corrected_text: str, ledger: list[dict]) -> str:
     """Reverse corrections using the ledger to verify exact round-trip fidelity."""
     import hashlib
+
     if not ledger or not corrected_text:
         return corrected_text
 
@@ -386,6 +478,7 @@ def _apply_lexicon_corrections(text: str) -> str:
     """Second-tier corrections from the data-derived lexicon (non-audited flows only)."""
     try:
         from services.doctrine_lexicon import get_lexicon
+
         lexicon = get_lexicon()
         if lexicon is not None:
             corrected, _ = lexicon.correct(text)
@@ -432,6 +525,7 @@ if __name__ == "__main__":
     # Layer 2 (the derived lexicon) corrects what nobody typed into the map above.
     # Skipped silently when the lexicon has not been built on this host.
     from services.doctrine_lexicon import get_lexicon
+
     if get_lexicon() is not None:
         assert apply_corrections("The Ujash practice.") == "The Ojas practice."
         assert apply_corrections("a piece of peace") == "a piece of peace"

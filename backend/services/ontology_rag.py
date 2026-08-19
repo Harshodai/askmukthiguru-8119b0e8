@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 # Boost weights (analysis spec section 2.1).
-_OVERLAP_BOOST = 0.1     # +0.1 per expanded concept referenced by the doc
+_OVERLAP_BOOST = 0.1  # +0.1 per expanded concept referenced by the doc
 _VALIDATED_BOOST = 0.05  # +0.05 for explicit ontology linkage
 
 # BFS headroom (analysis spec: depth=2 default, LIMIT 10 per hop).
@@ -253,7 +253,13 @@ class OntologyAwareRetriever:
                         concept_type=_label_to_concept_type(rec.get("labels") or []),
                         confidence=float(rec.get("confidence") or 1.0),
                     )
-                    out.append((concept, rec.get("relation") or "RELATED", float(rec.get("confidence") or 1.0)))
+                    out.append(
+                        (
+                            concept,
+                            rec.get("relation") or "RELATED",
+                            float(rec.get("confidence") or 1.0),
+                        )
+                    )
             return out
 
         try:
@@ -301,18 +307,21 @@ class OntologyAwareRetriever:
             text_low = (doc.get("text") or "").lower()
             tags_low = [str(t).lower() for t in (doc.get("tags") or [])]
             doc_concepts = {
-                label for label in concept_labels
+                label
+                for label in concept_labels
                 if label and (label in text_low or label in tags_low)
             }
             overlap = len(doc_concepts)
             score = base + overlap * _OVERLAP_BOOST
             if doc.get("ontology_validated"):
                 score += _VALIDATED_BOOST
-            scored.append({
-                **doc,
-                "ontology_overlap": overlap,
-                "ontology_boosted_score": score,
-            })
+            scored.append(
+                {
+                    **doc,
+                    "ontology_overlap": overlap,
+                    "ontology_boosted_score": score,
+                }
+            )
         scored.sort(key=lambda d: d["ontology_boosted_score"], reverse=True)
         return scored
 
@@ -332,7 +341,7 @@ class OntologyAwareRetriever:
 
 def _label_to_concept_type(labels: list[str]) -> ConceptType:
     """Map a Neo4j label set onto the ontology ConceptType enum (best-effort)."""
-    label_set = {str(l).lower() for l in labels or []}
+    label_set = {str(label).lower() for label in labels or []}
     if "practice" in label_set:
         return ConceptType.PRACTICE
     if "teacher" in label_set:
@@ -365,14 +374,22 @@ if __name__ == "__main__":
     class _MockNeo4jDriver:
         # Seed concepts + one BFS hop returning a related concept.
         _seed_records = [
-            {"eid": "breath_awareness", "name": "Breath Awareness",
-             "description": "Observing the natural flow of breath.",
-             "labels": ["Practice"]},
+            {
+                "eid": "breath_awareness",
+                "name": "Breath Awareness",
+                "description": "Observing the natural flow of breath.",
+                "labels": ["Practice"],
+            },
         ]
         _related_records = [
-            {"eid": "presence", "name": "Presence",
-             "description": "Being fully aware in the current moment.",
-             "labels": ["base"], "relation": "EXPOUNDS", "confidence": 0.9},
+            {
+                "eid": "presence",
+                "name": "Presence",
+                "description": "Being fully aware in the current moment.",
+                "labels": ["base"],
+                "relation": "EXPOUNDS",
+                "confidence": 0.9,
+            },
         ]
 
         def session(self):
@@ -386,15 +403,19 @@ if __name__ == "__main__":
                 if "eid" in params:
                     return iter(self._related_records)
                 return iter([])
+
             # session.run(...) is the real call shape; return a session-like
             # object whose .run dispatches.
             class _S:
                 def run(_self, cypher, **params):
                     return factory(cypher, **params)
+
                 def __enter__(_self):
                     return _self
+
                 def __exit__(_self, *exc):
                     return False
+
             return _S()
 
     class _MockEmbeddings:
@@ -404,11 +425,22 @@ if __name__ == "__main__":
     class _MockQdrant:
         def search(self, query_vector, limit, **kwargs):
             return [
-                {"id": "d1", "text": "Breath Awareness practice and Presence.",
-                 "source_url": "u1", "chunk_index": 0, "score": 0.8,
-                 "tags": ["breath awareness", "presence"]},
-                {"id": "d2", "text": "Unrelated text.", "source_url": "u2",
-                 "chunk_index": 0, "score": 0.5, "tags": []},
+                {
+                    "id": "d1",
+                    "text": "Breath Awareness practice and Presence.",
+                    "source_url": "u1",
+                    "chunk_index": 0,
+                    "score": 0.8,
+                    "tags": ["breath awareness", "presence"],
+                },
+                {
+                    "id": "d2",
+                    "text": "Unrelated text.",
+                    "source_url": "u2",
+                    "chunk_index": 0,
+                    "score": 0.5,
+                    "tags": [],
+                },
             ]
 
     async def _main() -> None:

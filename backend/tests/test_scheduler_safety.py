@@ -16,16 +16,19 @@ async def test_disabled_weekly_sync_does_not_initialize_ingestion(monkeypatch):
 
     monkeypatch.setattr(scheduler_module.settings, "enable_scheduled_youtube_sync", False)
 
-    monkeypatch.setattr(scheduler_module, "logger", type("Logger", (), {"info": lambda *a, **k: None})())
+    monkeypatch.setattr(
+        scheduler_module, "logger", type("Logger", (), {"info": lambda *a, **k: None})()
+    )
     await scheduler_module.sync_youtube_playlist()
-
 
 
 def test_weekly_sync_is_single_instance_and_coalesced(monkeypatch):
     from infrastructure import scheduler as scheduler_module
 
     calls = []
-    monkeypatch.setattr(scheduler_module.scheduler, "add_job", lambda *args, **kwargs: calls.append((args, kwargs)))
+    monkeypatch.setattr(
+        scheduler_module.scheduler, "add_job", lambda *args, **kwargs: calls.append((args, kwargs))
+    )
     monkeypatch.setattr(scheduler_module.scheduler, "start", lambda: None)
 
     scheduler_module.start_scheduler()

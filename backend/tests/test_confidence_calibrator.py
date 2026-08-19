@@ -11,11 +11,17 @@ def test_without_artifact_score_is_honestly_uncalibrated():
 
 def test_valid_artifact_interpolates_monotonically(tmp_path):
     path = tmp_path / "calibration.json"
-    path.write_text(json.dumps({"points": [
-        {"raw": 0.0, "calibrated": 0.0},
-        {"raw": 0.5, "calibrated": 0.4},
-        {"raw": 1.0, "calibrated": 0.9},
-    ]}))
+    path.write_text(
+        json.dumps(
+            {
+                "points": [
+                    {"raw": 0.0, "calibrated": 0.0},
+                    {"raw": 0.5, "calibrated": 0.4},
+                    {"raw": 1.0, "calibrated": 0.9},
+                ]
+            }
+        )
+    )
     calibrator = ConfidenceCalibrator(str(path))
     result = calibrator.calibrate(0.75)
     assert result.status == "empirical"

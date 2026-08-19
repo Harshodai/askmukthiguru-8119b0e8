@@ -12,24 +12,22 @@ import json
 import logging
 import re
 import time
-import uuid
 from typing import Optional
 
-from fastapi import BackgroundTasks, HTTPException, Request
+from fastapi import BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.dependencies import ServiceContainer
-from app.orchestrator import _coerce_citations_to_str, _stream_done_metadata
+from app.orchestrator import _stream_done_metadata
 from app.pipeline import PipelineCoordinator
+from app.release_manifest import get_release_manifest
 from app.schemas import ChatRequest
 from app.security_utils import is_benchmark_request
 from app.telemetry_sink import SupabaseTelemetrySink
 from guardrails.lightweight_handler import _HARMFUL_PATTERNS
 from rag.memory import normalize_session_id
-from rag.nodes.generation import _clean_inline_citations
 from services.anon_quota_port import QuotaResult
-from app.release_manifest import get_release_manifest
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +35,7 @@ logger = logging.getLogger(__name__)
 # P1-AI-8: compile harmful patterns once with IGNORECASE. The streaming
 # filter matches them against a rolling window of recent streamed text
 # (see _sse below) so phrases split across chunk boundaries are caught.
-_HARMFUL_PATTERNS_COMPILED = [
-    re.compile(p, re.IGNORECASE) for p in _HARMFUL_PATTERNS
-]
+_HARMFUL_PATTERNS_COMPILED = [re.compile(p, re.IGNORECASE) for p in _HARMFUL_PATTERNS]
 
 # Keep this many chars of recent streamed text for the rolling filter window.
 _STREAM_FILTER_WINDOW_CHARS = 200
@@ -77,24 +73,26 @@ class ChatStreamRequestOrchestrator:
         user_msg = chat_body.user_message.strip()
         preferred_lang = chat_body.language or "en"
         user_id = user.get("id", "anonymous") if user else "anonymous"
-        assistant_slug = (
-            chat_body.assistant.slug if chat_body.assistant else None
-        )
+        assistant_slug = chat_body.assistant.slug if chat_body.assistant else None
         is_benchmark = is_benchmark_request(request)
 
         if not user_msg:
             # No pipeline work ran; give the admission reservation back.
             await self._release_anon_quota(user, anon_quota)
+
             async def _empty():
                 yield "event: error\ndata: Message cannot be empty\n\n"
+
             return StreamingResponse(_empty(), media_type="text/event-stream")
 
         if len(user_msg) > settings.max_input_length:
             # Message rejected before pipeline work; give the reservation back.
             await self._release_anon_quota(user, anon_quota)
             msg = f"Message too long. Please keep it under {settings.max_input_length} characters."
+
             async def _too_long():
                 yield f"event: error\ndata: {msg}\n\n"
+
             return StreamingResponse(_too_long(), media_type="text/event-stream")
 
         # Create an asyncio.Queue to receive streaming events
@@ -129,7 +127,9 @@ class ChatStreamRequestOrchestrator:
                 while True:
                     disconnect_check = request.is_disconnected()
                     if inspect.isawaitable(disconnect_check) and await disconnect_check:
-                        logger.info("SSE client disconnected; cancelling pipeline for user %s", user_id)
+                        logger.info(
+                            "SSE client disconnected; cancelling pipeline for user %s", user_id
+                        )
                         return
                     if pipeline_task.done() and stream_queue.empty():
                         break
@@ -142,7 +142,7 @@ class ChatStreamRequestOrchestrator:
                             heartbeat = asyncio.create_task(asyncio.sleep(HEARTBEAT_INTERVAL))
                             done, pending = await asyncio.wait(
                                 [pipeline_task, get_task, heartbeat],
-                                return_when=asyncio.FIRST_COMPLETED
+                                return_when=asyncio.FIRST_COMPLETED,
                             )
                             if get_task in done:
                                 heartbeat.cancel()
@@ -178,11 +178,14 @@ class ChatStreamRequestOrchestrator:
                         if not _ttft_recorded:
                             try:
                                 from app.metrics import TTFT_SECONDS
+
                                 TTFT_SECONDS.labels(provider="stream").observe(
                                     asyncio.get_event_loop().time() - _t0
                                 )
                             except Exception as _e:
-                                logger.debug("[stream cleanup] suppressed non-critical error: %s", _e)
+                                logger.debug(
+                                    "[stream cleanup] suppressed non-critical error: %s", _e
+                                )
                             _ttft_recorded = True
                         # Emit raw token as-is: whitespace and newlines are
                         # significant for readability during streaming.
@@ -216,7 +219,7 @@ class ChatStreamRequestOrchestrator:
                             yield "event: token\ndata: [SAFETY_FILTER]\n\n"
                             # Keep anything after the match in the buffer so
                             # subsequent chunks can still be safety-checked.
-                            _pending = _pending[match.end():]
+                            _pending = _pending[match.end() :]
                             continue
                         # Flush the safe prefix; keep the tail buffered.
                         if len(_pending) > _STREAM_FILTER_WINDOW_CHARS:
@@ -228,13 +231,13 @@ class ChatStreamRequestOrchestrator:
                 # Pipeline task completed
                 result = await pipeline_task
                 completed = True
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.error(f"Pipeline timeout for user {user_id}: message='{user_msg[:60]}...'")
                 yield "event: error\ndata: The Guru took too long to respond. Please try again.\n\n"
                 return
             except Exception as e:
                 logger.error(f"Pipeline execution failed: {e}")
-                yield f"event: error\ndata: Internal server error\n\n"
+                yield "event: error\ndata: Internal server error\n\n"
                 return
             finally:
                 if not pipeline_task.done():
@@ -256,12 +259,15 @@ class ChatStreamRequestOrchestrator:
                 # historical no-charge behavior for guardrail-blocked streams).
                 await self._release_anon_quota(user, anon_quota)
                 yield f"event: token\ndata: {result.final_answer}\n\n"
-                meta = json.dumps({
-                    "blocked": True,
-                    "block_reason": result.block_reason,
-                    "intent": result.intent,
-                    "release_manifest": getattr(result, "release_manifest", None) or get_release_manifest().to_dict(),
-                })
+                meta = json.dumps(
+                    {
+                        "blocked": True,
+                        "block_reason": result.block_reason,
+                        "intent": result.intent,
+                        "release_manifest": getattr(result, "release_manifest", None)
+                        or get_release_manifest().to_dict(),
+                    }
+                )
                 yield f"event: done\ndata: {meta}\n\n"
                 return
 
@@ -364,8 +370,11 @@ class ChatStreamRequestOrchestrator:
                 route_decision=result.route_decision,
                 cache_hit=result.cache_hit,
                 tokens_per_second=round(
-                    max(1, len(result.final_answer.split())) / max(result.latency_ms / 1000, 0.001), 2
-                ) if result.latency_ms else 0.0,
+                    max(1, len(result.final_answer.split())) / max(result.latency_ms / 1000, 0.001),
+                    2,
+                )
+                if result.latency_ms
+                else 0.0,
                 evaluation_trace=result.evaluation_trace,
                 assistant_slug=assistant_slug,
                 citations_verified=result.citations_verified,

@@ -1,4 +1,5 @@
 """Regression coverage for truthful capability reporting."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -70,8 +71,14 @@ def test_manifest_reports_enabled_but_missing_dependency_as_unavailable(monkeypa
 def test_manifest_reports_waitlist_dependency(monkeypatch) -> None:
     monkeypatch.setattr(settings, "waitlist_enabled", True)
     unavailable = SimpleNamespace(
-        qdrant=object(), embedding=object(), ollama=object(), standard_graph=object(),
-        lightrag_degraded=False, web_search=object(), job_queue=object(), supabase_client=None,
+        qdrant=object(),
+        embedding=object(),
+        ollama=object(),
+        standard_graph=object(),
+        lightrag_degraded=False,
+        web_search=object(),
+        job_queue=object(),
+        supabase_client=None,
     )
     available = SimpleNamespace(**{**unavailable.__dict__, "supabase_client": object()})
 
@@ -81,8 +88,14 @@ def test_manifest_reports_waitlist_dependency(monkeypatch) -> None:
 
 def test_manifest_exposes_composer_capabilities_without_claiming_server_voice():
     container = SimpleNamespace(
-        qdrant=object(), embedding=object(), ollama=object(), standard_graph=object(),
-        lightrag_degraded=False, web_search=None, job_queue=None, serene_mind=None,
+        qdrant=object(),
+        embedding=object(),
+        ollama=object(),
+        standard_graph=object(),
+        lightrag_degraded=False,
+        web_search=None,
+        job_queue=None,
+        serene_mind=None,
     )
     features = build_capability_manifest(container)["features"]
     assert features["serene_mind"] == "unavailable"

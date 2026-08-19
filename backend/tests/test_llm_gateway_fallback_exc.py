@@ -9,8 +9,6 @@ paths and was fixed by reassigning ``primary_exc = fb_exc``.
 Fakes only, no network — mirrors tests/test_llm_gateway.py conventions.
 """
 
-import asyncio
-
 import pytest
 
 from app.coalescer import _InMemoryCoalescer
@@ -28,7 +26,12 @@ class _FakeProvider:
     async def generate(self, system_prompt, user_prompt, context="", **kwargs):
         model = kwargs.get("model")
         self.calls.append(
-            {"system_prompt": system_prompt, "user_prompt": user_prompt, "context": context, **kwargs}
+            {
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "context": context,
+                **kwargs,
+            }
         )
         if model in self._fail_models:
             raise RuntimeError(f"{self.name} model {model} failed")
@@ -37,7 +40,12 @@ class _FakeProvider:
     async def generate_stream(self, system_prompt, user_prompt, context="", **kwargs):
         model = kwargs.get("model")
         self.calls.append(
-            {"system_prompt": system_prompt, "user_prompt": user_prompt, "context": context, **kwargs}
+            {
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "context": context,
+                **kwargs,
+            }
         )
         if model in self._fail_models:
             raise RuntimeError(f"{self.name} stream model {model} failed")

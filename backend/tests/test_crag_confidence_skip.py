@@ -54,6 +54,3 @@ async def test_grading_runs_when_confidence_low(mock_services, monkeypatch):
 
     # Bypass must NOT fire — the LLM grading path decides relevance.
     assert result.get("evaluation_trace", {}).get("grading_skipped_high_confidence") is not True
-
-
-

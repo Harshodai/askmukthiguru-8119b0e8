@@ -27,7 +27,8 @@ from __future__ import annotations
 import contextlib
 import functools
 import logging
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ def _get_tracer():
     """Return the active OTEL tracer, or a no-op sentinel if not available."""
     try:
         from opentelemetry import trace
+
         return trace.get_tracer("mukthiguru.rag")
     except ImportError:
         return None
@@ -74,6 +76,7 @@ async def rag_span(
 
     try:
         from opentelemetry import trace
+
         with tracer.start_as_current_span(name) as span:
             try:
                 if tenant_id:
@@ -108,6 +111,7 @@ def trace_rag_node(node_name: str):
         async def retrieve(state: GraphState) -> dict:
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
@@ -121,6 +125,7 @@ def trace_rag_node(node_name: str):
 
             try:
                 from opentelemetry import trace
+
                 with tracer.start_as_current_span(f"rag.{node_name}") as span:
                     span.set_attribute("rag.node", node_name)
                     if state_keys:
@@ -140,4 +145,5 @@ def trace_rag_node(node_name: str):
                 return await func(*args, **kwargs)
 
         return wrapper
+
     return decorator

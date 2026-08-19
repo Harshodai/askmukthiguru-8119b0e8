@@ -13,7 +13,7 @@ Design Patterns:
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -80,24 +80,28 @@ def _register_default_providers() -> None:
     """Auto-register built-in providers to keep the module self-contained."""
     try:
         from services.ollama_service import OllamaService
+
         _registry.register("ollama", OllamaService)
     except ImportError as exc:
         logger.warning(f"Could not register Ollama provider: {exc}")
 
     try:
         from services.sarvam_service import SarvamCloudService
+
         _registry.register("sarvam_cloud", SarvamCloudService)
     except ImportError as exc:
         logger.warning(f"Could not register Sarvam Cloud provider: {exc}")
 
     try:
         from services.openrouter_service import OpenRouterService
+
         _registry.register("openrouter", OpenRouterService)
     except ImportError as exc:
         logger.warning(f"Could not register OpenRouter provider: {exc}")
 
     try:
         from services.nim_service import NimService
+
         _registry.register("nim", NimService)
     except ImportError as exc:
         logger.warning(f"Could not register NIM provider: {exc}")

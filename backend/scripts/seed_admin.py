@@ -50,7 +50,9 @@ def seed_admin() -> None:
 
         if existing:
             user_id = str(existing[0].id)
-            print(f"   ✅ Admin user already exists (id={user_id[:8]}…) — leaving password untouched")
+            print(
+                f"   ✅ Admin user already exists (id={user_id[:8]}…) — leaving password untouched"
+            )
         else:
             result = client.auth.admin.create_user(
                 {

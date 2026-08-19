@@ -19,9 +19,11 @@ nodes.py directly (avoids circular imports during graph building).
 
 from __future__ import annotations
 
+import builtins
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +35,7 @@ class NodeSpec:
     name: str
     func: Callable
     is_llm: bool = True
-    default_llm_config: Dict[str, Any] = field(default_factory=dict)
+    default_llm_config: dict[str, Any] = field(default_factory=dict)
 
 
 class NodeRegistry:
@@ -44,14 +46,14 @@ class NodeRegistry:
     """
 
     def __init__(self) -> None:
-        self._nodes: Dict[str, NodeSpec] = {}
+        self._nodes: dict[str, NodeSpec] = {}
 
     def register(
         self,
         name: str,
         *,
         is_llm: bool = True,
-        default_llm_config: Optional[Dict[str, Any]] = None,
+        default_llm_config: Optional[dict[str, Any]] = None,
     ) -> Callable:
         """Return a decorator that registers the decorated function.
 
@@ -85,7 +87,7 @@ class NodeRegistry:
             raise KeyError(f"Node '{name}' not found in registry.")
         return self._nodes[name]
 
-    def list(self) -> List[str]:
+    def list(self) -> builtins.list[str]:
         """Return all registered node names."""
         return list(self._nodes.keys())
 

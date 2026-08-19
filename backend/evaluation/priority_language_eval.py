@@ -4,6 +4,7 @@ This evaluator checks observable contracts only.  It does not ask an LLM to
 self-grade tone or translation quality.  A language-qualified reviewer records
 those judgments separately in the review artifact referenced by ``--review``.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -75,7 +76,7 @@ def call_backend(backend_url: str, token: str | None, item: dict[str, Any]) -> d
         headers["Authorization"] = f"Bearer {token}"
     request = Request(backend_url.rstrip("/") + "/api/chat", data=payload, headers=headers)
     try:
-        with urlopen(request, timeout=45) as response:  # noqa: S310 -- configured launch target
+        with urlopen(request, timeout=45) as response:  # nosec B310 -- configured benchmark launch target
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:500]
@@ -122,7 +123,9 @@ def check_response(item: dict[str, Any], response: dict[str, Any]) -> dict[str, 
         "failures": failures,
         "tone_review_required": bool(item.get("tone_review_required")),
         "latency_ms": response.get("latency_ms"),
-        "evidence_support_label": evidence.get("evidence_support_label") if isinstance(evidence, dict) else None,
+        "evidence_support_label": evidence.get("evidence_support_label")
+        if isinstance(evidence, dict)
+        else None,
     }
 
 
@@ -209,7 +212,9 @@ def run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
-    parser.add_argument("--backend-url", default=os.environ.get("BACKEND_URL", "http://127.0.0.1:8000"))
+    parser.add_argument(
+        "--backend-url", default=os.environ.get("BACKEND_URL", "http://127.0.0.1:8000")
+    )
     parser.add_argument("--token", default=os.environ.get("BACKEND_TOKEN"))
     parser.add_argument("--review", type=Path, help="JSON reviewer approvals keyed by fixture id")
     parser.add_argument("--out", type=Path, help="write the JSON report to this path")

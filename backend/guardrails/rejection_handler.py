@@ -33,8 +33,10 @@ class RejectionClassifierHandler(BaseGuardrailHandler):
         try:
             model_id = "protectai/distilroberta-base-rejection-v1"
             self._device = (
-                "cuda" if torch.cuda.is_available()
-                else "mps" if torch.backends.mps.is_available()
+                "cuda"
+                if torch.cuda.is_available()
+                else "mps"
+                if torch.backends.mps.is_available()
                 else "cpu"
             )
             logger.info(
@@ -46,19 +48,20 @@ class RejectionClassifierHandler(BaseGuardrailHandler):
             )
             self._model = AutoModelForSequenceClassification.from_pretrained(
                 model_id, revision=_REJECTION_MODEL_REVISION
-            ).to(
-                self._device
-            )
+            ).to(self._device)
             self._model.eval()
             label2id = getattr(self._model.config, "label2id", None) or {}
             self._rejection_idx = int(label2id.get("REJECTION", 1))
             self._available = True
             logger.info(
                 "Rejection Classifier loaded successfully on %s (rejection_idx=%d)",
-                self._device, self._rejection_idx,
+                self._device,
+                self._rejection_idx,
             )
         except ImportError as e:
-            logger.warning("transformers/torch not available: %s. Rejection classifier disabled.", e)
+            logger.warning(
+                "transformers/torch not available: %s. Rejection classifier disabled.", e
+            )
         except OSError as e:
             logger.warning(
                 "Cannot load Rejection Classifier model: %s. Ensure the model identifier "

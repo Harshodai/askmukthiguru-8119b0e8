@@ -34,7 +34,6 @@ import threading
 import time
 from typing import Optional
 
-from app.config import settings
 from app.metrics import DEPENDENCY_HEALTH, DEPENDENCY_PHI
 
 logger = logging.getLogger(__name__)
@@ -151,10 +150,10 @@ class AccrualFailureDetector:
 class HealthMonitor:
     """Singleton health matrix tracking all external dependencies."""
 
-    _instance: Optional["HealthMonitor"] = None
+    _instance: Optional[HealthMonitor] = None
     _lock = threading.Lock()
 
-    def __new__(cls) -> "HealthMonitor":
+    def __new__(cls) -> HealthMonitor:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:

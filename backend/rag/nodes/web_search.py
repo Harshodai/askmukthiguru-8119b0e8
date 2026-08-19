@@ -1,8 +1,9 @@
 """Official-source live logistics search node."""
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import logging
+from datetime import UTC, datetime, timedelta
 
 from app.config import settings
 from app.schemas import LiveLogisticsEvent
@@ -39,7 +40,7 @@ async def web_search_node(state: GraphState, config: dict = None) -> dict:
         logger.warning("Official live logistics search failed: %s", exc)
         return {"web_search_results": []}
 
-    verified_at = datetime.now(timezone.utc)
+    verified_at = datetime.now(UTC)
     expires_at = verified_at + timedelta(seconds=settings.live_logistics_ttl_seconds)
     typed_results: list[dict] = []
     for result in results:

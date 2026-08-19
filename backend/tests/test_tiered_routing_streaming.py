@@ -41,17 +41,18 @@ def mock_services():
 @pytest.mark.asyncio
 async def test_intent_router_tiered_classification(mock_services, monkeypatch):
     mock_ollama, _ = mock_services
-    
+
     # Disable semantic router so it falls back to the mocked classify_intent_and_complexity
     from app.config import settings
+
     monkeypatch.setattr(settings, "use_semantic_router", False)
-    
+
     async def mock_classify_intent_and_complexity(text, **kwargs):
         if "karma" in text:
             return {"intent": "FACTUAL", "complexity": "simple"}
         else:
             return {"intent": "FACTUAL", "complexity": "complex"}
-    
+
     mock_ollama.classify_intent_and_complexity = mock_classify_intent_and_complexity
 
     # Test simple query classification
@@ -190,7 +191,6 @@ async def test_quality_checks_bypass(mock_services):
     assert res_verify["faithfulness_score"] == 1.0
 
 
-
 @pytest.mark.asyncio
 async def test_generate_answer_streaming(mock_services):
     mock_ollama, _ = mock_services
@@ -210,6 +210,7 @@ async def test_generate_answer_streaming(mock_services):
 
     # Force Ollama provider to avoid real SarvamCloudService HTTP calls
     from app.config import settings
+
     original_provider = settings.llm_provider
     settings.llm_provider = "ollama"
 
@@ -284,7 +285,9 @@ async def test_context_compression_threshold(mock_services):
             ab_model="primary",
         )
 
-        with patch("rag.nodes.generation.extractive_compress_doc", return_value="compressed text") as mock_compress:
+        with patch(
+            "rag.nodes.generation.extractive_compress_doc", return_value="compressed text"
+        ) as mock_compress:
             await nodes.generate_answer(state_long)
             assert mock_compress.call_count == 1
             args, _ = mock_compress.call_args

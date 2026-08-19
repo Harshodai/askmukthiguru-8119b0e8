@@ -53,8 +53,10 @@ class DoctrineCacheStage(Stage):
                     timeout=translation_timeout,
                 )
                 answer = translated
-            except asyncio.TimeoutError:
-                logger.warning("DoctrineCache translation timed out for Indic request; preserving English answer")
+            except TimeoutError:
+                logger.warning(
+                    "DoctrineCache translation timed out for Indic request; preserving English answer"
+                )
             except Exception as e:
                 logger.warning("DoctrineCache translation failed for Indic request: %s", e)
 

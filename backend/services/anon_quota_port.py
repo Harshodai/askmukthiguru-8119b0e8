@@ -4,6 +4,7 @@ The quota domain is intentionally tiny: a single question "can this
 anonymous session send one more message?" with a sliding window. Ports
 hide whether the window lives in Redis, memory, or a future SQL table.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

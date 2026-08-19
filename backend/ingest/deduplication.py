@@ -56,7 +56,9 @@ def _minhash_signature(shingle_set: set[str], hash_count: int = _DEFAULT_HASH_CO
         seed_bytes = str(seed).encode("utf-8")
         min_hash = None
         for shingle in shingle_set:
-            digest = hashlib.md5(seed_bytes + shingle.encode("utf-8"), usedforsecurity=False).hexdigest()
+            digest = hashlib.md5(
+                seed_bytes + shingle.encode("utf-8"), usedforsecurity=False
+            ).hexdigest()
             value = int(digest, 16)
             if min_hash is None or value < min_hash:
                 min_hash = value
@@ -406,9 +408,9 @@ if __name__ == "__main__":  # runnable self-check
     assert short_idx.is_near_duplicate("  Listening to someone is an act of RESPECT.  "), (
         "normalization must survive case/whitespace"
     )
-    assert not short_idx.is_near_duplicate(
-        "Hearing another person out is an act of respect."
-    ), "short near-dups are out of scope by design"
+    assert not short_idx.is_near_duplicate("Hearing another person out is an act of respect."), (
+        "short near-dups are out of scope by design"
+    )
 
     assert not idx.is_near_duplicate(
         "Farming methods and soil nutrients differ from the teaching about "
@@ -420,4 +422,3 @@ if __name__ == "__main__":  # runnable self-check
     assert sig is not None and len(_lsh_band_keys(sig)) == _LSH_BANDS
 
     print("deduplication LSH self-check OK")
-

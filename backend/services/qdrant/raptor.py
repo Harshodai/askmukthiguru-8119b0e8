@@ -12,10 +12,10 @@ from qdrant_client.http.models import (
     MatchValue,
 )
 
-from services.qdrant.utils import QdrantUtils
-from rag.corpus_scope import CorpusScope
-from services.tenant_context import TenantContext
 from app.config import settings
+from rag.corpus_scope import CorpusScope
+from services.qdrant.utils import QdrantUtils
+from services.tenant_context import TenantContext
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +23,18 @@ logger = logging.getLogger(__name__)
 class QdrantRaptorStore:
     """Retrieves RAPTOR level-1 summary nodes for tree navigation."""
 
-    def __init__(self, client: QdrantClient, collection: str, utils: Optional[QdrantUtils] = None) -> None:
+    def __init__(
+        self, client: QdrantClient, collection: str, utils: Optional[QdrantUtils] = None
+    ) -> None:
         self._client = client
         self._collection = collection
         self._utils = utils or QdrantUtils()
 
     def get_summary_nodes(
-        self, query_vector: Optional[list[float]] = None, limit: int = 15, scope: CorpusScope | None = None
+        self,
+        query_vector: Optional[list[float]] = None,
+        limit: int = 15,
+        scope: CorpusScope | None = None,
     ) -> list[dict]:
         """
         Retrieve RAPTOR level-1 summary nodes for tree navigation.
@@ -45,16 +50,16 @@ class QdrantRaptorStore:
             FieldCondition(key="corpus_id", match=MatchValue(value=scope.corpus_id)),
         ]
         if scope.teacher_id:
-            scope_conditions.append(FieldCondition(key="teacher_id", match=MatchValue(value=scope.teacher_id)))
+            scope_conditions.append(
+                FieldCondition(key="teacher_id", match=MatchValue(value=scope.teacher_id))
+            )
         try:
             if query_vector is not None:
                 query_res = self._client.query_points(
                     collection_name=self._collection,
                     query=query_vector,
                     using="dense",
-                    query_filter=Filter(
-                        must=scope_conditions
-                    ),
+                    query_filter=Filter(must=scope_conditions),
                     limit=limit,
                     with_payload=True,
                 )
@@ -62,9 +67,7 @@ class QdrantRaptorStore:
             else:
                 results, _ = self._client.scroll(
                     collection_name=self._collection,
-                    scroll_filter=Filter(
-                        must=scope_conditions
-                    ),
+                    scroll_filter=Filter(must=scope_conditions),
                     limit=100,  # Unlikely to have more than 100 summary nodes
                     with_payload=True,
                 )

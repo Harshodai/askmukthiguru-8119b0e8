@@ -1,12 +1,12 @@
 """Focused regressions for governed source-release controls."""
+
 from __future__ import annotations
 
 from uuid import uuid4
 
 import pytest
 
-from app.corpus_release_registry import CorpusReleaseRegistry
-from app.corpus_release_registry import CorpusReleaseTransitionError
+from app.corpus_release_registry import CorpusReleaseRegistry, CorpusReleaseTransitionError
 from ingest.pipeline import IngestionPipeline
 
 
@@ -153,10 +153,13 @@ def candidate(reg, checksum):
 
 def test_disabled_registry_uses_version_one_checkpoint_fallback():
     reg = registry(enabled=False)
-    assert reg.get_active_version(
-        corpus_id="askmukthiguru",
-        source_identity="https://example.org/talk",
-    ) == 1
+    assert (
+        reg.get_active_version(
+            corpus_id="askmukthiguru",
+            source_identity="https://example.org/talk",
+        )
+        == 1
+    )
     pipeline = object.__new__(IngestionPipeline)
     pipeline._corpus_id = "askmukthiguru"
     pipeline._release_registry = reg
@@ -165,10 +168,13 @@ def test_disabled_registry_uses_version_one_checkpoint_fallback():
 
 def test_unavailable_registry_falls_back_gracefully():
     reg = registry(client=None, enabled=True)
-    assert reg.get_active_version(
-        corpus_id="askmukthiguru",
-        source_identity="https://example.org/talk",
-    ) == 1
+    assert (
+        reg.get_active_version(
+            corpus_id="askmukthiguru",
+            source_identity="https://example.org/talk",
+        )
+        == 1
+    )
 
 
 def test_candidate_registration_is_idempotent_and_safe_for_admins():
@@ -195,9 +201,7 @@ def test_activation_supersedes_previous_active_release():
     second = candidate(reg, "b" * 64)
     reg.approve_release(second.id, approved_by="admin-b")
     active = reg.activate_release(second.id)
-    statuses = {item.status for item in reg.list_releases(
-        corpus_id="askmukthiguru"
-    )}
+    statuses = {item.status for item in reg.list_releases(corpus_id="askmukthiguru")}
     assert active.release_version == 2
     assert statuses == {"active", "superseded"}
 
@@ -216,14 +220,20 @@ def test_active_version_is_isolated_by_corpus():
     )
     reg.approve_release(other.id, approved_by="admin-b")
     reg.activate_release(other.id)
-    assert reg.get_active_version(
-        corpus_id="askmukthiguru",
-        source_identity="https://example.org/talk",
-    ) == 1
-    assert reg.get_active_version(
-        corpus_id="teacher-b",
-        source_identity="https://example.org/talk",
-    ) == 1
+    assert (
+        reg.get_active_version(
+            corpus_id="askmukthiguru",
+            source_identity="https://example.org/talk",
+        )
+        == 1
+    )
+    assert (
+        reg.get_active_version(
+            corpus_id="teacher-b",
+            source_identity="https://example.org/talk",
+        )
+        == 1
+    )
 
 
 def test_active_release_version_overrides_legacy_checkpoint_version():
@@ -253,6 +263,9 @@ def test_explicit_reactivation_restores_a_superseded_release_without_cross_scope
     assert restored.approved_by == "rollback-reviewer"
     releases = reg.list_releases(corpus_id="askmukthiguru")
     assert {release.status for release in releases} == {"active", "superseded"}
-    assert reg.get_active_version(
-        corpus_id="askmukthiguru", source_identity="https://example.org/talk"
-    ) == 1
+    assert (
+        reg.get_active_version(
+            corpus_id="askmukthiguru", source_identity="https://example.org/talk"
+        )
+        == 1
+    )

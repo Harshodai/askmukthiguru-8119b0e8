@@ -22,8 +22,8 @@ def _strip_ingestion_headers(text: str) -> str:
     """Remove ingestion pipeline headers embedded in document text before LLM sees them."""
     if not text:
         return text
-    text = re.sub(r'\[Source:\s*[^\]]*?(?:Speaker:|Topic:)[^\]]*\]', '', text)
-    text = re.sub(r'\[RAPTOR\s+Level:\s*\d+\s*\|\s*Topic:\s*[^\]]+\]', '', text)
+    text = re.sub(r"\[Source:\s*[^\]]*?(?:Speaker:|Topic:)[^\]]*\]", "", text)
+    text = re.sub(r"\[RAPTOR\s+Level:\s*\d+\s*\|\s*Topic:\s*[^\]]+\]", "", text)
     return text.strip()
 
 
@@ -55,11 +55,10 @@ if __name__ == "__main__":
     assert doc_text({}) == ""
     assert doc_text({"text": "[Source: foo | Speaker: bar]\nHello"}) == "Hello"
     assert doc_text({"text": "[RAPTOR Level: 2 | Topic: test]\nWorld"}) == "World"
-    
+
     d1 = {"text": "Alpha document"}
     d2 = {"text": "Beta document"}
     s1 = sort_docs_canonically([d1, d2])
     s2 = sort_docs_canonically([d2, d1])
     assert s1 == s2, "Canonical document sorting failed"
     print("doc_utils self-check OK")
-

@@ -6,15 +6,20 @@ silently change weights, tokenizer files, or licence metadata and turn the
 next build into an unverified model. The resolved commit id of every model is
 printed so a build log proves which exact revision was cached.
 """
+
 import os
 
 os.environ["CURL_CA_BUNDLE"] = ""  # Workaround Docker Desktop gRPC-FUSE SSL failures in httpx
 
-os.environ.update({
-    "SENTENCE_TRANSFORMERS_HOME": os.environ.get("SENTENCE_TRANSFORMERS_HOME", "/app/model_cache/sentence_transformers"),
-    "HF_HOME": os.environ.get("HF_HOME", "/app/model_cache/huggingface"),
-    "TRANSFORMERS_CACHE": os.environ.get("TRANSFORMERS_CACHE", "/app/model_cache/huggingface"),
-})
+os.environ.update(
+    {
+        "SENTENCE_TRANSFORMERS_HOME": os.environ.get(
+            "SENTENCE_TRANSFORMERS_HOME", "/app/model_cache/sentence_transformers"
+        ),
+        "HF_HOME": os.environ.get("HF_HOME", "/app/model_cache/huggingface"),
+        "TRANSFORMERS_CACHE": os.environ.get("TRANSFORMERS_CACHE", "/app/model_cache/huggingface"),
+    }
+)
 
 # Immutable revisions (commit SHAs), resolved 2026-08-01.
 _MODEL_REVISIONS = {
@@ -45,7 +50,9 @@ def _pin(model_id: str) -> str:
 # 1. SentenceTransformers cache (for SentenceTransformer API)
 from sentence_transformers import SentenceTransformer  # noqa: E402
 
-SentenceTransformer("intfloat/multilingual-e5-small", revision=_pin("intfloat/multilingual-e5-small"))
+SentenceTransformer(
+    "intfloat/multilingual-e5-small", revision=_pin("intfloat/multilingual-e5-small")
+)
 SentenceTransformer("BAAI/bge-m3", revision=_pin("BAAI/bge-m3"))
 print("sentence_transformers cache populated")
 
@@ -56,16 +63,22 @@ CrossEncoder("BAAI/bge-reranker-v2-m3", revision=_pin("BAAI/bge-reranker-v2-m3")
 print("bge-reranker cache populated")
 
 # 3. CrossEncoder fallback reranker
-CrossEncoder("cross-encoder/ms-marco-MiniLM-L6-v2", revision=_pin("cross-encoder/ms-marco-MiniLM-L6-v2"))
+CrossEncoder(
+    "cross-encoder/ms-marco-MiniLM-L6-v2", revision=_pin("cross-encoder/ms-marco-MiniLM-L6-v2")
+)
 print("ms-marco reranker cache populated")
 
 # 4. SemanticRouter / on-device intent classifier
-SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", revision=_pin("sentence-transformers/all-MiniLM-L6-v2"))
+SentenceTransformer(
+    "sentence-transformers/all-MiniLM-L6-v2",
+    revision=_pin("sentence-transformers/all-MiniLM-L6-v2"),
+)
 print("all-MiniLM-L6-v2 cache populated")
 
 # 5. Llama Guard / Rejection classifier (optional, skip on failure)
 try:
     from transformers import AutoModelForCausalLM, AutoTokenizer  # noqa: E402
+
     _llama_guard_rev = _pin("meta-llama/Llama-Guard-3-1B")
     AutoTokenizer.from_pretrained("meta-llama/Llama-Guard-3-1B", revision=_llama_guard_rev)
     AutoModelForCausalLM.from_pretrained("meta-llama/Llama-Guard-3-1B", revision=_llama_guard_rev)
@@ -76,8 +89,11 @@ except Exception as e:
 # 6. Rejection Classifier (optional) — used by RejectionClassifierHandler
 try:
     from transformers import AutoModelForSequenceClassification, AutoTokenizer  # noqa: E402
+
     _rejection_rev = _pin("protectai/distilroberta-base-rejection-v1")
-    AutoTokenizer.from_pretrained("protectai/distilroberta-base-rejection-v1", revision=_rejection_rev)
+    AutoTokenizer.from_pretrained(
+        "protectai/distilroberta-base-rejection-v1", revision=_rejection_rev
+    )
     AutoModelForSequenceClassification.from_pretrained(
         "protectai/distilroberta-base-rejection-v1", revision=_rejection_rev
     )

@@ -19,4 +19,3 @@ def get_request_id() -> str:
 def set_request_id(request_id: str) -> None:
     """Set the current request ID in the async context."""
     request_id_var.set(request_id)
-

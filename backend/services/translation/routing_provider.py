@@ -45,13 +45,9 @@ class RoutingTranslationProvider(TranslationProvider):
                 return restore_citation_markers(text, translated)
             except Exception as gemini_err:
                 if settings.gemini_fallback_to_sarvam:
-                    logger.error(
-                        f"Gemini translation failed, falling back to Sarvam: {gemini_err}"
-                    )
+                    logger.error(f"Gemini translation failed, falling back to Sarvam: {gemini_err}")
                 else:
-                    logger.error(
-                        f"Gemini translation failed, no fallback configured: {gemini_err}"
-                    )
+                    logger.error(f"Gemini translation failed, no fallback configured: {gemini_err}")
                     raise
                 # Fall through to Sarvam below if it is configured; else raise.
 

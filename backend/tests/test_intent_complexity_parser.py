@@ -24,9 +24,14 @@ def _parse(result: str) -> dict:
 
     intent = "CASUAL"
     for label in (
-        "DISTRESS", "SAFETY_VIOLATION", "ADVERSARIAL",
-        "FACTUAL", "RELATIONAL", "FOLLOW_UP",
-        "MEDITATION", "CASUAL",
+        "DISTRESS",
+        "SAFETY_VIOLATION",
+        "ADVERSARIAL",
+        "FACTUAL",
+        "RELATIONAL",
+        "FOLLOW_UP",
+        "MEDITATION",
+        "CASUAL",
     ):
         if label in result_upper:
             intent = label
@@ -51,34 +56,36 @@ def _parse(result: str) -> dict:
     "raw,exp_intent,exp_complexity",
     [
         # Well-formed expected outputs
-        ("INTENT: FACTUAL\nCOMPLEXITY: simple",              "FACTUAL",          "simple"),
-        ("INTENT: RELATIONAL\nCOMPLEXITY: complex",          "RELATIONAL",       "complex"),
-        ("INTENT: DISTRESS\nCOMPLEXITY: simple",             "DISTRESS",         "simple"),
-        ("INTENT: MEDITATION\nCOMPLEXITY: simple",           "MEDITATION",       "simple"),
-        ("INTENT: SAFETY_VIOLATION\nCOMPLEXITY: complex",    "SAFETY_VIOLATION", "complex"),
-        ("INTENT: ADVERSARIAL\nCOMPLEXITY: simple",          "ADVERSARIAL",      "simple"),
-        ("INTENT: FOLLOW_UP\nCOMPLEXITY: simple",            "FOLLOW_UP",        "simple"),
+        ("INTENT: FACTUAL\nCOMPLEXITY: simple", "FACTUAL", "simple"),
+        ("INTENT: RELATIONAL\nCOMPLEXITY: complex", "RELATIONAL", "complex"),
+        ("INTENT: DISTRESS\nCOMPLEXITY: simple", "DISTRESS", "simple"),
+        ("INTENT: MEDITATION\nCOMPLEXITY: simple", "MEDITATION", "simple"),
+        ("INTENT: SAFETY_VIOLATION\nCOMPLEXITY: complex", "SAFETY_VIOLATION", "complex"),
+        ("INTENT: ADVERSARIAL\nCOMPLEXITY: simple", "ADVERSARIAL", "simple"),
+        ("INTENT: FOLLOW_UP\nCOMPLEXITY: simple", "FOLLOW_UP", "simple"),
         # Case insensitivity
-        ("intent: distress\ncomplexity: simple",             "DISTRESS",         "simple"),
+        ("intent: distress\ncomplexity: simple", "DISTRESS", "simple"),
         # Lazy LLM — minimal output
-        ("FACTUAL simple",                                   "FACTUAL",          "simple"),
-        ("CASUAL",                                           "CASUAL",           "simple"),
+        ("FACTUAL simple", "FACTUAL", "simple"),
+        ("CASUAL", "CASUAL", "simple"),
         # Junk fallback
-        ("",                                                 "CASUAL",           "simple"),
-        ("nope",                                             "CASUAL",           "simple"),
+        ("", "CASUAL", "simple"),
+        ("nope", "CASUAL", "simple"),
         # Substring trap regression — the "COMPLEXITY" header must NOT
         # force complexity=complex when its value is "simple".
-        ("INTENT: FACTUAL\nCOMPLEXITY: simple",              "FACTUAL",          "simple"),
+        ("INTENT: FACTUAL\nCOMPLEXITY: simple", "FACTUAL", "simple"),
         # Free-form mention of "complex" without a header line — should detect complex.
-        ("This is a complex question. FACTUAL.",             "FACTUAL",          "complex"),
+        ("This is a complex question. FACTUAL.", "FACTUAL", "complex"),
         # Leading whitespace and trailing punctuation
-        ("  COMPLEXITY: simple\nINTENT: FACTUAL",            "FACTUAL",          "simple"),
-        ("INTENT: FACTUAL.\nCOMPLEXITY: simple.",            "FACTUAL",          "simple"),
+        ("  COMPLEXITY: simple\nINTENT: FACTUAL", "FACTUAL", "simple"),
+        ("INTENT: FACTUAL.\nCOMPLEXITY: simple.", "FACTUAL", "simple"),
     ],
 )
 def test_intent_and_complexity_parsing(raw: str, exp_intent: str, exp_complexity: str) -> None:
     got = _parse(raw)
-    assert got["intent"] == exp_intent, f"intent: got {got['intent']}, expected {exp_intent} for {raw!r}"
+    assert got["intent"] == exp_intent, (
+        f"intent: got {got['intent']}, expected {exp_intent} for {raw!r}"
+    )
     assert got["complexity"] == exp_complexity, (
         f"complexity: got {got['complexity']}, expected {exp_complexity} for {raw!r}"
     )

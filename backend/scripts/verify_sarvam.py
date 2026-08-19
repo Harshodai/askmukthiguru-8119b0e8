@@ -10,7 +10,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -31,10 +30,7 @@ def _validate_base_url(base_url: str) -> Optional[str]:
     if parsed.scheme != "https":
         return f"Base URL must use https (got scheme {parsed.scheme!r}): {base_url}"
     if parsed.hostname != SARVAM_EXPECTED_HOST:
-        return (
-            f"Base URL host must be {SARVAM_EXPECTED_HOST} (got {parsed.hostname!r}): "
-            f"{base_url}"
-        )
+        return f"Base URL host must be {SARVAM_EXPECTED_HOST} (got {parsed.hostname!r}): {base_url}"
     return None
 
 

@@ -55,7 +55,15 @@ def _build_db_with_rows(rows: list[dict]) -> MagicMock:
 
     table_q = MagicMock()
     table_q.select = MagicMock(return_value=select_q)
-    table_q.delete = MagicMock(return_value=MagicMock(eq=MagicMock(return_value=MagicMock(execute=MagicMock(return_value=MagicMock(data=[{"id": "DELETED"}]))))))
+    table_q.delete = MagicMock(
+        return_value=MagicMock(
+            eq=MagicMock(
+                return_value=MagicMock(
+                    execute=MagicMock(return_value=MagicMock(data=[{"id": "DELETED"}]))
+                )
+            )
+        )
+    )
     db.table = MagicMock(return_value=table_q)
     return db
 

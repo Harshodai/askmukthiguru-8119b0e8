@@ -6,6 +6,7 @@ an unquoted paraphrase look like founder speech. The stage remains in the
 pipeline temporarily so deployments with its name configured do not break, but
 it must never invoke an LLM or mutate a completed answer.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -27,6 +28,6 @@ class ToneAdapterStage(Stage):
 
     name = "tone_adapter"
 
-    async def run(self, ctx: "PipelineContext") -> "PipelineResult | None":
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         del ctx  # Explicitly document that no answer or citation is touched.
         return None

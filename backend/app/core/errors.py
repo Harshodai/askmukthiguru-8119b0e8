@@ -19,7 +19,7 @@ class ErrorContext:
     retryable: bool = True
     extra: dict[str, Any] | None = None
 
-    def with_extra(self, **kwargs: Any) -> "ErrorContext":
+    def with_extra(self, **kwargs: Any) -> ErrorContext:
         return ErrorContext(
             operation=self.operation,
             detail=self.detail,

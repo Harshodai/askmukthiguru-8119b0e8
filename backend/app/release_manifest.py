@@ -72,7 +72,11 @@ class ReleaseManifest:
                 )
 
         # 2. Embedding dimension validation (strictly positive int, reject bool)
-        if isinstance(self.embedding_dim, bool) or not isinstance(self.embedding_dim, int) or self.embedding_dim <= 0:
+        if (
+            isinstance(self.embedding_dim, bool)
+            or not isinstance(self.embedding_dim, int)
+            or self.embedding_dim <= 0
+        ):
             raise ReleaseManifestError(
                 f"ReleaseManifest field 'embedding_dim' must be a positive integer, got {self.embedding_dim!r}"
             )
@@ -113,9 +117,7 @@ def build_release_manifest(
     ).strip() or "unknown-sha"
 
     resolved_build_ts = (
-        build_timestamp
-        or os.getenv("BUILD_TIMESTAMP")
-        or "2026-08-17T00:00:00Z"
+        build_timestamp or os.getenv("BUILD_TIMESTAMP") or "2026-08-17T00:00:00Z"
     ).strip() or "2026-08-17T00:00:00Z"
 
     raw_corpus_v = (
@@ -127,9 +129,7 @@ def build_release_manifest(
     resolved_corpus_version = str(raw_corpus_v).strip() or "1"
 
     resolved_embed_model = (
-        embedding_model
-        or getattr(settings, "embedding_model", "BAAI/bge-m3")
-        or ""
+        embedding_model or getattr(settings, "embedding_model", "BAAI/bge-m3") or ""
     ).strip() or "BAAI/bge-m3"
 
     resolved_embed_dim = (
@@ -139,15 +139,11 @@ def build_release_manifest(
     )
 
     resolved_reranker = (
-        reranker_model
-        or getattr(settings, "reranker_model", "BAAI/bge-reranker-v2-m3")
-        or ""
+        reranker_model or getattr(settings, "reranker_model", "BAAI/bge-reranker-v2-m3") or ""
     ).strip() or "BAAI/bge-reranker-v2-m3"
 
     resolved_policy_version = (
-        policy_version
-        or getattr(settings, "openrouter_policy_id", "gemini-flash-budget-v1")
-        or ""
+        policy_version or getattr(settings, "openrouter_policy_id", "gemini-flash-budget-v1") or ""
     ).strip() or "gemini-flash-budget-v1"
 
     resolved_schema_version = (

@@ -121,6 +121,7 @@ class EmbeddingService:
         # falls back to its dataclass defaults (threshold=5, recovery=90s).
         self._circuit = DefaultCircuitBreaker(CircuitBreakerConfig.from_provider("embedding"))
         from services.circuit_breaker import get_circuit_breaker_registry
+
         get_circuit_breaker_registry().register("embedding", self._circuit)
         logger.info("Embedding service initialized (lazy load)")
 
@@ -150,6 +151,7 @@ class EmbeddingService:
 
     def _get_device(self) -> str:
         import torch
+
         device = "cpu"
         if torch.cuda.is_available():
             device = "cuda"
@@ -166,21 +168,26 @@ class EmbeddingService:
             self._load_onnx_encoder(model_name)
             return
 
-        is_bge_m3 = (model_name == "BAAI/bge-m3")
+        is_bge_m3 = model_name == "BAAI/bge-m3"
         if is_bge_m3:
             # Apply monkeypatch to fix transformers/FlagEmbedding dtype incompatibility
             try:
                 from transformers import AutoModel
+
                 if not hasattr(AutoModel, "_original_from_pretrained_patched"):
                     original_from_pretrained = AutoModel.from_pretrained
+
                     @classmethod
                     def patched_from_pretrained(cls, *args, **kwargs):
                         if "dtype" in kwargs:
                             kwargs["torch_dtype"] = kwargs.pop("dtype")
                         return original_from_pretrained.__func__(cls, *args, **kwargs)
+
                     AutoModel.from_pretrained = patched_from_pretrained
                     AutoModel._original_from_pretrained_patched = True
-                    logger.info("Monkeypatched AutoModel.from_pretrained to support 'dtype' parameter.")
+                    logger.info(
+                        "Monkeypatched AutoModel.from_pretrained to support 'dtype' parameter."
+                    )
             except Exception as e:
                 logger.warning(f"Failed to patch AutoModel.from_pretrained: {e}")
 
@@ -220,13 +227,12 @@ class EmbeddingService:
                     return original_pad(encoded_inputs, *args, **kwargs)
 
                 self._encoder.tokenizer.pad = custom_pad
-                logger.info(
-                    "Successfully monkeypatched BGEM3FlagModel for robust error tracing."
-                )
+                logger.info("Successfully monkeypatched BGEM3FlagModel for robust error tracing.")
             except Exception as e:
                 logger.warning(f"Failed to apply BGEM3FlagModel monkeypatch: {e}")
         else:
             from sentence_transformers import SentenceTransformer
+
             logger.info(f"Loading SentenceTransformer: {model_name} on device: {device}")
             self._encoder = SentenceTransformer(
                 model_name,
@@ -272,21 +278,21 @@ class EmbeddingService:
         import os
         import re
 
-        from huggingface_hub import snapshot_download
-
         import onnxruntime as ort
+        from huggingface_hub import snapshot_download
         from transformers import AutoTokenizer
 
         onnx_model_id = self._ONNX_CANDIDATE
-        hf_home = (
-            os.environ.get("HF_HOME")
-            or os.path.join(os.path.expanduser("~"), ".cache", "huggingface")
+        hf_home = os.environ.get("HF_HOME") or os.path.join(
+            os.path.expanduser("~"), ".cache", "huggingface"
         )
         safe = "models--" + onnx_model_id.replace("/", "--")
         cache_dir = Path(hf_home) / "hub" / safe
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-        revision = settings.hf_revision or os.environ.get("HF_REVISION") or self._ONNX_ENCODER_REVISION
+        revision = (
+            settings.hf_revision or os.environ.get("HF_REVISION") or self._ONNX_ENCODER_REVISION
+        )
         if revision is None:
             raise RuntimeError(
                 "ONNX encoder requires a pinned revision. "
@@ -320,7 +326,8 @@ class EmbeddingService:
                 )
 
             session = ort.InferenceSession(
-                model_file, providers=["CPUExecutionProvider"],
+                model_file,
+                providers=["CPUExecutionProvider"],
             )
 
             # Validate output dimension (fail-loud discipline, ref 2026-07-16 incident)
@@ -433,9 +440,7 @@ class EmbeddingService:
                             f"{required_dim}-dim — refusing silent dimension swap"
                         )
 
-                    logger.info(
-                        f"Successfully loaded embedding model '{model_name}'"
-                    )
+                    logger.info(f"Successfully loaded embedding model '{model_name}'")
                     if model_name != settings.embedding_model:
                         settings.embedding_model = model_name
                         logger.info(
@@ -446,9 +451,7 @@ class EmbeddingService:
                 except Exception as e:
                     self._encoder = None
                     last_error = e
-                    logger.warning(
-                        f"Failed to load embedding model '{model_name}': {e}."
-                    )
+                    logger.warning(f"Failed to load embedding model '{model_name}': {e}.")
                     if i + 1 < len(FALLBACK_CHAIN):
                         EMBEDDING_MODEL_FALLBACK.labels(
                             from_model=model_name,
@@ -466,6 +469,7 @@ class EmbeddingService:
         """Remove cached files for a model from HuggingFace cache directories."""
         import glob
         import shutil
+
         cache_dirs = [
             os.environ.get("SENTENCE_TRANSFORMERS_HOME", ""),
             os.environ.get("HF_HOME", ""),
@@ -503,13 +507,12 @@ class EmbeddingService:
             if settings.reranker_backend == "onnx_int8":
                 try:
                     from services.onnx_reranker import OnnxReranker
+
                     self._reranker = OnnxReranker(model_id=settings.reranker_onnx_model)
                     # OnnxReranker.predict() already applies sigmoid internally.
                     # Setting this flag tells rerank() not to apply it again.
                     self._reranker_outputs_probs = True
-                    logger.info(
-                        "Loaded ONNX INT8 reranker: %s", settings.reranker_onnx_model
-                    )
+                    logger.info("Loaded ONNX INT8 reranker: %s", settings.reranker_onnx_model)
                     return
                 except Exception as e:
                     logger.warning(
@@ -589,7 +592,7 @@ class EmbeddingService:
                     "Falling back to pure CrossEncoder reranking (active path). "
                     "To enable ColBERTv2, run: pip install ragatouille>=2.0.0 && "
                     "python -c 'from ragatouille import RAGPretrainedModel; "
-                    "RAGPretrainedModel.from_pretrained(\"colbert-ir/colbertv2.0\")'"
+                    'RAGPretrainedModel.from_pretrained("colbert-ir/colbertv2.0")\''
                 )
 
     def _ensure_models(self) -> None:
@@ -630,17 +633,24 @@ class EmbeddingService:
                 try:
                     if use_onnx:
                         inputs = self._onnx_tokenizer(
-                            texts, padding=True, truncation=True, return_tensors="np",
+                            texts,
+                            padding=True,
+                            truncation=True,
+                            return_tensors="np",
                         )
-                        ort_out = self._onnx_session.run(None, {
-                            "input_ids": inputs["input_ids"].astype("int64"),
-                            "attention_mask": inputs["attention_mask"].astype("int64"),
-                        })
+                        ort_out = self._onnx_session.run(
+                            None,
+                            {
+                                "input_ids": inputs["input_ids"].astype("int64"),
+                                "attention_mask": inputs["attention_mask"].astype("int64"),
+                            },
+                        )
                         result = ort_out[0].tolist()
                     else:
                         import torch
+
                         with torch.inference_mode():
-                            is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
+                            is_bge_m3 = settings.embedding_model == "BAAI/bge-m3"
                             if is_bge_m3:
                                 output = self._encoder.encode(
                                     texts,
@@ -679,8 +689,7 @@ class EmbeddingService:
                     time.sleep(2)
 
             logger.error(
-                f"All {max_retries} attempts to encode dense failed. "
-                f"Raising last error: {last_err}"
+                f"All {max_retries} attempts to encode dense failed. Raising last error: {last_err}"
             )
             self._circuit.record_failure()
             raise last_err
@@ -759,14 +768,20 @@ class EmbeddingService:
                 try:
                     if use_onnx:
                         from collections import defaultdict
+
                         inputs = self._onnx_tokenizer(
-                            uncached_prefixed_texts, padding=True, truncation=True,
+                            uncached_prefixed_texts,
+                            padding=True,
+                            truncation=True,
                             return_tensors="np",
                         )
-                        ort_out = self._onnx_session.run(None, {
-                            "input_ids": inputs["input_ids"].astype("int64"),
-                            "attention_mask": inputs["attention_mask"].astype("int64"),
-                        })
+                        ort_out = self._onnx_session.run(
+                            None,
+                            {
+                                "input_ids": inputs["input_ids"].astype("int64"),
+                                "attention_mask": inputs["attention_mask"].astype("int64"),
+                            },
+                        )
                         dense_vecs = ort_out[0].tolist()
                         sparse_raw = ort_out[1]
                         input_ids = inputs["input_ids"].tolist()
@@ -788,8 +803,9 @@ class EmbeddingService:
                             sparse_weights.append(dict(result))
                     else:
                         import torch
+
                         with torch.inference_mode():
-                            is_bge_m3 = (settings.embedding_model == "BAAI/bge-m3")
+                            is_bge_m3 = settings.embedding_model == "BAAI/bge-m3"
                             if is_bge_m3:
                                 output = self._encoder.encode(
                                     uncached_prefixed_texts,
@@ -825,12 +841,12 @@ class EmbeddingService:
                     # Build results in original order
                     dense_results = [None] * len(texts)
                     sparse_results = [None] * len(texts)
-  
+
                     # Fill cached results
                     for idx, emb in cached_embeddings:
                         dense_results[idx] = emb["dense"]
                         sparse_results[idx] = emb["sparse"]
-  
+
                     # Fill newly computed results
                     for i, idx in enumerate(uncached_indices):
                         dense_results[idx] = dense_vecs[i]
@@ -869,8 +885,7 @@ class EmbeddingService:
                     time.sleep(2)
 
             logger.error(
-                f"All {max_retries} attempts to encode batch failed. "
-                f"Raising last error: {last_err}"
+                f"All {max_retries} attempts to encode batch failed. Raising last error: {last_err}"
             )
             self._circuit.record_failure()
             raise last_err
@@ -948,9 +963,7 @@ class EmbeddingService:
                             tokens_num_i = int(attention_mask[i].sum())
                             n_valid = tokens_num_i - 1
                             if n_valid <= 0:
-                                colbert_vecs.append(
-                                    np.zeros((0, 1024), dtype=np.float32)
-                                )
+                                colbert_vecs.append(np.zeros((0, 1024), dtype=np.float32))
                                 continue
                             colbert_i = colbert_raw[i][:n_valid].astype(np.float32)
                             colbert_vecs.append(colbert_i)
@@ -967,8 +980,7 @@ class EmbeddingService:
                             dense_vecs = output["dense_vecs"].tolist()
                             sparse_weights = output["lexical_weights"]
                             colbert_vecs = [
-                                np.array(v, dtype=np.float32)
-                                for v in output["colbert_vecs"]
+                                np.array(v, dtype=np.float32) for v in output["colbert_vecs"]
                             ]
 
                     EMBEDDING_LATENCY.labels(operation="encode_with_colbert").observe(
@@ -1064,10 +1076,13 @@ class EmbeddingService:
                 return self._late_chunk_transformer, self._late_chunk_tokenizer
 
             _apply_hf_env_bounds()
-            from huggingface_hub import snapshot_download
             from FlagEmbedding import BGEM3FlagModel
+            from huggingface_hub import snapshot_download
 
-            logger.info("Loading dedicated torch backbone for late chunking: BAAI/bge-m3@%s", self._ONNX_TOKENIZER_REVISION)
+            logger.info(
+                "Loading dedicated torch backbone for late chunking: BAAI/bge-m3@%s",
+                self._ONNX_TOKENIZER_REVISION,
+            )
             local_path = snapshot_download(
                 repo_id="BAAI/bge-m3",
                 revision=self._ONNX_TOKENIZER_REVISION,
@@ -1186,7 +1201,10 @@ class EmbeddingService:
             # beats inferring progress from memory drift.
             logger.info(
                 "Late chunking: windows %d-%d/%d (%d tokens total, %.1fs elapsed)",
-                wb_start + 1, wb_start + len(wb), n_windows, n,
+                wb_start + 1,
+                wb_start + len(wb),
+                n_windows,
+                n,
                 time.monotonic() - window_start_time,
             )
 
@@ -1200,9 +1218,7 @@ class EmbeddingService:
             out.append((pooled / norm).tolist() if norm > 0 else [0.0] * dim)
         return out
 
-    def encode_late_chunked(
-        self, document: str, spans: list[tuple[int, int]]
-    ) -> list[list[float]]:
+    def encode_late_chunked(self, document: str, spans: list[tuple[int, int]]) -> list[list[float]]:
         """Embed ``document`` once, then mean-pool per ``(start, end)`` char span.
 
         Returns one L2-normalized dim-vector per span, in the same order.
@@ -1257,6 +1273,7 @@ class EmbeddingService:
             return documents[:top_k]
 
         import numpy as np
+
         from services.colbert_maxsim import batch_maxsim
 
         all_texts = [query] + [doc.get("text", "") for doc in documents]
@@ -1320,6 +1337,7 @@ class EmbeddingService:
             import gc
 
             import torch
+
             gc.collect()
             pairs = [(query, doc["text"]) for doc in documents]
             with torch.inference_mode():
@@ -1417,8 +1435,12 @@ class EmbeddingService:
         if len(documents) < 10:
             logger.debug(f"cascaded_rerank: {len(documents)} docs < 10, skipping CrossEncoder")
             if settings.enable_colbert:
-                return self._colbert_maxsim_rerank(query, documents, top_k=min(cross_top_k, len(documents)))
-            return self._colbert_only_rerank(query, documents, top_k=min(cross_top_k, len(documents)))
+                return self._colbert_maxsim_rerank(
+                    query, documents, top_k=min(cross_top_k, len(documents))
+                )
+            return self._colbert_only_rerank(
+                query, documents, top_k=min(cross_top_k, len(documents))
+            )
 
         with self._inference_lock:
             self._ensure_reranker()
@@ -1426,15 +1448,21 @@ class EmbeddingService:
             colbert_docs = documents
             if settings.enable_colbert:
                 try:
-                    colbert_docs = self._colbert_maxsim_rerank(query, documents, top_k=colbert_top_k)
+                    colbert_docs = self._colbert_maxsim_rerank(
+                        query, documents, top_k=colbert_top_k
+                    )
                 except Exception as e:
-                    logger.error(f"ColBERT MaxSim rerank failed: {e}. Falling back to RAGatouille path.")
+                    logger.error(
+                        f"ColBERT MaxSim rerank failed: {e}. Falling back to RAGatouille path."
+                    )
                     colbert_docs = documents[: colbert_top_k * 2]
             elif len(documents) > colbert_top_k:
                 self._ensure_colbert()
                 texts = [doc["text"] for doc in documents]
                 try:
-                    colbert_results = self._colbert.rerank(query=query, documents=texts, k=colbert_top_k)
+                    colbert_results = self._colbert.rerank(
+                        query=query, documents=texts, k=colbert_top_k
+                    )
                     mapped_docs = []
                     for res in colbert_results:
                         for doc in documents:
@@ -1444,9 +1472,13 @@ class EmbeddingService:
                                 mapped_docs.append(doc_copy)
                                 break
                     colbert_docs = mapped_docs
-                    logger.info(f"ColBERT (RAGatouille) narrowed {len(documents)} -> {len(colbert_docs)} docs")
+                    logger.info(
+                        f"ColBERT (RAGatouille) narrowed {len(documents)} -> {len(colbert_docs)} docs"
+                    )
                 except Exception as e:
-                    logger.error(f"RAGatouille ColBERT failed: {e}. Falling back to straight CrossEncoder.")
+                    logger.error(
+                        f"RAGatouille ColBERT failed: {e}. Falling back to straight CrossEncoder."
+                    )
                     colbert_docs = documents[: colbert_top_k * 2]
 
             return self.rerank(query, colbert_docs, top_k=cross_top_k, min_score=min_score)

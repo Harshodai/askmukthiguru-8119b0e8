@@ -21,6 +21,7 @@ Audit coordination:
     only fails on fields that are dead AND unlisted — deleting a listed field
     shrinks ``dead`` and the test still passes.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -117,7 +118,16 @@ def _read_settings_fields() -> set[str]:
     ``cors_origins_list`` keep their backing field live). Tests, virtualenvs
     and caches are excluded."""
     backend = Path(__file__).resolve().parents[1]
-    skip_parts = {"__pycache__", ".venv", "venv", "tests", "node_modules", ".git", ".pytest_cache", "dotenv"}
+    skip_parts = {
+        "__pycache__",
+        ".venv",
+        "venv",
+        "tests",
+        "node_modules",
+        ".git",
+        ".pytest_cache",
+        "dotenv",
+    }
     read: set[str] = set()
     for py in sorted(backend.rglob("*.py")):
         if any(part in py.parts for part in skip_parts):
@@ -294,7 +304,9 @@ def test_every_non_probe_route_has_auth_dependency():
 if __name__ == "__main__":
     # Self-check block: print the dead-settings inventory.
     dead = _dead_settings()
-    print(f"declared={len(_declared_settings())} read={len(_read_settings_fields())} dead={len(dead)}")
+    print(
+        f"declared={len(_declared_settings())} read={len(_read_settings_fields())} dead={len(dead)}"
+    )
     for field in sorted(dead):
         print(f"  DEAD {field}")
     unowned = dead - set(ALLOWED_DEAD_SETTINGS) - set(KNOWN_EXTRA_DEAD)

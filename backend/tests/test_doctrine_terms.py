@@ -149,7 +149,10 @@ def test_apply_corrections_with_ledger_mantras_and_names():
 
 
 def test_ledger_reversal_round_trip():
-    from services.doctrine_terms import apply_corrections_with_ledger, revert_corrections_from_ledger
+    from services.doctrine_terms import (
+        apply_corrections_with_ledger,
+        revert_corrections_from_ledger,
+    )
 
     original = "At Akam with Sri Pretty Ji we chanted Hamsa Suham Ekam and performed parshadiksha."
     corrected, ledger = apply_corrections_with_ledger(original, segment_id="seg_reversal_01")

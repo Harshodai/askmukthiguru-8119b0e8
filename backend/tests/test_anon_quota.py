@@ -1,12 +1,13 @@
 """Tests for the anonymous message-quota domain."""
+
 from __future__ import annotations
 
 import asyncio
 
 import pytest
 
-from services.anon_quota_port import QuotaResult
 from services.anon_quota_memory import AnonQuotaMemoryAdapter
+from services.anon_quota_port import QuotaResult
 from services.anon_quota_service import AnonQuotaService
 
 
@@ -101,7 +102,11 @@ async def test_memory_adapter_reap_expired_behind_alive_head(memory_adapter):
 async def test_service_authenticated_users_bypass_quota(monkeypatch):
     monkeypatch.setattr(
         "services.anon_quota_service.settings",
-        type("S", (), {"anon_quota_enabled": True, "anon_quota_messages": 2, "anon_quota_window_hours": 24.0})(),
+        type(
+            "S",
+            (),
+            {"anon_quota_enabled": True, "anon_quota_messages": 2, "anon_quota_window_hours": 24.0},
+        )(),
     )
     svc = AnonQuotaService()
     auth_user = {"id": "user-123", "is_anonymous": False}
@@ -114,7 +119,11 @@ async def test_service_authenticated_users_bypass_quota(monkeypatch):
 async def test_service_enforces_anonymous_quota(monkeypatch):
     monkeypatch.setattr(
         "services.anon_quota_service.settings",
-        type("S", (), {"anon_quota_enabled": True, "anon_quota_messages": 3, "anon_quota_window_hours": 24.0})(),
+        type(
+            "S",
+            (),
+            {"anon_quota_enabled": True, "anon_quota_messages": 3, "anon_quota_window_hours": 24.0},
+        )(),
     )
     svc = AnonQuotaService()
     anon = {"id": "anon:abc", "is_anonymous": True}
@@ -127,7 +136,11 @@ async def test_service_enforces_anonymous_quota(monkeypatch):
 async def test_service_claim_is_noop_for_authenticated_and_missing_token(monkeypatch):
     monkeypatch.setattr(
         "services.anon_quota_service.settings",
-        type("S", (), {"anon_quota_enabled": True, "anon_quota_messages": 3, "anon_quota_window_hours": 24.0})(),
+        type(
+            "S",
+            (),
+            {"anon_quota_enabled": True, "anon_quota_messages": 3, "anon_quota_window_hours": 24.0},
+        )(),
     )
     svc = AnonQuotaService()
     auth_user = {"id": "user-123", "is_anonymous": False}
@@ -163,9 +176,10 @@ async def test_memory_adapter_bounded_sessions():
 @pytest.mark.asyncio
 async def test_redis_adapter_degrades_on_redis_error(monkeypatch):
     from unittest.mock import AsyncMock
+
     from redis.exceptions import RedisError
+
     from services.anon_quota_redis import AnonQuotaRedisAdapter
-    from app.metrics import ANON_QUOTA_DEGRADED_MODE
 
     mock_redis = AsyncMock()
     mock_redis.eval.side_effect = RedisError("Connection dropped")
@@ -204,7 +218,9 @@ async def test_redis_adapter_degrades_on_redis_error(monkeypatch):
 @pytest.mark.asyncio
 async def test_redis_adapter_inspect_and_reset_degrade_on_redis_error():
     from unittest.mock import AsyncMock
+
     from redis.exceptions import RedisError
+
     from services.anon_quota_redis import AnonQuotaRedisAdapter
 
     mock_redis = AsyncMock()
@@ -257,7 +273,9 @@ async def test_redis_adapter_claim_release_inspect_stay_on_fallback(monkeypatch)
     # Once a session degrades to the in-memory fallback, claim/release/inspect
     # and later checks must keep using the fallback (no split-brain with Redis).
     from unittest.mock import AsyncMock
+
     from redis.exceptions import RedisError
+
     from services.anon_quota_redis import AnonQuotaRedisAdapter
 
     monkeypatch.setattr(

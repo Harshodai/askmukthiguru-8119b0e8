@@ -66,10 +66,18 @@ class Settings(BaseSettings):
     )
     sarvam_30b_endpoint: Optional[str] = None  # e.g., "http://<E2E_INSTANCE_IP>:8000/v1"
     sarvam_30b_api_key: Optional[str] = None  # If E2E endpoint requires auth
-    sarvam_reasoning_effort: str = "medium"  # Default reasoning effort for main generation (low | medium | high)
-    sarvam_reasoning_effort_fast: str = "low"   # Effort for fast/classification calls (intent routing, grading)
-    sarvam_reasoning_effort_complex: str = "high"  # Effort for complex multi-hop, CoVe, and deep-reasoning queries
-    sarvam_max_tokens: int = 4096  # Hard output-token ceiling applied by SarvamHTTPGateway to every generation call
+    sarvam_reasoning_effort: str = (
+        "medium"  # Default reasoning effort for main generation (low | medium | high)
+    )
+    sarvam_reasoning_effort_fast: str = (
+        "low"  # Effort for fast/classification calls (intent routing, grading)
+    )
+    sarvam_reasoning_effort_complex: str = (
+        "high"  # Effort for complex multi-hop, CoVe, and deep-reasoning queries
+    )
+    sarvam_max_tokens: int = (
+        4096  # Hard output-token ceiling applied by SarvamHTTPGateway to every generation call
+    )
     # Per-call HTTP timeout. NIM/OpenRouter have low server-side limits; 45s provides
     # adequate headroom while keeping total pipeline latency acceptable.
     # Must be smaller than pipeline_timeout.
@@ -90,7 +98,7 @@ class Settings(BaseSettings):
     # and never forwards a bare unbounded call to a provider. A caller-supplied
     # max_tokens is capped down to the matching route ceiling (min), so a deep
     # call can never exceed its route budget even if a caller requests more.
-    llm_max_tokens_fast: int = 800   # casual/standard/fast-route generation ceiling
+    llm_max_tokens_fast: int = 800  # casual/standard/fast-route generation ceiling
     llm_max_tokens_deep: int = 1500  # deep/tier3_complex generation ceiling
 
     # --- Timeout Budget ---
@@ -99,7 +107,9 @@ class Settings(BaseSettings):
     node_timeout_main: int = 20  # reduced from 90 — prevents 90s hangs on slow Qdrant/Neo4j
 
     serene_mind_enabled: bool = True  # Enable/disable Serene Mind distress detection engine
-    doctrine_cache_enabled: bool = False  # Default OFF: built-in canned answers lack citations and hurt benchmark quality
+    doctrine_cache_enabled: bool = (
+        False  # Default OFF: built-in canned answers lack citations and hurt benchmark quality
+    )
 
     # --- Distress / Serene Mind safety dials ---
     semantic_distress_threshold: float = Field(default=0.72, ge=0.0, le=1.0)
@@ -126,7 +136,9 @@ class Settings(BaseSettings):
 
     # --- Feature Flags & Memory Layer ---
     feature_memory_enabled: bool = True
-    feature_memory_write: bool = False  # Explicit opt-in until single-memory-plane consent proof exists.
+    feature_memory_write: bool = (
+        False  # Explicit opt-in until single-memory-plane consent proof exists.
+    )
     memory_background_task_timeout_seconds: int = 30
     feature_regex_prerouter: bool = True
 
@@ -144,8 +156,10 @@ class Settings(BaseSettings):
     # falling through to standard. This is a latency/quality knob: validate against
     # the 255-q benchmark and raise back toward 0.65 if doctrine/quality regresses.
     semantic_router_confidence_threshold: float = 0.55
-    semantic_router_fallback_llm: bool = False  # If True, fall back to LLM classifier when confidence is low
-    semantic_router_shadow_mode: bool = False   # If True, run semantic router alongside heuristic but return heuristic result (for A/B comparison)
+    semantic_router_fallback_llm: bool = (
+        False  # If True, fall back to LLM classifier when confidence is low
+    )
+    semantic_router_shadow_mode: bool = False  # If True, run semantic router alongside heuristic but return heuristic result (for A/B comparison)
 
     # --- Safety Limits ---
     chat_history_max_messages: int = 20  # Cap conversation context to prevent OOM/timeouts
@@ -190,8 +204,6 @@ class Settings(BaseSettings):
     openrouter_budget_guard_enabled: bool = False
     openrouter_max_request_cost_usd: float = Field(default=0.03, gt=0)
     openrouter_budget_fail_closed: bool = True
-
-
 
     # --- Re-ingest & Late Chunking Settings ---
     reingest_openrouter_model: str = "google/gemma-3-12b-it"
@@ -263,7 +275,6 @@ class Settings(BaseSettings):
     # --- Chunking Strategies ---
     use_boundary_chunker: bool = True  # Respect sentence and verse boundaries
 
-
     # --- Multi-teacher personality (Phase E5) ---
     # When set, generation prepends a teacher-specific voice instruction.
     # Maps teacher_id → personality prompt fragment. JSON-encoded string in env.
@@ -285,8 +296,12 @@ class Settings(BaseSettings):
     anomaly_faithfulness_p50_threshold: float = 0.80
     anomaly_lookback_days: int = 1
     anomaly_output_path: str = "hallucination_anomaly.json"
-    supabase_jwks_url: Optional[str] = None  # Optional JWKS URL for JWT validation (used in hybrid auth setups)
-    supabase_jwt_issuer: Optional[str] = None  # Optional JWT Issuer for token validation (used in hybrid auth setups)
+    supabase_jwks_url: Optional[str] = (
+        None  # Optional JWKS URL for JWT validation (used in hybrid auth setups)
+    )
+    supabase_jwt_issuer: Optional[str] = (
+        None  # Optional JWT Issuer for token validation (used in hybrid auth setups)
+    )
     qdrant_local_path: Optional[str] = None  # Set for local mode (no Docker)
 
     # --- Neo4j ---
@@ -370,7 +385,9 @@ class Settings(BaseSettings):
     asr_repetition_penalty: float = 1.0  # >1.0 suppresses decoder loops at decode time
     asr_compression_ratio_threshold: Optional[float] = None  # e.g. 2.4 (whisper default)
     asr_avg_logprob_floor: Optional[float] = None  # e.g. -1.0; below = reject segment
-    asr_no_speech_prob_ceiling: Optional[float] = 0.6  # above = reject segment (music/silence-only audio)
+    asr_no_speech_prob_ceiling: Optional[float] = (
+        0.6  # above = reject segment (music/silence-only audio)
+    )
 
     # --- LLM Speaker-Role Fallback ---
     # When whisperx diarization is unavailable (MLX-only, cross-process, or cache
@@ -475,7 +492,7 @@ class Settings(BaseSettings):
     enable_test_auth: bool = False
     jwt_secret: Optional[str] = None  # Shared with Supabase for token validation
     jwt_private_key: Optional[str] = None  # Private key PEM for RS256 token signing
-    jwt_public_key: Optional[str] = None   # Public key PEM for RS256 token verification
+    jwt_public_key: Optional[str] = None  # Public key PEM for RS256 token verification
     # M5: HMAC secret for server-side signed anonymous session tokens
     # (POST /api/auth/anon-session). REQUIRED in production — the app refuses to
     # start if empty when IS_PRODUCTION=true. In dev/test it falls back to a
@@ -521,8 +538,8 @@ class Settings(BaseSettings):
     # JSON map: approved assistant slug -> server-resolved corpus/teacher scope.
     # A supplied slug without a registry entry is rejected before graph execution.
     assistant_corpus_registry: str = (
-        "{\"guru\": {}, \"preethaji\": {\"teacher_id\": \"preethaji\"}, "
-        "\"krishnaji\": {\"teacher_id\": \"krishnaji\"}, \"serene_mind\": {}}"
+        '{"guru": {}, "preethaji": {"teacher_id": "preethaji"}, '
+        '"krishnaji": {"teacher_id": "krishnaji"}, "serene_mind": {}}'
     )
     # Default to disabled: the frontend uses Supabase auth, so the FastAPI
     # /api/auth/register endpoint has no legitimate public use case and would
@@ -586,15 +603,21 @@ class Settings(BaseSettings):
     rag_chunk_overlap: int = 200
     rag_use_hyde: bool = False
     rag_context_window: int = 2  # Fetch N chunks before/after each retrieved chunk
-    rag_graph_context_cap_chars: int = 400  # Max chars for graph summary doc injected into enriched context
+    rag_graph_context_cap_chars: int = (
+        400  # Max chars for graph summary doc injected into enriched context
+    )
     rerank_min_score: float = 0.35  # Min CrossEncoder score (sigmoid-normalized) to keep a doc
     rag_use_context_compression: bool = False  # Set to True to enable LLM-based context compression
     rag_context_compression_threshold: int = (
         20000  # Only compress context if character length exceeds this threshold
     )
     # MMR (Maximal Marginal Relevance) diversity re-ranking
-    rag_mmr_lambda: float = 0.5  # Balance between relevance and diversity (0=diversity, 1=relevance)
-    max_tokens_per_request: int = 12000  # Maximum tokens per LLM request (covers persona+knowledge+history+instructions)
+    rag_mmr_lambda: float = (
+        0.5  # Balance between relevance and diversity (0=diversity, 1=relevance)
+    )
+    max_tokens_per_request: int = (
+        12000  # Maximum tokens per LLM request (covers persona+knowledge+history+instructions)
+    )
 
     # --- Retrieval context compression allowlist ---
     rag_context_compression_top_k: int = 5
@@ -621,8 +644,10 @@ class Settings(BaseSettings):
     # the green corpus, so injection currently finds an empty index and contributes
     # nothing — harmless, and it means the layer switches back on by itself as soon
     # as entries are re-extracted, reviewed, and recompiled.
-    rag_okf_injection_enabled: bool = True   # OKF as canonical knowledge layer
-    rag_okf_auto_extract_enabled: bool = True  # post-ingestion OKF extraction; hardened w/ Celery retry + logging
+    rag_okf_injection_enabled: bool = True  # OKF as canonical knowledge layer
+    rag_okf_auto_extract_enabled: bool = (
+        True  # post-ingestion OKF extraction; hardened w/ Celery retry + logging
+    )
     # Minimum cosine an OKF entry must reach before it is injected at all.
     okf_min_similarity: float = 0.45
     # Curated, human-reviewed doctrine outranks a raw chunk of equal similarity — margin, not a floor.
@@ -668,18 +693,28 @@ class Settings(BaseSettings):
     ingestion_relation_cache_size: int = 256
 
     # --- Quality gate (Tier 1+) density / fact-check / bias stubs ---
-    quality_min_information_density: float = 0.35  # unique meaningful words / total; below = penalty
-    quality_bias_blocklist: str = ""  # comma-separated loaded/hate terms; empty = use built-in stub list
+    quality_min_information_density: float = (
+        0.35  # unique meaningful words / total; below = penalty
+    )
+    quality_bias_blocklist: str = (
+        ""  # comma-separated loaded/hate terms; empty = use built-in stub list
+    )
 
     # --- Hyper-Extract enrichment (Phase 5.3) ---
-    use_hyper_extract_enrichment: bool = False  # Enable lightweight structure/entity/fact extraction
+    use_hyper_extract_enrichment: bool = (
+        False  # Enable lightweight structure/entity/fact extraction
+    )
     hyper_extract_min_chars: int = 200  # Skip texts shorter than this
     hyper_extract_max_chars: int = 50_000  # Hard cap to keep enrichment fast and safe
 
     # --- KG Phase 6: Auto-extraction from ingestion ---
-    write_ontology_to_neo4j: bool = True  # Materialize hyper_extract entities/relationships into Neo4j during ingestion
+    write_ontology_to_neo4j: bool = (
+        True  # Materialize hyper_extract entities/relationships into Neo4j during ingestion
+    )
     ontology_write_required: bool = False  # Only block and roll back ingestion when graph materialization is explicitly mandatory.
-    default_corpus_id: str = "askmukthiguru"  # Required scope for legacy/current teacher corpus data.
+    default_corpus_id: str = (
+        "askmukthiguru"  # Required scope for legacy/current teacher corpus data.
+    )
     # Single source of truth for the legacy/default tenant identity (Oneness —
     # Sri Preethaji & Sri Krishnaji's organization). services/tenant_context.py's
     # ContextVar/_LEGACY_TENANT and every CorpusScope(tenant_id=...) fallback
@@ -769,7 +804,9 @@ class Settings(BaseSettings):
     live_logistics_ttl_seconds: int = 900
     web_search_provider: str = "duckduckgo"  # "duckduckgo" | "searxng"
     web_search_allowed_domains: str = "ekam.org,theonenessmovement.org"
-    web_search_allow_db_domain_override: bool = False  # DB may narrow, never widen the source-controlled official allowlist.
+    web_search_allow_db_domain_override: bool = (
+        False  # DB may narrow, never widen the source-controlled official allowlist.
+    )
     web_search_max_results: int = 5
     searxng_url: str = "http://searxng:8080"  # Self-hosted SearXNG instance URL
     # Coverage-gap: if ALL retrieved docs score below this, treat as zero-coverage → fire web search
@@ -777,7 +814,9 @@ class Settings(BaseSettings):
     # LightRAG per-call timeout headroom. LightRAG makes internal LLM calls for entity
     # extraction at query time — cap tightly to prevent single-query 30s hangs.
     # For tier2_simple queries, graph_stage.py skips LightRAG entirely.
-    lightrag_retrieval_timeout: int = 30  # raised from 3 — KG now has 2,200+ relations, needs 15-25s for real graph traversals
+    lightrag_retrieval_timeout: int = (
+        30  # raised from 3 — KG now has 2,200+ relations, needs 15-25s for real graph traversals
+    )
     # Bound on kg_expansion.expand_query_with_ontology's Neo4j session.run() calls
     # (one per matched concept, no upstream timeout previously) — this call sits
     # sequentially before retrieve_documents' async fan-out, so a stalled/contended
@@ -794,12 +833,20 @@ class Settings(BaseSettings):
     kg_export_enabled: bool = False
 
     # --- GraphRAG Fusion (multi-hop vector + KG) ---
-    graphrag_fusion_enabled: bool = Field(default=False, description="Enable GraphRAG fusion (multi-hop vector+KG)")
+    graphrag_fusion_enabled: bool = Field(
+        default=False, description="Enable GraphRAG fusion (multi-hop vector+KG)"
+    )
     graphrag_max_hops: int = Field(default=2, gt=0, le=5)
     graphrag_token_budget: int = Field(default=4000, gt=0, le=8000)
-    graphrag_max_concurrency: int = Field(default=4, ge=1, le=32, description="Max concurrent GraphRAG retrievals")
-    graphrag_traversal_timeout: float = Field(default=5.0, gt=0.0, le=60.0, description="Per-traversal timeout in seconds")
-    graphrag_total_timeout: float = Field(default=10.0, gt=0.0, le=60.0, description="Aggregate GraphRAG deadline in seconds")
+    graphrag_max_concurrency: int = Field(
+        default=4, ge=1, le=32, description="Max concurrent GraphRAG retrievals"
+    )
+    graphrag_traversal_timeout: float = Field(
+        default=5.0, gt=0.0, le=60.0, description="Per-traversal timeout in seconds"
+    )
+    graphrag_total_timeout: float = Field(
+        default=10.0, gt=0.0, le=60.0, description="Aggregate GraphRAG deadline in seconds"
+    )
 
     @model_validator(mode="after")
     def validate_graphrag_token_budget(self):
@@ -839,7 +886,12 @@ class Settings(BaseSettings):
                         return default
                 elif isinstance(val, str):
                     val_str = val.strip()
-                    if "." in val_str or "e" in val_str.lower() or "inf" in val_str.lower() or "nan" in val_str.lower():
+                    if (
+                        "." in val_str
+                        or "e" in val_str.lower()
+                        or "inf" in val_str.lower()
+                        or "nan" in val_str.lower()
+                    ):
                         return default
                 try:
                     res = int(val)
@@ -859,11 +911,10 @@ class Settings(BaseSettings):
             data["http_pool_max_keepalive"] = keep
         return data
 
-
-
-
     # --- Web Ingestion ---
-    web_ingest_max_response_bytes: int = Field(default=5 * 1024 * 1024, ge=1024, le=50 * 1024 * 1024)
+    web_ingest_max_response_bytes: int = Field(
+        default=5 * 1024 * 1024, ge=1024, le=50 * 1024 * 1024
+    )
     web_ingest_page_timeout: int = Field(default=30_000, ge=5000, le=120_000)
     web_ingest_max_dom_chars: int = Field(default=500_000, ge=10_000, le=2_000_000)
     ingest_url_max_retries: int = Field(default=2, ge=0, le=10)
@@ -903,9 +954,7 @@ class Settings(BaseSettings):
     # in service code; always read from settings.
     emergent_llm_key: str = ""  # Universal key, prefix sk-emergent-...
     llm_provider_chain: str = (
-        "anthropic:claude-sonnet-4-6,"
-        "anthropic:claude-haiku-4-5-20251001,"
-        "openai:gpt-5.4"
+        "anthropic:claude-sonnet-4-6,anthropic:claude-haiku-4-5-20251001,openai:gpt-5.4"
     )
 
     # --- LLM Gateway cross-provider fallback (services/llm_gateway.py — the
@@ -983,13 +1032,17 @@ class Settings(BaseSettings):
     rerank_threshold_simple: float = 0.05
     rerank_floor: float = 0.3
     cross_encoder_cutoff: int = 20  # Use cross-encoder primary path when <= this many docs
-    reranker_enabled_for_complex: bool = True  # Enable cross-encoder reranker for tier3_complex queries
+    reranker_enabled_for_complex: bool = (
+        True  # Enable cross-encoder reranker for tier3_complex queries
+    )
     # Adaptive-RAG confidence gate: when >=3 reranked docs score at or above this
     # (sigmoid-normalized [0,1]), skip the LLM grading and sufficiency calls for
     # complex queries — saves 2 serial LLM round-trips. 0 disables.
     crag_skip_confidence: float = 0.75
     # --- RAGFlow integration gaps ---
-    rag_deep_research_enabled: bool = False  # ponytail: master switch; auto-fires for tier3_complex + standard
+    rag_deep_research_enabled: bool = (
+        False  # ponytail: master switch; auto-fires for tier3_complex + standard
+    )
     rag_deep_research_max_depth: int = 2
     important_kwd_boost_enabled: bool = True
     important_kwd_boost_per_term: float = 0.2
@@ -999,17 +1052,17 @@ class Settings(BaseSettings):
     # P1-AI-12: base raised 0.18 → 0.30 (and the CASUAL override 0.12 → 0.20)
     # because loosely-related sentences were clearing the old floor and
     # producing false grounding signals. Keep the cosine path unchanged.
-    citation_jaccard_threshold: float = 0.30      # default Jaccard threshold
-    citation_cosine_threshold: float = 0.65       # used only when rag_citation_cosine_enabled=True
+    citation_jaccard_threshold: float = 0.30  # default Jaccard threshold
+    citation_cosine_threshold: float = 0.65  # used only when rag_citation_cosine_enabled=True
     # Per-intent overrides (merge with defaults)
     citation_thresholds_by_intent: dict[str, dict[str, float]] = Field(
         default_factory=lambda: {
-            "FACTUAL":   {"jaccard": 0.20, "cosine": 0.70},
+            "FACTUAL": {"jaccard": 0.20, "cosine": 0.70},
             "RELATIONAL": {"jaccard": 0.18, "cosine": 0.65},
-            "QUERY":     {"jaccard": 0.18, "cosine": 0.65},
-            "CASUAL":    {"jaccard": 0.20, "cosine": 0.55},
-            "GREETING":  {"jaccard": 0.10, "cosine": 0.50},
-            "DISTRESS":  {"jaccard": 0.15, "cosine": 0.60},
+            "QUERY": {"jaccard": 0.18, "cosine": 0.65},
+            "CASUAL": {"jaccard": 0.20, "cosine": 0.55},
+            "GREETING": {"jaccard": 0.10, "cosine": 0.50},
+            "DISTRESS": {"jaccard": 0.15, "cosine": 0.60},
             "GUIDED_TOUR": {"jaccard": 0.12, "cosine": 0.55},
         }
     )
@@ -1047,7 +1100,6 @@ class Settings(BaseSettings):
     # with chat history. Off by default to avoid changing generation behavior.
     rag_heuristic_followup: bool = False
 
-
     # --- Anthropic Gateway (Phase A7 — direct API with prompt caching + Citations) ---
     # All values env-overridable. Empty api_key disables the gateway and the
     # consumer code is expected to fall back to the legacy LLM stack.
@@ -1080,7 +1132,7 @@ class Settings(BaseSettings):
     apns_key_id: str = ""
     apns_team_id: str = ""
     apns_key_path: str = ""  # Path to .p8 key file
-    apns_key_pem: str = ""   # Raw PEM, alternative to path
+    apns_key_pem: str = ""  # Raw PEM, alternative to path
     apns_bundle_id: str = "com.askmukthiguru.app"
     # APNs host: production by default. Set APNS_USE_SANDBOX=true to target api.sandbox.push.apple.com.
     apns_use_sandbox: bool = False
@@ -1230,9 +1282,9 @@ class Settings(BaseSettings):
             base = self.jwt_secret or "dev-anon-session-fallback-key"
             import hashlib
 
-            self.anon_session_hmac_secret = "anon_hmac_" + hashlib.sha256(
-                (base + "::anon_session").encode()
-            ).hexdigest()
+            self.anon_session_hmac_secret = (
+                "anon_hmac_" + hashlib.sha256((base + "::anon_session").encode()).hexdigest()
+            )
         return self
 
     @model_validator(mode="after")
@@ -1240,7 +1292,9 @@ class Settings(BaseSettings):
         """Fail-fast on missing required API keys for the active provider."""
         # CENTRALIZED FALLBACK: If sarvam_30b_endpoint is provided, make sure we fallback base_url and api_key
         if getattr(self, "sarvam_30b_endpoint", None):
-            if not getattr(self, "sarvam_api_key", "") and getattr(self, "sarvam_30b_api_key", None):
+            if not getattr(self, "sarvam_api_key", "") and getattr(
+                self, "sarvam_30b_api_key", None
+            ):
                 self.sarvam_api_key = self.sarvam_30b_api_key
             if getattr(self, "sarvam_base_url", "") == "https://api.sarvam.ai/v1":
                 self.sarvam_base_url = self.sarvam_30b_endpoint
@@ -1362,7 +1416,10 @@ class Settings(BaseSettings):
             ("queue_concurrency", getattr(self, "queue_concurrency", None)),
             ("ingestion_concurrency", getattr(self, "ingestion_concurrency", None)),
             ("llm_queue_max_concurrent", getattr(self, "llm_queue_max_concurrent", None)),
-            ("reingest_contextualizer_concurrency", getattr(self, "reingest_contextualizer_concurrency", None)),
+            (
+                "reingest_contextualizer_concurrency",
+                getattr(self, "reingest_contextualizer_concurrency", None),
+            ),
             ("max_concurrent_chat", getattr(self, "max_concurrent_chat", None)),
             ("transcript_concurrent_workers", getattr(self, "transcript_concurrent_workers", None)),
         ]
@@ -1386,8 +1443,6 @@ class Settings(BaseSettings):
             if self.is_production and "*" in ips:
                 raise ValueError("Wildcard '*' in forwarded_allow_ips is forbidden in production")
         return self
-
-
 
 
 @lru_cache

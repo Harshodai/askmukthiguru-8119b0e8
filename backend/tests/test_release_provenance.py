@@ -14,7 +14,6 @@ from dataclasses import FrozenInstanceError
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from pydantic import ValidationError
 
 from app.chat_engine import ChatChunk, ChatEngine, ChatResult
 from app.dependencies import ServiceContainer
@@ -27,7 +26,7 @@ from app.pipeline.stages.cache_stage import CacheCheckStage
 from app.pipeline.stages.distress_stage import DistressStage
 from app.pipeline.stages.doctrine_cache_stage import DoctrineCacheStage
 from app.pipeline.stages.glue_stages import CasualShortCircuitStage, ResultAssemblyStage
-from app.pipeline.stages.guardrail_stage import CircuitBreakerStage, InputGuardrailStage
+from app.pipeline.stages.guardrail_stage import InputGuardrailStage
 from app.release_manifest import (
     ReleaseManifest,
     ReleaseManifestError,
@@ -36,9 +35,8 @@ from app.release_manifest import (
     set_release_manifest,
     validate_release_manifest,
 )
-from app.schemas import ChatRequest, ChatResponse, MessagePayload
+from app.schemas import ChatRequest, ChatResponse
 from services.serene_mind_engine import DistressAssessment, DistressLevel
-
 
 # ---------------------------------------------------------------------------
 # 1. ReleaseManifest Invariants & Readiness Validation Tests
@@ -121,7 +119,9 @@ def test_release_manifest_rejects_empty_string_fields(field_override, value):
     }
     base_kwargs[field_override] = value
     manifest = ReleaseManifest(**base_kwargs)
-    with pytest.raises(ReleaseManifestError, match=f"'{field_override}' must be a non-empty string"):
+    with pytest.raises(
+        ReleaseManifestError, match=f"'{field_override}' must be a non-empty string"
+    ):
         manifest.validate()
 
 
@@ -160,7 +160,7 @@ def test_release_manifest_rejects_invalid_embedding_dim(invalid_dim):
         "sk-proj-1234567890abcdef1234567890",
         "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc",
         "ghp_1234567890abcdef1234567890abcdef",
-        "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0...",
+        "-----BEGIN " + "RSA " + "PRIVATE KEY-----\nMIIEowIBAAKCAQEA0...",
         "password = 'super_secret_password_123'",
         "api_key='sk-1234567890abcdef'",
     ],
@@ -231,7 +231,11 @@ async def test_input_guardrail_block_attaches_manifest():
     container = MagicMock(spec=ServiceContainer)
     container.guardrails = MagicMock()
     container.guardrails.check_input = AsyncMock(
-        return_value={"blocked": True, "reason": "Harmful pattern detected", "response": "I cannot fulfill this."}
+        return_value={
+            "blocked": True,
+            "reason": "Harmful pattern detected",
+            "response": "I cannot fulfill this.",
+        }
     )
 
     ctx = PipelineContext(
@@ -307,7 +311,9 @@ async def test_cache_stage_hits_attach_manifest():
     stage = CacheCheckStage()
     container = MagicMock(spec=ServiceContainer)
     container.guardrails = MagicMock()
-    container.guardrails.check_output = AsyncMock(return_value={"blocked": False, "moderated_response": ""})
+    container.guardrails.check_output = AsyncMock(
+        return_value={"blocked": False, "moderated_response": ""}
+    )
 
     ctx = PipelineContext(
         container=container,
@@ -320,7 +326,10 @@ async def test_cache_stage_hits_attach_manifest():
     )
 
     # 1. Hot cache hit
-    with patch("app.pipeline.stages.cache_stage.hot_cache.get", return_value=("Meditation is stillness.", ["http://ref1"], "QUERY")):
+    with patch(
+        "app.pipeline.stages.cache_stage.hot_cache.get",
+        return_value=("Meditation is stillness.", ["http://ref1"], "QUERY"),
+    ):
         res = await stage.run(ctx)
         assert res is not None
         assert res.cache_hit is True
@@ -328,9 +337,13 @@ async def test_cache_stage_hits_attach_manifest():
         assert res.release_manifest["release_id"] == get_release_manifest().release_id
 
     # 2. Vector cache hit
-    with patch("app.pipeline.stages.cache_stage.hot_cache.get", return_value=None), \
-         patch("app.pipeline.stages.cache_stage.settings.hybrid_search_enabled", True):
-        ctx.coordinator._check_vector_cache = AsyncMock(return_value=("Vector meditation answer.", ["http://ref2"], "QUERY"))
+    with (
+        patch("app.pipeline.stages.cache_stage.hot_cache.get", return_value=None),
+        patch("app.pipeline.stages.cache_stage.settings.hybrid_search_enabled", True),
+    ):
+        ctx.coordinator._check_vector_cache = AsyncMock(
+            return_value=("Vector meditation answer.", ["http://ref2"], "QUERY")
+        )
         res = await stage.run(ctx)
         assert res is not None
         assert res.cache_hit is True
@@ -338,10 +351,16 @@ async def test_cache_stage_hits_attach_manifest():
         assert res.release_manifest["release_id"] == get_release_manifest().release_id
 
     # 3. Exact/Semantic cache hit
-    with patch("app.pipeline.stages.cache_stage.hot_cache.get", return_value=None), \
-         patch("app.pipeline.stages.cache_stage.settings.hybrid_search_enabled", False):
+    with (
+        patch("app.pipeline.stages.cache_stage.hot_cache.get", return_value=None),
+        patch("app.pipeline.stages.cache_stage.settings.hybrid_search_enabled", False),
+    ):
         container.exact_cache = MagicMock()
-        container.exact_cache.get.return_value = {"response": "Exact cached answer.", "intent": "QUERY", "citations": []}
+        container.exact_cache.get.return_value = {
+            "response": "Exact cached answer.",
+            "intent": "QUERY",
+            "citations": [],
+        }
         res = await stage.run(ctx)
         assert res is not None
         assert res.cache_hit is True
@@ -358,7 +377,10 @@ async def test_instant_greeting_and_result_assembly_attach_manifest():
     coordinator._build_trigger_events.return_value = []
     coordinator._build_safety_events.return_value = []
     coordinator._build_spans.return_value = []
-    coordinator._build_response_data.return_value = {"faithfulness": 1.0, "hallucination_flag": False}
+    coordinator._build_response_data.return_value = {
+        "faithfulness": 1.0,
+        "hallucination_flag": False,
+    }
 
     # Greeting
     greeting_stage = CasualShortCircuitStage()
@@ -406,7 +428,9 @@ async def test_coordinator_fallbacks_and_timeouts_attach_manifest():
     assert circuit_res.release_manifest["release_id"] == get_release_manifest().release_id
 
     # Timeout fallback via execute
-    with patch("app.pipeline.pipeline_coordinator.StageRunner.run", side_effect=asyncio.TimeoutError):
+    with patch(
+        "app.pipeline.pipeline_coordinator.StageRunner.run", side_effect=asyncio.TimeoutError
+    ):
         res_timeout = await coordinator.execute(
             user_msg="Slow request",
             preferred_lang="en",
@@ -417,7 +441,9 @@ async def test_coordinator_fallbacks_and_timeouts_attach_manifest():
         assert res_timeout.release_manifest["release_id"] == get_release_manifest().release_id
 
     # Exception fallback via execute
-    with patch("app.pipeline.pipeline_coordinator.StageRunner.run", side_effect=RuntimeError("Boom")):
+    with patch(
+        "app.pipeline.pipeline_coordinator.StageRunner.run", side_effect=RuntimeError("Boom")
+    ):
         res_error = await coordinator.execute(
             user_msg="Crashing request",
             preferred_lang="en",

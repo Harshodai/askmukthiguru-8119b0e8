@@ -7,15 +7,16 @@ Article 50 (Transparency Obligations for AI Systems) data models.
 from __future__ import annotations
 
 import datetime as _dt
-from enum import Enum
-from typing import Any, Dict, List, Optional
 import uuid
+from enum import Enum
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class OriginType(str, Enum):
     """Classification of content origin."""
+
     HUMAN_GENERATED = "human_generated"
     AI_ASSISTED = "ai_assisted"
     AI_GENERATED = "ai_generated"
@@ -26,6 +27,7 @@ class OriginType(str, Enum):
 
 class ArtifactModality(str, Enum):
     """Data modality of the generated or processed artifact."""
+
     TEXT_CHAT = "text_chat"
     SYNTHETIC_AUDIO = "synthetic_audio"
     USER_MEMORY = "user_memory"
@@ -36,6 +38,7 @@ class ArtifactModality(str, Enum):
 
 class EUComplianceRiskTier(str, Enum):
     """Risk categorization under the EU AI Act (Regulation (EU) 2024/1689)."""
+
     MINIMAL_RISK = "minimal_risk"
     TRANSPARENCY_ART50 = "transparency_art50"
     SPECIFIC_CAUTION = "specific_caution"
@@ -43,6 +46,7 @@ class EUComplianceRiskTier(str, Enum):
 
 class ComplianceStandard(str, Enum):
     """Applicable compliance and provenance standards."""
+
     EU_AI_ACT_ARTICLE_50 = "eu_ai_act_article_50"
     W3C_PROV = "w3c_prov"
     C2PA = "c2pa"
@@ -50,6 +54,7 @@ class ComplianceStandard(str, Enum):
 
 class WatermarkType(str, Enum):
     """Techniques used for content verification and watermarking."""
+
     ZERO_WIDTH_TEXT = "zero_width_text"
     AUDIO_TAG = "audio_tag"
     HTTP_HEADER = "http_header"
@@ -58,6 +63,7 @@ class WatermarkType(str, Enum):
 
 class ContentCategory(str, Enum):
     """Taxonomy of spiritual and system content."""
+
     DISCOURSE = "discourse"
     TRANSCRIPT = "transcript"
     BOOK = "book"
@@ -69,18 +75,30 @@ class ContentCategory(str, Enum):
 
 class GroundingSourceReference(BaseModel):
     """Reference to a grounding source / knowledge chunk used in generation (prov:used)."""
+
     source_id: str = Field(..., description="Unique identifier for the knowledge source or chunk")
-    source_type: str = Field(default="spiritual_wisdom", description="Corpus or collection identifier")
-    title: Optional[str] = Field(default=None, description="Title of discourse, book, or transcript")
+    source_type: str = Field(
+        default="spiritual_wisdom", description="Corpus or collection identifier"
+    )
+    title: Optional[str] = Field(
+        default=None, description="Title of discourse, book, or transcript"
+    )
     url: Optional[str] = Field(default=None, description="Canonical source URL if available")
-    snippet_hash: Optional[str] = Field(default=None, description="SHA-256 hash of the cited snippet")
+    snippet_hash: Optional[str] = Field(
+        default=None, description="SHA-256 hash of the cited snippet"
+    )
     score: Optional[float] = Field(default=None, description="Relevance or retrieval score")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional provenance metadata")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional provenance metadata"
+    )
 
 
 class SoftwareAgentDescriptor(BaseModel):
     """Descriptor of the AI agent / model responsible for generation (prov:SoftwareAgent)."""
-    agent_id: str = Field(default="askmukthiguru-core", description="Identifier for the software agent")
+
+    agent_id: str = Field(
+        default="askmukthiguru-core", description="Identifier for the software agent"
+    )
     name: str = Field(default="AskMukthiGuru AI Assistant", description="Human-readable agent name")
     version: Optional[str] = Field(default="1.0.0", description="System/software version")
     model_name: Optional[str] = Field(
@@ -91,7 +109,9 @@ class SoftwareAgentDescriptor(BaseModel):
         default=None,
         description="Inference provider (e.g., sarvam, openrouter, nim, ollama)",
     )
-    role: Optional[str] = Field(default="Spiritual AI Guide", description="Functional role of the agent")
+    role: Optional[str] = Field(
+        default="Spiritual AI Guide", description="Functional role of the agent"
+    )
     system_prompt_hash: Optional[str] = Field(
         default=None,
         description="SHA-256 fingerprint of the system prompt for audit",
@@ -103,6 +123,7 @@ class AIProvenanceManifest(BaseModel):
 
     and EU AI Act Article 50 transparency requirements.
     """
+
     artifact_id: str = Field(
         default_factory=lambda: f"urn:uuid:{uuid.uuid4()}",
         description="Globally unique identifier for the generated artifact",
@@ -140,7 +161,7 @@ class AIProvenanceManifest(BaseModel):
         description="Provenance schema version",
     )
     generated_at: _dt.datetime = Field(
-        default_factory=lambda: _dt.datetime.now(_dt.timezone.utc),
+        default_factory=lambda: _dt.datetime.now(_dt.UTC),
         description="UTC timestamp of artifact generation",
     )
     agent: SoftwareAgentDescriptor = Field(
@@ -155,11 +176,11 @@ class AIProvenanceManifest(BaseModel):
         default=None,
         description="Convenience accessor for model provider",
     )
-    sources: List[GroundingSourceReference] = Field(
+    sources: list[GroundingSourceReference] = Field(
         default_factory=list,
         description="Grounding sources used to produce this artifact (prov:used)",
     )
-    source_urls: List[str] = Field(
+    source_urls: list[str] = Field(
         default_factory=list,
         description="Grounding source URLs",
     )
@@ -193,7 +214,7 @@ class AIProvenanceManifest(BaseModel):
         default=None,
         description="GDPR-safe salted hash of the user ID",
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Arbitrary additional provenance metadata",
     )
@@ -268,15 +289,17 @@ class AIProvenanceManifest(BaseModel):
 
         # Sync source_urls / sources
         if self.source_urls and not self.sources:
-            self.sources = [
-                GroundingSourceReference(source_id=u, url=u) for u in self.source_urls
-            ]
+            self.sources = [GroundingSourceReference(source_id=u, url=u) for u in self.source_urls]
         elif self.sources and not self.source_urls:
             self.source_urls = [s.url or s.source_id for s in self.sources if s.url or s.source_id]
 
         # Sync disclaimer / disclosure
         if not self.disclaimer:
-            if self.origin_type in (OriginType.AI_GENERATED, OriginType.AI_SYNTHESIZED, OriginType.AI_ASSISTED):
+            if self.origin_type in (
+                OriginType.AI_GENERATED,
+                OriginType.AI_SYNTHESIZED,
+                OriginType.AI_ASSISTED,
+            ):
                 self.disclaimer = (
                     "This content was generated with AI assistance in accordance with "
                     "EU AI Act Article 50 transparency requirements."
@@ -286,7 +309,7 @@ class AIProvenanceManifest(BaseModel):
 
         return self
 
-    def to_json_ld(self) -> Dict[str, Any]:
+    def to_json_ld(self) -> dict[str, Any]:
         """Serialize manifest into combined W3C PROV-O, Schema.org, and EU AI Act JSON-LD format."""
         iso_time = (
             self.generated_at.isoformat()
@@ -302,9 +325,9 @@ class AIProvenanceManifest(BaseModel):
         agent_urn = f"urn:agent:{self.agent.agent_id}"
         activity_urn = f"urn:activity:{self.artifact_id.replace('urn:uuid:', '')}"
 
-        prov_used: List[Dict[str, Any]] = []
+        prov_used: list[dict[str, Any]] = []
         for src in self.sources:
-            item: Dict[str, Any] = {
+            item: dict[str, Any] = {
                 "@id": src.url or f"urn:source:{src.source_id}",
                 "@type": "prov:Entity",
                 "source_type": src.source_type,
@@ -333,7 +356,7 @@ class AIProvenanceManifest(BaseModel):
             else str(self.compliance_standard)
         )
 
-        doc: Dict[str, Any] = {
+        doc: dict[str, Any] = {
             "@context": {
                 "prov": "http://www.w3.org/ns/prov#",
                 "dc": "http://purl.org/dc/terms/",
@@ -398,7 +421,7 @@ class AIProvenanceManifest(BaseModel):
         elif prov_used:
             doc["prov:wasDerivedFrom"] = [u["@id"] for u in prov_used]
 
-        meta: Dict[str, Any] = {}
+        meta: dict[str, Any] = {}
         if self.content_hash:
             meta["content_hash"] = self.content_hash
         if self.watermark_signature:

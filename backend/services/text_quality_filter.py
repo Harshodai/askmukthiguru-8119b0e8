@@ -43,7 +43,8 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ def has_repetition_loop(text: str) -> str | None:
         return None
     counts: dict[str, int] = {}
     for i in range(len(words) - _LOOP_NGRAM + 1):
-        gram = " ".join(words[i:i + _LOOP_NGRAM])
+        gram = " ".join(words[i : i + _LOOP_NGRAM])
         counts[gram] = counts.get(gram, 0) + 1
         if counts[gram] >= _LOOP_MIN_REPEATS:
             return gram
@@ -169,35 +170,6 @@ _REPEAT_ALARM_COUNT = 5
 def _normalize_for_repeat(text: str) -> str:
     """Casefold + collapse whitespace, so trivial formatting drift still matches."""
     return " ".join((text or "").split()).casefold()
-
-
-def collapse_repeats(
-    texts: Sequence[str],
-    sources: Sequence[str] | None = None,
-) -> tuple[list[int], list[tuple[str, int, str]]]:
-    """Keep the first occurrence of each repeated chunk in one write batch.
-
-    Returns ``(keep_indices, repeats)`` where ``repeats`` holds
-    ``(chunk_preview, copies_dropped, source)``, ordered worst-first. Callers
-    filter their parallel arrays by ``keep_indices``, same contract as
-    :func:`select_clean`.
-
-    Why this is not covered by :func:`has_repetition_loop`: that detects an
-    n-gram loop *within* one chunk. A generator stuck in a loop emits the same
-    chunk many times over, and each copy is individually innocent — the signal
-    only exists across the batch. The 2026-08-01 corpus measurement found
-    exactly this: 14,292 redundant copies traced to 2,134 distinct texts, the
-    worst being 227 identical copies under one ``source_url`` and one
-    ``parent_id`` with consecutive ``chunk_index`` values, whose body was a
-    header remnant plus a chain-of-thought topic label and no teaching at all.
-    ``make_point_id`` hashes ``chunk_index``, so every copy earned a distinct
-    point id and all 227 persisted.
-
-    Duplicates are keyed on ``(normalized_text, source)``: the same sentence
-    appearing in two different talks is legitimate repetition of a teaching and
-    is kept; the same sentence written twice for one source is redundant by
-    construction.
-    """
 
 
 def collapse_repeats(

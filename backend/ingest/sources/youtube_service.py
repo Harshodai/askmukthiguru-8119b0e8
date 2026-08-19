@@ -97,11 +97,13 @@ class YouTubeIngestionService:
                 is_safe_public_url,
                 transcribe_and_preprocess_audio,
             )
+
             url = f"https://www.youtube.com/watch?v={video_id}"
             if not is_safe_public_url(url):
                 return None
             import tempfile
             from pathlib import Path
+
             with tempfile.TemporaryDirectory(prefix="mukthi-yt-audio-") as tmp_str:
                 work_dir = Path(tmp_str)
                 downloaded = download_audio_stream(url, work_dir)
@@ -110,12 +112,15 @@ class YouTubeIngestionService:
                     str(compressed), output_dir=work_dir, should_polish=True
                 )
                 if transcribed and not transcribed.startswith("[Transcript for"):
-                    return {"text": transcribed, "method": "audio_transcribe_fallback", "video_id": video_id}
+                    return {
+                        "text": transcribed,
+                        "method": "audio_transcribe_fallback",
+                        "video_id": video_id,
+                    }
             return None
         except Exception as e:
             logger.warning("[%s] Audio transcribe fallback error: %s", video_id, e)
         return None
-
 
 
 if __name__ == "__main__":
@@ -128,7 +133,9 @@ if __name__ == "__main__":
     assert not svc.can_handle(""), "can_handle: empty"
 
     assert svc.get_source_id(test_url) == "dQw4w9WgXcQ", "get_source_id: watch URL"
-    assert svc.get_source_id("https://youtu.be/dQw4w9WgXcQ") == "dQw4w9WgXcQ", "get_source_id: short URL"
+    assert svc.get_source_id("https://youtu.be/dQw4w9WgXcQ") == "dQw4w9WgXcQ", (
+        "get_source_id: short URL"
+    )
     assert svc.get_source_id("garbage") == "garbage", "get_source_id: fallback to input"
 
     exhausted = YouTubeIngestionService.all_strategies_exhausted("dQw4w9WgXcQ")

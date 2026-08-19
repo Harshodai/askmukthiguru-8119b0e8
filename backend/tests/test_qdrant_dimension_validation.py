@@ -5,6 +5,7 @@ dimension than the Qdrant collection it was created with, so every dense
 search 400'd while the app looked healthy. This guards the fail-loud check
 added at startup to catch that class of drift immediately.
 """
+
 from unittest.mock import MagicMock
 
 import pytest

@@ -29,7 +29,9 @@ def test_supabase_client_initializes(supabase_client):
 
 def test_supabase_list_tables(supabase_client):
     """Verify we can list tables from the public schema."""
-    response = supabase_client.table("_prisma_migrations").select("*", count="exact").limit(1).execute()
+    response = (
+        supabase_client.table("_prisma_migrations").select("*", count="exact").limit(1).execute()
+    )
     assert response is not None
     assert hasattr(response, "data")
 

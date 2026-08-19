@@ -29,6 +29,7 @@ async def run_native_evaluation(limit: int = 5):
 
     try:
         from app.config import settings
+
         provider = LLMProviderFactory.create_provider(settings.llm_provider)
         embedder = EmbeddingService()
         qdrant = QdrantService()
@@ -121,10 +122,10 @@ async def run_native_evaluation(limit: int = 5):
                 relevant_texts = "\n".join(
                     [doc["text"] for doc, g in zip(docs, grades) if g.get("relevant", False)]
                 )
-                answer = await ollama.generate(
+                answer = await provider.generate(
                     system_prompt="Answer using context.", user_prompt=query, context=relevant_texts
                 )
-                is_faithful = await ollama.check_faithfulness(answer, relevant_texts)
+                is_faithful = await provider.check_faithfulness(answer, relevant_texts)
                 faithfulness_score = 1.0 if is_faithful else 0.0
                 print(f"  → Answer Faithfulness: {faithfulness_score:.2f}")
             else:

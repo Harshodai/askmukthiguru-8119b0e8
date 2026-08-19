@@ -68,6 +68,7 @@ def _reload_prompts() -> None:
     """Hot-reload the rag.prompts module in-process."""
     try:
         import rag.prompts as prompts_module
+
         importlib.reload(prompts_module)
         logger.info("ConfigWatcher: rag.prompts reloaded successfully")
     except Exception as exc:
@@ -78,6 +79,7 @@ def _reload_settings() -> None:
     """Clear and re-read environment variables into the settings object."""
     try:
         from dotenv import load_dotenv
+
         # Reload .env files in order of precedence
         for env_file in (".env.local", ".env"):
             path = Path(env_file)
@@ -94,6 +96,7 @@ async def _watchfiles_loop(watch_paths: list[Path], stop_event: asyncio.Event) -
     """Main loop using watchfiles for inotify-based change detection."""
     try:
         from watchfiles import awatch
+
         logger.info(f"ConfigWatcher: watchfiles active on {[str(p) for p in watch_paths]}")
 
         async for changes in awatch(*watch_paths, stop_event=stop_event):
@@ -157,6 +160,7 @@ class ConfigWatcher:
         async def _run():
             try:
                 import watchfiles  # noqa: F401
+
                 await _watchfiles_loop(watch_paths, self._stop_event)
             except ImportError:
                 await _polling_loop(watch_paths, self._stop_event)

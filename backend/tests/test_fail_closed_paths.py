@@ -50,7 +50,9 @@ async def test_guardrails_fail_closed_on_self_harm():
 
     assert result["blocked"] is True
     assert "self_harm" in result["reason"] or "serene_mind" in result.get("redirect_to", "")
-    assert "crisis" in result["response"].lower() or "please reach out" in result["response"].lower()
+    assert (
+        "crisis" in result["response"].lower() or "please reach out" in result["response"].lower()
+    )
 
 
 # ── Intent fallback fail-closed ───────────────────────────────────────────
@@ -224,9 +226,7 @@ async def test_retrieve_documents_empty_results_is_safe(monkeypatch):
     # Build a settings namespace that disables the semantic cache branch while
     # preserving the real configuration values needed by the retrieval node.
     current_settings = nodes.settings
-    patched_settings = SimpleNamespace(
-        **vars(current_settings), SEMANTIC_CACHE_ENABLED=False
-    )
+    patched_settings = SimpleNamespace(**vars(current_settings), SEMANTIC_CACHE_ENABLED=False)
     monkeypatch.setattr(nodes, "settings", patched_settings)
 
     state = {

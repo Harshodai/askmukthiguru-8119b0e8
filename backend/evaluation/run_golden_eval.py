@@ -14,6 +14,7 @@ Usage:
     --context-recall-min 0.72 \
     --min-distinct-sources 2
 """
+
 from __future__ import annotations
 
 import argparse
@@ -89,7 +90,9 @@ def main() -> int:
         answers.append(ans)
         contexts.append(ctx)
         must = it.get("must_mention", [])
-        refs.append("The expected answer must cover: " + ", ".join(must) if must else it["question"])
+        refs.append(
+            "The expected answer must cover: " + ", ".join(must) if must else it["question"]
+        )
         if success and diversity_violation(cites, args.min_distinct_sources):
             diversity_violations += 1
             print(f"[DIVERSITY] {it['id']}: top-3 citations not diverse enough")

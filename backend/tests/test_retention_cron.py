@@ -17,6 +17,7 @@ def _import_cleanup_mod(patched_supabase):
             if key.startswith("scripts.ops"):
                 del sys.modules[key]
         from scripts.ops import cleanup_inactive_user_data as cleanup_mod
+
         return cleanup_mod
 
 

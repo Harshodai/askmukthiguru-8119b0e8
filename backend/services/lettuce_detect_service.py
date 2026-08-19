@@ -45,7 +45,9 @@ logger = logging.getLogger(__name__)
 # (see root AGENTS.md "Security Invariants"): never download a mutable repo
 # head — a later commit can silently change weights/tokenizer/licence.
 _LETTUCE_MODEL_ID = "KRLabsOrg/lettucedect-base-modernbert-en-v1"
-_LETTUCE_MODEL_REVISION = "bbd77832f52f9bd87546a3924c032467921f5c34"  # resolved 2026-08-11; do not bump to a repo head
+_LETTUCE_MODEL_REVISION = (
+    "bbd77832f52f9bd87546a3924c032467921f5c34"  # resolved 2026-08-11; do not bump to a repo head
+)
 
 
 class LettuceDetectService:
@@ -79,7 +81,9 @@ class LettuceDetectService:
                 _LETTUCE_MODEL_REVISION,
             )
         else:
-            logger.info("LettuceDetectService: heuristic fallback active (lettucedetect_enabled=False).")
+            logger.info(
+                "LettuceDetectService: heuristic fallback active (lettucedetect_enabled=False)."
+            )
 
     # ------------------------------------------------------------------
     # Real detector loading (S3)
@@ -174,13 +178,23 @@ class LettuceDetectService:
         """Run the real LettuceDetect span-level detector."""
         start = time.time()
         if not answer.strip() or not context.strip():
-            return {"is_faithful": False, "score": 0.0, "details": "Empty input.", "unsupported_sentences": []}
+            return {
+                "is_faithful": False,
+                "score": 0.0,
+                "details": "Empty input.",
+                "unsupported_sentences": [],
+            }
 
         # Strip the source citation block the formatter appends — it is
         # not a claim the detector should score against the context.
         clean_answer = re.sub(r"📚 \*Sources & Teachings:\*.*", "", answer, flags=re.DOTALL).strip()
         if not clean_answer:
-            return {"is_faithful": False, "score": 0.0, "details": "Empty answer after citation strip.", "unsupported_sentences": []}
+            return {
+                "is_faithful": False,
+                "score": 0.0,
+                "details": "Empty answer after citation strip.",
+                "unsupported_sentences": [],
+            }
 
         try:
             predictions = detector.predict(
@@ -230,7 +244,12 @@ class LettuceDetectService:
         """Sentence-split + cosine (or word-overlap) heuristic. Original path."""
         start = time.time()
         if not answer.strip() or not context.strip():
-            return {"is_faithful": False, "score": 0.0, "details": "Empty input.", "unsupported_sentences": []}
+            return {
+                "is_faithful": False,
+                "score": 0.0,
+                "details": "Empty input.",
+                "unsupported_sentences": [],
+            }
 
         # Clean answer to remove source citation lists to prevent false negatives
         clean_answer = re.sub(r"📚 \*Sources & Teachings:\*.*", "", answer, flags=re.DOTALL).strip()
@@ -240,7 +259,12 @@ class LettuceDetectService:
             s.strip() for s in re.split(r"(?<=[.!?])\s+", clean_answer) if len(s.strip()) > 10
         ]
         if not sentences:
-            return {"is_faithful": False, "score": 0.0, "details": "No testable sentences.", "unsupported_sentences": []}
+            return {
+                "is_faithful": False,
+                "score": 0.0,
+                "details": "No testable sentences.",
+                "unsupported_sentences": [],
+            }
 
         # C2: emoji auto-pass branch removed — it bypassed faithfulness scoring unconditionally.
         # (Previously: any answer >200 chars containing 📚 returned is_faithful=True, score=1.0

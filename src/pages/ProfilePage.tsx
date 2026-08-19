@@ -75,7 +75,7 @@ import {
 } from '@/lib/profileStorage';
 import { getMeditationStats, getMeditationStatsFromDb, getMeditationSessionsFromDb, loadMeditationSessions, type MeditationStats } from '@/lib/meditationStorage';
 import type { NormalizedSession } from '@/lib/meditationMetrics';
-import { loadConversations, deleteConversation, getCurrentConversationId, type Conversation, getMaxConversations, getRetentionDays, setRetentionDays as saveRetentionDays, formatRelativeTime } from '@/lib/chatStorage';
+import { clearLocalChatData, loadConversations, deleteConversation, getCurrentConversationId, type Conversation, getMaxConversations, getRetentionDays, setRetentionDays as saveRetentionDays, formatRelativeTime } from '@/lib/chatStorage';
 import { derivePersonalInsights, type PersonalInsight } from '@/lib/personalInsights';
 import { memoryApi, type GuruMemory } from '@/lib/memoryApi';
 import { clearResponsePreferences } from '@/lib/chat/responsePreferences';
@@ -1161,6 +1161,7 @@ const ProfilePage = () => {
                                   try {
                                     const { error } = await supabase.functions.invoke('delete-my-account', { method: 'POST' });
                                     if (error) throw error;
+                                    await clearLocalChatData();
                                     deleteAllData();
                                     resetProfile();
                                     await supabase.auth.signOut();

@@ -77,6 +77,7 @@ class RedisCacheAdapter(ICacheRepository):
     def _make_key(self, query: str) -> str:
         """Normalize query and generate cache key."""
         from services.tenant_context import TenantContext
+
         normalized = query.strip().lower()
         key_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
         tenant_id = TenantContext.get()
@@ -130,6 +131,7 @@ class RedisCacheAdapter(ICacheRepository):
             pipe = self._redis.pipeline()
             count = 0
             from services.tenant_context import TenantContext
+
             tenant_id = TenantContext.get()
             for key in self._redis.scan_iter(match=f"mukthiguru:cache:{tenant_id}:*"):
                 pipe.delete(key)

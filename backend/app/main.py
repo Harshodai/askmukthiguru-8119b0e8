@@ -43,67 +43,73 @@ configure_threading()
 # Only effective on Linux (RLIMIT_AS); silently skipped on macOS/Windows.
 try:
     import resource as _resource
+
     _mb = int(os.environ.get("PYTHON_MEMORY_LIMIT_MB", "6144"))
     if _mb > 0:
         _limit_bytes = _mb * 1024 * 1024
         if hasattr(_resource, "RLIMIT_DATA"):  # Safe heap limit (does not restrict mmap)
             _resource.setrlimit(_resource.RLIMIT_DATA, (_limit_bytes, _limit_bytes))
             logger_tmp = logging.getLogger(__name__)
-            logger_tmp.info("Python memory limit set to %dMB via RLIMIT_DATA (PYTHON_MEMORY_LIMIT_MB=%s)", _mb, os.environ.get("PYTHON_MEMORY_LIMIT_MB", "<unset>"))
+            logger_tmp.info(
+                "Python memory limit set to %dMB via RLIMIT_DATA (PYTHON_MEMORY_LIMIT_MB=%s)",
+                _mb,
+                os.environ.get("PYTHON_MEMORY_LIMIT_MB", "<unset>"),
+            )
         elif hasattr(_resource, "RLIMIT_AS"):  # Fallback only
             _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))
 except Exception:
     pass  # Non-fatal: Docker itself provides hard memory limits
 
 
-
-from app.config import settings
-from app.context import correlation_id_var
-from app.dependencies import ServiceContainer, async_shutdown, get_container, startup
-from app.metrics import REQUEST_COUNT
-from app.observability import init_observability
-from app.security_utils import TTLRateLimiter, ExponentialBackoffRateLimiter, RedisBackedRateLimiter, validate_correlation_id, build_csp
-from app.telemetry_db import init_telemetry_db
-from app.telemetry_sink import SupabaseTelemetrySink, TelemetryWorker
-from services.auth_service import get_current_user_from_supabase
-
 # Tenant context is populated per-request via the ``set_tenant_from_request``
 # dependency (wired into routers, e.g. app/api/chat.py and app/api/ingest.py).
 # There is deliberately no module-level tenant init here — a bare module-level
 # call would run without a request and set the wrong tenant.
-
 # Backward-compatible module-level coalescer (tests patch app.main.coalescer).
 from app.coalescer import build_coalescer as _build_coalescer
+from app.config import settings
+from app.context import correlation_id_var
+from app.dependencies import async_shutdown, get_container, startup
+from app.metrics import REQUEST_COUNT
+from app.observability import init_observability
+from app.security_utils import (
+    ExponentialBackoffRateLimiter,
+    RedisBackedRateLimiter,
+    TTLRateLimiter,
+    build_csp,
+)
+from app.telemetry_db import init_telemetry_db
+from app.telemetry_sink import SupabaseTelemetrySink, TelemetryWorker
+from services.auth_service import get_current_user_from_supabase  # noqa: F401
 
 coalescer = _build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl=60.0)
 
 # Existing routers
 from app.api.admin import admin_router
 from app.api.cache_metrics import router as cache_metrics_router
-from app.api.compliance import router as compliance_router
-from app.api.endpoints.auth import router as auth_router
-from app.api.feedback import router as feedback_router
-from app.api.health import router as health_router
+from app.api.cancel_flow import router as cancel_flow_router
 from app.api.capabilities import router as capabilities_router
-from app.core.limiter import limiter
-
-from app.api.support import router as support_router
-from app.api.waitlist import router as waitlist_router
 
 # Newly-extracted route groups
 from app.api.chat import router as chat_router
+from app.api.compliance import router as compliance_router
+from app.api.endpoints.auth import router as auth_router
+from app.api.feedback import router as feedback_router
+from app.api.healing_course import router as healing_course_router
+from app.api.health import router as health_router
 from app.api.ingest import router as ingest_router
 from app.api.memory import router as memory_router
-from app.api.profile import router as profile_router
-from app.api.speech import router as speech_router
-from app.api.teachings import router as teachings_router
-from routers.notebooks import router as notebooks_router
-from app.api.srs import router as srs_router
-from app.api.push import router as push_router
-from app.api.cancel_flow import router as cancel_flow_router
-from app.api.retention import router as retention_router
 from app.api.metrics import router as metrics_router
-from app.api.healing_course import router as healing_course_router
+from app.api.profile import router as profile_router
+from app.api.push import router as push_router
+from app.api.retention import router as retention_router
+from app.api.speech import router as speech_router
+from app.api.srs import router as srs_router
+from app.api.support import router as support_router
+from app.api.teachings import router as teachings_router
+from app.api.waitlist import router as waitlist_router
+from app.core.limiter import limiter
+from routers.notebooks import router as notebooks_router
 
 # Job and trace routers are imported where needed below to avoid
 # heavy imports during module load.
@@ -116,7 +122,6 @@ logger = logging.getLogger(__name__)
 # PII auto-redaction for log output (P1-SEC-3): every message emitted through
 # the JSON formatter is scrubbed for emails/phones/IDs/IPs/query params.
 from services.pii_scanner import PIIScanner
-
 
 # === Graceful shutdown in-flight request tracker (R3) ===
 _INFLIGHT = 0  # simple int — GIL protects single reads/writes in CPython
@@ -178,6 +183,7 @@ for _hdlr in logging.getLogger().handlers:
 
 
 # === NodeObserver wiring (called during startup) ===
+
 
 def _register_node_observers() -> None:
     """
@@ -244,6 +250,7 @@ async def _background_startup_body(container, fastapi_app) -> None:
     # Advisory-only: warn if Qdrant server predates sparse-vector support (>= 1.8)
     try:
         from app.qdrant_version_check import check_qdrant_version
+
         _vclient = _get_qdrant_service_client(container)
         if _vclient:
             check_qdrant_version(_vclient)
@@ -257,19 +264,24 @@ async def _background_startup_body(container, fastapi_app) -> None:
     # If embedding model changed, all existing vectors are stale — alert on mismatch.
     logger.info("Lifespan: checking embedding model fingerprint...")
     try:
-        import json as _json
         import hashlib as _hashlib
+        import json as _json
 
         _embed_model_name = getattr(settings, "embedding_model", "BAAI/bge-m3")
         _embed_dim = getattr(settings, "embedding_dimension", 1024)
-        _fingerprint = _hashlib.md5(f"{_embed_model_name}:{_embed_dim}".encode(), usedforsecurity=False).hexdigest()
+        _fingerprint = _hashlib.md5(
+            f"{_embed_model_name}:{_embed_dim}".encode(), usedforsecurity=False
+        ).hexdigest()
         _fp_redis_key = "embedding_model_fingerprint"
 
         # Use Redis for durable cross-deploy persistence; fall back to /tmp on failure
         _stored_fp = None
         try:
             import redis as _redis_lib
-            _r = _redis_lib.Redis.from_url(settings.redis_url, socket_timeout=3, socket_connect_timeout=3)
+
+            _r = _redis_lib.Redis.from_url(
+                settings.redis_url, socket_timeout=3, socket_connect_timeout=3
+            )
             _stored_raw = _r.get(_fp_redis_key)
             if _stored_raw:
                 _stored = _json.loads(_stored_raw)
@@ -289,7 +301,10 @@ async def _background_startup_body(container, fastapi_app) -> None:
                 logger.critical(
                     "⚠️  EMBEDDING MODEL CHANGED: stored=%s current=%s model=%s dim=%d. "
                     "Full re-indexing of spiritual_wisdom required to avoid retrieval degradation!",
-                    _stored_fp, _fingerprint, _embed_model_name, _embed_dim,
+                    _stored_fp,
+                    _fingerprint,
+                    _embed_model_name,
+                    _embed_dim,
                 )
             else:
                 logger.info("Lifespan: embedding model fingerprint OK (%s)", _fingerprint[:8])
@@ -297,13 +312,28 @@ async def _background_startup_body(container, fastapi_app) -> None:
             # Store fingerprint in Redis (primary) and /tmp (fallback)
             try:
                 import redis as _redis_lib2
-                _r2 = _redis_lib2.Redis.from_url(settings.redis_url, socket_timeout=3, socket_connect_timeout=3)
-                _r2.set(_fp_redis_key, _json.dumps({"model": _embed_model_name, "dim": _embed_dim, "fingerprint": _fingerprint}))
+
+                _r2 = _redis_lib2.Redis.from_url(
+                    settings.redis_url, socket_timeout=3, socket_connect_timeout=3
+                )
+                _r2.set(
+                    _fp_redis_key,
+                    _json.dumps(
+                        {"model": _embed_model_name, "dim": _embed_dim, "fingerprint": _fingerprint}
+                    ),
+                )
             except Exception:
                 _fp_path = "/tmp/embedding_model_fingerprint.json"
                 try:
                     with open(_fp_path, "w") as _f:
-                        _json.dump({"model": _embed_model_name, "dim": _embed_dim, "fingerprint": _fingerprint}, _f)
+                        _json.dump(
+                            {
+                                "model": _embed_model_name,
+                                "dim": _embed_dim,
+                                "fingerprint": _fingerprint,
+                            },
+                            _f,
+                        )
                 except Exception as _e:
                     logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
             logger.info("Lifespan: embedding model fingerprint stored (%s)", _fingerprint[:8])
@@ -315,8 +345,12 @@ async def _background_startup_body(container, fastapi_app) -> None:
     try:
         import os as _os
 
-        _reranker_model = getattr(settings, "reranker_model_cpu", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1")
-        _model_cache = _os.environ.get("SENTENCE_TRANSFORMERS_HOME", "/app/model_cache/sentence_transformers")
+        _reranker_model = getattr(
+            settings, "reranker_model_cpu", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+        )
+        _model_cache = _os.environ.get(
+            "SENTENCE_TRANSFORMERS_HOME", "/app/model_cache/sentence_transformers"
+        )
         # Convert model ID to cache path format (slashes → dashes)
         _model_dir = _os.path.join(_model_cache, _reranker_model.replace("/", "_"))
         _alt_model_dir = _os.path.join(_model_cache, _reranker_model.replace("/", "__"))
@@ -325,13 +359,16 @@ async def _background_startup_body(container, fastapi_app) -> None:
         else:
             logger.warning(
                 "Lifespan: reranker model %s NOT in cache at %s — will download on first use (cold start latency expected)",
-                _reranker_model, _model_cache,
+                _reranker_model,
+                _model_cache,
             )
     except Exception as e:
         logger.warning(f"Lifespan: reranker cache check error (non-critical): {e}")
 
     # Pre-warm LettuceDetect if enabled to prevent 20s cold-start latency spike on first user turn
-    if getattr(settings, "lettucedetect_enabled", False) and getattr(container, "lettuce_detect", None):
+    if getattr(settings, "lettucedetect_enabled", False) and getattr(
+        container, "lettuce_detect", None
+    ):
         try:
             logger.info("Lifespan: pre-warming LettuceDetect model...")
             await asyncio.to_thread(container.lettuce_detect._load_real_detector)
@@ -348,7 +385,8 @@ async def _background_startup_body(container, fastapi_app) -> None:
     # Schedule recurring jobs
     logger.info("Lifespan: about to start scheduler...")
     try:
-        from infrastructure.scheduler import start_scheduler, shutdown_scheduler
+        from infrastructure.scheduler import shutdown_scheduler, start_scheduler
+
         start_scheduler()
         fastapi_app.state.scheduler_shutdown = shutdown_scheduler
         logger.info("Lifespan: scheduler started")
@@ -363,6 +401,7 @@ async def _background_startup_body(container, fastapi_app) -> None:
     # Config Watcher
     logger.info("Lifespan: about to start config watcher...")
     from services.config_watcher import start_config_watcher
+
     await start_config_watcher()
     logger.info("Lifespan: config watcher started")
 
@@ -370,6 +409,7 @@ async def _background_startup_body(container, fastapi_app) -> None:
     if getattr(container, "job_queue", None):
         try:
             from app.orchestrator import queue_worker_factory
+
             logger.info(f"About to start JobQueue: job_queue={container.job_queue!r}")
             await container.job_queue.start(queue_worker_factory)
             logger.info("JobQueue workers started")
@@ -406,16 +446,15 @@ async def _background_startup_body(container, fastapi_app) -> None:
                 logger.error(
                     "EMBEDDING DIMENSION MISMATCH: got %d, expected %d — "
                     "Qdrant dense search will fail. Check HF_REVISION and ONNX model pin.",
-                    _dim, settings.embedding_dimension,
+                    _dim,
+                    settings.embedding_dimension,
                 )
                 _app_deps.startup_error = (
                     f"Embedding dimension mismatch: got {_dim}, expected "
                     f"{settings.embedding_dimension} — Qdrant dense search will fail"
                 )
             else:
-                logger.info(
-                    "Embedding warm-up OK: dim=%d, latency=%dms", _dim, _latency_ms
-                )
+                logger.info("Embedding warm-up OK: dim=%d, latency=%dms", _dim, _latency_ms)
         else:
             logger.warning("Embedding service not available for warm-up canary")
     except Exception as _warmup_err:
@@ -439,23 +478,28 @@ async def lifespan(app: FastAPI):
     startup()
     container = get_container()
     from app import dependencies as app_dependencies
+
     app_dependencies.startup_complete = False
     app_dependencies.startup_error = None
 
     # Validate release manifest readiness
-    from app.release_manifest import validate_release_manifest, get_release_manifest
+    from app.release_manifest import get_release_manifest, validate_release_manifest
+
     validate_release_manifest()
-    logger.info("Lifespan: release manifest validated (release_id=%s)", get_release_manifest().release_id)
+    logger.info(
+        "Lifespan: release manifest validated (release_id=%s)", get_release_manifest().release_id
+    )
 
     # Register a global shutdown_scheduler noop so cleanup always works
-    shutdown_scheduler = lambda: None
+    def shutdown_scheduler():
+        return None
 
     # 3. Initialize LightRAG inline with timeout (critical for answer quality)
     try:
         logger.info("Lifespan: initializing LightRAG (timeout 120s)...")
         await asyncio.wait_for(container.lightrag.initialize(), timeout=120)
         logger.info("Lifespan: LightRAG initialized")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("Lifespan: LightRAG init timed out — degraded mode")
     except Exception as e:
         logger.warning(f"Lifespan: LightRAG init failed — {e}")
@@ -468,11 +512,8 @@ async def lifespan(app: FastAPI):
     # so Railway won't kill us during init. The /api/health endpoint returns
     # ready:false until startup_complete=True at the end of this block.
     try:
-        await asyncio.wait_for(
-            _background_startup_body(container, app),
-            timeout=180
-        )
-    except asyncio.TimeoutError:
+        await asyncio.wait_for(_background_startup_body(container, app), timeout=180)
+    except TimeoutError:
         logger.warning("Background init timed out after 180s")
         app_dependencies.startup_error = "Background init timed out"
     except Exception as e:
@@ -506,6 +547,7 @@ async def lifespan(app: FastAPI):
 
     try:
         from services.config_watcher import stop_config_watcher
+
         await stop_config_watcher()
     except Exception as e:
         logger.warning(f"Config watcher shutdown error: {e}")
@@ -579,6 +621,7 @@ if settings.is_production:
 # CORS — allow frontend origins (enforcing explicit allowlist and secure headers in production)
 cors_origins = settings.cors_origins_list
 
+
 def _build_origin_regex(origins: list[str]) -> str | None:
     """Build a regex for wildcard origins, leaving all other metacharacters literal."""
     wildcard_patterns = []
@@ -591,6 +634,7 @@ def _build_origin_regex(origins: list[str]) -> str | None:
         pattern = escaped.replace(r"\*", r"[^/]+")
         wildcard_patterns.append(pattern)
     return "|".join(wildcard_patterns) if wildcard_patterns else None
+
 
 if settings.is_production:
     # In production, strictly enforce explicit origins (no wildcard origins with credentials)
@@ -633,7 +677,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=cors_allow_headers,
 )
-
 
 
 # Correlation ID middleware — generates UUID per request
@@ -716,10 +759,11 @@ app.add_middleware(SecurityHeadersMiddleware)
 # ── Distributed rate limiters (Redis-backed sliding window) ──
 # Falls back to process-local TTLRateLimiter automatically if Redis is unavailable.
 # Replaces former ExponentialBackoffRateLimiter + TTLRateLimiter (process-local, audit P0-6).
-_redis_url_for_rl = settings.redis_url if (
+_redis_url_for_rl = (
     settings.redis_url
-    and settings.redis_url.startswith(("redis://", "rediss://", "unix://"))
-) else None
+    if (settings.redis_url and settings.redis_url.startswith(("redis://", "rediss://", "unix://")))
+    else None
+)
 
 if _redis_url_for_rl:
     _AUTH_RATE_LIMITER = RedisBackedRateLimiter(
@@ -732,7 +776,7 @@ if _redis_url_for_rl:
     _ADMIN_RATE_LIMITER = RedisBackedRateLimiter(
         redis_url=_redis_url_for_rl,
         ttl=60.0,
-        max_requests=int(settings.admin_rate_limit.split('/')[0]),
+        max_requests=int(settings.admin_rate_limit.split("/")[0]),
     )
     logger.info("Auth/Admin rate limiters: Redis-backed distributed sliding window")
 else:
@@ -743,17 +787,23 @@ else:
         backoff_base=settings.auth_backoff_base_seconds,
         backoff_multiplier=settings.auth_backoff_multiplier,
     )
-    _ADMIN_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=int(settings.admin_rate_limit.split('/')[0]))
-    logger.warning("Auth/Admin rate limiters: process-local (Redis not configured) — not safe for multi-worker deploy")
+    _ADMIN_RATE_LIMITER = TTLRateLimiter(
+        ttl=60.0, max_requests=int(settings.admin_rate_limit.split("/")[0])
+    )
+    logger.warning(
+        "Auth/Admin rate limiters: process-local (Redis not configured) — not safe for multi-worker deploy"
+    )
 
 
 # Auth endpoint rate limiter middleware — tight limits on login/reset/register
-_AUTH_LIMIT_PATHS: frozenset[str] = frozenset({
-    "/api/auth/jwt/login",
-    "/api/auth/register",
-    "/api/auth/forgot-password",
-    "/api/auth/reset-password",
-})
+_AUTH_LIMIT_PATHS: frozenset[str] = frozenset(
+    {
+        "/api/auth/jwt/login",
+        "/api/auth/register",
+        "/api/auth/forgot-password",
+        "/api/auth/reset-password",
+    }
+)
 
 
 @app.middleware("http")
@@ -766,7 +816,10 @@ async def auth_rate_limit_middleware(request: Request, call_next):
         if not ip_allowed:
             return JSONResponse(
                 status_code=429,
-                content={"error": "Too Many Requests", "message": "Auth rate limit exceeded. Try again later."},
+                content={
+                    "error": "Too Many Requests",
+                    "message": "Auth rate limit exceeded. Try again later.",
+                },
                 headers={"Retry-After": str(int(ip_retry_after))},
             )
 
@@ -781,7 +834,10 @@ async def auth_rate_limit_middleware(request: Request, call_next):
                     _AUTH_RATE_LIMITER.record_attempt(ip_key, success=False)
                     return JSONResponse(
                         status_code=429,
-                        content={"error": "Too Many Requests", "message": "Too many login attempts for this account. Try again later."},
+                        content={
+                            "error": "Too Many Requests",
+                            "message": "Too many login attempts for this account. Try again later.",
+                        },
                         headers={"Retry-After": str(int(acct_retry_after))},
                     )
         except (json.JSONDecodeError, RuntimeError):
@@ -813,7 +869,10 @@ async def admin_rate_limit_middleware(request: Request, call_next):
         if not allowed:
             return JSONResponse(
                 status_code=429,
-                content={"error": "Too Many Requests", "message": "Admin rate limit exceeded. Try again later."},
+                content={
+                    "error": "Too Many Requests",
+                    "message": "Admin rate limit exceeded. Try again later.",
+                },
                 headers={"Retry-After": str(int(retry_after))},
             )
     return await call_next(request)
@@ -823,7 +882,9 @@ async def admin_rate_limit_middleware(request: Request, call_next):
 from app.middleware.rate_limit import TokenBucketMiddleware
 
 if settings.redis_url and settings.redis_url.startswith(("redis://", "rediss://", "unix://")):
-    app.add_middleware(TokenBucketMiddleware, redis_url=settings.redis_url, capacity=20, refill_per_sec=20 / 60)
+    app.add_middleware(
+        TokenBucketMiddleware, redis_url=settings.redis_url, capacity=20, refill_per_sec=20 / 60
+    )
 
 # Audit logging middleware — logs method, path, status, duration for all requests
 from app.middleware.audit import AuditLogMiddleware
@@ -863,7 +924,7 @@ async def request_timeout_middleware(request: Request, call_next):
     timeout_val: float = float(getattr(settings, "pipeline_timeout", 180))
     try:
         return await asyncio.wait_for(call_next(request), timeout=timeout_val)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error(
             f"Global request timeout ({timeout_val:.0f}s) on {request.method} {request.url.path}"
         )
@@ -964,7 +1025,6 @@ async def get_jwks():
     return get_jwks_dict()
 
 
-
 # === Mount Ingestion UI ===
 
 # Try to find the directory (Docker vs Local/Colab)
@@ -1043,4 +1103,3 @@ if __name__ == "__main__":
         port=settings.port,
         reload=True,
     )
-

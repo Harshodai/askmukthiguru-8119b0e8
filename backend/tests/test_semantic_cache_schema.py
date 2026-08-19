@@ -60,6 +60,7 @@ class TestSemanticCacheSchema:
     def test_qdrant_semantic_cache_class_not_importable_by_name(self) -> None:
         with pytest.raises(ImportError):
             from services.semantic_cache import QdrantSemanticCache  # noqa: F401
+
             _ = QdrantSemanticCache
 
     def test_legacy_service_still_importable(self) -> None:

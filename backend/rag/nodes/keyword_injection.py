@@ -29,64 +29,118 @@ DOCTRINE_CATEGORIES = {
     "four_sacred_secrets": {
         "patterns": ["four sacred secret", "four secret", "sacred secret", "preethaji secret"],
         "keywords": [
-            "spiritual vision", "inner truth", "universal intelligence", "spiritual right action",
-            "four sacred secrets", "preethaji", "krishnaji", "manifestation"
+            "spiritual vision",
+            "inner truth",
+            "universal intelligence",
+            "spiritual right action",
+            "four sacred secrets",
+            "preethaji",
+            "krishnaji",
+            "manifestation",
         ],
     },
     "deeksha": {
         "patterns": ["deeksha", "oneness blessing", "blessing", "diksha"],
         "keywords": [
-            "oneness blessing", "frontal lobe", "parietal lobe", "neurobiological",
-            "brain activation", "consciousness shift", "grace", "transfer"
+            "oneness blessing",
+            "frontal lobe",
+            "parietal lobe",
+            "neurobiological",
+            "brain activation",
+            "consciousness shift",
+            "grace",
+            "transfer",
         ],
     },
     "soul_sync": {
         "patterns": ["soul sync", "soul-sync", "soulsync"],
         "keywords": [
-            "breath awareness", "humming", "pause", "Aham", "golden light",
-            "intention", "heart connection", "meditation", "7 minutes", "6 steps"
+            "breath awareness",
+            "humming",
+            "pause",
+            "Aham",
+            "golden light",
+            "intention",
+            "heart connection",
+            "meditation",
+            "7 minutes",
+            "6 steps",
         ],
     },
     "ekam": {
         "patterns": ["ekam", "varadaiahpalem", "ekam world"],
         "keywords": [
-            "varadaiahpalem", "tirupati", "andhra pradesh", "india",
-            "world center", "oneness", "meditation hall", "sacred space"
+            "varadaiahpalem",
+            "tirupati",
+            "andhra pradesh",
+            "india",
+            "world center",
+            "oneness",
+            "meditation hall",
+            "sacred space",
         ],
     },
     "manifest_2026": {
         "patterns": ["manifest 2026", "manifest 2025", "12 powers", "12 power"],
         "keywords": [
-            "manifest", "12 powers", "monthly", "intention", "heart connection",
-            "deeksha", "yearly program", "manifestation practice"
+            "manifest",
+            "12 powers",
+            "monthly",
+            "intention",
+            "heart connection",
+            "deeksha",
+            "yearly program",
+            "manifestation practice",
         ],
     },
     "beautiful_state": {
         "patterns": ["beautiful state", "beautiful state teaching"],
         "keywords": [
-            "calm", "joy", "love", "connection", "beautiful state teachings",
-            "suffering", "peace", "gratitude", "presence"
+            "calm",
+            "joy",
+            "love",
+            "connection",
+            "beautiful state teachings",
+            "suffering",
+            "peace",
+            "gratitude",
+            "presence",
         ],
     },
     "founders": {
         "patterns": ["preethaji", "krishnaji", "founder", "co-founder"],
         "keywords": [
-            "co-founders", "oneness movement", "ekam", "lokaa foundation",
-            "o&o academy", "sri preethaji", "sri krishnaji"
+            "co-founders",
+            "oneness movement",
+            "ekam",
+            "lokaa foundation",
+            "o&o academy",
+            "sri preethaji",
+            "sri krishnaji",
         ],
     },
     "meditation": {
         "patterns": ["meditation", "meditate", "mindfulness"],
         "keywords": [
-            "breath", "awareness", "presence", "stillness", "inner peace",
-            "guided meditation", "chanting", "mantra"
+            "breath",
+            "awareness",
+            "presence",
+            "stillness",
+            "inner peace",
+            "guided meditation",
+            "chanting",
+            "mantra",
         ],
     },
     "consciousness": {
         "patterns": ["consciousness", "awareness", "enlightenment", "awakening"],
         "keywords": [
-            "higher consciousness", "expanded awareness", "unity consciousness",
-            "pure awareness", "witness consciousness", "self-realization"
+            "higher consciousness",
+            "expanded awareness",
+            "unity consciousness",
+            "pure awareness",
+            "witness consciousness",
+            "self-realization",
         ],
     },
 }
@@ -166,7 +220,7 @@ def inject_doctrine_keywords(
     unique_keywords = [k for k in keywords if not (k in seen or seen.add(k))]  # type: ignore[func-returns-value]
 
     if unique_keywords:
-        return f"{query} {' '.join(unique_keywords[:top_k * len(categories)])}"
+        return f"{query} {' '.join(unique_keywords[: top_k * len(categories)])}"
     return query
 
 
@@ -191,9 +245,7 @@ FACTUAL_CONTEXT = {
 _LOCATION_SIGNALS = re.compile(
     r"\b(where|locate[ds]?|location|address|place|city|state|country|headquarter)\b", re.I
 )
-_TEMPORAL_SIGNALS = re.compile(
-    r"\b(when|founded|established|since|year|date)\b", re.I
-)
+_TEMPORAL_SIGNALS = re.compile(r"\b(when|founded|established|since|year|date)\b", re.I)
 
 
 @lru_cache(maxsize=1024)
@@ -285,13 +337,13 @@ def get_keyword_inclusion_prompt(categories: list[str]) -> str:
     """Generate prompt addition for required keyword coverage."""
     if not categories:
         return ""
-    
+
     required = []
     for cat in categories:
         required.extend(DOCTRINE_CATEGORIES[cat]["keywords"][:3])
-    
+
     unique_required = list(dict.fromkeys(required))[:8]
-    
+
     if unique_required:
         return (
             f"\n\nIMPORTANT: Your answer MUST naturally include these doctrine terms: "
@@ -300,20 +352,22 @@ def get_keyword_inclusion_prompt(categories: list[str]) -> str:
     return ""
 
 
-def verify_keyword_coverage(answer: str, query: str, threshold: float = 0.6) -> tuple[bool, list[str]]:
+def verify_keyword_coverage(
+    answer: str, query: str, threshold: float = 0.6
+) -> tuple[bool, list[str]]:
     """Verify answer covers expected doctrine keywords."""
     categories = classify_doctrine_query(query)
     if not categories:
         return True, []
-    
+
     expected = set()
     for cat in categories:
         expected.update(kw.lower() for kw in DOCTRINE_CATEGORIES[cat]["keywords"])
-    
+
     answer_lower = answer.lower()
     found = sum(1 for kw in expected if kw in answer_lower)
     coverage = found / len(expected) if expected else 1.0
-    
+
     missing = [kw for kw in expected if kw not in answer_lower]
     return coverage >= threshold, missing
 
@@ -322,14 +376,14 @@ def inject_missing_keywords(answer: str, missing: list[str], max_inject: int = 3
     """Inject missing keywords naturally into answer."""
     if not missing or not answer:
         return answer
-    
+
     inject_count = min(len(missing), max_inject)
     to_inject = missing[:inject_count]
-    
+
     sentences = answer.split(". ")
     if len(sentences) < 2:
         return answer + " " + ", ".join(to_inject) + "."
-    
+
     insert_idx = len(sentences) // 2
     sentences.insert(insert_idx, ", ".join(to_inject))
     return ". ".join(sentences)

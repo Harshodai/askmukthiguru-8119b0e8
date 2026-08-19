@@ -10,13 +10,6 @@ from __future__ import annotations
 import asyncio
 
 # ExceptionGroup is built-in in Python 3.11+; for 3.9/3.10 use the backport
-import sys
-
-if sys.version_info < (3, 11):
-    try:
-        from exceptiongroup import ExceptionGroup  # type: ignore[import]
-    except ImportError:
-        ExceptionGroup = Exception  # type: ignore[misc,assignment]
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import jwt
@@ -47,10 +40,15 @@ def mock_coalescer():
     async def dummy_get_or_run(key, callback):
         return await callback()
 
-    with patch("app.orchestrator._coalescer.get_or_run", side_effect=dummy_get_or_run), \
-         patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run), \
-         patch("app.coalescer.build_coalescer", return_value=MagicMock(get_or_run=AsyncMock(side_effect=dummy_get_or_run))), \
-         patch("rag.nodes.on_device_intent._get_encoder", return_value=False):
+    with (
+        patch("app.orchestrator._coalescer.get_or_run", side_effect=dummy_get_or_run),
+        patch("app.main.coalescer.get_or_run", side_effect=dummy_get_or_run),
+        patch(
+            "app.coalescer.build_coalescer",
+            return_value=MagicMock(get_or_run=AsyncMock(side_effect=dummy_get_or_run)),
+        ),
+        patch("rag.nodes.on_device_intent._get_encoder", return_value=False),
+    ):
         yield
 
 
@@ -98,12 +96,14 @@ def _build_mock_container():
 
     async def dummy_translate(text, src, tgt):
         return f"translated_{text}"
+
     mock_container.ollama.translate_text = dummy_translate
 
     mock_container.translation = AsyncMock()
 
     async def dummy_translate_text(*, text: str, source_lang: str, target_lang: str, **kwargs):
         return f"translated_{text}"
+
     mock_container.translation.translate_text = dummy_translate_text
 
     mock_container.qdrant = MagicMock()
@@ -113,6 +113,7 @@ def _build_mock_container():
     mock_container.ocr.health_check = lambda: True
 
     from services.language_router import LanguageCode, LanguageDetection
+
     mock_lang = LanguageDetection(
         primary=LanguageCode.EN,
         confidence=0.9,
@@ -128,9 +129,11 @@ def _build_mock_container():
     mock_container.user_profile = None
 
     from app.coalescer import _InMemoryCoalescer
+
     mock_container.coalescer = _InMemoryCoalescer()
 
     from services.anon_quota_port import QuotaResult
+
     mock_container.anon_quota_service = AsyncMock()
     mock_container.anon_quota_service.check_and_record.return_value = QuotaResult(
         allowed=True, remaining=10, total_limit=10, reservation_id="mock-res-id"
@@ -152,8 +155,12 @@ def _build_mock_container():
 
     mock_container.health_status = AsyncMock()
     mock_container.health_status.return_value = {
-        "qdrant": True, "ollama": True, "embedding": True,
-        "ocr": True, "guardrails": True, "semantic_cache": True,
+        "qdrant": True,
+        "ollama": True,
+        "embedding": True,
+        "ocr": True,
+        "guardrails": True,
+        "semantic_cache": True,
         "total_chunks": 100,
     }
     mock_container.job_queue = None
@@ -181,9 +188,7 @@ def _restore_dependency_overrides():
         get_optional_user,
         get_container,
     ]
-    original_overrides = {
-        dep: app.dependency_overrides.get(dep) for dep in overrides_to_manage
-    }
+    original_overrides = {dep: app.dependency_overrides.get(dep) for dep in overrides_to_manage}
     app.dependency_overrides[get_current_user_from_supabase] = mock_get_current_user
     app.dependency_overrides[get_optional_user] = mock_get_current_user
     try:
@@ -273,7 +278,11 @@ async def test_vector_db_empty_results():
 
     app.dependency_overrides[get_container] = lambda: mock_container
 
-    payload = {"user_message": "Tell me about quantum physics", "session_id": "empty-vdb", "messages": []}
+    payload = {
+        "user_message": "Tell me about quantum physics",
+        "session_id": "empty-vdb",
+        "messages": [],
+    }
     response = client.post("/api/chat", json=payload)
     assert response.status_code == 200
     data = response.json()
@@ -326,6 +335,7 @@ async def test_jwt_expiration():
     app.dependency_overrides[get_container] = lambda: _build_mock_container()
     try:
         from app.config import settings
+
         expired_token = jwt.encode(
             {"sub": "test-user", "exp": 0},
             key=settings.jwt_secret or "mock_jwt_secret_for_testing_12345",
@@ -337,7 +347,9 @@ async def test_jwt_expiration():
         response = client.post("/api/chat", json=payload, headers=headers)
         # 200 (synchronous) or 202 (queued, when job_queue is enabled) both mean
         # "accepted as anonymous" — only a 401 would mean the hard-reject path.
-        assert response.status_code in (200, 202), f"Expected graceful anonymous fallback, got {response.status_code}"
+        assert response.status_code in (200, 202), (
+            f"Expected graceful anonymous fallback, got {response.status_code}"
+        )
     finally:
         if saved_supabase_override is not None:
             app.dependency_overrides[get_current_user_from_supabase] = saved_supabase_override
@@ -358,7 +370,9 @@ async def test_large_message():
     payload = {"user_message": oversized, "session_id": "anon:large-msg", "messages": []}
     response = client.post("/api/chat", json=payload)
     # Pydantic returns 422 for max_length=10000 violation; also accept 400/413 for rejection
-    assert response.status_code in (200, 400, 413, 422), f"Unexpected status: {response.status_code}"
+    assert response.status_code in (200, 400, 413, 422), (
+        f"Unexpected status: {response.status_code}"
+    )
     if response.status_code == 200:
         data = response.json()
         assert "response" in data
@@ -383,7 +397,9 @@ async def test_malformed_message():
         payload = {"user_message": injection, "session_id": "malformed", "messages": []}
         response = client.post("/api/chat", json=payload)
         # Should be handled gracefully — no 500, no crash
-        assert response.status_code in (200, 400), f"Status {response.status_code} for payload: {injection!r}"
+        assert response.status_code in (200, 400), (
+            f"Status {response.status_code} for payload: {injection!r}"
+        )
         if response.status_code == 200:
             data = response.json()
             assert "response" in data
@@ -426,7 +442,12 @@ async def test_streaming_disconnect():
     app.dependency_overrides[get_container] = lambda: mock_container
 
     # Use a streaming connection and intentionally read only partial data
-    payload = {"user_message": "Tell me a story", "session_id": "disconnect", "messages": [], "stream": True}
+    payload = {
+        "user_message": "Tell me a story",
+        "session_id": "disconnect",
+        "messages": [],
+        "stream": True,
+    }
     with client.stream("POST", "/api/chat/stream", json=payload) as response:
         assert response.status_code == 200
         # Read first chunk then disconnect (context manager handles the rest)
@@ -569,7 +590,11 @@ async def test_qdrant_timeout_graceful_degradation():
 
     app.dependency_overrides[get_container] = lambda: mock_container
 
-    payload = {"user_message": "What is the Beautiful State?", "session_id": "qdrant-timeout", "messages": []}
+    payload = {
+        "user_message": "What is the Beautiful State?",
+        "session_id": "qdrant-timeout",
+        "messages": [],
+    }
     try:
         response = client.post("/api/chat", json=payload)
         assert response.status_code in (200, 500)
@@ -591,7 +616,9 @@ async def test_embedding_service_load_failure():
     mock_container = _build_mock_container()
 
     async def fail_ainvoke(*args, **kwargs):
-        raise CircuitOpenException(provider="embedding", message="Circuit breaker OPEN for embedding — failing fast")
+        raise CircuitOpenException(
+            provider="embedding", message="Circuit breaker OPEN for embedding — failing fast"
+        )
 
     mock_container.standard_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
     mock_container.fast_graph.ainvoke = AsyncMock(side_effect=fail_ainvoke)
@@ -600,7 +627,11 @@ async def test_embedding_service_load_failure():
 
     app.dependency_overrides[get_container] = lambda: mock_container
 
-    payload = {"user_message": "Tell me about inner peace", "session_id": "embed-fail", "messages": []}
+    payload = {
+        "user_message": "Tell me about inner peace",
+        "session_id": "embed-fail",
+        "messages": [],
+    }
     try:
         response = client.post("/api/chat", json=payload)
         assert response.status_code in (200, 500)
@@ -634,12 +665,18 @@ async def test_web_search_failure_continues_without_results():
     mock_container.rag_graph = mock_graph
     mock_container.web_search = MagicMock()
     mock_container.web_search.search = AsyncMock(
-        side_effect=CircuitOpenException(provider="web_search", message="Circuit breaker OPEN for web_search")
+        side_effect=CircuitOpenException(
+            provider="web_search", message="Circuit breaker OPEN for web_search"
+        )
     )
 
     app.dependency_overrides[get_container] = lambda: mock_container
 
-    payload = {"user_message": "What's happening with the guru's schedule today?", "session_id": "websearch-fail", "messages": []}
+    payload = {
+        "user_message": "What's happening with the guru's schedule today?",
+        "session_id": "websearch-fail",
+        "messages": [],
+    }
     response = client.post("/api/chat", json=payload)
     assert response.status_code == 200
     assert len(response.json()["response"]) > 0

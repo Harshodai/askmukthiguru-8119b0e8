@@ -16,10 +16,11 @@ measures the literal objective the ingestion pipeline optimizes for.
 """
 
 import json
+import sys
 import time
 from pathlib import Path
+
 import numpy as np
-import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -82,7 +83,15 @@ class MockEmbeddingService:
 def _score_candidate(chunker: AdaptiveChunker, chunks: list[str]) -> dict:
     """Score one candidate chunk set on all five metrics, weighted like production."""
     if not chunks:
-        return {"num_chunks": 0, "sc": 0.0, "icc": 0.0, "dcc": 0.0, "bi": 0.0, "rc": 0.0, "combined": 0.0}
+        return {
+            "num_chunks": 0,
+            "sc": 0.0,
+            "icc": 0.0,
+            "dcc": 0.0,
+            "bi": 0.0,
+            "rc": 0.0,
+            "combined": 0.0,
+        }
 
     embeddings = chunker._encode(chunks)
     sc = chunker._size_compliance(chunks)
@@ -140,7 +149,7 @@ def run_evaluation():
     md_content = generate_markdown_report(results)
     md_path.write_text(md_content)
 
-    print(f"\n📊 Evaluation complete!")
+    print("\n📊 Evaluation complete!")
     print(f"   JSON report saved to: {json_path}")
     print(f"   Markdown report saved to: {md_path}")
 
@@ -177,13 +186,19 @@ def generate_markdown_report(results):
 
 def print_console_summary(results):
     print("\n" + "=" * 90)
-    print(f"{'Chunk Size':<12} {'Strategy':<12} {'Chunks':<8} {'SC':<8} {'ICC':<8} {'DCC':<8} {'BI':<8} {'RC':<8} {'Combined':<10}")
+    print(
+        f"{'Chunk Size':<12} {'Strategy':<12} {'Chunks':<8} {'SC':<8} {'ICC':<8} {'DCC':<8} {'BI':<8} {'RC':<8} {'Combined':<10}"
+    )
     print("-" * 90)
     for size, data in results.items():
         r = data["recursive"]
         s = data["semantic"]
-        print(f"{size:<12} {'Recursive':<12} {r['num_chunks']:<8} {r['sc']:<8.3f} {r['icc']:<8.3f} {r['dcc']:<8.3f} {r['bi']:<8.3f} {r['rc']:<8.3f} {r['combined']:<10.3f}")
-        print(f"{size:<12} {'Semantic':<12} {s['num_chunks']:<8} {s['sc']:<8.3f} {s['icc']:<8.3f} {s['dcc']:<8.3f} {s['bi']:<8.3f} {s['rc']:<8.3f} {s['combined']:<10.3f}")
+        print(
+            f"{size:<12} {'Recursive':<12} {r['num_chunks']:<8} {r['sc']:<8.3f} {r['icc']:<8.3f} {r['dcc']:<8.3f} {r['bi']:<8.3f} {r['rc']:<8.3f} {r['combined']:<10.3f}"
+        )
+        print(
+            f"{size:<12} {'Semantic':<12} {s['num_chunks']:<8} {s['sc']:<8.3f} {s['icc']:<8.3f} {s['dcc']:<8.3f} {s['bi']:<8.3f} {s['rc']:<8.3f} {s['combined']:<10.3f}"
+        )
         print("-" * 90)
     print("=" * 90 + "\n")
 

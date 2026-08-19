@@ -12,6 +12,7 @@ If any of these endpoints regress to unauthenticated access, these tests fail
 and block deploy. Do not weaken the assertions to make them pass — re-add
 the auth dependency in the endpoint instead.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -115,7 +116,9 @@ async def test_chat_stream_poll_enforces_ownership():
     # Anonymous with no session id -> 400 (unscoped identity rejected).
     with pytest.raises(HTTPException) as exc:
         await chat_stream_poll(
-            "job1", _mock_request(session_id=None), container=container,
+            "job1",
+            _mock_request(session_id=None),
+            container=container,
             user={"id": "anonymous", "is_anonymous": True},
         )
     assert exc.value.status_code == 400
@@ -127,7 +130,9 @@ async def test_chat_stream_poll_enforces_ownership():
     anon_container = _mock_container(job_owner="anon:s1")
     with pytest.raises(HTTPException) as exc:
         await chat_stream_poll(
-            "job1", _mock_request(session_id="anon:s2"), container=anon_container,
+            "job1",
+            _mock_request(session_id="anon:s2"),
+            container=anon_container,
             user={"id": "anonymous", "is_anonymous": True},
         )
     assert exc.value.status_code == 404
@@ -162,7 +167,9 @@ async def test_job_routes_enforce_ownership():
         # Unscoped anonymous -> 400.
         with pytest.raises(HTTPException) as exc:
             await fn(
-                "job1", _mock_request(session_id=None), container=container,
+                "job1",
+                _mock_request(session_id=None),
+                container=container,
                 user={"id": "anonymous", "is_anonymous": True},
             )
         assert exc.value.status_code == 400, fn.__name__
@@ -174,7 +181,9 @@ async def test_job_routes_enforce_ownership():
         anon_container = _mock_container(job_owner="anon:s1")
         with pytest.raises(HTTPException) as exc:
             await fn(
-                "job1", _mock_request(session_id="anon:s2"), container=anon_container,
+                "job1",
+                _mock_request(session_id="anon:s2"),
+                container=anon_container,
                 user={"id": "anonymous", "is_anonymous": True},
             )
         assert exc.value.status_code == 404, fn.__name__
@@ -182,6 +191,7 @@ async def test_job_routes_enforce_ownership():
 
 def test_concept_graph_requires_admin():
     from app.api.chat import get_concept_graph
+
     assert _requires_supabase_user(get_concept_graph), (
         "REGRESSION: /admin/concept-graph must require auth."
     )
@@ -191,10 +201,9 @@ def test_concept_graph_requires_admin():
 
 def test_circuit_breaker_endpoints_admin_only():
     from app.api.health import circuit_breaker_reset_endpoint, circuit_breaker_status, debug_headers
+
     for fn in (circuit_breaker_status, circuit_breaker_reset_endpoint, debug_headers):
-        assert _requires_supabase_user(fn), (
-            f"REGRESSION: {fn.__name__} must require auth."
-        )
+        assert _requires_supabase_user(fn), f"REGRESSION: {fn.__name__} must require auth."
         src = inspect.getsource(fn)
         assert "is_superuser" in src or "_require_admin" in src, (
             f"{fn.__name__} must enforce admin role."
@@ -203,6 +212,7 @@ def test_circuit_breaker_endpoints_admin_only():
 
 def test_cache_metrics_admin_only():
     from app.api.cache_metrics import cache_metrics
+
     assert _requires_supabase_user(cache_metrics), (
         "REGRESSION: /api/metrics/cache must require auth."
     )
@@ -249,10 +259,14 @@ def test_no_admin_route_is_anonymous():
 
         if is_admin_route:
             if not has_supabase_dep:
-                offenders.append(f"{path} -> {endpoint.__name__} (missing get_current_user_from_supabase)")
+                offenders.append(
+                    f"{path} -> {endpoint.__name__} (missing get_current_user_from_supabase)"
+                )
         else:
             if not (has_supabase_dep or has_optional_dep):
-                offenders.append(f"{path} -> {endpoint.__name__} (missing auth dependency entirely)")
+                offenders.append(
+                    f"{path} -> {endpoint.__name__} (missing auth dependency entirely)"
+                )
             elif has_optional_dep and not has_supabase_dep and "resolve_anon_identity" not in src:
                 offenders.append(
                     f"{path} -> {endpoint.__name__} (get_optional_user without resolve_anon_identity — anonymous id collision)"
@@ -286,21 +300,21 @@ def test_require_scoped_identity_rejects_unscoped_anonymous():
 
 def test_job_routes_owns_job_logic():
     from app.api.job_routes import _owns_job
-    
+
     # Matching and non-empty -> True
     assert _owns_job({"user_id": "usr_123"}, {"id": "usr_123"}) is True
-    
+
     # Mismatched -> False
     assert _owns_job({"user_id": "usr_123"}, {"id": "usr_456"}) is False
-    
+
     # Empty user_id -> False
     assert _owns_job({"user_id": ""}, {"id": "usr_123"}) is False
     assert _owns_job({"user_id": None}, {"id": "usr_123"}) is False
-    
+
     # Empty user.id -> False
     assert _owns_job({"user_id": "usr_123"}, {"id": ""}) is False
     assert _owns_job({"user_id": "usr_123"}, {"id": None}) is False
-    
+
     # Both empty/None -> False
     assert _owns_job({"user_id": ""}, {"id": ""}) is False
     assert _owns_job({"user_id": None}, {"id": None}) is False
@@ -309,4 +323,3 @@ def test_job_routes_owns_job_logic():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

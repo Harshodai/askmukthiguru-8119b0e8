@@ -6,6 +6,7 @@ rewrites a completed answer: a second creative pass cannot reliably preserve
 claim boundaries, citations, or the distinction between a quotation and a
 paraphrase.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -36,5 +37,7 @@ class GuruToneAdapterNode:
     ) -> dict[str, Any]:
         del user_query, guru_name, teacher_id
         output = dict(state or {})
-        output["final_answer"] = factual_draft or output.get("final_answer") or output.get("answer") or ""
+        output["final_answer"] = (
+            factual_draft or output.get("final_answer") or output.get("answer") or ""
+        )
         return output

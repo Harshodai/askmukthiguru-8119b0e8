@@ -2306,7 +2306,7 @@ All 10 containers healthy:
 | `guru_token_budget_exceed_total{budget_type}` | Token budget soft/hard exceeds |
 
 ## Jun 29, 2026 — Key Rotator API Key Splitting & State / Redis Close Fixes
-- **Problem**: 
+- **Problem**:
   1. The API key rotator for NIM loaded the entire comma-separated list of keys (`nvapi-oQZ...,nvapi-XUQ...`) as a single invalid key during startup, leading to `403 Forbidden` API errors and forcing invalid key rotations.
   2. Adding elements to the `evaluation_trace` state property via direct list concatenation (`+`) crashed the LangGraph pipeline with a `TypeError`.
   3. Redis client teardowns called `.aclose()` which raised `AttributeError` because the local Redis client library only supports `.close()`.
@@ -2803,7 +2803,7 @@ Any new protected endpoint MUST use `get_current_user_from_supabase`. Do not add
 
 **Symptom**: Chat UI shows red error "Something went wrong — Failed to fetch". Browser console shows network error calling `http://localhost:8000/api/chat`. Request never reaches backend.
 
-**Root Cause**: 
+**Root Cause**:
 1. `backend/docker-compose.yml` had `VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:8000}` — defaulting to `http://localhost:8000` when not explicitly set
 2. Frontend Dockerfile builds with this arg: `ARG VITE_BACKEND_URL` → `ENV VITE_BACKEND_URL=$VITE_BACKEND_URL`
 3. Vite bakes `import.meta.env.VITE_BACKEND_URL` into JS bundle at **build time**
@@ -2823,7 +2823,7 @@ Any new protected endpoint MUST use `get_current_user_from_supabase`. Do not add
 **Files Changed**:
 - `backend/docker-compose.yml` — removed VITE_BACKEND_URL build arg (lines 256)
 
-**Never Again Rule**: 
+**Never Again Rule**:
 - **NEVER** set `VITE_BACKEND_URL` in production Docker builds
 - `VITE_BACKEND_URL` is ONLY for local development (Vite dev server proxy)
 - In production (nginx reverse proxy), frontend MUST use relative URLs (`/api/*`)
@@ -3118,7 +3118,7 @@ container.circuit_breaker_registry.get_all_stats()
 
 ### Adding a New Provider (e.g., OpenRouter)
 1. Add config in `create_default_breakers()` in `circuit_breaker.py`
-2. Register in `initialize_circuit_breakers()` 
+2. Register in `initialize_circuit_breakers()`
 3. Set `LLM_PROVIDER=openrouter` in `.env`
 4. That's it — no code changes needed in endpoints!
 
@@ -3611,7 +3611,7 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 - [x] lessons.md updated with all results
 
 ### 58. Docker-Safe Debug Logging, Resilient LLM Reasoning, and Host compatibility (May 2026)
-- **Problem**: 
+- **Problem**:
   - **Docker File Path Crashes**: Setting absolute host paths for debug logs (e.g. `/Users/...`) in containerized services leads to `FileNotFoundError` or permission crashes inside Docker where those directories do not exist.
   - **Empty Reasoning Responses**: Local and cloud reasoning models (like DeepSeek-R1 or Sarvam-30b) often output their entire generation inside `<think>...</think>` tags, especially when token budgets are small. Stripping these tags globally without fallbacks returns empty responses, causing frontend UI failures.
   - **Host Python 3.9 Compatibility**: Run-all benchmark scripts executed on host machines with older Python runtimes (like macOS system Python 3.9) crash with `TypeError: unsupported operand type(s) for |` during import/evaluation of typing syntax introduced in Python 3.10+.
@@ -3651,7 +3651,7 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 
 
 ### 62. Service Worker Bypassing and Route Interception in Playwright E2E Tests (May 2026)
-- **Problem**: 
+- **Problem**:
   - **Service Worker Interception Bypassing Playwright Mocks**: In modern progressive web apps (PWAs), the Service Worker (`sw.js`) intercepts network fetches via the `fetch` event listener. Because Service Workers execute in a separate worker thread, fetches initiated by the Service Worker bypass Playwright's page-level `page.route` mocks. This results in requests (such as Supabase database REST calls or backend APIs) hitting the real local/production servers instead of the mocked intercepts, leading to unexpected `401 Unauthorized` or `JWT cryptographic operation failed` network errors in test environments.
   - **Serialization Errors in evaluate Blocks**: Referencing bundler-replaced build-time variables (like `import.meta.env`) inside Playwright `page.evaluate()` dynamic function bodies throws serialization errors, because the test runner executes in a standard Node.js environment where `import.meta` is either undefined or non-serializable.
 - **Solution**:
@@ -3682,7 +3682,7 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 - **Lesson learned**: When integrating guided video/audio meditations into a custom web application, hide the raw cross-origin iframe to prevent generic player branding, and construct a bespoke frontend wrapper that communicates with the iframe via `postMessage`. This enables rich custom progress tracks, animated pulsing graphics, and interactive step highlights that synchronize directly with playback.
 
 ### 65. Large-scale Technical Book Skill Generation & Asynchronous Supabase Telemetry (May 2026)
-- **Problem**: 
+- **Problem**:
   - **macOS Sleep Interruption**: Processing 10 large technical PDF books sequentially using local LLM extraction takes up to 20 hours. macOS automatically puts the host system to sleep on idle, suspending background processing, local network connections, and model inference.
   - **Reasoning Runaway & Token Limits**: Using local reasoning models (`deepseek-r1:7b`) can cause completion exhaustion or CPU/memory bottlenecks, especially under massive contexts, requiring a larger context window (`num_ctx: 32768`) and lower temperatures.
   - **Non-blocking Telemetry writes**: Logging RAG pipeline metadata (spans, safety, retrieval, queries, responses) must not increase user response latency or block the FastAPI main thread loop.
@@ -3791,7 +3791,7 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 - **Lesson learned**: Agent benchmarks should not score only `input -> final output`. A production-grade harness needs `input -> route/intent -> retrieval/citations -> verification metadata -> final output`, with explicit category weights and reports. Otherwise the benchmark can look consolidated while still missing the failure modes that cause production instability.
 
 ### 76. Dynamic Agentic Routing, Tenacity Circuit Breakers, and Deterministic UUID Coercion for Telemetry (June 2026)
-- **Problem**: 
+- **Problem**:
   - **Hardcoded Intent Keywords**: Using hardcoded keywords in RAG routers is brittle and easily bypassed or misclassified on complex queries.
   - **Stateful Circuit Breakers & Retries**: Wrapping raw LLM calls with tenacity retries is helpful but requires a stateful circuit breaker to prevent credit/API exhaustion when services are down.
   - **UUID Formatting Failures in Mock Data Telemetry**: Storing telemetry in standard Postgres tables with UUID primary/foreign keys often throws `22P02` (invalid text representation) exceptions when mock/local testing uses arbitrary string identifiers (like `"test-user-id"` or `"test-session"`).
@@ -3905,7 +3905,7 @@ Run with: `cd backend && .venv/bin/python scripts/verify_sarvam.py`
 
 
 ### 83. End-to-End Python 3.9 Import Compatibility & Mock Test Warnings (June 2026)
-- **Problem**: 
+- **Problem**:
   - **TypeError on Union Annotations**: Even after PEP 604 `|` types are replaced, compound type annotations like `str | Optional[list[str]]` (e.g. in `lightrag_service.py`) cause runtime `TypeError: unsupported operand type(s) for |` under Python 3.9 because they are evaluated at definition time.
   - **datetime.UTC ImportError**: The `datetime.UTC` alias was introduced in Python 3.11, causing an `ImportError` when run under Python 3.9.
   - **Unawaited Coroutine Warning**: The unit test `test_verify_answer_node` threw a `RuntimeWarning` because the mocked `_ollama.generate` method returned an unawaited coroutine by default.
@@ -4400,7 +4400,7 @@ Only set `PREWARM_MODELS=true` when Docker VM has ≥6GB free RAM after all Supa
 
 ### 123. Browser User-Agent Header for DuckDuckGo and Fallback Temporal Intent Routing
 
-**Problem**: 
+**Problem**:
 1. DuckDuckGo searches executed from server/host environments without a browser `User-Agent` trigger HTTP 202 bot challenges, returning empty results.
 2. If the LLM-based intent router fails due to OpenRouter rate limits (429), it defaults to a basic `FACTUAL` intent without setting `needs_web_search = True`, completely bypassing the web search node for temporal queries.
 
@@ -4425,7 +4425,7 @@ The LLM response for web search and general queries often includes raw URLs and 
 
 ### 125. Production Readiness: Caching, Lightweight Guardrail LLM Bypass, Real SSE Streaming, Prompt Contradictions, and Ingestion Deduplication
 
-- **Problem**: 
+- **Problem**:
   - **Latency and Cache Misses**: The default semantic cache threshold was too high (0.88), causing cache misses on paraphrased spiritual queries.
   - **Lightweight Guardrail Latency**: Under "lightweight" guardrails, the system made 3-5 second LLM calls to classify input safety, creating high latency.
   - **Simulated Streaming**: The stream orchestrator ran the pipeline synchronously to completion, then simulated chunk-by-chunk stream events, defeating the purpose of real-time streaming.
@@ -4437,7 +4437,7 @@ The LLM response for web search and general queries often includes raw URLs and 
   - **Real SSE Streaming**: Refactored `stream_orchestrator.py` to run the RAG pipeline concurrently using `asyncio.create_task` and stream tokens/status events in real-time via `asyncio.Queue`, with automatic task cleanup on client disconnect.
   - **Resolved Prompt Contradiction**: Updated `GURU_SYSTEM_PROMPT` Rule 2 and dynamic generation prompt instructions to explicitly prevent generating details when the context is insufficient.
   - **Smart Ingestion**: Integrated SHA-256 content-hash checks in `pipeline.py` using `IngestionCheckpoint` to skip already-indexed documents. Replaced fixed-width splitting in `_hierarchical_split` with semantic parent partitioning and sentence-boundary child splitting.
-- **Lesson learned**: 
+- **Lesson learned**:
   1. Low-latency conversational APIs require zero-overhead guardrails and aggressive, calibrated semantic caching.
   2. Real-time token streaming requires fully asynchronous graph execution with task-cancellation guards to avoid orphaned tasks on network disconnects.
   3. Strict anti-hallucination prompts must explicitly forbid producing answers when they output the fallback message for empty contexts.
@@ -4446,14 +4446,14 @@ The LLM response for web search and general queries often includes raw URLs and 
 
 ### 126. Sequential Evaluation Order for Input Guardrails and Distress Detection
 
-- **Problem**: 
+- **Problem**:
   - **Redundant Processing**: While concurrent execution reduces latency, executing distress detection concurrently with input guardrails is wasteful when the input fails safety guardrails. Input guardrails must run first to allow early exit before running expensive downstream assessments.
   - **Test Failures**: Changes to the RAG query tier (bypassing LightRAG for standard queries) broke contract tests that assumed standard queries still retrieved from LightRAG. Additionally, the duckduckgo-search wrapper package (`ddgs`) was installed in the host virtual environment and bypassed the `duckduckgo_search` mock, causing real network queries to execute during testing.
 - **Solution**:
   - **Sequential Ordering**: Refactored `pipeline_coordinator.py` to evaluate `_run_input_guardrails` first, return early if blocked, and only check `_detect_distress` on allowed inputs.
   - **Robust Mocking**: Updated `test_web_search.py` to mock both `ddgs.DDGS` and `duckduckgo_search.DDGS` so that local or environment package discrepancies do not leak real requests.
   - **Updated Contract Tests**: Updated `test_retrieve_documents_contract.py` to assert that LightRAG is bypassed on standard queries but called on `tier3_complex` queries.
-- **Lesson learned**: 
+- **Lesson learned**:
   1. Input validation and guardrail checks must strictly precede intent/distress detection to prevent wasted LLM computation and telemetry overhead on invalid or malicious requests.
   2. Mocking third-party packages must account for multi-wrapper alternatives (e.g. `ddgs` vs `duckduckgo_search`) to ensure hermetic and fast test execution.
 
@@ -4842,7 +4842,7 @@ await self.publish_telemetry_event(payload)
 Flipping quality gates like `ingestion_deduplication_enabled = True` in `config.py` threw `AttributeError: Settings object has no attribute 'ingestion_dedup_threshold'` at runtime inside the ingestion pipeline.
 
 ### Root Cause 2
-The code in `backend/ingest/pipeline.py` assumed `settings.ingestion_dedup_threshold` existed, but only the boolean gate `ingestion_deduplication_enabled` was declared in the Pydantic `Settings` class in `config.py`. 
+The code in `backend/ingest/pipeline.py` assumed `settings.ingestion_dedup_threshold` existed, but only the boolean gate `ingestion_deduplication_enabled` was declared in the Pydantic `Settings` class in `config.py`.
 
 ### Fix 2
 Always declare all dependent parameters (thresholds, default numbers, sizes) in `config.py` when implementing or turning on a gated feature.
@@ -5873,7 +5873,7 @@ Monthly Cost = Σ (vCPU_hours * $0.00000772 + GB_hours * $0.00000386 + Volume_GB
 - **Why**: Without a memory limit, a runaway OOM (embedding model leak, uncontrolled cache growth) will consume all available RAM and kill neighbor services.
 - **Hard rule**: Set memory limits for every service in Railway dashboard (Settings → Resources):
   - Backend API: `4096 MB` (4 GB)
-  - Celery Worker: `4096 MB` (4 GB)  
+  - Celery Worker: `4096 MB` (4 GB)
   - Neo4j: `2048 MB`
   - Qdrant: per-collection size (minimum `1024 MB`)
 - **Monitor**: `railway metric memory --service <name> --period 24h` — alert if > 80% of limit.
@@ -6199,7 +6199,7 @@ interface GoogleOneTapConfig {
 
 ### RULE 36 — Multi-locale scaling, background contrast safety, and backend enum sync
 
-**Problem**: 
+**Problem**:
 1. Adding new translation resource locales to the app requires both registering them in the frontend and matching them in the backend profile schemas to prevent validation crashes.
 2. Web Speech APIs and TTS hooks depend on dynamic locale codes mapped to correct BCP-47 tags (e.g. `ml-IN`, `od-IN` for Odia).
 3. Using theme-dependent background gradient overlays on a Hero section with hardcoded white text causes the text to wash out entirely in light mode.
@@ -7175,3 +7175,30 @@ end-to-end guarantee from a single push.**
 - **L-K4-5: Mock process-wide service containers in isolated driver tests.** Tests that patch a constructor must also disable an already-initialized shared container, otherwise the production singleton path bypasses the mock and attempts real service DNS.
 - **L-K4-6: Font tokens must match loaded fonts.** The canonical design tokens now use the same Plus Jakarta Sans, Inter, Outfit, and Cormorant Garamond families declared by the production HTML and Tailwind theme; stale token names silently trigger fallback fonts.
 - **L-K4-7: Corpus and BRAIN_KEK boundaries remain explicit.** This pass did not upload, modify, or stage transcript corpus files and did not create, rotate, print, or change BRAIN_KEK. Deployment remains blocked only by the user-managed production encryption secret.
+
+## Aug 19, 2026 — Ruthless post-fix audit follow-ups
+
+### L-RUTHLESS-1. Rate-limited FastAPI handlers require Request as the first parameter
+- **What**: Adding a SlowAPI decorator without a `Request` parameter prevents application import and blocks the entire test suite during collection.
+- **Fix applied**: Memory persona regeneration, full reflection, and skill regeneration accept `Request` first; chat upload now also has a verified Supabase identity dependency while preserving that ordering.
+- **How to prevent**: Any `@limiter.limit(...)` FastAPI handler must expose `request: Request` as its first parameter and have an auth or explicit public-identity policy.
+
+### L-RUTHLESS-2. Account erasure must mirror export and every user-owned store
+- **What**: The account-deletion edge function omitted non-cascading Supabase tables and did not cover encrypted Second Brain, memory, push, telemetry, or course-progress records.
+- **Fix applied**: Ordered, checked deletion now covers the verified user-owned tables before Auth deletion; the cross-store GDPR executor remains available for Qdrant/Neo4j cleanup, and local chat storage is purged on account deletion.
+- **How to prevent**: Maintain deletion coverage from the schema/export inventory, explicitly delete tables without `ON DELETE CASCADE`, and treat vector/graph stores as separate erasure obligations.
+
+### L-RUTHLESS-3. Mirrored operational scripts need an identical-copy invariant
+- **What**: Root and backend copies of the OKF extractor diverged after formatting and import fixes, creating two operational behaviors.
+- **Fix applied**: Root `scripts/extract_okf_from_stores.py` is synchronized byte-for-byte with the backend implementation.
+- **How to prevent**: Keep one source of truth or enforce `cmp`/identical-copy tests whenever compatibility requires mirrored scripts.
+
+### L-RUTHLESS-4. Compatibility re-exports are part of the test/API surface
+- **What**: `services.sarvam_exceptions` documented a canonical `CircuitOpenException` re-export but did not import it, blocking app import and 24 test modules.
+- **Fix applied**: Restored the canonical re-export with an intentional public-import marker; focused Sarvam tests and the full backend suite pass.
+- **How to prevent**: Test package import paths, not only symbol definitions; every documented re-export must be an actual import from the canonical module.
+
+### L-RUTHLESS-5. CI public build placeholders must not imply authenticated E2E coverage
+- **What**: The pre-launch build required Vite Supabase variables that were absent from CI, while local auth regression suites only use fake sessions and do not require real provider secrets.
+- **Fix applied**: CI supplies non-secret public placeholders for the production build; local auth regression suites remain enabled. Real OAuth and deployed-auth coverage remain explicit follow-ups.
+- **How to prevent**: Separate build bootstrap variables from real test credentials and label skipped or unavailable production-auth coverage visibly.

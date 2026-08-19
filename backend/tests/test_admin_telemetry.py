@@ -28,8 +28,17 @@ def test_trace_summary_allowlists_operational_fields_only():
 def test_trace_detail_removes_content_sources_and_identifiers():
     detail = trace_detail(
         {
-            "query": {"id": "trace-1", "query_text": "private", "session_id": "session", "model": "google/gemini"},
-            "response": {"response_text": "private", "judge_reasoning": "private", "confidence": 0.8},
+            "query": {
+                "id": "trace-1",
+                "query_text": "private",
+                "session_id": "session",
+                "model": "google/gemini",
+            },
+            "response": {
+                "response_text": "private",
+                "judge_reasoning": "private",
+                "confidence": 0.8,
+            },
             "retrieval": {"top_k": 4, "source_docs": ["private-source"], "scores": [0.9]},
             "spans": [{"name": "generate", "duration_ms": 40, "attributes": {"prompt": "private"}}],
             "triggers": [{"trigger_name": "cache", "metadata": {"content": "private"}}],

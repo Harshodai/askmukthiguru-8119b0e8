@@ -10,20 +10,22 @@ from services.user_profile_service import LanguagePreference, SpiritualLevel, Us
 
 client = TestClient(app)
 
+
 def mock_get_current_user():
     return {
         "id": "test-user-id",
         "email": "test@example.com",
-        "user_metadata": {"full_name": "Test Seeker"}
+        "user_metadata": {"full_name": "Test Seeker"},
     }
+
 
 @pytest.fixture
 def mock_dependencies():
     container = MagicMock(spec=ServiceContainer)
-    
+
     # Mock memory service
     container.memory_service = AsyncMock()
-    
+
     # Mock user profile service
     container.user_profile = AsyncMock()
 
@@ -37,7 +39,7 @@ def mock_dependencies():
 
 def test_list_memories_endpoint(mock_dependencies):
     container = mock_dependencies
-    
+
     now = datetime.now(UTC)
     mock_result = {
         "total": 1,
@@ -49,7 +51,7 @@ def test_list_memories_endpoint(mock_dependencies):
                 "created_at": now,
                 "updated_at": now,
             }
-        ]
+        ],
     }
     container.memory_service.list_memories.return_value = mock_result
 
@@ -60,7 +62,7 @@ def test_list_memories_endpoint(mock_dependencies):
     assert data["total"] == 1
     assert data["page"] == 1
     assert data["page_size"] == 10
-    
+
     mem = data["memories"][0]
     assert mem["id"] == "mem-123"
     assert mem["claim"] == "Seeker wants to learn meditation"
@@ -80,7 +82,7 @@ def test_get_core_memory_endpoint(mock_dependencies):
         updated_at=1234567.0,
         preferred_language=LanguagePreference.HINDI,
         spiritual_level=SpiritualLevel.SEEKER,
-        topics_of_interest=["breath", "detachment"]
+        topics_of_interest=["breath", "detachment"],
     )
     container.user_profile.get_or_create_profile.return_value = mock_profile
 
@@ -88,7 +90,7 @@ def test_get_core_memory_endpoint(mock_dependencies):
 
     assert response.status_code == 200
     data = response.json()
-    
+
     profile = data["profile"]
     assert profile["name"] == "Test Seeker"
     assert profile["language"] == "hi"
@@ -99,7 +101,7 @@ def test_get_core_memory_endpoint(mock_dependencies):
 
 def test_add_memory_endpoint(mock_dependencies):
     container = mock_dependencies
-    
+
     now = datetime.now(UTC)
     mock_inserted = {
         "id": "new-mem-uuid",
@@ -114,7 +116,7 @@ def test_add_memory_endpoint(mock_dependencies):
 
     assert response.status_code == 200
     data = response.json()
-    
+
     assert data["id"] == "new-mem-uuid"
     assert data["claim"] == "Meditation practice is daily"
     assert data["source"] == "explicit"
@@ -125,7 +127,7 @@ def test_add_memory_endpoint(mock_dependencies):
 
 def test_forget_memory_endpoint(mock_dependencies):
     container = mock_dependencies
-    
+
     container.memory_service.forget.return_value = True
 
     response = client.post("/api/memory/forget", json={"memory_id": "forget-me-id"})
@@ -133,14 +135,12 @@ def test_forget_memory_endpoint(mock_dependencies):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
-    container.memory_service.forget.assert_called_once_with(
-        "test-user-id", "forget-me-id"
-    )
+    container.memory_service.forget.assert_called_once_with("test-user-id", "forget-me-id")
 
 
 def test_forget_memory_not_found(mock_dependencies):
     container = mock_dependencies
-    
+
     container.memory_service.forget.return_value = False
 
     response = client.post("/api/memory/forget", json={"memory_id": "nonexistent-id"})

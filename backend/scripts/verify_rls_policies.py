@@ -17,7 +17,7 @@ import os
 import sys
 import time
 import uuid
-from typing import Any, Dict, List
+from typing import Any
 
 import requests
 from supabase import Client, ClientOptions, create_client
@@ -29,15 +29,15 @@ SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
 
 
-def _fail(error: str, details: Dict[str, Any] | None = None) -> None:
-    report: Dict[str, Any] = {"ok": False, "error": error}
+def _fail(error: str, details: dict[str, Any] | None = None) -> None:
+    report: dict[str, Any] = {"ok": False, "error": error}
     if details:
         report.update(details)
     print(json.dumps(report, indent=2, default=str))
     sys.exit(1)
 
 
-def _request_headers() -> Dict[str, str]:
+def _request_headers() -> dict[str, str]:
     return {
         "apikey": SERVICE_KEY,
         "Authorization": f"Bearer {SERVICE_KEY}",
@@ -56,7 +56,7 @@ def _healthcheck() -> bool:
 def create_user(email: str, password: str) -> str:
     url = f"{SUPABASE_URL}/auth/v1/admin/users"
     payload = {"email": email, "password": password, "email_confirm": True}
-    r = requests.post(url, headers=_request_headers(), json=payload)
+    r = requests.post(url, headers=_request_headers(), json=payload, timeout=30)
     r.raise_for_status()
     return r.json()["id"]
 
@@ -64,7 +64,7 @@ def create_user(email: str, password: str) -> str:
 def sign_in(email: str, password: str) -> str:
     url = f"{SUPABASE_URL}/auth/v1/token?grant_type=password"
     headers = {"apikey": ANON_KEY, "Content-Type": "application/json"}
-    r = requests.post(url, headers=headers, json={"email": email, "password": password})
+    r = requests.post(url, headers=headers, json={"email": email, "password": password}, timeout=30)
     r.raise_for_status()
     return r.json()["access_token"]
 
@@ -79,12 +79,12 @@ def client_for_token(token: str) -> Client:
 
 def delete_user(user_id: str) -> None:
     url = f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}"
-    r = requests.delete(url, headers=_request_headers())
+    r = requests.delete(url, headers=_request_headers(), timeout=30)
     if r.status_code not in (200, 204, 404):
         r.raise_for_status()
 
 
-def delete_rows(table: str, ids: List[str]) -> None:
+def delete_rows(table: str, ids: list[str]) -> None:
     if not ids:
         return
     service_client = create_client(SUPABASE_URL, SERVICE_KEY)
@@ -99,9 +99,9 @@ def _make_test_email(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex}@gmail.com"
 
 
-def run_verification() -> Dict[str, Any]:
-    failures: List[Dict[str, Any]] = []
-    seeded_ids: Dict[str, List[str]] = {
+def run_verification() -> dict[str, Any]:
+    failures: list[dict[str, Any]] = []
+    seeded_ids: dict[str, list[str]] = {
         "conversations": [],
         "chat_messages": [],
         "meditation_sessions": [],
@@ -147,11 +147,27 @@ def run_verification() -> Dict[str, Any]:
         bob_delete = bob_client.table("conversations").delete().eq("id", conv_id).execute()
 
         if bob_select.data:
-            failures.append({"table": "conversations", "op": "select", "expected": [], "got": bob_select.data})
+            failures.append(
+                {"table": "conversations", "op": "select", "expected": [], "got": bob_select.data}
+            )
         if bob_update.data:
-            failures.append({"table": "conversations", "op": "update", "expected": 0, "got": len(bob_update.data)})
+            failures.append(
+                {
+                    "table": "conversations",
+                    "op": "update",
+                    "expected": 0,
+                    "got": len(bob_update.data),
+                }
+            )
         if bob_delete.data:
-            failures.append({"table": "conversations", "op": "delete", "expected": 0, "got": len(bob_delete.data)})
+            failures.append(
+                {
+                    "table": "conversations",
+                    "op": "delete",
+                    "expected": 0,
+                    "got": len(bob_delete.data),
+                }
+            )
     except Exception as exc:
         failures.append({"table": "conversations", "error": str(exc)})
 
@@ -181,11 +197,27 @@ def run_verification() -> Dict[str, Any]:
         bob_delete = bob_client.table("chat_messages").delete().eq("id", msg_id).execute()
 
         if bob_select.data:
-            failures.append({"table": "chat_messages", "op": "select", "expected": [], "got": bob_select.data})
+            failures.append(
+                {"table": "chat_messages", "op": "select", "expected": [], "got": bob_select.data}
+            )
         if bob_update.data:
-            failures.append({"table": "chat_messages", "op": "update", "expected": 0, "got": len(bob_update.data)})
+            failures.append(
+                {
+                    "table": "chat_messages",
+                    "op": "update",
+                    "expected": 0,
+                    "got": len(bob_update.data),
+                }
+            )
         if bob_delete.data:
-            failures.append({"table": "chat_messages", "op": "delete", "expected": 0, "got": len(bob_delete.data)})
+            failures.append(
+                {
+                    "table": "chat_messages",
+                    "op": "delete",
+                    "expected": 0,
+                    "got": len(bob_delete.data),
+                }
+            )
     except Exception as exc:
         failures.append({"table": "chat_messages", "error": str(exc)})
 
@@ -209,11 +241,32 @@ def run_verification() -> Dict[str, Any]:
         bob_delete = bob_client.table("meditation_sessions").delete().eq("id", sess_id).execute()
 
         if bob_select.data:
-            failures.append({"table": "meditation_sessions", "op": "select", "expected": [], "got": bob_select.data})
+            failures.append(
+                {
+                    "table": "meditation_sessions",
+                    "op": "select",
+                    "expected": [],
+                    "got": bob_select.data,
+                }
+            )
         if bob_update.data:
-            failures.append({"table": "meditation_sessions", "op": "update", "expected": 0, "got": len(bob_update.data)})
+            failures.append(
+                {
+                    "table": "meditation_sessions",
+                    "op": "update",
+                    "expected": 0,
+                    "got": len(bob_update.data),
+                }
+            )
         if bob_delete.data:
-            failures.append({"table": "meditation_sessions", "op": "delete", "expected": 0, "got": len(bob_delete.data)})
+            failures.append(
+                {
+                    "table": "meditation_sessions",
+                    "op": "delete",
+                    "expected": 0,
+                    "got": len(bob_delete.data),
+                }
+            )
     except Exception as exc:
         failures.append({"table": "meditation_sessions", "error": str(exc)})
 
@@ -245,11 +298,27 @@ def run_verification() -> Dict[str, Any]:
         bob_delete = bob_client.table("user_profiles").delete().eq("user_id", prof_id).execute()
 
         if bob_select.data:
-            failures.append({"table": "user_profiles", "op": "select", "expected": [], "got": bob_select.data})
+            failures.append(
+                {"table": "user_profiles", "op": "select", "expected": [], "got": bob_select.data}
+            )
         if bob_update.data:
-            failures.append({"table": "user_profiles", "op": "update", "expected": 0, "got": len(bob_update.data)})
+            failures.append(
+                {
+                    "table": "user_profiles",
+                    "op": "update",
+                    "expected": 0,
+                    "got": len(bob_update.data),
+                }
+            )
         if bob_delete.data:
-            failures.append({"table": "user_profiles", "op": "delete", "expected": 0, "got": len(bob_delete.data)})
+            failures.append(
+                {
+                    "table": "user_profiles",
+                    "op": "delete",
+                    "expected": 0,
+                    "got": len(bob_delete.data),
+                }
+            )
     except Exception as exc:
         failures.append({"table": "user_profiles", "error": str(exc)})
 
@@ -285,7 +354,9 @@ def main() -> int:
         _fail("missing env", {"hint": "SUPABASE_SERVICE_ROLE_KEY is required"})
 
     if not ANON_KEY:
-        _fail("SUPABASE_ANON_KEY required for anon probes (service_role bypasses RLS; never use it as a fallback)")
+        _fail(
+            "SUPABASE_ANON_KEY required for anon probes (service_role bypasses RLS; never use it as a fallback)"
+        )
 
     report = run_verification()
     print(json.dumps(report, indent=2, default=str))

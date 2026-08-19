@@ -32,14 +32,17 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # Pre-extracted transcript staleness thresholds (in seconds)
-PRE_EXTRACTED_MAX_AGE_WARN = 7 * 24 * 60 * 60   # 7 days — warn but use
+PRE_EXTRACTED_MAX_AGE_WARN = 7 * 24 * 60 * 60  # 7 days — warn but use
 PRE_EXTRACTED_MAX_AGE_SKIP = 30 * 24 * 60 * 60  # 30 days — skip, re-fetch from YouTube
 
 
 def fetch_youtube_title(video_id: str) -> Optional[str]:
     """Fetch YouTube video title via oEmbed API."""
     import httpx
-    url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+
+    url = (
+        f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+    )
     try:
         with httpx.Client(timeout=10.0) as client:
             resp = client.get(url)
@@ -83,6 +86,7 @@ def _get_cookies_opts() -> dict:
     if platform.system() == "Darwin":
         try:
             from services.cookie_helper import ensure_cookies_file
+
             cookie_path = ensure_cookies_file()
             if cookie_path and os.path.exists(cookie_path):
                 return {"cookiefile": cookie_path}
@@ -271,12 +275,13 @@ def _fetch_watch_page_captions(
             logger.debug(f"[{video_id}] Watch page returned {resp.status_code}")
             return None
 
-        match = re.search(r'ytInitialPlayerResponse\s*=\s*({.*?});', resp.text, re.DOTALL)
+        match = re.search(r"ytInitialPlayerResponse\s*=\s*({.*?});", resp.text, re.DOTALL)
         if not match:
             logger.debug(f"[{video_id}] No ytInitialPlayerResponse found in watch page")
             return None
 
         import json
+
         data = json.loads(match.group(1))
 
         captions = data.get("captions", {})
@@ -334,7 +339,7 @@ def _fetch_watch_page_captions(
 
 def _fetch_youtube_captions_api(
     video_id: str, languages: list[str], allow_auto: bool = True
-    ) -> Optional[str]:
+) -> Optional[str]:
     """
     Backend 3: Fetch captions using youtube-transcript-api v1.x instance-based API.
 
@@ -359,7 +364,12 @@ def _fetch_youtube_captions_api(
             try:
                 manual = transcript_list.find_manually_created_transcript(languages)
                 fetched = manual.fetch()
-                text = " ".join([getattr(s, "text", s.get("text", "") if isinstance(s, dict) else str(s)) for s in fetched])
+                text = " ".join(
+                    [
+                        getattr(s, "text", s.get("text", "") if isinstance(s, dict) else str(s))
+                        for s in fetched
+                    ]
+                )
                 if text.strip():
                     logger.info(f"[{video_id}] ✅ Manual captions: {len(text)} chars")
                     return text.strip()
@@ -371,7 +381,12 @@ def _fetch_youtube_captions_api(
                 try:
                     auto = transcript_list.find_generated_transcript(languages)
                     fetched = auto.fetch()
-                    text = " ".join([getattr(s, "text", s.get("text", "") if isinstance(s, dict) else str(s)) for s in fetched])
+                    text = " ".join(
+                        [
+                            getattr(s, "text", s.get("text", "") if isinstance(s, dict) else str(s))
+                            for s in fetched
+                        ]
+                    )
                     if text.strip():
                         logger.info(f"[{video_id}] ✅ Auto captions: {len(text)} chars")
                         return text.strip()
@@ -427,7 +442,19 @@ def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> Optional[str]
                 "outtmpl": f"{tmp_dir}/subs",
                 "quiet": True,
                 "no_warnings": True,
-                "extractor_args": {"youtube": {"player_client": ["android", "android_vr", "tv_simply", "tv_embedded", "mweb", "web", "ios"]}},
+                "extractor_args": {
+                    "youtube": {
+                        "player_client": [
+                            "android",
+                            "android_vr",
+                            "tv_simply",
+                            "tv_embedded",
+                            "mweb",
+                            "web",
+                            "ios",
+                        ]
+                    }
+                },
             }
             ydl_opts.update(_get_cookies_opts())
             ydl_opts.update(_get_js_runtime_opts())
@@ -561,7 +588,7 @@ def fetch_transcript_hybrid(
 
     # Helper to check if a title looks like a YouTube video ID
     def _is_video_id_title(t: str) -> bool:
-        return len(t) == 11 and all(c.isalnum() or c in '_-' for c in t)
+        return len(t) == 11 and all(c.isalnum() or c in "_-" for c in t)
 
     # Helper: check pre-extracted file staleness
     def _check_staleness(path: str, source: str) -> tuple[bool, bool]:
@@ -572,8 +599,10 @@ def fetch_transcript_hybrid(
             warn = age > PRE_EXTRACTED_MAX_AGE_WARN
             skip = age > PRE_EXTRACTED_MAX_AGE_SKIP
             if warn or skip:
-                logger.warning(f"[{video_id}] Pre-extracted {source} age: {age/86400:.1f} days — {'WARN' if warn else 'OK'}, {'SKIP' if skip else 'USE'}")
-            
+                logger.warning(
+                    f"[{video_id}] Pre-extracted {source} age: {age / 86400:.1f} days — {'WARN' if warn else 'OK'}, {'SKIP' if skip else 'USE'}"
+                )
+
             return warn, skip
         except Exception:
             return False, False
@@ -595,14 +624,20 @@ def fetch_transcript_hybrid(
                 with open(transcripts_json_path, encoding="utf-8") as f:
                     data = json.load(f)
                     if video_id in data and data[video_id].get("captions"):
-                        logger.info(f"[{video_id}] Found pre-extracted transcript in transcripts.json!")
-                        json_title = data[video_id].get("title") or data[video_id].get("videoId") or title
+                        logger.info(
+                            f"[{video_id}] Found pre-extracted transcript in transcripts.json!"
+                        )
+                        json_title = (
+                            data[video_id].get("title") or data[video_id].get("videoId") or title
+                        )
                         # If title looks like a video ID, fetch real YouTube title via oEmbed
                         if _is_video_id_title(json_title):
                             yt_title = fetch_youtube_title(video_id)
                             if yt_title:
                                 json_title = yt_title
-                                logger.info(f"[{video_id}] Fetched real YouTube title via oEmbed: {yt_title}")
+                                logger.info(
+                                    f"[{video_id}] Fetched real YouTube title via oEmbed: {yt_title}"
+                                )
                         return {
                             "text": data[video_id]["captions"],
                             "source_url": source_url,
@@ -648,15 +683,21 @@ def fetch_transcript_hybrid(
                                 if line.startswith("# "):
                                     parsed_title = line[2:].strip()
                                 elif line.startswith("**Channel:**"):
-                                    parsed_speaker = line.split("**Channel:**", 1)[1].strip().strip("`")
+                                    parsed_speaker = (
+                                        line.split("**Channel:**", 1)[1].strip().strip("`")
+                                    )
                                 elif line.startswith("**Language:**"):
-                                    parsed_language = line.split("**Language:**", 1)[1].strip().strip("`")
+                                    parsed_language = (
+                                        line.split("**Language:**", 1)[1].strip().strip("`")
+                                    )
                             # If parsed title looks like a video ID, fetch real YouTube title via oEmbed
                             if _is_video_id_title(parsed_title):
                                 yt_title = fetch_youtube_title(video_id)
                                 if yt_title:
                                     parsed_title = yt_title
-                                    logger.info(f"[{video_id}] Fetched real YouTube title via oEmbed: {yt_title}")
+                                    logger.info(
+                                        f"[{video_id}] Fetched real YouTube title via oEmbed: {yt_title}"
+                                    )
                             return {
                                 "text": transcript_text,
                                 "source_url": source_url,
@@ -723,15 +764,15 @@ def fetch_transcript_hybrid(
                 "topic": topic,
                 "language": None,
                 "method": "failed",
-            "error": "All transcript extraction methods failed",
-            "council": council_info,
-            "video_id": video_id,
-            "channel_name": None,
-            "published_at": None,
-            "duration": None,
-            "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
-            "view_count": None,
-        }
+                "error": "All transcript extraction methods failed",
+                "council": council_info,
+                "video_id": video_id,
+                "channel_name": None,
+                "published_at": None,
+                "duration": None,
+                "thumbnail_url": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                "view_count": None,
+            }
 
         logger.info(
             f"[{video_id}] ✅ Council complete: {method} "
@@ -916,6 +957,7 @@ async def fetch_transcripts_concurrent(
         List of transcript result dicts
     """
     from app.config import settings
+
     limit = getattr(settings, "transcript_concurrent_workers", 1)
     concurrency = max_workers or getattr(settings, "ingestion_concurrency", 5)
     concurrency = min(concurrency, limit)

@@ -41,24 +41,31 @@ async def main():
         },
         {
             "q": "Who are Sri Preethaji and Sri Krishnaji?",
-            "keywords": ["preethaji", "krishnaji", "founders", "one world academy", "ekam", "teachers"],
+            "keywords": [
+                "preethaji",
+                "krishnaji",
+                "founders",
+                "one world academy",
+                "ekam",
+                "teachers",
+            ],
         },
         {
             "q": "Where is Ekam?",
             "keywords": ["ekam", "temple", "oneness", "tirupati", "mountains", "chennai"],
-        }
+        },
     ]
 
     success = True
     for item in queries:
         query = item["q"]
         keywords = item["keywords"]
-        print(f"Querying: \"{query}\"")
+        print(f'Querying: "{query}"')
         start = time.perf_counter()
 
         # Generate embeddings (E5 will generate dense vector, and empty sparse dict)
         enc = await asyncio.to_thread(embedder.encode_single_full, query)
-        
+
         # Verify Issue B: sparse dict should be empty when using non-BGE model
         is_bge = settings.embedding_model == "BAAI/bge-m3"
         if not is_bge:
@@ -66,7 +73,9 @@ async def main():
                 print(f"❌ Issue B Regressed: Sparse vector is not empty! Got: {enc['sparse']}")
                 success = False
             else:
-                print("✅ Issue B Verified: Sparse vector is empty (bypassed random sparse weights).")
+                print(
+                    "✅ Issue B Verified: Sparse vector is empty (bypassed random sparse weights)."
+                )
 
         # Perform Search
         docs = await asyncio.to_thread(
@@ -74,7 +83,7 @@ async def main():
             query_vector=enc["dense"],
             limit=5,
             sparse_vector=enc["sparse"],
-            query=query
+            query=query,
         )
 
         duration = time.perf_counter() - start
@@ -94,14 +103,20 @@ async def main():
 
         kw_ratio = len(matched_keywords) / len(keywords)
         print(f"Keyword matches: {matched_keywords} ({len(matched_keywords)}/{len(keywords)})")
-        
+
         if kw_ratio >= 0.5:
-            print(f"✅ Success: Query retrieved relevant spiritual context (score={docs[0]['score']:.4f})")
+            print(
+                f"✅ Success: Query retrieved relevant spiritual context (score={docs[0]['score']:.4f})"
+            )
         else:
-            print(f"❌ Failure: Retrieved documents do not seem relevant (score={docs[0]['score']:.4f})")
+            print(
+                f"❌ Failure: Retrieved documents do not seem relevant (score={docs[0]['score']:.4f})"
+            )
             print("Retrieved texts:")
             for i, d in enumerate(docs):
-                print(f"  [{i}] Level {d.get('raptor_level')} (Score {d['score']:.4f}): {d['text'][:300]}...")
+                print(
+                    f"  [{i}] Level {d.get('raptor_level')} (Score {d['score']:.4f}): {d['text'][:300]}..."
+                )
             success = False
         print("-" * 60)
 
@@ -111,6 +126,7 @@ async def main():
     else:
         print("\n❌ SMOKE DOCTRINE RETRIEVAL FAILED.")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

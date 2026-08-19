@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Any, Optional
 
 from app.metrics import (
@@ -12,33 +13,30 @@ from app.metrics import (
     LIGHTRAG_TIMEOUT_TOTAL,
     RETRIEVAL_SCORE_HISTOGRAM,
 )
-from guardrails.lightweight_handler import contains_prompt_injection
+from app.tracing import trace_rag_node
 from domain.spiritual_ontology import resolve_teacher_domain
-from rag.states import GraphState
+from guardrails.lightweight_handler import contains_prompt_injection
 from rag.corpus_scope import CorpusScope
+from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import navigate_tree
-from services.cache_service import InMemoryCacheAdapter
 from services.embedding_service import EmbeddingService, _apply_query_expansion
 from services.lightrag_service import LightRAGService
 from services.qdrant_service import QdrantService
 from services.tenant_context import TenantContext
 
-import re
-
-from app.tracing import trace_rag_node
 from . import _services
 from .utils import (
     _grounded_citation_urls,
     _llm_retrieval_expansions,
     _rrf_docs,
-    stable_document_key,
     _trace_update,
     emit_status,
     expand_query_with_synonyms,
     inject_doctrine_keywords,
     log_metrics,
     settings,
+    stable_document_key,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,7 +47,11 @@ logger = logging.getLogger(__name__)
 _base_path = __import__("pathlib").Path(__file__).resolve().parent
 while _base_path.name and _base_path.name != "backend":
     _base_path = _base_path.parent
-_OKF_COMPILED_PATH = (_base_path.parent / "memory" / "okf" / "compiled.json") if _base_path.name else __import__("pathlib").Path("/app/memory/okf/compiled.json")
+_OKF_COMPILED_PATH = (
+    (_base_path.parent / "memory" / "okf" / "compiled.json")
+    if _base_path.name
+    else __import__("pathlib").Path("/app/memory/okf/compiled.json")
+)
 _OKF_CACHE: list[dict] | None = None
 
 
@@ -111,10 +113,7 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
 
     # Teacher filter — narrow to entries matching the requested guru
     if teacher:
-        entries = [
-            e for e in entries
-            if e.get("teacher") in (teacher, "both")
-        ]
+        entries = [e for e in entries if e.get("teacher") in (teacher, "both")]
         if not entries:
             return []
 
@@ -140,19 +139,21 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
             scored.sort(key=lambda x: x[0], reverse=True)
             docs = []
             for sim, e in scored[:limit]:
-                docs.append({
-                    "text": f"{e['title']}\n\n{e.get('body', '')}",
-                    # Honest similarity. Curated doctrine still earns a modest
-                    # edge over a raw chunk of equal similarity, but it can no
-                    # longer outrank a strongly-matching retrieved teaching.
-                    "score": min(1.0, sim * _OKF_CURATION_BOOST),
-                    "metadata": {
-                        "source": e.get("resource") or e.get("source", "OKF"),
-                        "title": e["title"],
-                        "type": e.get("type", "okf"),
-                        "teacher": e.get("teacher", "both"),
-                    },
-                })
+                docs.append(
+                    {
+                        "text": f"{e['title']}\n\n{e.get('body', '')}",
+                        # Honest similarity. Curated doctrine still earns a modest
+                        # edge over a raw chunk of equal similarity, but it can no
+                        # longer outrank a strongly-matching retrieved teaching.
+                        "score": min(1.0, sim * _OKF_CURATION_BOOST),
+                        "metadata": {
+                            "source": e.get("resource") or e.get("source", "OKF"),
+                            "title": e["title"],
+                            "type": e.get("type", "okf"),
+                            "teacher": e.get("teacher", "both"),
+                        },
+                    }
+                )
             return docs
     except Exception as _e:
         logger.debug("[retrieval node] suppressed non-critical error: %s", _e)
@@ -162,6 +163,7 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
     # single incidental hit: with a 23-entry bundle, "match >= 1 word" selects an
     # entry for practically any question.
     import re as _re
+
     words = set(w.lower() for w in _re.findall(r"\w+", query) if len(w) > 2)
     scored: list[tuple[float, dict]] = []
     for e in entries:
@@ -174,18 +176,20 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
     scored.sort(key=lambda x: x[0], reverse=True)
     docs = []
     for score, e in scored[:limit]:
-        docs.append({
-            "text": f"{e['title']}\n\n{e.get('body', '')}",
-            # Keyword overlap is a weaker signal than cosine; scored below the
-            # semantic path so it never outranks a real embedding match.
-            "score": min(1.0, score) * _OKF_KEYWORD_SCORE_CEILING,
-            "metadata": {
-                "source": e.get("resource") or e.get("source", "OKF"),
-                "title": e["title"],
-                "type": e.get("type", "okf"),
-                "teacher": e.get("teacher", "both"),
-            },
-        })
+        docs.append(
+            {
+                "text": f"{e['title']}\n\n{e.get('body', '')}",
+                # Keyword overlap is a weaker signal than cosine; scored below the
+                # semantic path so it never outranks a real embedding match.
+                "score": min(1.0, score) * _OKF_KEYWORD_SCORE_CEILING,
+                "metadata": {
+                    "source": e.get("resource") or e.get("source", "OKF"),
+                    "title": e["title"],
+                    "type": e.get("type", "okf"),
+                    "teacher": e.get("teacher", "both"),
+                },
+            }
+        )
     return docs
 
 
@@ -203,6 +207,7 @@ async def query_neo4j_subgraph(
         corpus_id=corpus_id or settings.default_corpus_id,
     )
     from ingest.pipeline import extract_doctrine_tags
+
     matched_concepts = extract_doctrine_tags(query)
     if not matched_concepts:
         return ""
@@ -247,13 +252,17 @@ async def query_neo4j_subgraph(
                         subgraph_context.append(
                             f"Relationship: {record['source']} -[{record['rel']}]-> {record['target']}{desc_str}"
                         )
-                        if record.get('target'):
-                            candidates.add(record['target'])
+                        if record.get("target"):
+                            candidates.add(record["target"])
             return subgraph_context, list(candidates)
 
         res, candidates = await asyncio.to_thread(_run)
         if res:
-            candidate_str = f"\n[Next-Step Traversal Candidates]: {', '.join(sorted(candidates))}" if candidates else ""
+            candidate_str = (
+                f"\n[Next-Step Traversal Candidates]: {', '.join(sorted(candidates))}"
+                if candidates
+                else ""
+            )
             return "\n[Targeted Subgraph Context]:\n" + "\n".join(res) + candidate_str
     except Exception as e:
         logger.warning(f"Failed to fetch Neo4j targeted subgraph: {e}")
@@ -266,6 +275,7 @@ async def query_neo4j_guided_tour(query: str) -> list[dict]:
     Returns list of dicts representing the steps, or a mock sequence if no graph database is configured/empty.
     """
     from services.tenant_context import TenantContext
+
     tour_name = "meditation journey"
     if not settings.neo4j_uri:
         return [
@@ -289,7 +299,9 @@ async def query_neo4j_guided_tour(query: str) -> list[dict]:
 
     try:
         from app.dependencies import get_container
+
         tenant_id = TenantContext.get()
+
         def _run():
             driver = get_container().neo4j_driver
             if driver is None:
@@ -305,14 +317,16 @@ async def query_neo4j_guided_tour(query: str) -> list[dict]:
                 """
                 result = session.run(cypher, tour_name=tour_name, tenant_id=tenant_id)
                 for record in result:
-                    steps.append({
-                        "content": f"Step {record['step_number']}: {record['title']}. {record['description']}",
-                        "text": f"Step {record['step_number']}: {record['title']}. {record['description']}",
-                        "title": f"Step {record['step_number']}: {record['title']}",
-                        "source_url": f"neo4j://tour/{tour_name}/step{record['step_number']}",
-                        "chunk_index": record['step_number'],
-                        "score": 1.0 - (0.05 * record['step_number']),
-                    })
+                    steps.append(
+                        {
+                            "content": f"Step {record['step_number']}: {record['title']}. {record['description']}",
+                            "text": f"Step {record['step_number']}: {record['title']}. {record['description']}",
+                            "title": f"Step {record['step_number']}: {record['title']}",
+                            "source_url": f"neo4j://tour/{tour_name}/step{record['step_number']}",
+                            "chunk_index": record["step_number"],
+                            "score": 1.0 - (0.05 * record["step_number"]),
+                        }
+                    )
             return steps
 
         res = await asyncio.to_thread(_run)
@@ -340,6 +354,7 @@ async def query_neo4j_guided_tour(query: str) -> list[dict]:
         },
     ]
 
+
 # Module-level semantic cache instance (lazy-initialized)
 _semantic_cache: Optional[Any] = None
 
@@ -350,7 +365,9 @@ _ADAPTIVE_PARENT_THRESHOLD = settings.retrieval_adaptive_parent_threshold
 _SCORE_DELTA_RATIO = settings.retrieval_score_delta_ratio
 
 
-def _apply_score_delta_cutoff(docs: list[dict], score_key: str = "score", min_ratio: float = _SCORE_DELTA_RATIO) -> list[dict]:
+def _apply_score_delta_cutoff(
+    docs: list[dict], score_key: str = "score", min_ratio: float = _SCORE_DELTA_RATIO
+) -> list[dict]:
     """Drop low-scoring documents that are far below the top score."""
     if not docs:
         return []
@@ -362,7 +379,9 @@ def _apply_score_delta_cutoff(docs: list[dict], score_key: str = "score", min_ra
 
     floor = top_score * min_ratio
     filtered = [doc for doc in docs if doc.get(score_key, 0.0) >= floor]
-    logger.debug(f"Score-delta cutoff: top={top_score:.3f} floor={floor:.3f} {len(docs)} -> {len(filtered)} docs")
+    logger.debug(
+        f"Score-delta cutoff: top={top_score:.3f} floor={floor:.3f} {len(docs)} -> {len(filtered)} docs"
+    )
     return filtered
 
 
@@ -394,7 +413,9 @@ def _dedup_newest_by_source(docs: list[dict]) -> list[dict]:
     result = list(best.values()) + non_identifiable
     if len(result) == len(docs):
         return docs
-    logger.info(f"Dedup-newest: {len(docs)} -> {len(result)} docs ({len(non_identifiable)} non-identifiable preserved)")
+    logger.info(
+        f"Dedup-newest: {len(docs)} -> {len(result)} docs ({len(non_identifiable)} non-identifiable preserved)"
+    )
     return result
 
 
@@ -463,7 +484,46 @@ def _adaptive_parent_excerpt(query: str, parent_text: str, max_chars: int = 1500
         return parent_text[:max_chars]
 
     # Extract non-trivial query keywords (length > 2, not common stop-words)
-    stop_words = {"the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was", "one", "our", "out", "day", "get", "has", "him", "his", "how", "man", "new", "now", "old", "see", "two", "way", "who", "boy", "did", "its", "let", "put", "say", "she", "too", "use"}
+    stop_words = {
+        "the",
+        "and",
+        "for",
+        "are",
+        "but",
+        "not",
+        "you",
+        "all",
+        "can",
+        "had",
+        "her",
+        "was",
+        "one",
+        "our",
+        "out",
+        "day",
+        "get",
+        "has",
+        "him",
+        "his",
+        "how",
+        "man",
+        "new",
+        "now",
+        "old",
+        "see",
+        "two",
+        "way",
+        "who",
+        "boy",
+        "did",
+        "its",
+        "let",
+        "put",
+        "say",
+        "she",
+        "too",
+        "use",
+    }
     query_words = set()
     for word in re.findall(r"\b\w+\b", query.lower()):
         if len(word) > 2 and word not in stop_words:
@@ -553,8 +613,6 @@ async def decompose_query(state: GraphState, config: dict = None) -> dict:
     return {"sub_queries": expanded, "is_complex": is_complex}
 
 
-
-
 @log_metrics
 async def generate_hyde(state: GraphState, config: dict = None) -> dict:
     """HyDE (Hypothetical Document Embeddings): Generate a fake answer."""
@@ -594,7 +652,9 @@ async def navigate_knowledge_tree(state: GraphState, config: dict = None) -> dic
             teacher_id=state.get("teacher_id"),
             required_rights_status=("licensed" if settings.require_licensed_domain_reads else None),
         )
-        summary_nodes = qdrant.get_summary_nodes(query_vector=query_enc["dense"], limit=10, scope=scope)
+        summary_nodes = qdrant.get_summary_nodes(
+            query_vector=query_enc["dense"], limit=10, scope=scope
+        )
 
         if not summary_nodes:
             logger.info("Tree navigation: No summary nodes in DB, skipping")
@@ -773,7 +833,9 @@ async def retrieve_for_single_query(
             graph_answer = "\n".join(deduped_lines)
             lg_node_lines = [line for line in deduped_lines if line.strip()]
             if len(lg_node_lines) > 50:
-                graph_answer = "\n".join(deduped_lines[:50]) + "\n[LightRAG context capped at 5 nodes]"
+                graph_answer = (
+                    "\n".join(deduped_lines[:50]) + "\n[LightRAG context capped at 5 nodes]"
+                )
             if intent == "RELATIONAL":
                 subgraph_ctx = await query_neo4j_subgraph(query, scope=scope)
                 if subgraph_ctx:
@@ -829,25 +891,28 @@ async def _compress_rag_context_impl(query: str, docs: list[dict], embedder) -> 
             continue
         sentences = _split_into_sentences(text)
         for s in sentences:
-            all_sentences_with_meta.append({
-                "doc_idx": doc_idx,
-                "text": s,
-            })
+            all_sentences_with_meta.append(
+                {
+                    "doc_idx": doc_idx,
+                    "text": s,
+                }
+            )
 
     if not all_sentences_with_meta:
         return docs
-        
+
     sentence_texts = [item["text"] for item in all_sentences_with_meta]
     try:
         sentence_enc = await asyncio.to_thread(embedder.encode_batch, sentence_texts)
         sentence_embs = sentence_enc["dense"]
-        
+
         query_enc = await asyncio.to_thread(embedder.encode_single_full, query)
         query_emb = query_enc["dense"]
-        
+
         import numpy as np
+
         query_norm = np.linalg.norm(query_emb)
-        
+
         doc_idx_to_kept_sentences = {}
         for idx, item in enumerate(all_sentences_with_meta):
             emb = sentence_embs[idx]
@@ -856,13 +921,13 @@ async def _compress_rag_context_impl(query: str, docs: list[dict], embedder) -> 
                 sim = 0.0
             else:
                 sim = float(np.dot(emb, query_emb) / (emb_norm * query_norm))
-                
+
             if sim >= getattr(settings, "rag_compression_similarity_threshold", 0.50):
                 doc_idx = item["doc_idx"]
                 if doc_idx not in doc_idx_to_kept_sentences:
                     doc_idx_to_kept_sentences[doc_idx] = []
                 doc_idx_to_kept_sentences[doc_idx].append(item["text"])
-                
+
         compressed_docs = []
         for doc_idx, doc in enumerate(docs):
             if doc_idx in doc_idx_to_kept_sentences:
@@ -871,8 +936,10 @@ async def _compress_rag_context_impl(query: str, docs: list[dict], embedder) -> 
                 new_doc["text"] = kept_text
                 new_doc["content"] = kept_text
                 compressed_docs.append(new_doc)
-                
-        logger.info(f"Context compression: reduced doc count from {len(docs)} to {len(compressed_docs)}")
+
+        logger.info(
+            f"Context compression: reduced doc count from {len(docs)} to {len(compressed_docs)}"
+        )
         return compressed_docs if compressed_docs else docs
     except Exception as e:
         logger.warning(f"Error during context compression: {e}")
@@ -915,6 +982,7 @@ def _screen_prompt_injection(docs: list[dict]) -> list[dict]:
 async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     """Two-phase hybrid retrieval from Qdrant."""
     from .utils import _require_state
+
     contract_err = _require_state(state, ["question"])
     if contract_err:
         return contract_err
@@ -933,7 +1001,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         teacher_id=state.get("teacher_id"),
         required_rights_status=("licensed" if settings.require_licensed_domain_reads else None),
     )
-    if intent == "GUIDED_TOUR" and scope.tenant_id == settings.default_tenant_id and scope.corpus_id == settings.default_corpus_id:
+    if (
+        intent == "GUIDED_TOUR"
+        and scope.tenant_id == settings.default_tenant_id
+        and scope.corpus_id == settings.default_corpus_id
+    ):
         base_question = state.get("rewritten_query") or state["question"]
         tour_docs = await query_neo4j_guided_tour(base_question)
         return {
@@ -963,18 +1035,22 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     assistant_slug = state.get("assistant_slug") or "default"
     # Doctrine keyword injection & synonym expansion for better retrieval
     base_question = await inject_doctrine_keywords(
-        await expand_query_with_synonyms(base_question, assistant_slug),
-        assistant_slug
+        await expand_query_with_synonyms(base_question, assistant_slug), assistant_slug
     )
     # E4.2: KG-RAG ontology traversal — broaden query with Neo4j neighbors
     # of mentioned concepts (e.g. "karma" -> also retrieve "Dharma", "prarabdha").
     # Ponytail: one helper, fire-and-forget, non-fatal. Runs alongside synonym
     # expansion so docs tagged with sub-concepts are also surfaced.
     try:
-        from rag.kg_expansion import expand_query_with_ontology, augment_query
         from app.dependencies import get_container
+        from rag.kg_expansion import augment_query, expand_query_with_ontology
+
         _neo4j = getattr(get_container(), "neo4j_driver", None)
-        if _neo4j is not None and scope.tenant_id == settings.default_tenant_id and scope.corpus_id == settings.default_corpus_id:
+        if (
+            _neo4j is not None
+            and scope.tenant_id == settings.default_tenant_id
+            and scope.corpus_id == settings.default_corpus_id
+        ):
             # Bounded: this call sits sequentially before the retrieval fan-out
             # (asyncio.gather below), so an unbounded/degraded Neo4j session
             # would stall the whole node. It already fails open (returns []),
@@ -986,7 +1062,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             if neighbors:
                 base_question = augment_query(base_question, neighbors)
                 logger.info(f"KG ontology expansion: +{len(neighbors)} neighbor(s)")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("KG ontology expansion timed out; continuing without neighbor terms")
     except Exception as _kg_err:
         logger.debug(f"KG ontology expansion skipped: {_kg_err}")
@@ -1023,7 +1099,6 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     knowledge_tags = state.get("knowledge_tags") or []
     embedder = _services._embedder
     qdrant = _services._qdrant
-    lightrag = _services._lightrag
 
     primary_queries = list(dict.fromkeys(sub_queries))[:6]
     # Batch-encode ALL primary queries in ONE encode_batch call.
@@ -1035,8 +1110,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     precomputed_embeddings: list[Optional[dict]] = [None] * len(primary_queries)
     if primary_queries:
         primary_query_texts = [
-            _compute_query_for_embedding(q, chat_history, hyde_text)
-            for q in primary_queries
+            _compute_query_for_embedding(q, chat_history, hyde_text) for q in primary_queries
         ]
         try:
             batched = await asyncio.to_thread(embedder.encode_batch, primary_query_texts)
@@ -1082,7 +1156,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     query_embedding=precomputed_embeddings[i],
                     scope=scope,
                 ),
-                timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
+                timeout=get_node_timeout(
+                    "default_main", getattr(settings, "node_timeout_main", 60)
+                ),
             )
             for i, q in enumerate(primary_queries)
         ],
@@ -1134,7 +1210,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                             knowledge_tags=knowledge_tags,
                             scope=scope,
                         ),
-                        timeout=get_node_timeout("default_main", getattr(settings, "node_timeout_main", 60)),
+                        timeout=get_node_timeout(
+                            "default_main", getattr(settings, "node_timeout_main", 60)
+                        ),
                     )
                     for q in novel_expansions
                 ],
@@ -1143,9 +1221,12 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     # Keep `sub_queries` populated for downstream nodes / observability
     sub_queries = list(dict.fromkeys([*primary_queries, *(expansion_queries or [])]))
-    retrieval_queries = primary_queries + [
-        q for q in (expansion_queries or []) if q not in set(primary_queries)
-    ][: max(0, 6 - len(primary_queries))]
+    retrieval_queries = (
+        primary_queries
+        + [q for q in (expansion_queries or []) if q not in set(primary_queries)][
+            : max(0, 6 - len(primary_queries))
+        ]
+    )
     all_results = list(primary_results) + list(expansion_results)
 
     normalized_results = []
@@ -1173,7 +1254,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     seen_texts: set[str] = set()
     all_docs: list[dict] = []
-    for doc in sorted(id_to_doc2.values(), key=lambda d: rrf2_scores[stable_document_key(d)], reverse=True):
+    for doc in sorted(
+        id_to_doc2.values(), key=lambda d: rrf2_scores[stable_document_key(d)], reverse=True
+    ):
         th = stable_document_key(doc)
         if th not in seen_texts:
             seen_texts.add(th)
@@ -1208,16 +1291,19 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # GraphRAG Fusion — multi-hop vector + KG retrieval fused via RRF.
     # Runs BEFORE score cutoff, dedup, MMR, compression, and budget processing
     # so fused results participate in all downstream quality safeguards.
-    if (
-        _services._graphrag_fusion is not None
-        and getattr(settings, "graphrag_fusion_enabled", False)
+    if _services._graphrag_fusion is not None and getattr(
+        settings, "graphrag_fusion_enabled", False
     ):
         try:
-            from services.graphrag_fusion import ContextItem
             fused = await _services._graphrag_fusion.retrieve(base_question)
             if fused.items:
                 fused_docs = [
-                    {"text": i.text, "score": i.score, "channel": i.channel, "provenance": i.provenance}
+                    {
+                        "text": i.text,
+                        "score": i.score,
+                        "channel": i.channel,
+                        "provenance": i.provenance,
+                    }
                     for i in fused.items
                 ]
                 all_docs = fused_docs + all_docs
@@ -1239,7 +1325,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         logger.info(f"Merging {len(web_docs)} web search results into primary document list")
         all_docs = web_docs + all_docs
 
-    if len(all_docs) > getattr(settings, "rag_top_k_retrieval_after_cutoff", settings.rag_top_k_retrieval):
+    if len(all_docs) > getattr(
+        settings, "rag_top_k_retrieval_after_cutoff", settings.rag_top_k_retrieval
+    ):
         question = state.get("rewritten_query") or state["question"]
         doc_texts = [doc["text"] for doc in all_docs]
 
@@ -1290,9 +1378,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # Gate controlled by rag_okf_injection_enabled — defaults to True as of
     # Fix C's OKF hardening: OKF is now the canonical curated knowledge layer
     # (see app/config.py:269), not an opt-in extra.
-    if (
-        getattr(settings, "rag_okf_injection_enabled", False)
-        and intent not in ("CASUAL", "GREETING")
+    if getattr(settings, "rag_okf_injection_enabled", False) and intent not in (
+        "CASUAL",
+        "GREETING",
     ):
         try:
             # Teacher routing: detect guru mention in query for OKF filtering
@@ -1322,7 +1410,10 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             from rag.nodes.deep_research import conduct_deep_research
 
             all_docs = await conduct_deep_research(
-                base_question, all_docs, state, depth=getattr(settings, "rag_deep_research_max_depth", 2)
+                base_question,
+                all_docs,
+                state,
+                depth=getattr(settings, "rag_deep_research_max_depth", 2),
             )
             deep_research_done = True
         except Exception as e:
@@ -1340,8 +1431,10 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             from rag.nodes.deep_research import conduct_deep_research
 
             all_docs = await conduct_deep_research(
-                base_question, all_docs, state,
-                depth=getattr(settings, "rag_deep_research_max_depth", 2)
+                base_question,
+                all_docs,
+                state,
+                depth=getattr(settings, "rag_deep_research_max_depth", 2),
             )
             deep_research_done = True
         except Exception as e:
@@ -1392,6 +1485,3 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             retrieved_sources=_grounded_citation_urls(all_docs),
         ),
     }
-
-
-

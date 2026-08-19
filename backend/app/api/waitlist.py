@@ -1,4 +1,5 @@
 """Consent-required early-access waitlist intake."""
+
 from __future__ import annotations
 
 import logging
@@ -41,7 +42,9 @@ async def signup_waitlist(
     if not settings.waitlist_enabled:
         raise HTTPException(status_code=503, detail="Waitlist is not open yet.")
     if not payload.consent_to_contact:
-        raise HTTPException(status_code=422, detail="Consent is required before contact details are retained.")
+        raise HTTPException(
+            status_code=422, detail="Consent is required before contact details are retained."
+        )
     supabase = getattr(container, "supabase_client", None)
     if supabase is None:
         raise HTTPException(status_code=503, detail="Waitlist is temporarily unavailable.")

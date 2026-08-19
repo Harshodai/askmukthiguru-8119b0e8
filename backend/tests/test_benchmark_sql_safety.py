@@ -1,4 +1,5 @@
 """Tests for SQL parameterization and injection safety in benchmark tools."""
+
 from __future__ import annotations
 
 import pytest
@@ -20,7 +21,7 @@ SQL_INJECTION_STRINGS = [
     "admin'--",
     "' OR 1=1 --",
     "test'; VACUUM FULL; --",
-    "test\'; SELECT pg_sleep(10); --",
+    "test'; SELECT pg_sleep(10); --",
     'test" OR ""="',
     "'; DELETE FROM public.chat_queries WHERE '1'='1",
 ]
@@ -43,7 +44,10 @@ def test_build_telemetry_check_command_sql_injection_safety(base_config, injecti
     sql_arg = cmd[c_idx + 1]
 
     # The SQL query must use the parameterized psql variable :'slug'
-    assert sql_arg == "SELECT assistant_slug FROM public.chat_queries WHERE assistant_slug = :'slug' LIMIT 1;"
+    assert (
+        sql_arg
+        == "SELECT assistant_slug FROM public.chat_queries WHERE assistant_slug = :'slug' LIMIT 1;"
+    )
 
     # The malicious injection string must NOT be present anywhere in the -c SQL text
     assert injection not in sql_arg
@@ -60,8 +64,17 @@ def test_build_telemetry_check_command_normal_slug(base_config):
     cmd = build_telemetry_check_command(base_config, slug)
 
     assert cmd == [
-        "docker", "exec", "-i", "test_supabase_db",
-        "psql", "-U", "postgres", "-d", "postgres",
-        "-v", "slug=test-assistant-12345",
-        "-c", "SELECT assistant_slug FROM public.chat_queries WHERE assistant_slug = :'slug' LIMIT 1;"
+        "docker",
+        "exec",
+        "-i",
+        "test_supabase_db",
+        "psql",
+        "-U",
+        "postgres",
+        "-d",
+        "postgres",
+        "-v",
+        "slug=test-assistant-12345",
+        "-c",
+        "SELECT assistant_slug FROM public.chat_queries WHERE assistant_slug = :'slug' LIMIT 1;",
     ]

@@ -143,7 +143,9 @@ class AdaptiveChunker:
             "semantic": self._semantic_split(sample),
         }
 
-    def _apply_strategy(self, name: Literal["recursive", "recursive_small", "semantic"], text: str) -> list[str]:
+    def _apply_strategy(
+        self, name: Literal["recursive", "recursive_small", "semantic"], text: str
+    ) -> list[str]:
         """Apply the winning strategy to the full document."""
         if name == "semantic":
             return self._semantic_split(text)
@@ -210,7 +212,9 @@ class AdaptiveChunker:
 
         for name, chunks in candidates.items():
             score = self._score(chunks, full_text)
-            logger.debug("Adaptive chunking candidate '%s': score=%.4f, n=%d", name, score, len(chunks))
+            logger.debug(
+                "Adaptive chunking candidate '%s': score=%.4f, n=%d", name, score, len(chunks)
+            )
             if score > best_score:
                 best_score = score
                 best_name = name
@@ -249,9 +253,7 @@ class AdaptiveChunker:
         """Fraction of chunks inside the target character bounds."""
         if not chunks:
             return 0.0
-        ok = sum(
-            1 for c in chunks if self._min_chunk_chars <= len(c) <= self._max_chunk_chars
-        )
+        ok = sum(1 for c in chunks if self._min_chunk_chars <= len(c) <= self._max_chunk_chars)
         return ok / len(chunks)
 
     def _intrachunk_cohesion(
@@ -264,7 +266,7 @@ class AdaptiveChunker:
         High cohesion means the sentences in a chunk talk about the same topic.
         """
         scores: list[float] = []
-        for chunk, chunk_emb in zip(chunks, chunk_embeddings):
+        for chunk, _chunk_emb in zip(chunks, chunk_embeddings):
             sentences = self._split_sentences(chunk)
             if len(sentences) <= 1:
                 scores.append(1.0)
@@ -354,8 +356,7 @@ class AdaptiveChunker:
     def _consecutive_similarities(embeddings: np.ndarray) -> list[float]:
         """Cosine similarity between each embedding and the next one."""
         return [
-            _cosine_similarity(embeddings[i], embeddings[i + 1])
-            for i in range(len(embeddings) - 1)
+            _cosine_similarity(embeddings[i], embeddings[i + 1]) for i in range(len(embeddings) - 1)
         ]
 
     def _merge_tiny_chunks(self, chunks: Sequence[str], min_chars: int = 250) -> list[str]:

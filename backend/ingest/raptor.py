@@ -100,8 +100,7 @@ class RaptorIndexer:
         dropped = len(summaries) - len(kept)
         if dropped:
             logger.warning(
-                "RAPTOR: gated out %d/%d unfaithful cluster summaries "
-                "(faithfulness floor not met)",
+                "RAPTOR: gated out %d/%d unfaithful cluster summaries (faithfulness floor not met)",
                 dropped,
                 len(summaries),
             )
@@ -239,7 +238,9 @@ class RaptorIndexer:
         clusters = {}
         for idx, label in enumerate(labels):
             clusters.setdefault(int(label), []).append(idx)
-        logger.info(f"RAPTOR GMM: {len(clusters)} clusters, sizes: {[len(v) for v in clusters.values()]}")
+        logger.info(
+            f"RAPTOR GMM: {len(clusters)} clusters, sizes: {[len(v) for v in clusters.values()]}"
+        )
         return clusters
 
     async def _summarize_clusters(self, chunks: list[dict], clusters: dict) -> list[dict]:
@@ -299,8 +300,14 @@ class RaptorIndexer:
                         # short phrase, never a multi-line/multi-sentence dump. Reject
                         # anything that doesn't look like one rather than baking a
                         # leaked prompt-analysis into the stored chunk header.
-                        if len(topic_label) > 60 or "\n" in topic_label or topic_label.count(".") > 1:
-                            logger.warning(f"Rejected malformed topic label ({len(topic_label)} chars): {topic_label[:80]!r}")
+                        if (
+                            len(topic_label) > 60
+                            or "\n" in topic_label
+                            or topic_label.count(".") > 1
+                        ):
+                            logger.warning(
+                                f"Rejected malformed topic label ({len(topic_label)} chars): {topic_label[:80]!r}"
+                            )
                             topic_label = ""
                     except Exception as te:
                         logger.debug(f"Topic label generation failed: {te}")

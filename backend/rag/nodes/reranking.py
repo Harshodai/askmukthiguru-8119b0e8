@@ -6,14 +6,13 @@ import asyncio
 import logging
 import re
 
+from app.tracing import trace_rag_node
 from rag.compressor import compress_documents
-from rag.states import GraphState
-from rag.timeout_utils import get_node_timeout
-from rag.tree_navigator import check_sufficiency
 from rag.doc_utils import doc_text
 from rag.nodes.retrieval import _screen_prompt_injection
+from rag.states import GraphState
+from rag.timeout_utils import get_node_timeout
 
-from app.tracing import trace_rag_node
 from . import _services
 from .utils import _grounded_citation_urls, _trace_update, emit_status, log_metrics, settings
 
@@ -45,7 +44,9 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
         if "rerank_score" not in doc:
             doc["rerank_score"] = 0.70
 
-    def _apply_rerank_score_cutoff(docs: list[dict], score_key: str = "rerank_score", ratio: float = 0.5) -> list[dict]:
+    def _apply_rerank_score_cutoff(
+        docs: list[dict], score_key: str = "rerank_score", ratio: float = 0.5
+    ) -> list[dict]:
         if not docs or not getattr(settings, "rerank_score_delta_enabled", False):
             return docs
         scores = [doc.get(score_key, 0.0) for doc in docs]
@@ -54,7 +55,9 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
             return docs
         floor = top_score * ratio
         filtered = [doc for doc in docs if doc.get(score_key, 0.0) >= floor]
-        logger.debug(f"Rerank score-delta: top={top_score:.3f} floor={floor:.3f} {len(docs)} -> {len(filtered)}")
+        logger.debug(
+            f"Rerank score-delta: top={top_score:.3f} floor={floor:.3f} {len(docs)} -> {len(filtered)}"
+        )
         return filtered
 
     reranked_db = []
@@ -64,7 +67,9 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
         base_threshold = getattr(settings, "rerank_min_score", 0.2)
         # Floor must not decrease as complexity rises: complex >= simple (harder query, stricter gate).
         simple_floor = max(settings.rerank_threshold_simple, base_threshold - 0.1)
-        threshold = max(settings.rerank_threshold_complex, simple_floor) if is_complex else simple_floor
+        threshold = (
+            max(settings.rerank_threshold_complex, simple_floor) if is_complex else simple_floor
+        )
 
         # Dynamic top-k by query tier — fewer chunks for simpler queries reduces
         # LLM context window usage and lowers TTFT without hurting answer quality.
@@ -148,9 +153,7 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
     # positions so the LLM sees them at the edges of the context window where
     # attention is strongest.
     if len(reranked) >= 6:
-        sorted_by_score = sorted(
-            reranked, key=lambda d: d.get("rerank_score", 0.0), reverse=True
-        )
+        sorted_by_score = sorted(reranked, key=lambda d: d.get("rerank_score", 0.0), reverse=True)
         best = sorted_by_score[0]
         second_best = sorted_by_score[1]
         rest = [d for d in reranked if d is not best and d is not second_best]
@@ -181,7 +184,9 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
         reranked_docs = state["reranked_docs"]
         relevant = sorted(reranked_docs, key=lambda d: d.get("rerank_score", 0.0), reverse=True)[:3]
         state["grading_reasons"] = ["Simple query bypass" for _ in relevant]
-        logger.info(f"CRAG batch: simple query tier, bypassing grading, accepted {len(relevant)} docs")
+        logger.info(
+            f"CRAG batch: simple query tier, bypassing grading, accepted {len(relevant)} docs"
+        )
         return {
             "relevant_docs": relevant,
             "evaluation_trace": _trace_update(
@@ -196,7 +201,9 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
     if not reranked_docs:
         return {"relevant_docs": []}
 
-    rerank_scores = [d.get("rerank_score") for d in reranked_docs if d.get("rerank_score") is not None]
+    rerank_scores = [
+        d.get("rerank_score") for d in reranked_docs if d.get("rerank_score") is not None
+    ]
     if rerank_scores:
         top_score = max(rerank_scores)
         min_score = settings.rerank_min_score
@@ -220,10 +227,7 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
         crag_floor = top_score * getattr(settings, "crag_score_delta_ratio", 0.5)
         crag_floor = max(crag_floor, min_score)
         before_count = len(reranked_docs)
-        reranked_docs = [
-            doc for doc in reranked_docs
-            if doc.get("rerank_score", 0.0) >= crag_floor
-        ]
+        reranked_docs = [doc for doc in reranked_docs if doc.get("rerank_score", 0.0) >= crag_floor]
         if before_count != len(reranked_docs):
             logger.info(
                 f"CRAG floor applied: top={top_score:.3f} floor={crag_floor:.3f} "
@@ -331,6 +335,7 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
     if reranked_docs:
         try:
             from app.metrics import RETRIEVAL_RELEVANCE_RATIO
+
             RETRIEVAL_RELEVANCE_RATIO.set(len(relevant) / len(reranked_docs))
         except Exception as _e:
             logger.debug("[reranking node] suppressed non-critical error: %s", _e)
@@ -349,8 +354,6 @@ async def grade_documents(state: GraphState, config: dict = None) -> dict:
             relevant_sources=_grounded_citation_urls(relevant),
         ),
     }
-
-
 
 
 @trace_rag_node("enrich_context")
@@ -432,7 +435,7 @@ async def enrich_context(state: GraphState, config: dict = None) -> dict:
         try:
             graph_ctx = _lightrag_graph_task.result()
             if graph_ctx and len(graph_ctx.strip()) > 50 and "offline" not in graph_ctx.lower():
-                capped_ctx = graph_ctx.strip()[:settings.rag_graph_context_cap_chars]
+                capped_ctx = graph_ctx.strip()[: settings.rag_graph_context_cap_chars]
                 summary_doc = {
                     "title": "LightRAG Knowledge Graph Synthesis",
                     "text": capped_ctx,
@@ -444,9 +447,13 @@ async def enrich_context(state: GraphState, config: dict = None) -> dict:
                 # node's _screen_prompt_injection call unless applied here.
                 if _screen_prompt_injection([summary_doc]):
                     enriched_docs.insert(0, summary_doc)
-                    logger.info("Enrich context: blended LightRAG global graph summary into context")
+                    logger.info(
+                        "Enrich context: blended LightRAG global graph summary into context"
+                    )
                 else:
-                    logger.warning("Enrich context: dropped LightRAG summary failing prompt-injection screen")
+                    logger.warning(
+                        "Enrich context: dropped LightRAG summary failing prompt-injection screen"
+                    )
         except Exception as exc:
             logger.warning(f"Enrich context: LightRAG summary fetch skipped (non-critical): {exc}")
 

@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 # Device / compute-type resolution
 # ---------------------------------------------------------------------------
 
+
 def _resolve_device(device: str) -> str:
     """Resolve 'auto' → 'cuda' if available else 'cpu'."""
     if device != "auto":
@@ -63,6 +64,7 @@ def _resolve_compute_type(compute_type: str, device: str) -> str:
 # Language resolution (mirrors zabt _resolve_language_after_detect)
 # ---------------------------------------------------------------------------
 
+
 def _resolve_language(
     detected: str,
     forced: Optional[str],
@@ -86,6 +88,7 @@ def _resolve_language(
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
+
 
 def transcribe_with_alignment(
     video_id: str,
@@ -119,8 +122,7 @@ def transcribe_with_alignment(
         import whisperx
     except ImportError as e:
         logger.warning(
-            f"[{video_id}] whisperx/torch not installed ({e}) — "
-            f"cannot run alignment pipeline"
+            f"[{video_id}] whisperx/torch not installed ({e}) — cannot run alignment pipeline"
         )
         return None
 
@@ -240,16 +242,16 @@ def transcribe_with_alignment(
     # --- Stage 3: Diarize (speaker labels) ----------------------------------
     method = "whisperx_aligned"
     if not hf_token:
-        logger.warning(
-            f"[{video_id}] No hf_token — skipping diarization (SPEAKER_UNKNOWN)"
-        )
+        logger.warning(f"[{video_id}] No hf_token — skipping diarization (SPEAKER_UNKNOWN)")
         for seg in raw_result.get("segments", []):
             seg["speaker"] = "SPEAKER_UNKNOWN"
             for w in seg.get("words", []):
                 w["speaker"] = "SPEAKER_UNKNOWN"
     else:
         try:
-            logger.info(f"[{video_id}] Diarizing speakers (min={min_speakers}, max={max_speakers})...")
+            logger.info(
+                f"[{video_id}] Diarizing speakers (min={min_speakers}, max={max_speakers})..."
+            )
             tl = time.time()
             from whisperx.diarize import DiarizationPipeline, assign_word_speakers
 
@@ -269,8 +271,7 @@ def transcribe_with_alignment(
             logger.info(f"[{video_id}]   diarization done in {time.time() - tl:.1f}s")
         except Exception as e:
             logger.warning(
-                f"[{video_id}] Diarization failed ({e}) — "
-                f"continuing with SPEAKER_UNKNOWN"
+                f"[{video_id}] Diarization failed ({e}) — continuing with SPEAKER_UNKNOWN"
             )
             for seg in raw_result.get("segments", []):
                 seg.setdefault("speaker", "SPEAKER_UNKNOWN")

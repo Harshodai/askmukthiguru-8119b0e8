@@ -61,9 +61,7 @@ class EpisodicMemoryService:
             logger.warning(f"episodic.log_episode failed for user {user_id}: {e}")
             return None
 
-    async def retrieve_recent(
-        self, user_id: str, limit: int = 20
-    ) -> list[dict[str, Any]]:
+    async def retrieve_recent(self, user_id: str, limit: int = 20) -> list[dict[str, Any]]:
         """Return the user's most recent episodes, newest first."""
         if not self.available or not user_id or user_id == "anonymous":
             return []
@@ -82,9 +80,7 @@ class EpisodicMemoryService:
             logger.warning(f"episodic.retrieve_recent failed for user {user_id}: {e}")
             return []
 
-    async def search(
-        self, user_id: str, q: str, limit: int = 20
-    ) -> list[dict[str, Any]]:
+    async def search(self, user_id: str, q: str, limit: int = 20) -> list[dict[str, Any]]:
         """Case-insensitive substring search over the user's episodes (query + answer)."""
         if not self.available or not user_id or user_id == "anonymous" or not q or not q.strip():
             return []
@@ -112,20 +108,45 @@ if __name__ == "__main__":  # ponytail: one runnable self-check
     import asyncio
 
     class _MockResp:
-        def __init__(self, data): self.data = data
+        def __init__(self, data):
+            self.data = data
 
     class _MockTable:
-        def __init__(self, *_): self._rows = []
-        def insert(self, row): self._row = row; return self
-        def select(self, *_): return self
-        def eq(self, *_): return self
-        def or_(self, *_): return self
-        def order(self, *_): return self
-        def limit(self, *_): return self
-        def execute(self): return _MockResp([{"id": "x", **getattr(self, "_row", {"query":"q","answer":"a","user_id":"u"})}])
+        def __init__(self, *_):
+            self._rows = []
+
+        def insert(self, row):
+            self._row = row
+            return self
+
+        def select(self, *_):
+            return self
+
+        def eq(self, *_):
+            return self
+
+        def or_(self, *_):
+            return self
+
+        def order(self, *_):
+            return self
+
+        def limit(self, *_):
+            return self
+
+        def execute(self):
+            return _MockResp(
+                [
+                    {
+                        "id": "x",
+                        **getattr(self, "_row", {"query": "q", "answer": "a", "user_id": "u"}),
+                    }
+                ]
+            )
 
     class _MockClient:
-        def table(self, _): return _MockTable()
+        def table(self, _):
+            return _MockTable()
 
     async def _demo():
         svc = EpisodicMemoryService(_MockClient())

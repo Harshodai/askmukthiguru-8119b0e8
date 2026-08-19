@@ -5,6 +5,7 @@ Exposes hit rates, sizes, and health for all cache tiers:
   2. Exact cache (Redis key-value)
   3. Semantic cache (Qdrant vector search)
 """
+
 from __future__ import annotations
 
 import logging
@@ -14,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.dependencies import ServiceContainer, get_container
-from services.auth_service import get_current_user_from_supabase, require_aal2
+from services.auth_service import require_aal2
 from services.hot_cache import hot_cache
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ async def cache_metrics(
     """Return cache tier statistics for production monitoring. Admin only."""
     if not user or not user.get("is_superuser"):
         from fastapi import HTTPException
+
         raise HTTPException(status_code=403, detail="Admin access required")
     # --- Hot cache (in-memory, <1ms) ---
     hot_stats = hot_cache.stats()
@@ -44,7 +46,9 @@ async def cache_metrics(
             elif hasattr(container.exact_cache, "keys"):
                 exact_stats = {
                     "available": True,
-                    "size": len(container.exact_cache.keys()) if callable(container.exact_cache.keys) else None,
+                    "size": len(container.exact_cache.keys())
+                    if callable(container.exact_cache.keys)
+                    else None,
                 }
             else:
                 exact_stats = {"available": True}
@@ -62,14 +66,16 @@ async def cache_metrics(
     except Exception:
         semantic_stats = {"available": False, "error": "unavailable"}
 
-    return JSONResponse({
-        "timestamp": int(time.time()),
-        "tiers": {
-            "hot": hot_stats,
-            "exact": exact_stats,
-            "semantic": semantic_stats,
-        },
-    })
+    return JSONResponse(
+        {
+            "timestamp": int(time.time()),
+            "tiers": {
+                "hot": hot_stats,
+                "exact": exact_stats,
+                "semantic": semantic_stats,
+            },
+        }
+    )
 
 
 @router.post("/admin/clear-cache")
@@ -119,7 +125,9 @@ async def clear_cache(
         results["semantic"] = f"error: {e}"
         logger.warning("semantic cache clear failed: %s", e)
 
-    return JSONResponse({
-        "status": "ok",
-        "tiers": results,
-    })
+    return JSONResponse(
+        {
+            "status": "ok",
+            "tiers": results,
+        }
+    )

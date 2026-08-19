@@ -1,4 +1,5 @@
 """Regression coverage for backend-enforced incognito isolation."""
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -30,9 +31,7 @@ async def test_incognito_history_never_reads_durable_conversation() -> None:
     container = MagicMock()
     container.supabase_client = MagicMock()
 
-    await populate_server_side_history(
-        request, {"id": "user-1"}, container, is_benchmark=False
-    )
+    await populate_server_side_history(request, {"id": "user-1"}, container, is_benchmark=False)
 
     assert request.messages == []
     container.supabase_client.table.assert_not_called()

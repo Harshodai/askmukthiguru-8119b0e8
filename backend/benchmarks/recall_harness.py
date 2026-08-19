@@ -20,6 +20,7 @@ Usage (in backend container, where models + qdrant are reachable):
         --golden /tmp/golden_retrieval_v1.json --collection spiritual_wisdom \
         --out /tmp/recall_baseline.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,6 +33,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from qdrant_client import QdrantClient  # noqa: E402
+
 from services.embedding_service import EmbeddingService  # noqa: E402
 from services.qdrant.searcher import QdrantSearcher  # noqa: E402
 
@@ -129,8 +131,12 @@ def main(argv: list[str] | None = None) -> int:
     }
     args.out.write_text(json.dumps(report, indent=2))
     print(f"\nrecall@k: {recall}")
-    print(f"embed  ms p50={report['embed_latency_ms']['p50']} p95={report['embed_latency_ms']['p95']}")
-    print(f"search ms p50={report['search_latency_ms']['p50']} p95={report['search_latency_ms']['p95']}")
+    print(
+        f"embed  ms p50={report['embed_latency_ms']['p50']} p95={report['embed_latency_ms']['p95']}"
+    )
+    print(
+        f"search ms p50={report['search_latency_ms']['p50']} p95={report['search_latency_ms']['p95']}"
+    )
     print(f"Wrote {args.out}")
     return 0
 

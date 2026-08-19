@@ -11,6 +11,7 @@ def test_cache_config_settings():
     assert settings.semantic_cache_ttl == 604800
     assert settings.guardrails_llm_enabled is False
 
+
 @pytest.mark.asyncio
 async def test_proactive_serene_mind_dict_return(monkeypatch):
     from types import SimpleNamespace
@@ -67,55 +68,59 @@ async def test_persistent_distress_checks_trend_without_a_new_keyword():
     stage._detect_distress.assert_awaited_once()
     stage._maybe_trigger_proactive_serene_mind.assert_awaited_once()
 
+
 @pytest.mark.asyncio
 async def test_ingestion_deduplication(tmp_path, monkeypatch):
     checkpoint_file = tmp_path / "ingest_checkpoint.json"
-    
+
     # Mock IngestionCheckpoint load/save path
     def mock_init(self, filepath=checkpoint_file):
         from pathlib import Path
+
         self.filepath = Path(filepath)
         self.filepath.parent.mkdir(exist_ok=True)
         self.data = self._load()
         self.processed_chunks = set(self.data.keys())
-    
+
     monkeypatch.setattr(IngestionCheckpoint, "__init__", mock_init)
-    
+
     qdrant = MagicMock()
     embedder = MagicMock()
     ollama = MagicMock()
     pipeline = IngestionPipeline(qdrant, embedder, ollama)
     pipeline._auditor.run = AsyncMock(return_value=MagicMock(passed=True, score=90, reasons=[]))
-    
+
     pipeline._split_text = MagicMock(return_value=["chunk1", "chunk2"])
     pipeline._augment_chunks = AsyncMock(return_value=["aug1", "aug2"])
     pipeline._embed_and_index = MagicMock(return_value=2)
     pipeline._raptor.build_tree = AsyncMock(return_value=1)
-    
+
     text = "Hello world! This is a comprehensive test spiritual teaching on the Beautiful State and inner stillness."
-    
+
     res1 = await pipeline.ingest_raw_text(text, "url1", "title1")
     assert res1["status"] == "success"
     assert res1["chunks_indexed"] > 0
-    
+
     res2 = await pipeline.ingest_raw_text(text, "url1", "title1")
     assert res2["status"] == "success"
     assert res2["chunks_indexed"] == 0
     assert "already processed" in res2["message"]
 
+
 def test_hierarchical_split_sentence_boundaries():
     qdrant = MagicMock()
     embedder = MagicMock()
     ollama = MagicMock()
-    
+
     import numpy as np
-    embedder.encode = MagicMock(return_value=[np.array([0.1]*128) for _ in range(3)])
-    
+
+    embedder.encode = MagicMock(return_value=[np.array([0.1] * 128) for _ in range(3)])
+
     pipeline = IngestionPipeline(qdrant, embedder, ollama)
-    
+
     text = "This is first sentence. This is second sentence. This is third sentence."
     child_texts, child_metadatas = pipeline._hierarchical_split(text, title="Test Title")
-    
+
     assert len(child_texts) > 0
     for child in child_texts:
         assert "[Source: Test Title]" in child

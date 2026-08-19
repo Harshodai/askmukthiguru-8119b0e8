@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 import logging
-import os
-import uuid
-from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from pydantic import EmailStr
 
 from app.config import settings
 from app.core.limiter import limiter
@@ -17,9 +13,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/support", tags=["Support"])
 
 SUPPORTED_ATTACHMENT_TYPES = {
-    ".png", ".jpg", ".jpeg", ".gif", ".webp",
-    ".mp4", ".mov", ".avi",
-    ".pdf", ".txt", ".log",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".mp4",
+    ".mov",
+    ".avi",
+    ".pdf",
+    ".txt",
+    ".log",
     ".zip",
 }
 MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
@@ -58,6 +62,7 @@ async def contact_support(
     if not email:
         raise HTTPException(status_code=422, detail="Valid email is required")
     import re
+
     if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email):
         raise HTTPException(status_code=422, detail="Valid email is required")
 
@@ -88,7 +93,11 @@ async def contact_support(
                 status_code=500,
                 detail="Failed to send support email. Please try again later.",
             )
-        return {"ok": True, "status": "success", "message": "Message sent. We will get back to you within 24-48 hours."}
+        return {
+            "ok": True,
+            "status": "success",
+            "message": "Message sent. We will get back to you within 24-48 hours.",
+        }
     except HTTPException:
         raise
     except Exception as e:

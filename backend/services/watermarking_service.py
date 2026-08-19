@@ -12,12 +12,10 @@ import json
 import logging
 import re
 import struct
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional
 
 from app.schemas.compliance_provenance import (
     AIProvenanceManifest,
-    ArtifactModality,
-    EUComplianceRiskTier,
     OriginType,
 )
 
@@ -27,7 +25,7 @@ logger = logging.getLogger(__name__)
 _ZW_START = "\ufeff"  # Zero-width non-breaking space (BOM) as start/end delimiter
 _ZW_END = "\ufeff"
 _ZW_ZERO = "\u200b"  # Zero-width space represents bit '0'
-_ZW_ONE = "\u200c"   # Zero-width non-joiner represents bit '1'
+_ZW_ONE = "\u200c"  # Zero-width non-joiner represents bit '1'
 _ZW_DELIMS = {"\ufeff", "\u200b", "\u200c", "\u200d", "\u200e", "\u200f"}
 
 
@@ -45,7 +43,7 @@ class WatermarkingService:
     def encode_text_watermark(
         cls,
         text: str,
-        manifest_or_payload: Union[AIProvenanceManifest, str, dict, None] = None,
+        manifest_or_payload: AIProvenanceManifest | str | dict | None = None,
     ) -> str:
         """Embed an invisible zero-width watermark into text.
 
@@ -59,7 +57,9 @@ class WatermarkingService:
             data = {
                 "artifact_id": manifest_or_payload.artifact_id,
                 "origin_type": manifest_or_payload.origin_type.value,
-                "model_name": manifest_or_payload.agent.model_name or manifest_or_payload.model_name or "AskMukthiGuru AI",
+                "model_name": manifest_or_payload.agent.model_name
+                or manifest_or_payload.model_name
+                or "AskMukthiGuru AI",
                 "watermark_signature": manifest_or_payload.watermark_signature or "sig:zw-001",
             }
             payload_str = json.dumps(data)
@@ -85,7 +85,7 @@ class WatermarkingService:
         return clean_text + watermark_sequence
 
     @classmethod
-    def decode_text_watermark(cls, text: str) -> Optional[Union[Dict[str, Any], str]]:
+    def decode_text_watermark(cls, text: str) -> Optional[dict[str, Any] | str]:
         """Extract and decode a zero-width watermark payload from text.
 
         Returns decoded dict (if JSON payload) or string, or None if no valid watermark found.
@@ -198,23 +198,27 @@ class WatermarkingService:
             frame_id = b"TXXX"
             frame_len = len(body)
             # Encode syncsafe integer for ID3v2.4
-            syncsafe_size = bytes([
-                (frame_len >> 21) & 0x7F,
-                (frame_len >> 14) & 0x7F,
-                (frame_len >> 7) & 0x7F,
-                frame_len & 0x7F,
-            ])
+            syncsafe_size = bytes(
+                [
+                    (frame_len >> 21) & 0x7F,
+                    (frame_len >> 14) & 0x7F,
+                    (frame_len >> 7) & 0x7F,
+                    frame_len & 0x7F,
+                ]
+            )
             frame_flags = b"\x00\x00"
             frames_bytes.extend(frame_id + syncsafe_size + frame_flags + body)
 
         # ID3 Header: "ID3" + Version 2.4(0x04, 0x00) + Flags(0x00) + SyncsafeSize(4)
         total_len = len(frames_bytes)
-        id3_syncsafe_size = bytes([
-            (total_len >> 21) & 0x7F,
-            (total_len >> 14) & 0x7F,
-            (total_len >> 7) & 0x7F,
-            total_len & 0x7F,
-        ])
+        id3_syncsafe_size = bytes(
+            [
+                (total_len >> 21) & 0x7F,
+                (total_len >> 14) & 0x7F,
+                (total_len >> 7) & 0x7F,
+                total_len & 0x7F,
+            ]
+        )
         id3_tag = b"ID3\x04\x00\x00" + id3_syncsafe_size + bytes(frames_bytes)
 
         fmt_lower = format.lower() if format else "mp3"
@@ -224,7 +228,9 @@ class WatermarkingService:
             id3_chunk_id = b"id3 "
             id3_chunk_len = struct.pack("<I", len(id3_tag))
             # Pad if odd length per RIFF specification
-            id3_chunk = id3_chunk_id + id3_chunk_len + id3_tag + (b"\x00" if len(id3_tag) % 2 != 0 else b"")
+            id3_chunk = (
+                id3_chunk_id + id3_chunk_len + id3_tag + (b"\x00" if len(id3_tag) % 2 != 0 else b"")
+            )
             new_wav = audio_bytes[:12] + id3_chunk + audio_bytes[12:]
             # Update RIFF size in header (total size - 8)
             new_total_size = len(new_wav) - 8
@@ -246,12 +252,12 @@ class WatermarkingService:
         return id3_tag + clean_audio
 
     @classmethod
-    def extract_audio_provenance(cls, audio_bytes: bytes) -> Dict[str, str]:
+    def extract_audio_provenance(cls, audio_bytes: bytes) -> dict[str, str]:
         """Extract provenance metadata tags from ID3v2 or RIFF WAV audio bytes."""
         if not audio_bytes:
             return {}
 
-        results: Dict[str, str] = {}
+        results: dict[str, str] = {}
 
         # Search for ID3 tag start
         id3_offset = audio_bytes.find(b"ID3")
@@ -305,7 +311,7 @@ class WatermarkingService:
     def build_http_provenance_headers(
         cls,
         manifest: AIProvenanceManifest,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Build standard EU AI Act Article 50 HTTP headers from an AIProvenanceManifest."""
         is_ai = manifest.origin_type in (
             OriginType.AI_GENERATED,
@@ -333,7 +339,7 @@ class WatermarkingService:
         origin_type: str | OriginType = OriginType.AI_GENERATED,
         model_name: Optional[str] = None,
         watermarked: bool = True,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Instance alias / builder for compatibility."""
         if manifest:
             headers = self.build_http_provenance_headers(manifest)
@@ -343,9 +349,7 @@ class WatermarkingService:
             headers["X-AI-Origin-Type"] = manifest.origin_type.value
             return headers
 
-        resolved_origin = (
-            origin_type.value if hasattr(origin_type, "value") else str(origin_type)
-        )
+        resolved_origin = origin_type.value if hasattr(origin_type, "value") else str(origin_type)
         is_ai = resolved_origin in (
             OriginType.AI_GENERATED.value,
             OriginType.AI_SYNTHESIZED.value,

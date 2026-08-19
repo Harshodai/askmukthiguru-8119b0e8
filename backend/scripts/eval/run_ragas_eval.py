@@ -12,6 +12,7 @@ Usage:
   cd backend
   .venv/bin/python scripts/eval/run_ragas_eval.py [--endpoint http://localhost:8000] [--out report.json]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -75,7 +76,9 @@ def calculate_keyword_recall(answer: str, expected_keywords: list[str]) -> float
     return found / len(expected_keywords)
 
 
-def evaluate_abstention(answer: str, should_abstain: bool, expected_keywords: list[str] | None = None) -> bool:
+def evaluate_abstention(
+    answer: str, should_abstain: bool, expected_keywords: list[str] | None = None
+) -> bool:
     answer_lower = answer.lower()
     abstain_signals = [
         "unable to find",
@@ -239,8 +242,12 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
             "avg_kw_recall": round(sum(i["keyword_recall"] for i in items) / len(items), 2),
             "avg_faithfulness": round(sum(cat_faith) / len(cat_faith), 2) if cat_faith else 0.0,
             "faithfulness_count": len(cat_faith),
-            "avg_citation_validity": round(sum(i["citation_validity"] for i in items) / len(items), 2),
-            "abstain_accuracy": round(sum(1 for i in items if i["abstention_correct"]) / len(items), 2),
+            "avg_citation_validity": round(
+                sum(i["citation_validity"] for i in items) / len(items), 2
+            ),
+            "abstain_accuracy": round(
+                sum(1 for i in items if i["abstention_correct"]) / len(items), 2
+            ),
         }
 
     summary = {
@@ -269,7 +276,9 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
     print(f"Average Latency:          {avg_latency:.2f}s")
     print("-" * 60)
     for cat, stat in cat_summaries.items():
-        print(f"  {cat:<14}: Recall {stat['avg_kw_recall']*100:>5.1f}% | Faith {stat['avg_faithfulness']*100:>5.1f}% | Cite {stat['avg_citation_validity']*100:>5.1f}% | Abstain {stat['abstain_accuracy']*100:>5.1f}% | Latency {stat['avg_latency']:>4.1f}s")
+        print(
+            f"  {cat:<14}: Recall {stat['avg_kw_recall'] * 100:>5.1f}% | Faith {stat['avg_faithfulness'] * 100:>5.1f}% | Cite {stat['avg_citation_validity'] * 100:>5.1f}% | Abstain {stat['abstain_accuracy'] * 100:>5.1f}% | Latency {stat['avg_latency']:>4.1f}s"
+        )
 
     if output_file:
         with open(output_file, "w", encoding="utf-8") as f:
@@ -282,7 +291,9 @@ async def run_evaluation(endpoint: str, output_file: str | None = None) -> dict[
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Golden Set RAGAS Evaluation")
     parser.add_argument("--endpoint", default="http://localhost:8000", help="Backend API base URL")
-    parser.add_argument("--out", default="scripts/eval/eval_report.json", help="Output JSON report file")
+    parser.add_argument(
+        "--out", default="scripts/eval/eval_report.json", help="Output JSON report file"
+    )
     args = parser.parse_args()
 
     asyncio.run(run_evaluation(args.endpoint, args.out))

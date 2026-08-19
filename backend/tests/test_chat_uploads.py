@@ -1,4 +1,5 @@
 """Focused tests for ephemeral chat attachment extraction."""
+
 from __future__ import annotations
 
 import asyncio
@@ -28,9 +29,7 @@ def test_text_attachment_is_bounded_and_marked_untrusted() -> None:
 
 
 def test_image_without_ocr_does_not_fabricate_content() -> None:
-    result = asyncio.run(
-        extract_chat_attachment("photo.png", "image/png", b"\x89PNG\r\n\x1a\n")
-    )
+    result = asyncio.run(extract_chat_attachment("photo.png", "image/png", b"\x89PNG\r\n\x1a\n"))
 
     assert result["status"] == "ocr_unavailable"
     assert "No extractable text was produced" in result["context"]
@@ -43,6 +42,7 @@ def test_combined_upload_limit_fails_closed() -> None:
                 [
                     ("a.txt", "text/plain", b"a" * MAX_SINGLE_BYTES),
                     ("b.txt", "text/plain", b"b" * (MAX_SINGLE_BYTES + 1)),
-                ] * 3,
+                ]
+                * 3,
             )
         )

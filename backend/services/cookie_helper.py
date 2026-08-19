@@ -144,7 +144,9 @@ def ensure_cookies_file(force_refresh: bool = False) -> Optional[str]:
                 logger.info("Successfully generated cookies.txt from Safari")
                 return COOKIES_PATH
             else:
-                logger.warning(f"Safari cookie extraction also failed: {fallback_res.stderr.strip()}")
+                logger.warning(
+                    f"Safari cookie extraction also failed: {fallback_res.stderr.strip()}"
+                )
     except Exception as e:
         logger.warning(f"Exception during cookie extraction: {e}")
 

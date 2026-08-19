@@ -9,6 +9,7 @@ Verifies (without running Docker/backend):
   4. Removed tier2_simple nodes are not present in fast graph
   5. No syntax errors in modified files
 """
+
 from __future__ import annotations
 
 import ast
@@ -88,7 +89,9 @@ def main() -> int:
         "services.ollama_service": MagicMock(OllamaService=object),
         "services.qdrant_service": MagicMock(QdrantService=object),
         "services.serene_mind_engine": MagicMock(SereneMindEngine=object),
-        "app.config": MagicMock(settings=MagicMock(llm_provider="sarvam_cloud", openrouter_api_key="mock_key")),
+        "app.config": MagicMock(
+            settings=MagicMock(llm_provider="sarvam_cloud", openrouter_api_key="mock_key")
+        ),
     }
     for name, stub in stubs.items():
         sys.modules[name] = stub
@@ -124,16 +127,25 @@ def main() -> int:
     # Extract only the FastGraphStrategy class body
     fast_start = graph_source.find("class FastGraphStrategy(")
     fast_end = graph_source.find("class DeepGraphStrategy(", fast_start)
-    fast_graph_source = graph_source[fast_start:fast_end] if fast_start != -1 and fast_end != -1 else ""
+    fast_graph_source = (
+        graph_source[fast_start:fast_end] if fast_start != -1 and fast_end != -1 else ""
+    )
 
     for node in excluded:
         present = f'graph.add_node("{node}",' in fast_graph_source
-        print(f"  {'❌' if present else '✅'} {node} {'found in fast graph' if present else 'excluded'}")
+        print(
+            f"  {'❌' if present else '✅'} {node} {'found in fast graph' if present else 'excluded'}"
+        )
         if present:
             all_ok = False
 
     # Core nodes required in fast graph
-    required_fast = ["intent_router", "retrieve_documents", "generate_answer", "format_final_answer"]
+    required_fast = [
+        "intent_router",
+        "retrieve_documents",
+        "generate_answer",
+        "format_final_answer",
+    ]
     for node in required_fast:
         present = f'graph.add_node("{node}",' in fast_graph_source
         print(f"  {'✅' if present else '❌'} {node} {'present' if present else 'MISSING'}")
@@ -141,15 +153,23 @@ def main() -> int:
             all_ok = False
 
     # Adapter node check
-    print(f"  {'✅' if '_map_docs_to_relevant' in fast_graph_source else '❌'} _map_docs_to_relevant adapter")
+    print(
+        f"  {'✅' if '_map_docs_to_relevant' in fast_graph_source else '❌'} _map_docs_to_relevant adapter"
+    )
 
     # ── Parallelization check in standard graph ──────────────────────
     print("\n=== Standard graph parallelization ===")
     standard_start = graph_source.find("class StandardGraphStrategy(")
     standard_end = graph_source.find("class FastGraphStrategy(", standard_start)
-    standard_graph_source = graph_source[standard_start:standard_end] if standard_start != -1 and standard_end != -1 else graph_source[standard_start:]
-    if 'graph.add_edge("decompose_query", "navigate_and_hyde")' in standard_graph_source and \
-       'graph.add_edge("navigate_and_hyde", "retrieve_documents")' in standard_graph_source:
+    standard_graph_source = (
+        graph_source[standard_start:standard_end]
+        if standard_start != -1 and standard_end != -1
+        else graph_source[standard_start:]
+    )
+    if (
+        'graph.add_edge("decompose_query", "navigate_and_hyde")' in standard_graph_source
+        and 'graph.add_edge("navigate_and_hyde", "retrieve_documents")' in standard_graph_source
+    ):
         print("  ✅ Parallel nav+hyde combined node wiring present in standard graph")
     else:
         print("  ❌ Parallel nav+hyde wiring MISSING")
@@ -163,12 +183,18 @@ def main() -> int:
             nodes_source += path.read_text()
     # We ignore occurrences in conditions or docstrings
     tier2_count = nodes_source.count('"tier2_simple"')
-    print(f"  ℹ️ {tier2_count} remaining 'tier2_simple' literal(s) outside intent router (expected for fast-path routing)")
+    print(
+        f"  ℹ️ {tier2_count} remaining 'tier2_simple' literal(s) outside intent router (expected for fast-path routing)"
+    )
 
     # Fast-path check count (should be minimal / only in _generation_kwargs and resolve_followup)
-    fast_if_count = nodes_source.count('if query_tier == "fast"') + nodes_source.count('if state.get("query_tier") == "fast"')
+    fast_if_count = nodes_source.count('if query_tier == "fast"') + nodes_source.count(
+        'if state.get("query_tier") == "fast"'
+    )
     # We expect _generation_kwargs and resolve_followup to keep their fast checks (legitimate optimization)
-    print(f"  ℹ️ {fast_if_count} fast-path conditional(s) remaining (expect ~2: _generation_kwargs + resolve_followup)")
+    print(
+        f"  ℹ️ {fast_if_count} fast-path conditional(s) remaining (expect ~2: _generation_kwargs + resolve_followup)"
+    )
 
     # ── Node registry check ──────────────────────────────────────────
     print("\n=== Node registry ===")
@@ -208,17 +234,19 @@ def main() -> int:
     else:
         print("  ❌ select_graph_for_query() MISSING in orchestrator_utils.py")
         all_ok = False
-    
+
     if "select_graph_for_query(" in coordinator_source:
         print("  ✅ Runtime graph selection wired in graph_stage.py")
     else:
         print("  ❌ Runtime graph selection NOT wired in graph_stage.py")
         all_ok = False
-        
+
     # Pipeline timeout fix
     pipeline_timeout_count = coordinator_source.count("settings.pipeline_timeout")
     llm_timeout_count = coordinator_source.count("settings.llm_timeout")
-    print(f"  ℹ️ pipeline_timeout refs: {pipeline_timeout_count}, llm_timeout refs: {llm_timeout_count}")
+    print(
+        f"  ℹ️ pipeline_timeout refs: {pipeline_timeout_count}, llm_timeout refs: {llm_timeout_count}"
+    )
     if pipeline_timeout_count >= 1 and coordinator_source.count("settings.llm_timeout + 15") == 0:
         print("  ✅ Timeout bug fixed")
     else:

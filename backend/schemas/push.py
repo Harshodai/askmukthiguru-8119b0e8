@@ -23,7 +23,9 @@ class PushRegisterResponse(BaseModel):
 
 
 class PushSendRequest(BaseModel):
-    user_id: str | None = Field(None, description="Target user; if None, broadcast to all active devices")
+    user_id: str | None = Field(
+        None, description="Target user; if None, broadcast to all active devices"
+    )
     title: str = Field(..., min_length=1, max_length=120)
     body: str = Field(..., min_length=1, max_length=500)
     deep_link: str | None = Field(None, description="In-app route, e.g. '/chat' or '/practices'")

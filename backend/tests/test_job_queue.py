@@ -1,4 +1,5 @@
 """Regression tests for durable job ownership in JobQueueService."""
+
 from __future__ import annotations
 
 import asyncio

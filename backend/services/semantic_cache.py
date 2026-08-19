@@ -105,7 +105,13 @@ class SemanticCacheService:
             return f"mukthiguru:semcache:{tenant_id}:{user_id}:index"
         return f"mukthiguru:semcache:{tenant_id}:shared:index"
 
-    def get(self, query: str, query_embedding: Optional[list[float]] = None, user_id: str = "", tenant_id: str = "default") -> Optional[dict]:
+    def get(
+        self,
+        query: str,
+        query_embedding: Optional[list[float]] = None,
+        user_id: str = "",
+        tenant_id: str = "default",
+    ) -> Optional[dict]:
         if not self._available or not self._redis:
             return None
 
@@ -134,7 +140,9 @@ class SemanticCacheService:
             # SINGLE pipelined MGET. Previously this loop made N round-trips
             # to Redis (one per cached entry); now it makes one. Cuts cache
             # lookup latency from ~N*RTT to ~1*RTT.
-            cache_keys = [self._cache_key(eid, user_id=user_id, tenant_id=tenant_id) for eid in entry_ids]
+            cache_keys = [
+                self._cache_key(eid, user_id=user_id, tenant_id=tenant_id) for eid in entry_ids
+            ]
             try:
                 entry_blobs = self._redis.mget(cache_keys)
             except Exception as mget_err:
@@ -250,10 +258,16 @@ class SemanticCacheService:
                 if len(entry_ids) > 500:
                     # Remove oldest entries
                     for old_id in entry_ids[: len(entry_ids) - 500]:
-                        self._redis.delete(self._cache_key(old_id, user_id=user_id, tenant_id=tenant_id))
+                        self._redis.delete(
+                            self._cache_key(old_id, user_id=user_id, tenant_id=tenant_id)
+                        )
                     entry_ids = entry_ids[-500:]
 
-                self._redis.setex(self._index_key(user_id=user_id, tenant_id=tenant_id), self._ttl * 2, json.dumps(entry_ids))
+                self._redis.setex(
+                    self._index_key(user_id=user_id, tenant_id=tenant_id),
+                    self._ttl * 2,
+                    json.dumps(entry_ids),
+                )
 
             logger.debug(f"Semantic cache: stored entry {entry_id} ({len(entry_ids)} total)")
 
@@ -303,7 +317,9 @@ class SemanticCacheService:
                 return 0
 
             entry_ids = json.loads(index_data)
-            cache_keys = [self._cache_key(eid, user_id=user_id, tenant_id=tenant_id) for eid in entry_ids]
+            cache_keys = [
+                self._cache_key(eid, user_id=user_id, tenant_id=tenant_id) for eid in entry_ids
+            ]
             entry_blobs = self._redis.mget(cache_keys)
 
             invalidated = 0
@@ -322,20 +338,27 @@ class SemanticCacheService:
                 if score >= similarity_threshold:
                     self._redis.delete(cache_keys[i])
                     invalidated += 1
-                    logger.debug(f"Semantic cache: invalidated entry {entry_ids[i]} (similarity={score:.4f})")
+                    logger.debug(
+                        f"Semantic cache: invalidated entry {entry_ids[i]} (similarity={score:.4f})"
+                    )
 
             if invalidated > 0:
                 # Rebuild index without invalidated entries
                 remaining_ids = [
-                    eid for i, eid in enumerate(entry_ids)
-                    if self._redis.exists(self._cache_key(eid, user_id=user_id, tenant_id=tenant_id))
+                    eid
+                    for i, eid in enumerate(entry_ids)
+                    if self._redis.exists(
+                        self._cache_key(eid, user_id=user_id, tenant_id=tenant_id)
+                    )
                 ]
                 self._redis.setex(
                     self._index_key(user_id=user_id, tenant_id=tenant_id),
                     self._ttl * 2,
-                    json.dumps(remaining_ids)
+                    json.dumps(remaining_ids),
                 )
-                logger.info(f"Semantic cache: invalidated {invalidated} entries by embedding similarity")
+                logger.info(
+                    f"Semantic cache: invalidated {invalidated} entries by embedding similarity"
+                )
 
             return invalidated
 

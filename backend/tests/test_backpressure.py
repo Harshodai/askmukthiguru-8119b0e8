@@ -8,8 +8,6 @@ release restores, `_value`/`locked()` observability). Plus the /api/health
 visibility hook via the module-level state.
 """
 
-import asyncio
-
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -27,7 +25,7 @@ class _StubSemaphore:
 
     async def acquire(self) -> bool:
         if self._value <= 0:
-            raise asyncio.TimeoutError
+            raise TimeoutError
         self._value -= 1
         return True
 

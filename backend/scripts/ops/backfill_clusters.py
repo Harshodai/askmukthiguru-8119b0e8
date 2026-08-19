@@ -11,6 +11,7 @@ Usage:
 Takes ~15-30 minutes for 89k × 1024d vectors. Requires ~4-6GB RAM.
 Safe to re-run (idempotent: overwrites cluster_id on every point).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,6 +44,7 @@ def main() -> None:
         sys.exit(1)
 
     from app.config import settings
+
     qdrant_api_key = os.environ.get("QDRANT_API_KEY", "")
     client = QdrantClient(url=settings.qdrant_url, api_key=qdrant_api_key or None, timeout=60)
 
@@ -72,7 +74,9 @@ def main() -> None:
                 all_ids.append(point.id)
                 if isinstance(vec, dict):
                     embedding = next(iter(vec.values()))
-                    all_vectors.append(embedding if isinstance(embedding, list) else list(embedding))
+                    all_vectors.append(
+                        embedding if isinstance(embedding, list) else list(embedding)
+                    )
                 else:
                     all_vectors.append(vec if isinstance(vec, list) else list(vec))
         print(f"  Scrolled {len(all_ids)} points...", end="\r")
@@ -99,7 +103,9 @@ def main() -> None:
         n_init=3,
     )
     labels = kmeans.fit_predict(X)
-    print(f"Clustering done. Cluster sizes: min={int(np.bincount(labels).min())}, max={int(np.bincount(labels).max())}")
+    print(
+        f"Clustering done. Cluster sizes: min={int(np.bincount(labels).min())}, max={int(np.bincount(labels).max())}"
+    )
 
     # Phase 3: write cluster_id back to Qdrant
     if args.dry_run:
@@ -123,7 +129,9 @@ def main() -> None:
             eta = (len(all_ids) - i - 1) / max(rate, 0.1)
             print(f"  Written {i + 1}/{len(all_ids)} ({rate:.0f}/s, ETA {eta:.0f}s)...")
 
-    print(f"Done. {len(all_ids)} points updated with cluster_id in {time.time() - write_start:.1f}s")
+    print(
+        f"Done. {len(all_ids)} points updated with cluster_id in {time.time() - write_start:.1f}s"
+    )
 
 
 if __name__ == "__main__":

@@ -57,7 +57,10 @@ def is_benchmark_request(request) -> bool:
 
     benchmark_secret = getattr(settings, "benchmark_secret", "") or ""
     test_key = request.headers.get("X-Test-Key", "")
-    if not (getattr(settings, "enable_test_auth", False) and not getattr(settings, "is_production", True)):
+    if not (
+        getattr(settings, "enable_test_auth", False)
+        and not getattr(settings, "is_production", True)
+    ):
         return False
     if not benchmark_secret or not test_key:
         return False
@@ -271,11 +274,17 @@ class TTLRateLimiter:
                 del self._store[key]
 
 
-import math
 import threading
 
+
 class ExponentialBackoffRateLimiter:
-    def __init__(self, ttl: float, max_requests: int, backoff_base: float = 2.0, backoff_multiplier: float = 2.0):
+    def __init__(
+        self,
+        ttl: float,
+        max_requests: int,
+        backoff_base: float = 2.0,
+        backoff_multiplier: float = 2.0,
+    ):
         self.ttl = ttl
         self.max_requests = max_requests
         self.backoff_base = backoff_base
@@ -541,7 +550,9 @@ class RedisBackedRateLimiter:
         except Exception as exc:
             import logging
 
-            logging.getLogger(__name__).debug("RedisBackedRateLimiter: record_attempt error: %s", exc)
+            logging.getLogger(__name__).debug(
+                "RedisBackedRateLimiter: record_attempt error: %s", exc
+            )
             # Don't drop the outcome during a Redis hiccup — record it on the
             # fallback limiter so backoff tracking keeps working. Fail-safe,
             # not fail-open, for attempt outcomes.
@@ -643,4 +654,3 @@ return {1, 0}
             r.incr(fail_key)
             r.expire(fail_key, int(self.max_backoff) + 1)
             r.set(last_fail_key, str(now), ex=int(self.max_backoff) + 1)
-

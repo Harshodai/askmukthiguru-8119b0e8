@@ -33,32 +33,47 @@ class IngestionCheckpoint:
         self.tenant_id = self._default_tenant_id()
         try:
             from services.tenant_context import TenantContext
+
             self.tenant_id = TenantContext.get() or self._default_tenant_id()
         except Exception:
             self.tenant_id = self._default_tenant_id()
 
         # Try establishing connection to Redis for centralized checkpointing
         try:
-            from app.config import settings
             import redis
+
+            from app.config import settings
+
             if getattr(settings, "redis_url", None):
                 self.redis_client = redis.from_url(settings.redis_url, socket_timeout=2.0)
                 self.redis_client.ping()
-                logger.info(f"IngestionCheckpoint: Centralized Redis backend connected. Tenant: {self.tenant_id}")
+                logger.info(
+                    f"IngestionCheckpoint: Centralized Redis backend connected. Tenant: {self.tenant_id}"
+                )
         except Exception as e:
-            logger.warning(f"IngestionCheckpoint: Redis connection failed or unconfigured ({e}). Trying Supabase.")
+            logger.warning(
+                f"IngestionCheckpoint: Redis connection failed or unconfigured ({e}). Trying Supabase."
+            )
             self.redis_client = None
 
         # Try establishing connection to Supabase as Tier-2 fallback
         if not self.redis_client:
             try:
-                from app.config import settings
                 from supabase import create_client
+
+                from app.config import settings
+
                 if settings.supabase_url and settings.supabase_key:
-                    self.supabase_client = create_client(settings.supabase_url, settings.supabase_key)
-                    logger.info(f"IngestionCheckpoint: Centralized Supabase backend connected. Tenant: {self.tenant_id}")
+                    self.supabase_client = create_client(
+                        settings.supabase_url, settings.supabase_key
+                    )
+                    logger.info(
+                        f"IngestionCheckpoint: Centralized Supabase backend connected. Tenant: {self.tenant_id}"
+                    )
             except Exception as e:
-                logger.warning(f"IngestionCheckpoint: Supabase connection failed ({e}). Falling back to local JSON.")
+                logger.warning(
+                    f"IngestionCheckpoint: Supabase connection failed ({e}). Falling back to local JSON."
+                )
                 self.supabase_client = None
 
         self.data = self._load()
@@ -75,9 +90,7 @@ class IngestionCheckpoint:
         the same temp name. os.replace is atomic on POSIX; the temp file lives
         in the same directory so the rename never crosses filesystems.
         """
-        fd, tmp_path = tempfile.mkstemp(
-            dir=self.filepath.parent, prefix=".ckpt-", suffix=".tmp"
-        )
+        fd, tmp_path = tempfile.mkstemp(dir=self.filepath.parent, prefix=".ckpt-", suffix=".tmp")
         try:
             with os.fdopen(fd, "w") as f:
                 json.dump(data, f, indent=2)
@@ -114,6 +127,7 @@ class IngestionCheckpoint:
         """Tenant id of the legacy default namespace (settings or 'default')."""
         try:
             from app.config import settings
+
             return getattr(settings, "default_tenant_id", None) or "default"
         except Exception:
             return "default"
@@ -174,6 +188,7 @@ class IngestionCheckpoint:
                 loaded = json.loads(self.filepath.read_text())
                 if isinstance(loaded, list):
                     import time
+
                     return {h: {"migrated": True, "timestamp": time.time()} for h in loaded}
                 elif isinstance(loaded, dict):
                     return loaded
@@ -183,6 +198,7 @@ class IngestionCheckpoint:
 
     def save(self, chunk_id: str, metadata: Optional[dict] = None):
         import time
+
         if getattr(self, "redis_client", None):
             try:
                 key = self._get_redis_key(chunk_id)
@@ -195,11 +211,13 @@ class IngestionCheckpoint:
         if getattr(self, "supabase_client", None):
             try:
                 data = metadata or {"timestamp": time.time()}
-                self.supabase_client.table("ingestion_checkpoints").upsert({
-                    "chunk_id": chunk_id,
-                    "tenant_id": self.tenant_id,
-                    "metadata": data,
-                }).execute()
+                self.supabase_client.table("ingestion_checkpoints").upsert(
+                    {
+                        "chunk_id": chunk_id,
+                        "tenant_id": self.tenant_id,
+                        "metadata": data,
+                    }
+                ).execute()
                 return
             except Exception as e:
                 logger.error(f"Failed to save checkpoint to Supabase: {e}. Falling back to file.")
@@ -229,7 +247,13 @@ class IngestionCheckpoint:
 
         if getattr(self, "supabase_client", None):
             try:
-                res = self.supabase_client.table("ingestion_checkpoints").select("chunk_id").eq("chunk_id", chunk_id).eq("tenant_id", self.tenant_id).execute()
+                res = (
+                    self.supabase_client.table("ingestion_checkpoints")
+                    .select("chunk_id")
+                    .eq("chunk_id", chunk_id)
+                    .eq("tenant_id", self.tenant_id)
+                    .execute()
+                )
                 if res.data:
                     return True
             except Exception as e:
@@ -256,10 +280,7 @@ class IngestionCheckpoint:
             # tenant's namespace is pruned; other tenants' entries stay.
             current = self._load()
             self.data = {
-                k: v
-                for k, v in current.items()
-                if not k.startswith(tenant_ns) or k in active_set
+                k: v for k, v in current.items() if not k.startswith(tenant_ns) or k in active_set
             }
             self.processed_chunks = set(self.data.keys())
             self._atomic_write(self.data)
-

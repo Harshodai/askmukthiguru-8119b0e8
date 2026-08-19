@@ -18,9 +18,7 @@ def _fake_supabase(active_course: dict | None = None) -> MagicMock:
     """A supabase client whose active-course lookup returns the given row."""
     client_mock = MagicMock()
     table = MagicMock()
-    active_check = (
-        table.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value
-    )
+    active_check = table.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value
     active_check.data = active_course
     client_mock.table.return_value = table
     return client_mock
@@ -36,11 +34,15 @@ def _patch_supabase(monkeypatch, active_course: dict | None = None) -> MagicMock
 
 def _override_user(user: dict | None) -> None:
     if user is None:
+
         async def reject():
-            raise HTTPException(status_code=401, detail="Authentication required or session expired")
+            raise HTTPException(
+                status_code=401, detail="Authentication required or session expired"
+            )
 
         app.dependency_overrides[get_current_user_from_supabase] = reject
     else:
+
         async def fixed_user():
             return user
 

@@ -8,27 +8,25 @@ Design Patterns:
 from __future__ import annotations
 
 import asyncio
-from dataclasses import asdict
 import hashlib
+import logging
 import os
 import time
-import uuid
-import logging
+from dataclasses import asdict
 from typing import Optional
 
 from fastapi import BackgroundTasks, HTTPException, Request
 
+from app.coalescer import build_coalescer
 from app.config import settings
 from app.dependencies import ServiceContainer
+from app.grounding import grounding_state_for
 from app.pipeline import PipelineCoordinator
+from app.release_manifest import get_release_manifest
 from app.schemas import ChatRequest, ChatResponse
 from app.security_utils import is_benchmark_request
 from app.telemetry_sink import SupabaseTelemetrySink
 from rag.memory import normalize_session_id
-from app.grounding import grounding_state_for
-from app.release_manifest import get_release_manifest
-
-from app.coalescer import build_coalescer
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +54,7 @@ class ChatRequestOrchestrator:
         preferred_lang = chat_body.language or "en"
         user_id = user.get("id", "anonymous") if user else "anonymous"
         session_id = normalize_session_id(chat_body.session_id, user_id)
-        assistant_slug = (
-            chat_body.assistant.slug if chat_body.assistant else None
-        )
+        assistant_slug = chat_body.assistant.slug if chat_body.assistant else None
 
         if not user_msg:
             raise HTTPException(status_code=400, detail="Message cannot be empty")
@@ -97,7 +93,7 @@ class ChatRequestOrchestrator:
                 if chat_body.incognito
                 else await _coalescer.get_or_run(_coalesce_key, _run_pipeline)
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"Pipeline timeout for user {user_id}: message='{user_msg[:60]}...'")
             raise HTTPException(
                 status_code=504,
@@ -117,7 +113,8 @@ class ChatRequestOrchestrator:
 
             # Increment turn counter for batched layered memory processing.
             background_tasks.add_task(
-                _increment_turn_counter, user_id,
+                _increment_turn_counter,
+                user_id,
             )
 
         return ChatResponse(
@@ -143,12 +140,13 @@ class ChatRequestOrchestrator:
             kg_concept_nodes=result.kg_concept_nodes,
             daily_practice_card=result.daily_practice_card,
             live_logistics_events=result.live_logistics_events,
-            answer_evidence=(None if result.answer_evidence is None else asdict(result.answer_evidence)),
+            answer_evidence=(
+                None if result.answer_evidence is None else asdict(result.answer_evidence)
+            ),
             guidance_plan=(None if result.guidance_plan is None else asdict(result.guidance_plan)),
             grounding_state=grounding_state_for(result),
             release_manifest=result.release_manifest or get_release_manifest().to_dict(),
         )
-
 
     async def _log_telemetry(
         self,
@@ -186,8 +184,11 @@ class ChatRequestOrchestrator:
                 route_decision=result.route_decision,
                 cache_hit=result.cache_hit,
                 tokens_per_second=round(
-                    max(1, len(result.final_answer.split())) / max(result.latency_ms / 1000, 0.001), 2
-                ) if result.latency_ms else 0.0,
+                    max(1, len(result.final_answer.split())) / max(result.latency_ms / 1000, 0.001),
+                    2,
+                )
+                if result.latency_ms
+                else 0.0,
                 evaluation_trace=result.evaluation_trace,
                 assistant_slug=assistant_slug,
                 citations_verified=result.citations_verified,
@@ -231,6 +232,7 @@ async def queue_worker_factory(
     """
     from app.dependencies import get_container
     from app.schemas import ChatRequest
+
     container = get_container()
     user = request_data.get("user", {})
     chat_body = ChatRequest(**request_data.get("chat_body", {}))
@@ -240,6 +242,7 @@ async def queue_worker_factory(
 
     if is_stream:
         from app.stream_orchestrator import ChatStreamRequestOrchestrator
+
         orch = ChatStreamRequestOrchestrator(container)
         stream_queue: asyncio.Queue = asyncio.Queue()
         pipeline_task = asyncio.create_task(
@@ -276,9 +279,11 @@ async def queue_worker_factory(
     orch = ChatRequestOrchestrator(container)
     try:
         from unittest.mock import MagicMock
+
         fake_request = MagicMock()
         fake_request.headers.get.return_value = None
         from fastapi import BackgroundTasks
+
         fake_bg = BackgroundTasks()
         response = await orch.orchestrate(fake_request, chat_body, fake_bg, user)
         await fake_bg()
@@ -302,9 +307,11 @@ async def _drain_stream_to_redis(
     """Drain SSE events from stream_queue into Redis Stream, best-effort."""
     try:
         import json
+
         r = None
         if container.job_queue:
             import redis.asyncio as aioredis
+
             r = aioredis.from_url(settings.redis_url, decode_responses=True)
         stream_key = f"job:stream:{job_id}:events"
         HEARTBEAT_INTERVAL = 5.0
@@ -343,9 +350,8 @@ async def _drain_stream_to_redis(
                 except Exception as _e:
                     logger.debug("[orchestrator cleanup] suppressed non-critical error: %s", _e)
         if r:
-            failed = (
-                pipeline_task.cancelled()
-                or (pipeline_task.done() and pipeline_task.exception() is not None)
+            failed = pipeline_task.cancelled() or (
+                pipeline_task.done() and pipeline_task.exception() is not None
             )
             if failed:
                 completion_payload = "__ERROR__"
@@ -366,6 +372,7 @@ async def _drain_stream_to_redis(
 def _response_to_dict(response) -> dict:
     """Convert ChatResponse to a JSON-serializable dict."""
     import dataclasses
+
     if hasattr(response, "model_dump"):
         return response.model_dump()
     if hasattr(response, "dict"):
@@ -434,7 +441,8 @@ def _stream_done_metadata(result) -> dict:
         "guidance_plan": None if guidance_plan is None else asdict(guidance_plan),
         "grounding_state": grounding_state_for(result),
         "verification": getattr(result, "verification", None),
-        "release_manifest": getattr(result, "release_manifest", None) or get_release_manifest().to_dict(),
+        "release_manifest": getattr(result, "release_manifest", None)
+        or get_release_manifest().to_dict(),
     }
 
 

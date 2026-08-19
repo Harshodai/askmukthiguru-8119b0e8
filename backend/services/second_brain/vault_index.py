@@ -67,15 +67,16 @@ class VaultIndex:
     else falls back to standalone QdrantClient with identical connect logic.
     """
 
-    def __init__(self, collection: str = DEFAULT_COLLECTION,
-                 qdrant_service=None) -> None:
+    def __init__(self, collection: str = DEFAULT_COLLECTION, qdrant_service=None) -> None:
         if qdrant_service is not None:
             self._client = qdrant_service._client
         elif settings.qdrant_local_path:
             from qdrant_client import QdrantClient
+
             self._client = QdrantClient(path=settings.qdrant_local_path, check_compatibility=False)
         else:
             from qdrant_client import QdrantClient
+
             self._client = QdrantClient(
                 url=settings.qdrant_url,
                 api_key=getattr(settings, "qdrant_api_key", "") or None,
@@ -125,14 +126,18 @@ class VaultIndex:
     async def upsert(self, user_id: str, item_id: str, vector: list[float], kind: str) -> None:
         self._client.upsert(
             collection_name=self._collection,
-            points=[PointStruct(id=item_id, vector=vector, payload={"user_id": user_id, "kind": kind})],
+            points=[
+                PointStruct(id=item_id, vector=vector, payload={"user_id": user_id, "kind": kind})
+            ],
         )
 
     async def search(self, user_id: str, vector: list[float], *, limit: int) -> list[str]:
         results = self._client.query_points(
             collection_name=self._collection,
             query=vector,
-            query_filter=Filter(must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]),
+            query_filter=Filter(
+                must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
+            ),
             limit=limit,
             with_payload=False,
         )
@@ -143,17 +148,21 @@ class VaultIndex:
         another user's vault cannot be deleted even if it collided)."""
         self._client.delete(
             collection_name=self._collection,
-            points_selector=Filter(must=[
-                FieldCondition(key="user_id", match=MatchValue(value=user_id)),
-                HasIdCondition(has_id=[item_id]),
-            ]),
+            points_selector=Filter(
+                must=[
+                    FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+                    HasIdCondition(has_id=[item_id]),
+                ]
+            ),
         )
 
     async def delete_all(self, user_id: str) -> None:
         """Crypto-shred support: delete every point owned by this user."""
         self._client.delete(
             collection_name=self._collection,
-            points_selector=Filter(must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]),
+            points_selector=Filter(
+                must=[FieldCondition(key="user_id", match=MatchValue(value=user_id))]
+            ),
         )
 
 

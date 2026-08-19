@@ -40,7 +40,9 @@ class GuardrailsChain:
 
             if not llama.is_available and not rejection.is_available:
                 self._provider_name = "lightweight"
-                logger.info("Neither LlamaGuard nor RejectionClassifier available -> falling back to [Lightweight] only")
+                logger.info(
+                    "Neither LlamaGuard nor RejectionClassifier available -> falling back to [Lightweight] only"
+                )
                 self._head = lightweight
             else:
                 current = lightweight
@@ -73,7 +75,9 @@ class GuardrailsChain:
                 logger.info("Guardrails Chain: [Lightweight] -> [RejectionClassifier] active")
                 if nemo.is_available:
                     rejection.set_next(nemo)
-                    logger.info("NeMo also available — chain: [Lightweight] -> [RejectionClassifier] -> [NeMo]")
+                    logger.info(
+                        "NeMo also available — chain: [Lightweight] -> [RejectionClassifier] -> [NeMo]"
+                    )
             else:
                 self._provider_name = "lightweight"
                 logger.info("RejectionClassifier unavailable -> falling back to [Lightweight] only")

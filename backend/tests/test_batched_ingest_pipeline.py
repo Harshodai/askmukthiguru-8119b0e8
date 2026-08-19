@@ -3,8 +3,6 @@
 import importlib.util
 import tempfile
 from pathlib import Path
-import pytest
-from pydantic import ValidationError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FETCH_PATH = REPO_ROOT / "scripts" / "ingestion" / "1_fetch_transcripts_local.py"
@@ -24,9 +22,17 @@ def test_extract_speaker_heuristics():
     assert fetch_mod.extract_speaker("Sri Preethaji on Freedom from Fear") == "Sri Preethaji"
     assert fetch_mod.extract_speaker("Discourse by Prithaji at Ekam") == "Sri Preethaji"
     assert fetch_mod.extract_speaker("Sri Krishnaji on Consciousness and Wisdom") == "Sri Krishnaji"
-    assert fetch_mod.extract_speaker("Q&A with Preethaji & Krishnaji") == "Sri Preethaji & Sri Krishnaji"
-    assert fetch_mod.extract_speaker("Ekam Meditation Gathering", uploader="Ekam") == "Sri Preethaji & Sri Krishnaji"
-    assert fetch_mod.extract_speaker("Morning Chants and Silence") == "Sri Preethaji & Sri Krishnaji"
+    assert (
+        fetch_mod.extract_speaker("Q&A with Preethaji & Krishnaji")
+        == "Sri Preethaji & Sri Krishnaji"
+    )
+    assert (
+        fetch_mod.extract_speaker("Ekam Meditation Gathering", uploader="Ekam")
+        == "Sri Preethaji & Sri Krishnaji"
+    )
+    assert (
+        fetch_mod.extract_speaker("Morning Chants and Silence") == "Sri Preethaji & Sri Krishnaji"
+    )
 
 
 def test_strip_bracketed_tags():
@@ -37,7 +43,10 @@ def test_strip_bracketed_tags():
     assert "[applause]" not in cleaned
     assert "[laughter]" not in cleaned
     assert "(music)" not in cleaned
-    assert "Welcome everyone today we learn how to live in peace ." in cleaned or "Welcome everyone today we learn how to live in peace" in cleaned
+    assert (
+        "Welcome everyone today we learn how to live in peace ." in cleaned
+        or "Welcome everyone today we learn how to live in peace" in cleaned
+    )
 
 
 def test_restore_punctuation():
@@ -60,7 +69,9 @@ def test_transcript_md_write_and_parse_roundtrip():
             "title": "Sri Preethaji — The Beautiful State",
             "speaker": "Sri Preethaji",
         }
-        text = "When you are in a beautiful state you experience true connection and peace with life."
+        text = (
+            "When you are in a beautiful state you experience true connection and peace with life."
+        )
         md_file = fetch_mod.write_transcript_md(video_info, text, method="manual_api")
         assert md_file.exists()
 

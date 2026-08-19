@@ -12,35 +12,34 @@ This is the single entry point for ALL content ingestion.
 
 import asyncio
 import hashlib
+import ipaddress
 import json
 import logging
 import os
-import ipaddress
+import re
 import socket
+import threading
 import urllib.parse
 from collections.abc import Callable
 from pathlib import Path
-import threading
 from typing import Any, Optional
-
-
-from ingest.handlers.checkpoint import IngestionCheckpoint
-
-
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config import settings
-from ingest.boundary_chunker import chunk_with_contextual_headers, split_text_at_boundaries
-from ingest.cleaner import clean_transcript
+from ingest.boundary_chunker import chunk_with_contextual_headers
 from ingest.chunkers.youtube_chunker import chunk_youtube_transcript
+from ingest.cleaner import clean_transcript
 from ingest.deduplication import deduplicate_by_payload
+from ingest.handlers.checkpoint import IngestionCheckpoint
 from ingest.hyper_extract_adapter import enrich_text, is_eligible
 from ingest.image_loader import is_image_url, process_image_url
 from ingest.raptor import RaptorIndexer
+
 _INGESTION_NEO4J_DRIVER = None
 _INGESTION_NEO4J_DRIVER_LOCK = threading.Lock()
 
+from ingest.sources.youtube_service import YouTubeIngestionService
 from ingest.youtube_loader import (
     extract_video_id,
     fetch_transcript_hybrid,
@@ -52,20 +51,21 @@ from ingest.youtube_loader import (
 from services.contextual_chunking_service import ContextualChunkingService
 from services.embedding_service import EmbeddingService
 from services.injection_scanner import scan_chunks_for_injection
-from services.text_quality_filter import select_clean
-from services.ocr_service import OCRService
 from services.metadata_extractor import extract_video_metadata
+from services.ocr_service import OCRService
 from services.ollama_service import OllamaService
 from services.pii_scanner import redact_pii
 from services.proposition_service import PropositionService
 from services.qdrant_service import QdrantService
-from ingest.sources.youtube_service import YouTubeIngestionService
+from services.text_quality_filter import select_clean
 from services.whisper_local_service import (
     clear_cached_whisperx_result,
     get_cached_whisperx_result,
 )
 
 logger = logging.getLogger(__name__)
+
+from datetime import UTC
 
 from ingest.adaptive_chunking import AdaptiveChunker
 from ingest.corrector import TranscriptCorrector
@@ -78,17 +78,18 @@ def is_valid_text_deterministic(text: str) -> tuple[bool, str]:
     """
     if not text or not text.strip():
         return False, "Empty text"
-    
+
     # Check length
     if len(text.strip()) < 50:
         return False, "Text too short (<50 characters)"
-        
+
     # Check if mostly HTML tags
     import re
+
     html_tags = re.findall(r"<[^>]+>", text)
     if html_tags and len(html_tags) * 15 > len(text):
         return False, "Input contains mostly HTML tag structure"
-        
+
     return True, ""
 
 
@@ -97,12 +98,14 @@ def extract_doctrine_tags(text: str) -> list[str]:
     Scans text for terms in DOCTRINE_SYNONYMS and returns matching canonical concepts.
     """
     from rag.nodes.utils import DOCTRINE_SYNONYMS
+
     matched = set()
     text_lower = text.lower()
     for canonical, alternates in DOCTRINE_SYNONYMS.items():
         for alt in alternates:
             import re
-            pattern = r'\b' + re.escape(alt.lower()) + r'\b'
+
+            pattern = r"\b" + re.escape(alt.lower()) + r"\b"
             if re.search(pattern, text_lower):
                 matched.add(canonical)
                 break
@@ -244,7 +247,9 @@ async def _resolve_chunk_speakers_with_llm(
 
     # Fill unclassified (beyond max_chunks or too short) with None
     labeled = sum(1 for r in result if r)
-    logger.info(f"LLM speaker-role fallback: {labeled}/{len(chunks)} chunks classified for source_url={source_url}")
+    logger.info(
+        f"LLM speaker-role fallback: {labeled}/{len(chunks)} chunks classified for source_url={source_url}"
+    )
     return result
 
 
@@ -258,14 +263,18 @@ async def _okf_extract_for_video(video_id: str) -> None:
     """
     try:
         from tasks.okf_extract_tasks import extract_okf_entries
+
         extract_okf_entries.delay(target_video_id=video_id, limit=5, auto_approve=False)
         logger.debug(f"OKF extraction dispatched to Celery for video: {video_id}")
         return
     except Exception as e:
-        logger.warning(f"OKF Celery dispatch failed for video {video_id}, falling back to in-process: {e}")
+        logger.warning(
+            f"OKF Celery dispatch failed for video {video_id}, falling back to in-process: {e}"
+        )
 
     try:
         from scripts.extract_okf_from_stores import extract_okf
+
         await extract_okf(target_video_id=video_id, limit=5, auto_approve=False)
     except Exception as e:
         # ponytail: OKF extraction is optional augmentation — must never break ingestion.
@@ -306,22 +315,24 @@ class IngestionPipeline:
         self._embedder = embedding_service
         self._llm = ollama_service
         self._ocr = ocr_service or OCRService()
-        
-        from ingest.quality_gate import DataQualityGate
+
         from app.config import settings
+        from ingest.quality_gate import DataQualityGate
+
         supabase_client = None
         if settings.supabase_url and settings.supabase_key:
             try:
                 from supabase import create_client
+
                 supabase_client = create_client(settings.supabase_url, settings.supabase_key)
             except Exception as e:
                 logger.warning(f"Could not init Supabase in IngestionPipeline: {e}")
-                
+
         self._auditor = DataQualityGate(
             llm_service=ollama_service,
             supabase_client=supabase_client,
             quality_threshold=getattr(settings, "data_quality_threshold", 65),
-            enabled=getattr(settings, "data_quality_gate_enabled", True)
+            enabled=getattr(settings, "data_quality_gate_enabled", True),
         )
         self._corrector = TranscriptCorrector(ollama_service)
         self._lightrag = lightrag_service
@@ -398,6 +409,7 @@ class IngestionPipeline:
         with _INGESTION_NEO4J_DRIVER_LOCK:
             if _INGESTION_NEO4J_DRIVER is None:
                 from neo4j import GraphDatabase
+
                 _INGESTION_NEO4J_DRIVER = GraphDatabase.driver(
                     settings.neo4j_uri,
                     auth=(settings.neo4j_user, settings.neo4j_password),
@@ -421,7 +433,7 @@ class IngestionPipeline:
         """Persist the as-fetched text (pre-clean, pre-chunk) so reingestion never
         needs to re-hit YouTube/PDF sources — transcripts vanish, get taken down,
         or the extraction API changes; this is the durable copy of what we saw."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         raw_dir = Path("data/raw_corpus")
         raw_path = raw_dir / f"{content_hash}.json"
@@ -436,7 +448,7 @@ class IngestionPipeline:
                         "source_url": source_url,
                         "source_type": source_type,
                         "raw_text": raw_text,
-                        "fetched_at": datetime.now(timezone.utc).isoformat(),
+                        "fetched_at": datetime.now(UTC).isoformat(),
                     },
                     ensure_ascii=False,
                 ),
@@ -444,7 +456,6 @@ class IngestionPipeline:
             )
         except OSError as e:
             logger.warning(f"Raw corpus persist skipped for {source_url}: {e}")
-
 
     def _resolve_active_source_version(
         self, source_identity: str, fallback_version: int = 1
@@ -522,15 +533,14 @@ class IngestionPipeline:
 
                 llm_client = OpenAI(base_url=base_url, api_key=api_key)
 
-                md = MarkItDown(
-                    llm_client=llm_client,
-                    llm_model=model
-                )
+                md = MarkItDown(llm_client=llm_client, llm_model=model)
                 # Run convert synchronously
                 result = md.convert(file_path)
                 text = result.text_content
             except Exception as e:
-                logger.error(f"MarkItDown conversion failed for {file_path}: {e}. Falling back to default parsers.")
+                logger.error(
+                    f"MarkItDown conversion failed for {file_path}: {e}. Falling back to default parsers."
+                )
 
         if not text:
             if ext == ".pdf":
@@ -545,7 +555,7 @@ class IngestionPipeline:
             else:
                 return {
                     "status": "error",
-                    "message": f"MarkItDown parser failed and no native fallback exists for {ext}"
+                    "message": f"MarkItDown parser failed and no native fallback exists for {ext}",
                 }
 
         if not text.strip():
@@ -624,8 +634,15 @@ class IngestionPipeline:
                 self._notify(on_progress, "Downloading and parsing PDF...", 0.1)
                 try:
                     from ingest.pdf_parser import download_and_parse_pdf
+
                     text = await download_and_parse_pdf(url, self._is_url_safe)
-                    title = url.split("/")[-1].replace(".pdf", "").replace("-", " ").replace("_", " ").title()
+                    title = (
+                        url.split("/")[-1]
+                        .replace(".pdf", "")
+                        .replace("-", " ")
+                        .replace("_", " ")
+                        .title()
+                    )
                     if not text.strip():
                         raise ValueError("PDF contains no readable text")
 
@@ -666,20 +683,22 @@ class IngestionPipeline:
             elif url.startswith("http://") or url.startswith("https://"):
                 # Try social media first to prevent scraping video platform HTML
                 from ingest.social_media_loader import is_social_media_url
+
                 if is_social_media_url(url):
                     return await self._ingest_social_media_video(url, on_progress, tags=tags)
 
                 self._notify(on_progress, "Scraping web page article...", 0.1)
                 try:
                     from ingest.web_scraper import scrape_and_clean_web_article
+
                     text = await scrape_and_clean_web_article(url, self._is_url_safe)
                     title = url.split("/")[-1].strip()
                     if not title:
                         title = "Web Article Summary"
-                    
+
                     if not text.strip():
                         raise ValueError("Scraped web page contains no readable text")
-                    
+
                     # Data Quality Gate
                     quality_res = await self._auditor.run(text, url)
                     if not quality_res.passed:
@@ -693,16 +712,16 @@ class IngestionPipeline:
                             "chunks_indexed": 0,
                             "summaries_created": 0,
                         }
-                    
+
                     return await self.ingest_raw_text(
                         max_accuracy=max_accuracy,
-                         text=text,
-                         source_url=url,
-                         title=title,
-                         content_type="web_article",
-                         on_progress=on_progress,
-                         tags=tags,
-                     )
+                        text=text,
+                        source_url=url,
+                        title=title,
+                        content_type="web_article",
+                        on_progress=on_progress,
+                        tags=tags,
+                    )
                 except Exception as e:
                     logger.error(f"Web scraping failed for {url}: {e}")
                     return {
@@ -730,11 +749,9 @@ class IngestionPipeline:
         Uses yt-dlp for download + transcribe_with_whisper for transcription.
         Feeds the standard adaptive-chunking → RAPTOR → LightRAG pipeline.
         """
-        import re
-        from ingest.social_media_loader import ingest_social_media
         from ingest.cleaner import clean_transcript
+        from ingest.social_media_loader import ingest_social_media
         from services.pii_scanner import redact_pii
-        from ingest.quality_gate import DataQualityGate
 
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
         self._notify(on_progress, "Downloading social/direct media via yt-dlp...", 0.1)
@@ -805,8 +822,13 @@ class IngestionPipeline:
             topic="Spiritual",
         )
         if not chunks:
-            return {"status": "error", "message": "No meaningful chunks", "source_url": url,
-                    "chunks_indexed": 0, "summaries_created": 0}
+            return {
+                "status": "error",
+                "message": "No meaningful chunks",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
         chunks_count = self._embed_and_index(
             chunks,
@@ -824,21 +846,35 @@ class IngestionPipeline:
         # RAPTOR + LightRAG (fire-and-forget; rollback on failure)
         summaries_count = 0
         try:
-            chunk_dicts = [{"text": c, "source_url": url, "title": video_title,
-                            "speaker": video_speaker, "topic": "Spiritual"} for c in chunks]
+            chunk_dicts = [
+                {
+                    "text": c,
+                    "source_url": url,
+                    "title": video_title,
+                    "speaker": video_speaker,
+                    "topic": "Spiritual",
+                }
+                for c in chunks
+            ]
             summaries_count = await self._raptor.build_tree(chunk_dicts)
             if self._lightrag:
                 await self._lightrag.ainsert(clean_text)
         except Exception as e:
             logger.error(f"Downstream step failed for social media {url}, rolling back: {e}")
             self._rollback_reindex(url, backup_collection)
-            return {"status": "error", "message": f"Rolled back — downstream step failed: {e}",
-                    "source_url": url, "chunks_indexed": 0, "summaries_created": 0}
+            return {
+                "status": "error",
+                "message": f"Rolled back — downstream step failed: {e}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
         # KG Phase 6: materialize extracted entities/relationships into Neo4j.
         if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
+
                 driver = self._get_neo4j_driver()
                 await write_extraction_to_neo4j(
                     driver,
@@ -884,6 +920,7 @@ class IngestionPipeline:
         Useful for migrations or re-processing existing data.
         """
         import hashlib
+
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
         source_version = self._resolve_active_source_version(
             source_url,
@@ -907,10 +944,20 @@ class IngestionPipeline:
         if not text or not text.strip():
             return {"status": "error", "message": "Empty text", "source_url": source_url}
         import unicodedata
-        text = text.replace("\x00", "").replace("<|begin_of_text|>", "").replace("<|eot_id|>", "").replace("<|end_of_text|>", "")
+
+        text = (
+            text.replace("\x00", "")
+            .replace("<|begin_of_text|>", "")
+            .replace("<|eot_id|>", "")
+            .replace("<|end_of_text|>", "")
+        )
         text = unicodedata.normalize("NFC", text).strip()
         if not text:
-            return {"status": "error", "message": "Empty text after sanitization", "source_url": source_url}
+            return {
+                "status": "error",
+                "message": "Empty text after sanitization",
+                "source_url": source_url,
+            }
 
         # Deterministic text check
         is_ok, reason = is_valid_text_deterministic(text)
@@ -929,6 +976,7 @@ class IngestionPipeline:
         clean_text = clean_transcript(text)
         try:
             from services.doctrine_terms import apply_corrections
+
             clean_text = apply_corrections(clean_text)
         except Exception as dt_err:
             logger.debug(f"apply_corrections in ingest_raw_text skipped: {dt_err}")
@@ -976,10 +1024,11 @@ class IngestionPipeline:
         backup_collection = self._backup_before_reindex(source_url)
 
         # Step 5: Embed and index
-        from datetime import datetime, timezone
-        for em in (extra_metadatas or []):
+        from datetime import datetime
+
+        for em in extra_metadatas or []:
             em.setdefault("source_version", source_version)
-            em.setdefault("ingested_at", datetime.now(timezone.utc).isoformat())
+            em.setdefault("ingested_at", datetime.now(UTC).isoformat())
             em.setdefault("authority_tier", authority_tier)
 
         try:
@@ -1044,6 +1093,7 @@ class IngestionPipeline:
         if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
+
                 driver = self._get_neo4j_driver()
                 await write_extraction_to_neo4j(
                     driver,
@@ -1055,7 +1105,9 @@ class IngestionPipeline:
                 )
             except Exception as e:
                 if settings.ontology_write_required:
-                    logger.error(f"required ontology write failed for {source_url}; checkpoint NOT saved: {e}")
+                    logger.error(
+                        f"required ontology write failed for {source_url}; checkpoint NOT saved: {e}"
+                    )
                     return {
                         "status": "error",
                         "message": f"Ontology materialization failed: {e}",
@@ -1190,7 +1242,6 @@ class IngestionPipeline:
         self._notify(on_progress, "Extracting structure, entities, and atomic facts...", 0.35)
         hyper_extract_result = self._enrich_text(clean_text)
 
-
         # Step 3: Chunk (Hierarchical or Standard)
         self._notify(on_progress, "Chunking and indexing...", 0.5)
         video_title = result.get("title", "") or ""
@@ -1246,10 +1297,11 @@ class IngestionPipeline:
                 chunk_speakers = [None] * len(final_chunks)
 
         # Step 5: Embed and index
-        from datetime import datetime, timezone
-        for em in (extra_metadatas or []):
+        from datetime import datetime
+
+        for em in extra_metadatas or []:
             em.setdefault("source_version", source_version)
-            em.setdefault("ingested_at", datetime.now(timezone.utc).isoformat())
+            em.setdefault("ingested_at", datetime.now(UTC).isoformat())
             em.setdefault("authority_tier", authority_tier)
 
         try:
@@ -1313,6 +1365,7 @@ class IngestionPipeline:
         if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
+
                 driver = self._get_neo4j_driver()
                 await write_extraction_to_neo4j(
                     driver,
@@ -1324,7 +1377,9 @@ class IngestionPipeline:
                 )
             except Exception as e:
                 if settings.ontology_write_required:
-                    logger.error(f"required ontology write failed for {url}; checkpoint NOT saved: {e}")
+                    logger.error(
+                        f"required ontology write failed for {url}; checkpoint NOT saved: {e}"
+                    )
                     return {
                         "status": "error",
                         "message": f"Ontology materialization failed: {e}",
@@ -1442,7 +1497,7 @@ class IngestionPipeline:
             return {
                 "status": "rejected",
                 "message": f"Content rejected by Data Quality Gate: score {quality_res.score}/100. "
-                           f"Reasons: {'; '.join(quality_res.reasons)}",
+                f"Reasons: {'; '.join(quality_res.reasons)}",
                 "source_url": url,
                 "chunks_indexed": 0,
                 "summaries_created": 0,
@@ -1551,10 +1606,11 @@ class IngestionPipeline:
                 clean_text, title=video_title, speaker=speaker, topic="Spiritual"
             )
 
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         for em in all_extra_metadatas:
             em.setdefault("source_version", source_version)
-            em.setdefault("ingested_at", datetime.now(timezone.utc).isoformat())
+            em.setdefault("ingested_at", datetime.now(UTC).isoformat())
             em.setdefault("authority_tier", authority_tier)
 
         # Embed and index all leaf chunks at once to prevent catastrophic deletion/overwrite
@@ -1586,7 +1642,9 @@ class IngestionPipeline:
             self._notify(on_progress, "Finalizing knowledge structure...", 0.9)
             if all_chunks:
                 # Build RAPTOR summaries using the actual compiled leaf chunks
-                chunks_data = [{"text": c, "source_url": url, "title": video_title} for c in all_chunks]
+                chunks_data = [
+                    {"text": c, "source_url": url, "title": video_title} for c in all_chunks
+                ]
                 if getattr(settings, "raptor_parent_summaries_enabled", False):
                     chunks_data = await self._raptor.summarize_parent_chunks(chunks_data)
                 await self._raptor.build_tree(chunks_data)
@@ -1611,6 +1669,7 @@ class IngestionPipeline:
         if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
+
                 driver = self._get_neo4j_driver()
                 await write_extraction_to_neo4j(
                     driver,
@@ -1622,7 +1681,9 @@ class IngestionPipeline:
                 )
             except Exception as e:
                 if settings.ontology_write_required:
-                    logger.error(f"required ontology write failed for {url}; checkpoint NOT saved: {e}")
+                    logger.error(
+                        f"required ontology write failed for {url}; checkpoint NOT saved: {e}"
+                    )
                     return {
                         "status": "error",
                         "message": f"Ontology materialization failed: {e}",
@@ -1666,7 +1727,7 @@ class IngestionPipeline:
         """
         prompt = (
             "Analyze this spiritual teaching and list the top 3-5 distinct topics discussed. "
-            "Return ONLY a JSON array of strings, e.g. [\"Nature of Suffering\", \"Power of Observation\", \"Relationship with EGO\"]. "
+            'Return ONLY a JSON array of strings, e.g. ["Nature of Suffering", "Power of Observation", "Relationship with EGO"]. '
             "Do NOT include reasoning, analysis, brainstorming, or any text outside the JSON array."
         )
         try:
@@ -1718,7 +1779,8 @@ class IngestionPipeline:
                 logger.info(
                     "_extract_topics: JSON parse failed; salvaged %d validated "
                     "label(s) from %d line(s)",
-                    len(salvaged), len(cleaned.split("\n")),
+                    len(salvaged),
+                    len(cleaned.split("\n")),
                 )
                 return salvaged[:5]
 
@@ -1740,7 +1802,8 @@ class IngestionPipeline:
             return {"General": text}
 
         import re
-        sentences = re.split(r'(?<=[.!?])\s+', text)
+
+        sentences = re.split(r"(?<=[.!?])\s+", text)
         if len(sentences) <= len(topics):
             eq = len(text) // len(topics)
             sections = {}
@@ -1839,18 +1902,22 @@ class IngestionPipeline:
                 # by the broad except below. Use the same .run() gate as _ingest_video().
                 quality_res = await self._auditor.run(raw_text, video["url"])
                 if not quality_res.passed:
-                    errors.append({
-                        "url": video["url"],
-                        "error": f"Rejected by Data Quality Gate: score {quality_res.score}/100. "
-                                 f"{'; '.join(quality_res.reasons)}",
-                    })
+                    errors.append(
+                        {
+                            "url": video["url"],
+                            "error": f"Rejected by Data Quality Gate: score {quality_res.score}/100. "
+                            f"{'; '.join(quality_res.reasons)}",
+                        }
+                    )
                     continue
 
                 # Clean & redact PII, then chunk, embed, index
                 clean_text = clean_transcript(raw_text)
                 clean_text, pii_found = redact_pii(clean_text)
                 if pii_found:
-                    logger.warning(f"PII redacted from playlist video url={video['url']} — {pii_found} instances")
+                    logger.warning(
+                        f"PII redacted from playlist video url={video['url']} — {pii_found} instances"
+                    )
 
                 # Hyper-Extract enrichment (same gate as _ingest_video).
                 pl_hyper_extract = self._enrich_text(clean_text)
@@ -1923,12 +1990,16 @@ class IngestionPipeline:
                     if self._lightrag:
                         await self._lightrag.ainsert(clean_text)
                 except Exception as e:
-                    logger.error(f"Downstream ingestion step failed for {video['url']}, rolling back: {e}")
+                    logger.error(
+                        f"Downstream ingestion step failed for {video['url']}, rolling back: {e}"
+                    )
                     self._rollback_reindex(video["url"], backup_collection)
-                    errors.append({
-                        "url": video["url"],
-                        "error": f"Rolled back — downstream step failed: {e}",
-                    })
+                    errors.append(
+                        {
+                            "url": video["url"],
+                            "error": f"Rolled back — downstream step failed: {e}",
+                        }
+                    )
                     continue
 
                 total_chunks += chunks_count
@@ -1952,17 +2023,28 @@ class IngestionPipeline:
                         )
                     except Exception as e:
                         if settings.ontology_write_required:
-                            logger.error(f"required ontology write failed for {video['url']}; rolling back: {e}")
+                            logger.error(
+                                f"required ontology write failed for {video['url']}; rolling back: {e}"
+                            )
                             self._rollback_reindex(video["url"], backup_collection)
-                            errors.append({"url": video["url"], "error": f"Ontology materialization failed: {e}"})
+                            errors.append(
+                                {
+                                    "url": video["url"],
+                                    "error": f"Ontology materialization failed: {e}",
+                                }
+                            )
                             continue
-                        logger.warning(f"optional ontology write unavailable for {video['url']}: {e}")
+                        logger.warning(
+                            f"optional ontology write unavailable for {video['url']}: {e}"
+                        )
 
                 checkpoint.save(self._checkpoint_key(content_hash_pl), {"url": video["url"]})
                 # ponytail: also save under the URL key so the pre-fetch Phase 1
                 # filter above (which can't know content_hash before fetching)
                 # still skips re-fetching this video on the next playlist run.
-                checkpoint.save(self._checkpoint_key(video["url"]), {"content_hash": content_hash_pl})
+                checkpoint.save(
+                    self._checkpoint_key(video["url"]), {"content_hash": content_hash_pl}
+                )
                 processed += 1
 
                 # OKF auto-extraction: fire-and-forget per video. Fix: playlist path
@@ -2019,7 +2101,7 @@ class IngestionPipeline:
             return {
                 "status": "rejected",
                 "message": f"Content rejected by Data Quality Gate: score {quality_res.score}/100. "
-                           f"Reasons: {'; '.join(quality_res.reasons)}",
+                f"Reasons: {'; '.join(quality_res.reasons)}",
                 "source_url": url,
                 "chunks_indexed": 0,
                 "summaries_created": 0,
@@ -2049,6 +2131,7 @@ class IngestionPipeline:
         if img_hyper_extract and getattr(settings, "write_ontology_to_neo4j", True):
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
+
                 driver = self._get_neo4j_driver()
                 content_hash = hashlib.sha256(clean_text.strip().encode("utf-8")).hexdigest()
                 await write_extraction_to_neo4j(
@@ -2105,89 +2188,127 @@ class IngestionPipeline:
 
         def clean_name(name):
             cleaned = name.strip()
-            cleaned = re.sub(r'^(sri|shri|sree|guruji|guru|swami|swamiji|acharya)\s+', '', cleaned, flags=re.IGNORECASE)
-            cleaned = re.sub(r'\s+(ji|deva|dev|maharaj|swami|swamiji)$', '', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(
+                r"^(sri|shri|sree|guruji|guru|swami|swamiji|acharya)\s+",
+                "",
+                cleaned,
+                flags=re.IGNORECASE,
+            )
+            cleaned = re.sub(
+                r"\s+(ji|deva|dev|maharaj|swami|swamiji)$", "", cleaned, flags=re.IGNORECASE
+            )
             return cleaned.strip().lower()
 
         try:
             logger.info("Running post-ingestion self-healing and entity consolidation...")
+
             def run_consolidation():
                 try:
                     driver = self._get_neo4j_driver()
                     neo4j_entities = set()
                     with driver.session() as session:
                         # 1. Entity consolidation
-                        res = session.run("MATCH (n:base) WHERE n.entity_id IS NOT NULL RETURN elementId(n) as id, n.entity_id as name, n.description as desc")
-                        nodes = [{"id": r["id"], "name": r["name"], "desc": r["desc"] or ""} for r in res]
-                        
+                        res = session.run(
+                            "MATCH (n:base) WHERE n.entity_id IS NOT NULL RETURN elementId(n) as id, n.entity_id as name, n.description as desc"
+                        )
+                        nodes = [
+                            {"id": r["id"], "name": r["name"], "desc": r["desc"] or ""} for r in res
+                        ]
+
                         groups = defaultdict(list)
                         for node in nodes:
                             cleaned = clean_name(node["name"])
                             if len(cleaned) < 3:
                                 continue
                             groups[cleaned].append(node)
-                            
+
                         merged_total = 0
-                        for cleaned_root, group in groups.items():
+                        for _cleaned_root, group in groups.items():
                             if len(group) <= 1:
                                 continue
-                                
+
                             node_metrics = []
                             for node in group:
-                                deg_res = session.run("MATCH (n:base) WHERE elementId(n) = $node_id RETURN COUNT { (n)-[]-() } as degree", node_id=node["id"]).single()
+                                deg_res = session.run(
+                                    "MATCH (n:base) WHERE elementId(n) = $node_id RETURN COUNT { (n)-[]-() } as degree",
+                                    node_id=node["id"],
+                                ).single()
                                 deg = deg_res["degree"] if deg_res else 0
-                                node_metrics.append((deg, len(node["desc"]), len(node["name"]), node))
-                                
+                                node_metrics.append(
+                                    (deg, len(node["desc"]), len(node["name"]), node)
+                                )
+
                             node_metrics.sort(key=lambda x: (x[0], x[1], x[2]), reverse=True)
                             master = node_metrics[0][3]
                             duplicates = [x[3] for x in node_metrics[1:]]
-                            
+
                             for dup in duplicates:
                                 with session.begin_transaction() as tx:
-                                    tx.run("""
+                                    tx.run(
+                                        """
                                     MATCH (dup:base)-[r]->(target)
                                     WHERE elementId(dup) = $dup_id AND elementId(target) <> $master_id
                                     MERGE (master:base)-[new_r:DIRECTED]->(target)
                                     ON CREATE SET new_r = properties(r)
                                     WITH r
                                     DELETE r
-                                    """, dup_id=dup["id"], master_id=master["id"])
-                                    
-                                    tx.run("""
+                                    """,
+                                        dup_id=dup["id"],
+                                        master_id=master["id"],
+                                    )
+
+                                    tx.run(
+                                        """
                                     MATCH (source)-[r]->(dup:base)
                                     WHERE elementId(dup) = $dup_id AND elementId(source) <> $master_id
                                     MERGE (source)-[new_r:DIRECTED]->(master:base)
                                     ON CREATE SET new_r = properties(r)
                                     WITH r
                                     DELETE r
-                                    """, dup_id=dup["id"], master_id=master["id"])
-                                    
+                                    """,
+                                        dup_id=dup["id"],
+                                        master_id=master["id"],
+                                    )
+
                                     if dup["desc"] and dup["desc"] != master["desc"]:
                                         combined = master["desc"] + " | " + dup["desc"]
                                         if len(combined) > 2000:
                                             combined = combined[:1997] + "..."
-                                        tx.run("MATCH (m:base) WHERE elementId(m) = $master_id SET m.description = $desc", master_id=master["id"], desc=combined)
+                                        tx.run(
+                                            "MATCH (m:base) WHERE elementId(m) = $master_id SET m.description = $desc",
+                                            master_id=master["id"],
+                                            desc=combined,
+                                        )
                                         master["desc"] = combined
-                                        
-                                    tx.run("MATCH (dup:base) WHERE elementId(dup) = $dup_id DETACH DELETE dup", dup_id=dup["id"])
+
+                                    tx.run(
+                                        "MATCH (dup:base) WHERE elementId(dup) = $dup_id DETACH DELETE dup",
+                                        dup_id=dup["id"],
+                                    )
                                     merged_total += 1
-                        
+
                         if merged_total > 0:
-                            logger.info(f"Ingestion entity consolidation complete: merged {merged_total} duplicate nodes.")
+                            logger.info(
+                                f"Ingestion entity consolidation complete: merged {merged_total} duplicate nodes."
+                            )
 
                         # 2. Prune orphaned nodes (0 relationships)
-                        orphans_res = session.run("MATCH (n:base) WHERE NOT (n)-[]-() RETURN count(n) as c").single()
+                        orphans_res = session.run(
+                            "MATCH (n:base) WHERE NOT (n)-[]-() RETURN count(n) as c"
+                        ).single()
                         orphans = orphans_res["c"] if orphans_res else 0
                         if orphans > 0:
                             session.run("MATCH (n:base) WHERE NOT (n)-[]-() DETACH DELETE n")
-                            logger.info(f"Ingestion data cleanup: pruned {orphans} orphaned Neo4j nodes.")
+                            logger.info(
+                                f"Ingestion data cleanup: pruned {orphans} orphaned Neo4j nodes."
+                            )
 
                         # 3. Clean corrupted types
                         corrupted_res = session.run("""
-                            MATCH (n:base) 
+                            MATCH (n:base)
                             WHERE n.entity_type IS NOT NULL AND (
-                                n.entity_type CONTAINS '"' OR 
-                                n.entity_type CONTAINS '\\\\' OR 
+                                n.entity_type CONTAINS '"' OR
+                                n.entity_type CONTAINS '\\\\' OR
                                 size(n.entity_type) > 50
                             )
                             RETURN count(n) as c
@@ -2195,19 +2316,25 @@ class IngestionPipeline:
                         corrupted = corrupted_res["c"] if corrupted_res else 0
                         if corrupted > 0:
                             session.run("""
-                                MATCH (n:base) 
+                                MATCH (n:base)
                                 WHERE n.entity_type IS NOT NULL AND (
-                                    n.entity_type CONTAINS '"' OR 
-                                    n.entity_type CONTAINS '\\\\' OR 
+                                    n.entity_type CONTAINS '"' OR
+                                    n.entity_type CONTAINS '\\\\' OR
                                     size(n.entity_type) > 50
                                 )
                                 DETACH DELETE n
                             """)
-                            logger.info(f"Ingestion data cleanup: deleted {corrupted} corrupted entity type nodes.")
+                            logger.info(
+                                f"Ingestion data cleanup: deleted {corrupted} corrupted entity type nodes."
+                            )
 
                         # Fetch remaining entities for cross check
-                        active_res = session.run("MATCH (n:base) WHERE n.entity_id IS NOT NULL RETURN n.entity_id as name")
-                        neo4j_entities = {r["name"].strip().lower() for r in active_res if r["name"]}
+                        active_res = session.run(
+                            "MATCH (n:base) WHERE n.entity_id IS NOT NULL RETURN n.entity_id as name"
+                        )
+                        neo4j_entities = {
+                            r["name"].strip().lower() for r in active_res if r["name"]
+                        }
 
                     # 4. Synchronize Qdrant Vector Mismatches. Reuse the
                     # injected service client; rebuilding a client here would
@@ -2215,8 +2342,13 @@ class IngestionPipeline:
                     qdrant = getattr(self._qdrant, "_client", self._qdrant)
                     if qdrant is None:
                         from qdrant_client import QdrantClient
+
                         qdrant_url = os.environ.get("QDRANT_URL", "http://qdrant:6333")
-                        qdrant_api_key = os.environ.get("QDRANT_API_KEY") or getattr(settings, "qdrant_api_key", "") or None
+                        qdrant_api_key = (
+                            os.environ.get("QDRANT_API_KEY")
+                            or getattr(settings, "qdrant_api_key", "")
+                            or None
+                        )
                         qdrant = QdrantClient(
                             url=qdrant_url,
                             api_key=qdrant_api_key,
@@ -2225,16 +2357,20 @@ class IngestionPipeline:
                         )
                     all_cols = {c.name for c in qdrant.get_collections().collections}
                     entity_cols = [c for c in all_cols if c.startswith("lightrag_vdb_entities_")]
-                    
+
                     total_deleted_points = 0
                     for col in entity_cols:
                         cnt = qdrant.count(col, exact=True).count
                         if cnt > 0:
-                            res_pts, _ = qdrant.scroll(collection_name=col, limit=min(cnt, 10000), with_payload=True)
+                            res_pts, _ = qdrant.scroll(
+                                collection_name=col, limit=min(cnt, 10000), with_payload=True
+                            )
                             points_to_delete = []
                             for p in res_pts:
                                 pay = p.payload or {}
-                                ent_name = pay.get("entity_name") or pay.get("entity_id") or pay.get("id")
+                                ent_name = (
+                                    pay.get("entity_name") or pay.get("entity_id") or pay.get("id")
+                                )
                                 if ent_name:
                                     if str(ent_name).strip().lower() not in neo4j_entities:
                                         points_to_delete.append(p.id)
@@ -2242,14 +2378,19 @@ class IngestionPipeline:
                                 qdrant.delete(collection_name=col, points_selector=points_to_delete)
                                 total_deleted_points += len(points_to_delete)
                     if total_deleted_points > 0:
-                        logger.info(f"Ingestion Qdrant synchronization: pruned {total_deleted_points} orphaned vector points.")
-                    
+                        logger.info(
+                            f"Ingestion Qdrant synchronization: pruned {total_deleted_points} orphaned vector points."
+                        )
+
                     # 5. Run Ontology Alignment to link any newly extracted nodes
                     try:
                         from app.db.seed_ontology import align_extracted_ontology
+
                         align_extracted_ontology()
                     except Exception as align_err:
-                        logger.error(f"Error running post-ingestion ontology alignment: {align_err}")
+                        logger.error(
+                            f"Error running post-ingestion ontology alignment: {align_err}"
+                        )
                 except Exception as ex:
                     logger.error(f"Error inside post-ingestion self-healing: {ex}")
 
@@ -2279,12 +2420,15 @@ class IngestionPipeline:
         """
         if not self._qdrant.check_source_exists(source_url):
             return None
-        from datetime import datetime, timezone
-        backup_collection = f"{self._BACKUP_COLLECTION_PREFIX}_{datetime.now(timezone.utc):%Y%m%d}"
+        from datetime import datetime
+
+        backup_collection = f"{self._BACKUP_COLLECTION_PREFIX}_{datetime.now(UTC):%Y%m%d}"
         if self._qdrant.backup_source(source_url, backup_collection):
             self._qdrant.prune_backups(self._BACKUP_COLLECTION_PREFIX, max_backups=5)
             return backup_collection
-        logger.warning(f"Pre-reindex backup failed for {source_url} — proceeding without rollback safety net")
+        logger.warning(
+            f"Pre-reindex backup failed for {source_url} — proceeding without rollback safety net"
+        )
         return None
 
     def _rollback_reindex(self, source_url: str, backup_collection: Optional[str]) -> None:
@@ -2295,12 +2439,18 @@ class IngestionPipeline:
         """
         if backup_collection:
             if self._qdrant.restore_from_backup(source_url, backup_collection):
-                logger.warning(f"Rolled back {source_url} to its pre-ingestion state after a downstream failure")
+                logger.warning(
+                    f"Rolled back {source_url} to its pre-ingestion state after a downstream failure"
+                )
             else:
-                logger.error(f"Rollback FAILED for {source_url} — no backup data found in {backup_collection}")
+                logger.error(
+                    f"Rollback FAILED for {source_url} — no backup data found in {backup_collection}"
+                )
         else:
             self._qdrant.delete_by_source(source_url)
-            logger.warning(f"Removed partially-indexed new source {source_url} after a downstream failure")
+            logger.warning(
+                f"Removed partially-indexed new source {source_url} after a downstream failure"
+            )
 
     def _embed_and_index(
         self,
@@ -2337,7 +2487,7 @@ class IngestionPipeline:
         # Extract video_id from source_url if not provided
         if not video_id and source_url:
             video_id = extract_video_id(source_url)
-        
+
         # Auto-generate thumbnail URL if we have video_id
         if video_id and not thumbnail_url:
             thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
@@ -2347,10 +2497,24 @@ class IngestionPipeline:
         teacher_tags = []
         if any(term in combined_context for term in ["sadhguru", "jaggi", "vasudev", "isha"]):
             teacher_tags.append("teacher:sadhguru")
-        if any(term in combined_context for term in ["amma", "bhagavan", "bhagwan", "oneness", "kalki", "deeksha"]):
+        if any(
+            term in combined_context
+            for term in ["amma", "bhagavan", "bhagwan", "oneness", "kalki", "deeksha"]
+        ):
             if any(term in combined_context for term in ["amma", "kalki", "deeksha", "oneness"]):
                 teacher_tags.append("teacher:amma_bhagavan")
-        if any(term in combined_context for term in ["iskcon", "prabhupada", "krishna consciousness", "hare krishna", "bhagavad gita", "gita", "chaitanya"]):
+        if any(
+            term in combined_context
+            for term in [
+                "iskcon",
+                "prabhupada",
+                "krishna consciousness",
+                "hare krishna",
+                "bhagavad gita",
+                "gita",
+                "chaitanya",
+            ]
+        ):
             teacher_tags.append("teacher:iskcon")
 
         if not teacher_tags:
@@ -2372,6 +2536,7 @@ class IngestionPipeline:
                 source_tag = "source:twitter"
             elif src_lower.startswith("http"):
                 from ingest.image_loader import is_image_url
+
                 if is_image_url(source_url):
                     source_tag = "source:image"
                 else:
@@ -2387,7 +2552,10 @@ class IngestionPipeline:
 
         # Optional ingestion-time deduplication
         if getattr(settings, "ingestion_deduplication_enabled", False):
-            placeholder_metas = [extra_metadatas[i] if extra_metadatas and i < len(extra_metadatas) else {} for i in range(len(chunks))]
+            placeholder_metas = [
+                extra_metadatas[i] if extra_metadatas and i < len(extra_metadatas) else {}
+                for i in range(len(chunks))
+            ]
             chunks, extra_metadatas = deduplicate_by_payload(
                 chunks,
                 placeholder_metas,
@@ -2427,28 +2595,31 @@ class IngestionPipeline:
             logger.warning(
                 "LLM artifacts detected in %d/%d chunks from source_url=%s — skipped. "
                 "First: %r in %r",
-                len(artifact_rejected), len(chunks), source_url,
-                artifact_rejected[0][1], artifact_rejected[0][2],
+                len(artifact_rejected),
+                len(chunks),
+                source_url,
+                artifact_rejected[0][1],
+                artifact_rejected[0][2],
             )
         keep_indices = [keep_indices[j] for j in artifact_keep]
 
         if not keep_indices:
             logger.warning(
                 "All %d chunks from source_url=%s were rejected (injection or LLM "
-                "artifact) — nothing persisted", len(chunks), source_url,
+                "artifact) — nothing persisted",
+                len(chunks),
+                source_url,
             )
             return 0
 
         clean_chunks = [chunks[i] for i in keep_indices]
         if extra_metadatas:
             extra_metadatas = [
-                extra_metadatas[i] if i < len(extra_metadatas) else {}
-                for i in keep_indices
+                extra_metadatas[i] if i < len(extra_metadatas) else {} for i in keep_indices
             ]
         if chunk_speakers is not None:
             chunk_speakers = [
-                chunk_speakers[i] if i < len(chunk_speakers) else None
-                for i in keep_indices
+                chunk_speakers[i] if i < len(chunk_speakers) else None for i in keep_indices
             ]
 
         # P1-10: resolve per-chunk speaker labels. Prefer pre-resolved (LLM fallback or
@@ -2471,8 +2642,10 @@ class IngestionPipeline:
 
         # Defense-in-depth: Unicode NFC normalization, null byte stripping & doctrine corrections
         import unicodedata
+
         try:
             from services.doctrine_terms import apply_corrections
+
             clean_chunks = [
                 apply_corrections(unicodedata.normalize("NFC", c.replace("\x00", "")))
                 for c in clean_chunks
@@ -2480,16 +2653,16 @@ class IngestionPipeline:
         except Exception as dt_err:
             logger.debug(f"apply_corrections in _embed_and_index skipped: {dt_err}")
             clean_chunks = [
-                unicodedata.normalize("NFC", c.replace("\x00", ""))
-                for c in clean_chunks
+                unicodedata.normalize("NFC", c.replace("\x00", "")) for c in clean_chunks
             ]
 
         # Generate both dense and sparse embeddings in one pass
         embeddings = self._embedder.encode_batch(clean_chunks)
 
         # Build metadata for each chunk
-        from datetime import datetime, timezone
-        now_iso = datetime.now(timezone.utc).isoformat()
+        from datetime import datetime
+
+        now_iso = datetime.now(UTC).isoformat()
         metadatas = []
         for i in range(len(clean_chunks)):
             base_meta = {
@@ -2566,7 +2739,7 @@ class IngestionPipeline:
     ) -> None:
         """Best-effort persistence of source metadata to kb_sources telemetry table."""
         try:
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             from app.telemetry_db import _get_client
 
@@ -2579,7 +2752,7 @@ class IngestionPipeline:
                 "title": title,
                 "content_type": content_type,
                 "tags": tags,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
             }
             # Upsert by source_url if the table supports it; otherwise insert.
             try:
@@ -2600,8 +2773,9 @@ class IngestionPipeline:
         Each child chunk is approx 400 characters and is prepended with the parent context (up to 1500 characters).
         Returns (child_texts, child_metadatas) where metadatas contain parent mapping.
         """
-        import uuid
         import re
+        import uuid
+
         from langchain_text_splitters import RecursiveCharacterTextSplitter
 
         # 1. Split into parent chunks using RecursiveCharacterTextSplitter (500 size, 50 overlap)
@@ -2719,23 +2893,23 @@ class IngestionPipeline:
                 header_parts.append(f"Topic: {topic}")
 
             prefix_base = f"[{' | '.join(header_parts)}]"
-            
+
             enriched_chunks = []
             for i, chunk in enumerate(chunks):
                 lookback = ""
                 if i > 0:
-                    prev_chunk = chunks[i-1].strip()
+                    prev_chunk = chunks[i - 1].strip()
                     # Grab last 120 chars of previous chunk as lookback
-                    lookback_text = prev_chunk[-120:].replace('\n', ' ')
+                    lookback_text = prev_chunk[-120:].replace("\n", " ")
                     lookback = f" [Preceding Context: ...{lookback_text}]"
-                
+
                 lookahead = ""
                 if i < len(chunks) - 1:
-                    next_chunk = chunks[i+1].strip()
+                    next_chunk = chunks[i + 1].strip()
                     # Grab first 120 chars of next chunk as lookahead
-                    lookahead_text = next_chunk[:120].replace('\n', ' ')
+                    lookahead_text = next_chunk[:120].replace("\n", " ")
                     lookahead = f" [Following Context: {lookahead_text}...]"
-                
+
                 header = f"{prefix_base}{lookback}{lookahead}\n"
                 enriched_chunks.append(header + chunk)
             return enriched_chunks
@@ -2866,7 +3040,8 @@ class IngestionPipeline:
 
         try:
             import asyncio
-            from datetime import datetime, timezone
+            from datetime import datetime
+
             import numpy as np
 
             threshold = float(getattr(settings, "concept_similarity_threshold", 0.78))
@@ -2881,12 +3056,11 @@ class IngestionPipeline:
                     # Fix: LightRAG's Neo4JStorage writes the entity_id property,
                     # not entity_name — this query always returned 0 rows, silently
                     # disabling the Implicit Teachings Concept Connector entirely.
-                    result = session.run("MATCH (n) WHERE n.entity_id IS NOT NULL RETURN n.entity_id AS name, n.description AS desc LIMIT 150")
+                    result = session.run(
+                        "MATCH (n) WHERE n.entity_id IS NOT NULL RETURN n.entity_id AS name, n.description AS desc LIMIT 150"
+                    )
                     for r in result:
-                        entities.append({
-                            "name": r["name"],
-                            "desc": r["desc"] or ""
-                        })
+                        entities.append({"name": r["name"], "desc": r["desc"] or ""})
                 return entities
 
             entities = await asyncio.to_thread(_get_entities)
@@ -2895,7 +3069,7 @@ class IngestionPipeline:
 
             # 2. Compute embeddings for these concepts/entities
             texts_to_embed = [f"{e['name']}: {e['desc'][:100]}" for e in entities]
-            
+
             entity_embeddings = []
             for text in texts_to_embed:
                 emb = self._embedder.encode_single(text)
@@ -2905,7 +3079,9 @@ class IngestionPipeline:
             if relation_model:
                 llm_kwargs["model"] = relation_model
 
-            async def _classify_batch(chunk_text: str, pairs: list[tuple[dict, float]]) -> dict[str, tuple[str, str]]:
+            async def _classify_batch(
+                chunk_text: str, pairs: list[tuple[dict, float]]
+            ) -> dict[str, tuple[str, str]]:
                 """
                 Classify relations for multiple entity-pairs in a single LLM call.
                 Returns {entity_name: (rel_type, reason)}.
@@ -2937,7 +3113,7 @@ class IngestionPipeline:
                     )
                     parsed_lines = [ln for ln in response.strip().splitlines() if ln.strip()]
                     for idx, (entity, _sim) in enumerate(pairs):
-                        rel_type, reason = "RELATED_TO", f"Cosine similarity"
+                        rel_type, reason = "RELATED_TO", "Cosine similarity"
                         if idx < len(parsed_lines):
                             parts = parsed_lines[idx].split("|", 1)
                             detected = parts[0].strip().lstrip("0123456789. ")
@@ -2946,7 +3122,9 @@ class IngestionPipeline:
                                 reason = parts[1].strip() if len(parts) > 1 else reason
                         results[entity["name"]] = (rel_type, reason)
                 except Exception as llm_err:
-                    logger.warning(f"Batched relation classify failed, falling back to per-pair: {llm_err}")
+                    logger.warning(
+                        f"Batched relation classify failed, falling back to per-pair: {llm_err}"
+                    )
                     for entity, sim in pairs:
                         try:
                             single_prompt = (
@@ -2960,13 +3138,23 @@ class IngestionPipeline:
                                 "Return exactly 'CONTRADICTS' or 'EXPANDS_ON' or 'RELATED_TO' followed by a short 1-sentence reason. "
                                 "Format: <RELATION_TYPE> | <reason>"
                             )
-                            resp = await self._llm.generate(system_prompt=sp, user_prompt=single_prompt, **llm_kwargs)
+                            resp = await self._llm.generate(
+                                system_prompt=sp, user_prompt=single_prompt, **llm_kwargs
+                            )
                             parts = resp.strip().split("|")
                             detected = parts[0].strip()
-                            rel_type = detected if detected in ["CONTRADICTS", "EXPANDS_ON"] else "RELATED_TO"
-                            reason = parts[1].strip() if len(parts) > 1 else f"Cosine similarity {sim:.3f}"
+                            rel_type = (
+                                detected
+                                if detected in ["CONTRADICTS", "EXPANDS_ON"]
+                                else "RELATED_TO"
+                            )
+                            reason = (
+                                parts[1].strip()
+                                if len(parts) > 1
+                                else f"Cosine similarity {sim:.3f}"
+                            )
                             results[entity["name"]] = (rel_type, reason)
-                        except Exception as e2:
+                        except Exception:
                             results[entity["name"]] = ("RELATED_TO", f"Cosine similarity {sim:.3f}")
                 return results
 
@@ -2987,8 +3175,10 @@ class IngestionPipeline:
 
                 # 4. Insert relations in Neo4j
                 if matches:
-                    logger.info(f"Implicit Teachings Concept Connector: Found {len(matches)} matches for chunk above threshold {threshold}")
-                    
+                    logger.info(
+                        f"Implicit Teachings Concept Connector: Found {len(matches)} matches for chunk above threshold {threshold}"
+                    )
+
                     # Only invoke the LLM for high-similarity pairs (>=0.82); lower-sim
                     # matches stay RELATED_TO without an LLM call (threshold skip).
                     high_sim = [(e, s) for e, s in matches if s >= 0.82]
@@ -3004,7 +3194,7 @@ class IngestionPipeline:
                             rel_type, reason = classified[entity["name"]]
 
                         # Write to Neo4j
-                        def _write_relation(target_name, relation, desc, sim_val):
+                        def _write_relation(target_name, relation, desc, sim_val, source_chunk):
                             driver = self._get_neo4j_driver()
                             with driver.session() as session:
                                 # Fix: match on entity_id (the property LightRAG's
@@ -3017,17 +3207,14 @@ class IngestionPipeline:
                                 session.run(
                                     cypher,
                                     target_name=target_name,
-                                    chunk_text=chunk_text[:300],
+                                    chunk_text=source_chunk[:300],
                                     similarity=float(sim_val),
                                     desc=desc,
-                                    timestamp=datetime.now(timezone.utc).isoformat()
+                                    timestamp=datetime.now(UTC).isoformat(),
                                 )
+
                         await asyncio.to_thread(
-                            _write_relation,
-                            entity["name"],
-                            rel_type,
-                            reason,
-                            sim
+                            _write_relation, entity["name"], rel_type, reason, sim, chunk_text
                         )
         except Exception as e:
             logger.warning(f"Implicit Teachings Concept Connector failed: {e}")

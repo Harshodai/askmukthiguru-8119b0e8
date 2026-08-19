@@ -16,17 +16,22 @@ class ModelPolicyError(ValueError):
 
 def _model_id(value: str, field_name: str) -> str:
     model = (value or "").strip()
-    if not model or model.endswith("/latest") or model.endswith(":latest") or model.rsplit("/", 1)[-1].endswith("-latest"):
+    if (
+        not model
+        or model.endswith("/latest")
+        or model.endswith(":latest")
+        or model.rsplit("/", 1)[-1].endswith("-latest")
+    ):
         raise ModelPolicyError(
             f"{field_name} must be a pinned provider/model identifier, not a latest alias"
         )
     return model
 
 
-
 def _optional_model_id(value: str, field_name: str) -> str | None:
     model = (value or "").strip()
     return _model_id(model, field_name) if model else None
+
 
 def _provider_list(value: str) -> tuple[str, ...]:
     providers = tuple(item.strip() for item in (value or "").split(",") if item.strip())
@@ -54,19 +59,23 @@ class OpenRouterModelPolicy:
     monthly_budget_usd: float
 
     @classmethod
-    def from_settings(cls, settings: Any) -> "OpenRouterModelPolicy":
+    def from_settings(cls, settings: Any) -> OpenRouterModelPolicy:
         policy_id = (getattr(settings, "openrouter_policy_id", "") or "").strip()
         if not policy_id:
             raise ModelPolicyError("openrouter_policy_id is required")
         policy = cls(
             policy_id=policy_id,
-            generation_model=_model_id(settings.openrouter_generation_model, "openrouter_generation_model"),
+            generation_model=_model_id(
+                settings.openrouter_generation_model, "openrouter_generation_model"
+            ),
             generation_fallback_model=_optional_model_id(
                 settings.openrouter_generation_model_fallback,
                 "openrouter_generation_model_fallback",
             ),
             fast_model=_model_id(settings.openrouter_fast_model, "openrouter_fast_model"),
-            classify_model=_model_id(settings.openrouter_classify_model, "openrouter_classify_model"),
+            classify_model=_model_id(
+                settings.openrouter_classify_model, "openrouter_classify_model"
+            ),
             allowed_providers=_provider_list(getattr(settings, "openrouter_allowed_providers", "")),
             require_no_training=bool(getattr(settings, "openrouter_require_no_training", True)),
             allow_provider_fallbacks=bool(
@@ -84,7 +93,10 @@ class OpenRouterModelPolicy:
         return policy
 
     def validate(self) -> None:
-        if self.generation_fallback_model and self.generation_model == self.generation_fallback_model:
+        if (
+            self.generation_fallback_model
+            and self.generation_model == self.generation_fallback_model
+        ):
             raise ModelPolicyError("generation fallback model must differ from primary model")
         if self.max_tokens_fast < 1 or self.max_tokens_deep < self.max_tokens_fast:
             raise ModelPolicyError("OpenRouter token ceilings are invalid")

@@ -39,9 +39,16 @@ def test_second_brain_recall_merges_into_memory_context():
     container.second_brain = MagicMock()
     container.second_brain.unlock = AsyncMock(return_value=vault)
     container.second_brain.personal_context = AsyncMock(
-        return_value=[BrainItem(id="1", user_id="u1", kind="reflection",
-                                 text="User is preparing for a job interview.",
-                                 confidence=0.9, created_at=0.0)]
+        return_value=[
+            BrainItem(
+                id="1",
+                user_id="u1",
+                kind="reflection",
+                text="User is preparing for a job interview.",
+                confidence=0.9,
+                created_at=0.0,
+            )
+        ]
     )
 
     memory_context, _ = asyncio.run(
@@ -101,4 +108,5 @@ def test_no_second_brain_service_leaves_existing_behavior_untouched():
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(pytest.main([__file__, "-q"]))

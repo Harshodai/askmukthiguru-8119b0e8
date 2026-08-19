@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
 from services.graphrag_fusion import (
-    ContextItem,
-    FusedContext,
     GraphRAGFusion,
     reciprocal_rank_fusion,
 )
@@ -19,7 +15,13 @@ def test_rrf_fusion_basic():
         {"text": "Stillness arises from surrender.", "id": "v2", "source": "doc:2"},
     ]
     graph = [
-        {"text": "Surrender leads to inner peace.", "uri": "x", "relation": "LEADS_TO_STATE", "hop": 1, "source": "seed"},
+        {
+            "text": "Surrender leads to inner peace.",
+            "uri": "x",
+            "relation": "LEADS_TO_STATE",
+            "hop": 1,
+            "source": "seed",
+        },
     ]
 
     fused = reciprocal_rank_fusion(vector, graph, rrf_k=60)
@@ -32,6 +34,7 @@ def test_rrf_fusion_basic():
 
 def test_multi_hop_detection():
     """Graph hit with hop > 0 -> multi_hop=True."""
+
     async def run():
         async def fake_vector(q, k):
             return []
@@ -40,13 +43,22 @@ def test_multi_hop_detection():
             return ["https://askmukthiguru.org/ontology/practice/breath-awareness"]
 
         async def fake_graph(uris, hops):
-            return [{"uri": uris[0], "text": "Leads to stillness.",
-                     "relation": "LEADS_TO_STATE", "hop": 2, "source": "seed"}]
+            return [
+                {
+                    "uri": uris[0],
+                    "text": "Leads to stillness.",
+                    "relation": "LEADS_TO_STATE",
+                    "hop": 2,
+                    "source": "seed",
+                }
+            ]
 
         eng = GraphRAGFusion(fake_vector, fake_entities, fake_graph, max_hops=2, token_budget=999)
         ctx = await eng.retrieve("How does breath lead to stillness?")
         assert ctx.multi_hop is True
-        assert ctx.entities_touched == ["https://askmukthiguru.org/ontology/practice/breath-awareness"]
+        assert ctx.entities_touched == [
+            "https://askmukthiguru.org/ontology/practice/breath-awareness"
+        ]
         return ctx
 
     ctx = _run_async(run())
@@ -63,6 +75,7 @@ def test_token_budget():
         "D" * 400,
         "E" * 400,
     ]
+
     async def run():
         async def fake_vector(q, k):
             return [{"text": t, "id": f"v{i}", "source": "doc"} for i, t in enumerate(texts)]
@@ -84,16 +97,31 @@ def test_token_budget():
 
 def test_dual_channel_corroboration_boost():
     """Same text in vector + graph -> score boosted above solo-channel items."""
+
     async def run():
         async def fake_vector(q, k):
-            return [{"text": "Breath awareness calms the mind.", "id": "v1", "score": 0.9, "source": "doc:1"}]
+            return [
+                {
+                    "text": "Breath awareness calms the mind.",
+                    "id": "v1",
+                    "score": 0.9,
+                    "source": "doc:1",
+                }
+            ]
 
         async def fake_entities(q):
             return ["https://askmukthiguru.org/ontology/practice/breath-awareness"]
 
         async def fake_graph(uris, hops):
-            return [{"uri": uris[0], "text": "Breath awareness calms the mind.",
-                     "relation": "RELATED", "hop": 1, "source": "seed"}]
+            return [
+                {
+                    "uri": uris[0],
+                    "text": "Breath awareness calms the mind.",
+                    "relation": "RELATED",
+                    "hop": 1,
+                    "source": "seed",
+                }
+            ]
 
         eng = GraphRAGFusion(fake_vector, fake_entities, fake_graph, token_budget=999)
         ctx = await eng.retrieve("test")
@@ -121,7 +149,9 @@ def test_self_test():
     backend_dir = Path(__file__).resolve().parents[1]
     result = subprocess.run(
         [sys.executable, "-m", "services.graphrag_fusion"],
-        capture_output=True, text=True, cwd=str(backend_dir),
+        capture_output=True,
+        text=True,
+        cwd=str(backend_dir),
         timeout=30,
     )
     assert result.returncode == 0, f"stdout: {result.stdout}, stderr: {result.stderr}"
@@ -132,6 +162,8 @@ def test_self_test():
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _run_async(coro):
     import asyncio
+
     return asyncio.run(coro)

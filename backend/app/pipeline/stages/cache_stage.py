@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from app.config import settings
 from app.constants import is_graceful_degradation
-from app.metrics import CACHE_OPERATIONS, REQUEST_COUNT, SEARCH_LATENCY_MS, SEARCH_PATH_TOTAL
+from app.metrics import CACHE_OPERATIONS, REQUEST_COUNT, SEARCH_PATH_TOTAL
 from app.pipeline.result import PipelineResult
 from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _is_personalization_eligible(ctx: "PipelineContext") -> bool:
+def _is_personalization_eligible(ctx: PipelineContext) -> bool:
     """Single source of truth for the personalization-eligibility predicate.
 
     A query is personalization-eligible when the request carries this user's
@@ -51,7 +51,7 @@ def _is_personalization_eligible(ctx: "PipelineContext") -> bool:
     )
 
 
-def _is_assistant_config_present(ctx: "PipelineContext") -> bool:
+def _is_assistant_config_present(ctx: PipelineContext) -> bool:
     """Single source of truth for the assistant-configuration bypass predicate.
 
     True when the request carries client-supplied assistant configuration
@@ -101,7 +101,7 @@ class CacheCheckStage(Stage):
 
     name = "cache_check"
 
-    async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         if ctx.incognito:
             logger.debug("Cache read skipped for incognito request")
             return None
@@ -145,8 +145,11 @@ class CacheCheckStage(Stage):
         # (intent.py:_is_logistics_query → LIVE_LOGISTICS).
         try:
             from rag.nodes.intent import _is_logistics_query
+
             if query_text and _is_logistics_query(query_text):
-                logger.info("CacheCheck: logistics query — bypassing cache for the honest short-circuit.")
+                logger.info(
+                    "CacheCheck: logistics query — bypassing cache for the honest short-circuit."
+                )
                 return None
         except Exception as _e:
             logger.debug("[cache stage] suppressed non-critical error: %s", _e)
@@ -197,12 +200,16 @@ class CacheCheckStage(Stage):
 
         # --- 2. Vector cache (P90 fast path, sub-ms lookup via TurboVec) ---
         if settings.hybrid_search_enabled:
-            cache_hit = await ctx.coordinator._check_vector_cache(cache_key, query_text, threshold=threshold)
+            cache_hit = await ctx.coordinator._check_vector_cache(
+                cache_key, query_text, threshold=threshold
+            )
             if cache_hit is not None:
                 SEARCH_PATH_TOTAL.labels(path="p90").inc()
                 response, citations, cached_intent = cache_hit
                 output_check = await container.guardrails.check_output(response)
-                final_response = output_check["moderated_response"] if output_check["blocked"] else response
+                final_response = (
+                    output_check["moderated_response"] if output_check["blocked"] else response
+                )
 
                 if is_indic and final_response != response:
                     final_response = await container.translation.translate_text(
@@ -230,13 +237,17 @@ class CacheCheckStage(Stage):
         # --- 3. Exact + Semantic cache ---
         cached = await asyncio.to_thread(container.exact_cache.get, cache_key)
         if cached is None and container.semantic_cache and container.semantic_cache.is_available:
-            cached = await asyncio.to_thread(container.semantic_cache.get, cache_key, threshold=threshold)
+            cached = await asyncio.to_thread(
+                container.semantic_cache.get, cache_key, threshold=threshold
+            )
 
         if cached is not None:
             REQUEST_COUNT.labels(status="cache_hit").inc()
             cached_response = cached["response"]
             output_check = await container.guardrails.check_output(cached_response)
-            final_response = output_check["moderated_response"] if output_check["blocked"] else cached_response
+            final_response = (
+                output_check["moderated_response"] if output_check["blocked"] else cached_response
+            )
 
             if is_indic and final_response != cached_response:
                 final_response = await container.translation.translate_text(
@@ -266,7 +277,7 @@ class CacheUpdateStage(Stage):
 
     name = "cache_update"
 
-    async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         if ctx.incognito:
             logger.debug("Cache write skipped for incognito request")
             return None
@@ -279,7 +290,9 @@ class CacheUpdateStage(Stage):
 
         # Audit cache updates: never cache fallback/refusal responses, empty results, blocked responses, or errors
         if ctx.is_blocked or ctx.last_stage_status == "error":
-            logger.info("Skipping cache update: response was blocked by guardrails or has a stage error status.")
+            logger.info(
+                "Skipping cache update: response was blocked by guardrails or has a stage error status."
+            )
             return None
 
         # P1-BE-3: never cache a known-unfaithful answer — a hallucinated
@@ -291,27 +304,35 @@ class CacheUpdateStage(Stage):
         # (non-RAG / no-context / fallback paths), keep the legacy behavior.
         graph_result = ctx.graph_result or {}
         verdict_present = any(
-            key in graph_result for key in ("is_faithful", "faithfulness_score", "citations_verified")
+            key in graph_result
+            for key in ("is_faithful", "faithfulness_score", "citations_verified")
         )
         if verdict_present:
             if graph_result.get("is_faithful") is False:
                 logger.info("Skipping cache update: answer failed faithfulness verification.")
                 return None
             faithfulness_score = graph_result.get("faithfulness_score")
-            if faithfulness_score is not None and faithfulness_score < settings.cove_compulsory_threshold:
+            if (
+                faithfulness_score is not None
+                and faithfulness_score < settings.cove_compulsory_threshold
+            ):
                 logger.info(
                     "Skipping cache update: faithfulness score %.2f below cache threshold %.2f.",
                     faithfulness_score,
                     settings.cove_compulsory_threshold,
                 )
                 return None
-            if graph_result.get("is_faithful") is None and not graph_result.get("citations_verified", False):
+            if graph_result.get("is_faithful") is None and not graph_result.get(
+                "citations_verified", False
+            ):
                 # P1-AI-2 semantics: is_faithful None means the verifier was
                 # legitimately skipped (fast tier), NOT that the answer failed —
                 # but a cited-but-unverified answer (citations_verified=False)
                 # must not be cached either: it has no grounding evidence and
                 # would be replayed verbatim on the next identical query.
-                logger.info("Skipping cache update: faithfulness unverified and citations not verified.")
+                logger.info(
+                    "Skipping cache update: faithfulness unverified and citations not verified."
+                )
                 return None
 
         if intent in ["ERROR", "SAFETY_VIOLATION", "ADVERSARIAL", "DISTRESS"]:
@@ -327,7 +348,9 @@ class CacheUpdateStage(Stage):
         # _is_personalization_eligible predicate (single source of truth), driven by
         # the request-level personalization_eligible flag populated before the chain.
         if _is_personalization_eligible(ctx):
-            logger.info("Skipping cache update: response was personalized with user memory_context.")
+            logger.info(
+                "Skipping cache update: response was personalized with user memory_context."
+            )
             # A stale SHARED entry for this key (written earlier by a non-personalized
             # answer) must not survive the personalized response: it would be served to
             # the next memory-bearing seeker straight from the cache, shadowing their
@@ -342,11 +365,15 @@ class CacheUpdateStage(Stage):
         # configuration. The config fingerprint in cache_key means no stale
         # shared entry shares this key, so no invalidation is needed.
         if _is_assistant_config_present(ctx):
-            logger.info("Skipping cache update: response used client-supplied assistant configuration.")
+            logger.info(
+                "Skipping cache update: response used client-supplied assistant configuration."
+            )
             return None
 
         if not isinstance(final_answer, str):
-            logger.warning("Skipping cache update: final_answer is %s, not str", type(final_answer).__name__)
+            logger.warning(
+                "Skipping cache update: final_answer is %s, not str", type(final_answer).__name__
+            )
             return None
 
         refusal_indicators = [

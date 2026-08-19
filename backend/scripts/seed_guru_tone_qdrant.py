@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -29,6 +28,7 @@ env_path = backend_dir / ".env"
 if env_path.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(env_path, override=False)
     except ImportError:
         pass
@@ -47,9 +47,9 @@ _TRANSCRIPT_META: dict[str, dict] = {
 async def seed(transcripts_dir: Path) -> int:
     """Extract exemplars from all .txt transcripts and index into Qdrant."""
     from services.embedding_service import EmbeddingService
-    from services.qdrant_service import QdrantService
     from services.guru_brain.guru_brain_service import GuruBrainService
     from services.guru_brain.tone_extractor import ToneExtractor
+    from services.qdrant_service import QdrantService
 
     qdrant_url = settings.qdrant_url or settings.qdrant_local_path
     print(f"🔌 Connecting to Qdrant at {qdrant_url}...")
@@ -68,7 +68,9 @@ async def seed(transcripts_dir: Path) -> int:
     total_indexed = 0
     for txt_path in txt_files:
         source_id = txt_path.stem
-        meta = _TRANSCRIPT_META.get(source_id, {"default_guru": "combined", "interviewer": "Seeker"})
+        meta = _TRANSCRIPT_META.get(
+            source_id, {"default_guru": "combined", "interviewer": "Seeker"}
+        )
         default_guru = meta["default_guru"]
 
         content = txt_path.read_text(encoding="utf-8").strip()
@@ -76,7 +78,9 @@ async def seed(transcripts_dir: Path) -> int:
             print(f"  ⚠️  Skipping empty file: {txt_path.name}")
             continue
 
-        print(f"\n📄 Processing: {txt_path.name} (default_guru={default_guru}, {len(content)} chars)")
+        print(
+            f"\n📄 Processing: {txt_path.name} (default_guru={default_guru}, {len(content)} chars)"
+        )
 
         exemplars = await extractor.extract_exemplars_from_transcript(
             transcript_text=content,
@@ -86,7 +90,7 @@ async def seed(transcripts_dir: Path) -> int:
         print(f"   Extracted {len(exemplars)} exemplar(s) from transcript.")
 
         if not exemplars:
-            print(f"   ⚠️  No exemplars extracted — skipping.")
+            print("   ⚠️  No exemplars extracted — skipping.")
             continue
 
         indexed = await guru_brain.index_exemplars(exemplars)
@@ -100,6 +104,7 @@ def verify(expected_min: int = 1) -> int:
     """Verify Qdrant collection count after seeding."""
     try:
         from services.qdrant_service import QdrantService
+
         qdrant_service = QdrantService()
         info = qdrant_service._client.get_collection("guru_tone_podcast")
         count = info.points_count
@@ -111,7 +116,9 @@ def verify(expected_min: int = 1) -> int:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Seed guru_tone_podcast Qdrant collection from transcripts.")
+    parser = argparse.ArgumentParser(
+        description="Seed guru_tone_podcast Qdrant collection from transcripts."
+    )
     parser.add_argument(
         "--transcripts",
         default=str(backend_dir / "data" / "guru_transcripts"),

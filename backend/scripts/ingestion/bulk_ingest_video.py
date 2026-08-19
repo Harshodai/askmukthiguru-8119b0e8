@@ -21,7 +21,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
-import os
 import sys
 import time
 from pathlib import Path
@@ -31,11 +30,9 @@ from typing import Any, Optional
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(BACKEND_DIR))
 
-from app.config import settings
 from ingest.handlers.checkpoint import IngestionCheckpoint
 from ingest.pipeline import IngestionPipeline, _okf_extract_for_video
 from services.embedding_service import EmbeddingService
-from services.multi_provider_llm import MultiProviderLLMService
 from services.ollama_service import OllamaService
 from services.qdrant_service import QdrantService
 
@@ -116,7 +113,9 @@ async def bulk_ingest_async(
     async def ingest_one(src: str, idx: int) -> dict[str, Any]:
         async with semaphore:
             if await asyncio.to_thread(checkpoint.is_processed, src):
-                logger.info("  [%d/%d] ⏭ Skipping already processed source: %s", idx, len(sources), src)
+                logger.info(
+                    "  [%d/%d] ⏭ Skipping already processed source: %s", idx, len(sources), src
+                )
                 stats["skipped"] += 1
                 return {"source": src, "status": "skipped"}
 
@@ -128,13 +127,17 @@ async def bulk_ingest_async(
                     res = await pipeline.ingest_url(
                         src,
                         max_accuracy=max_accuracy,
-                        on_progress=lambda msg, pct: logger.debug("   [%s] (%3.0f%%) %s", src, pct * 100, msg),
+                        on_progress=lambda msg, pct: logger.debug(
+                            "   [%s] (%3.0f%%) %s", src, pct * 100, msg
+                        ),
                     )
                 else:
                     res = await pipeline.ingest_file(
                         src,
                         max_accuracy=max_accuracy,
-                        on_progress=lambda msg, pct: logger.debug("   [%s] (%3.0f%%) %s", src, pct * 100, msg),
+                        on_progress=lambda msg, pct: logger.debug(
+                            "   [%s] (%3.0f%%) %s", src, pct * 100, msg
+                        ),
                     )
 
                 status = res.get("status", "unknown")
@@ -144,12 +147,16 @@ async def bulk_ingest_async(
                     stats["succeeded"] += 1
                     await asyncio.to_thread(checkpoint.save, src)
 
-
                     chunks = res.get("chunks_indexed", 0)
                     summaries = res.get("summaries_created", 0)
                     logger.info(
                         "  [%d/%d] ✅ Success (%0.1fs) — Chunks: %d, RAPTOR Summaries: %d — %s",
-                        idx, len(sources), elapsed, chunks, summaries, src
+                        idx,
+                        len(sources),
+                        elapsed,
+                        chunks,
+                        summaries,
+                        src,
                     )
 
                     # Trigger OKF 5-Node Transformation Arc extraction
@@ -157,14 +164,18 @@ async def bulk_ingest_async(
                         video_id = None
                         if "youtube.com" in src or "youtu.be" in src:
                             from ingest.youtube_loader import extract_video_id
+
                             video_id = extract_video_id(src)
-                        
+
                         if video_id:
                             try:
                                 okf_task = asyncio.create_task(_okf_extract_for_video(video_id))
                                 okf_tasks.append(okf_task)
                                 stats["okf_queued"] += 1
-                                logger.info("         └─ OKF 5-Node Arc extraction queued for video: %s", video_id)
+                                logger.info(
+                                    "         └─ OKF 5-Node Arc extraction queued for video: %s",
+                                    video_id,
+                                )
                             except Exception as okf_err:
                                 logger.warning("         └─ OKF dispatch note: %s", okf_err)
 
@@ -172,13 +183,22 @@ async def bulk_ingest_async(
                 else:
                     stats["failed"] += 1
                     msg = res.get("message", "Unknown error")
-                    logger.error("  [%d/%d] ❌ Rejected/Failed (%0.1fs): %s — %s", idx, len(sources), elapsed, msg, src)
+                    logger.error(
+                        "  [%d/%d] ❌ Rejected/Failed (%0.1fs): %s — %s",
+                        idx,
+                        len(sources),
+                        elapsed,
+                        msg,
+                        src,
+                    )
                     return {"source": src, "status": "failed", "error": msg}
 
             except Exception as e:
                 stats["failed"] += 1
                 elapsed = time.time() - start_t
-                logger.error("  [%d/%d] ❌ Error (%0.1fs): %s — %s", idx, len(sources), elapsed, e, src)
+                logger.error(
+                    "  [%d/%d] ❌ Error (%0.1fs): %s — %s", idx, len(sources), elapsed, e, src
+                )
                 return {"source": src, "status": "error", "error": str(e)}
 
     tasks = [ingest_one(src, idx) for idx, src in enumerate(sources, 1)]
@@ -205,7 +225,9 @@ async def bulk_ingest_async(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="SOTA Bulk Asynchronous Video & Document Ingestion")
+    parser = argparse.ArgumentParser(
+        description="SOTA Bulk Asynchronous Video & Document Ingestion"
+    )
     parser.add_argument("--input", help="Directory or text file containing URLs/files")
     parser.add_argument("--url", help="Single video or article URL to ingest")
     parser.add_argument("--workers", type=int, default=2, help="Concurrent workers")

@@ -44,7 +44,11 @@ class TestAllowlistEmotionalWellness:
 
     def test_distress_with_teacher_name_still_redirects(self, guardrails):
         """A second spiritual term variant — 'preethaji' — must behave identically."""
-        result = run(guardrails.check_input("I have been feeling overwhelmed lately, even with preethaji's guidance"))
+        result = run(
+            guardrails.check_input(
+                "I have been feeling overwhelmed lately, even with preethaji's guidance"
+            )
+        )
 
         assert result["blocked"] is True
         assert "Emotional wellness" in result["reason"], (

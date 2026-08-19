@@ -30,8 +30,11 @@ class NotebookItemRequest(BaseModel):
     answer: str = Field(..., max_length=50000)
     citations: list[dict] = []
     source_episode_id: Optional[str] = None
+
+
 class UpdateNotebookItemRequest(BaseModel):
     answer: str = Field(..., min_length=1, max_length=50000)
+
     @field_validator("answer")
     @classmethod
     def _strip_answer(cls, v: str) -> str:
@@ -39,7 +42,6 @@ class UpdateNotebookItemRequest(BaseModel):
         if not v:
             raise ValueError("answer must not be empty or whitespace only")
         return v
-
 
 
 @router.post("/notebooks")
@@ -115,6 +117,7 @@ async def update_item(
     if not result:
         raise HTTPException(status_code=404, detail="Notebook item not found")
     return result
+
 
 @router.get("/notebooks/{notebook_id}/items")
 async def list_items(

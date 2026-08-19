@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-import uuid
 from typing import TYPE_CHECKING
 
 from app.config import settings
@@ -31,7 +30,7 @@ class CircuitBreakerStage(Stage):
 
     name = "circuit_breaker"
 
-    async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         if ctx.coordinator._is_circuit_open():
             ctx.last_stage_status = "error"
             result = ctx.coordinator._circuit_open_result(ctx.is_benchmark, ctx.start_time)
@@ -44,13 +43,17 @@ class CircuitBreakerStage(Stage):
                 try:
                     translated = await asyncio.wait_for(
                         ctx.container.translation.translate_text(
-                            text=result.final_answer, source_lang="en", target_lang=ctx.preferred_lang
+                            text=result.final_answer,
+                            source_lang="en",
+                            target_lang=ctx.preferred_lang,
                         ),
                         timeout=translation_timeout,
                     )
                     result = dataclasses.replace(result, final_answer=translated)
-                except asyncio.TimeoutError:
-                    logger.warning("Circuit-breaker Indic translation timed out; preserving English fallback")
+                except TimeoutError:
+                    logger.warning(
+                        "Circuit-breaker Indic translation timed out; preserving English fallback"
+                    )
                 except Exception as e:
                     logger.warning("Circuit-breaker Indic translation failed: %s", e)
             return result
@@ -62,7 +65,7 @@ class InputGuardrailStage(Stage):
 
     name = "input_guardrails"
 
-    async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         user_msg_en = ctx.state["user_msg_en"]
         is_indic = ctx.is_indic
         preferred_lang = ctx.preferred_lang
@@ -78,7 +81,9 @@ class InputGuardrailStage(Stage):
         if settings.multilingual_guardrails:
             raw = ctx.user_msg or user_msg_en
             if not is_indic and is_non_english_message(raw):
-                guardrail_text = await guardrail_text_for(raw, container.translation, preferred_lang)
+                guardrail_text = await guardrail_text_for(
+                    raw, container.translation, preferred_lang
+                )
 
         # ponytail: body of _run_input_guardrails verbatim
         with REQUEST_LATENCY.labels(stage="guardrails").time():
@@ -104,6 +109,7 @@ class InputGuardrailStage(Stage):
         # user carrying an injected slug.
         if assistant is not None:
             from app.assistant_registry import validate_assistant_slug
+
             if validate_assistant_slug(getattr(assistant, "slug", None)) is None:
                 if getattr(assistant, "system_prompt", None) is not None:
                     logger.info(
@@ -152,7 +158,7 @@ class OutputGuardrailStage(Stage):
 
     name = "output_guardrails"
 
-    async def run(self, ctx: "PipelineContext") -> PipelineResult | None:
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
         container = ctx.container
         # The output rail (guardrails/lightweight_handler._handle_output) is an
         # English literal-phrase regex list, but TranslationStage runs BEFORE this

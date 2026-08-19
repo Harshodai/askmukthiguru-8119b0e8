@@ -19,9 +19,9 @@ import traceback
 
 
 def _banner(title: str) -> None:
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  {title}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
 
 def check_protocols() -> bool:
@@ -44,6 +44,7 @@ def check_factory() -> bool:
     _banner("2. LLM Service Factory (Abstract Factory)")
     try:
         from services.llm_factory import LLMServiceFactory
+
         providers = LLMServiceFactory.list_providers()
         print(f"  ✓ Factory has providers: {providers}")
         return True
@@ -67,7 +68,7 @@ def check_container_builder() -> bool:
         print(f"             embedding={container.embedding is not None}")
 
         # Test get_container() uses ContainerBuilder internally
-        container2 = get_container()
+        get_container()
         print("  ✓ get_container() returned singleton")
         return True
     except Exception as e:
@@ -81,6 +82,7 @@ def check_graph_strategies() -> bool:
     _banner("4. Graph Strategy Pattern")
     try:
         from rag.graph_strategies import DeepGraphStrategy, FastGraphStrategy, StandardGraphStrategy
+
         assert FastGraphStrategy().name == "fast"
         assert StandardGraphStrategy().name == "standard"
         assert DeepGraphStrategy().name == "deep"
@@ -99,6 +101,7 @@ def check_node_registry() -> bool:
     _banner("5. NodeRegistry (Registry Pattern)")
     try:
         from rag.node_registry import registry
+
         nodes = registry.list()
         print(f"  ✓ NodeRegistry has {len(nodes)} node(s)")
         print(f"  ✓ Registered nodes: {nodes[:5]}...")
@@ -114,9 +117,10 @@ def check_telemetry_observer() -> bool:
     _banner("6. Telemetry Observer (Observer Pattern)")
     try:
         from rag.telemetry_observer import LoggingObserver, MetricsObserver, SelfCorrectionObserver
-        m = MetricsObserver()
-        l = LoggingObserver()
-        s = SelfCorrectionObserver(max_retries=3)
+
+        MetricsObserver()
+        LoggingObserver()
+        SelfCorrectionObserver(max_retries=3)
         print("  ✓ MetricsObserver instantiated")
         print("  ✓ LoggingObserver instantiated")
         print("  ✓ SelfCorrectionObserver instantiated")
@@ -145,6 +149,7 @@ def check_self_correction() -> bool:
     _banner("9. Self-Correction Orchestrator")
     try:
         from rag.self_correction import SelfCorrectionOrchestrator
+
         orch = SelfCorrectionOrchestrator(max_retries=3)
         print(f"  ✓ SelfCorrectionOrchestrator (max_retries={orch.max_retries})")
         return True
@@ -159,6 +164,7 @@ def check_tools() -> bool:
     _banner("10. Tool Use AbSound Abstraction")
     try:
         from rag.tools import ToolRegistry
+
         registry = ToolRegistry()
         print(f"  ✓ ToolRegistry created (len={len(registry)})")
         print("  ✓ QdrantSearchTool, EmbeddingTool, LLMGenerateTool imported")
@@ -174,6 +180,7 @@ def check_mainpy_integrations() -> bool:
     _banner("11. main.py Protocol + Observer Integration")
     try:
         from app.main import _register_node_observers
+
         print("  ✓ _register_node_observers() imported from main.py")
         print("  ✓ _wire_graph_observers() imported from main.py")
         # Call _register to test runtime behavior
@@ -206,7 +213,7 @@ def main() -> int:
     ]
 
     results = []
-    for name, fn in checks:
+    for _name, fn in checks:
         results.append(fn())
 
     _banner("SUMMARY")

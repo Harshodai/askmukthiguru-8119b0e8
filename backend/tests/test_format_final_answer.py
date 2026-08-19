@@ -13,7 +13,7 @@ tests/test_audit_fixes.py.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -63,7 +63,8 @@ async def test_verification_timeout_returns_fallback(monkeypatch):
     """Verification timed out (is_faithful never written) AND the citation
     check did not verify → FALLBACK_RESPONSE, not an unverified answer."""
     monkeypatch.setattr(
-        generation, "_verify_inline_citations",
+        generation,
+        "_verify_inline_citations",
         _unverified_citation_check(),
     )
     state = _state(answer=_LONG_ANSWER + " [[CITE:1]]")
@@ -119,7 +120,8 @@ async def test_verification_skipped_and_unverified_returns_fallback(monkeypatch)
     This is the hole P1-AI-2 closes: a cited-but-unverified answer is no
     longer accepted."""
     monkeypatch.setattr(
-        generation, "_verify_inline_citations",
+        generation,
+        "_verify_inline_citations",
         _unverified_citation_check(),
     )
     state = _state(answer=_LONG_ANSWER + " [[CITE:1]]")

@@ -11,8 +11,8 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from anyio import Lock as AsyncLock
 import jwt
+from anyio import Lock as AsyncLock
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin
@@ -46,7 +46,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     async def on_after_register(self, user: User, request: Request | None = None):
         logger.info(f"User {user.id} has registered.")
 
-    async def on_after_forgot_password(self, user: User, token: str, request: Request | None = None):
+    async def on_after_forgot_password(
+        self, user: User, token: str, request: Request | None = None
+    ):
         logger.info(f"Password reset token generated for user {user.id}")
         # TODO: Integrate with email delivery service (SendGrid, Resend, etc.)
 
@@ -68,7 +70,9 @@ _fallback_public_pem: str | None = None
 def _ensure_fallback_keys():
     global _fallback_private_pem, _fallback_public_pem
     if getattr(settings, "is_production", False):
-        raise RuntimeError("CRITICAL: jwt_private_key and jwt_public_key are required in production environment.")
+        raise RuntimeError(
+            "CRITICAL: jwt_private_key and jwt_public_key are required in production environment."
+        )
 
     if _fallback_private_pem and _fallback_public_pem:
         return
@@ -101,8 +105,8 @@ def _ensure_fallback_keys():
                 except Exception as e:
                     logger.warning(f"Failed to read persistent dev JWT keys from {key_file}: {e}")
 
-            from cryptography.hazmat.primitives.asymmetric import rsa
             from cryptography.hazmat.primitives import serialization
+            from cryptography.hazmat.primitives.asymmetric import rsa
 
             logger.warning(
                 "⚠️ jwt_private_key and jwt_public_key not set in config. "
@@ -114,17 +118,25 @@ def _ensure_fallback_keys():
                 format=serialization.PrivateFormat.PKCS8,
                 encryption_algorithm=serialization.NoEncryption(),
             ).decode("utf-8")
-            pub_pem = private_key.public_key().public_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PublicFormat.SubjectPublicKeyInfo,
-            ).decode("utf-8")
+            pub_pem = (
+                private_key.public_key()
+                .public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo,
+                )
+                .decode("utf-8")
+            )
 
-            payload = json.dumps({
-                "private_key": priv_pem,
-                "public_key": pub_pem,
-            })
+            payload = json.dumps(
+                {
+                    "private_key": priv_pem,
+                    "public_key": pub_pem,
+                }
+            )
 
-            tmp_fd, tmp_path = tempfile.mkstemp(dir=key_file.parent, prefix="dev_jwt_keys_", suffix=".tmp")
+            tmp_fd, tmp_path = tempfile.mkstemp(
+                dir=key_file.parent, prefix="dev_jwt_keys_", suffix=".tmp"
+            )
             try:
                 os.chmod(tmp_path, 0o600)
                 with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
@@ -150,10 +162,7 @@ def get_jwt_strategy() -> JWTStrategy:
         public_key = _fallback_public_pem
 
     return JWTStrategy(
-        secret=private_key,
-        public_key=public_key,
-        algorithm="RS256",
-        lifetime_seconds=3600
+        secret=private_key, public_key=public_key, algorithm="RS256", lifetime_seconds=3600
     )
 
 
@@ -167,6 +176,7 @@ def get_public_key_pem() -> str:
 
 def get_jwks_dict() -> dict:
     import base64
+
     from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
     pem = get_public_key_pem()
@@ -188,7 +198,6 @@ def get_jwks_dict() -> dict:
             }
         ]
     }
-
 
 
 auth_backend = AuthenticationBackend(
@@ -371,7 +380,7 @@ class SupabaseAuthStrategy(AuthStrategy):
         def _valid_issuers() -> list[str]:
             base = settings.supabase_url.rstrip("/")
             issuers = [
-                f"{base}/auth/v1",              # e.g., http://host.docker.internal:54321/auth/v1
+                f"{base}/auth/v1",  # e.g., http://host.docker.internal:54321/auth/v1
             ]
             if not getattr(settings, "is_production", False):
                 issuers += [
@@ -387,6 +396,7 @@ class SupabaseAuthStrategy(AuthStrategy):
                 # ---- Asymmetric path: verify via JWKS public key ----
                 client = await _get_jwks_client()
                 signing_key = await asyncio.to_thread(client.get_signing_key_from_jwt, token)
+
                 # Use build_safe_audience to handle both "authenticated" and
                 # the Supabase legacy audience string (supabase_url).
                 def build_safe_audience() -> list[str]:
@@ -497,10 +507,15 @@ class SupabaseAuthStrategy(AuthStrategy):
         try:
             if jwt_token:
                 from supabase import create_client
+
                 sc = create_client(settings.supabase_url, settings.supabase_key)
                 await asyncio.to_thread(sc.auth.set_session, jwt_token, "")
                 resp = await asyncio.to_thread(
-                    sc.table("user_roles").select("id").eq("user_id", user_id).eq("role", "admin").execute
+                    sc.table("user_roles")
+                    .select("id")
+                    .eq("user_id", user_id)
+                    .eq("role", "admin")
+                    .execute
                 )
                 is_admin = bool(resp.data)
                 _cache_admin_lookup(self._admin_cache, user_id, is_admin, now, self._CACHE_MAXSIZE)
@@ -511,6 +526,7 @@ class SupabaseAuthStrategy(AuthStrategy):
             # Fallback: legacy service-key HTTP request (only works with
             # SUPABASE_SERVICE_ROLE_KEY — not available on Lovable Cloud).
             import httpx
+
             base_url = settings.supabase_url.rstrip("/")
             service_key = getattr(settings, "supabase_service_key", None) or settings.supabase_key
             if not service_key:
@@ -569,7 +585,11 @@ _strategies = [LocalAuthStrategy(), SupabaseAuthStrategy()]
 # RISK: BENCHMARK_SECRET exposure grants superuser access in non-prod environments.
 # Mitigation: secret is gated by ENABLE_TEST_AUTH + IS_PRODUCTION=false AND is
 #             compared with hmac.compare_digest (no timing-attack amplification).
-if getattr(settings, "enable_test_auth", False) and not settings.is_production and getattr(settings, "benchmark_secret", None):
+if (
+    getattr(settings, "enable_test_auth", False)
+    and not settings.is_production
+    and getattr(settings, "benchmark_secret", None)
+):
     _strategies.insert(0, TestAuthStrategy())
 if settings.is_production and any(isinstance(s, TestAuthStrategy) for s in _strategies):
     # P1-SEC-8 Rule 9: fail-closed gate must survive `python -O`, so this is
@@ -614,7 +634,9 @@ async def get_optional_user(
         # expired). Log the latter — silently downgrading to anonymous with
         # no trace makes a real auth failure indistinguishable from incognito.
         if token:
-            logger.warning(f"get_optional_user: auth failed for provided token ({e.detail}); falling back to anonymous")
+            logger.warning(
+                f"get_optional_user: auth failed for provided token ({e.detail}); falling back to anonymous"
+            )
         return {"id": "anonymous", "email": None, "is_anonymous": True}
 
 

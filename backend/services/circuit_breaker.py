@@ -13,14 +13,13 @@ with the registry. The active breaker is determined by LLM_PROVIDER config.
 
 from __future__ import annotations
 
-
 import abc
 import logging
-import time
 import threading
+import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from services.health_monitor import HealthMonitor
@@ -33,13 +32,15 @@ logger = logging.getLogger(__name__)
 
 class CircuitState(Enum):
     """Circuit breaker states."""
-    CLOSED = "closed"      # Normal operation - requests pass through
-    OPEN = "open"          # Failing - requests rejected immediately
+
+    CLOSED = "closed"  # Normal operation - requests pass through
+    OPEN = "open"  # Failing - requests rejected immediately
     HALF_OPEN = "half_open"  # Testing recovery - limited requests allowed
 
 
 class CircuitBreakerError(Exception):
     """Base exception for circuit breaker errors."""
+
     pass
 
 
@@ -54,6 +55,7 @@ class CircuitOpenException(CircuitBreakerError):
 @dataclass
 class CircuitBreakerConfig:
     """Configuration for a circuit breaker instance."""
+
     provider: str
     failure_threshold: int = 5
     recovery_timeout: float = 90.0
@@ -124,7 +126,7 @@ class BaseCircuitBreaker(abc.ABC):
                     "failure_threshold": self.config.failure_threshold,
                     "recovery_timeout": self.config.recovery_timeout,
                     "half_open_max_calls": self.config.half_open_max_calls,
-                }
+                },
             }
 
     def _transition_to_open(self, reason: str = "") -> None:
@@ -191,9 +193,10 @@ class BaseCircuitBreaker(abc.ABC):
         # Emit metric for monitoring
         try:
             from app.metrics import CIRCUIT_BREAKER_STATE_CHANGES
+
             CIRCUIT_BREAKER_STATE_CHANGES.labels(
                 provider=self.config.provider,
-                from_state=self._state.value if hasattr(self, '_previous_state') else 'unknown',
+                from_state=self._state.value if hasattr(self, "_previous_state") else "unknown",
                 to_state=new_state,
                 reason=reason,
             ).inc()
@@ -204,8 +207,11 @@ class BaseCircuitBreaker(abc.ABC):
         """Update Prometheus gauge metrics for current state."""
         try:
             from app.metrics import CIRCUIT_BREAKER_FAILURES, CIRCUIT_BREAKER_STATE
+
             state_map = {"closed": 0, "half_open": 1, "open": 2}
-            CIRCUIT_BREAKER_STATE.labels(provider=self.config.provider).set(state_map.get(self._state.value, 0))
+            CIRCUIT_BREAKER_STATE.labels(provider=self.config.provider).set(
+                state_map.get(self._state.value, 0)
+            )
             CIRCUIT_BREAKER_FAILURES.labels(provider=self.config.provider).set(self._failures)
         except Exception:
             pass  # Metrics optional
@@ -232,6 +238,7 @@ class DefaultCircuitBreaker(BaseCircuitBreaker):
                 if settings.phi_accrual_enabled:
                     try:
                         from services.health_monitor import HealthMonitor as _HM
+
                         monitor = _HM()
                         phi = monitor.get_phi(self.config.provider)
                         is_healthy = monitor.is_healthy(self.config.provider)
@@ -278,6 +285,7 @@ class DefaultCircuitBreaker(BaseCircuitBreaker):
             if settings.phi_accrual_enabled:
                 try:
                     from services.health_monitor import HealthMonitor as _HM
+
                     monitor = _HM()
                     monitor.record_heartbeat(self.config.provider, success=False)
                 except Exception as _e:
@@ -321,7 +329,7 @@ class CircuitBreakerRegistry:
     """
 
     def __init__(self):
-        self._breakers: Dict[str, BaseCircuitBreaker] = {}
+        self._breakers: dict[str, BaseCircuitBreaker] = {}
         self._active_provider: Optional[str] = None
 
     def register(self, provider: str, breaker: BaseCircuitBreaker) -> None:
@@ -360,10 +368,7 @@ class CircuitBreakerRegistry:
 
     def get_all_stats(self) -> dict:
         """Get stats for all registered breakers."""
-        return {
-            provider: breaker.get_stats()
-            for provider, breaker in self._breakers.items()
-        }
+        return {provider: breaker.get_stats() for provider, breaker in self._breakers.items()}
 
 
 # Global registry instance
@@ -378,7 +383,7 @@ def get_circuit_breaker_registry() -> CircuitBreakerRegistry:
     return _circuit_breaker_registry
 
 
-def create_default_breakers() -> Dict[str, DefaultCircuitBreaker]:
+def create_default_breakers() -> dict[str, DefaultCircuitBreaker]:
     """
     Create default circuit breakers for all known providers.
 
@@ -417,6 +422,7 @@ def initialize_circuit_breakers(registry: CircuitBreakerRegistry = None) -> Circ
 
     # Set active provider based on config
     from app.config import settings
+
     active_provider = settings.llm_provider
     registry.set_active(active_provider)
 

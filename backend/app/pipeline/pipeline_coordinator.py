@@ -42,7 +42,6 @@ from app.pipeline.stages import PipelineContext, StageRunner, build_default_pipe
 from app.release_manifest import get_release_manifest
 from rag.memory import normalize_session_id
 from services.health_monitor import HealthMonitor
-from services.hot_cache import hot_cache
 from services.tenant_context import TenantContext
 from services.turboquant_cache import TurboQuantCache, get_shared_vector_cache
 from services.user_profile_service import _is_persistable_user_id
@@ -93,8 +92,8 @@ class PipelineCoordinator:
         assistant_slug = getattr(assistant, "slug", None)
         assistant_system_prompt = getattr(assistant, "system_prompt", None)
         assistant_knowledge_tags = list(getattr(assistant, "knowledge_tags", []) or [])
-        assistant_config_present = bool(assistant_slug) or bool(assistant_system_prompt) or bool(
-            assistant_knowledge_tags
+        assistant_config_present = (
+            bool(assistant_slug) or bool(assistant_system_prompt) or bool(assistant_knowledge_tags)
         )
         response_preferences = getattr(chat_body, "response_preferences", None)
         response_preferences_data = (
@@ -153,28 +152,40 @@ class PipelineCoordinator:
                 StageRunner.run(build_default_pipeline(), ctx, coordinator=self),
                 timeout=settings.pipeline_timeout + 60,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(
                 "Pipeline timed out for user %s: query_token='%s' trace='%s'",
-                user_id, _query_token(user_msg), trace_id,
+                user_id,
+                _query_token(user_msg),
+                trace_id,
             )
             latency_ms = int((time.time() - start_time) * 1000)
             return PipelineResult(
                 final_answer="The Guru took too long to respond. Please try again.",
-                intent="TIMEOUT", trace_id=trace_id, latency_ms=latency_ms,
-                model_used=None, model_provider=None, route_decision="timeout",
+                intent="TIMEOUT",
+                trace_id=trace_id,
+                latency_ms=latency_ms,
+                model_used=None,
+                model_provider=None,
+                route_decision="timeout",
                 release_manifest=get_release_manifest().to_dict(),
             )
         except Exception:
             logger.exception(
                 "Pipeline crashed for user %s: query_token='%s' trace='%s'",
-                user_id, _query_token(user_msg), trace_id,
+                user_id,
+                _query_token(user_msg),
+                trace_id,
             )
             latency_ms = int((time.time() - start_time) * 1000)
             return PipelineResult(
                 final_answer="The Guru encountered an error. Please try again.",
-                intent="ERROR", trace_id=trace_id, latency_ms=latency_ms,
-                model_used=None, model_provider=None, route_decision="error",
+                intent="ERROR",
+                trace_id=trace_id,
+                latency_ms=latency_ms,
+                model_used=None,
+                model_provider=None,
+                route_decision="error",
                 release_manifest=get_release_manifest().to_dict(),
             )
 
@@ -199,10 +210,14 @@ class PipelineCoordinator:
         if result.cache_hit:
             latency_ms = int((time.time() - start_time) * 1000)
             res = result.with_latency(latency_ms)
-            SLO_CHAT_LATENCY.labels(tier=(res.route_decision or "standard")).observe(latency_ms / 1000.0)
+            SLO_CHAT_LATENCY.labels(tier=(res.route_decision or "standard")).observe(
+                latency_ms / 1000.0
+            )
             return res
 
-        SLO_CHAT_LATENCY.labels(tier=(result.route_decision or "standard")).observe(time.time() - start_time)
+        SLO_CHAT_LATENCY.labels(tier=(result.route_decision or "standard")).observe(
+            time.time() - start_time
+        )
         return result
 
     # ------------------------------------------------------------------
@@ -231,7 +246,8 @@ class PipelineCoordinator:
             # failure must stay visible in logs.
             logger.debug(
                 "Personalization probe failed for user %s, returning conservative True: %s",
-                user_id, exc,
+                user_id,
+                exc,
             )
             return True
 
@@ -255,7 +271,9 @@ class PipelineCoordinator:
                 # a failed probe cannot prove absence
                 logger.debug(
                     "user_profile.get_recent_memories probe failed for user %s, "
-                    "treating as has-memory: %s", user_id, exc,
+                    "treating as has-memory: %s",
+                    user_id,
+                    exc,
                 )
                 return True
         memory_service = getattr(self.container, "memory_service", None)
@@ -266,8 +284,9 @@ class PipelineCoordinator:
             except Exception as exc:
                 # a failed probe cannot prove absence
                 logger.debug(
-                    "memory_service.get_core probe failed for user %s, "
-                    "treating as has-memory: %s", user_id, exc,
+                    "memory_service.get_core probe failed for user %s, treating as has-memory: %s",
+                    user_id,
+                    exc,
                 )
                 return True
         return False
@@ -314,7 +333,9 @@ class PipelineCoordinator:
         if embedding is None:
             return None
 
-        target_threshold = threshold if threshold is not None else settings.semantic_cache_similarity
+        target_threshold = (
+            threshold if threshold is not None else settings.semantic_cache_similarity
+        )
         results = vcache.search(
             query_embedding=embedding,
             top_k=1,
@@ -383,7 +404,7 @@ class PipelineCoordinator:
             preference_scope = f":pref:{preference_fp}"
         if ":" in manifest.release_id or ":" in manifest.policy_version:
             scope_digest = hashlib.sha256(
-                f":rel:{manifest.release_id}:pol:{manifest.policy_version}".encode("utf-8")
+                f":rel:{manifest.release_id}:pol:{manifest.policy_version}".encode()
             ).hexdigest()[:16]
             release_scope = f":rel:{scope_digest}"
         else:
@@ -401,7 +422,9 @@ class PipelineCoordinator:
                     last_user_msg = msg.get("content", "")
                     break
             if last_user_msg:
-                prev_hash = hashlib.md5(last_user_msg.encode(), usedforsecurity=False).hexdigest()[:8]
+                prev_hash = hashlib.md5(last_user_msg.encode(), usedforsecurity=False).hexdigest()[
+                    :8
+                ]
                 return f"{base_key}:ctx:{prev_hash}"
 
         return base_key
@@ -476,7 +499,9 @@ class PipelineCoordinator:
 
     def _circuit_open_result(self, is_benchmark: bool, start_time: float) -> PipelineResult:
         """Return an error PipelineResult when the circuit is open."""
-        model = getattr(settings, "sarvam_cloud_model", None) or getattr(settings, "ollama_model", None)
+        model = getattr(settings, "sarvam_cloud_model", None) or getattr(
+            settings, "ollama_model", None
+        )
         msg = "The Guru is unable to answer this question. Please try again."
         latency_ms = int((time.time() - start_time) * 1000)
         return PipelineResult(
@@ -527,17 +552,21 @@ class PipelineCoordinator:
     def _build_safety_events(input_check: dict, output_check: dict) -> list[dict]:
         events = []
         if input_check.get("blocked"):
-            events.append({
-                "event_type": "INPUT_GUARDRAIL",
-                "decision": "BLOCKED",
-                "reason": input_check.get("reason") or "Harmful input detected",
-            })
+            events.append(
+                {
+                    "event_type": "INPUT_GUARDRAIL",
+                    "decision": "BLOCKED",
+                    "reason": input_check.get("reason") or "Harmful input detected",
+                }
+            )
         if output_check.get("blocked"):
-            events.append({
-                "event_type": "OUTPUT_GUARDRAIL",
-                "decision": "BLOCKED",
-                "reason": output_check.get("reason") or "Harmful output detected",
-            })
+            events.append(
+                {
+                    "event_type": "OUTPUT_GUARDRAIL",
+                    "decision": "BLOCKED",
+                    "reason": output_check.get("reason") or "Harmful output detected",
+                }
+            )
         return events
 
     @staticmethod
@@ -557,9 +586,11 @@ class PipelineCoordinator:
         confidence = result.get("confidence_score")
         if confidence is None or (is_rag and confidence == 7.0):
             from services.confidence_scorer import calculate_confidence
+
             conf_state = {
                 "faithfulness_score": result.get("faithfulness_score", 1.0 if not is_rag else 0.0),
-                "verification": result.get("verification") or {
+                "verification": result.get("verification")
+                or {
                     "passed": result.get("is_faithful", True),
                     "cove_pass_ratio": 1.0 if result.get("is_faithful", True) else 0.0,
                 },
@@ -575,8 +606,12 @@ class PipelineCoordinator:
         # 1.0, which had a retrieval outage reading as a perfect answer.
         no_context = is_rag and bool(result.get("no_context"))
         return {
-            "faithfulness": None if no_context else (result.get("faithfulness_score", 0.0) if is_rag else 1.0),
-            "hallucination_flag": not result.get("is_faithful") if (is_rag and result.get("is_faithful") is not None) else False,
+            "faithfulness": None
+            if no_context
+            else (result.get("faithfulness_score", 0.0) if is_rag else 1.0),
+            "hallucination_flag": not result.get("is_faithful")
+            if (is_rag and result.get("is_faithful") is not None)
+            else False,
             "judge_reasoning": result.get("verification_reason", "") if is_rag else "",
             "confidence_score": confidence,
             "node_timings": result.get("node_timings", {}),

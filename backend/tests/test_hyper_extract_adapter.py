@@ -176,9 +176,7 @@ def test_empty_and_short_text_returns_empty_enrichment():
 
 
 @pytest.mark.asyncio
-async def test_ingest_raw_text_includes_hyper_extract_when_enabled(
-    mock_pipeline, monkeypatch
-):
+async def test_ingest_raw_text_includes_hyper_extract_when_enabled(mock_pipeline, monkeypatch):
     from app.config import settings
     from ingest.pipeline import IngestionCheckpoint
 
@@ -195,9 +193,7 @@ async def test_ingest_raw_text_includes_hyper_extract_when_enabled(
         "This integrated practice helps every seeker move from confusion into clarity and stillness."
     )
 
-    with patch.object(
-        mock_pipeline, "_augment_chunks", return_value=[text]
-    ):
+    with patch.object(mock_pipeline, "_augment_chunks", return_value=[text]):
         result = await mock_pipeline.ingest_raw_text(
             text=text,
             source_url="test://spiritual-teaching",
@@ -212,9 +208,7 @@ async def test_ingest_raw_text_includes_hyper_extract_when_enabled(
 
 
 @pytest.mark.asyncio
-async def test_ingest_raw_text_omits_hyper_extract_when_disabled(
-    mock_pipeline, monkeypatch
-):
+async def test_ingest_raw_text_omits_hyper_extract_when_disabled(mock_pipeline, monkeypatch):
     from app.config import settings
     from ingest.pipeline import IngestionCheckpoint
 
@@ -231,9 +225,7 @@ async def test_ingest_raw_text_omits_hyper_extract_when_disabled(
         "This integrated practice helps every seeker move from confusion into clarity and stillness."
     )
 
-    with patch.object(
-        mock_pipeline, "_augment_chunks", return_value=[text]
-    ):
+    with patch.object(mock_pipeline, "_augment_chunks", return_value=[text]):
         result = await mock_pipeline.ingest_raw_text(
             text=text,
             source_url="test://spiritual-teaching",

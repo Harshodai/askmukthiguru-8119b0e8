@@ -20,8 +20,8 @@ except ImportError:
 
 from prometheus_client import Counter, Histogram
 
-COLLAPSED_REQUESTS = Counter('request_collapsed_total', 'In-flight requests collapsed')
-COALESCER_LATENCY = Histogram('coalescer_wait_seconds', 'Time spent waiting for shared result')
+COLLAPSED_REQUESTS = Counter("request_collapsed_total", "In-flight requests collapsed")
+COALESCER_LATENCY = Histogram("coalescer_wait_seconds", "Time spent waiting for shared result")
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,8 @@ class _InMemoryCoalescer:
         # coalesced call is never disturbed. _lock_users is decremented only
         # after the async-with block exits, so a waiter handoff still counts.
         stale_locks = [
-            k for k, ts in self._lock_created.items()
+            k
+            for k, ts in self._lock_created.items()
             if now - ts > self._ttl and self._lock_users.get(k, 0) == 0
         ]
         for k in stale_locks:
@@ -218,7 +219,9 @@ class RedisCoalescer:
                     payload["guidance_plan"] = GuidancePlan(**guidance)
                 return PipelineResult(**payload)
             except TypeError as exc:
-                logger.warning("Could not reconstruct PipelineResult from coalescer payload: %s", exc)
+                logger.warning(
+                    "Could not reconstruct PipelineResult from coalescer payload: %s", exc
+                )
                 return data["data"]
         return data
 

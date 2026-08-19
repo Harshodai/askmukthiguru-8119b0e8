@@ -5,35 +5,36 @@ import pytest
 
 logging.basicConfig(level=logging.DEBUG)
 
+
 # Setup mocks to prevent external network calls
 @pytest.mark.asyncio
 async def test_retrieve_documents_contract(monkeypatch):
     """Verify retrieve_documents state contract enforcement and query_tier fallback."""
-    
+
     # Mock settings and dependencies
     from app.config import settings
-    
+
     # Mock Qdrant and Embedder services
     mock_embedder = MagicMock()
     # Mock return value for encode_single_full
-    mock_embedder.encode_single_full.return_value = {
-        "dense": [0.1] * 1024,
-        "sparse": {"1": 0.5}
-    }
+    mock_embedder.encode_single_full.return_value = {"dense": [0.1] * 1024, "sparse": {"1": 0.5}}
     mock_embedder.instruction = "Given a spiritual teaching, retrieve relevant passages: "
-    
+
     mock_qdrant = MagicMock()
     # Mock search to return some mock documents
-    mock_qdrant.search = MagicMock(return_value=[
-        {"text": "Found document teaching", "source_url": "url1", "title": "doc1", "score": 0.9}
-    ])
-    
+    mock_qdrant.search = MagicMock(
+        return_value=[
+            {"text": "Found document teaching", "source_url": "url1", "title": "doc1", "score": 0.9}
+        ]
+    )
+
     # Mock LightRAG if called
     mock_lightrag = MagicMock()
     mock_lightrag.aquery = AsyncMock(return_value="LightRAG wisdom")
-    
+
     # Inject mock services into nodes module
     import rag.nodes as nodes
+
     mock_ollama = AsyncMock()
     mock_ollama._generate_fast = AsyncMock(return_value="What is Ekam?")
     monkeypatch.setattr(nodes, "_ollama", mock_ollama)
@@ -69,12 +70,12 @@ async def test_retrieve_documents_contract(monkeypatch):
         "sub_queries": [],
         "selected_clusters": [],
         "hyde_text": None,
-        "intent": "FACTUAL"
+        "intent": "FACTUAL",
     }
-    
+
     # Call retrieve_documents and ensure no crash
     res = await nodes.retrieve_documents(valid_state)
-    
+
     assert "error" not in res
     assert len(res) > 0
     assert "documents" in res
@@ -85,10 +86,7 @@ async def test_retrieve_documents_contract(monkeypatch):
     # 3. Test valid state with query_tier = tier3_complex.
     # LightRAG is disabled in the hot retrieval path to avoid latency spikes
     # and Ollama circuit-breaker trips, so Qdrant results are returned instead.
-    complex_state = {
-        **valid_state,
-        "query_tier": "tier3_complex"
-    }
+    complex_state = {**valid_state, "query_tier": "tier3_complex"}
     res_complex = await nodes.retrieve_documents(complex_state)
     assert "error" not in res_complex
     assert "documents" in res_complex
@@ -122,14 +120,17 @@ async def test_retrieve_documents_kg_ontology_expansion_times_out(monkeypatch):
     mock_embedder.instruction = "Given a spiritual teaching, retrieve relevant passages: "
 
     mock_qdrant = MagicMock()
-    mock_qdrant.search = MagicMock(return_value=[
-        {"text": "Found document teaching", "source_url": "url1", "title": "doc1", "score": 0.9}
-    ])
+    mock_qdrant.search = MagicMock(
+        return_value=[
+            {"text": "Found document teaching", "source_url": "url1", "title": "doc1", "score": 0.9}
+        ]
+    )
 
     mock_lightrag = MagicMock()
     mock_lightrag.aquery = AsyncMock(return_value="")
 
     import rag.nodes as nodes
+
     monkeypatch.setattr(nodes, "_ollama", AsyncMock())
     monkeypatch.setattr(nodes, "_embedder", mock_embedder)
     monkeypatch.setattr(nodes, "_qdrant", mock_qdrant)
@@ -182,4 +183,3 @@ async def test_retrieve_documents_kg_ontology_expansion_times_out(monkeypatch):
     # The expansion path was genuinely exercised (exactly once) — the fast
     # return above is the timeout bounding it, not a path that skipped it.
     assert calls["n"] == 1
-

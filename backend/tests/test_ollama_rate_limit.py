@@ -2,6 +2,7 @@
 outage — it must not trip the circuit breaker. See lessons.md #118 for the
 identical bug already fixed on the OpenRouter provider; this covers the
 Ollama provider fix."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -48,7 +49,10 @@ async def test_generate_real_failure_still_trips_circuit_breaker():
 @pytest.mark.asyncio
 async def test_generate_fast_429_does_not_fall_back_to_main_model():
     svc = _svc_with_mocked_circuit()
-    with patch.object(svc, "_llm_fast") as mock_fast, patch.object(svc, "generate") as mock_generate:
+    with (
+        patch.object(svc, "_llm_fast") as mock_fast,
+        patch.object(svc, "generate") as mock_generate,
+    ):
         mock_fast.bind.return_value = mock_fast
         mock_fast.ainvoke.side_effect = ResponseError("session usage limit", 429)
         with pytest.raises(ResponseError):
