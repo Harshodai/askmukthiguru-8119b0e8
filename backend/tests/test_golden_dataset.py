@@ -8,6 +8,7 @@
 import json
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parent.parent
@@ -30,7 +31,9 @@ def test_dataset_valid_and_populated():
             "practical_meditation",
             "multilingual",
             "adversarial_refusal",
+            "safety_regression",
         }, f"bad category: {it['category']}"
+    assert data.get("category_counts") == dict(Counter(it["category"] for it in data["items"]))
 
 
 def test_golden_eval_cli_parses():

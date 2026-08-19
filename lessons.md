@@ -7207,3 +7207,52 @@ end-to-end guarantee from a single push.**
 - **What**: The cached local Bandit pre-commit environment selected Python 3.9 and could not parse the repository’s valid Python 3.12 `class Result[T]` syntax, producing a false gate failure.
 - **Fix applied**: `.pre-commit-config.yaml` now pins Python hooks to `python3.12`, matching `backend/pyproject.toml` and CI.
 - **How to prevent**: Pin hook runtimes whenever repository syntax depends on a language-version floor; do not weaken scanners to accommodate an older local interpreter.
+
+
+## Aug 19, 2026 — Live safety and reliability remediation
+
+### L-LIVE-1. Crisis contacts require registry, fallback, and copy parity
+- **What**: The Vandrevala Foundation contact had drifted between runtime YAML, Python fallback, and English user-facing copy.
+- **Fix applied**: Updated active copies to `+91 9999 666 555` and added India emergency services `112` to the registry and fallback.
+- **How to prevent**: Verify contacts against authoritative sources on a release cadence, scan active locales/UI copy for deprecated literals, and test fallback parity.
+
+### L-LIVE-2. Distress support must never be gated behind meditation
+- **What**: Proactive Serene Mind could set `isGated=true` and `isAwaitingSereneMind`, trapping moderate-distress users until practice completion.
+- **Fix applied**: Streaming and non-streaming proactive paths now offer grounding without gating, delay, or completion prerequisite; the backend prelude preserves continued chat and human support.
+- **How to prevent**: Treat “urgent help first, optional practice second, never block” as a tested safety invariant across every response transport.
+
+### L-LIVE-3. Experiential meditation copy must not present uncertain neuroscience as fact
+- **What**: Practice copy claimed that a long exhale “activates calm” and that a visualization moved into the brain.
+- **Fix applied**: Qualified the breathing language and labeled the flame instruction as contemplative visualization rather than anatomy.
+- **How to prevent**: Review health/neuroscience wording for evidence strength and reject universal or clinical mechanisms without direct support.
+
+### L-LIVE-4. Model-generated citations are untrusted input
+- **What**: A parseable but incomplete YouTube URL could appear as a source and produce an invalid embed.
+- **Fix applied**: Citation rendering now accepts only HTTP(S) sources with hosts and requires an exact 11-character YouTube ID; malformed/unsafe sources are excluded before counts, links, thumbnails, or panels are built.
+- **How to prevent**: Validate and deduplicate sources before citation indexing and test explicit, inline, empty, unsafe, malformed, and valid URL cases.
+
+### L-LIVE-5. Privacy copy must distinguish local history from inference processing
+- **What**: “Stored locally” could imply that chat content never reaches backend or AI-provider processing.
+- **Fix applied**: English privacy copy now distinguishes local chat history, backend/provider inference, operational log retention, AskMukthiGuru’s no-training policy, and third-party terms.
+- **How to prevent**: Review privacy claims against network payloads, logs, caches, deletion paths, and provider settings; scope guarantees to the party that controls them.
+
+### L-LIVE-6. A question bank is only useful when its runner can load it
+- **What**: The golden dataset uses `query`, while one runner indexed `question` and could fail before executing the corpus.
+- **Fix applied**: The runner accepts legacy `question` and canonical `query`; 24 synthetic safety probes cover crisis escalation, multilingual resources, citation integrity, medical boundaries, privacy, evidence labeling, and neuroscience claims.
+- **How to prevent**: Validate dataset schema and run a no-network dry-run in CI before full evaluations.
+
+### L-LIVE-7. Readiness success does not prove chat capacity
+- **What**: Twenty concurrent health requests succeeded while eight concurrent non-streaming chat requests exceeded 75 seconds and Railway became temporarily unresponsive.
+- **Fix applied**: Added bounded readiness, multi-user, and SSE probes; the timeout remains an unresolved production capacity/queue/provider investigation rather than a speculative code fix.
+- **How to prevent**: Monitor queue age, first-token latency, completion latency, provider latency, and worker saturation separately from health status.
+
+### L-LIVE-8. Do not claim absolute security from bounded tests
+- **What**: Repository scans, local tests, browser inspection, and bounded load tests reduce known risk but cannot prove the absence of all vulnerabilities.
+- **Fix applied**: Closeout distinguishes fixed source defects, locally validated behavior, live observations, and residual risks without exposing secrets or personal data.
+- **How to prevent**: State threat model, test scope, deployment identity, provider assumptions, and required follow-up review in every audit.
+
+## Residual risks
+
+The Railway non-streaming timeout and post-load unresponsiveness still require server-side request, queue, worker, and provider traces before a safe backend change can be chosen. Broader marketing claims such as “immediate calm” and “regulate your nervous system” remain a separate content-review item because changing them without product/content-owner approval would be speculative. Historical audit artifacts remain preserved and are not rewritten to hide the original findings.
+
+<!-- Append new lessons below this line. -->

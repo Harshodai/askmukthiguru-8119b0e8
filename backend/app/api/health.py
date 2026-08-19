@@ -162,12 +162,16 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
             "error": str(exc)[:200],
         }
 
-    # Guardrails
+    # Guardrails — normalize mock/optional service values before JSON encoding.
+    guardrails_available = bool(getattr(container.guardrails, "is_available", False))
+    guardrails_provider = getattr(container.guardrails, "provider_name", "unknown")
+    if not isinstance(guardrails_provider, str):
+        guardrails_provider = "unknown"
     results["guardrails"] = {
-        "ok": container.guardrails.is_available,
+        "ok": guardrails_available,
         "latency_ms": 0,
         "critical": False,
-        "provider": container.guardrails.provider_name,
+        "provider": guardrails_provider,
     }
 
     # Caches
@@ -199,6 +203,8 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
         "critical": False,
     }
     graph_warmup_status = getattr(container, "graph_warmup_status", "unknown")
+    if graph_warmup_status not in {"warming_up", "ready"}:
+        graph_warmup_status = "unknown"
     results["graph_warmup"] = {
         "ok": graph_warmup_status in {"warming_up", "ready"},
         "status": graph_warmup_status,
@@ -208,6 +214,8 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
 
     job_queue = getattr(container, "job_queue", None)
     queue_size = getattr(job_queue, "queue_size", 0) if job_queue else 0
+    if not isinstance(queue_size, (int, float)) or isinstance(queue_size, bool):
+        queue_size = 0
     observe_queue_depths({"job": queue_size})
     # Job Queue
     # Job Queue

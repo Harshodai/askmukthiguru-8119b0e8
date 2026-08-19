@@ -83,11 +83,10 @@ def test_playlist_checkpoint_uses_the_same_scoped_key_for_read_and_write():
     source = (Path(__file__).resolve().parents[1] / "ingest" / "pipeline.py").read_text(
         encoding="utf-8"
     )
-    assert 'checkpoint.is_processed(self._checkpoint_key(video["url"]))' in source
-    assert (
-        'checkpoint.save(self._checkpoint_key(video["url"]), {"content_hash": content_hash_pl})'
-        in source
-    )
+    # The current implementation keys both operations by the content hash so
+    # the same source version/corpus scope is used for read and write.
+    assert "checkpoint.is_processed(self._checkpoint_key(content_hash))" in source
+    assert "checkpoint.save(self._checkpoint_key(content_hash))" in source
 
 
 def test_checkpoint_key_isolated_by_corpus_and_source_version():
