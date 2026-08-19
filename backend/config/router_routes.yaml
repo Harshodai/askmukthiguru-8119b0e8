@@ -371,6 +371,9 @@ doctrine_keywords:
 # =============================================================================
 crisis_helplines:
   - region: "India"
+    name: "National Emergency Services"
+    contact: "112"
+  - region: "India"
     name: "Tele-MANAS (National Mental Health Helpline - 24/7 Toll-Free)"
     contact: "14416 / 1800-891-4416"
   - region: "India"
@@ -385,7 +388,7 @@ crisis_helplines:
     url: "aasra.info"
   - region: "India"
     name: "Vandrevala Foundation"
-    contact: "1860-2662-345"
+    contact: "+91 9999 666 555"
   - region: "India"
     name: "Snehi"
     contact: "044-24640050"

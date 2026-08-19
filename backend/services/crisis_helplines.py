@@ -58,10 +58,11 @@ class Helpline:
 
 
 _FALLBACK_HELPLINES: tuple[Helpline, ...] = (
+    Helpline("India", "National Emergency Services", "112"),
     Helpline("India", "Tele-MANAS", "14416 / 1800-891-4416"),
     Helpline("India", "KIRAN", "1800-599-0019"),
     Helpline("India", "iCall", "9152987821"),
-    Helpline("India", "Vandrevala Foundation", "1860-2662-345"),
+    Helpline("India", "Vandrevala Foundation", "+91 9999 666 555"),
     Helpline("United States", "988 Suicide & Crisis Lifeline", "988"),
     Helpline("International", "Crisis Text Line", "Text HOME to 741741"),
 )

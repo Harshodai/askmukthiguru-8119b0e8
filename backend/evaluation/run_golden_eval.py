@@ -69,9 +69,14 @@ def main() -> int:
     diversity_violations = 0
 
     for it in items:
+        question = it.get("question") or it.get("query")
+        if not question:
+            print(f"[FAIL] {it.get('id', '<unknown>')}: item has neither question nor query", file=sys.stderr)
+            failed += 1
+            continue
         success = True
         try:
-            resp = call_backend(backend_url, token, it["question"])
+            resp = call_backend(backend_url, token, question)
         except Exception as e:
             print(f"[FAIL] {it['id']}: {e}", file=sys.stderr)
             failed += 1
@@ -86,12 +91,12 @@ def main() -> int:
             cites = []
             ctx = [""]
 
-        questions.append(it["question"])
+        questions.append(question)
         answers.append(ans)
         contexts.append(ctx)
         must = it.get("must_mention", [])
         refs.append(
-            "The expected answer must cover: " + ", ".join(must) if must else it["question"]
+            "The expected answer must cover: " + ", ".join(must) if must else question
         )
         if success and diversity_violation(cites, args.min_distinct_sources):
             diversity_violations += 1

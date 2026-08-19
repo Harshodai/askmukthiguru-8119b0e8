@@ -138,7 +138,11 @@ const isUsableSourceUrl = (url: string): boolean => {
     const parsed = new URL(url);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
     if (!parsed.hostname) return false;
-    return !isYouTubeUrl(url) || getYouTubeId(url) !== null;
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    if (hostname === 'youtube.com' || hostname === 'youtu.be') {
+      return getYouTubeId(url) !== null;
+    }
+    return true;
   } catch {
     return false;
   }

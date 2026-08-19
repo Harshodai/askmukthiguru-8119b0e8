@@ -153,7 +153,7 @@ describe('ChatMessage (regression)', () => {
   it('renders citations section with source count', () => {
     const message = makeGuruMessage({
       citations: [
-        'https://www.youtube.com/watch?v=abc123',
+        'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         'https://www.ekam.org/teaching',
       ],
     });
@@ -165,11 +165,26 @@ describe('ChatMessage (regression)', () => {
 
   it('uses inline URLs as fallback citations when none provided', () => {
     const message = makeGuruMessage({
-      content: 'See https://www.youtube.com/watch?v=xyz for the teaching.',
+      content: 'See https://www.youtube.com/watch?v=dQw4w9WgXcQ for the teaching.',
       citations: [],
     });
     render(<ChatMessage message={message} />, { wrapper });
     expect(screen.getByText(/References/i)).toBeInTheDocument();
+  });
+
+  it('filters malformed and unsafe citation URLs instead of rendering them as sources', () => {
+    const message = makeGuruMessage({
+      citations: [
+        '',
+        'not-a-url',
+        'javascript:alert(1)',
+        'https://www.youtube.com/watch?v=abc123',
+      ],
+    });
+    render(<ChatMessage message={message} />, { wrapper });
+
+    expect(screen.queryByText(/References/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('displays memory provenance when memoriesUsed is non-empty', () => {

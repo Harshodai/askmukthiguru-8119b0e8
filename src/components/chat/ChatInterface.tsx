@@ -1280,7 +1280,7 @@ openSereneMind('audio', true);
           } else if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
             openSereneMind('audio');
           } else if (streamedProactiveSereneMind?.triggered) {
-            // Proactive: stream the teachings prelude as a guru message, then open gated after 7s
+            // Proactive distress support is optional: never lock the chat behind meditation.
             const preludeText =
               streamedProactiveSereneMind.teachings_prelude ||
               t('chat.proactivePrelude.streaming');
@@ -1294,14 +1294,7 @@ openSereneMind('audio', true);
               },
             ]);
             const customMed = streamedProactiveSereneMind?.custom_meditation;
-            setTimeout(() => {
-              setIsAwaitingSereneMind(true);
-              setSereneMindOnComplete(() => {
-                setIsAwaitingSereneMind(false);
-                setSereneMindOnComplete(null);
-              });
-              openSereneMind('audio', true, customMed?.steps, customMed?.source_teaching);
-            }, 7000);
+            openSereneMind('audio', false, customMed?.steps, customMed?.source_teaching);
           }
 
           // Heuristic fallback: if LLM text explicitly describes a Serene Mind session
@@ -1505,7 +1498,7 @@ openSereneMind('audio');
         } else if (response.intent === 'DISTRESS' && (response.meditationStep || 0) > 0) {
           openSereneMind('audio');
         } else if (response.proactiveSereneMind?.triggered) {
-          // Proactive gated path with 7s teachings prelude
+          // Proactive distress support is optional: never lock the chat behind meditation.
           const preludeText =
             response.proactiveSereneMind?.teachings_prelude ||
             t('chat.proactivePrelude.standard');
@@ -1518,15 +1511,8 @@ openSereneMind('audio');
               timestamp: new Date(),
             },
           ]);
-setTimeout(() => {
-setIsAwaitingSereneMind(true);
-              setSereneMindOnComplete(() => {
-                setIsAwaitingSereneMind(false);
-                setSereneMindOnComplete(null);
-              });
-              const customMed = response.proactiveSereneMind?.custom_meditation;
-              openSereneMind('audio', true, customMed?.steps, customMed?.source_teaching);
-            }, 7000);
+          const customMed = response.proactiveSereneMind?.custom_meditation;
+          openSereneMind('audio', false, customMed?.steps, customMed?.source_teaching);
         }
 
         // Heuristic fallback for non-streaming path (same logic as streaming)

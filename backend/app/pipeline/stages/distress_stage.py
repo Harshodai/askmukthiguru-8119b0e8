@@ -313,10 +313,8 @@ class DistressStage(Stage):
                 "signals": proactive.detected_signals,
                 "suggested_response": ctx.container.serene_mind.get_response(proactive),
                 "teachings_prelude": (
-                    "Sri Krishnaji and Preethaji teach us that suffering is not the truth of who you are. "
-                    "Every moment of pain is also a doorway to awakening. "
-                    "You are not alone in this — Mukti Guru is here with you. "
-                    "Before we continue, let's pause together in a moment of Serene Mind."
+                    "I’m sorry this feels heavy. You do not need to interpret or solve it spiritually right now. "
+                    "If it feels helpful, you may try a brief, optional grounding practice; you can also continue chatting or seek human support."
                 ),
             }
         except Exception as e:
