@@ -139,6 +139,27 @@ async def test_claim_confidence_extraction_writes_columns():
 
 
 @pytest.mark.asyncio
+async def test_anonymous_session_skips_durable_profile_and_memory_reads():
+    container = MagicMock()
+    container.second_brain = None
+    container.user_profile.get_or_create_profile = AsyncMock()
+    container.user_profile.update_profile = AsyncMock()
+    container.user_profile.get_recent_memories = AsyncMock()
+
+    memory_context, distress_history = await prepare_user_memory(
+        container,
+        "anon:signed-session-token",
+        [{"role": "user", "content": "What is witness awareness?"}],
+    )
+
+    assert memory_context == ""
+    assert distress_history == []
+    container.user_profile.get_or_create_profile.assert_not_awaited()
+    container.user_profile.update_profile.assert_not_awaited()
+    container.user_profile.get_recent_memories.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_scored_retrieval_dedupes_by_subject():
     container = MagicMock()
     container.user_profile.get_or_create_profile = AsyncMock(

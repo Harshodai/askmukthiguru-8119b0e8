@@ -601,7 +601,10 @@ async def prepare_user_memory(
     if not container.user_profile:
         return memory_context, distress_history
 
-    if not user_id or user_id == "anonymous":
+    # Signed anonymous session IDs use the ``anon:<token>`` form. They are
+    # intentionally non-persistable and must never trigger profile creation,
+    # durable memory reads, persona lookups, or per-turn profile updates.
+    if not user_id or not _is_persistable_user_id(user_id):
         return memory_context, distress_history
 
     profile = await container.user_profile.get_or_create_profile(user_id)
