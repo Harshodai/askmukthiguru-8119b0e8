@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import type { User } from '@supabase/supabase-js';
 import { clearMeditationResume } from '@/lib/meditationResume';
+import { clearLocalChatData } from '@/lib/chatStorage';
 
 const PROTECTED_PREFIXES = ['/chat', '/profile', '/admin'];
 
@@ -14,6 +15,9 @@ const originalSignOut = supabase.auth.signOut;
 supabase.auth.signOut = async function (...args) {
   sessionStorage.setItem('auth_explicit_signout', 'true');
   clearMeditationResume();
+  void clearLocalChatData().catch((error) => {
+    console.warn('[SessionExpiredHandler] local chat purge failed:', error);
+  });
   return originalSignOut.apply(this, args);
 };
 
@@ -54,6 +58,9 @@ export const SessionExpiredHandler = () => {
 
       if (event === 'SIGNED_OUT') {
         const isExplicit = sessionStorage.getItem('auth_explicit_signout') === 'true';
+        void clearLocalChatData().catch((error) => {
+          console.warn('[SessionExpiredHandler] local chat purge failed:', error);
+        });
         // Clear the explicit flag
         sessionStorage.removeItem('auth_explicit_signout');
 
@@ -80,4 +87,3 @@ export const SessionExpiredHandler = () => {
 
   return null;
 };
-

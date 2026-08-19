@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProfile } from '@/hooks/useProfile';
 import { useTheme } from '@/hooks/useTheme';
 import { exportAllData, getInitials, resetProfile } from '@/lib/profileStorage';
+import { clearLocalChatData } from '@/lib/chatStorage';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -139,8 +140,9 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={async () => {
-            await supabase.auth.signOut();
+            await clearLocalChatData();
             resetProfile();
+            await supabase.auth.signOut();
             navigate('/auth');
             toast({ title: t('common.signedOut'), description: t('common.signedOutDesc') });
           }}

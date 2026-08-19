@@ -19,6 +19,24 @@ const storage: SupportedStorage = isNative
       removeItem(key: string) { localStorage.removeItem(key); return Promise.resolve(); },
     };
 
+const LOCAL_CHAT_KEYS = [
+  'askmukthiguru_chat_history',
+  'askmukthiguru_conversations',
+  'askmukthiguru_current_conversation',
+  'askmukthiguru_feedback',
+  'askmukthiguru_max_conversations',
+  'askmukthiguru_retention_days',
+] as const;
+
+/**
+ * Remove locally cached conversation and feedback content on identity changes.
+ * This is intentionally storage-adapter based so native Preferences are purged
+ * too; callers should await it before presenting the next signed-in session.
+ */
+export const clearLocalChatData = async (): Promise<void> => {
+  await Promise.all(LOCAL_CHAT_KEYS.map((key) => storage.removeItem(key)));
+};
+
 export interface MessageFeedback {
   vote: 'up' | 'down';
   tags: string[];

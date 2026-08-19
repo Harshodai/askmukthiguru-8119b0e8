@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   saveFeedback,
+  clearLocalChatData,
   loadAllFeedback,
   saveConversation,
   loadConversations,
@@ -40,6 +41,20 @@ describe('chatStorage', () => {
       const all = loadAllFeedback();
       expect(all['msg-1'].vote).toBe('down');
     });
+  });
+
+  it('clears cached chat and feedback data for an identity transition', async () => {
+    localStorage.setItem('askmukthiguru_chat_history', '[]');
+    localStorage.setItem('askmukthiguru_conversations', '[]');
+    localStorage.setItem('askmukthiguru_current_conversation', 'conversation-1');
+    localStorage.setItem('askmukthiguru_feedback', '{}');
+
+    await clearLocalChatData();
+
+    expect(localStorage.getItem('askmukthiguru_chat_history')).toBeNull();
+    expect(localStorage.getItem('askmukthiguru_conversations')).toBeNull();
+    expect(localStorage.getItem('askmukthiguru_current_conversation')).toBeNull();
+    expect(localStorage.getItem('askmukthiguru_feedback')).toBeNull();
   });
 
   describe('Conversations', () => {

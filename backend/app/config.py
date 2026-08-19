@@ -530,7 +530,14 @@ class Settings(BaseSettings):
     # DISABLE_PUBLIC_REGISTRATION env var only for explicit internal flows.
     disable_public_registration: bool = True
     chat_rate_limit: str = "20/minute"
+    chat_upload_rate_limit: str = "10/minute"
+    support_contact_rate_limit: str = "5/hour"
     registration_rate_limit: str = "5/minute"
+    # Expensive authenticated operations use stricter limits than ordinary reads.
+    memory_generation_rate_limit: str = "10/hour"
+    second_brain_write_rate_limit: str = "30/minute"
+    second_brain_export_rate_limit: str = "3/hour"
+    srs_generation_rate_limit: str = "10/hour"
     # --- Anonymous Quota (Progressive Auth) ---
     # Max user turns allowed per anonymous session within the window.
     anon_quota_messages: int = Field(default=5, gt=0)
@@ -562,6 +569,10 @@ class Settings(BaseSettings):
     support_to_email: str = "kharshaengineer@gmail.com"
     # When SMTP is not configured, support submissions fall back to file storage.
     support_storage_path: str = "data/support_messages"
+    support_max_name_chars: int = Field(default=120, ge=1, le=500)
+    support_max_subject_chars: int = Field(default=200, ge=1, le=1000)
+    support_max_message_chars: int = Field(default=5000, ge=1, le=50000)
+    support_storage_max_entries: int = Field(default=500, ge=1, le=10000)
 
     # --- RAPTOR ---
     raptor_cluster_size: int = 8
@@ -1406,7 +1417,3 @@ if __name__ == "__main__":
         "qdrant_quantization_oversampling": s.qdrant_quantization_oversampling,
     }
     print(f"Settings ok: {json.dumps(validated)}")
-
-
-
-

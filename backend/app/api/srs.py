@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+
+from app.config import settings
+from app.core.limiter import limiter
 from pydantic import BaseModel
 
 from app.dependencies import ServiceContainer, get_container
@@ -42,7 +45,9 @@ async def review_card(
     return card
 
 @router.post("/srs/generate")
+@limiter.limit(settings.srs_generation_rate_limit)
 async def generate_cards(
+    request: Request,
     req: GenerateRequest,
     user: dict = Depends(get_current_user_from_supabase),
     container: ServiceContainer = Depends(get_container),

@@ -21,7 +21,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+
+from app.config import settings
+from app.core.limiter import limiter
 from pydantic import BaseModel, Field
 
 from app.dependencies import get_container
@@ -105,7 +108,8 @@ async def enable_session_unlock(
 
 
 @router.delete("/brain/vault")
-async def shred(user_id: str = Depends(_authed_user_id)):
+@limiter.limit(settings.second_brain_export_rate_limit)
+async def shred(request: Request, user_id: str = Depends(_authed_user_id)):
     """Permanently destroy the entire Second Brain (crypto-shredding)."""
     return await _svc().crypto_shred(user_id)
 
@@ -115,7 +119,9 @@ async def shred(user_id: str = Depends(_authed_user_id)):
 # ---------------------------------------------------------------------------
 
 @router.post("/brain/items", response_model=dict)
+@limiter.limit(settings.second_brain_write_rate_limit)
 async def add_item(
+    request: Request,
     body: AddItemRequest,
     user_id: str = Depends(_authed_user_id),
     vault: UnlockedVault = Depends(_vault),
@@ -142,7 +148,8 @@ async def list_items(
 
 
 @router.delete("/brain/items/{item_id}")
-async def forget_item(item_id: str, user_id: str = Depends(_authed_user_id)):
+@limiter.limit(settings.second_brain_write_rate_limit)
+async def forget_item(request: Request, item_id: str, user_id: str = Depends(_authed_user_id)):
     ok = await _svc().forget_item(user_id, item_id)
     return {"forgotten": ok}
 
@@ -152,7 +159,9 @@ async def forget_item(item_id: str, user_id: str = Depends(_authed_user_id)):
 # ---------------------------------------------------------------------------
 
 @router.get("/brain/recall", response_model=list[BrainItemOut])
+@limiter.limit(settings.second_brain_write_rate_limit)
 async def recall(
+    request: Request,
     q: str = "",
     limit: int = 8,
     user_id: str = Depends(_authed_user_id),
@@ -168,7 +177,9 @@ async def recall(
 # ---------------------------------------------------------------------------
 
 @router.get("/brain/export")
+@limiter.limit(settings.second_brain_export_rate_limit)
 async def export_brain(
+    request: Request,
     user_id: str = Depends(_authed_user_id),
     vault: UnlockedVault = Depends(_vault),
 ):

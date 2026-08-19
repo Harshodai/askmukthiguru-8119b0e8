@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import smtplib
+from pathlib import Path
 import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -108,7 +110,12 @@ def _save_to_disk(
     attachment_paths: Optional[list[str]],
 ) -> bool:
     try:
-        os.makedirs(settings.support_storage_path, exist_ok=True)
+        storage_dir = Path(settings.support_storage_path)
+        storage_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        try:
+            os.chmod(storage_dir, 0o700)
+        except OSError:
+            logger.debug("Could not tighten support storage directory mode", exc_info=True)
         ts = int(time.time())
         entry = {
             "ts": ts,
@@ -119,10 +126,21 @@ def _save_to_disk(
             "category": category,
             "attachments": attachment_paths or [],
         }
-        fname = f"{ts}_{from_email.replace('@', '_at_')}.json"
-        path = os.path.join(settings.support_storage_path, fname)
-        with open(path, "w") as f:
+        safe_email = re.sub(r"[^A-Za-z0-9_.-]", "_", from_email.replace("@", "_at_"))[:180]
+        path = storage_dir / f"{ts}_{safe_email}.json"
+        with path.open("w", encoding="utf-8") as f:
             json.dump(entry, f, indent=2)
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            logger.debug("Could not tighten support message file mode", exc_info=True)
+
+        files = sorted(storage_dir.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+        for stale in files[settings.support_storage_max_entries:]:
+            try:
+                stale.unlink()
+            except OSError:
+                logger.warning("Failed to prune stale support message %s", stale)
         logger.info("Support message saved to %s", path)
         return True
     except Exception as e:

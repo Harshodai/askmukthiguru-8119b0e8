@@ -19,7 +19,8 @@ repos:
     rev: 1.7.9
     hooks:
       - id: bandit
-        args: ["-ll", "-c", "backend/pyproject.toml"]
+        # Keep local commits aligned with CI's documented Bandit policy.
+        args: ["-ll", "-c", "backend/.bandit"]
         additional_dependencies: ["bandit[toml]"]
         files: ^(backend|scripts)/
   # CRIT-6 / T7: local hook — fail the commit if a known PII dump filename

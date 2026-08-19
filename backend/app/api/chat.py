@@ -38,10 +38,13 @@ from services.tenant_context import TenantContext, set_tenant_from_request
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Chat"])
+# Extraction/OCR is CPU- and provider-intensive. Keep anonymous uploads from
+# occupying every worker even when the per-client limiter is bypassed.
+_ATTACHMENT_EXTRACTION_SEMAPHORE = asyncio.Semaphore(2)
 
 
 @router.post("/chat/upload")
-@limiter.limit("10/minute")
+@limiter.limit(settings.chat_upload_rate_limit)
 async def chat_upload_endpoint(
     request: Request,
     files: list[UploadFile] = File(...),
@@ -66,11 +69,17 @@ async def chat_upload_endpoint(
         uploads.append((upload.filename or "attachment", upload.content_type or "", payload))
 
     try:
-        return await extract_chat_attachments(
-            uploads,
-            language=language_code,
-            ocr_service=getattr(container, "ocr", None),
-        )
+        async with _ATTACHMENT_EXTRACTION_SEMAPHORE:
+            return await asyncio.wait_for(
+                extract_chat_attachments(
+                    uploads,
+                    language=language_code,
+                    ocr_service=getattr(container, "ocr", None),
+                ),
+                timeout=45.0,
+            )
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(status_code=408, detail="Attachment processing timed out") from exc
     except ValueError as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
 
@@ -352,12 +361,12 @@ async def generate_title_endpoint(
     try:
         system_prompt = "Create a concise, meaningful chat title. Return ONLY the title, no quotes, no punctuation, and keep it under 6 words."
         user_prompt = f"Title this conversation: {first_message}"
-        
+
         raw_title = await container.ollama.generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
         )
-        
+
         title = raw_title.strip().replace('"', '').replace("'", "").strip()
         if title:
             if len(title) > 50:
@@ -365,7 +374,7 @@ async def generate_title_endpoint(
             return {"title": title}
     except Exception as e:
         logger.warning(f"Failed to generate conversation title via LLM: {e}")
-        
+
     fallback = first_message[:47] + "..." if len(first_message) > 50 else first_message
     return {"title": fallback}
 
@@ -923,19 +932,19 @@ async def get_concept_graph(
                     tgt = record["target_name"]
                     if not src or not tgt:
                         continue
-                    
+
                     if src not in nodes:
                         nodes[src] = {"id": src, "group": record["source_label"] or "Concept"}
                     if tgt not in nodes:
                         nodes[tgt] = {"id": tgt, "group": record["target_label"] or "Concept"}
-                        
+
                     links.append({
                         "source": src,
                         "target": tgt,
                         "type": record["rel_type"]
                     })
             return {"nodes": list(nodes.values()), "links": links}
-            
+
         return await asyncio.to_thread(_query_graph)
     except Exception as e:
         logger.warning(f"Failed to query Neo4j concept-graph: {e}")

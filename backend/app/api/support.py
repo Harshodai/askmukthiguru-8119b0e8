@@ -5,10 +5,11 @@ import os
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Form, HTTPException, UploadFile, File
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from pydantic import EmailStr
 
 from app.config import settings
+from app.core.limiter import limiter
 from app.services.email_service import send_support_email
 
 logger = logging.getLogger(__name__)
@@ -26,24 +27,44 @@ MAX_ATTACHMENTS = 5
 
 
 @router.post("/contact")
+@limiter.limit(settings.support_contact_rate_limit)
 async def contact_support(
+    request: Request,
     name: str = Form(""),
     email: str = Form(...),
     subject: str = Form(...),
     message: str = Form(...),
     category: str = Form("Feedback"),
+    website: str = Form(""),
     attachments: list[UploadFile] = File(default_factory=list),
 ):
+    # Honeypot: legitimate clients leave this hidden field empty. Returning a
+    # generic success avoids teaching bots which field triggered the block.
+    website_value = website if isinstance(website, str) else ""
+    if website_value.strip():
+        return {"ok": True, "status": "success", "message": "Message received."}
+    name = name.strip()
+    email = email.strip()
+    subject = subject.strip()
+    message = message.strip()
+    category_value = category if isinstance(category, str) else "Feedback"
+    category = category_value.strip() or "Feedback"
+    if len(name) > settings.support_max_name_chars:
+        raise HTTPException(status_code=422, detail="Name is too long")
+    if len(subject) > settings.support_max_subject_chars:
+        raise HTTPException(status_code=422, detail="Subject is too long")
+    if len(message) > settings.support_max_message_chars:
+        raise HTTPException(status_code=422, detail="Message is too long")
     if not email:
         raise HTTPException(status_code=422, detail="Valid email is required")
     import re
     if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email):
         raise HTTPException(status_code=422, detail="Valid email is required")
 
-    if not subject.strip():
+    if not subject:
         raise HTTPException(status_code=422, detail="Subject is required")
 
-    if not message.strip():
+    if not message:
         raise HTTPException(status_code=422, detail="Message is required")
 
     saved_paths: list[str] = []

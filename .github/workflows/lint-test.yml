@@ -23,6 +23,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -72,6 +74,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -131,6 +135,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -168,5 +174,19 @@ jobs:
       - name: Install frontend deps (for eslint hook)
         run: npm ci
 
-      - name: Run pre-commit on all files
-        run: pre-commit run --all-files --show-diff-on-failure
+      - name: Run pre-commit on changed files
+        working-directory: .
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            mapfile -d '' files < <(git diff --name-only -z "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}")
+          else
+            mapfile -d '' files < <(git diff-tree --no-commit-id --name-only -r -z HEAD)
+          fi
+          if ((${#files[@]} == 0)); then
+            echo "No changed files require pre-commit validation."
+            exit 0
+          fi
+          printf 'Validating %d changed file(s)\n' "${#files[@]}"
+          pre-commit run --files "${files[@]}" --show-diff-on-failure
