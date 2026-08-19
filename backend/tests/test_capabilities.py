@@ -10,7 +10,7 @@ from app.config import settings
 def test_manifest_exposes_policy_disabled_features(monkeypatch) -> None:
     monkeypatch.setattr(settings, "feature_memory_write", False)
     monkeypatch.setattr(settings, "web_search_enabled", False)
-    monkeypatch.setattr(settings, "use_request_queue", False)
+    monkeypatch.setattr(settings, "queue_enabled", False)
     container = SimpleNamespace(
         qdrant=object(),
         embedding=object(),
@@ -31,6 +31,23 @@ def test_manifest_exposes_policy_disabled_features(monkeypatch) -> None:
     assert manifest["features"]["request_queue"] == "disabled_by_policy"
     assert manifest["features"]["support_attachments"] == "disabled_by_policy"
     assert manifest["features"]["waitlist"] == "disabled_by_policy"
+
+
+def test_manifest_reports_chat_queue_when_enabled_and_available(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "queue_enabled", True)
+    container = SimpleNamespace(
+        qdrant=object(),
+        embedding=object(),
+        ollama=object(),
+        standard_graph=object(),
+        lightrag_degraded=False,
+        web_search=None,
+        job_queue=object(),
+    )
+
+    manifest = build_capability_manifest(container)
+
+    assert manifest["features"]["request_queue"] == "available"
 
 
 def test_manifest_reports_enabled_but_missing_dependency_as_unavailable(monkeypatch) -> None:

@@ -385,6 +385,11 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       return /(?:Sri\s+(?:Preethaji|Krishnaji)|Preethaji|Krishnaji)[^.\n]{0,60}["“'']/.test(message.content);
     }, [isGuru, citations.length, message.content]);
 
+    const displayContent = useMemo(() => {
+      if (!isGuru || citations.length > 0 || !hasUnverifiedAttribution) return message.content;
+      return 'I could not verify the quoted teaching against a linked source, so I am not presenting it as a teacher attribution. Please retry to request a grounded answer.';
+    }, [citations.length, hasUnverifiedAttribution, isGuru, message.content]);
+
     const [showWisdomCard, setShowWisdomCard] = useState(false);
     const [copied, setCopied] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -731,7 +736,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                             },
                           }}
                         >
-                          {injectCitationLinks(message.content, (message.citations ?? []).length)}
+                          {injectCitationLinks(displayContent, (message.citations ?? []).length)}
                         </ReactMarkdown>
                       )}
                     </div>

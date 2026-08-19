@@ -47,7 +47,6 @@ async def chat_upload_endpoint(
     files: list[UploadFile] = File(...),
     language_code: Optional[str] = Form(None),
     container: ServiceContainer = Depends(get_container),
-    identity: dict = Depends(resolve_anon_identity),
 ):
     """Extract bounded evidence for the next chat turn without persisting uploads."""
     if not files:

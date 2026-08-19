@@ -25,6 +25,11 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
     vector_available = getattr(container, "qdrant", None) is not None
     embedding_available = getattr(container, "embedding", None) is not None
     graph_available = bool(getattr(container, "standard_graph", None)) and not getattr(container, "lightrag_degraded", True)
+    # The chat endpoints use the Redis-backed job_queue controlled by
+    # QUEUE_ENABLED. ``use_request_queue`` is a separate legacy in-process
+    # request queue and must not be exposed as the public chat queue state.
+    chat_queue_enabled = bool(getattr(settings, "queue_enabled", False))
+    chat_queue_available = getattr(container, "job_queue", None) is not None
 
     return {
         "schema_version": 1,
@@ -39,7 +44,7 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
                 settings.live_logistics_enabled,
                 settings.web_search_enabled and getattr(container, "web_search", None) is not None,
             ),
-            "request_queue": _state(settings.use_request_queue, False),
+            "request_queue": _state(chat_queue_enabled, chat_queue_available),
             "teacher_voice": _state(settings.langhanam_voice_enabled),
             "serene_mind": _state(True, getattr(container, "serene_mind", None) is not None),
             "guided_meditation": "available",

@@ -201,6 +201,17 @@ describe('ChatMessage (regression)', () => {
     expect(screen.getByRole("button", { name: "Open response sources" })).toBeInTheDocument();
   });
 
+  it("suppresses unverified teacher-attributed quotations when no source is linked", () => {
+    const message = makeGuruMessage({
+      content: 'Sri Preethaji says "Awareness is the beginning of freedom."',
+      citations: [],
+      groundingState: "abstained",
+    });
+    render(<ChatMessage message={message} />, { wrapper });
+    expect(screen.getByText(/could not verify the quoted teaching/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Awareness is the beginning of freedom/i)).not.toBeInTheDocument();
+  });
+
   it("treats ungrounded responses with inline URLs as abstained (reflective guidance)", () => {
     const message = makeGuruMessage({
       content: 'Here is some wisdom with inline link https://example.com/audio',
