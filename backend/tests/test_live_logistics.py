@@ -5,6 +5,7 @@ import pytest
 from app.config import settings
 from rag.graph_strategies import route_after_intent
 from rag.nodes.intent import _is_app_boundary_query, _is_logistics_query, handle_casual
+from rag.nodes.generation import generate_answer
 from rag.nodes.web_search import web_search_node
 
 
@@ -48,6 +49,29 @@ def test_manifest_date_and_booking_queries_are_live_logistics():
     assert _is_logistics_query("What is the current schedule on the official Oneness Movement website?")
     assert not _is_logistics_query("What is the teaching of manifestation?")
     assert route_after_intent({"intent": "LIVE_LOGISTICS"}) == "temporal"
+
+
+@pytest.mark.asyncio
+async def test_live_logistics_generation_uses_official_results_directly():
+    result = await generate_answer(
+        {
+            "question": "What is the latest official Ekam program information?",
+            "intent": "LIVE_LOGISTICS",
+            "relevant_docs": [],
+            "web_search_results": [
+                {
+                    "title": "Ekam Events",
+                    "text": "Official current event information.",
+                    "official_source_url": "https://www.ekam.org/events",
+                }
+            ],
+            "detected_language": "en",
+            "chat_history": [],
+        }
+    )
+    assert result["verification"]["method"] == "official_live_web_results"
+    assert result["citations"] == ["https://www.ekam.org/events"]
+    assert "Ekam Events" in result["answer"]
 
 
 @pytest.mark.asyncio
