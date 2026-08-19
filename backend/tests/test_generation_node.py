@@ -217,3 +217,44 @@ def test_compute_context_budget_keeps_history_and_memory_margin():
     assert baseline > 1500
     assert baseline + context <= 2000
     assert context >= 200
+
+
+
+def test_evidence_refusal_action_retries_short_refusal_with_retrieved_docs():
+    from rag.nodes.generation import _evidence_refusal_action
+
+    action, answer = _evidence_refusal_action(
+        "I am unable to find specific teachings on this topic.",
+        [{"text": "Awareness can be practiced by returning gently to the breath."}],
+    )
+
+    assert action == "retry"
+    assert answer.startswith("I am unable")
+
+
+def test_evidence_refusal_action_strips_contradictory_trailing_refusal():
+    from rag.nodes.generation import _evidence_refusal_action
+
+    substantive = (
+        "Return to the breath, notice the movement of thought, and allow attention "
+        "to rest in calm awareness. This practice can be brought into ordinary work. "
+        "I am unable to find specific teachings on this topic."
+    )
+    action, answer = _evidence_refusal_action(
+        substantive,
+        [{"text": "Calm awareness begins with returning to the breath."}],
+    )
+
+    assert action == "strip"
+    assert "I am unable to find specific teachings" not in answer
+    assert answer.endswith("ordinary work.")
+
+
+def test_evidence_refusal_action_ignores_refusal_without_evidence():
+    from rag.nodes.generation import _evidence_refusal_action
+
+    answer = "I am unable to find specific teachings on this topic."
+    action, unchanged = _evidence_refusal_action(answer, [])
+
+    assert action == "none"
+    assert unchanged == answer

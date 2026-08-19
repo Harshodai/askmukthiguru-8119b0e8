@@ -41,6 +41,37 @@ from .utils import (
 
 logger = logging.getLogger(__name__)
 
+_EVIDENCE_REFUSAL_MARKERS = (
+    "i am unable to find specific teachings",
+    "i'm unable to find specific teachings",
+    "i was unable to find specific teachings",
+    "i wasn't able to find specific teachings",
+)
+
+
+def _evidence_refusal_action(answer: str, relevant_docs: list[dict]) -> tuple[str, str]:
+    """Classify a refusal that contradicts the presence of retrieved evidence.
+
+    A short refusal is retried once so the model gets a chance to use the
+    retrieved context. If a model appends the refusal after a substantive answer,
+    remove only that contradictory tail. Empty evidence remains governed by the
+    existing abstention paths and is never treated as a quality failure here.
+    """
+    if not answer or not any(doc_text(doc).strip() for doc in relevant_docs):
+        return "none", answer
+    lowered = answer.casefold()
+    marker_index = min(
+        (index for marker in _EVIDENCE_REFUSAL_MARKERS if (index := lowered.find(marker)) >= 0),
+        default=-1,
+    )
+    if marker_index < 0:
+        return "none", answer
+    prefix = answer[:marker_index].rstrip()
+    if len(prefix) >= 120 and prefix.count(".") >= 1:
+        return "strip", prefix
+    return "retry", answer
+
+
 # An abstention has no supporting teaching or personal-memory evidence. Keep its
 # internal telemetry deliberately low; the UI presents this as a support label.
 NO_EVIDENCE_CONFIDENCE = settings.generation_no_evidence_confidence
@@ -1122,9 +1153,10 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     retry_count = state.get("retry_count", 0)
     if retry_count > 0:
         system_prompt += (
-            "\n\nIMPORTANT: Your previous answer was rejected for insufficient faithfulness. "
-            "You MUST base your answer STRICTLY on the provided context. "
-            "If the context doesn't fully answer the question, say so clearly rather than making things up."
+            "\n\nIMPORTANT: Your previous draft was rejected because it refused despite retrieved evidence. "
+            "Use the relevant teachings in the context to answer the question directly and concisely. "
+            "Do not repeat a generic refusal when the context contains relevant evidence. "
+            "If the evidence truly does not answer the question, state precisely what is missing without inventing."
         )
 
     # Langhanam guru voice — variant A (prompt persona injection). Feature-
@@ -1728,6 +1760,39 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         except Exception as _cite_err:
             logger.warning("Citation post-verification failed (non-fatal): %s", _cite_err)
             citations_verified = (state.get("verification") or {}).get("citations_verified", True)
+
+    refusal_action, refusal_answer = _evidence_refusal_action(answer, relevant_docs)
+    if refusal_action == "retry":
+        retry_count = state.get("retry_count", 0)
+        if retry_count < 1:
+            logger.warning(
+                "Final: citation-backed refusal detected with retrieved evidence; retrying once"
+            )
+            return {
+                "retry_count": retry_count + 1,
+                "_needs_retry": True,
+                "refusal_quality_failure": True,
+            }
+        logger.warning(
+            "Final: citation-backed refusal persisted after retry; using bounded fallback"
+        )
+        return {
+            "final_answer": FALLBACK_RESPONSE,
+            "citations": [],
+            "intent": intent,
+            "_needs_retry": False,
+            "is_faithful": False,
+            "verification": {"passed": False, "method": "refusal_quality_gate"},
+            "faithfulness_score": 0.0,
+            "confidence_score": 0.0,
+            "citations_verified": False,
+            "refusal_quality_failure": True,
+        }
+    if refusal_action == "strip":
+        logger.warning(
+            "Final: removing contradictory trailing refusal from substantive cited answer"
+        )
+        answer = refusal_answer
 
     verification = state.get("verification")
     if not isinstance(verification, dict):
