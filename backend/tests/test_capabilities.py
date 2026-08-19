@@ -102,3 +102,25 @@ def test_manifest_exposes_composer_capabilities_without_claiming_server_voice():
     assert features["guided_meditation"] == "available"
     assert features["text_attachments"] == "available"
     assert features["voice_input"] == "available"
+
+
+def test_manifest_reports_multimodal_and_ocr_availability(monkeypatch) -> None:
+    monkeypatch.setattr("app.api.capabilities.shutil.which", lambda name: "/usr/bin/ffmpeg")
+    container = SimpleNamespace(
+        qdrant=object(),
+        embedding=object(),
+        ollama=object(),
+        standard_graph=object(),
+        lightrag_degraded=False,
+        web_search=None,
+        job_queue=object(),
+        ocr=SimpleNamespace(health_check=lambda: True),
+    )
+
+    features = build_capability_manifest(container)["features"]
+
+    assert features["document_attachments"] == "available"
+    assert features["image_attachments"] == "available"
+    assert features["audio_attachments"] == "available"
+    assert features["video_attachments"] == "available"
+    assert features["ocr"] == "available"

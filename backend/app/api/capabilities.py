@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import shutil
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -13,6 +15,7 @@ from app.config import settings
 from app.dependencies import ServiceContainer, get_container
 
 router = APIRouter(tags=["Capabilities"])
+logger = logging.getLogger(__name__)
 
 
 def _state(enabled: bool, available: bool = True) -> str:
@@ -33,6 +36,13 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
     # request queue and must not be exposed as the public chat queue state.
     chat_queue_enabled = bool(getattr(settings, "queue_enabled", False))
     chat_queue_available = getattr(container, "job_queue", None) is not None
+    ocr_service = getattr(container, "ocr", None)
+    try:
+        ocr_available = bool(ocr_service is not None and ocr_service.health_check())
+    except Exception as exc:
+        logger.debug("OCR capability probe failed: %s", exc)
+        ocr_available = False
+    media_runtime_available = shutil.which("ffmpeg") is not None
 
     return {
         "schema_version": 1,
@@ -54,6 +64,11 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
             "serene_mind": _state(True, getattr(container, "serene_mind", None) is not None),
             "guided_meditation": "available",
             "text_attachments": "available",
+            "document_attachments": "available",
+            "image_attachments": "available",
+            "audio_attachments": _state(True, media_runtime_available),
+            "video_attachments": _state(True, media_runtime_available),
+            "ocr": _state(True, ocr_available),
             "voice_input": "available",
             "whatsapp": "disabled_by_policy",
             "support_attachments": "disabled_by_policy",

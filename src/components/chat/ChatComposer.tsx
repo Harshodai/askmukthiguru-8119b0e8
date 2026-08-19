@@ -58,7 +58,17 @@ interface ChatComposerProps {
   onVoiceToggle: () => void;
   onTtsToggle: () => void;
   onLanguageChange: (code: string) => void;
-  capabilities?: { sereneMind: boolean; guidedMeditation: boolean; textAttachments: boolean; voiceInput: boolean };
+  capabilities?: {
+    sereneMind: boolean;
+    guidedMeditation: boolean;
+    textAttachments: boolean;
+    documentAttachments?: boolean;
+    imageAttachments?: boolean;
+    audioAttachments?: boolean;
+    videoAttachments?: boolean;
+    ocr?: boolean;
+    voiceInput: boolean;
+  };
   onSereneMind: () => void;
   onGuidedMeditation: () => void;
   onFocus: () => void;
@@ -107,8 +117,33 @@ export function ChatComposer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const actionCapabilities = capabilities ?? { sereneMind: true, guidedMeditation: true, textAttachments: true, voiceInput: true };
-  const hasMoreActions = actionCapabilities.sereneMind || actionCapabilities.guidedMeditation || actionCapabilities.textAttachments;
+  const actionCapabilities = capabilities ?? {
+    sereneMind: true,
+    guidedMeditation: true,
+    textAttachments: true,
+    documentAttachments: true,
+    imageAttachments: true,
+    audioAttachments: true,
+    videoAttachments: true,
+    ocr: true,
+    voiceInput: true,
+  };
+  const attachmentCapabilities = {
+    text: actionCapabilities.textAttachments,
+    documents: actionCapabilities.documentAttachments ?? actionCapabilities.textAttachments,
+    images: actionCapabilities.imageAttachments ?? actionCapabilities.textAttachments,
+    audio: actionCapabilities.audioAttachments ?? actionCapabilities.textAttachments,
+    video: actionCapabilities.videoAttachments ?? actionCapabilities.textAttachments,
+  };
+  const attachmentsAvailable = Object.values(attachmentCapabilities).some(Boolean);
+  const hasMoreActions = actionCapabilities.sereneMind || actionCapabilities.guidedMeditation || attachmentsAvailable;
+  const attachmentAccept = [
+    ...(attachmentCapabilities.text ? ['.txt', '.md', '.markdown', '.csv', '.tsv', '.json', '.log', '.xml', '.html', '.htm', '.yaml', '.yml'] : []),
+    ...(attachmentCapabilities.documents ? ['.pdf', '.docx', '.pptx', '.xlsx'] : []),
+    ...(attachmentCapabilities.images ? ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'] : []),
+    ...(attachmentCapabilities.audio ? ['.mp3', '.wav', '.m4a', '.ogg', '.flac'] : []),
+    ...(attachmentCapabilities.video ? ['.webm', '.mp4', '.mov', '.avi', '.mkv'] : []),
+  ].join(',');
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -211,7 +246,7 @@ export function ChatComposer({
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
-          accept=".txt,.md,.markdown,.csv,.tsv,.json,.log,.xml,.html,.htm,.yaml,.yml,.pdf,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.bmp,.mp3,.wav,.m4a,.ogg,.flac,.webm,.mp4,.mov,.avi,.mkv"
+          accept={attachmentAccept}
           className="hidden"
         />
 
@@ -298,7 +333,7 @@ export function ChatComposer({
                       {t('chat.guidedMeditation')}
                     </DropdownMenuItem>
                   )}
-                  {actionCapabilities.textAttachments && (
+                  {attachmentsAvailable && (
                     <DropdownMenuItem disabled={isUploading} onClick={() => fileInputRef.current?.click()}>
                       <FileText className="w-4 h-4 mr-2 text-ojas" />
                       {isUploading ? 'Processing attachment…' : 'Attach media or document'}

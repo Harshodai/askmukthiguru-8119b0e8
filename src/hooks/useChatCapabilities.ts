@@ -10,6 +10,11 @@ export type ChatCapabilities = {
   sereneMind: boolean;
   guidedMeditation: boolean;
   textAttachments: boolean;
+  documentAttachments: boolean;
+  imageAttachments: boolean;
+  audioAttachments: boolean;
+  videoAttachments: boolean;
+  ocr: boolean;
   voiceInput: boolean;
   googleSso: boolean;
   pushNotifications: boolean;
@@ -19,6 +24,11 @@ export const LOCAL_CHAT_CAPABILITIES: ChatCapabilities = {
   sereneMind: true,
   guidedMeditation: true,
   textAttachments: true,
+  documentAttachments: true,
+  imageAttachments: true,
+  audioAttachments: true,
+  videoAttachments: true,
+  ocr: true,
   voiceInput: true,
   googleSso: true,
   pushNotifications: true,
@@ -33,6 +43,11 @@ export function resolveChatCapabilities(manifest?: CapabilityManifest): ChatCapa
     sereneMind: isAvailable('serene_mind', LOCAL_CHAT_CAPABILITIES.sereneMind),
     guidedMeditation: isAvailable('guided_meditation', LOCAL_CHAT_CAPABILITIES.guidedMeditation),
     textAttachments: isAvailable('text_attachments', LOCAL_CHAT_CAPABILITIES.textAttachments),
+    documentAttachments: isAvailable('document_attachments', LOCAL_CHAT_CAPABILITIES.documentAttachments),
+    imageAttachments: isAvailable('image_attachments', LOCAL_CHAT_CAPABILITIES.imageAttachments),
+    audioAttachments: isAvailable('audio_attachments', LOCAL_CHAT_CAPABILITIES.audioAttachments),
+    videoAttachments: isAvailable('video_attachments', LOCAL_CHAT_CAPABILITIES.videoAttachments),
+    ocr: isAvailable('ocr', LOCAL_CHAT_CAPABILITIES.ocr),
     voiceInput: isAvailable('voice_input', LOCAL_CHAT_CAPABILITIES.voiceInput),
     googleSso: isAvailable('google_sso', LOCAL_CHAT_CAPABILITIES.googleSso),
     pushNotifications: isAvailable('push_notifications', LOCAL_CHAT_CAPABILITIES.pushNotifications),
