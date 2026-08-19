@@ -11,13 +11,22 @@ class _FakeEmbedder:
     def __init__(self, sentence_score: float = 0.1, context_score: float = 0.9) -> None:
         self.sentence_score = sentence_score
         self.context_score = context_score
+        self.single_calls = 0
+        self.batch_calls = 0
 
     def encode_single_full(self, text: str) -> dict:
+        self.single_calls += 1
         # Use a 2-D vector so normalization preserves the desired similarity ratio.
         return {"dense": [self.sentence_score, 1.0 - self.sentence_score]}
 
     def encode_batch(self, texts: list[str]) -> dict:
-        return {"dense": [[self.context_score, 1.0 - self.context_score] for _ in texts]}
+        self.batch_calls += 1
+        score = (
+            self.context_score
+            if any("context" in text.lower() for text in texts)
+            else self.sentence_score
+        )
+        return {"dense": [[score, 1.0 - score] for _ in texts]}
 
 
 def test_empty_answer_returns_unfaithful():
@@ -67,6 +76,20 @@ def test_doctrine_term_does_not_autopass():
     )
     assert result["is_faithful"] is False
     assert "meditation" in result["unsupported_sentences"][0].lower()
+
+
+def test_faithfulness_batches_answer_sentence_embeddings():
+    """Faithfulness scoring must avoid one expensive encoder call per sentence."""
+    embedder = _FakeEmbedder(sentence_score=0.95, context_score=0.95)
+    svc = LettuceDetectService(embedder=embedder)
+    result = svc.score_faithfulness(
+        "any question",
+        "context paragraph one\n\ncontext paragraph two",
+        "This sentence is grounded. Another sentence is also grounded.",
+    )
+    assert result["is_faithful"] is True
+    assert embedder.batch_calls == 2
+    assert embedder.single_calls == 0
 
 
 def test_high_similarity_returns_faithful():

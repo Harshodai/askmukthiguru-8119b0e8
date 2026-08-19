@@ -281,13 +281,17 @@ class LettuceDetectService:
 
         if self.embedder:
             try:
-                # Encode context chunks
+                # Encode context and answer sentences in two batch calls. The
+                # previous per-sentence encode_single_full loop made a normal
+                # 1,400-character answer perform one ONNX inference per sentence;
+                # in production that added roughly 39 seconds after generation.
                 context_embeddings = self.embedder.encode_batch(context_chunks)["dense"]
+                sentence_embeddings = self.embedder.encode_batch(sentences)["dense"]
+                if len(sentence_embeddings) != len(sentences):
+                    raise ValueError("embedding batch returned the wrong sentence count")
                 import numpy as np
 
-                for sentence in sentences:
-                    sentence_emb = self.embedder.encode_single_full(sentence)["dense"]
-
+                for sentence, sentence_emb in zip(sentences, sentence_embeddings):
                     # Compute cosine similarity with all context chunks
                     similarities = []
                     for c_emb in context_embeddings:
