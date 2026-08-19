@@ -642,8 +642,10 @@ class ServiceContainer:
         logger.info("ContainerBuilder: FAST graph built")
 
         logger.info("ContainerBuilder: building STANDARD graph...")
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            fut = pool.submit(
+        standard_pool = ThreadPoolExecutor(max_workers=1)
+        standard_timed_out = False
+        try:
+            fut = standard_pool.submit(
                 build_rag_graph,
                 ollama_service=self.ollama,
                 embedding_service=self.embedding,
@@ -659,8 +661,9 @@ class ServiceContainer:
                 self.standard_graph = fut.result(timeout=60.0)
                 logger.info("ContainerBuilder: STANDARD graph built")
             except FutureTimeoutError:
+                standard_timed_out = True
                 logger.warning(
-                    "ContainerBuilder: STANDARD graph compilation timed out after 60s — falling back to FAST graph"
+                    "ContainerBuilder: STANDARD graph compilation timed out after 60s — falling back to FAST graph without blocking startup"
                 )
                 self.standard_graph = self.fast_graph
             except Exception as e:
@@ -668,10 +671,17 @@ class ServiceContainer:
                     f"ContainerBuilder: STANDARD graph compilation failed: {e} — falling back to FAST graph"
                 )
                 self.standard_graph = self.fast_graph
+        finally:
+            # A context manager would call shutdown(wait=True) after a timeout,
+            # silently defeating the timeout and blocking readiness on the still
+            # running compile. A timed-out optional graph must not delay startup.
+            standard_pool.shutdown(wait=not standard_timed_out, cancel_futures=standard_timed_out)
 
         logger.info("ContainerBuilder: building DEEP graph...")
-        with ThreadPoolExecutor(max_workers=1) as pool:
-            fut = pool.submit(
+        deep_pool = ThreadPoolExecutor(max_workers=1)
+        deep_timed_out = False
+        try:
+            fut = deep_pool.submit(
                 build_deep_graph,
                 ollama_service=self.ollama,
                 embedding_service=self.embedding,
@@ -687,8 +697,9 @@ class ServiceContainer:
                 self.deep_graph = fut.result(timeout=60.0)
                 logger.info("ContainerBuilder: DEEP graph built")
             except FutureTimeoutError:
+                deep_timed_out = True
                 logger.warning(
-                    "ContainerBuilder: DEEP graph compilation timed out after 60s — falling back to STANDARD graph"
+                    "ContainerBuilder: DEEP graph compilation timed out after 60s — falling back to STANDARD graph without blocking startup"
                 )
                 self.deep_graph = self.standard_graph
             except Exception as e:
@@ -696,6 +707,8 @@ class ServiceContainer:
                     f"ContainerBuilder: DEEP graph compilation failed: {e} — falling back to STANDARD graph"
                 )
                 self.deep_graph = self.standard_graph
+        finally:
+            deep_pool.shutdown(wait=not deep_timed_out, cancel_futures=deep_timed_out)
         # Backward-compatible alias — defaults to standard graph
         self.rag_graph = self.standard_graph
 
