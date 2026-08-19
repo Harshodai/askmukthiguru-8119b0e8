@@ -47,6 +47,37 @@ _EVIDENCE_REFUSAL_MARKERS = (
     "i was unable to find specific teachings",
     "i wasn't able to find specific teachings",
 )
+_BOUNDED_REFUSAL_RE = re.compile(
+    r"^i(?:'m| am| do not| don't) (?:unable to find|have) "
+    r"(?:that specific teaching|specific teachings)(?:[.!?\s🙏]*)$",
+    re.IGNORECASE,
+)
+
+
+def _is_bounded_refusal(answer: str) -> bool:
+    """Recognize the canonical short abstention before it enters a retry loop."""
+    if not isinstance(answer, str) or not answer.strip() or len(answer) > 180:
+        return False
+    normalized = re.sub(r"\s+", " ", answer.strip())
+    return bool(_BOUNDED_REFUSAL_RE.fullmatch(normalized))
+
+
+def _sanitize_citations(citations: list) -> list[str]:
+    """Keep only unique absolute HTTP(S) URLs for the public citation contract."""
+    clean: list[str] = []
+    seen: set[str] = set()
+    for citation in citations or []:
+        if isinstance(citation, dict):
+            value = citation.get("url") or citation.get("source_url") or citation.get("source")
+        else:
+            value = citation
+        value = str(value or "").strip()
+        if not value.startswith(("http://", "https://")):
+            continue
+        if value not in seen:
+            seen.add(value)
+            clean.append(value)
+    return clean
 
 
 def _evidence_refusal_action(answer: str, relevant_docs: list[dict]) -> tuple[str, str]:
@@ -1158,6 +1189,12 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "Do not repeat a generic refusal when the context contains relevant evidence. "
             "If the evidence truly does not answer the question, state precisely what is missing without inventing."
         )
+        if lang != "en":
+            system_prompt += (
+                f"\nLANGUAGE RECOVERY: Reply in {lang} using the retrieved English evidence. "
+                "Translate the supported answer into the requested language; do not emit the English canonical fallback "
+                "when the context contains a relevant concept."
+            )
 
     # Langhanam guru voice — variant A (prompt persona injection). Feature-
     # flagged on by default; benchmark gate in guru_voice_benchmark.py.
@@ -1858,12 +1895,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             )
             citations = _inject_canonical_citations(answer, citations)
             citations = enforce_source_diversity(citations, min_distinct=2)
-            citations = [
-                str(c.get("url") or c.get("doc_id") or c.get("source") or "Retrieved document")
-                if isinstance(c, dict)
-                else str(c)
-                for c in citations
-            ]
+            citations = _sanitize_citations(citations)
             answer = remap_citation_markers(answer, relevant_docs, citations)
             answer = scrub(answer)
             fast_confidence = fast_score * 10.0 if measured else 8.0
@@ -1907,13 +1939,35 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
 
     citations = _inject_canonical_citations(answer, citations)
     citations = enforce_source_diversity(citations, min_distinct=2)
-    citations = [
-        str(c.get("url") or c.get("doc_id") or c.get("source") or "Retrieved document")
-        if isinstance(c, dict)
-        else str(c)
-        for c in citations
-    ]
+    citations = _sanitize_citations(citations)
     answer = remap_citation_markers(answer, relevant_docs, citations)
+
+    if _is_bounded_refusal(answer):
+        logger.info("Final: bounded abstention accepted without another generation retry")
+        return {
+            "final_answer": FALLBACK_RESPONSE,
+            "citations": [],
+            "intent": intent,
+            "_needs_retry": False,
+            "is_faithful": False,
+            "verification": {
+                "passed": False,
+                "method": "bounded_evidence_abstention",
+                "citations_verified": citations_verified,
+            },
+            "faithfulness_score": 0.0,
+            "confidence_score": 0.0,
+            "citations_verified": citations_verified,
+            "orphan_citations_stripped": orphan_citations_stripped,
+            "evaluation_trace": _trace_update(
+                state,
+                final_answer_chars=len(FALLBACK_RESPONSE),
+                final_citations=[],
+                verification_passed=False,
+                citations_verified=citations_verified,
+                orphan_citations_stripped=orphan_citations_stripped,
+            ),
+        }
 
     if is_faithful and verified and confidence >= settings.confidence_gating_floor:
         pass

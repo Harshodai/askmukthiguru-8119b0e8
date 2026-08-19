@@ -157,6 +157,38 @@ async def test_verification_skipped_and_unverified_returns_fallback(monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_bounded_refusal_does_not_retry_and_strips_invalid_citations():
+    state = _state(
+        answer=FALLBACK_RESPONSE,
+        citations=["unknown", "https://doc.example/teaching"],
+        is_faithful=False,
+        verification={"passed": False, "method": "lettuce_detect_fast_tier"},
+        retry_count=0,
+    )
+
+    result = await format_final_answer(state)
+
+    assert result["final_answer"] == FALLBACK_RESPONSE
+    assert result["citations"] == []
+    assert result["_needs_retry"] is False
+    assert result["verification"]["method"] == "bounded_evidence_abstention"
+
+
+@pytest.mark.asyncio
+async def test_final_citations_contain_only_absolute_urls():
+    state = _state(
+        citations=["unknown", {"source": "not-a-url"}, "https://doc.example/teaching"],
+        is_faithful=True,
+        verification={"passed": True},
+        confidence_score=8.0,
+    )
+
+    result = await format_final_answer(state)
+
+    assert result["citations"] == ["https://doc.example/teaching"]
+
+
+@pytest.mark.asyncio
 async def test_verification_fail_returns_fallback():
     """is_faithful=False → FALLBACK_RESPONSE (existing behavior preserved)."""
     state = _state(is_faithful=False, verification={"passed": False})
