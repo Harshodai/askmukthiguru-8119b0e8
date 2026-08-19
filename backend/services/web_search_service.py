@@ -25,8 +25,10 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
+from html.parser import HTMLParser
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, unquote, urlencode, urlparse
+from urllib.request import Request, urlopen
 
 from services.circuit_breaker import (
     CircuitBreakerConfig,
@@ -81,8 +83,61 @@ class SearchProvider:
         raise NotImplementedError
 
 
+class _DuckDuckGoHtmlParser(HTMLParser):
+    """Parse DuckDuckGo's server-rendered HTML without optional packages."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.results: list[dict[str, str]] = []
+        self._active_kind: str | None = None
+        self._active_href = ""
+        self._active_text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "a":
+            return
+        attributes = dict(attrs)
+        classes = set((attributes.get("class") or "").split())
+        if "result__a" in classes:
+            self._active_kind = "title"
+            self._active_href = attributes.get("href") or ""
+            self._active_text = []
+        elif "result__snippet" in classes:
+            self._active_kind = "snippet"
+            self._active_href = ""
+            self._active_text = []
+
+    def handle_data(self, data: str) -> None:
+        if self._active_kind:
+            self._active_text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag != "a" or not self._active_kind:
+            return
+        text = " ".join("".join(self._active_text).split())
+        if self._active_kind == "title" and text and self._active_href:
+            self.results.append({"title": text, "href": self._active_href, "body": ""})
+        elif self._active_kind == "snippet" and text and self.results:
+            self.results[-1]["body"] = text
+        self._active_kind = None
+        self._active_href = ""
+        self._active_text = []
+
+
+def _normalise_ddg_href(href: str) -> str:
+    """Resolve DuckDuckGo redirect links to the original HTTP(S) URL."""
+    candidate = href.strip()
+    if candidate.startswith("//"):
+        candidate = f"https:{candidate}"
+    parsed = urlparse(candidate)
+    redirected = parse_qs(parsed.query).get("uddg", [])
+    if redirected:
+        candidate = unquote(redirected[0])
+    return candidate
+
+
 class DuckDuckGoProvider(SearchProvider):
-    """Search via duckduckgo-search (no API key required)."""
+    """Search via duckduckgo-search, with a dependency-free HTML fallback."""
 
     def __init__(self) -> None:
         self._client = None
@@ -96,8 +151,10 @@ class DuckDuckGoProvider(SearchProvider):
         try:
             from ddgs import DDGS
         except ImportError:
-            from duckduckgo_search import DDGS as LegacyDDGS
-
+            try:
+                from duckduckgo_search import DDGS as LegacyDDGS
+            except ImportError:
+                return self._ddg_html_sync_search(query, max_results)
             DDGS = LegacyDDGS
 
         results = []
@@ -123,6 +180,37 @@ class DuckDuckGoProvider(SearchProvider):
                         "snippet": r.get("body", ""),
                     }
                 )
+        return results
+
+    @staticmethod
+    def _ddg_html_sync_search(query: str, max_results: int) -> list[dict]:
+        """Fallback for minimal production images without ddgs packages."""
+        request = Request(
+            "https://html.duckduckgo.com/html/?" + urlencode({"q": query}),
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                    "Chrome/120.0 Safari/537.36"
+                )
+            },
+        )
+        with urlopen(request, timeout=10) as response:
+            html = response.read(2_000_000).decode("utf-8", errors="replace")
+        parser = _DuckDuckGoHtmlParser()
+        parser.feed(html)
+        results = []
+        for result in parser.results[:max_results]:
+            href = _normalise_ddg_href(result.get("href", ""))
+            if not href.startswith(("http://", "https://")):
+                continue
+            results.append(
+                {
+                    "title": result.get("title", ""),
+                    "url": href,
+                    "snippet": result.get("body", ""),
+                }
+            )
+        logger.info("DuckDuckGo HTML fallback returned %d raw results", len(results))
         return results
 
 

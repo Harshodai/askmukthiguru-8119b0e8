@@ -26,6 +26,8 @@ _duckduckgo_search_available = importlib.util.find_spec("duckduckgo_search") is 
 
 from services.web_search_service import (
     DuckDuckGoProvider,
+    _DuckDuckGoHtmlParser,
+    _normalise_ddg_href,
     WebSearchService,
     _extract_domain,
     _is_domain_allowed,
@@ -43,6 +45,23 @@ except ImportError:
 def run(coro):
     """Helper to run async functions in sync tests."""
     return asyncio.get_event_loop().run_until_complete(coro)
+
+
+def test_duckduckgo_html_fallback_parses_official_result_and_redirect():
+    parser = _DuckDuckGoHtmlParser()
+    parser.feed(
+        '<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fekam.org%2Fevents">Ekam Events</a>'
+        '<a class="result__snippet">Official current event information.</a>'
+    )
+
+    assert parser.results == [
+        {
+            "title": "Ekam Events",
+            "href": "//duckduckgo.com/l/?uddg=https%3A%2F%2Fekam.org%2Fevents",
+            "body": "Official current event information.",
+        }
+    ]
+    assert _normalise_ddg_href(parser.results[0]["href"]) == "https://ekam.org/events"
 
 
 # ─── Domain Whitelist Tests ───
