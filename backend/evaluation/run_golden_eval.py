@@ -71,7 +71,10 @@ def main() -> int:
     for it in items:
         question = it.get("question") or it.get("query")
         if not question:
-            print(f"[FAIL] {it.get('id', '<unknown>')}: item has neither question nor query", file=sys.stderr)
+            print(
+                f"[FAIL] {it.get('id', '<unknown>')}: item has neither question nor query",
+                file=sys.stderr,
+            )
             failed += 1
             continue
         success = True
@@ -95,9 +98,7 @@ def main() -> int:
         answers.append(ans)
         contexts.append(ctx)
         must = it.get("must_mention", [])
-        refs.append(
-            "The expected answer must cover: " + ", ".join(must) if must else question
-        )
+        refs.append("The expected answer must cover: " + ", ".join(must) if must else question)
         if success and diversity_violation(cites, args.min_distinct_sources):
             diversity_violations += 1
             print(f"[DIVERSITY] {it['id']}: top-3 citations not diverse enough")
@@ -137,7 +138,7 @@ def main() -> int:
         # Heuristic: fraction of must_mention concepts present in answer,
         # penalised when reject_if tokens are present.
         hits, total = 0, 0
-        for it, ans in zip(items, answers):
+        for it, ans in zip(items, answers, strict=False):
             must = it.get("must_mention", [])
             reject = it.get("reject_if", [])
             if it.get("expected_intent") == "REFUSE":

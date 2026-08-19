@@ -40,6 +40,7 @@ def test_health_check(monkeypatch):
     mock_container.standard_graph = MagicMock()
     mock_container.deep_graph = MagicMock()
     mock_container.lightrag_degraded = False
+    mock_container.graph_warmup_status = "ready"
     mock_container.job_queue = MagicMock()
     mock_container.job_queue.queue_size = 0
 

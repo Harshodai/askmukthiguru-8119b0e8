@@ -78,7 +78,7 @@ describe('splitSseLines (CRLF handling)', () => {
 describe('sendMessageStreaming with CRLF SSE payload', () => {
   it('parses CRLF token payloads end-to-end without stray \\r', async () => {
     fetchWithRetryMock.mockResolvedValue(
-      sseResponse('data: {"token":"x"}\r\nevent: status\r\ndata: {"step":1}\r\n\r\ndata: [DONE]\r\n'),
+      sseResponse('data: {"token":"x"}\r\nevent: status\r\ndata: {"step":1}\r\n\r\nevent: done\r\ndata: {"intent":"CASUAL","citations":[]}\r\n\r\ndata: [DONE]\r\n'),
     );
 
     const chunks: StreamChunk[] = [];
@@ -86,17 +86,18 @@ describe('sendMessageStreaming with CRLF SSE payload', () => {
       chunks.push(chunk);
     }
 
-    // Exact payload match — a stray \r would leak into text and fail toEqual.
-    expect(chunks).toEqual([
+    // Exact token/status payloads must not contain stray carriage returns.
+    expect(chunks.slice(0, 2)).toEqual([
       { type: 'token', text: 'x' },
       { type: 'status', text: '{"step":1}' },
     ]);
+    expect(chunks[2]).toMatchObject({ type: 'done', intent: 'CASUAL', citations: [] });
     expect(chunks[0].type).toBe('token');
   });
 
   it('matches CRLF event lines to the current SSE event type', async () => {
     fetchWithRetryMock.mockResolvedValue(
-      sseResponse('event: status\r\ndata: {"step":1}\r\n\r\ndata: [DONE]\r\n'),
+      sseResponse('event: status\r\ndata: {"step":1}\r\n\r\nevent: done\r\ndata: {"intent":"CASUAL","citations":[]}\r\n\r\ndata: [DONE]\r\n'),
     );
 
     const chunks: StreamChunk[] = [];
@@ -104,7 +105,8 @@ describe('sendMessageStreaming with CRLF SSE payload', () => {
       chunks.push(chunk);
     }
 
-    expect(chunks).toEqual([{ type: 'status', text: '{"step":1}' }]);
+    expect(chunks[0]).toEqual({ type: 'status', text: '{"step":1}' });
+    expect(chunks[1]).toMatchObject({ type: 'done', intent: 'CASUAL', citations: [] });
     expect(recordMetricMock).toHaveBeenCalled();
   });
 });
@@ -112,7 +114,7 @@ describe('sendMessageStreaming with CRLF SSE payload', () => {
 describe('incognito stream request propagation', () => {
   it('sends explicit incognito mode to the streaming endpoint', async () => {
     fetchWithRetryMock.mockClear();
-    fetchWithRetryMock.mockResolvedValue(sseResponse('data: [DONE]\n\n'));
+    fetchWithRetryMock.mockResolvedValue(sseResponse('event: done\ndata: {"intent":"CASUAL","citations":[]}\n\ndata: [DONE]\n\n'));
 
     for await (const _chunk of sendMessageStreaming([], 'private question', 0, undefined, undefined, undefined, undefined, true)) {
       // Completion payload is intentionally empty; this assertion targets the request contract.

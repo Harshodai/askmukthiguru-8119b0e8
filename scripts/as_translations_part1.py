@@ -223,7 +223,7 @@ def get_part1_translations():
     t["common.cookiesConsent"] = "এই ৱেবছাইটটোৱে আপোনাৰ অভিজ্ঞতা উন্নত কৰিবলৈ কুকিজ ব্যৱহাৰ কৰে।"
     t["common.copied"] = "কপি কৰা হ'ল!"
     t["common.copy"] = "কপি কৰক"
-    t["common.crisisNumbers"] = "iCall: 9152987821 | Vandrevala Foundation: 1860-2662-345"
+    t["common.crisisNumbers"] = "iCall: 9152987821 | Vandrevala Foundation: +91 9999 666 555"
     t["common.crisisSupport"] = "সংকটৰ সহায় (ভাৰত):"
     t["common.dark"] = "আন্ধাৰ"
     t["common.dataExported"] = "ডাটা এক্সপ'ৰ্ট কৰা হ'ল"

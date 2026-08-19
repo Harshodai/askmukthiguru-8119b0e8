@@ -250,7 +250,9 @@ class DistressStage(Stage):
                 )
                 if assessment.level.value >= 2:
                     logger.info(
-                        f"Distress detected ({assessment.level.name}), passing to RAG pipeline for compassionate response."
+                        "Distress detected (%s), passing to RAG pipeline for "
+                        "compassionate response.",
+                        assessment.level.name,
                     )
                 return assessment
         except Exception as e:
@@ -304,7 +306,10 @@ class DistressStage(Stage):
                 return {"triggered": False}
 
             logger.info(
-                f"Proactive Serene Mind triggered for user {user_id}: level={proactive.level.name}, confidence={proactive.confidence:.2f}"
+                "Proactive Serene Mind triggered for user %s: level=%s, confidence=%.2f",
+                user_id,
+                proactive.level.name,
+                proactive.confidence,
             )
             return {
                 "triggered": True,
@@ -313,8 +318,10 @@ class DistressStage(Stage):
                 "signals": proactive.detected_signals,
                 "suggested_response": ctx.container.serene_mind.get_response(proactive),
                 "teachings_prelude": (
-                    "I’m sorry this feels heavy. You do not need to interpret or solve it spiritually right now. "
-                    "If it feels helpful, you may try a brief, optional grounding practice; you can also continue chatting or seek human support."
+                    "I’m sorry this feels heavy. You do not need to interpret or solve it "
+                    "spiritually right now. "
+                    "If it feels helpful, you may try a brief, optional grounding practice; "
+                    "you can also continue chatting or seek human support."
                 ),
             }
         except Exception as e:

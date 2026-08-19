@@ -5,7 +5,7 @@ from pathlib import Path
 TA_FULL_MAP = {
     "Back": "பின்னால்",
     "Loading...": "ஏற்றப்படுகிறது...",
-    "iCall: 9152987821 | Vandrevala Foundation: 1860-2662-345": "ஐ கால்: 9152987821 | வந்தேவாலா அறக்கட்டளை: 1860-2662-345",
+    "iCall: 9152987821 | Vandrevala Foundation: +91 9999 666 555": "ஐ கால்: 9152987821 | வந்தேவாலா அறக்கட்டளை: +91 9999 666 555",
     "Data exported": "தரவு ஏற்றுமதி செய்யப்பட்டது",
     "Your data was downloaded.": "உங்கள் தரவு பதிவிறக்கம் செய்யப்பட்டது.",
     "Hide details": "விவரங்களை மறை",
@@ -433,10 +433,10 @@ def main():
     locales_dir = Path("src/locales")
     lang_path = locales_dir / "ta.json"
     en_path = locales_dir / "en.json"
-    
+
     with open(en_path, "r", encoding="utf-8") as f:
         en_data = json.load(f)
-        
+
     def flatten_json(data, parent_key="", sep="."):
         items = {}
         for k, v in data.items():
@@ -465,9 +465,9 @@ def main():
     if lang_path.exists():
         with open(lang_path, "r", encoding="utf-8") as f:
             tgt_flat = flatten_json(json.load(f))
-            
+
     en_flat = flatten_json(en_data)
-    
+
     # 1. Apply translations by matching English values
     def is_english_fallback(en_val, tgt_val):
         if en_val != tgt_val:
@@ -503,13 +503,13 @@ def main():
                 should_translate = True
             elif has_placeholder_or_citation_mismatch(en_val, tgt_val):
                 should_translate = True
-                
+
         if should_translate:
             if str(en_val) in TA_FULL_MAP:
                 tgt_flat[k] = TA_FULL_MAP[str(en_val)]
             else:
                 tgt_flat[k] = en_val # Fallback to English value
-                
+
     # 2. Clean superfluous keys (keys in target not in en)
     superfluous = set(tgt_flat.keys()) - set(en_flat.keys())
     for k in superfluous:
