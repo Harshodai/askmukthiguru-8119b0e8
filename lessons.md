@@ -7202,3 +7202,8 @@ end-to-end guarantee from a single push.**
 - **What**: The pre-launch build required Vite Supabase variables that were absent from CI, while local auth regression suites only use fake sessions and do not require real provider secrets.
 - **Fix applied**: CI supplies non-secret public placeholders for the production build; local auth regression suites remain enabled. Real OAuth and deployed-auth coverage remain explicit follow-ups.
 - **How to prevent**: Separate build bootstrap variables from real test credentials and label skipped or unavailable production-auth coverage visibly.
+
+### L-RUTHLESS-6. Tooling runtimes must match project language targets
+- **What**: The cached local Bandit pre-commit environment selected Python 3.9 and could not parse the repository’s valid Python 3.12 `class Result[T]` syntax, producing a false gate failure.
+- **Fix applied**: `.pre-commit-config.yaml` now pins Python hooks to `python3.12`, matching `backend/pyproject.toml` and CI.
+- **How to prevent**: Pin hook runtimes whenever repository syntax depends on a language-version floor; do not weaken scanners to accommodate an older local interpreter.
