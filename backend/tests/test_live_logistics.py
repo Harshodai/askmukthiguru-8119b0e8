@@ -8,6 +8,8 @@ from rag.nodes.intent import (
     _is_app_boundary_query,
     _is_logistics_query,
     _is_playful_edge_query,
+    _is_provenance_query,
+    _is_response_format_query,
     handle_casual,
 )
 from rag.nodes.generation import generate_answer
@@ -55,11 +57,35 @@ async def test_playful_hypothetical_returns_bounded_capability_answer():
     assert "guarantee enlightenment" in result["final_answer"]
 
 
+@pytest.mark.asyncio
+async def test_provenance_and_response_format_return_fast_capability_answers():
+    provenance = await handle_casual(
+        {
+            "question": "What exact evidence supports your answer, which sources were cited, and what remains uncertain?",
+            "intent": "CASUAL",
+            "chat_history": [],
+        }
+    )
+    response_format = await handle_casual(
+        {
+            "question": "Can you answer the same question in a short version first and then a deeper version without repeating unsupported claims?",
+            "intent": "CASUAL",
+            "chat_history": [],
+        }
+    )
+    assert provenance["grounding_state"] == "provenance_boundary"
+    assert "invent citations" in provenance["final_answer"]
+    assert response_format["grounding_state"] == "response_format_capability"
+    assert "Short answer" in response_format["final_answer"]
+
+
 def test_app_memory_boundary_queries_use_fast_capability_route():
     assert _is_app_boundary_query("What is the difference between conversation memory and my private Second Brain vault?")
     assert _is_app_boundary_query("What do you remember about my spiritual practice?")
     assert not _is_app_boundary_query("What is the Beautiful State?")
     assert _is_playful_edge_query("Can I manifest a unicorn using the third sacred secret?")
+    assert _is_provenance_query("What exact evidence supports your answer?")
+    assert _is_response_format_query("Answer in a short version first and then a deeper version")
 
 
 def test_manifest_date_and_booking_queries_are_live_logistics():

@@ -1047,7 +1047,8 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
         _neo4j = getattr(get_container(), "neo4j_driver", None)
         if (
-            _neo4j is not None
+            getattr(settings, "knowledge_graph_query_enabled", False)
+            and _neo4j is not None
             and scope.tenant_id == settings.default_tenant_id
             and scope.corpus_id == settings.default_corpus_id
         ):
@@ -1087,10 +1088,17 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     #     logger.info(...)
     # sub_queries = list(dict.fromkeys([*sub_queries, *expansion_queries]))
     # ------------------------------------------------------------
-    if not getattr(settings, "rag_skip_retrieval_expansions", False):
-        expansion_task = asyncio.create_task(_llm_retrieval_expansions(state))
-    else:
+    # Tier2/fast requests should be deterministic and cheap: their primary
+    # query already carries the user's wording and doctrine expansion. Running
+    # an additional LLM planner here created avoidable 10–60s tails, especially
+    # for code-switched and Indic questions.
+    if (
+        query_tier in ("fast", "tier2_simple")
+        or getattr(settings, "rag_skip_retrieval_expansions", False)
+    ):
         expansion_task = None
+    else:
+        expansion_task = asyncio.create_task(_llm_retrieval_expansions(state))
 
     chat_history = state.get("chat_history", [])
     selected_clusters = state.get("selected_clusters", [])
@@ -1100,7 +1108,8 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     embedder = _services._embedder
     qdrant = _services._qdrant
 
-    primary_queries = list(dict.fromkeys(sub_queries))[:6]
+    primary_query_limit = 1 if query_tier in ("fast", "tier2_simple") else 6
+    primary_queries = list(dict.fromkeys(sub_queries))[:primary_query_limit]
     # Batch-encode ALL primary queries in ONE encode_batch call.
     # Collapses 6 `_inference_lock` acquisitions into 1 (66.7s -> ~3.5s
     # for the encode step). Order is preserved: precomputed[i] matches
@@ -1265,18 +1274,40 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     if len(all_docs) < 3:
         logger.info(f"Low document count ({len(all_docs)}), triggering broader fallback search...")
         fallback_query = state["question"] if state.get("rewritten_query") else sub_queries[0]
-        query_embedding = await asyncio.to_thread(embedder.encode_single_full, fallback_query)
-
-        fallback_results = await asyncio.to_thread(
-            qdrant.search,
-            query_vector=query_embedding["dense"],
-            limit=10,
-            sparse_vector=query_embedding["sparse"],
-            raptor_level=0,
-            cluster_ids=None,
-            knowledge_tags=knowledge_tags,
-            scope=scope,
-        )
+        if query_tier in ("fast", "tier2_simple"):
+            try:
+                query_embedding = await asyncio.wait_for(
+                    asyncio.to_thread(embedder.encode_single_full, fallback_query),
+                    timeout=8.0,
+                )
+                fallback_results = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        qdrant.search,
+                        query_vector=query_embedding["dense"],
+                        limit=10,
+                        sparse_vector=query_embedding["sparse"],
+                        raptor_level=0,
+                        cluster_ids=None,
+                        knowledge_tags=knowledge_tags,
+                        scope=scope,
+                    ),
+                    timeout=8.0,
+                )
+            except Exception as fallback_err:
+                logger.warning("Fast fallback retrieval timed out or failed; continuing with current docs: %s", fallback_err)
+                fallback_results = []
+        else:
+            query_embedding = await asyncio.to_thread(embedder.encode_single_full, fallback_query)
+            fallback_results = await asyncio.to_thread(
+                qdrant.search,
+                query_vector=query_embedding["dense"],
+                limit=10,
+                sparse_vector=query_embedding["sparse"],
+                raptor_level=0,
+                cluster_ids=None,
+                knowledge_tags=knowledge_tags,
+                scope=scope,
+            )
 
         for doc in fallback_results:
             text_hash = stable_document_key(doc)

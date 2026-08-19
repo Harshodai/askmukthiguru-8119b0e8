@@ -193,6 +193,18 @@ _PLAYFUL_EDGE_RE = re.compile(
     r"street\s+food|golden\s+statue|unicorn|aliens?)",
     re.IGNORECASE,
 )
+_PROVENANCE_QUERY_RE = re.compile(
+    r"(?:what\s+exact\s+evidence|which\s+sources?\s+were\s+cited|"
+    r"what\s+remains?\s+uncertain|show\s+(?:me\s+)?(?:the\s+)?(?:source|evidence)|"
+    r"(?:provenance|citations?|source\s+transparency))",
+    re.IGNORECASE,
+)
+_RESPONSE_FORMAT_QUERY_RE = re.compile(
+    r"(?:short\s+(?:version|answer).*?(?:deep|detailed)|"
+    r"(?:deep|detailed).*?short\s+(?:version|answer)|"
+    r"brief\s+then\s+(?:deep|detailed)|answer\s+in\s+(?:a\s+)?short\s+and\s+(?:deep|detailed))",
+    re.IGNORECASE,
+)
 
 
 def _is_app_boundary_query(question: str) -> bool:
@@ -203,6 +215,16 @@ def _is_app_boundary_query(question: str) -> bool:
 def _is_playful_edge_query(question: str) -> bool:
     """Recognize clearly nonliteral hypotheticals for a bounded fast answer."""
     return bool(_PLAYFUL_EDGE_RE.search(question))
+
+
+def _is_provenance_query(question: str) -> bool:
+    """Recognize requests about evidence, citations, and uncertainty boundaries."""
+    return bool(_PROVENANCE_QUERY_RE.search(question))
+
+
+def _is_response_format_query(question: str) -> bool:
+    """Recognize explicit short-then-deep response-format requests."""
+    return bool(_RESPONSE_FORMAT_QUERY_RE.search(question))
 
 
 def _early_filter(
@@ -484,7 +506,12 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     # Product-memory boundary questions are capability queries, not doctrine
     # synthesis. Route them to the direct casual handler before any classifier
     # can promote them to relational/deep retrieval.
-    if _is_app_boundary_query(question) or _is_playful_edge_query(question):
+    if (
+        _is_app_boundary_query(question)
+        or _is_playful_edge_query(question)
+        or _is_provenance_query(question)
+        or _is_response_format_query(question)
+    ):
         return {
             "intent": "CASUAL",
             "query_tier": "tier2_simple",
@@ -493,7 +520,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 state,
                 intent="CASUAL",
                 query_tier="tier2_simple",
-                routing_reason="app_memory_boundary_fast_path",
+                routing_reason="product_capability_boundary_fast_path",
             ),
         }
 
@@ -986,6 +1013,30 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
             "intent": "CAPABILITY",
             "citations": [],
             "grounding_state": "bounded_hypothetical",
+        }
+
+    if _is_provenance_query(q_lower) and _english_only(state.get("question", "")):
+        return {
+            "final_answer": (
+                "I can show the evidence and source links that were actually returned for a grounded answer, "
+                "along with what remains uncertain. I should not invent citations or claim that a teaching was "
+                "retrieved when it was not; if no source is available, I will say that clearly."
+            ),
+            "intent": "CAPABILITY",
+            "citations": [],
+            "grounding_state": "provenance_boundary",
+        }
+
+    if _is_response_format_query(q_lower) and _english_only(state.get("question", "")):
+        return {
+            "final_answer": (
+                "Yes. I can structure a response as **Short answer** first, followed by a **Deeper version**. "
+                "The longer section will add context and practice detail without repeating or expanding claims "
+                "that the retrieved evidence does not support."
+            ),
+            "intent": "CAPABILITY",
+            "citations": [],
+            "grounding_state": "response_format_capability",
         }
 
     _SPIRITUAL_PRACTICE_SIGNALS = [
