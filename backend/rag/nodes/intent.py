@@ -1144,6 +1144,18 @@ async def handle_meditation(state: GraphState, config: dict = None) -> dict:
         stem in question[:40] for stem in _INTERROGATIVE_STEMS_EN + _INTERROGATIVE_STEMS_HINGLISH
     )
 
+    practice_keyword = any(
+        phrase in question
+        for phrase in (
+            "breathing practice",
+            "breathing exercise",
+            "guided practice",
+            "guided meditation",
+            "meditate",
+            "stillness practice",
+        )
+    )
+
     if fresh and not is_interrogative:
         if "soul sync" in question:
             script = MEDITATION_SCRIPTS["soul_sync"]
@@ -1159,7 +1171,7 @@ async def handle_meditation(state: GraphState, config: dict = None) -> dict:
             )
             return {"final_answer": response, "meditation_step": 0}
 
-        if "meditation" in question:
+        if "meditation" in question or practice_keyword:
             script = MEDITATION_SCRIPTS["serene_mind"]
             response = f"**{script['title']}**\n\n" + "\n".join(
                 f"{i + 1}. {s}" for i, s in enumerate(script["steps"])

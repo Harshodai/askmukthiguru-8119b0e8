@@ -238,6 +238,18 @@ def test_handle_meditation_emits_complete_only_when_session_actually_finished():
     assert result["meditation_step"] == 0
 
 
+def test_handle_meditation_starts_breathing_practice_on_first_turn():
+    handle_meditation = _load_handle_meditation()
+    state = {
+        "question": "guide me through a short breathing practice for inner stillness",
+        "meditation_step": 0,
+        "chat_history": [],
+    }
+    result = _safe_run(handle_meditation(state))
+    assert "Serene Mind Meditation" in result["final_answer"]
+    assert result.get("_meditation_misroute") is not True
+
+
 def test_handle_meditation_starts_soul_sync_on_first_turn():
     handle_meditation = _load_handle_meditation()
     state = {

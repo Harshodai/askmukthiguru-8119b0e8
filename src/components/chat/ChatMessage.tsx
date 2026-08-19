@@ -856,7 +856,29 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   Never shown on crisis/helpline answers — a feedback widget under a
                   helpline is unsafe (see isCrisisAnswer). */}
               {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
-                <EngagementCard messageId={message.id} messageContent={message.content} queryText={queryText} />
+                <EngagementCard
+                  messageId={message.id}
+                  messageContent={message.content}
+                  queryText={queryText}
+                  qualityMetadata={{
+                    message_id: message.id,
+                    trace_id: message.traceId,
+                    latency_ms: message.latencyMs,
+                    model_used: message.modelUsed,
+                    model_provider: message.modelProvider,
+                    query_tier: message.queryTier,
+                    faithfulness_score: message.faithfulnessScore,
+                    relevancy_score: message.relevancyScore,
+                    hallucination_flag: message.hallucinationFlag,
+                    verification: message.verification,
+                    citations_verified: message.citationsVerified,
+                    citation_count: message.citations?.length ?? 0,
+                    answer_length_chars: message.content.length,
+                    answer_length_words: message.content.trim() ? message.content.trim().split(/\s+/).length : 0,
+                    grounding_state: message.groundingState,
+                    route_decision: message.queryTier,
+                  }}
+                />
               )}
 
               {/* Practice nudge: offer to turn the last answer into a guided Serene

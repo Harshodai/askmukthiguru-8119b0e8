@@ -20,14 +20,15 @@ class FeedbackService:
     async def create_feedback(
         self, feedback_in: FeedbackCreate, user_id: Optional[str] = None
     ) -> dict:
+        feedback_text = feedback_in.feedback_text or feedback_in.comment
         fallback_data = {
             "id": "",
             "user_id": user_id,
             "rating": feedback_in.rating,
             "query_text": feedback_in.query,
             "answer_text": feedback_in.answer,
-            "feedback_text": feedback_in.feedback_text or "",
-            "comment": feedback_in.feedback_text,
+            "feedback_text": feedback_text or "",
+            "comment": feedback_text,
             "metadata_json": feedback_in.metadata_json or {},
             "created_at": None,
         }
@@ -40,7 +41,7 @@ class FeedbackService:
             "query_text": feedback_in.query,
             "answer_text": feedback_in.answer,
             "rating": feedback_in.rating,
-            "feedback_text": feedback_in.feedback_text or "",
+            "feedback_text": feedback_text or "",
             "metadata_json": feedback_in.metadata_json or {},
             "user_id": user_id,
         }

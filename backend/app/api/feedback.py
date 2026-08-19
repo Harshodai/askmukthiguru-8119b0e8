@@ -28,6 +28,7 @@ async def submit_feedback(
     """
     service = FeedbackService()
     user_id = user.get("id") if user else None
+    feedback_text = feedback_in.feedback_text or feedback_in.comment
 
     await jsonl_store.record_feedback(
         session_id=user_id or "anonymous",
@@ -49,7 +50,7 @@ async def submit_feedback(
             query=feedback_in.query,
             retrieved_context=retrieved_context,
             answer=feedback_in.answer,
-            comment=feedback_in.feedback_text,
+            comment=feedback_text,
         )
 
         # Thumbs-down also invalidates the cached semantic entry for this query

@@ -45,6 +45,7 @@ interface EngagementCardProps {
   messageContent: string;
   queryText?: string;
   disabled?: boolean;
+  qualityMetadata?: Record<string, unknown>;
 }
 
 // Single consolidated feedback surface — no separate hover thumbs elsewhere.
@@ -58,7 +59,7 @@ const FEEDBACK_TAG_FALLBACKS: Record<(typeof FEEDBACK_TAG_KEYS)[number], string>
   'chat.insightful': 'Insightful',
 };
 
-export function EngagementCard({ messageId, messageContent, queryText, disabled }: EngagementCardProps) {
+export function EngagementCard({ messageId, messageContent, queryText, disabled, qualityMetadata }: EngagementCardProps) {
   const { t } = useTranslation();
   const [submitted, setSubmitted] = useState<EngagementChoice | null>(null);
   const [showRefine, setShowRefine] = useState(false);
@@ -85,7 +86,12 @@ export function EngagementCard({ messageId, messageContent, queryText, disabled 
         query: queryText ?? '',
         answer: messageContent,
         rating: choice === 'yes' ? 1 : -1,
-        comment: commentText.trim() || tags.join(', ') || undefined,
+        feedback_text: commentText.trim() || tags.join(', ') || undefined,
+        metadata_json: {
+          ...(qualityMetadata ?? {}),
+          feedback_tags: tags,
+          feedback_choice: choice,
+        },
       });
     }
     setShowRefine(false);

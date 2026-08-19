@@ -447,7 +447,8 @@ export const submitFeedbackToBackend = async (payload: {
   query: string;
   answer: string;
   rating: number;
-  comment?: string;
+  feedback_text?: string;
+  metadata_json?: Record<string, unknown>;
 }, options?: { signal?: AbortSignal }) => {
   const { provider, endpoint } = getCurrentConfig();
   if (provider !== 'custom' || !endpoint) return;

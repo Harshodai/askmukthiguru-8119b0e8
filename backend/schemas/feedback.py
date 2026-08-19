@@ -13,6 +13,10 @@ class FeedbackCreate(BaseModel):
     feedback_text: Optional[str] = Field(
         None, max_length=5000, description="Optional qualitative feedback"
     )
+    # Backward-compatible alias for older clients that sent `comment`.
+    comment: Optional[str] = Field(
+        None, max_length=5000, description="Backward-compatible feedback text alias"
+    )
     metadata_json: Optional[dict[str, Any]] = Field(
         None, description="Detailed metadata including retrieved doc IDs and scores"
     )

@@ -50,14 +50,14 @@ describe('chat/transport helpers', () => {
     const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
     fetchMock.mockResolvedValue({ ok: true });
 
-    await submitFeedbackToBackend({ query: 'q', answer: 'a', rating: 1, comment: 'good' });
+    await submitFeedbackToBackend({ query: 'q', answer: 'a', rating: 1, feedback_text: 'good' });
 
     expect(fetchMock).toHaveBeenCalledWith(
       'http://localhost:8000/api/feedback',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({ Authorization: 'Bearer tok' }),
-        body: JSON.stringify({ query: 'q', answer: 'a', rating: 1, comment: 'good' }),
+        body: JSON.stringify({ query: 'q', answer: 'a', rating: 1, feedback_text: 'good', metadata_json: undefined }),
       }),
     );
   });

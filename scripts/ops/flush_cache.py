@@ -1,141 +1,136 @@
-#!/usr/bin/env python3
+"""AskMukthiGuru query-cache flusher.
+
+This operation intentionally clears only query-response caches:
+
+* Qdrant semantic-cache collections (active dimensioned collection and the
+  historical ``semantic_query_cache`` name when present).
+* Redis exact-cache keys under ``mukthiguru:cache:*``.
+* Redis semantic-cache payload/index keys under ``mukthiguru:semcache:*``.
+
+It never runs Redis FLUSHALL. Queue jobs, anonymous quota reservations, user
+sessions, telemetry streams, Second Brain data, and rate-limit state remain
+intact.
+
+Designed to run inside the backend container or through the repository Makefile.
 """
-AskMukthiGuru Cache Flusher
 
-Flushes:
-  1. Qdrant semantic cache collection (semantic_query_cache)
-  2. Redis (all keys) using auth password from settings
+from __future__ import annotations
 
-Designed to run INSIDE the Docker backend container where Python deps are installed:
-  docker compose exec -T backend python3 /app/../scripts/ops/flush_cache.py
-
-Or from the host Makefile via docker compose exec.
-"""
 import logging
 import os
 import sys
+from typing import Dict, Iterable, Optional, Union
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-SEPARATOR = "═" * 55
+SEPARATOR = "=" * 72
+_REDIS_QUERY_PATTERNS = ("mukthiguru:cache:*", "mukthiguru:semcache:*")
 
 
-def _flush_qdrant(qdrant_url: str, collection_name: str = "semantic_query_cache") -> bool:
-    """Delete and recreate the Qdrant semantic cache collection."""
+def _flush_qdrant(qdrant_url: str, collection_names: Iterable[str]) -> dict[str, str]:
+    """Delete and recreate only known semantic-cache collections."""
     try:
         from qdrant_client import QdrantClient
         from qdrant_client.models import Distance, VectorParams
     except ImportError:
         logger.warning("qdrant_client not installed — skipping Qdrant flush.")
-        return False
+        return {name: "qdrant_client_unavailable" for name in collection_names}
 
+    results: dict[str, str] = {}
     try:
         client = QdrantClient(url=qdrant_url, timeout=10)
-        collections = [c.name for c in client.get_collections().collections]
+        collections = {c.name for c in client.get_collections().collections}
+        for name in collection_names:
+            if name in collections:
+                client.delete_collection(name)
+                logger.info("Deleted Qdrant semantic-cache collection %s", name)
+            else:
+                logger.info("Qdrant semantic-cache collection %s was absent", name)
+            client.create_collection(
+                collection_name=name,
+                vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
+            )
+            results[name] = "recreated"
+            logger.info("Recreated empty Qdrant semantic-cache collection %s", name)
+    except Exception as exc:
+        logger.error("Qdrant query-cache flush failed: %s", exc)
+        for name in collection_names:
+            results.setdefault(name, f"error: {exc}")
+    return results
 
-        if collection_name in collections:
-            client.delete_collection(collection_name)
-            logger.info(f"✅ Qdrant collection '{collection_name}' deleted.")
-        else:
-            logger.info(f"ℹ️  Qdrant collection '{collection_name}' does not exist (already clean).")
 
-        # Recreate an empty collection so the app can write to it immediately
-        client.create_collection(
-            collection_name=collection_name,
-            vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
-        )
-        logger.info(f"✅ Qdrant collection '{collection_name}' recreated (empty).")
-        return True
-    except Exception as e:
-        logger.error(f"❌ Qdrant flush failed: {e}")
-        return False
-
-
-def _flush_redis(redis_url: str, password: str = None) -> bool:
-    """Flush all Redis keys."""
+def _flush_redis(redis_url: str, password: Optional[str] = None) -> Dict[str, Union[int, str]]:
+    """Delete only query-cache namespaces using SCAN and batched pipelines."""
     try:
         import redis as redis_lib
     except ImportError:
-        logger.warning("redis package not installed — trying redis-cli fallback.")
-        _redis_cli_fallback(password)
-        return False
+        logger.error("redis package is required for the targeted cache flush")
+        return {pattern: "redis_package_unavailable" for pattern in _REDIS_QUERY_PATTERNS}
 
     try:
+        client_kwargs = {"socket_connect_timeout": 5, "socket_timeout": 10}
         if password:
-            r = redis_lib.from_url(redis_url, password=password, socket_connect_timeout=5)
-        else:
-            r = redis_lib.from_url(redis_url, socket_connect_timeout=5)
-        r.flushall()
-        logger.info("✅ Redis flushed (all keys removed).")
-        return True
-    except Exception as e:
-        logger.error(f"❌ Redis flush via client failed: {e}. Trying redis-cli fallback.")
-        _redis_cli_fallback(password)
-        return False
-
-
-def _redis_cli_fallback(password: str = None) -> None:
-    """Best-effort redis-cli flushall for environments without the Python package."""
-    try:
-        if password:
-            cmd = f"redis-cli -a '{password}' flushall"
-        else:
-            cmd = "redis-cli flushall"
-        ret = os.system(cmd)
-        if ret == 0:
-            logger.info("✅ Redis flushed via redis-cli.")
-        else:
-            logger.warning("⚠️  redis-cli returned non-zero; Redis may not be accessible.")
-    except Exception as e:
-        logger.warning(f"⚠️  redis-cli fallback failed: {e}")
+            client_kwargs["password"] = password
+        client = redis_lib.from_url(redis_url, **client_kwargs)
+        client.ping()
+        results: Dict[str, Union[int, str]] = {}
+        for pattern in _REDIS_QUERY_PATTERNS:
+            deleted = 0
+            pipe = client.pipeline(transaction=False)
+            for key in client.scan_iter(match=pattern, count=500):
+                pipe.delete(key)
+                deleted += 1
+                if deleted % 500 == 0:
+                    pipe.execute()
+                    pipe = client.pipeline(transaction=False)
+            if deleted % 500:
+                pipe.execute()
+            results[pattern] = deleted
+            logger.info("Deleted %d Redis query-cache keys matching %s", deleted, pattern)
+        return results
+    except Exception as exc:
+        logger.error("Redis query-cache flush failed: %s", exc)
+        return {pattern: f"error: {exc}" for pattern in _REDIS_QUERY_PATTERNS}
 
 
 def _load_settings():
-    """Attempt to load backend settings for correct URLs/passwords."""
+    """Attempt to load backend settings for correct production URLs."""
     try:
-        # Add backend dir to path so app.config is importable inside container
         backend_dir = os.path.join(os.path.dirname(__file__), "..", "..", "backend")
         sys.path.insert(0, os.path.abspath(backend_dir))
         from app.config import settings
+
         return settings
-    except Exception as e:
-        logger.warning(f"Could not load app.config settings ({e}). Falling back to env vars.")
+    except Exception as exc:
+        logger.warning("Could not load app.config settings (%s); using env vars", exc)
         return None
 
 
-def main():
-    print("\n" + SEPARATOR)
-    print("  🧹  AskMukthiGuru Cache Flusher")
-    print(SEPARATOR + "\n")
-
+def main() -> int:
+    print(f"\n{SEPARATOR}\n  AskMukthiGuru targeted query-cache flush\n{SEPARATOR}\n")
     settings = _load_settings()
+    qdrant_url = (
+        getattr(settings, "qdrant_url", None) if settings else None
+    ) or os.getenv("QDRANT_URL", "http://qdrant:6333")
+    redis_url = (
+        getattr(settings, "redis_url", None) if settings else None
+    ) or os.getenv("REDIS_URL", "redis://redis:6379/0")
+    redis_password = (
+        getattr(settings, "redis_password", None) if settings else None
+    ) or os.getenv("REDIS_PASSWORD", "")
+    dimension = getattr(settings, "embedding_dimension", 1024) if settings else 1024
+    collection_names = (f"mukthi_semantic_cache_{dimension}d", "semantic_query_cache")
 
-    # --- Resolve connection parameters ---
-    if settings:
-        qdrant_url = getattr(settings, "qdrant_url", None) or os.getenv("QDRANT_URL", "http://qdrant:6333")
-        redis_url = getattr(settings, "redis_url", None) or os.getenv("REDIS_URL", "redis://redis:6379/0")
-        redis_password = getattr(settings, "redis_password", None) or os.getenv("REDIS_PASSWORD", "")
-    else:
-        qdrant_url = os.getenv("QDRANT_URL", "http://qdrant:6333")
-        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-        redis_password = os.getenv("REDIS_PASSWORD", "")
-
-    logger.info(f"Qdrant URL: {qdrant_url}")
-    logger.info(f"Redis URL: {redis_url}")
-
-    # --- Flush Qdrant semantic cache ---
-    print("\n[1/2] Flushing Qdrant semantic cache collection...")
-    _flush_qdrant(qdrant_url)
-
-    # --- Flush Redis ---
-    print("\n[2/2] Flushing Redis cache...")
-    _flush_redis(redis_url, redis_password or None)
-
-    print("\n" + SEPARATOR)
-    print("  ✨  Cache flush complete.")
-    print(SEPARATOR + "\n")
+    print("[1/2] Clearing Qdrant semantic-cache collections only...")
+    qdrant_results = _flush_qdrant(qdrant_url, collection_names)
+    print("[2/2] Clearing Redis query-cache namespaces only...")
+    redis_results = _flush_redis(redis_url, redis_password or None)
+    print("\nQdrant:", qdrant_results)
+    print("Redis:", redis_results)
+    print("\nQueues, sessions, quotas, telemetry, rate limits, and user data were not flushed.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

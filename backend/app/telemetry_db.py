@@ -7,8 +7,10 @@ Provides a persistent cloud-backed database to store query traces,
 evaluations, and user feedback via Supabase.
 """
 
+import json
 import logging
 import re
+import statistics
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
@@ -19,6 +21,81 @@ from app.security_utils import validate_iso_date, validate_session_id, validate_
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+_REFUSAL_PATTERN = re.compile(
+    r"(?:i(?:'m| am) unable|i (?:can(?:not|'t)|don't|do not) have|"
+    r"cannot provide|can't provide|not able to|no specific teaching)",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_refusal(text: Any) -> bool:
+    """Classify explicit answer abstentions without treating safety guidance as errors."""
+    if not isinstance(text, str) or not text.strip():
+        return False
+    return bool(_REFUSAL_PATTERN.search(text[:1200]))
+
+
+def _percentile(values: list[float], percentile: int) -> float:
+    if not values:
+        return 0.0
+    if len(values) == 1:
+        return float(values[0])
+    ordered = sorted(values)
+    index = (len(ordered) - 1) * percentile / 100
+    lower = int(index)
+    upper = min(lower + 1, len(ordered) - 1)
+    weight = index - lower
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * weight
+
+
+def _quality_snapshot(response_rows: list[dict[str, Any]], feedback_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build quality distributions from existing telemetry columns only.
+
+    This intentionally returns aggregates, never raw answers or queries, so the
+    admin surface can expose quality trends without widening the privacy boundary.
+    """
+    answers = [r.get("response_text") for r in response_rows if isinstance(r.get("response_text"), str)]
+    lengths = [float(len(answer)) for answer in answers]
+    faithfulness = [
+        float(r["faithfulness"])
+        for r in response_rows
+        if isinstance(r.get("faithfulness"), (int, float))
+    ]
+    faithfulness_nonzero = [value for value in faithfulness if value > 0.0]
+    floor = float(getattr(settings, "faithfulness_floor", 0.6))
+    tag_counts: dict[str, int] = {}
+    for row in feedback_rows:
+        metadata = row.get("metadata_json") or {}
+        if isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata)
+            except (TypeError, ValueError):
+                metadata = {}
+        tags = metadata.get("feedback_tags", []) if isinstance(metadata, dict) else []
+        if isinstance(tags, list):
+            for tag in tags:
+                if isinstance(tag, str) and tag.strip():
+                    tag_counts[tag.strip()] = tag_counts.get(tag.strip(), 0) + 1
+
+    feedback_count = len(feedback_rows)
+    negative_feedback = sum(1 for row in feedback_rows if row.get("rating", 0) <= 0)
+    return {
+        "refusal_rate": sum(1 for answer in answers if _looks_like_refusal(answer)) / len(answers) if answers else 0.0,
+        "response_length_chars_p50": int(_percentile(lengths, 50)),
+        "response_length_chars_p95": int(_percentile(lengths, 95)),
+        "response_length_chars_min": int(min(lengths, default=0)),
+        "response_length_chars_max": int(max(lengths, default=0)),
+        "faithfulness_p50": round(_percentile(faithfulness_nonzero, 50), 4),
+        "faithfulness_p95": round(_percentile(faithfulness_nonzero, 95), 4),
+        "faithfulness_below_floor_rate": sum(1 for value in faithfulness_nonzero if value < floor) / len(faithfulness_nonzero) if faithfulness_nonzero else 0.0,
+        "faithfulness_zero_rate": sum(1 for value in faithfulness if value <= 0.0) / len(faithfulness) if faithfulness else 0.0,
+        "faithfulness_sample_size": len(faithfulness),
+        "feedback_count": feedback_count,
+        "feedback_coverage": feedback_count / len(response_rows) if response_rows else 0.0,
+        "thumbs_down_rate": negative_feedback / feedback_count if feedback_count else 0.0,
+        "feedback_tag_counts": tag_counts,
+    }
 
 
 def _get_client() -> Client:
@@ -262,6 +339,7 @@ async def get_kpis(
             "estimated_cost_usd": 0,
             "estimated_cost_inr": 0,
             "error_rate": 0,
+            **_quality_snapshot([], []),
         }
 
     try:
@@ -310,7 +388,9 @@ async def get_kpis(
         error_rate = len(errors) / len(metrics) if metrics else 0
 
         # 4. Hallucination rate from chat_responses
-        resp_query = client.table("chat_responses").select("hallucination_flag")
+        resp_query = client.table("chat_responses").select(
+            "hallucination_flag, response_text, faithfulness"
+        )
         if safe_from:
             resp_query = resp_query.gte("created_at", safe_from)
         resps = resp_query.execute().data or []
@@ -332,16 +412,17 @@ async def get_kpis(
         # Until token telemetry is populated, use a conservative 800 input / 350 output token estimate.
         estimated_cost_inr = total_queries * (((800 / 1_000_000) * 2.5) + ((350 / 1_000_000) * 10))
 
-        # 6. Feedback thumbs_up_rate from feedback_events table
+        # 6. Feedback and structured quality signals from feedback_events.
+        feedback_rows: list[dict[str, Any]] = []
         try:
-            fb_query = client.table("feedback_events").select("rating")
+            fb_query = client.table("feedback_events").select("rating, metadata_json")
             if safe_from:
                 fb_query = fb_query.gte("created_at", safe_from)
             if safe_to:
                 fb_query = fb_query.lte("created_at", safe_to)
-            fb_data = fb_query.execute().data or []
-            if fb_data:
-                thumbs = [f for f in fb_data if f.get("rating") is not None]
+            feedback_rows = fb_query.execute().data or []
+            if feedback_rows:
+                thumbs = [f for f in feedback_rows if f.get("rating") is not None]
                 up = sum(1 for f in thumbs if f["rating"] > 0)
                 thumbs_up_rate = up / len(thumbs) if thumbs else 0.0
             else:
@@ -361,6 +442,7 @@ async def get_kpis(
             "estimated_cost_usd": 0,
             "estimated_cost_inr": estimated_cost_inr,
             "error_rate": error_rate,
+            **_quality_snapshot(resps, feedback_rows),
         }
     except Exception as e:
         logger.error(f"Failed to aggregate KPIs from Supabase: {e}")
@@ -375,6 +457,7 @@ async def get_kpis(
             "estimated_cost_usd": 0,
             "estimated_cost_inr": 0,
             "error_rate": 0,
+            **_quality_snapshot([], []),
         }
 
 
