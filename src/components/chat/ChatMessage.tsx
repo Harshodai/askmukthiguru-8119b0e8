@@ -113,28 +113,39 @@ const getDomain = (url: string): string => {
   }
 };
 
-/** Extract YouTube video ID from various YouTube URL formats */
+/** Extract a valid 11-character YouTube video ID from a source URL. */
 const getYouTubeId = (url: string): string | null => {
   try {
-    if (url.includes('youtu.be/')) {
-      return url.split('youtu.be/')[1]?.split('?')[0];
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    let candidate: string | null = null;
+    if (hostname === 'youtu.be') {
+      candidate = parsed.pathname.split('/').filter(Boolean)[0] ?? null;
+    } else if (hostname === 'youtube.com') {
+      if (parsed.pathname === '/watch') candidate = parsed.searchParams.get('v');
+      if (parsed.pathname.startsWith('/embed/')) candidate = parsed.pathname.split('/')[2] ?? null;
+      if (parsed.pathname.startsWith('/shorts/')) candidate = parsed.pathname.split('/')[2] ?? null;
     }
-    if (url.includes('v=')) {
-      return url.split('v=')[1]?.split('&')[0];
-    }
-    if (url.includes('/embed/')) {
-      return url.split('/embed/')[1]?.split('?')[0];
-    }
-    return null;
+    return candidate && /^[A-Za-z0-9_-]{11}$/.test(candidate) ? candidate : null;
   } catch {
     return null;
   }
 };
 
-/** Check if a URL is a YouTube link */
-const isYouTubeUrl = (url: string): boolean => {
-  return url.includes('youtube.com') || url.includes('youtu.be');
+/** Check if a URL is a usable HTTP(S) source. */
+const isUsableSourceUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    if (!parsed.hostname) return false;
+    return !isYouTubeUrl(url) || getYouTubeId(url) !== null;
+  } catch {
+    return false;
+  }
 };
+
+/** Check if a URL is a valid YouTube source. */
+const isYouTubeUrl = (url: string): boolean => getYouTubeId(url) !== null;
 
 /** Lazy YouTube embed: thumbnail → click → iframe */
 interface YTPlayerReadyEvent {
@@ -370,11 +381,11 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const inlineUrls = isGuru
       ? Array.from(new Set(
         (message.content.match(/https?:\/\/[^\s)"'<>]+/g) ?? [])
-          .filter(u => { try { new URL(u); return true; } catch { return false; } })
+          .filter(isUsableSourceUrl)
       ))
       : [];
     const citations = (message.citations && message.citations.length > 0)
-      ? message.citations
+      ? message.citations.filter(isUsableSourceUrl)
       : inlineUrls;
     const groundingState = message.groundingState ?? 'abstained';
 
@@ -1093,14 +1104,8 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   {/* YouTube Videos Section */}
                   {(() => {
                     const ytUrls = citations
-                      .filter(url => url.includes('youtube.com/watch') || url.includes('youtu.be/'))
-                      .map((url) => {
-                        const videoId = url.includes('v=')
-                          ? url.split('v=')[1]?.split('&')[0]
-                          : url.split('/').pop();
-                        return videoId ? { videoId, url } : null;
-                      })
-                      .filter(Boolean) as { videoId: string; url: string }[];
+                      .map((url) => ({ videoId: getYouTubeId(url), url }))
+                      .filter((item): item is { videoId: string; url: string } => item.videoId !== null);
 
                     if (ytUrls.length === 0) return null;
 
