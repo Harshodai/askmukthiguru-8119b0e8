@@ -187,11 +187,22 @@ _APP_BOUNDARY_RE = re.compile(
     r"what\s+do\s+you\s+remember|(?:my|your)\s+preferences?)",
     re.IGNORECASE,
 )
+_PLAYFUL_EDGE_RE = re.compile(
+    r"(?:mars|hogwarts|pizza|flying\s+carpet|disco\s+ball|wi[-\s]?fi|"
+    r"actual\s+bees?|ghost|california|lost\s+sock|ice\s+cream|homework|"
+    r"street\s+food|golden\s+statue|unicorn|aliens?)",
+    re.IGNORECASE,
+)
 
 
 def _is_app_boundary_query(question: str) -> bool:
     """Keep product-memory boundary questions out of doctrinal deep retrieval."""
     return bool(_APP_BOUNDARY_RE.search(question))
+
+
+def _is_playful_edge_query(question: str) -> bool:
+    """Recognize clearly nonliteral hypotheticals for a bounded fast answer."""
+    return bool(_PLAYFUL_EDGE_RE.search(question))
 
 
 def _early_filter(
@@ -473,7 +484,7 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     # Product-memory boundary questions are capability queries, not doctrine
     # synthesis. Route them to the direct casual handler before any classifier
     # can promote them to relational/deep retrieval.
-    if _is_app_boundary_query(question):
+    if _is_app_boundary_query(question) or _is_playful_edge_query(question):
         return {
             "intent": "CASUAL",
             "query_tier": "tier2_simple",
@@ -962,6 +973,19 @@ async def handle_casual(state: GraphState, config: dict = None) -> dict:
             "intent": "CAPABILITY",
             "citations": [],
             "grounding_state": "capability_answer",
+        }
+
+    if _is_playful_edge_query(q_lower) and _english_only(state.get("question", "")):
+        return {
+            "final_answer": (
+                "That is a playful hypothetical rather than a literal teaching. Spiritual practices "
+                "such as Soul Sync or Serene Mind are contemplative practices; they do not change "
+                "gravity, turn objects into statues, manifest physical items, or guarantee enlightenment. "
+                "If you practise, use comfortable breathing and ordinary real-world safety precautions."
+            ),
+            "intent": "CAPABILITY",
+            "citations": [],
+            "grounding_state": "bounded_hypothetical",
         }
 
     _SPIRITUAL_PRACTICE_SIGNALS = [

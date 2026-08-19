@@ -4,7 +4,12 @@ import pytest
 
 from app.config import settings
 from rag.graph_strategies import route_after_intent
-from rag.nodes.intent import _is_app_boundary_query, _is_logistics_query, handle_casual
+from rag.nodes.intent import (
+    _is_app_boundary_query,
+    _is_logistics_query,
+    _is_playful_edge_query,
+    handle_casual,
+)
 from rag.nodes.generation import generate_answer
 from rag.nodes.web_search import web_search_node
 
@@ -36,10 +41,25 @@ async def test_app_memory_boundary_returns_direct_privacy_answer():
     assert "invent" in result["final_answer"]
 
 
+@pytest.mark.asyncio
+async def test_playful_hypothetical_returns_bounded_capability_answer():
+    result = await handle_casual(
+        {
+            "question": "Can I manifest a unicorn using the third sacred secret?",
+            "intent": "CAPABILITY",
+            "chat_history": [],
+        }
+    )
+    assert result["grounding_state"] == "bounded_hypothetical"
+    assert "playful hypothetical" in result["final_answer"]
+    assert "guarantee enlightenment" in result["final_answer"]
+
+
 def test_app_memory_boundary_queries_use_fast_capability_route():
     assert _is_app_boundary_query("What is the difference between conversation memory and my private Second Brain vault?")
     assert _is_app_boundary_query("What do you remember about my spiritual practice?")
     assert not _is_app_boundary_query("What is the Beautiful State?")
+    assert _is_playful_edge_query("Can I manifest a unicorn using the third sacred secret?")
 
 
 def test_manifest_date_and_booking_queries_are_live_logistics():
