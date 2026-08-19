@@ -68,6 +68,12 @@ _GUARANTEED_OUTCOME_RE = re.compile(
     r"\b(?:i guarantee|this will (?:cure|heal|fix)|guaranteed to (?:manifest|heal|cure))\b",
     re.IGNORECASE,
 )
+_BOUNDED_ABSTENTION_RE = re.compile(
+    r"(?:i\s+(?:don['’]t|do not)\s+have\s+that\s+specific\s+teaching|"
+    r"please\s+try\s+asking\s+another\s+question|"
+    r"i\s+don['’]t\s+have\s+enough\s+(?:reliable\s+)?information)",
+    re.IGNORECASE,
+)
 
 
 def check_constitutional_compliance(answer: str) -> str | None:
@@ -212,6 +218,22 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     relevant_docs = state.get("relevant_docs", [])
     query_tier = state.get("query_tier", "standard")
     question = state.get("rewritten_query") or state.get("question", "")
+
+    # Safety redirects and canonical bounded abstentions contain no doctrine
+    # claim to verify. Do not spend a compulsory CoVe/embedding pass on them.
+    # This removes the observed 40–70s dead-end path while keeping the response
+    # explicitly ungrounded and non-cacheable downstream.
+    if answer and (
+        state.get("intent") in {"SAFETY_VIOLATION", "ERROR"}
+        or _BOUNDED_ABSTENTION_RE.search(answer)
+    ):
+        return {
+            "is_faithful": True,
+            "verification": {"passed": True, "details": "Bounded safety/abstention response; claim verification skipped"},
+            "confidence_score": 0.0,
+            "faithfulness_score": 0.0,
+            "relevancy_score": 0.0,
+        }
 
     # Fast-path for empty context (can't verify anything meaningfully)
     if not answer or not relevant_docs:

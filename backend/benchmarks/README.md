@@ -27,6 +27,7 @@ This directory contains the unified benchmarking suite for the **AskMukthiGuru**
 - `native_eval.py` — Native Ragas-style Ollama-powered context precision and answer faithfulness grader.
 - `ragas_eval.py` — Legacy OpenAI-based Ragas evaluator.
 - `run_all.py` — Unified runner that coordinates all suites, prints a beautiful dashboard, and publishes results.
+- `../scripts/benchmarks/production_end_to_end_benchmark.py` — Credential-free Railway production runner. Captures complete chat responses, latency, intent/tier, citations, faithfulness, verification, grounding, cache hits, trace IDs, node timings, public health/KG/metrics probes, protected-route fail-closed checks, and ephemeral text-upload extraction. Use `--all-question-bank` to run the complete shared bank.
 
 ## Running the Benchmarks
 
@@ -35,6 +36,16 @@ To run the complete suite, ensure the services are up and running, then execute:
 ```bash
 python3 backend/benchmarks/run_all.py
 ```
+
+### Production end-to-end benchmark
+
+```bash
+backend/.venv/bin/python scripts/benchmarks/production_end_to_end_benchmark.py \
+  https://askmukthiguru-8119b0e8-production.up.railway.app \
+  /tmp/production_end_to_end.json --all-question-bank --concurrency 2 --timeout 180
+```
+
+The runner obtains a fresh signed anonymous session per chat case. It does not use the benchmark backdoor, enter credentials, index attachments, or write to the immutable transcript corpus. Protected memory and Second Brain endpoints are recorded as expected `401/403` fail-closed checks when no user JWT is supplied.
 
 ### Options
 

@@ -4,7 +4,7 @@ import pytest
 
 from app.config import settings
 from rag.graph_strategies import route_after_intent
-from rag.nodes.intent import _is_logistics_query
+from rag.nodes.intent import _is_app_boundary_query, _is_logistics_query
 from rag.nodes.web_search import web_search_node
 
 
@@ -20,9 +20,17 @@ class OfficialSearch:
         ]
 
 
+def test_app_memory_boundary_queries_use_fast_capability_route():
+    assert _is_app_boundary_query("What is the difference between conversation memory and my private Second Brain vault?")
+    assert _is_app_boundary_query("What do you remember about my spiritual practice?")
+    assert not _is_app_boundary_query("What is the Beautiful State?")
+
+
 def test_manifest_date_and_booking_queries_are_live_logistics():
     assert _is_logistics_query("When is the next Manifest event?")
     assert _is_logistics_query("How do I book Guru Darshan at Ekam?")
+    assert _is_logistics_query("What is the latest official Ekam program or event information right now?")
+    assert _is_logistics_query("What is the current schedule on the official Oneness Movement website?")
     assert not _is_logistics_query("What is the teaching of manifestation?")
     assert route_after_intent({"intent": "LIVE_LOGISTICS"}) == "temporal"
 

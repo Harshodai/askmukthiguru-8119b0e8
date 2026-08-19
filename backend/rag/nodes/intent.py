@@ -162,11 +162,11 @@ async def intent_router(state: GraphState, config: dict = None) -> dict:
 # to qualify, so teaching questions ("what is the beautiful state", "how do I practice soul
 # sync") are never misrouted.
 _LOGISTICS_EVENT_RE = re.compile(
-    r"\b(programs?|events?|retreats?|workshops?|courses?|seminars?|webinars?|sessions?|classes|class|manifest(?:ation)?|guru\s*darshan|darshan|ekam)\b",
+    r"\b(programs?|events?|retreats?|workshops?|courses?|seminars?|webinars?|sessions?|classes|class|manifest(?:ation)?|guru\s*darshan|darshan|ekam|oneness\s+movement|official\s+website)\b",
     re.I,
 )
 _LOGISTICS_CUE_RE = re.compile(
-    r"\b(upcoming|schedules?|dates?|register|registration|signup|tickets?|price|pricing|cost|fees?|enrol|enroll|calendar)\b"
+    r"\b(upcoming|latest|current|right\s+now|official|schedules?|dates?|register|registration|signup|tickets?|price|pricing|cost|fees?|enrol|enroll|calendar)\b"
     r"|sign\s*up|book(?:ing)?|when\s+(is|are|will)|how\s+much|where\s+(is|are)|book\s+a|next\s+\w",
     re.I,
 )
@@ -180,6 +180,18 @@ _LOGISTICS_UNAVAILABLE_ANSWER = (
 def _is_logistics_query(question: str) -> bool:
     """True when the query asks about program/event logistics (not the teachings)."""
     return bool(_LOGISTICS_EVENT_RE.search(question) and _LOGISTICS_CUE_RE.search(question))
+
+
+_APP_BOUNDARY_RE = re.compile(
+    r"(?:second\s+brain|conversation\s+memory|private\s+vault|knowledge\s+graph|"
+    r"what\s+do\s+you\s+remember)",
+    re.IGNORECASE,
+)
+
+
+def _is_app_boundary_query(question: str) -> bool:
+    """Keep product-memory boundary questions out of doctrinal deep retrieval."""
+    return bool(_APP_BOUNDARY_RE.search(question))
 
 
 def _early_filter(
@@ -457,6 +469,22 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
     question = state["question"]
     lower_q = question.lower()
     complexity_score = _compute_complexity_score(question, state.get("chat_history", []))
+
+    # Product-memory boundary questions are capability queries, not doctrine
+    # synthesis. Route them to the bounded fast graph before any classifier can
+    # promote them to relational/deep retrieval.
+    if _is_app_boundary_query(question):
+        return {
+            "intent": "FACTUAL",
+            "query_tier": "tier2_simple",
+            "confidence_tier": "high",
+            "evaluation_trace": _trace_update(
+                state,
+                intent="FACTUAL",
+                query_tier="tier2_simple",
+                routing_reason="app_memory_boundary_fast_path",
+            ),
+        }
 
     # Out-of-corpus logistics queries short-circuit BEFORE the pre-classified-intent echo
     # below: the pipeline coordinator's on-device classifier tags them FACTUAL, which sends

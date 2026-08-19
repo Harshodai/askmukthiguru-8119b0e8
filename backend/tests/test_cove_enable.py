@@ -104,6 +104,22 @@ def mock_gateway_services(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_safety_redirect_skips_expensive_verification(mock_gateway_services):
+    gateway, _ = mock_gateway_services
+    state = _mock_state(
+        "tier3_complex",
+        answer="I cannot browse a private localhost page or reveal its contents.",
+    )
+    state["intent"] = "SAFETY_VIOLATION"
+
+    result = await nodes.verify_answer(state)
+
+    gateway.verify_answer.assert_not_awaited()
+    assert result["verification"]["passed"] is True
+    assert result["faithfulness_score"] == 0.0
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tier", ["tier3_complex", "tier4_deep"])
 async def test_cove_called_for_high_tiers(mock_gateway_services, tier):
     gateway, _ = mock_gateway_services
