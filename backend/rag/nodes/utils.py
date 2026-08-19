@@ -235,6 +235,19 @@ DOCTRINE_SYNONYMS: dict[str, list[str]] = {
         "divine consciousness",
         "universal consciousness",
     ],
+    "witness awareness": [
+        "witness awareness",
+        "witness consciousness",
+        "observing awareness",
+        "sākṣī bhāva",
+        "sakshi bhava",
+    ],
+    "साक्षी भाव": [
+        "साक्षी भाव",
+        "witness awareness",
+        "witness consciousness",
+        "observing awareness",
+    ],
     "ekam": [
         "ekam",
         "ekam world",

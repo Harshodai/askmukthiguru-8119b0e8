@@ -134,8 +134,16 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
 
     await emit_status(config, "Reviewing the response for clarity...")
     context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
+    # Deep verification remains semantic and authoritative below; reflection is
+    # a correction hint only, so keep its pass bounded and avoid duplicate CPU
+    # embedding work on complex answers.
+    reflection_semantic = state.get("query_tier") not in ("tier3_complex", "deep")
     ld_result = await asyncio.to_thread(
-        lettuce_detect.score_faithfulness, question, context, answer
+        lettuce_detect.score_faithfulness,
+        question,
+        context,
+        answer,
+        semantic=reflection_semantic,
     )
     # Strict per-sentence verdict, not mean-vs-threshold: one hallucinated
     # sentence in ten averages into invisibility under `score`, but LettuceDetect
