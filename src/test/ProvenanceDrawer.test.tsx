@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ProvenanceDrawer } from '@/components/compliance/ProvenanceDrawer';
 import type { Message } from '@/lib/chatStorage';
+import { createProvenanceManifestFromMessage } from '@/types/provenance';
 import type { AIProvenanceManifest } from '@/types/provenance';
 
 const mockToast = vi.fn();
@@ -111,6 +112,36 @@ describe('ProvenanceDrawer Component', () => {
     expect(screen.getByTestId('provenance-drawer')).toBeInTheDocument();
     expect(screen.getByText('2 verified sources')).toBeInTheDocument();
     expect(screen.getByText('92%')).toBeInTheDocument();
+  });
+
+  it('normalizes backend snake_case provenance into the drawer manifest', () => {
+    const manifest = createProvenanceManifestFromMessage({
+      ...sampleMessage,
+      modelUsed: 'test-model',
+      modelProvider: 'test-provider',
+      provenanceManifest: {
+        manifest_id: 'backend-manifest-1',
+        generated_at: '2026-08-18T10:00:00.000Z',
+        model_name: 'Backend Model',
+        model_provider: 'Backend Provider',
+        risk_tier: 'transparency_art50',
+        origin_type: 'ai_generated',
+        sources: [{ title: 'Authoritative Teaching', url: 'https://example.com/teaching', score: 0 }],
+        confidence_score: 0,
+        disclosure_statement: 'Backend disclosure',
+      },
+    });
+
+    expect(manifest.id).toBe('backend-manifest-1');
+    expect(manifest.modelDescriptor.name).toBe('Backend Model');
+    expect(manifest.modelDescriptor.provider).toBe('Backend Provider');
+    expect(manifest.grounding.sources?.[0]).toMatchObject({
+      title: 'Authoritative Teaching',
+      url: 'https://example.com/teaching',
+      score: 0,
+    });
+    expect(manifest.grounding.confidenceScore).toBe(0);
+    expect(manifest.disclosure.notice).toBe('Backend disclosure');
   });
 
   it('toggles machine-readable JSON-LD preview on click', () => {

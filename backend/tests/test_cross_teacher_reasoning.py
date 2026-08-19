@@ -20,7 +20,11 @@ def _reset_cross_teacher_module_state():
     across tests."""
     cross_teacher_module._driver = None
     cross_teacher_module._neo4j_query_cache.clear()
-    yield
+    # The full suite may leave the process-wide container initialized. These
+    # tests intentionally patch GraphDatabase.driver, so force the standalone
+    # fallback path and avoid real neo4j:7687 DNS attempts.
+    with patch("app.dependencies._container", None):
+        yield
     cross_teacher_module._driver = None
     cross_teacher_module._neo4j_query_cache.clear()
 

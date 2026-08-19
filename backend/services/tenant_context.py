@@ -67,6 +67,18 @@ class TenantContext:
         _tenant_user_id_var.set(user_id)
 
     @staticmethod
+    def reset() -> None:
+        """Reset the current task to the legacy tenant context.
+
+        Test fixtures and explicit request teardown use this helper to avoid
+        carrying an authenticated tenant into the next task or request.
+        ContextVar defaults are not mutated; only the current context is reset.
+        """
+        _tenant_id_var.set(_LEGACY_TENANT)
+        _tenant_email_var.set("")
+        _tenant_user_id_var.set("")
+
+    @staticmethod
     def is_legacy() -> bool:
         """True if the current tenant is the legacy (single-tenant) default."""
         return _tenant_id_var.get() == _LEGACY_TENANT

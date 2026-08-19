@@ -24,6 +24,9 @@ MAX_SINGLE_BYTES = 10 * 1024 * 1024
 MAX_TOTAL_BYTES = 50 * 1024 * 1024
 MAX_CONTEXT_CHARS = 8_000
 MAX_FILE_CONTEXT_CHARS = 6_000
+MAX_OFFICE_MEMBERS = 256
+MAX_OFFICE_MEMBER_BYTES = 4 * 1024 * 1024
+MAX_OFFICE_UNCOMPRESSED_BYTES = 20 * 1024 * 1024
 
 _ALLOWED_TEXT_EXTENSIONS = {
     ".txt", ".md", ".markdown", ".csv", ".tsv", ".json", ".log", ".xml",
@@ -77,10 +80,20 @@ def _extract_office_text(path: str) -> str:
     """Extract visible XML text from OOXML without adding a new dependency."""
     fragments: list[str] = []
     with zipfile.ZipFile(path) as archive:
-        for member in archive.namelist():
+        infos = archive.infolist()
+        if len(infos) > MAX_OFFICE_MEMBERS:
+            raise ValueError("Office archive contains too many members")
+        uncompressed_total = 0
+        for info in infos:
+            member = info.filename
             if not member.endswith(".xml") or member.startswith("_rels/"):
                 continue
-            raw = archive.read(member).decode("utf-8", errors="ignore")
+            if info.file_size > MAX_OFFICE_MEMBER_BYTES:
+                raise ValueError("Office archive member exceeds extraction limit")
+            uncompressed_total += info.file_size
+            if uncompressed_total > MAX_OFFICE_UNCOMPRESSED_BYTES:
+                raise ValueError("Office archive exceeds extraction limit")
+            raw = archive.read(info).decode("utf-8", errors="ignore")
             text = raw.replace("><", "> <")
             import re
             text = re.sub(r"<[^>]+>", " ", text)

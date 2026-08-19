@@ -33,7 +33,7 @@ describe('sendMessageStreaming SSE parsing', () => {
       'event: status\ndata: Searching knowledge base...\n',
       'event: message\ndata: {"token":"Hello "}\n',
       'event: message\ndata: {"token":"world"}\n',
-      'event: done\ndata: {"intent":"DISTRESS","citations":["https://youtu.be/abc"],"meditation_step":1}\n',
+      'event: done\ndata: {"intent":"DISTRESS","citations":["https://youtu.be/abc"],"meditation_step":1,"citations_verified":true,"orphan_citations_stripped":false,"faithfulness_score":0.92,"provenance_manifest":{"manifest_id":"m-1","sources":[{"url":"https://youtu.be/abc","title":"Teaching"}]}}\n',
       'data: [DONE]\n',
     ]);
 
@@ -60,6 +60,12 @@ describe('sendMessageStreaming SSE parsing', () => {
       meditationStep: 1,
     });
     expect((done as { citations: string[] }).citations).toEqual(['https://youtu.be/abc']);
+    expect(done).toMatchObject({
+      citationsVerified: true,
+      orphanCitationsStripped: false,
+      faithfulnessScore: 0.92,
+      provenanceManifest: { manifest_id: 'm-1' },
+    });
   });
 
   it('unescapes \\n to real newlines in token text', async () => {

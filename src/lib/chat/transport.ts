@@ -208,6 +208,20 @@ export const sendMessage = async (
                   guidancePlan: result.guidance_plan ?? null,
                   answerEvidence: result.answer_evidence ?? null,
                   groundingState: result.grounding_state ?? 'abstained',
+                  faithfulnessScore: result.faithfulness_score ?? null,
+                  relevancyScore: result.relevancy_score ?? null,
+                  hallucinationFlag: result.hallucination_flag ?? null,
+                  verification: result.verification ?? null,
+                  citationsVerified: result.citations_verified ?? null,
+                  orphanCitationsStripped: result.orphan_citations_stripped ?? null,
+                  releaseManifest: result.release_manifest ?? null,
+                  provenanceManifest: result.provenance_manifest ?? null,
+                  aiProvenance: result.ai_provenance ?? null,
+                  traceId: result.trace_id ?? null,
+                  latencyMs: result.latency_ms ?? null,
+                  modelUsed: result.model_used ?? null,
+                  modelProvider: result.model_provider ?? null,
+                  queryTier: result.query_tier ?? null,
                 };
               }
               if (job.status === 'failed') {
@@ -294,6 +308,20 @@ export const sendMessage = async (
         guidancePlan: data.guidance_plan ?? null,
         answerEvidence: data.answer_evidence ?? null,
         groundingState: data.grounding_state ?? 'abstained',
+        faithfulnessScore: data.faithfulness_score ?? null,
+        relevancyScore: data.relevancy_score ?? null,
+        hallucinationFlag: data.hallucination_flag ?? null,
+        verification: data.verification ?? null,
+        citationsVerified: data.citations_verified ?? null,
+        orphanCitationsStripped: data.orphan_citations_stripped ?? null,
+        releaseManifest: data.release_manifest ?? null,
+        provenanceManifest: data.provenance_manifest ?? null,
+        aiProvenance: data.ai_provenance ?? null,
+        traceId: data.trace_id ?? null,
+        latencyMs: data.latency_ms ?? null,
+        modelUsed: data.model_used ?? null,
+        modelProvider: data.model_provider ?? null,
+        queryTier: data.query_tier ?? null,
       };
     } catch (err: unknown) {
       const error = err as Error;

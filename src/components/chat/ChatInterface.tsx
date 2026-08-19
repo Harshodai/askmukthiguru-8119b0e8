@@ -37,7 +37,7 @@ import { AiTransparencyBanner } from '@/components/compliance/AiTransparencyBann
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
 import { sendMessage, sendMessageStreaming, uploadChatAttachment, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
-import type { LiveLogisticsEvent, GuidancePlan, AnswerEvidence, GroundingState } from '@/lib/chat/types';
+import type { BackendMetadata, LiveLogisticsEvent, GuidancePlan, AnswerEvidence, GroundingState } from '@/lib/chat/types';
 import { getCourse } from '@/lib/healingCourses';
 import { memoryApi } from '@/lib/memoryApi';
 import { supabase } from '@/integrations/supabase/client';
@@ -1070,7 +1070,21 @@ export const ChatInterface = () => {
         let streamedGuidancePlan: GuidancePlan | null = null;
         let streamedAnswerEvidence: AnswerEvidence | null = null;
         let streamedGroundingState: GroundingState = 'abstained';
-  for await (const chunk of stream) {
+        let streamedFaithfulnessScore: number | null = null;
+        let streamedRelevancyScore: number | null = null;
+        let streamedHallucinationFlag: boolean | null = null;
+        let streamedVerification: BackendMetadata | null = null;
+        let streamedCitationsVerified: boolean | null = null;
+        let streamedOrphanCitationsStripped: boolean | null = null;
+        let streamedReleaseManifest: BackendMetadata | null = null;
+        let streamedProvenanceManifest: BackendMetadata | null = null;
+        let streamedAiProvenance: BackendMetadata | null = null;
+        let streamedTraceId: string | null = null;
+        let streamedLatencyMs: number | null = null;
+        let streamedModelUsed: string | null = null;
+        let streamedModelProvider: string | null = null;
+        let streamedQueryTier: string | null = null;
+        for await (const chunk of stream) {
           if (chunk.type === 'status') {
             if (chunk.jobId) {
               currentJobIdRef.current = chunk.jobId;
@@ -1118,6 +1132,20 @@ export const ChatInterface = () => {
             streamedGuidancePlan = chunk.guidancePlan ?? null;
             streamedAnswerEvidence = chunk.answerEvidence ?? null;
             streamedGroundingState = chunk.groundingState ?? (streamedBlocked ? 'safety_redirect' : 'abstained');
+            streamedFaithfulnessScore = chunk.faithfulnessScore ?? null;
+            streamedRelevancyScore = chunk.relevancyScore ?? null;
+            streamedHallucinationFlag = chunk.hallucinationFlag ?? null;
+            streamedVerification = chunk.verification ?? null;
+            streamedCitationsVerified = chunk.citationsVerified ?? null;
+            streamedOrphanCitationsStripped = chunk.orphanCitationsStripped ?? null;
+            streamedReleaseManifest = chunk.releaseManifest ?? null;
+            streamedProvenanceManifest = chunk.provenanceManifest ?? null;
+            streamedAiProvenance = chunk.aiProvenance ?? null;
+            streamedTraceId = chunk.traceId ?? null;
+            streamedLatencyMs = chunk.latencyMs ?? null;
+            streamedModelUsed = chunk.modelUsed ?? null;
+            streamedModelProvider = chunk.modelProvider ?? null;
+            streamedQueryTier = chunk.queryTier ?? null;
             continue;
           }
 
@@ -1175,6 +1203,20 @@ export const ChatInterface = () => {
                     guidancePlan: streamedGuidancePlan,
                     answerEvidence: streamedAnswerEvidence,
                     groundingState: streamedGroundingState,
+                    faithfulnessScore: streamedFaithfulnessScore,
+                    relevancyScore: streamedRelevancyScore,
+                    hallucinationFlag: streamedHallucinationFlag,
+                    verification: streamedVerification,
+                    citationsVerified: streamedCitationsVerified,
+                    orphanCitationsStripped: streamedOrphanCitationsStripped,
+                    releaseManifest: streamedReleaseManifest,
+                    provenanceManifest: streamedProvenanceManifest,
+                    aiProvenance: streamedAiProvenance,
+                    traceId: streamedTraceId,
+                    latencyMs: streamedLatencyMs,
+                    modelUsed: streamedModelUsed,
+                    modelProvider: streamedModelProvider,
+                    queryTier: streamedQueryTier,
                   }
                 : m
             )
@@ -1423,6 +1465,20 @@ openSereneMind('audio');
           guidancePlan: response.guidancePlan ?? null,
           answerEvidence: response.answerEvidence ?? null,
           groundingState: response.groundingState ?? (responseError ? 'system_error' : 'abstained'),
+          faithfulnessScore: response.faithfulnessScore ?? null,
+          relevancyScore: response.relevancyScore ?? null,
+          hallucinationFlag: response.hallucinationFlag ?? null,
+          verification: response.verification ?? null,
+          citationsVerified: response.citationsVerified ?? null,
+          orphanCitationsStripped: response.orphanCitationsStripped ?? null,
+          releaseManifest: response.releaseManifest ?? null,
+          provenanceManifest: response.provenanceManifest ?? null,
+          aiProvenance: response.aiProvenance ?? null,
+          traceId: response.traceId ?? null,
+          latencyMs: response.latencyMs ?? null,
+          modelUsed: response.modelUsed ?? null,
+          modelProvider: response.modelProvider ?? null,
+          queryTier: response.queryTier ?? null,
         };
         setMessages((prev) => [...prev, guruMessage]);
         if (!responseError) {

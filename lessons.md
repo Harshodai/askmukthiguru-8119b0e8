@@ -7164,3 +7164,14 @@ name which half that covers — `git push origin main` deploys the frontend
 only; the backend needs its own explicit `railway up`. Treat "committed"
 and "deployed" as two separate facts to verify per service, not one
 end-to-end guarantee from a single push.**
+
+
+## Aug 19, 2026 — Excluded-BRAIN_KEK hardening pass
+
+- **L-K4-1: Backend provenance must survive every transport path.** Chat responses can carry verification, citation-verification, faithfulness/relevancy, release-manifest, provenance-manifest, trace, model, and query-tier metadata. Preserve these fields through non-stream responses, SSE `done` events, ChatInterface message construction, local chat persistence, and the provenance drawer. The drawer must prefer backend provenance and use a conservative fallback only for legacy messages.
+- **L-K4-2: Preserve valid zero scores.** Provenance confidence and source scores can legitimately be `0`; use nullish coalescing rather than truthiness fallback when normalizing backend metadata.
+- **L-K4-3: Bound archive expansion, not only upload bytes.** OOXML files are ZIP archives. Enforce member-count, per-member uncompressed-size, and total-uncompressed-size limits before reading XML so a compressed archive cannot bypass the 10MB upload limit through decompression expansion.
+- **L-K4-4: ContextVar reset helpers are operationally necessary.** TenantContext must expose an explicit reset method for request/test teardown. ContextVar defaults do not reset a mutated current context automatically; missing reset support can leak tenant identity across tests and request-adjacent tasks.
+- **L-K4-5: Mock process-wide service containers in isolated driver tests.** Tests that patch a constructor must also disable an already-initialized shared container, otherwise the production singleton path bypasses the mock and attempts real service DNS.
+- **L-K4-6: Font tokens must match loaded fonts.** The canonical design tokens now use the same Plus Jakarta Sans, Inter, Outfit, and Cormorant Garamond families declared by the production HTML and Tailwind theme; stale token names silently trigger fallback fonts.
+- **L-K4-7: Corpus and BRAIN_KEK boundaries remain explicit.** This pass did not upload, modify, or stage transcript corpus files and did not create, rotate, print, or change BRAIN_KEK. Deployment remains blocked only by the user-managed production encryption secret.

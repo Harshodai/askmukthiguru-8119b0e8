@@ -66,6 +66,40 @@ describe('chat/transport helpers', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('sendMessage preserves backend verification and provenance metadata', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        response: 'grounded answer',
+        citations: ['https://example.com/teaching'],
+        citations_verified: true,
+        orphan_citations_stripped: false,
+        faithfulness_score: 0.91,
+        relevancy_score: 0.88,
+        provenance_manifest: { manifest_id: 'manifest-1' },
+        release_manifest: { release_id: 'release-1' },
+        trace_id: 'trace-1',
+        query_tier: 'tier2_simple',
+      }),
+    });
+
+    const result = await sendMessage([], 'hello');
+
+    expect(result).toMatchObject({
+      content: 'grounded answer',
+      citationsVerified: true,
+      orphanCitationsStripped: false,
+      faithfulnessScore: 0.91,
+      relevancyScore: 0.88,
+      provenanceManifest: { manifest_id: 'manifest-1' },
+      releaseManifest: { release_id: 'release-1' },
+      traceId: 'trace-1',
+      queryTier: 'tier2_simple',
+    });
+  });
+
   it('sendMessage resolves a host-relative queue poll_url against the backend origin', async () => {
     const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
     fetchMock

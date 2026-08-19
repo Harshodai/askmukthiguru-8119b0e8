@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AnswerEvidence, GuidancePlan, GroundingState, LiveLogisticsEvent } from './chat/types';
+import type { AnswerEvidence, BackendMetadata, GuidancePlan, GroundingState, LiveLogisticsEvent } from './chat/types';
 import { supabase } from '@/integrations/supabase/client';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
@@ -63,6 +63,20 @@ export interface Message {
   /** Evidence provenance accompanying a guru reply. */
   answerEvidence?: AnswerEvidence | null;
   groundingState?: GroundingState;
+  faithfulnessScore?: number | null;
+  relevancyScore?: number | null;
+  hallucinationFlag?: boolean | null;
+  verification?: BackendMetadata | null;
+  citationsVerified?: boolean | null;
+  orphanCitationsStripped?: boolean | null;
+  releaseManifest?: BackendMetadata | null;
+  provenanceManifest?: BackendMetadata | null;
+  aiProvenance?: BackendMetadata | null;
+  traceId?: string | null;
+  latencyMs?: number | null;
+  modelUsed?: string | null;
+  modelProvider?: string | null;
+  queryTier?: string | null;
 }
 
 // ── Feedback helpers ──────────────────────────────────────────────
@@ -120,6 +134,20 @@ const MessageSchema = z.object({
     citations_verified: z.boolean().nullable().optional(),
   }).nullable().optional(),
   groundingState: z.enum(['grounded', 'abstained', 'safety_redirect', 'system_error']).optional(),
+  faithfulnessScore: z.number().nullable().optional(),
+  relevancyScore: z.number().nullable().optional(),
+  hallucinationFlag: z.boolean().nullable().optional(),
+  verification: z.record(z.string(), z.unknown()).nullable().optional(),
+  citationsVerified: z.boolean().nullable().optional(),
+  orphanCitationsStripped: z.boolean().nullable().optional(),
+  releaseManifest: z.record(z.string(), z.unknown()).nullable().optional(),
+  provenanceManifest: z.record(z.string(), z.unknown()).nullable().optional(),
+  aiProvenance: z.record(z.string(), z.unknown()).nullable().optional(),
+  traceId: z.string().nullable().optional(),
+  latencyMs: z.number().nullable().optional(),
+  modelUsed: z.string().nullable().optional(),
+  modelProvider: z.string().nullable().optional(),
+  queryTier: z.string().nullable().optional(),
 });
 
 const ConversationSchema = z.object({

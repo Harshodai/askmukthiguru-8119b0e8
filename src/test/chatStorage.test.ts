@@ -59,6 +59,34 @@ describe('chatStorage', () => {
       expect(loaded[0].preview).toBe('Test preview');
     });
 
+    it('round-trips backend provenance metadata with a conversation', async () => {
+      const conv = createNewConversation();
+      conv.messages = [{
+        id: 'guru-1',
+        role: 'guru',
+        content: 'Grounded answer',
+        timestamp: new Date('2026-08-19T10:00:00.000Z'),
+        citations: ['https://example.com/teaching'],
+        citationsVerified: true,
+        faithfulnessScore: 0.9,
+        verification: { passed: true },
+        provenanceManifest: { manifest_id: 'manifest-1' },
+        releaseManifest: { release_id: 'release-1' },
+        queryTier: 'tier2_simple',
+      }];
+      await saveConversation(conv);
+
+      const loaded = await loadConversations();
+      expect(loaded[0].messages[0]).toMatchObject({
+        citationsVerified: true,
+        faithfulnessScore: 0.9,
+        verification: { passed: true },
+        provenanceManifest: { manifest_id: 'manifest-1' },
+        releaseManifest: { release_id: 'release-1' },
+        queryTier: 'tier2_simple',
+      });
+    });
+
     it('deletes conversations', async () => {
       const conv = createNewConversation();
       await saveConversation(conv);

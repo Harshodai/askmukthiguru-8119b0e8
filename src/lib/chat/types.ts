@@ -84,6 +84,8 @@ export interface AnswerEvidence {
 }
 
 
+export type BackendMetadata = Record<string, unknown>;
+
 export interface AIResponse {
   content: string;
   error?: string;
@@ -101,6 +103,20 @@ export interface AIResponse {
   guidancePlan?: GuidancePlan | null;
   answerEvidence?: AnswerEvidence | null;
   groundingState?: GroundingState;
+  faithfulnessScore?: number | null;
+  relevancyScore?: number | null;
+  hallucinationFlag?: boolean | null;
+  verification?: BackendMetadata | null;
+  citationsVerified?: boolean | null;
+  orphanCitationsStripped?: boolean | null;
+  releaseManifest?: BackendMetadata | null;
+  provenanceManifest?: BackendMetadata | null;
+  aiProvenance?: BackendMetadata | null;
+  traceId?: string | null;
+  latencyMs?: number | null;
+  modelUsed?: string | null;
+  modelProvider?: string | null;
+  queryTier?: string | null;
   /** Seconds the client should wait before retrying (429 responses). */
   retryAfterSeconds?: number;
   /** Anonymous quota state from a 429 quota_exceeded response, for the "X of Y used" caption. */
@@ -149,6 +165,20 @@ export type StreamChunk =
   guidancePlan?: GuidancePlan | null;
       answerEvidence?: AnswerEvidence | null;
       groundingState?: GroundingState;
+      faithfulnessScore?: number | null;
+      relevancyScore?: number | null;
+      hallucinationFlag?: boolean | null;
+      verification?: BackendMetadata | null;
+      citationsVerified?: boolean | null;
+      orphanCitationsStripped?: boolean | null;
+      releaseManifest?: BackendMetadata | null;
+      provenanceManifest?: BackendMetadata | null;
+      aiProvenance?: BackendMetadata | null;
+      traceId?: string | null;
+      latencyMs?: number | null;
+      modelUsed?: string | null;
+      modelProvider?: string | null;
+      queryTier?: string | null;
     }
   | { type: 'error'; text: string };
 

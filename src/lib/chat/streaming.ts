@@ -252,6 +252,20 @@ export async function* sendMessageStreaming(
               guidancePlan: meta.guidance_plan ?? null,
               answerEvidence: meta.answer_evidence ?? null,
               groundingState: meta.grounding_state ?? 'abstained',
+              faithfulnessScore: meta.faithfulness_score ?? null,
+              relevancyScore: meta.relevancy_score ?? null,
+              hallucinationFlag: meta.hallucination_flag ?? null,
+              verification: meta.verification ?? null,
+              citationsVerified: meta.citations_verified ?? null,
+              orphanCitationsStripped: meta.orphan_citations_stripped ?? null,
+              releaseManifest: meta.release_manifest ?? null,
+              provenanceManifest: meta.provenance_manifest ?? null,
+              aiProvenance: meta.ai_provenance ?? null,
+              traceId: meta.trace_id ?? null,
+              latencyMs: meta.latency_ms ?? null,
+              modelUsed: meta.model_used ?? null,
+              modelProvider: meta.model_provider ?? null,
+              queryTier: meta.query_tier ?? null,
             };
           } catch {
             // Ignore malformed done payload
