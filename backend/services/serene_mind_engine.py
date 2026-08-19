@@ -656,7 +656,24 @@ class SereneMindEngine:
         # Stage 1: Fast keyword (always run)
         assessment = self.assess_distress(message, conversation_history)
 
-        # Stage 2: LLM fallback (if Stage 1 didn't find MODERATE+)
+        # Stage 2: LLM fallback is reserved for messages with a lexical
+        # distress signal or recent distress history. Calling the classifier
+        # for every ordinary doctrine question added roughly 8–10 seconds to
+        # the user-facing path while contributing no safety signal. The
+        # deterministic Stage 1 scan remains unconditional and covers the
+        # crisis/question-framed patterns before this gate.
+        has_recent_distress = bool(
+            conversation_history
+            and any(
+                self._quick_distress_check(
+                    msg.get("content", "") if isinstance(msg, dict) else ""
+                )
+                for msg in conversation_history[-self.rolling_window :]
+            )
+        )
+        if assessment.level == DistressLevel.NONE and not has_recent_distress:
+            return assessment
+
         if assessment.level < DistressLevel.MODERATE:
             try:
                 from app.dependencies import get_container

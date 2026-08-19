@@ -7,6 +7,20 @@ from services.user_profile_service import ConversationMemory
 
 
 @pytest.mark.asyncio
+async def test_ordinary_doctrine_skips_llm_distress_fallback(monkeypatch):
+    """Normal spiritual questions must not pay for a second safety-model call."""
+    engine = SereneMindEngine()
+    ollama = AsyncMock()
+    container = type("Container", (), {"ollama": ollama})()
+    monkeypatch.setattr("app.dependencies.get_container", lambda: container)
+
+    result = await engine.async_assess_distress("what is a beautiful state", [])
+
+    assert result.level == DistressLevel.NONE
+    ollama.classify_distress_structured.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_analyze_distress_trend_empty_history():
     engine = SereneMindEngine()
     user_profile_mock = AsyncMock()
