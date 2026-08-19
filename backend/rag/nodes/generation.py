@@ -1630,7 +1630,11 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 lettuce_detect = _services._lettuce_detect
                 context = "\n\n".join(doc_text(doc) for doc in relevant_docs)
                 ld_result = await asyncio.to_thread(
-                    lettuce_detect.score_faithfulness, question, context, answer
+                    lettuce_detect.score_faithfulness,
+                    question,
+                    context,
+                    answer,
+                    semantic=False,
                 )
                 faithfulness_score = ld_result.get("score", 1.0)
                 hallucination_flag = not ld_result.get("is_faithful", True)

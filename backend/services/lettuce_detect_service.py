@@ -153,22 +153,26 @@ class LettuceDetectService:
     # Public contract
     # ------------------------------------------------------------------
 
-    def score_faithfulness(self, query: str, context: str, answer: str) -> dict:
-        """Evaluate if the generated answer is faithful to the context.
+    def score_faithfulness(
+        self,
+        query: str,
+        context: str,
+        answer: str,
+        *,
+        semantic: bool = True,
+    ) -> dict:
+        """Evaluate whether the generated answer is faithful to the context.
 
-        Returns a dict with ``is_faithful`` (bool), ``score`` (float 0-1),
-        ``details`` (str), and ``unsupported_sentences`` (list, heuristic
-        path only — empty list on the real-detector path).
-
-        Selects the real LettuceDetect detector when
-        ``settings.lettucedetect_enabled`` is True and the package imports;
-        otherwise falls back to the sentence-level heuristic below.
+        ``semantic=False`` selects a bounded lexical-only check for latency
+        sensitive fast-tier responses. It deliberately bypasses both the real
+        detector and embedding inference; deeper verification keeps the
+        default semantic path.
         """
-        if getattr(settings, "lettucedetect_enabled", False):
+        if semantic and getattr(settings, "lettucedetect_enabled", False):
             detector = self._load_real_detector()
             if detector is not None:
                 return self._score_with_real_detector(detector, query, context, answer)
-        return self._score_heuristic(query, context, answer)
+        return self._score_heuristic(query, context, answer, use_semantic=semantic)
 
     # ------------------------------------------------------------------
     # Real detector path (S3)
@@ -240,7 +244,14 @@ class LettuceDetectService:
     # Heuristic fallback path (original logic, C2 emoji branch removed)
     # ------------------------------------------------------------------
 
-    def _score_heuristic(self, query: str, context: str, answer: str) -> dict:
+    def _score_heuristic(
+        self,
+        query: str,
+        context: str,
+        answer: str,
+        *,
+        use_semantic: bool = True,
+    ) -> dict:
         """Sentence-split + cosine (or word-overlap) heuristic. Original path."""
         start = time.time()
         if not answer.strip() or not context.strip():
@@ -279,7 +290,7 @@ class LettuceDetectService:
         unsupported_sentences = []
         scores = []
 
-        if self.embedder:
+        if self.embedder and use_semantic:
             try:
                 # Encode context and answer sentences in two batch calls. The
                 # previous per-sentence encode_single_full loop made a normal

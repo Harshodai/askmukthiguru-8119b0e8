@@ -92,6 +92,21 @@ def test_faithfulness_batches_answer_sentence_embeddings():
     assert embedder.single_calls == 0
 
 
+def test_fast_faithfulness_bypasses_embedding_inference():
+    """Fast-tier scoring must remain bounded even when an embedder is loaded."""
+    embedder = _FakeEmbedder(sentence_score=0.01, context_score=0.99)
+    svc = LettuceDetectService(embedder=embedder)
+    result = svc.score_faithfulness(
+        "what is witness awareness",
+        "Witness awareness is the practice of observing the present moment.",
+        "Witness awareness is the practice of observing the present moment.",
+        semantic=False,
+    )
+    assert result["is_faithful"] is True
+    assert embedder.batch_calls == 0
+    assert embedder.single_calls == 0
+
+
 def test_high_similarity_returns_faithful():
     """Sentences with high context similarity pass."""
     svc = LettuceDetectService(embedder=_FakeEmbedder(sentence_score=0.95, context_score=0.95))
