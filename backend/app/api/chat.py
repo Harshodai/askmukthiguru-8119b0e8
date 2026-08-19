@@ -55,12 +55,19 @@ _ATTACHMENT_EXTRACTION_SEMAPHORE = asyncio.Semaphore(2)
 @limiter.limit(settings.chat_upload_rate_limit)
 async def chat_upload_endpoint(
     request: Request,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: dict = Depends(get_optional_user),
     files: list[UploadFile] = File(...),
     language_code: Optional[str] = Form(None),
+    session_id: Optional[str] = Form(None),
     container: ServiceContainer = Depends(get_container),
 ):
-    """Extract bounded evidence for the next chat turn without persisting uploads."""
+    """Extract bounded evidence for the next chat turn without persisting uploads.
+
+    Anonymous callers are allowed because this endpoint returns only bounded,
+    ephemeral evidence. When supplied, the server-signed anonymous session
+    token is verified so the upload contract stays aligned with chat/job routes.
+    """
+    user = resolve_anon_identity(user, session_id)
     if not files:
         raise HTTPException(status_code=422, detail="At least one attachment is required.")
     if len(files) > 5:

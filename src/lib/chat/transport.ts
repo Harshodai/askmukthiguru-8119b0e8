@@ -87,9 +87,11 @@ export const uploadChatAttachment = async (
   if (!endpoint) throw new Error('Chat upload is not configured');
   const uploadEndpoint = endpoint.replace(/\/api\/chat\/?$/, '/api/chat/upload');
   const token = await getAccessToken();
+  const anonSessionToken = token ? null : await getAnonSessionToken();
   const form = new FormData();
   form.append('files', file, file.name);
   if (language) form.append('language_code', language);
+  if (anonSessionToken) form.append('session_id', anonSessionToken);
   const response = await fetch(uploadEndpoint, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},

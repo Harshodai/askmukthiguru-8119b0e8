@@ -8,7 +8,11 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: { auth: { getSession: mocks.getSession } },
 }));
 
-import { generateConversationTitle, submitFeedbackToBackend, sendMessage } from '@/lib/chat/transport';
+vi.mock('@/lib/chat/anonSession', () => ({
+  getAnonSessionToken: vi.fn().mockResolvedValue('signed-anon-token'),
+}));
+
+import { generateConversationTitle, submitFeedbackToBackend, sendMessage, uploadChatAttachment } from '@/lib/chat/transport';
 import { setAIProvider } from '@/lib/chat/config';
 
 describe('chat/transport helpers', () => {
@@ -64,6 +68,24 @@ describe('chat/transport helpers', () => {
     fetchMock.mockClear();
     await submitFeedbackToBackend({ query: 'q', answer: 'a', rating: 1 });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('uploadChatAttachment sends a signed anonymous session token in multipart form data', async () => {
+    mocks.getSession.mockResolvedValue({ data: { session: null } });
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ attachment_context: 'bounded', attachments: [], ephemeral: true, retention_seconds: 900 }),
+    });
+
+    await uploadChatAttachment(new File(['hello'], 'notes.txt', { type: 'text/plain' }), 'en');
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:8000/api/chat/upload');
+    expect(options.method).toBe('POST');
+    expect((options.body as FormData).get('session_id')).toBe('signed-anon-token');
+    expect((options.body as FormData).get('language_code')).toBe('en');
+    expect((options.body as FormData).get('files')).toBeInstanceOf(File);
   });
 
   it('sendMessage preserves backend verification and provenance metadata', async () => {
