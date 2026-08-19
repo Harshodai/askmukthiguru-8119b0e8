@@ -30,6 +30,7 @@ Design Patterns:
 
 import asyncio
 import logging
+import threading
 from typing import Optional
 
 from app.config import settings
@@ -620,13 +621,14 @@ class ServiceContainer:
         )
 
     def _build_graphs(self) -> None:
-        """Layer 8: RAG graph variants (depends on core services + serene mind)."""
-        from concurrent.futures import ThreadPoolExecutor
-        from concurrent.futures import TimeoutError as FutureTimeoutError
+        """Build a fast graph synchronously and warm optional variants in background.
 
-        # LightRAG degraded-service flag: if Neo4j was unreachable during
-        # lightrag.initialize(), the graph still builds but without graph
-        # enrichment. The service itself logs the warning.
+        The standard and deep graphs are valuable but optional for readiness. They
+        previously compiled serially during lifespan startup, adding minutes to
+        cold starts and causing health/auth timeouts during every rollout. The
+        fast graph is a safe serving fallback, so publish it first and swap in
+        richer variants only after each background build completes.
+        """
         logger.info("ContainerBuilder: building FAST graph...")
         self.fast_graph = build_fast_graph(
             ollama_service=self.ollama,
@@ -639,14 +641,22 @@ class ServiceContainer:
             llm_gateway=self.llm_gateway,
             graphrag_fusion=self.graphrag_fusion,
         )
-        logger.info("ContainerBuilder: FAST graph built")
+        self.standard_graph = self.fast_graph
+        self.deep_graph = self.fast_graph
+        self.rag_graph = self.fast_graph
+        self.graph_warmup_status = "warming_up"
+        logger.info("ContainerBuilder: FAST graph built; serving while optional graphs warm")
+        threading.Thread(
+            target=self._warm_optional_graphs,
+            name="graph-warmup",
+            daemon=True,
+        ).start()
 
-        logger.info("ContainerBuilder: building STANDARD graph...")
-        standard_pool = ThreadPoolExecutor(max_workers=1)
-        standard_timed_out = False
+    def _warm_optional_graphs(self) -> None:
+        """Compile standard/deep graphs after readiness without blocking requests."""
         try:
-            fut = standard_pool.submit(
-                build_rag_graph,
+            logger.info("ContainerBuilder: background building STANDARD graph...")
+            self.standard_graph = build_rag_graph(
                 ollama_service=self.ollama,
                 embedding_service=self.embedding,
                 qdrant_service=self.qdrant,
@@ -657,32 +667,14 @@ class ServiceContainer:
                 llm_gateway=self.llm_gateway,
                 graphrag_fusion=self.graphrag_fusion,
             )
-            try:
-                self.standard_graph = fut.result(timeout=60.0)
-                logger.info("ContainerBuilder: STANDARD graph built")
-            except FutureTimeoutError:
-                standard_timed_out = True
-                logger.warning(
-                    "ContainerBuilder: STANDARD graph compilation timed out after 60s — falling back to FAST graph without blocking startup"
-                )
-                self.standard_graph = self.fast_graph
-            except Exception as e:
-                logger.warning(
-                    f"ContainerBuilder: STANDARD graph compilation failed: {e} — falling back to FAST graph"
-                )
-                self.standard_graph = self.fast_graph
-        finally:
-            # A context manager would call shutdown(wait=True) after a timeout,
-            # silently defeating the timeout and blocking readiness on the still
-            # running compile. A timed-out optional graph must not delay startup.
-            standard_pool.shutdown(wait=not standard_timed_out, cancel_futures=standard_timed_out)
+            logger.info("ContainerBuilder: background STANDARD graph built")
+        except Exception as exc:
+            logger.warning("ContainerBuilder: background STANDARD graph failed; keeping FAST graph: %s", exc)
+            self.standard_graph = self.fast_graph
 
-        logger.info("ContainerBuilder: building DEEP graph...")
-        deep_pool = ThreadPoolExecutor(max_workers=1)
-        deep_timed_out = False
         try:
-            fut = deep_pool.submit(
-                build_deep_graph,
+            logger.info("ContainerBuilder: background building DEEP graph...")
+            self.deep_graph = build_deep_graph(
                 ollama_service=self.ollama,
                 embedding_service=self.embedding,
                 qdrant_service=self.qdrant,
@@ -693,24 +685,12 @@ class ServiceContainer:
                 llm_gateway=self.llm_gateway,
                 graphrag_fusion=self.graphrag_fusion,
             )
-            try:
-                self.deep_graph = fut.result(timeout=60.0)
-                logger.info("ContainerBuilder: DEEP graph built")
-            except FutureTimeoutError:
-                deep_timed_out = True
-                logger.warning(
-                    "ContainerBuilder: DEEP graph compilation timed out after 60s — falling back to STANDARD graph without blocking startup"
-                )
-                self.deep_graph = self.standard_graph
-            except Exception as e:
-                logger.warning(
-                    f"ContainerBuilder: DEEP graph compilation failed: {e} — falling back to STANDARD graph"
-                )
-                self.deep_graph = self.standard_graph
+            logger.info("ContainerBuilder: background DEEP graph built")
+        except Exception as exc:
+            logger.warning("ContainerBuilder: background DEEP graph failed; keeping STANDARD graph: %s", exc)
+            self.deep_graph = self.standard_graph
         finally:
-            deep_pool.shutdown(wait=not deep_timed_out, cancel_futures=deep_timed_out)
-        # Backward-compatible alias — defaults to standard graph
-        self.rag_graph = self.standard_graph
+            self.graph_warmup_status = "ready"
 
     def _di_health_check(self) -> None:
         """Verify that required singletons are non-None."""

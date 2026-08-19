@@ -198,6 +198,13 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
         "latency_ms": 0,
         "critical": False,
     }
+    graph_warmup_status = getattr(container, "graph_warmup_status", "unknown")
+    results["graph_warmup"] = {
+        "ok": graph_warmup_status in {"warming_up", "ready"},
+        "status": graph_warmup_status,
+        "latency_ms": 0,
+        "critical": False,
+    }
 
     job_queue = getattr(container, "job_queue", None)
     queue_size = getattr(job_queue, "queue_size", 0) if job_queue else 0
