@@ -16,9 +16,11 @@ from services.anon_quota_port import AnonQuotaPort, QuotaResult
 
 logger = logging.getLogger(__name__)
 
-# Small dedicated probe timeout for lazy Redis selection; deliberately
-# independent of the memory-task timeout so a dead Redis fails fast.
-_REDIS_PROBE_TIMEOUT = 2.0
+# Small dedicated timeouts keep quota admission from holding the chat request
+# open when Redis is reachable but its command path is stalled. The adapter
+# degrades to the bounded in-memory quota on timeout.
+_REDIS_PROBE_TIMEOUT = 1.0
+_REDIS_SOCKET_TIMEOUT = 1.0
 
 # Reservation claim deadline: an interaction must commit its slot (claim)
 # within the job-queue TTL plus this safety margin, or the reservation is
@@ -99,7 +101,13 @@ class AnonQuotaService:
             try:
                 import redis.asyncio as aioredis
 
-                client = aioredis.from_url(self._redis_url, decode_responses=True)
+                client = aioredis.from_url(
+                    self._redis_url,
+                    decode_responses=True,
+                    socket_connect_timeout=_REDIS_SOCKET_TIMEOUT,
+                    socket_timeout=_REDIS_SOCKET_TIMEOUT,
+                    retry_on_timeout=False,
+                )
                 await asyncio.wait_for(client.ping(), timeout=_REDIS_PROBE_TIMEOUT)
                 from services.anon_quota_redis import AnonQuotaRedisAdapter
 
