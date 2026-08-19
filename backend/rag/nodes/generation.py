@@ -1825,8 +1825,17 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         fast_verification = state.get("verification") or {}
         measured = isinstance(fast_score, (int, float))
         fast_score = float(fast_score) if measured else 1.0
-        fast_faithful = bool(state.get("is_faithful", True))
         floor = getattr(settings, "faithfulness_floor", 0.6)
+        # The fast verifier is lexical-only by design. Its sentence-level
+        # `is_faithful` flag uses a stricter internal overlap cutoff and can
+        # reject a substantively grounded answer even when the aggregate score
+        # clears the configured floor. Use the measured aggregate floor for the
+        # fast path; semantic/deep verification keeps the stricter verdict.
+        fast_method = str(fast_verification.get("method", ""))
+        if fast_method == "lettuce_detect_fast_tier" and measured:
+            fast_faithful = fast_score >= floor
+        else:
+            fast_faithful = bool(state.get("is_faithful", True))
 
         # Single combined gate: a fast-tier answer is accepted only when BOTH
         # the citation check and the faithfulness floor pass. The three outputs

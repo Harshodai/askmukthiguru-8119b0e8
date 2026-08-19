@@ -77,6 +77,29 @@ async def test_verification_timeout_returns_fallback(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_fast_tier_uses_measured_floor_without_retry():
+    """A moderate lexical score above the configured floor must not cause a second LLM call."""
+    state = _state(
+        is_faithful=False,
+        faithfulness_score=0.67,
+        verification={
+            "passed": False,
+            "method": "lettuce_detect_fast_tier",
+            "score": 0.67,
+        },
+        query_tier="tier2_simple",
+        retry_count=0,
+    )
+
+    result = await format_final_answer(state)
+
+    assert result["final_answer"] != FALLBACK_RESPONSE
+    assert result["_needs_retry"] is False
+    assert result["verification"]["passed"] is True
+    assert result["faithfulness_score"] == 0.67
+
+
+@pytest.mark.asyncio
 async def test_verification_pass_returns_answer():
     """is_faithful=True + citations_verified=True → the answer is returned."""
     state = _state(
