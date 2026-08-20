@@ -110,7 +110,12 @@ def reciprocal_rank_fusion(
                 text=h["text"],
                 score=0.0,
                 channel="vector",
-                provenance={"source": h.get("source"), "id": h.get("id")},
+                provenance={
+                    "source": h.get("source"),
+                    "id": h.get("id"),
+                    "chunk_id": h.get("chunk_id") or h.get("id"),
+                    "entity_ids": h.get("entity_ids", []),
+                },
             ),
         )
 
@@ -121,6 +126,12 @@ def reciprocal_rank_fusion(
             # seen in both channels -> boost & merge provenance
             items[key].provenance["graph"] = True
             items[key].provenance["hop"] = h.get("hop")
+            items[key].provenance["relation"] = h.get("relation")
+            items[key].provenance["entity_id"] = h.get("entity_id") or h.get("uri")
+            items[key].provenance["entity_ids"] = [
+                h.get("entity_id") or h.get("uri")
+            ] if (h.get("entity_id") or h.get("uri")) else []
+            items[key].provenance["graph_source"] = h.get("source") or "neo4j://ontology"
             scores[key] += 0.05  # dual-channel corroboration bonus
         else:
             items[key] = ContextItem(
@@ -131,7 +142,12 @@ def reciprocal_rank_fusion(
                     "uri": h.get("uri"),
                     "relation": h.get("relation"),
                     "hop": h.get("hop"),
-                    "source": h.get("source"),
+                    "source": h.get("source") or "neo4j://ontology",
+                    "entity_id": h.get("entity_id") or h.get("uri"),
+                    "entity_ids": [h.get("entity_id") or h.get("uri")]
+                    if (h.get("entity_id") or h.get("uri"))
+                    else [],
+                    "relation": h.get("relation"),
                 },
             )
 
@@ -196,7 +212,13 @@ class GraphRAGFusion:
             self._semaphores[key] = sem
         return sem
 
-    async def retrieve(self, question: str) -> FusedContext:
+    async def retrieve(
+        self,
+        question: str,
+        *,
+        max_hops: Optional[int] = None,
+        token_budget: Optional[int] = None,
+    ) -> FusedContext:
         """Run both channels concurrently, fuse, budget, return with concurrency bounds & deadlines.
 
         The ``total_timeout`` deadline starts when ``retrieve`` is entered, so a
@@ -223,7 +245,7 @@ class GraphRAGFusion:
 
         try:
             vector_task = asyncio.create_task(self._safe_vector(question))
-            graph_task = asyncio.create_task(self._safe_graph(question))
+            graph_task = asyncio.create_task(self._safe_graph(question, max_hops=max_hops))
             vector_hits: list[dict] = []
             graph_hits: list[dict] = []
             entities: list[str] = []
@@ -261,7 +283,7 @@ class GraphRAGFusion:
                         graph_hits, entities = [], []
 
             fused = reciprocal_rank_fusion(vector_hits, graph_hits)
-            bounded = self._budget(fused)
+            bounded = self._budget(fused, token_budget=token_budget)
             return FusedContext(
                 items=bounded,
                 total_tokens=sum(i.token_estimate for i in bounded),
@@ -286,7 +308,12 @@ class GraphRAGFusion:
             logger.warning("vector channel failed: %s", exc)
             return []
 
-    async def _safe_graph(self, question: str) -> tuple[list[dict], list[str]]:
+    async def _safe_graph(
+        self,
+        question: str,
+        *,
+        max_hops: Optional[int] = None,
+    ) -> tuple[list[dict], list[str]]:
         if not self.enable_graph:
             return [], []
         try:
@@ -296,8 +323,9 @@ class GraphRAGFusion:
             )
             if not entities:
                 return [], []
+            hops = self.max_hops if max_hops is None else min(max(int(max_hops), 1), MAX_HOPS)
             hits = await asyncio.wait_for(
-                self._graph(entities, self.max_hops),
+                self._graph(entities, hops),
                 timeout=self.per_traversal_timeout,
             )
             return hits, entities
@@ -310,10 +338,16 @@ class GraphRAGFusion:
 
     # ---- budget ----
 
-    def _budget(self, items: list[ContextItem]) -> list[ContextItem]:
+    def _budget(
+        self,
+        items: list[ContextItem],
+        *,
+        token_budget: Optional[int] = None,
+    ) -> list[ContextItem]:
         out, used = [], 0
+        budget = self.token_budget if token_budget is None else max(1, int(token_budget))
         for it in items:
-            if used + it.token_estimate > self.token_budget:
+            if used + it.token_estimate > budget:
                 continue
             out.append(it)
             used += it.token_estimate

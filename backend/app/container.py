@@ -375,14 +375,17 @@ class ServiceContainer:
         # GraphRAG Fusion — multi-hop vector + knowledge-graph retrieval
         self.graphrag_fusion = None
         try:
-            from domain.spiritual_ontology import SEED_CONCEPTS
+            from rag.kg_expansion import resolve_concepts_in_query
             from services.graphrag_fusion import GraphRAGFusion
 
             async def _resolve_entities(q: str) -> list[str]:
-                ql = q.lower()
-                return [
-                    c.uri for c in SEED_CONCEPTS if any(w in ql for w in c.label.lower().split())
-                ]
+                """Resolve query mentions to seeded Neo4j entity_id values.
+
+                The seeded runtime graph is keyed by ``:base.entity_id``;
+                returning ontology URIs here made the previous fusion path
+                query a property that the production graph does not use.
+                """
+                return resolve_concepts_in_query(q)[:8]
 
             async def _vector_search(q: str, k: int):
                 vec = await asyncio.to_thread(self.embedding.encode_single_full, q)
@@ -406,7 +409,9 @@ class ServiceContainer:
                         "id": h.get("id"),
                         "text": h.get("text", ""),
                         "score": h.get("score", 0.0),
-                        "source": h.get("source", ""),
+                        "source": h.get("source_url") or h.get("source", ""),
+                        "entity_ids": h.get("entity_ids", []),
+                        "chunk_id": h.get("chunk_id") or h.get("id"),
                     }
                     for h in hits
                 ]
@@ -416,9 +421,15 @@ class ServiceContainer:
                     max_hops = 2
                 # max_hops must be interpolated as literal in Cypher variable-length pattern
                 cypher = f"""
-                MATCH path = (c:Concept {{uri: $uri}})-[r*1..{max_hops}]-(n)
-                RETURN n.text AS text, n.uri AS uri, type(last(relationships(path))) AS relation,
-                       length(path) AS hop, n.source AS source
+                MATCH path = (c:base {{entity_id: $entity_id}})-[r*1..{max_hops}]-(n:base)
+                WHERE n.entity_id IS NOT NULL
+                RETURN n.entity_id AS entity_id,
+                       coalesce(n.name, n.entity_id) AS name,
+                       coalesce(n.description, n.bio, n.text, n.entity_id) AS text,
+                       type(last(relationships(path))) AS relation,
+                       length(path) AS hop,
+                       coalesce(n.source, 'neo4j://ontology/' + n.entity_id) AS source
+                ORDER BY hop ASC
                 LIMIT 40
                 """
                 rows = []
@@ -440,7 +451,7 @@ class ServiceContainer:
                             driver.session() as session,
                             session.begin_transaction(timeout=query_timeout) as tx,
                         ):
-                            return list(tx.run(cypher, {"uri": u}))
+                            return list(tx.run(cypher, {"entity_id": u}))
 
                     try:
                         records = await asyncio.wait_for(
@@ -458,11 +469,12 @@ class ServiceContainer:
                     for record in records:
                         rows.append(
                             {
-                                "uri": record.get("uri"),
-                                "text": record.get("text"),
+                                "uri": record.get("entity_id"),
+                                "entity_id": record.get("entity_id"),
+                                "text": record.get("text") or record.get("name") or "",
                                 "relation": record.get("relation"),
                                 "hop": record.get("hop", 0),
-                                "source": record.get("source"),
+                                "source": record.get("source") or "neo4j://ontology",
                             }
                         )
                 return rows

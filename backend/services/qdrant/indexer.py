@@ -217,6 +217,14 @@ class QdrantIndexer:
             # misspelling tolerance means re-adding BOTH the prefetch and this
             # write; services/phonetic.py:IndicPhoneticMatcher is still there for that.
             payload = {"text": text, **meta}
+            # Graph-link metadata is optional for backward-compatible corpus
+            # writes, but when present it is normalized to compact lists so
+            # Qdrant payload filters and GraphRAG provenance share one contract.
+            for _field in ("entity_ids", "graph_node_ids", "context_cluster_ids"):
+                if _field in payload and payload[_field] is None:
+                    payload[_field] = []
+                elif _field in payload and not isinstance(payload[_field], list):
+                    payload[_field] = [payload[_field]]
             payload.setdefault("tenant_id", TenantContext.get() or settings.default_tenant_id)
             payload.setdefault("corpus_id", settings.default_corpus_id)
             # Task #17 rights gate (services/qdrant/searcher.py) mandatorily filters on

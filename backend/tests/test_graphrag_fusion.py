@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+from rag.kg_expansion import resolve_concepts_in_query
 from services.graphrag_fusion import (
     GraphRAGFusion,
     reciprocal_rank_fusion,
 )
+
+
+def test_resolve_concepts_returns_runtime_entity_ids():
+    concepts = resolve_concepts_in_query("How does the Beautiful State relate to Soul Sync?")
+    assert "Beautiful State" in concepts
+    assert "Soul Sync" in concepts
 
 
 def test_rrf_fusion_basic():
@@ -132,6 +139,9 @@ def test_dual_channel_corroboration_boost():
     top = ctx.items[0]
     assert "calms the mind" in top.text
     assert top.provenance.get("graph") is True
+    assert top.provenance.get("entity_ids") == [
+        "https://askmukthiguru.org/ontology/practice/breath-awareness"
+    ]
 
 
 def test_self_test():

@@ -16,6 +16,7 @@ from app.metrics import (
 from app.tracing import trace_rag_node
 from domain.spiritual_ontology import resolve_teacher_domain
 from guardrails.lightweight_handler import contains_prompt_injection
+from rag.context_graph import plan_context_graph
 from rag.corpus_scope import CorpusScope
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
@@ -1319,14 +1320,23 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             f"Fallback search added {len(all_docs) - (len(all_docs) - len(fallback_results))} docs. Total: {len(all_docs)}"
         )
 
-    # GraphRAG Fusion — multi-hop vector + KG retrieval fused via RRF.
-    # Runs BEFORE score cutoff, dedup, MMR, compression, and budget processing
-    # so fused results participate in all downstream quality safeguards.
+    # Adaptive context-graph fusion — local entity context for focused
+    # questions, bounded multi-hop context for complex/comparative questions.
+    # Ordinary questions without canonical ontology matches remain Qdrant-only.
+    graph_plan = plan_context_graph(
+        base_question,
+        intent=state.get("intent", ""),
+        query_tier=query_tier,
+    )
     if _services._graphrag_fusion is not None and getattr(
         settings, "graphrag_fusion_enabled", False
-    ):
+    ) and graph_plan.mode != "none":
         try:
-            fused = await _services._graphrag_fusion.retrieve(base_question)
+            fused = await _services._graphrag_fusion.retrieve(
+                base_question,
+                max_hops=graph_plan.max_hops,
+                token_budget=graph_plan.token_budget,
+            )
             if fused.items:
                 fused_docs = [
                     {
@@ -1334,12 +1344,23 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                         "score": i.score,
                         "channel": i.channel,
                         "provenance": i.provenance,
+                        "source_url": i.provenance.get("source") or "neo4j://ontology",
+                        "chunk_id": i.provenance.get("chunk_id") or i.provenance.get("id"),
+                        "entity_ids": i.provenance.get("entity_ids", []),
+                        "graph_relation": i.provenance.get("relation"),
+                        "graph_hop": i.provenance.get("hop"),
                     }
                     for i in fused.items
                 ]
                 all_docs = fused_docs + all_docs
         except Exception as e:
             logger.warning("GraphRAG fusion failed (non-fatal): %s", type(e).__name__)
+
+    graph_trace = {
+        "context_graph_mode": graph_plan.mode,
+        "context_graph_entities": graph_plan.entity_ids,
+        "context_graph_reason": graph_plan.reason,
+    }
 
     # Drop documents far below the top score (fewer-but-better chunks)
     if getattr(settings, "retrieval_score_delta_enabled", False):
@@ -1514,5 +1535,6 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             retrieved_count=len(all_docs),
             llm_expansion_count=len(expansion_queries),
             retrieved_sources=_grounded_citation_urls(all_docs),
+            **graph_trace,
         ),
     }

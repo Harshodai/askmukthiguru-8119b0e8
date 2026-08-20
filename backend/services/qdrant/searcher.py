@@ -264,6 +264,10 @@ class QdrantSearcher:
                 "domain_rights_status": hit.payload.get("domain_rights_status", ""),
                 "tenant_id": hit.payload.get("tenant_id", ""),
                 "corpus_id": hit.payload.get("corpus_id", ""),
+                "entity_ids": hit.payload.get("entity_ids", []),
+                "graph_node_ids": hit.payload.get("graph_node_ids", []),
+                "context_cluster_ids": hit.payload.get("context_cluster_ids", []),
+                "chunk_id": hit.payload.get("chunk_id") or hit.id,
             }
             for hit in hits
         ]

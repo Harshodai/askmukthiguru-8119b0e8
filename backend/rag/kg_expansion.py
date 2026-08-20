@@ -115,6 +115,16 @@ def _concept_token(name: str) -> str:
     return name.lower()
 
 
+def resolve_concepts_in_query(query: str) -> list[str]:
+    """Return canonical ontology entity IDs mentioned in a user query.
+
+    The resolver is deterministic and intentionally does not call an LLM. It
+    is safe to use as the first stage of context-graph retrieval and keeps
+    aliases aligned with the existing ontology expansion behavior.
+    """
+    return _find_concepts_in_query(query)
+
+
 def _find_concepts_in_query(query: str) -> list[str]:
     """Find seeded concepts / practices / teachers + synonym aliases in the query.
 
