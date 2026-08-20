@@ -1277,7 +1277,9 @@ openSereneMind('audio', true);
           } else if (finalIntent === 'MEDITATION' || finalIntent === 'MEDITATION_CONTINUE') {
             // Voluntary request: open without gating — user asked for it
             openSereneMind('audio');
-          } else if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
+          } else if (finalIntent === 'DISTRESS' && meditationStep > 0) {
+            // Continue an already active practice only. A first distress answer
+            // must teach and offer Serene Mind; it must not open a modal uninvited.
             openSereneMind('audio');
           } else if (streamedProactiveSereneMind?.triggered) {
             // Teach first, then offer practice explicitly. Never auto-open a modal
@@ -1495,7 +1497,9 @@ openSereneMind('audio');
         if (response.intent === 'MEDITATION' || response.intent === 'MEDITATION_CONTINUE') {
           // Voluntary request: non-gated
           openSereneMind('audio');
-        } else if (response.intent === 'DISTRESS' && (response.meditationStep || 0) > 0) {
+        } else if (response.intent === 'DISTRESS' && meditationStep > 0) {
+          // Continue an already active practice only. A first distress answer
+          // must teach and offer Serene Mind; it must not open a modal uninvited.
           openSereneMind('audio');
         } else if (response.proactiveSereneMind?.triggered) {
           // Teach first, then offer practice explicitly. Never auto-open a modal

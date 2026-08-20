@@ -1,5 +1,10 @@
 ## Aug 19, 2026 — Ephemeral Multimodal Chat Evidence Boundary
 
+### L-SERENE-1. Distress response metadata must not be treated as practice consent
+- **What**: A first-time anxiety/distress response carrying a non-zero meditation step could auto-open the Serene Mind modal in both streaming and non-streaming chat paths. This bypassed the intended teaching-first, explicit-offer experience.
+- **Fix applied**: The frontend now auto-continues only when the local `meditationStep` already indicates an active practice. A first distress response teaches and offers Serene Mind without opening it uninvited; voluntary MEDITATION requests remain non-gated.
+- **How to prevent**: Separate model intent, progress metadata, and user consent. Only an explicit user meditation request or an already active local practice may open automatically.
+
 ### L-WEB-1. Bound every live-search provider call independently of the pipeline timeout
 - **What**: The default DuckDuckGo provider runs synchronous `ddgs.text()` work in an executor without a provider-level timeout. A single trust-boundary query reached the 90-second benchmark ceiling even though SearXNG and the HTML fallback had shorter network bounds.
 - **Fix applied**: Added `web_search_timeout_seconds` with a 12-second production default and a 30-second maximum. `WebSearchService.search()` wraps provider execution in `asyncio.wait_for`, records a circuit-breaker failure, audits `provider_timeout`, and fails open to an empty result set. Added a regression test for a hanging provider.
