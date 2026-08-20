@@ -90,6 +90,7 @@ class ChatResult:
         self.daily_practice_card: Optional[dict[str, Any]] = None
         self.grounding_state: str = "abstained"
         self.release_manifest: Optional[dict[str, Any]] = None
+        self.provenance_context: Optional[dict[str, Any]] = None
 
 
 class ChatChunk:
@@ -315,6 +316,7 @@ class ChatEngine:
         result.release_manifest = (
             getattr(pipeline_result, "release_manifest", None) or get_release_manifest().to_dict()
         )
+        result.provenance_context = getattr(pipeline_result, "provenance_context", None)
 
         if not chat_request.incognito:
             # Content-bearing telemetry is disabled for ephemeral chats.
