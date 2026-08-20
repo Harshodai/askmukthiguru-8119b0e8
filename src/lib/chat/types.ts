@@ -133,8 +133,14 @@ export interface ProactiveSereneMindTrigger {
   confidence?: number;
   signals?: string[];
   suggested_response?: string;
-  /** Krishnaji/Preethaji teaching streamed as a guru message before the modal opens */
+  /** Teaching shown before any practice invitation; never auto-opens the player. */
   teachings_prelude?: string;
+  /** Practice must be explicitly accepted by the user after reading the teaching. */
+  requires_consent?: boolean;
+  /** Short reason used by the practice card, not a model-generated command. */
+  offer_reason?: string;
+  /** Approximate guided-practice duration in seconds. */
+  duration_seconds?: number;
   /** Teachings-infused custom meditation steps (alternative to default Serene Mind) */
   custom_meditation?: {
     source_teaching?: string;

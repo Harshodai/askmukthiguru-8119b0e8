@@ -126,3 +126,40 @@ def test_hierarchical_split_sentence_boundaries():
         assert "[Source: Test Title]" in child
         actual_text = child.split("]\n", 1)[1]
         assert actual_text.endswith(".") or actual_text.endswith("!") or actual_text.endswith("?")
+
+
+@pytest.mark.asyncio
+async def test_proactive_serene_mind_returns_teaching_first_consent_offer(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.pipeline.stages.distress_stage import DistressStage
+    from services.serene_mind_engine import DistressAssessment, DistressLevel
+
+    stage = DistressStage()
+    proactive = DistressAssessment(
+        level=DistressLevel.MODERATE,
+        confidence=0.82,
+        detected_signals=["persistent distress"],
+        language_detected="en",
+        recommended_response_type="meditation",
+    )
+
+    profile = MagicMock()
+    profile.get_last_meditation_session = AsyncMock(return_value=None)
+    profile_service = MagicMock()
+    profile_service.analyze_distress_trend = AsyncMock(return_value=proactive)
+    serene = MagicMock()
+    serene.analyze_distress_trend = AsyncMock(return_value=proactive)
+    serene.get_response.return_value = "optional support"
+    container = SimpleNamespace(serene_mind=serene, user_profile=profile)
+    ctx = SimpleNamespace(container=container)
+
+    result = await stage._maybe_trigger_proactive_serene_mind(
+        ctx, proactive, "test-user", SimpleNamespace(last_serene_mind_at=0), {}
+    )
+
+    assert result["triggered"] is True
+    assert result["requires_consent"] is True
+    assert result["duration_seconds"] == 225
+    assert result["offer_reason"]
+    assert result["teachings_prelude"]

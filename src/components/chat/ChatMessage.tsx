@@ -105,6 +105,47 @@ const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]>
   </aside>
 );
 
+const SereneMindOfferCard = ({ offer }: { offer: NonNullable<Message["sereneMindOffer"]> }) => {
+  const { open } = useSereneMind();
+  const customMeditation = offer.custom_meditation;
+  const durationSeconds = offer.duration_seconds ?? 225;
+  const durationLabel = durationSeconds >= 60
+    ? `${Math.round(durationSeconds / 60)} min`
+    : `${durationSeconds} sec`;
+
+  return (
+    <aside
+      data-testid="serene-mind-offer"
+      aria-label="Optional Serene Mind practice"
+      className="mt-3 w-full rounded-xl border border-ojas/25 bg-gradient-to-br from-ojas/10 to-card px-3.5 py-3 shadow-sm"
+    >
+      <div className="flex items-start gap-2">
+        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas">Optional practice</p>
+          <p className="mt-1 text-sm font-medium leading-5 text-foreground">
+            {offer.offer_reason || "A brief practice may help you settle and reconnect."}
+          </p>
+          <p className="mt-1 text-xs leading-4 text-muted-foreground">
+            {durationLabel} · The teaching comes first; start only if it feels right.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => open('audio', false, customMeditation?.steps, customMeditation?.source_teaching)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
+            >
+              <Play className="h-3.5 w-3.5" aria-hidden="true" />
+              Start Serene Mind
+            </button>
+            <span className="self-center text-[11px] text-muted-foreground">You can continue chatting instead.</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+};
+
 const getDomain = (url: string): string => {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
@@ -1107,6 +1148,9 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             {isGuru && !isStreaming && <LiveLogisticsCards events={message.liveLogisticsEvents} />}
             {isGuru && !isStreaming && message.guidancePlan && !isCrisisAnswer(message.content) && (
               <GuidancePlanCard plan={message.guidancePlan} />
+            )}
+            {isGuru && !isStreaming && message.sereneMindOffer?.triggered && !isCrisisAnswer(message.content) && (
+              <SereneMindOfferCard offer={message.sereneMindOffer} />
             )}
             {isGuru && citations.length > 0 && (
               <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/85 to-card/50 backdrop-blur-md px-4 py-3 group/details shadow-md transition-all duration-300">

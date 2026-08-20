@@ -15,12 +15,20 @@ import type { MeditationStep } from './meditationSteps';
  *
  * The hook takes an optional `muted` flag so the player's mute button just routes here.
  */
+export interface MeditationAudioOptions {
+  onTimeUpdate?: (seconds: number) => void;
+  onEnded?: () => void;
+  seekTo?: number | null;
+}
+
 export function useMeditationAudio(
   steps: MeditationStep[],
   stepIndex: number,
   isPlaying: boolean,
   muted = false,
+  options: MeditationAudioOptions = {},
 ) {
+  const { onTimeUpdate, onEnded, seekTo } = options;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const preloadRef = useRef<HTMLAudioElement | null>(null);
   const loadingStepRef = useRef<number>(-1);
@@ -54,6 +62,15 @@ export function useMeditationAudio(
     };
   }, []);
 
+  // Keep callbacks current; the media element is created once but the flow
+  // callbacks change as the active step and practice state change.
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.ontimeupdate = () => onTimeUpdate?.(el.currentTime);
+    el.onended = () => onEnded?.();
+  }, [onTimeUpdate, onEnded]);
+
   // Load + fade in current step audio when stepIndex changes.
   useEffect(() => {
     const el = audioRef.current;
@@ -73,6 +90,7 @@ export function useMeditationAudio(
     loadingStepRef.current = stepIndex;
     el.src = src;
     el.currentTime = 0;
+    setFailedStep(null);
     el.volume = 0;
     if (isPlaying && !muted) {
       el.play().catch((e) => {
@@ -87,6 +105,18 @@ export function useMeditationAudio(
       preloadRef.current.src = next;
     }
   }, [steps, stepIndex, isPlaying, muted]);
+
+  // Resume or user-requested seek is applied to the canonical audio timeline.
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el || seekTo == null || !Number.isFinite(seekTo)) return;
+    try {
+      el.currentTime = Math.max(0, seekTo);
+      onTimeUpdate?.(el.currentTime);
+    } catch {
+      // Media may not be ready yet; the next playback event will retry safely.
+    }
+  }, [seekTo, onTimeUpdate]);
 
   // React to play/pause toggle.
   useEffect(() => {

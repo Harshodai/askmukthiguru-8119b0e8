@@ -317,6 +317,13 @@ class DistressStage(Stage):
                 "confidence": proactive.confidence,
                 "signals": proactive.detected_signals,
                 "suggested_response": ctx.container.serene_mind.get_response(proactive),
+                "requires_consent": True,
+                "offer_reason": (
+                    "A brief grounding practice may help you reconnect with the present moment."
+                    if proactive.level < DistressLevel.SEVERE
+                    else "A gentle practice is available if you would like support after this teaching."
+                ),
+                "duration_seconds": 225,
                 "teachings_prelude": (
                     "I’m sorry this feels heavy. You do not need to interpret or solve it "
                     "spiritually right now. "

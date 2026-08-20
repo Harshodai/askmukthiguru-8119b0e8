@@ -24,6 +24,8 @@ interface GuidedMeditationFlowProps {
   customSteps?: MeditationStep[];
   /** Source teaching citation shown when customSteps are active */
   sourceTeaching?: string;
+  /** Crisis/safety paths can gate closing until the practice is complete. */
+  isGated?: boolean;
   onComplete?: () => void;
 }
 
@@ -41,7 +43,7 @@ interface ResumePayload {
   savedAt: number;
 }
 
-const readResume = (): ResumePayload | null => {
+const readResume = (stepCount = GUIDED_STEPS.length): ResumePayload | null => {
   try {
     const raw = localStorage.getItem(RESUME_KEY);
     if (!raw) return null;
@@ -50,7 +52,7 @@ const readResume = (): ResumePayload | null => {
       localStorage.removeItem(RESUME_KEY);
       return null;
     }
-    if (parsed.stepIndex >= GUIDED_STEPS.length) return null;
+    if (parsed.stepIndex >= stepCount) return null;
     return parsed;
   } catch {
     return null;
@@ -65,7 +67,7 @@ const clearResume = () => {
   clearMeditationResume();
 };
 
-export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeaching, onComplete }: GuidedMeditationFlowProps) => {
+export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeaching, isGated = false, onComplete }: GuidedMeditationFlowProps) => {
   const { t } = useTranslation();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -78,6 +80,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
   const [journalText, setJournalText] = useState('');
   const [gratitudeText, setGratitudeText] = useState('');
   const [muted, setMuted] = useState(false);
+  const [audioSeek, setAudioSeek] = useState<number | null>(null);
   // Resume + close-confirm UX
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [resumeOffer, setResumeOffer] = useState<ResumePayload | null>(null);
@@ -89,17 +92,52 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
 
   const step = steps[currentStepIndex];
   const isComplete = currentStepIndex >= steps.length;
+  const usesCanonicalAudio = steps.length > 0 && steps.every((candidate) => Boolean(candidate.audioSrc));
   const stepProgress = step ? Math.min(elapsed / step.durationSeconds, 1) : 1;
 
-  // Per-step narrated audio, synced to the timeline.
-  const { audioFailed } = useMeditationAudio(steps, currentStepIndex, isPlaying && !isComplete, muted);
-  // Free browser TTS: speaks when a step has no MP3, or when its MP3 failed to load.
+  const locateAudioStep = useCallback((seconds: number) => {
+    let offset = 0;
+    for (let index = 0; index < steps.length; index += 1) {
+      const duration = steps[index].durationSeconds;
+      if (seconds < offset + duration || index === steps.length - 1) {
+        return { index, elapsed: Math.max(0, Math.min(duration, seconds - offset)) };
+      }
+      offset += duration;
+    }
+    return { index: steps.length, elapsed: 0 };
+  }, [steps]);
+
+  const handleAudioTimeUpdate = useCallback((seconds: number) => {
+    if (!usesCanonicalAudio) return;
+    const located = locateAudioStep(seconds);
+    setCurrentStepIndex((previous) => previous === located.index ? previous : located.index);
+    setElapsed(located.elapsed);
+  }, [locateAudioStep, usesCanonicalAudio]);
+
+  const handleAudioEnded = useCallback(() => {
+    if (!usesCanonicalAudio) return;
+    setElapsed(0);
+    setCurrentStepIndex(steps.length);
+    setIsPlaying(false);
+  }, [steps.length, usesCanonicalAudio]);
+
+  // When every step has audio, real media time owns the visual step, timer,
+  // breath phase, resume point, and completion. Custom text-only steps retain
+  // the deterministic timer and browser-TTS fallback.
+  const { audioFailed } = useMeditationAudio(
+    steps,
+    currentStepIndex,
+    isPlaying && !isComplete,
+    muted,
+    { onTimeUpdate: handleAudioTimeUpdate, onEnded: handleAudioEnded, seekTo: audioSeek },
+  );
+  // Free browser TTS speaks only when a step has no MP3 or its MP3 failed.
   useMeditationTTS(steps, currentStepIndex, isPlaying && !isComplete, muted, audioFailed);
 
   // On open: detect unfinished prior session and offer resume.
   useEffect(() => {
     if (!isOpen) return;
-    const prior = readResume();
+    const prior = readResume(steps.length);
     if (prior) {
       setResumeOffer(prior);
       // Defer reset until the user chooses Resume or Start fresh.
@@ -108,6 +146,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     // Fresh start
     setCurrentStepIndex(0);
     setElapsed(0);
+    setAudioSeek(null);
     setIsPlaying(false);
     setBreathPhase('inhale');
     setBreathTimer(0);
@@ -117,7 +156,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     setGratitudeText('');
     sessionIdRef.current = generateSessionId();
     startTimeRef.current = Date.now();
-  }, [isOpen]);
+  }, [isOpen, steps.length]);
 
   // Persist progress every tick while running so an unexpected close is recoverable.
   useEffect(() => {
@@ -136,6 +175,8 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     startTimeRef.current = Date.now() - resumeOffer.elapsed * 1000;
     setCurrentStepIndex(resumeOffer.stepIndex);
     setElapsed(resumeOffer.elapsed);
+    const absoluteAudioPosition = steps.slice(0, resumeOffer.stepIndex).reduce((sum, candidate) => sum + candidate.durationSeconds, 0) + resumeOffer.elapsed;
+    setAudioSeek(usesCanonicalAudio ? absoluteAudioPosition : null);
     setReflectionStep(0);
     setSelectedMood('');
     setJournalText('');
@@ -148,6 +189,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     clearResume();
     setCurrentStepIndex(0);
     setElapsed(0);
+    setAudioSeek(null);
     setIsPlaying(false);
     setBreathPhase('inhale');
     setBreathTimer(0);
@@ -162,7 +204,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
 
   // Main timer
   useEffect(() => {
-    if (!isPlaying || isComplete) return;
+    if (usesCanonicalAudio || !isPlaying || isComplete || !step) return;
     const id = setInterval(() => {
       setElapsed((prev) => {
         const next = prev + 1;
@@ -174,7 +216,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [isPlaying, isComplete, step]);
+  }, [isPlaying, isComplete, step, usesCanonicalAudio]);
 
   // Breathing cycle within breathing step
   useEffect(() => {
@@ -216,6 +258,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
   }, [isComplete, onComplete]);
 
   const requestClose = useCallback(() => {
+    if (isGated && !isComplete) return;
     // If the user has not started yet, or has finished, close immediately.
     if (!isPlaying && elapsed === 0 && currentStepIndex === 0) {
       onClose();
@@ -228,7 +271,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     // Otherwise ask before abandoning practice.
     setIsPlaying(false);
     setShowCloseConfirm(true);
-  }, [isPlaying, elapsed, currentStepIndex, isComplete, onClose]);
+  }, [isPlaying, elapsed, currentStepIndex, isComplete, isGated, onClose]);
 
   const confirmPauseAndExit = useCallback(() => {
     // Progress is already persisted to localStorage every tick — keep it
@@ -273,14 +316,20 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Serene Mind meditation"
       >
-        {/* Close */}
-        <button
-          onClick={requestClose}
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors z-10"
-        >
-          <X className="w-5 h-5 text-muted-foreground" />
-        </button>
+        {/* Close — gated sessions can only close after completion. */}
+        {(!isGated || isComplete) && (
+          <button
+            onClick={requestClose}
+            className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors z-10"
+            aria-label={t('common.close')}
+          >
+            <X className="w-5 h-5 text-muted-foreground" />
+          </button>
+        )}
 
         {/* Back Button for post-practice reflection steps */}
         {isComplete && reflectionStep > 0 && reflectionStep < 3 && (
@@ -506,31 +555,18 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
               </button>
             </div>
 
-            {/* Watch & Listen on YouTube — Sri Preethaji's original Serene Mind guidance */}
-            <div className="w-full max-w-md mt-4 rounded-xl overflow-hidden border border-ojas/30 shadow-lg bg-black/40">
-              <div className="relative aspect-video w-full">
-                <iframe
-                  src="https://www.youtube-nocookie.com/embed/igSp4H0OWLE?enablejsapi=1&rel=0"
-                  title="Sri Preethaji Serene Mind Guided Practice"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="absolute inset-0 w-full h-full rounded-t-xl"
-                />
-              </div>
-              <div className="p-2.5 bg-card/90 flex items-center justify-between text-xs text-muted-foreground">
-                <span className="font-medium text-foreground flex items-center gap-1.5">
-                  <Play className="w-3.5 h-3.5 text-ojas" /> Sri Preethaji's Guided Practice
-                </span>
-                <a
-                  href="https://youtu.be/igSp4H0OWLE"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-ojas underline underline-offset-2 flex items-center gap-1"
-                >
-                  Open YouTube <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </div>
+            {/* The canonical audio owns the timeline. Keep the original teaching as
+                an explicit external reference so a second player cannot drift or
+                compete with the synchronized step narration. */}
+            <a
+              href="https://youtu.be/igSp4H0OWLE"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-ojas/30 px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-ojas/60 hover:text-ojas"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Open the original teaching video
+            </a>
           </div>
         )}
 

@@ -1053,6 +1053,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             and _neo4j is not None
             and scope.tenant_id == settings.default_tenant_id
             and scope.corpus_id == settings.default_corpus_id
+            and query_tier not in ("fast", "tier2_simple")
         ):
             # Bounded: this call sits sequentially before the retrieval fan-out
             # (asyncio.gather below), so an unbounded/degraded Neo4j session
@@ -1136,7 +1137,11 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
 
     # --- BM25 sparse-vector search (concurrent with vector retrieval) ---
     bm25_task = None
-    if getattr(settings, "bm25_retrieval_enabled", True):
+    # Fast teaching/FAQ requests already use a single bounded dense-hybrid
+    # query. The standalone BM25 fan-out is valuable for standard/deep recall,
+    # but awaiting it on the hot path adds avoidable tail latency for simple
+    # questions; dense retrieval remains the fail-open primary source.
+    if getattr(settings, "bm25_retrieval_enabled", True) and query_tier not in ("fast", "tier2_simple"):
         try:
             bm25_query = sub_queries[0] if sub_queries else state.get("question", "")
             bm25_task = asyncio.to_thread(

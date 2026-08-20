@@ -1280,7 +1280,8 @@ openSereneMind('audio', true);
           } else if (finalIntent === 'DISTRESS' && (streamedMedStep || 0) > 0) {
             openSereneMind('audio');
           } else if (streamedProactiveSereneMind?.triggered) {
-            // Proactive distress support is optional: never lock the chat behind meditation.
+            // Teach first, then offer practice explicitly. Never auto-open a modal
+            // from a model signal; the user must choose Start Serene Mind.
             const preludeText =
               streamedProactiveSereneMind.teachings_prelude ||
               t('chat.proactivePrelude.streaming');
@@ -1290,11 +1291,10 @@ openSereneMind('audio', true);
                 id: generateId(),
                 role: 'guru',
                 content: preludeText,
+                sereneMindOffer: streamedProactiveSereneMind,
                 timestamp: new Date(),
               },
             ]);
-            const customMed = streamedProactiveSereneMind?.custom_meditation;
-            openSereneMind('audio', false, customMed?.steps, customMed?.source_teaching);
           }
 
           // Heuristic fallback: if LLM text explicitly describes a Serene Mind session
@@ -1498,7 +1498,8 @@ openSereneMind('audio');
         } else if (response.intent === 'DISTRESS' && (response.meditationStep || 0) > 0) {
           openSereneMind('audio');
         } else if (response.proactiveSereneMind?.triggered) {
-          // Proactive distress support is optional: never lock the chat behind meditation.
+          // Teach first, then offer practice explicitly. Never auto-open a modal
+          // from a model signal; the user must choose Start Serene Mind.
           const preludeText =
             response.proactiveSereneMind?.teachings_prelude ||
             t('chat.proactivePrelude.standard');
@@ -1508,11 +1509,10 @@ openSereneMind('audio');
               id: generateId(),
               role: 'guru',
               content: preludeText,
+              sereneMindOffer: response.proactiveSereneMind,
               timestamp: new Date(),
             },
           ]);
-          const customMed = response.proactiveSereneMind?.custom_meditation;
-          openSereneMind('audio', false, customMed?.steps, customMed?.source_teaching);
         }
 
         // Heuristic fallback for non-streaming path (same logic as streaming)
