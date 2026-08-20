@@ -227,6 +227,52 @@ def _is_response_format_query(question: str) -> bool:
     return bool(_RESPONSE_FORMAT_QUERY_RE.search(question))
 
 
+def _is_ordinary_multilingual_faq(question: str) -> bool:
+    """Keep ordinary Indic/code-switched FAQs on the bounded tier2 graph."""
+    if not question:
+        return False
+    lower_q = question.lower()
+    doctrine_anchor = (
+        "soul sync",
+        "deeksha",
+        "beautiful state",
+        "suffering state",
+        "sacred secret",
+        "witness",
+        "साक्षी",
+        "स्थिति",
+        "ధ్యానం",
+        "ధ्यान",
+    )
+    faq_cue = (
+        "what",
+        "how",
+        "why",
+        "practice",
+        "steps",
+        "kaise",
+        "kya",
+        "hai",
+        "करना",
+        "क्या",
+        "कैसे",
+        "ఎలా",
+        "ఏమిటి",
+    )
+    has_doctrine_anchor = any(anchor in lower_q for anchor in doctrine_anchor)
+    has_faq_cue = any(cue in lower_q for cue in faq_cue)
+    if has_doctrine_anchor and has_faq_cue:
+        return True
+    if question.isascii():
+        hinglish_marker = re.search(
+            r"\b(?:kaise|kya|hai|mujhe|mera|meri|me|ko|aur|batao|batado|"
+            r"karna|lene|liye|se|ke|bare|mein|mujh|gussa|stress)\b",
+            lower_q,
+        )
+        return bool(has_doctrine_anchor and hinglish_marker)
+    return False
+
+
 def _early_filter(
     question: str,
     lower_q: str,
@@ -561,6 +607,23 @@ async def _intent_router_impl(state: GraphState, config: dict = None) -> dict:
                 routing_reason="official_live_logistics",
                 complexity_score=complexity_score,
                 needs_web_search=True,
+            ),
+        }
+
+    # Ordinary multilingual FAQs should not inherit a deep tier from an
+    # uncertain classifier when the query is clearly a bounded teaching FAQ.
+    if _is_ordinary_multilingual_faq(question):
+        return {
+            "intent": "FACTUAL",
+            "query_tier": "tier2_simple",
+            "complexity_score": complexity_score,
+            "confidence_tier": "medium",
+            "evaluation_trace": _trace_update(
+                state,
+                intent="FACTUAL",
+                query_tier="tier2_simple",
+                routing_reason="ordinary_multilingual_faq_fast_path",
+                complexity_score=complexity_score,
             ),
         }
 

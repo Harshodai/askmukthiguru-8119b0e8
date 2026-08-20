@@ -7,6 +7,7 @@ from rag.graph_strategies import route_after_intent
 from rag.nodes.intent import (
     _is_app_boundary_query,
     _is_logistics_query,
+    _is_ordinary_multilingual_faq,
     _is_playful_edge_query,
     _is_provenance_query,
     _is_response_format_query,
@@ -86,6 +87,7 @@ def test_app_memory_boundary_queries_use_fast_capability_route():
     assert _is_playful_edge_query("Can I manifest a unicorn using the third sacred secret?")
     assert _is_provenance_query("What exact evidence supports your answer?")
     assert _is_response_format_query("Answer in a short version first and then a deeper version")
+    assert _is_ordinary_multilingual_faq("Mera mind suffering state me rehta hai, kaise beautiful state me badlu?")
 
 
 def test_manifest_date_and_booking_queries_are_live_logistics():
