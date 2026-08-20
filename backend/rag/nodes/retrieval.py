@@ -1328,6 +1328,20 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         intent=state.get("intent", ""),
         query_tier=query_tier,
     )
+    graph_trace = {
+        "context_graph_mode": graph_plan.mode,
+        "context_graph_entities": graph_plan.entity_ids,
+        "context_graph_reason": graph_plan.reason,
+        "context_graph_fused_items": 0,
+    }
+    if graph_plan.mode != "none":
+        logger.info(
+            "Context-graph plan: mode=%s entities=%s reason=%s enabled=%s",
+            graph_plan.mode,
+            len(graph_plan.entity_ids),
+            graph_plan.reason,
+            bool(getattr(settings, "graphrag_fusion_enabled", False)),
+        )
     if _services._graphrag_fusion is not None and getattr(
         settings, "graphrag_fusion_enabled", False
     ) and graph_plan.mode != "none":
@@ -1353,14 +1367,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                     for i in fused.items
                 ]
                 all_docs = fused_docs + all_docs
+                graph_trace["context_graph_fused_items"] = len(fused.items)
         except Exception as e:
             logger.warning("GraphRAG fusion failed (non-fatal): %s", type(e).__name__)
-
-    graph_trace = {
-        "context_graph_mode": graph_plan.mode,
-        "context_graph_entities": graph_plan.entity_ids,
-        "context_graph_reason": graph_plan.reason,
-    }
 
     # Drop documents far below the top score (fewer-but-better chunks)
     if getattr(settings, "retrieval_score_delta_enabled", False):
