@@ -146,6 +146,7 @@ class ChatRequestOrchestrator:
             guidance_plan=(None if result.guidance_plan is None else asdict(result.guidance_plan)),
             grounding_state=grounding_state_for(result),
             release_manifest=result.release_manifest or get_release_manifest().to_dict(),
+            provenance_manifest=_provenance_manifest_for_result(result),
         )
 
     async def _log_telemetry(
@@ -435,6 +436,23 @@ def _coerce_citations_to_str(citations) -> list[str]:
     return out
 
 
+def _provenance_manifest_for_result(result) -> dict | None:
+    """Project retrieval evidence into the compliance manifest metadata contract."""
+    context = getattr(result, "provenance_context", None)
+    if not isinstance(context, dict) or not context.get("evidence_count"):
+        return None
+    return {
+        "manifest_id": getattr(result, "trace_id", None),
+        "model_name": getattr(result, "model_used", None),
+        "model_provider": getattr(result, "model_provider", None),
+        "metadata": {
+            "provenance_context": context,
+            "evidence_count": context.get("evidence_count"),
+            "entities_touched": context.get("entities_touched", []),
+        },
+    }
+
+
 def _stream_done_metadata(result) -> dict:
     """Return the JSON-safe completion metadata shared by direct and queued SSE."""
     answer_evidence = getattr(result, "answer_evidence", None)
@@ -464,6 +482,7 @@ def _stream_done_metadata(result) -> dict:
         "verification": getattr(result, "verification", None),
         "release_manifest": getattr(result, "release_manifest", None)
         or get_release_manifest().to_dict(),
+        "provenance_manifest": _provenance_manifest_for_result(result),
     }
 
 

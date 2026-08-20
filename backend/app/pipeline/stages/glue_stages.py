@@ -344,6 +344,7 @@ class ResultAssemblyStage(Stage):
                 ctx.citations,
             ),
             release_manifest=get_release_manifest().to_dict(),
+            provenance_context=graph_result.get("provenance_context"),
         )
 
         # GDPR audit trail (Unit 24) -- previously wired for reads

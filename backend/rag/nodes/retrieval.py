@@ -24,6 +24,7 @@ from rag.tree_navigator import navigate_tree
 from services.embedding_service import EmbeddingService, _apply_query_expansion
 from services.lightrag_service import LightRAGService
 from services.qdrant_service import QdrantService
+from services.provenance_context import build_provenance_context
 from services.tenant_context import TenantContext
 
 from . import _services
@@ -1363,6 +1364,10 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
                         "entity_ids": i.provenance.get("entity_ids", []),
                         "graph_relation": i.provenance.get("relation"),
                         "graph_hop": i.provenance.get("hop"),
+                        "source_segment_ids": i.provenance.get("source_segment_ids", [i.provenance.get("chunk_id")]),
+                        "ontology_version": i.provenance.get("ontology_version"),
+                        "domain_rights_status": i.provenance.get("domain_rights_status") or i.provenance.get("rights_status"),
+                        "entity_resolution_confidence": i.provenance.get("entity_resolution_confidence"),
                     }
                     for i in fused.items
                 ]
@@ -1533,11 +1538,23 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     all_docs = _screen_prompt_injection(all_docs)
     raw_docs_copy = _screen_prompt_injection(raw_docs_copy)
 
+    provenance_context = build_provenance_context(
+        all_docs,
+        entities_touched=graph_plan.entity_ids,
+        max_tokens=getattr(settings, "graphrag_token_budget", 4000),
+    )
+    provenance_manifest = provenance_context.to_manifest()
+    graph_trace["provenance_bands"] = {
+        band: len(values) for band, values in provenance_context.bands.items()
+    }
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
     return {
         "documents": all_docs,
         "raw_documents": raw_docs_copy,
         "query_tier": query_tier,
+        "provenance_context": provenance_manifest,
+        "provenance_evidence_count": provenance_context.evidence_count,
+        "provenance_entities_touched": provenance_context.entities_touched,
         "evaluation_trace": _trace_update(
             state,
             retrieval_queries=retrieval_queries,

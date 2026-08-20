@@ -694,3 +694,26 @@ def test_chat_engine_coalesce_key_scoped_by_release_id():
     assert k1 != k2
 
     set_release_manifest(None)
+
+
+
+def test_retrieval_provenance_context_survives_result_and_stream_serialization():
+    context = {
+        "bands": {
+            "direct_source": [{"text": "Teaching", "source_segment_id": "seg-1"}],
+            "graph_one_hop": [{"text": "Graph fact", "relation": "EXPOUNDS", "hop": 1}],
+            "corroborated": [],
+            "community_summary": [],
+        },
+        "total_tokens": 12,
+        "evidence_count": 2,
+        "entities_touched": ["Soul Sync"],
+    }
+    result = PipelineResult(trace_id="trace-1", provenance_context=context)
+
+    serialized = result.to_chat_response()
+    stream_meta = _stream_done_metadata(result)
+
+    assert serialized["provenance_context"] == context
+    assert stream_meta["provenance_manifest"]["metadata"]["provenance_context"] == context
+    assert stream_meta["provenance_manifest"]["metadata"]["entities_touched"] == ["Soul Sync"]

@@ -559,6 +559,7 @@ async def chat_v2_endpoint(
         raise
 
     from app.chat_engine import ChatEngine
+    from app.orchestrator import _provenance_manifest_for_result
 
     engine = ChatEngine(container)
     try:
@@ -608,6 +609,7 @@ async def chat_v2_endpoint(
         grounding_state=grounding_state_for(result),
         release_manifest=getattr(result, "release_manifest", None)
         or get_release_manifest().to_dict(),
+        provenance_manifest=_provenance_manifest_for_result(result),
     )
 
 

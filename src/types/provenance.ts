@@ -30,6 +30,23 @@ export interface ProvenanceSource {
   score?: number;
 }
 
+export interface ProvenanceEvidenceItem {
+  text?: string;
+  band?: string;
+  score?: number;
+  source_url?: string;
+  source_segment_id?: string;
+  entity_ids?: string[];
+  relation?: string;
+  hop?: number;
+  confidence?: number;
+  ontology_version?: string;
+  rights_status?: string;
+  channel?: string;
+}
+
+export type ProvenanceEvidenceBands = Record<string, ProvenanceEvidenceItem[]>;
+
 export interface ProvenanceGroundingInfo {
   status: GroundingStatus;
   sourceCount: number;
@@ -39,6 +56,9 @@ export interface ProvenanceGroundingInfo {
   evidenceSupportLabel?: string;
   corpusId?: string;
   corpusVersion?: string;
+  evidenceBands?: ProvenanceEvidenceBands;
+  evidenceCount?: number;
+  entitiesTouched?: string[];
 }
 
 export interface Article50Disclosure {
@@ -158,6 +178,36 @@ export function createProvenanceManifestFromMessage(
   const citations = message.citations || [];
   const raw = asRecord(message.provenanceManifest) || asRecord(message.aiProvenance);
   const rawAgent = asRecord(raw?.agent);
+  const rawMetadata = asRecord(raw?.metadata);
+  const rawContext = asRecord(raw?.provenance_context)
+    || asRecord(raw?.provenanceContext)
+    || asRecord(rawMetadata?.provenance_context)
+    || asRecord(rawMetadata?.provenanceContext);
+  const rawBands = asRecord(rawContext?.bands);
+  const evidenceBands: ProvenanceEvidenceBands | undefined = rawBands
+    ? Object.fromEntries(Object.entries(rawBands).map(([band, values]) => [
+      band,
+      Array.isArray(values)
+        ? values.map((value) => {
+          const item = asRecord(value) || {};
+          return {
+            text: asString(item.text),
+            band: asString(item.band) || band,
+            score: asNumber(item.score),
+            source_url: asString(item.source_url),
+            source_segment_id: asString(item.source_segment_id),
+            entity_ids: Array.isArray(item.entity_ids) ? item.entity_ids.filter((id): id is string => typeof id === 'string') : undefined,
+            relation: asString(item.relation),
+            hop: asNumber(item.hop),
+            confidence: asNumber(item.confidence),
+            ontology_version: asString(item.ontology_version),
+            rights_status: asString(item.rights_status),
+            channel: asString(item.channel)
+          };
+        })
+        : []
+    ]))
+    : undefined;
   const rawSources = Array.isArray(raw?.sources)
     ? raw.sources.map(asRecord).filter((source): source is Record<string, unknown> => source !== null)
     : [];
@@ -201,7 +251,12 @@ export function createProvenanceManifestFromMessage(
       confidenceReason: message.confidenceReason,
       evidenceSupportLabel: message.answerEvidence?.evidence_support_label || (sources.length > 0 ? 'Verified Corpus Grounding' : 'Reflective Guidance'),
       corpusId: message.answerEvidence?.corpus_id || 'spiritual_wisdom',
-      corpusVersion: message.answerEvidence?.release_version ? `v${message.answerEvidence.release_version}` : undefined
+      corpusVersion: message.answerEvidence?.release_version ? `v${message.answerEvidence.release_version}` : undefined,
+      evidenceBands,
+      evidenceCount: asNumber(rawContext?.evidence_count),
+      entitiesTouched: Array.isArray(rawContext?.entities_touched)
+        ? rawContext.entities_touched.filter((id): id is string => typeof id === 'string')
+        : undefined
     },
     disclosure: {
       article: 'Article 50(1)',

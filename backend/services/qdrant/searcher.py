@@ -135,6 +135,12 @@ class QdrantSearcher:
                 FieldCondition(key="cluster_id", match=MatchAny(any=kwargs["cluster_ids"]))
             )
 
+        # Optional graph-linked prefetch: it is an additional candidate channel,
+        # never a mandatory filter. Legacy chunks without graph metadata remain
+        # eligible through the ordinary dense/sparse path.
+        graph_entity_ids = kwargs.get("graph_entity_ids") or kwargs.get("entity_ids")
+        graph_prefetch_enabled = bool(kwargs.get("graph_prefetch_enabled", False))
+
         # Metadata filters for retrieval-quality improvements + assistants
         source_url = kwargs.get("source_url")
         source_type = kwargs.get("source_type")
@@ -217,6 +223,29 @@ class QdrantSearcher:
                     ),
                 ]
 
+                if graph_prefetch_enabled and graph_entity_ids:
+                    graph_filter = Filter(
+                        must=list(filter_conditions),
+                        should=[
+                            FieldCondition(
+                                key="entity_ids",
+                                match=MatchAny(any=list(graph_entity_ids)),
+                            ),
+                            FieldCondition(
+                                key="graph_node_ids",
+                                match=MatchAny(any=list(graph_entity_ids)),
+                            ),
+                        ],
+                    )
+                    prefetch_queries.append(
+                        Prefetch(
+                            query=query_vector,
+                            using="dense",
+                            limit=max(1, internal_limit // 2),
+                            filter=graph_filter,
+                            params=dense_search_params,
+                        )
+                    )
                 results = self._client.query_points(
                     collection_name=self._collection,
                     prefetch=prefetch_queries,
@@ -235,6 +264,33 @@ class QdrantSearcher:
             hits = self._dense_search(
                 query_vector, internal_limit, search_filter, dense_search_params
             )
+            if graph_prefetch_enabled and graph_entity_ids:
+                try:
+                    graph_filter = Filter(
+                        must=list(filter_conditions),
+                        should=[
+                            FieldCondition(
+                                key="entity_ids",
+                                match=MatchAny(any=list(graph_entity_ids)),
+                            ),
+                            FieldCondition(
+                                key="graph_node_ids",
+                                match=MatchAny(any=list(graph_entity_ids)),
+                            ),
+                        ],
+                    )
+                    graph_results = self._client.query_points(
+                        collection_name=self._collection,
+                        query=query_vector,
+                        using="dense",
+                        limit=max(1, internal_limit // 2),
+                        query_filter=graph_filter,
+                        search_params=dense_search_params,
+                        with_payload=True,
+                    )
+                    hits.extend(graph_results.points)
+                except Exception as exc:
+                    logger.info("Optional graph-linked Qdrant prefetch failed open: %s", exc)
 
         # Filter out poisoned nodes
         hits = [
@@ -267,6 +323,9 @@ class QdrantSearcher:
                 "entity_ids": hit.payload.get("entity_ids", []),
                 "graph_node_ids": hit.payload.get("graph_node_ids", []),
                 "context_cluster_ids": hit.payload.get("context_cluster_ids", []),
+                "source_segment_ids": hit.payload.get("source_segment_ids", []),
+                "ontology_version": hit.payload.get("ontology_version"),
+                "entity_resolution_confidence": hit.payload.get("entity_resolution_confidence"),
                 "chunk_id": hit.payload.get("chunk_id") or hit.id,
             }
             for hit in hits

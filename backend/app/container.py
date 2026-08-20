@@ -397,6 +397,8 @@ class ServiceContainer:
                             limit=k,
                             sparse_vector=vec["sparse"],
                             query=q,
+                            graph_entity_ids=resolve_concepts_in_query(q),
+                            graph_prefetch_enabled=bool(getattr(settings, "graphrag_fusion_enabled", False)),
                             timeout=10,
                         ),
                         timeout=15,
@@ -411,6 +413,11 @@ class ServiceContainer:
                         "score": h.get("score", 0.0),
                         "source": h.get("source_url") or h.get("source", ""),
                         "entity_ids": h.get("entity_ids", []),
+                        "graph_node_ids": h.get("graph_node_ids", []),
+                        "source_segment_ids": h.get("source_segment_ids", []),
+                        "ontology_version": h.get("ontology_version"),
+                        "domain_rights_status": h.get("domain_rights_status"),
+                        "entity_resolution_confidence": h.get("entity_resolution_confidence"),
                         "chunk_id": h.get("chunk_id") or h.get("id"),
                     }
                     for h in hits

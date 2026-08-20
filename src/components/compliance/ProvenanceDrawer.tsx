@@ -327,6 +327,58 @@ export const ProvenanceDrawer: React.FC<ProvenanceDrawerProps> = ({
                   </div>
                 </div>
               )}
+
+              {manifest.grounding.evidenceBands
+                && Object.values(manifest.grounding.evidenceBands).some((items) => items.length > 0) && (
+                <div className="space-y-2 pt-1" data-testid="provenance-evidence-bands">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                      Graph & Source Evidence Bands
+                    </p>
+                    {typeof manifest.grounding.evidenceCount === 'number' && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {manifest.grounding.evidenceCount} evidence items
+                      </span>
+                    )}
+                  </div>
+                  {manifest.grounding.entitiesTouched && manifest.grounding.entitiesTouched.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {manifest.grounding.entitiesTouched.slice(0, 12).map((entity) => (
+                        <span key={entity} className="rounded-full border border-ojas/20 bg-ojas/10 px-2 py-0.5 text-[10px] text-ojas">
+                          {entity}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {Object.entries(manifest.grounding.evidenceBands)
+                      .filter(([, items]) => items.length > 0)
+                      .map(([band, items]) => (
+                        <div key={band} className="rounded-lg border border-border/40 bg-muted/20 p-2.5 space-y-1.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-foreground/80">
+                            {band.replaceAll('_', ' ')}
+                          </p>
+                          {items.slice(0, 4).map((item, index) => (
+                            <div key={`${item.source_segment_id || item.source_url || band}-${index}`} className="rounded-md bg-background/60 p-2 text-[11px] space-y-1">
+                              <p className="text-foreground/90 leading-relaxed line-clamp-3">{item.text || 'Evidence metadata available'}</p>
+                              <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+                                {item.relation && <span>relation: {item.relation}</span>}
+                                {typeof item.hop === 'number' && item.hop > 0 && <span>hop: {item.hop}</span>}
+                                {item.source_segment_id && <span>segment: {item.source_segment_id}</span>}
+                                {item.ontology_version && <span>ontology: {item.ontology_version}</span>}
+                              </div>
+                              {item.source_url && (
+                                <a href={item.source_url} target="_blank" rel="noopener noreferrer" className="text-ojas hover:underline inline-flex items-center gap-1">
+                                  View source <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 5. Machine-Readable PROV-O JSON-LD Exporter */}

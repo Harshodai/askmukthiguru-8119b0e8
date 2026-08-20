@@ -514,8 +514,17 @@ def _format_scored_memory_block(memories: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def _format_second_brain_block(items: list[Any]) -> str:
+def _format_second_brain_block(
+    items: list[Any],
+    *,
+    owner_id: Optional[str] = None,
+    query: str = "",
+) -> str:
     """Format decrypted Second Brain items as data, never as instructions.
+
+    When the request has a persistable owner, the adapter adds ephemeral
+    ontology links to each authorized memory. It never writes those links to
+    Neo4j, public Qdrant, or the corpus.
 
     The memory content is user-authored data and may contain imperative language.
     Keep it in a fenced context block, expose confidence/freshness metadata, and
@@ -523,6 +532,19 @@ def _format_second_brain_block(items: list[Any]) -> str:
     """
     if not items:
         return ""
+    if owner_id:
+        try:
+            from services.second_brain.context_adapter import (
+                build_private_context_links,
+                format_private_context_links,
+            )
+
+            links = build_private_context_links(owner_id, query, items)
+            formatted = format_private_context_links(links)
+            if formatted:
+                return formatted
+        except Exception as exc:
+            logger.warning("Private-memory concept linking failed; using safe legacy block: %s", exc)
     now = datetime.now(UTC).timestamp()
     lines = [
         "```second-brain-context",
@@ -594,7 +616,11 @@ async def prepare_user_memory(
 
             brain_items = await asyncio.wait_for(fetch_second_brain(), timeout=0.200)
             if brain_items:
-                brain_block = _format_second_brain_block(brain_items)
+                brain_block = _format_second_brain_block(
+                    brain_items,
+                    owner_id=user_id,
+                    query=recall_query,
+                )
                 if brain_block:
                     memory_context = brain_block
         except VaultLockedError:

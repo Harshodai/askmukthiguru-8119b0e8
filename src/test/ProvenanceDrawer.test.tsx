@@ -180,4 +180,29 @@ describe('ProvenanceDrawer Component', () => {
 
     expect(screen.getByText('Copied PROV-O JSON-LD!')).toBeInTheDocument();
   });
+
+  it('renders graph evidence bands and entity links when backend metadata is present', () => {
+    const graphManifest: AIProvenanceManifest = {
+      ...sampleManifest,
+      grounding: {
+        ...sampleManifest.grounding,
+        evidenceCount: 2,
+        entitiesTouched: ['Soul Sync'],
+        evidenceBands: {
+          direct_source: [{ text: 'Direct teaching', source_segment_id: 'seg-1', rights_status: 'licensed' }],
+          graph_one_hop: [{ text: 'Graph relation', relation: 'PRACTICE_FOR', hop: 1, ontology_version: 'v1' }],
+          corroborated: [],
+          community_summary: [],
+        },
+      },
+    };
+
+    render(<ProvenanceDrawer isOpen={true} onClose={vi.fn()} manifest={graphManifest} />);
+
+    expect(screen.getByTestId('provenance-evidence-bands')).toBeInTheDocument();
+    expect(screen.getByText('Soul Sync')).toBeInTheDocument();
+    expect(screen.getByText('Graph relation')).toBeInTheDocument();
+    expect(screen.getByText('relation: PRACTICE_FOR')).toBeInTheDocument();
+    expect(screen.getByText('segment: seg-1')).toBeInTheDocument();
+  });
 });

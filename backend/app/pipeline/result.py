@@ -146,6 +146,8 @@ class PipelineResult:
     guidance_plan: GuidancePlan | None = None
     # Release provenance and model policy manifest
     release_manifest: dict | None = None
+    # Retrieval evidence bands produced after all vector/graph channels finalize.
+    provenance_context: dict | None = None
 
     def with_latency(self, latency_ms: int) -> PipelineResult:
         """Return a new PipelineResult with updated latency."""
@@ -188,6 +190,7 @@ class PipelineResult:
             guidance_plan=self.guidance_plan,
             verification=self.verification,
             release_manifest=self.release_manifest,
+            provenance_context=self.provenance_context,
         )
 
     def to_chat_response(self) -> dict[str, Any]:
@@ -220,4 +223,5 @@ class PipelineResult:
             ),
             "guidance_plan": (None if self.guidance_plan is None else asdict(self.guidance_plan)),
             "release_manifest": self.release_manifest,
+            "provenance_context": self.provenance_context,
         }
