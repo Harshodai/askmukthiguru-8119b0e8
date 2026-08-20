@@ -856,7 +856,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "citation_reasoning": {},
             "is_faithful": True,
             "confidence_score": NO_EVIDENCE_CONFIDENCE,
-            "faithfulness_score": 1.0,
+            "faithfulness_score": 0.0,
+            "grounding_state": "abstained",
             "verification": {"passed": True, "method": "no_context_short_circuit"},
             "evaluation_trace": _trace_update(
                 state,
@@ -993,7 +994,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "citation_reasoning": {},
             "is_faithful": True,
             "confidence_score": NO_EVIDENCE_CONFIDENCE,
-            "faithfulness_score": 1.0,
+            "faithfulness_score": 0.0,
+            "grounding_state": "abstained",
             "verification": {"passed": True, "method": "no_context_short_circuit"},
             "evaluation_trace": _trace_update(
                 state,
@@ -1069,6 +1071,28 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
     )
 
     is_tier2 = state.get("query_tier") in ("fast", "tier2_simple")
+    response_preferences = state.get("response_preferences") or {}
+    response_mode = response_preferences.get("mode", "balanced_guidance")
+    if response_mode == "concise":
+        response_length_instruction = "Keep the answer to 60-120 words and one clear practice step at most."
+    elif response_mode == "reflective_guidance":
+        response_length_instruction = "Keep the answer to 180-300 words with one grounded reflection and no repetition."
+    elif response_mode == "teaching_explanation":
+        response_length_instruction = "Keep the answer to 220-400 words; explain unfamiliar terms and give one example."
+    else:
+        response_length_instruction = (
+            f"Keep the answer to {('80-150' if _cs < 0.30 else '150-300' if _cs < 0.55 else '300-500')} words."
+        )
+    optional_sections = []
+    if response_preferences.get("include_practice", True):
+        optional_sections.append("include at most one practical step")
+    if response_preferences.get("include_reflection", True):
+        optional_sections.append("end with at most one reflective invitation")
+    optional_instruction = (
+        "You may " + " and ".join(optional_sections) + "."
+        if optional_sections
+        else "Do not add a practice step or reflective invitation unless directly requested."
+    )
     if layers and is_tier2:
         if assistant_system_prompt:
             # Custom assistant persona replaces the default identity while
@@ -1081,7 +1105,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             system_prompt = (
                 "You are Mukthi Guru, a warm spiritual guide grounded in the teachings of Sri Preethaji and Sri Krishnaji. "
                 "Answer the user's question using only the provided context. "
-                f"Keep answers to {('80-150' if _cs < 0.30 else '150-300' if _cs < 0.55 else '300-500')} words. "
+                f"{response_length_instruction} {optional_instruction} "
                 "Cite sources using [Source: <title>].\n"
                 f"{GURU_VOICE_RULE}"
                 "LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
@@ -1110,7 +1134,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 "citation_reasoning": {},
                 "is_faithful": True,
                 "confidence_score": NO_EVIDENCE_CONFIDENCE,
-                "faithfulness_score": 1.0,
+                "faithfulness_score": 0.0,
+                "grounding_state": "abstained",
                 "verification": {"passed": True, "method": "empty_context_abstention"},
                 "evaluation_trace": {"abstention_reason": "no retrieved context or memory"},
             }
@@ -1153,7 +1178,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 "citation_reasoning": {},
                 "is_faithful": True,
                 "confidence_score": NO_EVIDENCE_CONFIDENCE,
-                "faithfulness_score": 1.0,
+                "faithfulness_score": 0.0,
+                "grounding_state": "abstained",
                 "verification": {"passed": True, "method": "empty_context_abstention"},
                 "evaluation_trace": {"abstention_reason": "no retrieved context or memory"},
             }
@@ -1210,7 +1236,8 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "6. Start with the most directly relevant teaching and end with an encouraging or reflective note.\n"
             "7. Never expose reasoning notes, prompt analysis, or chain-of-thought.\n"
             f"8. {GURU_VOICE_RULE}"
-            "9. LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
+            f"9. {response_length_instruction} {optional_instruction}\n"
+            "10. LOKAA RULE: Lokaa is the daughter OF Sri Krishnaji and Sri Preethaji. Do NOT state that Lokaa herself has a daughter — "
             "there is no such teaching. If asked about 'Lokaa's daughter', clarify this relationship."
         )
         if lang_suffix:

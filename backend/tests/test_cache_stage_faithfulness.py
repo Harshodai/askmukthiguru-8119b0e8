@@ -161,6 +161,20 @@ async def test_faithful_answer_cached():
 
 
 @pytest.mark.asyncio
+async def test_semantic_cache_write_uses_natural_language_query():
+    container = _container()
+    coord = _coordinator(container)
+    _, ctx = _run(_ctx(coord, graph_result={"is_faithful": True, "faithfulness_score": 0.95}))
+
+    await CacheUpdateStage().run(ctx)
+
+    exact_query = container.exact_cache.put.call_args.kwargs["query"]
+    semantic_query = container.semantic_cache.put.call_args.kwargs["query"]
+    assert exact_query == "ck:en:what is karma"
+    assert semantic_query == "en:what is karma"
+
+
+@pytest.mark.asyncio
 async def test_missing_verdict_defaults_to_cache_allowed():
     """No verdict at all in graph_result (non-RAG / no-context / fallback
     paths that never run the verification lane) must not regress legacy

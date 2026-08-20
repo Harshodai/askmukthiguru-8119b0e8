@@ -82,9 +82,9 @@ class Settings(BaseSettings):
     # adequate headroom while keeping total pipeline latency acceptable.
     # Must be smaller than pipeline_timeout.
     llm_timeout: int = 45  # reduced from 60 — NIM India→US typically responds in <20s
-    # Total outer pipeline timeout. With 3 sequential LLM calls at 15s each + retrieval,
-    # 120s is comfortable headroom without hanging users for 3+ minutes.
-    pipeline_timeout: int = 120  # reduced from 180
+    # Total outer pipeline timeout. With bounded provider calls plus retrieval,
+    # 105s leaves margin below the client benchmark timeout without hanging users.
+    pipeline_timeout: int = 105  # leaves client-side timeout headroom
     llm_max_retries: int = 2  # Max retry attempts per LLM call (exponential backoff starts at 0.5s)
 
     # Explicit allowlist of proxy addresses whose X-Forwarded-For is trusted
@@ -105,8 +105,13 @@ class Settings(BaseSettings):
     # pipeline_timeout_budget removed — dead config, never read. Use pipeline_timeout instead.
     node_timeout_fast: int = 15  # reduced from 20
     node_timeout_main: int = 20  # reduced from 90 — prevents 90s hangs on slow Qdrant/Neo4j
+    # CoVe is a quality backstop, not a reason to hold a user request for the
+    # provider's full 45-second deadline. Time it independently, then fall back
+    # to the deterministic faithfulness score on timeout.
+    cove_verification_timeout: float = Field(default=12.0, gt=0.0, le=45.0)
 
-    serene_mind_enabled: bool = True  # Enable/disable Serene Mind distress detection engine
+    serene_mind_enabled: bool = True
+    # Enable/disable Serene Mind distress detection engine
     doctrine_cache_enabled: bool = (
         False  # Default OFF: built-in canned answers lack citations and hurt benchmark quality
     )

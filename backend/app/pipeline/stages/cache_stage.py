@@ -107,6 +107,7 @@ class CacheCheckStage(Stage):
             return None
         cache_key = ctx.cache_key
         query_text = ctx.query_for_embedding
+        semantic_query = f"{ctx.preferred_lang or 'en'}:{query_text or ctx.user_msg}".strip()
         is_indic = ctx.is_indic
         preferred_lang = ctx.preferred_lang
         container = ctx.container
@@ -238,7 +239,7 @@ class CacheCheckStage(Stage):
         cached = await asyncio.to_thread(container.exact_cache.get, cache_key)
         if cached is None and container.semantic_cache and container.semantic_cache.is_available:
             cached = await asyncio.to_thread(
-                container.semantic_cache.get, cache_key, threshold=threshold
+                container.semantic_cache.get, semantic_query, threshold=threshold
             )
 
         if cached is not None:
@@ -282,6 +283,7 @@ class CacheUpdateStage(Stage):
             logger.debug("Cache write skipped for incognito request")
             return None
         cache_key = ctx.cache_key
+        semantic_query = f"{ctx.preferred_lang or 'en'}:{ctx.query_for_embedding or ctx.user_msg}".strip()
         final_answer = ctx.final_answer
         intent = ctx.intent
         med_step = ctx.med_step
@@ -417,11 +419,16 @@ class CacheUpdateStage(Stage):
                     meditation_step=med_step,
                 )
 
+                # Update semantic cache using the natural-language query. The
+                # exact cache keeps the composite release/tenant/preferences
+                # key, while semantic search needs the original utterance for
+                # useful paraphrase similarity and language isolation.
                 # Update semantic cache (Qdrant — slowest, guarded)
+
                 if container.semantic_cache and container.semantic_cache.is_available:
                     await asyncio.to_thread(
                         container.semantic_cache.put,
-                        query=cache_key,
+                        query=semantic_query,
                         response=final_answer,
                         intent=intent,
                         citations=citations,

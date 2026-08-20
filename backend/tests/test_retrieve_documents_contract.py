@@ -18,6 +18,10 @@ async def test_retrieve_documents_contract(monkeypatch):
     mock_embedder = MagicMock()
     # Mock return value for encode_single_full
     mock_embedder.encode_single_full.return_value = {"dense": [0.1] * 1024, "sparse": {"1": 0.5}}
+    mock_embedder.encode_batch.return_value = {
+        "dense": [[0.1] * 1024],
+        "sparse": [{"1": 0.5}],
+    }
     mock_embedder.instruction = "Given a spiritual teaching, retrieve relevant passages: "
 
     mock_qdrant = MagicMock()
@@ -34,13 +38,14 @@ async def test_retrieve_documents_contract(monkeypatch):
 
     # Inject mock services into nodes module
     import rag.nodes as nodes
+    from rag.nodes import _services
 
     mock_ollama = AsyncMock()
     mock_ollama._generate_fast = AsyncMock(return_value="What is Ekam?")
-    monkeypatch.setattr(nodes, "_ollama", mock_ollama)
-    monkeypatch.setattr(nodes, "_embedder", mock_embedder)
-    monkeypatch.setattr(nodes, "_qdrant", mock_qdrant)
-    monkeypatch.setattr(nodes, "_lightrag", mock_lightrag)
+    monkeypatch.setattr(_services, "_ollama", mock_ollama)
+    monkeypatch.setattr(_services, "_embedder", mock_embedder)
+    monkeypatch.setattr(_services, "_qdrant", mock_qdrant)
+    monkeypatch.setattr(_services, "_lightrag", mock_lightrag)
 
     # OKF injection is an orthogonal curated-knowledge channel (on by default
     # since Fix C's OKF hardening — see app/config.py:269) that would pull in
@@ -55,6 +60,11 @@ async def test_retrieve_documents_contract(monkeypatch):
     # Disable score-delta cutoff and dedup so LightRAG's low score (0.32 for
     # single-line output) isn't silently dropped by _apply_score_delta_cutoff
     monkeypatch.setattr(settings, "retrieval_score_delta_enabled", False)
+    monkeypatch.setattr(settings, "rag_skip_retrieval_expansions", True)
+    monkeypatch.setattr(settings, "kg_ontology_expansion_timeout", 0.05)
+    mock_container = MagicMock()
+    mock_container.neo4j_driver = None
+    monkeypatch.setattr("app.dependencies.get_container", lambda: mock_container)
 
     # 1. Test missing required key "question"
     invalid_state = {}
@@ -130,11 +140,12 @@ async def test_retrieve_documents_kg_ontology_expansion_times_out(monkeypatch):
     mock_lightrag.aquery = AsyncMock(return_value="")
 
     import rag.nodes as nodes
+    from rag.nodes import _services
 
-    monkeypatch.setattr(nodes, "_ollama", AsyncMock())
-    monkeypatch.setattr(nodes, "_embedder", mock_embedder)
-    monkeypatch.setattr(nodes, "_qdrant", mock_qdrant)
-    monkeypatch.setattr(nodes, "_lightrag", mock_lightrag)
+    monkeypatch.setattr(_services, "_ollama", AsyncMock())
+    monkeypatch.setattr(_services, "_embedder", mock_embedder)
+    monkeypatch.setattr(_services, "_qdrant", mock_qdrant)
+    monkeypatch.setattr(_services, "_lightrag", mock_lightrag)
 
     monkeypatch.setattr(settings, "rag_okf_injection_enabled", False)
     monkeypatch.setattr(settings, "semantic_cache_enabled", False)

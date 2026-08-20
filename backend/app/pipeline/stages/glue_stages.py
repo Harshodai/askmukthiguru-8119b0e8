@@ -190,6 +190,11 @@ class RequestStateStage(Stage):
         state = await prepare_request_state(
             ctx.container, ctx.request, ctx.preferred_lang, user=ctx.user
         )
+        preferences = getattr(ctx.request, "response_preferences", None)
+        if hasattr(preferences, "model_dump"):
+            state["response_preferences"] = preferences.model_dump(mode="json")
+        elif isinstance(preferences, dict):
+            state["response_preferences"] = dict(preferences)
         ctx.state = state
         return None
 

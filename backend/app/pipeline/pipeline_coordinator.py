@@ -150,7 +150,11 @@ class PipelineCoordinator:
         try:
             result = await asyncio.wait_for(
                 StageRunner.run(build_default_pipeline(), ctx, coordinator=self),
-                timeout=settings.pipeline_timeout + 60,
+                # Keep a small drain allowance, but never add a full extra
+                # minute beyond the configured pipeline budget. The previous
+                # +60s caused client-side 120s timeouts before our graceful
+                # fallback could be returned.
+                timeout=settings.pipeline_timeout + 5,
             )
         except TimeoutError:
             logger.error(

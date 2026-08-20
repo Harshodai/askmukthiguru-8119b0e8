@@ -245,10 +245,11 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
         return {
             "is_faithful": True,
             "no_context": True,
+            "grounding_state": "abstained",
             "verification": {"passed": True, "details": "No content to verify"},
-            "confidence_score": 8.0,
-            "faithfulness_score": 1.0,
-            "relevancy_score": 1.0,
+            "confidence_score": 2.0,
+            "faithfulness_score": 0.0,
+            "relevancy_score": 0.0,
         }
 
     cove_enabled_tier = (
@@ -453,7 +454,18 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
     cove_failed = False
     cove_pass_ratio = 1.0  # default when CoVe not run (no claim check)
     if should_run_cove:
-        cove_result = await _cove_subquestion_check(question, answer, context, ollama)
+        try:
+            cove_result = await asyncio.wait_for(
+                _cove_subquestion_check(question, answer, context, ollama),
+                timeout=float(getattr(settings, "cove_verification_timeout", 12.0)),
+            )
+        except TimeoutError:
+            logger.warning("Combined verify: CoVe deadline exceeded; using bounded unverified verdict")
+            cove_result = {
+                "passed": False,
+                "ratio": 0.0,
+                "details": "CoVe deadline exceeded; answer remains unverified",
+            }
         cove_failed = not cove_result["passed"]
         claim_verification_passed = not cove_failed
         claim_verification_details = cove_result["details"]
@@ -559,7 +571,19 @@ async def _verify_with_gateway(state: GraphState, config: dict | None) -> dict |
 
     await emit_status(config, "Verifying alignment with the teachings...")
     try:
-        cove_result = await gateway.verify_answer(answer=answer, context=context)
+        cove_result = await asyncio.wait_for(
+            gateway.verify_answer(answer=answer, context=context),
+            timeout=float(getattr(settings, "cove_verification_timeout", 12.0)),
+        )
+    except TimeoutError:
+        logger.warning("verify_with_gateway: gateway verification exceeded bounded deadline")
+        return {
+            "is_faithful": False,
+            "verification": {"passed": False, "details": "Gateway CoVe deadline exceeded; answer remains unverified"},
+            "confidence_score": 0.0,
+            "faithfulness_score": 0.0,
+            "relevancy_score": 0.0,
+        }
     except Exception as exc:
         logger.error(f"verify_with_gateway: gateway verify_answer failed: {exc}")
         return {
