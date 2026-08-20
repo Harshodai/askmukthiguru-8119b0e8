@@ -19,6 +19,20 @@ from .utils import _grounded_citation_urls, _trace_update, emit_status, log_metr
 logger = logging.getLogger(__name__)
 
 
+def _limit_rerank_candidates(documents: list[dict], query_tier: str) -> list[dict]:
+    """Bound cross-encoder input for simple tiers without changing retrieval order."""
+    cap = 8 if query_tier == "tier2_simple" else None
+    if cap is None or len(documents) <= cap:
+        return documents
+    logger.debug(
+        "Rerank candidate budget: tier=%s %d -> %d documents",
+        query_tier,
+        len(documents),
+        cap,
+    )
+    return documents[:cap]
+
+
 @trace_rag_node("rerank_documents")
 @log_metrics
 async def rerank_documents(state: GraphState, config: dict = None) -> dict:
@@ -89,10 +103,11 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
             and query_tier == "tier3_complex"
         )
 
+        rerank_candidates = _limit_rerank_candidates(db_docs, query_tier)
         if settings.use_flashrank and reranker is not None and not force_cross_encoder:
             reranked_db = await reranker.rerank(
                 question,
-                db_docs,
+                rerank_candidates,
                 top_k=rerank_top_k,
                 min_score=threshold,
             )
@@ -100,7 +115,7 @@ async def rerank_documents(state: GraphState, config: dict = None) -> dict:
             reranked_db = await asyncio.to_thread(
                 embedder.cascaded_rerank,
                 question,
-                db_docs,
+                rerank_candidates,
                 colbert_top_k=rerank_top_k * 2,
                 cross_top_k=rerank_top_k,
                 min_score=threshold,
