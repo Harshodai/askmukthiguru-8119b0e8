@@ -1,0 +1,2 @@
+AskMukthiGuru release build: 654f7df4
+Context-graph expansion: provenance bands, fail-open graph prefetch, private-memory links, resumable Qdrant maintenance.
