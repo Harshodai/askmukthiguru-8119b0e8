@@ -54,14 +54,31 @@ export const useWebPush = () => {
       return;
     }
     (async () => {
-      const reg = await navigator.serviceWorker.getRegistration(SW_PATH);
-      const existing = reg ? await reg.pushManager.getSubscription() : null;
-      setState((s) => ({
-        ...s,
-        supported: true,
-        permission: Notification.permission,
-        subscribed: Boolean(existing),
-      }));
+      try {
+        const reg = await navigator.serviceWorker.getRegistration(SW_PATH);
+        const existing = reg ? await reg.pushManager.getSubscription() : null;
+        setState((s) => ({
+          ...s,
+          supported: true,
+          permission: Notification.permission,
+          subscribed: Boolean(existing),
+        }));
+      } catch (error) {
+        // Some browsers/CDN service-worker shims reject capability probes with
+        // AbortError. Treat that as unavailable rather than leaking an
+        // unhandled rejection or showing a prompt that cannot succeed.
+        const isAbort = error instanceof DOMException && error.name === 'AbortError';
+        if (!isAbort) {
+          console.debug('[WebPush] capability probe unavailable', error);
+        }
+        setState((s) => ({
+          ...s,
+          supported: false,
+          permission: 'unsupported',
+          subscribed: false,
+          error: isAbort ? 'service_worker_probe_aborted' : 'service_worker_probe_failed',
+        }));
+      }
     })();
   }, []);
 
