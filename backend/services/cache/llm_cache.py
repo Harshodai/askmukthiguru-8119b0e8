@@ -65,7 +65,7 @@ def init_llm_cache(embedding_func: Optional[Callable] = None):
             data_manager = manager_factory(
                 manager="map",
                 data_dir=f"data/gptcache/{safe_llm_name}",
-                max_size=10000,
+                max_size=getattr(settings, "gptcache_max_size", 1000),
             )
 
             cache_obj.init(

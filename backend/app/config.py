@@ -756,7 +756,12 @@ class Settings(BaseSettings):
     use_dspy: bool = False  # Enable DSPy-optimized generation (NIM-based)
 
     # --- Embedding Cache (Phase 1.3) ---
-    embedding_cache_size: int = 10000  # LRU cache size for content-hash embeddings
+    # Bound per-process dense+sparse vector retention. The semantic response cache
+    # remains in Redis/Qdrant, so this local cap limits RAM without disabling
+    # cross-request semantic reuse. Production currently overrides this to 2000
+    # while preserving the same behavior and eviction semantics.
+    embedding_cache_size: int = 2000  # LRU cache size for content-hash embeddings
+    gptcache_max_size: int = 1000  # Bound local exact-match prompt/response retention
 
     # --- Temperature per Graph Mode (Phase 2.1) ---
     generation_temp_fast: float = 0.3  # Temperature for fast-graph generation
