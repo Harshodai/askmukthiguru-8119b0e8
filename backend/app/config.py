@@ -109,6 +109,10 @@ class Settings(BaseSettings):
     # provider's full 45-second deadline. Time it independently, then fall back
     # to the deterministic faithfulness score on timeout.
     cove_verification_timeout: float = Field(default=12.0, gt=0.0, le=45.0)
+    # LettuceDetect can become CPU-bound on long multilingual contexts. Keep
+    # the deterministic verification signal bounded; a timeout is reported as
+    # unverified rather than being promoted to a passing score.
+    faithfulness_verification_timeout: float = Field(default=8.0, gt=0.0, le=30.0)
 
     serene_mind_enabled: bool = True
     # Enable/disable Serene Mind distress detection engine

@@ -464,7 +464,10 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
     gateway = _services._llm_gateway
     if gateway is not None:
         try:
-            cove_result = await gateway.verify_answer(answer=answer, context=context)
+            cove_result = await asyncio.wait_for(
+                gateway.verify_answer(answer=answer, context=context),
+                timeout=float(getattr(settings, "cove_verification_timeout", 12.0)),
+            )
             is_faithful = bool(cove_result.get("is_faithful", cove_result.get("passed", False)))
             if not is_faithful:
                 return {
@@ -485,8 +488,14 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
         return {"needs_correction": True, "reflection_feedback": "Deep verification unavailable"}
 
     try:
-        result = await asyncio.to_thread(
-            lettuce_detect.score_faithfulness, state.get("question", ""), context, answer
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                lettuce_detect.score_faithfulness,
+                state.get("question", ""),
+                context,
+                answer,
+            ),
+            timeout=float(getattr(settings, "faithfulness_verification_timeout", 8.0)),
         )
         is_faithful = result.get("is_faithful", False)
         score = result.get("score", 0.0)
@@ -498,6 +507,12 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
                 "reflection_feedback": f"Deep contradiction gate (LettuceDetect) failed: score={score:.2f}",
             }
         return {"needs_correction": False}
+    except asyncio.TimeoutError:
+        logger.warning("deep_contradiction_gate: faithfulness scorer deadline exceeded")
+        return {
+            "needs_correction": True,
+            "reflection_feedback": "Deep verification deadline exceeded; answer remains unverified",
+        }
     except Exception as exc:
         logger.error(f"deep_contradiction_gate: LettuceDetect fallback failed: {exc}")
         return {"needs_correction": True, "reflection_feedback": f"Deep verification error: {exc}"}

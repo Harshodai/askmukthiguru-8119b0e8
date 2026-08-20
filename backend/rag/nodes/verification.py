@@ -26,6 +26,40 @@ from .utils import emit_status, log_metrics, settings
 
 logger = logging.getLogger(__name__)
 
+
+async def _score_faithfulness_bounded(
+    lettuce_detect,
+    question: str,
+    context: str,
+    answer: str,
+    *,
+    semantic: bool = False,
+) -> dict:
+    """Run the local faithfulness scorer under a hard wall-clock budget."""
+    timeout = float(getattr(settings, "faithfulness_verification_timeout", 8.0))
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(
+                lettuce_detect.score_faithfulness,
+                question,
+                context,
+                answer,
+                semantic=semantic,
+            ),
+            timeout=timeout,
+        )
+    except asyncio.TimeoutError:
+        logger.warning(
+            "Faithfulness scorer exceeded %.1fs deadline; returning unverified verdict",
+            timeout,
+        )
+        return {
+            "score": 0.0,
+            "is_faithful": False,
+            "timed_out": True,
+        }
+
+
 # Persona voice breaks that faithfulness scoring (LettuceDetect) can't catch —
 # an answer can be 100% grounded in retrieved docs and still slip into
 # generic-AI phrasing or impersonate the founders in first person, both of
@@ -144,8 +178,8 @@ async def reflect_on_answer(state: GraphState, config: dict = None) -> dict:
     # a correction hint only, so keep its pass bounded and avoid duplicate CPU
     # embedding work on complex answers.
     reflection_semantic = state.get("query_tier") not in ("tier3_complex", "deep")
-    ld_result = await asyncio.to_thread(
-        lettuce_detect.score_faithfulness,
+    ld_result = await _score_faithfulness_bounded(
+        lettuce_detect,
         question,
         context,
         answer,
@@ -298,8 +332,8 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
 
         ld_result = state.get("lettuce_detect_result")
         if ld_result is None:
-            ld_result = await asyncio.to_thread(
-                lettuce_detect.score_faithfulness, question, context, answer
+            ld_result = await _score_faithfulness_bounded(
+                lettuce_detect, question, context, answer
             )
         faithfulness_score = ld_result["score"]
         # Task #41: settings.faithfulness_floor was previously only referenced in
@@ -354,8 +388,8 @@ async def verify_answer(state: GraphState, config: dict = None) -> dict:
 
     ld_result = state.get("lettuce_detect_result")
     if ld_result is None:
-        ld_result = await asyncio.to_thread(
-            lettuce_detect.score_faithfulness, question, context, answer
+        ld_result = await _score_faithfulness_bounded(
+            lettuce_detect, question, context, answer
         )
     else:
         logger.info("Combined verify: reusing cached lettuce_detect_result from self-reflection")

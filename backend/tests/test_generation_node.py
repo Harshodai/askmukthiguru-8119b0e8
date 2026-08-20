@@ -9,7 +9,11 @@ import pytest
 
 import rag.nodes as nodes
 from rag.nodes import _services
-from rag.nodes.generation import _compute_context_budget, generate_answer
+from rag.nodes.generation import (
+    _compute_context_budget,
+    _is_non_english_language,
+    generate_answer,
+)
 from rag.states import GraphState
 
 
@@ -33,6 +37,14 @@ class TestGenerationTokenBudget:
         assert "max(0, max_budget - (sys_tokens + base_user_tokens + 250))" in source, (
             "Budget clamped to zero not found"
         )
+
+
+def test_language_aware_fast_tier_language_normalization():
+    """Indic outputs must not be judged by the English lexical scorer."""
+    assert _is_non_english_language("hi") is True
+    assert _is_non_english_language("te-IN") is True
+    assert _is_non_english_language("en-US") is False
+    assert _is_non_english_language(None) is False
 
 
 class TestSarvamCloudDI:
