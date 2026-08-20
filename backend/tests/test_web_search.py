@@ -239,6 +239,24 @@ class TestWebSearchService:
         assert len(results) == 3
 
     @patch.object(DuckDuckGoProvider, "search", new_callable=AsyncMock)
+    def test_search_times_out_and_fails_open(self, mock_search):
+        async def hanging_search(*args, **kwargs):
+            await asyncio.sleep(0.05)
+            return []
+
+        mock_search.side_effect = hanging_search
+        service = WebSearchService(
+            allowed_domains=["ekam.org"],
+            provider="duckduckgo",
+            max_results=5,
+            search_timeout_seconds=0.01,
+        )
+
+        results = run(service.search("slow provider"))
+
+        assert results == []
+
+    @patch.object(DuckDuckGoProvider, "search", new_callable=AsyncMock)
     def test_search_empty_query(self, mock_search):
         service = WebSearchService(
             allowed_domains=["ekam.org"],

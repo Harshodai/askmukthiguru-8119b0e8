@@ -549,6 +549,7 @@ class ServiceContainer:
                 allowed_domains=allowed_domains,
                 provider=settings.web_search_provider,
                 max_results=settings.web_search_max_results,
+                search_timeout_seconds=settings.web_search_timeout_seconds,
                 searxng_url=settings.searxng_url
                 if settings.web_search_provider == "searxng"
                 else None,

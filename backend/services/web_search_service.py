@@ -299,10 +299,12 @@ class WebSearchService:
         max_results: int = 5,
         searxng_url: Optional[str] = None,
         rate_limiter: Optional[SearchRateLimiter] = None,
+        search_timeout_seconds: float = 12.0,
     ) -> None:
         self.allowed_domains = [d.lower() for d in (allowed_domains or [])]
         self.max_results = max_results
         self.provider_name = provider.lower()
+        self.search_timeout_seconds = float(search_timeout_seconds)
         self._rate_limiter = rate_limiter or SearchRateLimiter()
         # Provider-agnostic circuit breaker (no dedicated CircuitBreakerProvider
         # entry for web search; from_provider() falls back to default thresholds).
@@ -378,8 +380,19 @@ class WebSearchService:
             return []
 
         try:
-            raw_results = await self._provider.search(sanitized_query, self.max_results * 3)
+            raw_results = await asyncio.wait_for(
+                self._provider.search(sanitized_query, self.max_results * 3),
+                timeout=self.search_timeout_seconds,
+            )
             self._circuit.record_success()
+        except asyncio.TimeoutError:
+            self._circuit.record_failure()
+            logger.warning(
+                "Web search provider timed out after %.1fs",
+                self.search_timeout_seconds,
+            )
+            log_search_audit(sanitized_query, 0, user_id, flags=["provider_timeout"])
+            return []
         except Exception as exc:
             self._circuit.record_failure()
             logger.warning(f"Web search provider failed: {exc}")

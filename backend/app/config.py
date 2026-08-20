@@ -822,6 +822,9 @@ class Settings(BaseSettings):
         False  # DB may narrow, never widen the source-controlled official allowlist.
     )
     web_search_max_results: int = 5
+    # Hard ceiling for one live-search provider call so temporal queries cannot
+    # consume the full pipeline budget when DuckDuckGo stalls.
+    web_search_timeout_seconds: float = Field(default=12.0, gt=0.0, le=30.0)
     searxng_url: str = "http://searxng:8080"  # Self-hosted SearXNG instance URL
     # Coverage-gap: if ALL retrieved docs score below this, treat as zero-coverage → fire web search
     web_search_coverage_threshold: float = 0.08

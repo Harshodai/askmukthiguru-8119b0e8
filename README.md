@@ -195,6 +195,7 @@ Populate key environment variables in `backend/.env`:
 | `QDRANT_URL` | Vector database endpoint | `http://localhost:6333` |
 | `NEO4J_URI` | Neo4j Bolt protocol URI | `bolt://localhost:7687` |
 | `REDIS_URL` | Redis cache URI | `redis://localhost:6379/0` |
+| `WEB_SEARCH_TIMEOUT_SECONDS` | Maximum time for one live-search provider call before fail-open fallback | `12` (maximum `30`) |
 
 ---
 

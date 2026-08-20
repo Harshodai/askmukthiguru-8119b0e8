@@ -1,5 +1,10 @@
 ## Aug 19, 2026 — Ephemeral Multimodal Chat Evidence Boundary
 
+### L-WEB-1. Bound every live-search provider call independently of the pipeline timeout
+- **What**: The default DuckDuckGo provider runs synchronous `ddgs.text()` work in an executor without a provider-level timeout. A single trust-boundary query reached the 90-second benchmark ceiling even though SearXNG and the HTML fallback had shorter network bounds.
+- **Fix applied**: Added `web_search_timeout_seconds` with a 12-second production default and a 30-second maximum. `WebSearchService.search()` wraps provider execution in `asyncio.wait_for`, records a circuit-breaker failure, audits `provider_timeout`, and fails open to an empty result set. Added a regression test for a hanging provider.
+- **How to prevent**: Every external provider call needs its own timeout below the enclosing request budget. Do not rely on a broad pipeline timeout to protect user latency; preserve graceful degradation and circuit-breaker accounting on timeout.
+
 ### L-UPLOAD-1. Attachment evidence must stay separate from user message and memory
 - **What**: Client-only text attachment concatenation made uploads invisible to backend retrieval, while future media support could accidentally place untrusted file instructions into the same channel as user intent or personal memory.
 - **Fix applied**: Added `POST /api/chat/upload` with 10 MB per-file and 50 MB combined caps, MIME sniffing, bounded PDF/OOXML/text extraction, optional OCR, local Whisper transcription for audio/video, temporary-file cleanup, and an explicit metadata-only fallback. The next chat request carries `attachment_context` separately, generation wraps it in an untrusted evidence fence, cache reads/writes bypass attachment-backed turns, and graph coalescing includes a bounded attachment digest.
