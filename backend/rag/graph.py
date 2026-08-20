@@ -262,6 +262,10 @@ def create_initial_state(
         node_timings={},
         # Production AI reliability trajectory metadata
         evaluation_trace={},
+        # Provenance-first retrieval evidence
+        provenance_context=None,
+        provenance_evidence_count=0,
+        provenance_entities_touched=[],
     )
 
 

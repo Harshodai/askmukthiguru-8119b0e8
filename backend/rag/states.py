@@ -265,3 +265,10 @@ class GraphState(TypedDict):
     # supported/unsupported/contradictions/confidence/is_valid. Soft-gate:
     # never blocks or modifies the response. See services/ontology_validator.py.
     ontology_validation: Optional[dict]
+
+    # Provenance-first retrieval evidence, produced after all channels and
+    # compression complete. Kept as a single latest-write value because the
+    # retrieval node is the sole producer of the final manifest.
+    provenance_context: Annotated[Optional[dict], keep_latest]
+    provenance_evidence_count: Annotated[int, keep_latest]
+    provenance_entities_touched: Annotated[list[str], keep_latest]
