@@ -86,6 +86,7 @@ coalescer = _build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl
 
 # Existing routers
 from app.api.admin import admin_router
+from app.api.assistants import router as assistants_router
 from app.api.cache_metrics import router as cache_metrics_router
 from app.api.cancel_flow import router as cancel_flow_router
 from app.api.capabilities import router as capabilities_router
@@ -985,6 +986,7 @@ app.include_router(health_router, prefix="")
 app.include_router(capabilities_router, prefix="/api")
 app.include_router(cache_metrics_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
+app.include_router(assistants_router, prefix="/api")
 app.include_router(ingest_router, prefix="/api")
 app.include_router(speech_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")

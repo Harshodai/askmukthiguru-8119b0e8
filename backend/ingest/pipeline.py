@@ -577,6 +577,7 @@ class IngestionPipeline:
         max_accuracy: bool = False,
         on_progress: Optional[Callable[[str, float], None]] = None,
         tags: Optional[list[str]] = None,
+        assistant_slug: Optional[str] = None,
     ) -> dict:
         """
         Main entry point: ingest content from any supported URL.
@@ -620,13 +621,13 @@ class IngestionPipeline:
             }
 
         if is_playlist_url(url) or is_channel_url(url):
-            return await self._ingest_playlist(url, max_accuracy, on_progress, tags=tags)
+            return await self._ingest_playlist(url, max_accuracy, on_progress, tags=tags, assistant_slug=assistant_slug)
         elif is_image_url(url):
             return await self._ingest_image(url, on_progress, tags=tags)
         elif extract_video_id(url):
             if max_accuracy:
-                return await self._ingest_video_enhanced(url, on_progress, tags=tags)
-            return await self._ingest_video(url, max_accuracy, on_progress, tags=tags)
+                return await self._ingest_video_enhanced(url, on_progress, tags=tags, assistant_slug=assistant_slug)
+            return await self._ingest_video(url, max_accuracy, on_progress, tags=tags, assistant_slug=assistant_slug)
         else:
             # Try PDF and Web Page Article Ingestion
             lower_url = url.lower()
@@ -685,7 +686,7 @@ class IngestionPipeline:
                 from ingest.social_media_loader import is_social_media_url
 
                 if is_social_media_url(url):
-                    return await self._ingest_social_media_video(url, on_progress, tags=tags)
+                    return await self._ingest_social_media_video(url, on_progress, tags=tags, assistant_slug=assistant_slug)
 
                 self._notify(on_progress, "Scraping web page article...", 0.1)
                 try:
@@ -743,6 +744,7 @@ class IngestionPipeline:
         url: str,
         on_progress: Optional[Callable] = None,
         tags: Optional[list[str]] = None,
+        assistant_slug: Optional[str] = None,
     ) -> dict:
         """
         Ingest Instagram Reels, TikTok, Twitter/X videos, and direct video files (MP4/MOV/WEBM).
@@ -914,6 +916,7 @@ class IngestionPipeline:
         tags: Optional[list[str]] = None,
         source_version: int = 1,
         authority_tier: str = "primary",
+        assistant_slug: Optional[str] = None,
     ) -> dict:
         """
         Ingest raw text directly, bypassing any fetching/loaders.
@@ -1044,6 +1047,7 @@ class IngestionPipeline:
                 tags=tags,
                 source_version=source_version,
                 authority_tier=authority_tier,
+                assistant_slug=assistant_slug,
             )
 
             # Step 6: RAPTOR tree
@@ -1135,6 +1139,7 @@ class IngestionPipeline:
         tags: Optional[list[str]] = None,
         source_version: int = 1,
         authority_tier: str = "primary",
+        assistant_slug: Optional[str] = None,
     ) -> dict:
         """Ingest a single YouTube video."""
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
@@ -1324,6 +1329,7 @@ class IngestionPipeline:
                 chunk_speakers=chunk_speakers,
                 source_version=source_version,
                 authority_tier=authority_tier,
+                assistant_slug=assistant_slug,
             )
 
             # Step 5: RAPTOR tree (reuses the same chunks, passes source metadata)
@@ -1422,6 +1428,7 @@ class IngestionPipeline:
         tags: Optional[list[str]] = None,
         source_version: int = 1,
         authority_tier: str = "primary",
+        assistant_slug: Optional[str] = None,
     ) -> dict:
         """
         Production Ingestion (Phase 3): Enhanced video processing.
@@ -1636,6 +1643,7 @@ class IngestionPipeline:
                     thumbnail_url=result.get("thumbnail_url"),
                     source_version=source_version,
                     authority_tier=authority_tier,
+                    assistant_slug=assistant_slug,
                 )
 
             # 5. Build RAPTOR and Graph
@@ -1827,6 +1835,7 @@ class IngestionPipeline:
         max_accuracy: bool = False,
         on_progress: Optional[Callable] = None,
         tags: Optional[list[str]] = None,
+        assistant_slug: Optional[str] = None,
     ) -> dict:
         """Ingest all videos in a YouTube playlist/channel using concurrent extraction."""
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
@@ -2472,6 +2481,7 @@ class IngestionPipeline:
         chunk_speakers: Optional[list[Optional[str]]] = None,
         source_version: int = 1,
         authority_tier: str = "primary",
+        assistant_slug: Optional[str] = None,
     ) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
@@ -2681,6 +2691,10 @@ class IngestionPipeline:
                 "corpus_id": self._corpus_id,
                 "ingested_at": now_iso,
                 "authority_tier": authority_tier,
+                # Assistant scope is stamped only from the trusted ingestion job
+                # parameter; it is never inferred from client chat payloads.
+                "assistant_slug": assistant_slug,
+                "assistant_scope_version": "v1" if assistant_slug else None,
                 # YouTube-specific fields (populated when available)
                 "video_id": video_id,
                 "channel_name": channel_name,
@@ -2833,6 +2847,7 @@ class IngestionPipeline:
         source_type: Optional[str] = None,
         source_version: int = 1,
         authority_tier: str = "primary",
+        assistant_slug: Optional[str] = None,
     ) -> int:
         """Split, embed, and persist chunks using the active source release."""
         source_version = self._resolve_active_source_version(source_url, source_version)
@@ -2848,6 +2863,7 @@ class IngestionPipeline:
             source_type=source_type or content_type,
             source_version=source_version,
             authority_tier=authority_tier,
+            assistant_slug=assistant_slug,
         )
 
     def _split_text(

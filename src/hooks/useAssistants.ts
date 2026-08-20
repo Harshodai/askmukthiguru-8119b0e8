@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { BACKEND_URL } from "@/lib/backendUrl";
 
 export type AssistantVisibility = "public" | "link" | "private";
 
@@ -9,25 +10,16 @@ export interface Assistant {
   name: string;
   description: string;
   avatar_url: string | null;
-  system_prompt: string;
   starter_questions: string[];
-  knowledge_tags: string[];
   visibility: AssistantVisibility;
 }
 
 const SELECTED_KEY = "askmukthi.assistant.slug";
-type AssistantRow = Omit<Assistant, 'starter_questions' | 'knowledge_tags'> & {
-  starter_questions: unknown;
-  knowledge_tags: unknown;
-};
-const stringList = (value: unknown): string[] => (
-  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
-);
+const catalogUrl = `${BACKEND_URL}/api/assistants`;
 
 /**
- * useAssistants — fetches assistants the current user is allowed to see
- * (public + granted via assistant_access + own). Persists selected slug
- * to localStorage so it survives reloads.
+ * Fetch only the server-authorized assistant catalog. Prompts, invite codes,
+ * corpus scope, and retrieval tags are intentionally not exposed here.
  */
 export function useAssistants() {
   const [assistants, setAssistants] = useState<Assistant[]>([]);
@@ -40,27 +32,20 @@ export function useAssistants() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data, error } = await supabase
-        .from("assistants")
-        .select("id, slug, name, description, avatar_url, system_prompt, starter_questions, knowledge_tags, visibility")
-        .order("visibility", { ascending: true })
-        .order("name", { ascending: true });
-      if (!active) return;
-      if (error) {
-        setAssistants([]);
-      } else {
-        setAssistants(
-          (data ?? []).map((a) => {
-            const row = a as AssistantRow;
-            return {
-              ...row,
-              starter_questions: stringList(row.starter_questions),
-              knowledge_tags: stringList(row.knowledge_tags),
-            };
-          }),
-        );
+      try {
+        const { data } = await supabase.auth.getSession();
+        const headers: HeadersInit = data.session?.access_token
+          ? { Authorization: `Bearer ${data.session.access_token}` }
+          : {};
+        const response = await fetch(catalogUrl, { headers });
+        if (!response.ok) throw new Error(`Assistant catalog failed: ${response.status}`);
+        const payload = (await response.json()) as { assistants?: Assistant[] };
+        if (active) setAssistants(Array.isArray(payload.assistants) ? payload.assistants : []);
+      } catch {
+        if (active) setAssistants([]);
+      } finally {
+        if (active) setLoading(false);
       }
-      setLoading(false);
     })();
     return () => {
       active = false;

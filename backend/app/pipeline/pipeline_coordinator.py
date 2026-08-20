@@ -90,11 +90,27 @@ class PipelineCoordinator:
         )
         assistant = getattr(chat_body, "assistant", None)
         assistant_slug = getattr(assistant, "slug", None)
-        assistant_system_prompt = getattr(assistant, "system_prompt", None)
-        assistant_knowledge_tags = list(getattr(assistant, "knowledge_tags", []) or [])
-        assistant_config_present = (
-            bool(assistant_slug) or bool(assistant_system_prompt) or bool(assistant_knowledge_tags)
-        )
+        assistant_resolution = None
+        if assistant_slug:
+            from app.assistant_authorization import resolve_effective_assistant
+
+            assistant_resolution = await resolve_effective_assistant(
+                assistant_slug, user, self.container
+            )
+            if assistant_resolution is not None:
+                assistant_slug = assistant_resolution.slug
+                assistant_system_prompt = assistant_resolution.system_prompt
+                assistant_knowledge_tags = list(assistant_resolution.knowledge_tags)
+                if assistant is not None:
+                    assistant.system_prompt = assistant_system_prompt
+                    assistant.knowledge_tags = assistant_knowledge_tags
+            else:
+                assistant_system_prompt = None
+                assistant_knowledge_tags = []
+        else:
+            assistant_system_prompt = None
+            assistant_knowledge_tags = []
+        assistant_config_present = bool(assistant_slug)
         response_preferences = getattr(chat_body, "response_preferences", None)
         response_preferences_data = (
             response_preferences.model_dump(mode="json")
@@ -110,6 +126,18 @@ class PipelineCoordinator:
             assistant_knowledge_tags,
             response_preferences_data,
         )
+        if assistant_resolution is not None:
+            scope = assistant_resolution.scope
+            scope_key = "|".join(
+                [
+                    scope.corpus_id,
+                    scope.teacher_id or "",
+                    scope.graph_namespace or "",
+                    scope.source_release_id or "",
+                    scope.rights_status,
+                ]
+            )
+            cache_key = f"{cache_key}:scope={hashlib.sha256(scope_key.encode()).hexdigest()[:16]}"
         is_indic = bool(preferred_lang) and not preferred_lang.startswith("en")
         user_id = user.get("id", "anonymous") if user else "anonymous"
         stable_session_id = normalize_session_id(session_id, user_id)
@@ -135,6 +163,8 @@ class PipelineCoordinator:
             stable_session_id=stable_session_id,
             chat_body_messages=chat_body_messages,
             assistant_config_present=assistant_config_present,
+            assistant_scope=(assistant_resolution.scope if assistant_resolution is not None else None),
+            assistant_authorized=(not assistant_slug or assistant_resolution is not None),
             incognito=bool(getattr(chat_body, "incognito", False)),
         )
 

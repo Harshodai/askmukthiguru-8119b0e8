@@ -147,6 +147,7 @@ def orchestrate_ingestion(
     job_id: str = None,
     tags: Optional[list[str]] = None,
     max_accuracy: bool = True,
+    assistant_slug: Optional[str] = None,
 ) -> dict[str, Any]:
     """Orchestrate the full ingestion pipeline using the unified IngestionPipeline."""
     logger.info(f"Orchestrating ingestion for: {video_url}")
@@ -176,6 +177,7 @@ def orchestrate_ingestion(
                 max_accuracy=max_accuracy,
                 on_progress=progress_cb,
                 tags=tags or ["general"],
+                assistant_slug=assistant_slug,
             )
         )
 
@@ -226,6 +228,7 @@ def ingest_document_task(
     max_accuracy: bool = False,
     job_id: str = None,
     speaker: str = "Unknown",
+    assistant_slug: Optional[str] = None,
 ) -> dict[str, Any]:
     """Ingest already-extracted document text (e.g. an uploaded PDF or local transcript) through the
     full pipeline: hierarchical chunking, embed, Qdrant, RAPTOR, LightRAG, OKF."""
@@ -253,6 +256,7 @@ def ingest_document_task(
                 max_accuracy=max_accuracy,
                 on_progress=progress_cb,
                 tags=tags or ["general"],
+                assistant_slug=assistant_slug,
             )
         )
 
@@ -300,6 +304,7 @@ def ingest_playlist(
     tags: Optional[list[str]] = None,
     job_id: str = None,
     max_accuracy: bool = True,
+    assistant_slug: Optional[str] = None,
 ) -> dict[str, Any]:
     """Process a playlist: extract video URLs, create ingest_jobs for each, and chain them as a Celery chord."""
     from celery import chord
@@ -364,6 +369,7 @@ def ingest_playlist(
                     "job_id": child_job_id,
                     "tags": tags,
                     "max_accuracy": max_accuracy,
+                    "assistant_slug": assistant_slug,
                 },
             )
         )

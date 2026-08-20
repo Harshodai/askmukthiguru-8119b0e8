@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from langgraph.errors import GraphRecursionError
 
+from app.assistant_authorization import resolve_effective_assistant
 from app.assistant_registry import resolve_assistant_scope
 from app.config import settings
 from app.context import correlation_id_var
@@ -111,43 +112,39 @@ class GraphStage(Stage):
 
         async def run():
             assistant = getattr(chat_body, "assistant", None)
-            # M3: a custom persona is honored only for an authenticated user.
-            # assistant.system_prompt is client-supplied, reaches generation as
-            # the system instruction, AND disables the empty-docs honesty guard
-            # (generation.py) — so an anonymous request must not be able to set
-            # it. There is no server-side persona registry to validate against,
-            # so authentication is the trust boundary. slug/knowledge_tags only
-            # scope retrieval and stay. Drop this gate once a server-side slug
-            # allowlist exists.
             _user = ctx.user or {}
-            _is_authed = (
-                bool(_user.get("id"))
-                and _user.get("id") != "anonymous"
-                and not str(_user.get("id")).startswith("anon:")
-                and not _user.get("is_anonymous")
-            )
             requested_slug = getattr(assistant, "slug", None)
-            scope = resolve_assistant_scope(requested_slug)
-            if scope is None:
-                logger.warning(
-                    "Rejecting assistant without a server-resolved corpus scope: %r", requested_slug
-                )
-                requested_slug = None
-                scope = resolve_assistant_scope(None)
-                if assistant is not None:
-                    assistant.system_prompt = None
-            _persona = getattr(assistant, "system_prompt", None) if _is_authed else None
-            if getattr(assistant, "system_prompt", None) and not _is_authed:
-                logger.warning(
-                    "Dropping client-supplied assistant.system_prompt for unauthenticated request (M3)."
-                )
+            resolution = None
+            if ctx.assistant_scope is not None and requested_slug:
+                scope = ctx.assistant_scope
+                _persona = getattr(assistant, "system_prompt", None)
+            else:
+                resolution = await resolve_effective_assistant(requested_slug, _user, container)
+                if resolution is None and requested_slug:
+                    logger.warning("Rejecting assistant without authorized scope: %r", requested_slug)
+                    requested_slug = None
+                    scope = resolve_assistant_scope(None)
+                    if assistant is not None:
+                        assistant.system_prompt = None
+                        assistant.knowledge_tags = []
+                    _persona = None
+                elif resolution is not None:
+                    requested_slug = resolution.slug
+                    scope = resolution.scope
+                    if assistant is not None:
+                        assistant.system_prompt = resolution.system_prompt
+                        assistant.knowledge_tags = list(resolution.knowledge_tags)
+                    _persona = resolution.system_prompt
+                else:
+                    scope = resolve_assistant_scope(None)
+                    _persona = None
             initial_state = create_initial_state(
                 question=user_msg_en,
                 chat_history=chat_history_en,
                 meditation_step=meditation_step,
                 request_id=correlation_id_var.get(),
                 assistant_slug=requested_slug,
-                knowledge_tags=[],
+                knowledge_tags=list(getattr(assistant, "knowledge_tags", []) or []),
                 assistant_system_prompt=_persona,
             )
             initial_state["corpus_id"] = scope.corpus_id

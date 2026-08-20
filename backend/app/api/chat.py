@@ -23,6 +23,7 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from app.assistant_authorization import authorize_chat_assistant
 from app.chat_uploads import MAX_SINGLE_BYTES, extract_chat_attachments
 from app.config import settings
 from app.core.limiter import limiter
@@ -435,6 +436,8 @@ async def chat_endpoint(
     is_benchmark = is_benchmark_request(request)
 
     user = resolve_anon_identity(user, chat_body.session_id)
+    if getattr(chat_body, "assistant", None) is not None:
+        await authorize_chat_assistant(chat_body, user, container)
 
     quota = await _enforce_anon_quota(user, container)
     if quota.quota_exceeded:
@@ -545,6 +548,8 @@ async def chat_v2_endpoint(
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
     is_benchmark = is_benchmark_request(request)
     user = resolve_anon_identity(user, chat_body.session_id)
+    if getattr(chat_body, "assistant", None) is not None:
+        await authorize_chat_assistant(chat_body, user, container)
 
     quota = await _enforce_anon_quota(user, container)
     if quota.quota_exceeded:
@@ -636,6 +641,8 @@ async def chat_stream_endpoint(
     is_benchmark = is_benchmark_request(request)
 
     user = resolve_anon_identity(user, chat_body.session_id)
+    if getattr(chat_body, "assistant", None) is not None:
+        await authorize_chat_assistant(chat_body, user, container)
 
     quota = await _enforce_anon_quota(user, container)
     if quota.quota_exceeded:

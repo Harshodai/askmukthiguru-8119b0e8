@@ -53,11 +53,10 @@ class PipelineContext:
     # RequestStateStage, so the cache guards must read this flag, not ctx.state.
     personalization_eligible: bool = False
 
-    # Set by coordinator.execute() BEFORE the stage chain runs: True when the
-    # request carries client-supplied assistant configuration (slug /
-    # system_prompt / knowledge_tags). There is no server-side persona registry
-    # to validate it against, so the shared caches must not read or write for
-    # these requests — a stale cross-config answer must never be replayed.
+    # Server-resolved assistant authority shared by cache and graph stages. It
+    # is never derived from client prompt/tag data.
+    assistant_scope: Any = None
+    assistant_authorized: bool = True
     assistant_config_present: bool = False
 
     # --- Working state (mutated by stages) ---

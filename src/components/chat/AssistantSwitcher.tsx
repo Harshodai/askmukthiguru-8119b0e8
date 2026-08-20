@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAssistants } from "@/hooks/useAssistants";
 import { supabase } from "@/integrations/supabase/client";
+import { BACKEND_URL } from "@/lib/backendUrl";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -40,29 +41,26 @@ export function AssistantSwitcher({ variant = 'default' }: AssistantSwitcherProp
     if (!code) return;
     setRedeeming(true);
     try {
-      const { data: a } = await supabase
-        .from("assistants")
-        .select("id, slug, name")
-        .eq("invite_code", code)
-        .maybeSingle();
-      if (!a) {
-        toast({ title: t('chat.invalidInviteCode'), variant: "destructive" });
-        return;
-      }
       const { data: session } = await supabase.auth.getSession();
-      const uid = session.session?.user.id;
-      if (!uid) {
+      const accessToken = session.session?.access_token;
+      if (!accessToken) {
         toast({ title: t('chat.signInToRedeem'), variant: "destructive" });
         return;
       }
-      const { error } = await supabase
-        .from("assistant_access")
-        .insert({ user_id: uid, assistant_id: a.id, granted_via: "invite" });
-      if (error && !String(error.message).includes("duplicate")) {
-        toast({ title: t('chat.couldNotRedeem'), description: error.message, variant: "destructive" });
+      const response = await fetch(`${BACKEND_URL}/api/assistants/redeem`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ invite_code: code }),
+      });
+      if (!response.ok) {
+        toast({ title: t('chat.invalidInviteCode'), variant: "destructive" });
         return;
       }
-      toast({ title: t('chat.unlockedAssistant', { name: a.name }), description: t('chat.switchToIt') });
+      const result = (await response.json()) as { name?: string };
+      toast({ title: t('chat.unlockedAssistant', { name: result.name ?? "assistant" }), description: t('chat.switchToIt') });
       setInviteCode("");
       setTimeout(() => window.location.reload(), 600);
     } finally {
