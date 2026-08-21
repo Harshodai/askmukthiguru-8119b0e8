@@ -72,6 +72,24 @@ def _state(**overrides) -> GraphState:
 
 
 @pytest.mark.asyncio
+async def test_generic_stillness_refusal_uses_reflective_fallback():
+    state = _state(
+        answer="I am unable to find specific teachings on this topic.",
+        relevant_docs=[{"text": "retrieved but non-authoritative context"}],
+        retry_count=1,
+        is_faithful=False,
+        verification={"passed": False},
+    )
+
+    result = await format_final_answer(state)
+
+    assert result["verification"]["method"] == "reflective_practice_fallback"
+    assert result["_needs_retry"] is False
+    assert "non-doctrinal reflection" in result["final_answer"]
+    assert result["citations"] == []
+
+
+@pytest.mark.asyncio
 async def test_verification_timeout_returns_fallback(monkeypatch):
     """Verification timed out (is_faithful never written) AND the citation
     check did not verify → FALLBACK_RESPONSE, not an unverified answer."""

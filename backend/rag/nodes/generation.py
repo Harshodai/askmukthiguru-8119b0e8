@@ -1933,6 +1933,34 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             citations_verified = (state.get("verification") or {}).get("citations_verified", True)
 
     refusal_action, refusal_answer = _evidence_refusal_action(answer, relevant_docs)
+    if (
+        refusal_action == "retry"
+        and _is_generic_stillness_practice_request(state.get("question", ""))
+    ):
+        logger.info(
+            "Final: replacing generic stillness refusal with bounded non-doctrinal practice"
+        )
+        fallback_answer = _generic_stillness_practice_fallback()
+        return {
+            "final_answer": fallback_answer,
+            "citations": [],
+            "intent": intent,
+            "_needs_retry": False,
+            "is_faithful": False,
+            "verification": {"passed": False, "method": "reflective_practice_fallback"},
+            "faithfulness_score": 0.0,
+            "confidence_score": 0.0,
+            "citations_verified": citations_verified,
+            "refusal_quality_failure": False,
+            "evaluation_trace": _trace_update(
+                state,
+                final_answer_chars=len(fallback_answer),
+                final_citations=[],
+                verification_passed=False,
+                confidence_score=0.0,
+                route_decision="reflective_practice_fallback",
+            ),
+        }
     if refusal_action == "retry":
         retry_count = state.get("retry_count", 0)
         if retry_count < 1:
