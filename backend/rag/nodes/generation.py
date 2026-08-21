@@ -60,6 +60,23 @@ _BOUNDED_REFUSAL_RE = re.compile(
 # supplied evidence and the answer is non-empty; English continues through the
 # real scorer unchanged.
 _LANGUAGE_AWARE_FAST_TIER_SCORE = 0.8
+_GENERIC_PRACTICE_TERMS = ("practice", "exercise", "try", "do right now")
+_STILLNESS_TERMS = ("stillness", "quiet", "calm", "settle", "presence")
+
+
+def _is_generic_stillness_practice_request(question: str) -> bool:
+    """Identify a low-risk request for one immediate, generic practice.
+
+    This is deliberately narrower than a meditation or wellness classifier. It
+    exists only for the no-context branch, where a clearly labelled reflection
+    is more useful than a bare refusal and must never masquerade as doctrine.
+    """
+    lowered = " ".join(str(question or "").casefold().split())
+    return bool(
+        any(term in lowered for term in _GENERIC_PRACTICE_TERMS)
+        and any(term in lowered for term in _STILLNESS_TERMS)
+        and len(lowered) <= 180
+    )
 
 
 def _is_non_english_language(language: str | None) -> bool:
@@ -852,14 +869,24 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             }
 
     if not relevant_docs and not assistant_system_prompt:
-        answer = (
-            "I couldn't find relevant teachings in my knowledge base for this "
-            "question. Could you try rephrasing it, or ask about a specific "
-            "practice or teaching?"
-        )
+        if _is_generic_stillness_practice_request(state.get("question", "")):
+            answer = (
+                "I could not find a specific teaching for that request right now. "
+                "As a gentle, non-doctrinal reflection, sit comfortably, take three "
+                "slow breaths, and notice one sensation in the present moment. "
+                "There is nothing to force; simply return to the next breath."
+            )
+            route_decision = "reflective_practice_fallback"
+        else:
+            answer = (
+                "I couldn't find relevant teachings in my knowledge base for this "
+                "question. Could you try rephrasing it, or ask about a specific "
+                "practice or teaching?"
+            )
+            route_decision = "no_context_short_circuit"
         logger.warning(
-            "generate_answer: zero relevant_docs — returning content-gap "
-            "message without calling the LLM"
+            "generate_answer: zero relevant_docs — returning bounded %s without calling the LLM",
+            route_decision,
         )
         if stream_queue:
             await stream_queue.put(answer)
@@ -879,7 +906,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 memory_used=bool(state.get("memory_context")),
                 model_used=None,
                 model_provider=None,
-                route_decision="no_context_short_circuit",
+                route_decision=route_decision,
             ),
         }
 

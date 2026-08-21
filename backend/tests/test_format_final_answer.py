@@ -29,6 +29,19 @@ _LONG_ANSWER = (
 )
 
 
+def test_generic_stillness_practice_detector_is_narrow():
+    assert generation._is_generic_stillness_practice_request(
+        "Give me one small practice for stillness today"
+    )
+    assert generation._is_generic_stillness_practice_request("Try a calm practice right now")
+    assert not generation._is_generic_stillness_practice_request(
+        "What is the difference between meditation and contemplation?"
+    )
+    assert not generation._is_generic_stillness_practice_request(
+        "Tell me everything about the history of stillness and meditation"
+    )
+
+
 def _unverified_citation_check(cleaned_answer: str = "") -> MagicMock:
     """_verify_inline_citations stub: answer comes back with a failing
     citation verification (orphan marker stripped / grounding failed).
