@@ -17,6 +17,11 @@
 - **Fix applied**: Added an allowlist projection for public provenance evidence fields. Private memory, attachment, prompt, safety, and arbitrary internal keys are excluded from the streaming manifest while public source text, source segment, relation, hop, confidence, rights, and entity fields remain available for the ProvenanceDrawer. Regression coverage injects private keys and verifies they are absent from the stream projection.
 - **How to prevent**: Treat every browser-facing stream event as an explicit schema. Add new fields only through a public allowlist and test private-memory/attachment non-leakage.
 
+### L-AUDIT-4. Grounding improvement can trade against latency
+- **What**: After deployment, the same bounded journeys returned grounded answers for all three cases, including the comparative query that had previously abstained. The improvement was not a latency win: simple English was 4.68s pipeline latency, comparative 37.04s, and Hindi 19.27s.
+- **Fix applied**: Kept the fail-closed evidence gate and verified the comparative answer had two sources and faithfulness 0.90 rather than loosening the refusal threshold. Post-deploy health remained healthy, and the Hindi greeting short-circuit returned in 5ms with no model call.
+- **How to prevent**: Evaluate quality and latency together. A grounded answer at 37 seconds is not product-complete; optimize retrieval/decomposition/provider tails only after a held-out comparative benchmark confirms evidence quality does not regress.
+
 ## Aug 21, 2026 — Second Brain E2E and BRAIN_KEK Rotation
 
 ### L-BRAIN-1. PostgreSQL timestamptz boundaries must be explicit
