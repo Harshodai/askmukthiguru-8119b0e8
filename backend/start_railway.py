@@ -41,6 +41,29 @@ _last_heartbeat = _process_start
 _GRACE_SECONDS = 180
 _HEARTBEAT_INTERVAL_S = 5
 _HEARTBEAT_STALE_S = 30
+_CELERY_ALLOWED_QUEUES = frozenset({"ingestion", "embedding", "indexing", "okf", "memory"})
+
+
+def _parse_celery_queues(value: str) -> list[str]:
+    queues = [queue.strip() for queue in value.split(",") if queue.strip()]
+    invalid = sorted(set(queues) - _CELERY_ALLOWED_QUEUES)
+    if not queues or invalid:
+        raise ValueError(
+            "CELERY_QUEUES must contain only non-empty values from "
+            f"{sorted(_CELERY_ALLOWED_QUEUES)}; invalid={invalid}"
+        )
+    return queues
+
+
+def _parse_celery_concurrency(value: str) -> int:
+    try:
+        concurrency = int(value)
+    except ValueError as exc:
+        raise ValueError("CELERY_CONCURRENCY must be an integer from 1 to 32") from exc
+    if not 1 <= concurrency <= 32:
+        raise ValueError("CELERY_CONCURRENCY must be an integer from 1 to 32")
+    return concurrency
+
 
 _OK_BODY = b'{"ok":true,"status":"alive"}'
 _OK_HEADERS = [
@@ -196,6 +219,16 @@ if __name__ == "__main__":
         import threading
         from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+        try:
+            queues = _parse_celery_queues(
+                os.environ.get("CELERY_QUEUES", "ingestion,embedding,indexing,okf,memory")
+            )
+            celery_concurrency = _parse_celery_concurrency(
+                os.environ.get("CELERY_CONCURRENCY", "2")
+            )
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+
         cmd = [
             sys.executable,
             "-m",
@@ -204,8 +237,8 @@ if __name__ == "__main__":
             "celery_config",
             "worker",
             "-Q",
-            "ingestion,embedding,indexing,okf,memory",
-            f"--concurrency={os.environ.get('CELERY_CONCURRENCY', '2')}",
+            ",".join(queues),
+            f"--concurrency={celery_concurrency}",
             "--without-gossip",
             "--without-mingle",
             "--without-heartbeat",

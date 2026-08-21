@@ -443,6 +443,10 @@ class Settings(BaseSettings):
     # --- Redis ---
     # Default uses 'redis' resolving inside Docker Compose. For local non-docker dev, override with REDIS_URL=redis://localhost:6379/0 via .env
     redis_url: str = "redis://redis:6379/0"
+    # Exact-query cache only; queue/session/quota/telemetry/Second Brain namespaces
+    # are intentionally outside this ceiling.
+    redis_cache_max_keys: int = Field(default=10_000, ge=0, le=1_000_000)
+    redis_cache_telemetry_interval_seconds: int = Field(default=60, ge=5, le=3600)
     # --- Cache Mode ---
     # "best_effort" = try Redis, fall back to in-memory if unavailable (default).
     # "redis"       = require Redis; raise a clear startup error if unavailable.

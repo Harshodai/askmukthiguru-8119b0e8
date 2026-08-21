@@ -55,7 +55,12 @@ class CacheFactory:
 
         redis_mode = "fail_closed" if mode == CacheMode.REDIS.value else "best_effort"
         try:
-            adapter = RedisCacheAdapter(redis_url=settings.redis_url, mode=redis_mode)
+            adapter = RedisCacheAdapter(
+                redis_url=settings.redis_url,
+                mode=redis_mode,
+                max_keys=settings.redis_cache_max_keys,
+                telemetry_interval_seconds=settings.redis_cache_telemetry_interval_seconds,
+            )
         except Exception:
             if mode == CacheMode.REDIS.value:
                 raise

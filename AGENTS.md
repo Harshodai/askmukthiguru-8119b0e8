@@ -227,9 +227,14 @@ This file serves as a knowledge base for AI agents interacting with this workspa
 
 
 ## Cache Management & Ingestion Isolation
+- `REDIS_CACHE_MAX_KEYS` applies only to exact-query keys matching `mukthiguru:cache:*`; never apply it to queues, sessions, quotas, telemetry, rate limits, or Second Brain namespaces.
+- Cache telemetry uses fixed namespace labels and bounded SCAN sampling. `REDIS_CACHE_MAX_KEYS=0` is the explicit backward-compatible disable value. Existing keys must remain refreshable when the ceiling is reached.
+- Never run global `FLUSHALL` for routine query-cache maintenance. Use the targeted Qdrant/Redis namespace procedure in the production readiness runbook, then verify preserved queue, session, quota, telemetry, and memory namespaces.
+- Celery workers accept only the allowlisted queues `ingestion`, `embedding`, `indexing`, `okf`, and `memory`; `CELERY_QUEUES` and `CELERY_CONCURRENCY` are validated at startup. Do not remove `memory` or change concurrency until queue throughput and user-memory SLA are measured.
+
 - **Query-Side Caches (GPTCache & Redis)**: The application uses GPTCache (for semantic caching) and Redis (for response caching) to optimize frontend query latency.
 - **In-Memory Cache Flushing**: Caches can be flushed safely at any time using:
-  - **Preferred (Makefile)**: `make flush-cache` (executes `python3 scripts/ops/flush_cache.py` and runs `redis-cli flushall`).
+  - **Preferred (Makefile)**: `make flush-cache` (executes `python3 scripts/ops/flush_cache.py`, which scans and deletes only query-cache namespaces; it never runs `redis-cli flushall`).
 - **Ingestion Pipeline Isolation**: Flushing these query-side caches has **zero** impact on the active or pending ingestion processes. Ingestion is an ETL pipeline that writes exclusively to Qdrant and Neo4j and maintains its own resumption checkpoints in `scripts/ingestion_state.json`. Agents can confidently assure the user that cache flushing is fully isolated and safe to execute.
 
 ## Non-Interactive Shell Commands

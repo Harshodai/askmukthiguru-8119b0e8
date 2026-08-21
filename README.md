@@ -195,6 +195,10 @@ Populate key environment variables in `backend/.env`:
 | `QDRANT_URL` | Vector database endpoint | `http://localhost:6333` |
 | `NEO4J_URI` | Neo4j Bolt protocol URI | `bolt://localhost:7687` |
 | `REDIS_URL` | Redis cache URI | `redis://localhost:6379/0` |
+| `REDIS_CACHE_MAX_KEYS` | Maximum new exact-query cache keys in the `mukthiguru:cache:*` namespace; `0` disables the ceiling | `10000` |
+| `REDIS_CACHE_TELEMETRY_INTERVAL_SECONDS` | Minimum interval between namespace cardinality/TTL scans | `60` (minimum `5`) |
+| `CELERY_QUEUES` | Comma-separated allowlisted queues for a worker profile; use a maintenance-only profile only after queue/SLA measurement | `ingestion,embedding,indexing,okf,memory` |
+| `CELERY_CONCURRENCY` | Celery worker process concurrency, validated from `1` to `32` | `2` |
 | `WEB_SEARCH_TIMEOUT_SECONDS` | Maximum time for one live-search provider call before fail-open fallback | `12` (maximum `30`) |
 
 ---

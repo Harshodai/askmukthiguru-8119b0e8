@@ -6,7 +6,13 @@ import hashlib
 import json
 import logging
 import time
-from typing import Optional
+from typing import Dict, Optional, Union
+
+from app.metrics import (
+    REDIS_CACHE_BUDGET_REJECTIONS,
+    REDIS_NAMESPACE_KEYS,
+    REDIS_NAMESPACE_NONEXPIRING_KEYS,
+)
 
 from domain.ports.cache_port import ICacheRepository
 from services.cache.constants import _CACHE_TTL
@@ -25,11 +31,16 @@ class RedisCacheAdapter(ICacheRepository):
         Use this when Redis is required for correctness (e.g. distributed caching).
     """
 
+    _NAMESPACE = "exact_query"
+    _KEY_PATTERN = "mukthiguru:cache:*"
+
     def __init__(
         self,
         redis_url: str,
         ttl: int = _CACHE_TTL,
         mode: str = "best_effort",
+        max_keys: int = 10_000,
+        telemetry_interval_seconds: int = 60,
     ) -> None:
         import redis
 
@@ -38,6 +49,10 @@ class RedisCacheAdapter(ICacheRepository):
         self._hits = 0
         self._misses = 0
         self._mode = mode
+        self._max_keys = max(0, int(max_keys))
+        self._telemetry_interval_seconds = max(5, int(telemetry_interval_seconds))
+        self._last_telemetry_at = 0.0
+        self._last_key_count = 0
 
         try:
             self._redis = redis.from_url(
@@ -83,6 +98,45 @@ class RedisCacheAdapter(ICacheRepository):
         tenant_id = TenantContext.get()
         return f"mukthiguru:cache:{tenant_id}:{key_hash}"
 
+    def _refresh_namespace_telemetry(self, force: bool = False) -> Dict[str, int]:
+        """Sample only the exact-query namespace and publish bounded metrics.
+
+        This is deliberately not a global Redis scan. Queue, session, quota,
+        telemetry, and Second Brain namespaces remain outside the policy.
+        """
+        if not self._redis:
+            return {"keys": 0, "nonexpiring": 0}
+        now = time.monotonic()
+        if not force and now - self._last_telemetry_at < self._telemetry_interval_seconds:
+            return {"keys": self._last_key_count, "nonexpiring": 0}
+
+        keys = 0
+        nonexpiring = 0
+        try:
+            for key in self._redis.scan_iter(match=self._KEY_PATTERN, count=500):
+                keys += 1
+                if self._redis.ttl(key) < 0:
+                    nonexpiring += 1
+                if self._max_keys and keys > self._max_keys:
+                    logger.warning(
+                        "Redis exact-query cache exceeded configured scan budget (%d)",
+                        self._max_keys,
+                    )
+                    break
+            self._last_key_count = keys
+            self._last_telemetry_at = now
+            REDIS_NAMESPACE_KEYS.labels(namespace=self._NAMESPACE).set(keys)
+            REDIS_NAMESPACE_NONEXPIRING_KEYS.labels(namespace=self._NAMESPACE).set(nonexpiring)
+        except Exception as exc:
+            logger.warning("Redis exact-query telemetry failed: %s", exc)
+        return {"keys": keys, "nonexpiring": nonexpiring}
+
+    def telemetry_snapshot(self) -> Dict[str, Union[int, str]]:
+        """Return non-sensitive exact-query namespace telemetry for health/ops."""
+        snapshot = self._refresh_namespace_telemetry(force=True)
+        snapshot.update({"namespace": self._NAMESPACE, "max_keys": self._max_keys})
+        return snapshot
+
     def get(self, query: str) -> Optional[dict]:
         """Look up a cached response for the given query."""
         if not self._redis:
@@ -111,6 +165,15 @@ class RedisCacheAdapter(ICacheRepository):
 
         try:
             key = self._make_key(query)
+            if self._max_keys and not self._redis.exists(key):
+                snapshot = self._refresh_namespace_telemetry()
+                if snapshot["keys"] >= self._max_keys:
+                    REDIS_CACHE_BUDGET_REJECTIONS.labels(namespace=self._NAMESPACE).inc()
+                    logger.warning(
+                        "Redis exact-query cache budget reached (%d keys); skipping cache write",
+                        self._max_keys,
+                    )
+                    return
             payload = {
                 "response": response,
                 "intent": intent,

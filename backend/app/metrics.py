@@ -217,6 +217,26 @@ CACHE_HIT_RATIO = Gauge(
     ["cache_type"],
 )
 
+# Namespace-aware Redis growth controls. Labels are fixed application namespaces,
+# never user- or tenant-derived, so telemetry cardinality stays bounded.
+REDIS_NAMESPACE_KEYS = Gauge(
+    "guru_redis_namespace_keys",
+    "Approximate Redis key cardinality for a monitored query-cache namespace",
+    ["namespace"],
+)
+
+REDIS_NAMESPACE_NONEXPIRING_KEYS = Gauge(
+    "guru_redis_namespace_nonexpiring_keys",
+    "Redis query-cache keys with no TTL in a monitored namespace",
+    ["namespace"],
+)
+
+REDIS_CACHE_BUDGET_REJECTIONS = Counter(
+    "guru_redis_cache_budget_rejections_total",
+    "Query-cache writes rejected after the namespace key budget was reached",
+    ["namespace"],
+)
+
 # ===================================================================
 # P90/P99 Hybrid Search Metrics (Phase 1.1)
 # ===================================================================

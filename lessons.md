@@ -1,5 +1,34 @@
 ## Aug 19, 2026 — Ephemeral Multimodal Chat Evidence Boundary
 
+## Aug 21, 2026 — ONNX Shadow Gates, Railway Metrics, and Queue Profiles
+
+### L-SCALE-1. Aggregate embedding overlap cannot override corpus-completeness gates
+- **What**: The production ONNX INT8 validator produced strong aggregate overlap (`0.9042`) and cross-config overlap (`0.9175`), but LightRAG was unreachable at the validator's `localhost:6333` endpoint and the `doctrine_founders` category averaged `0.8350`.
+- **Fix applied**: The existing validator failed closed when any mandatory corpus source was unavailable or any category fell below `0.85`; `EMBEDDING_BACKEND=onnx_int8` remains off. The next run must use a reachable production Qdrant endpoint and the complete re-ingested corpus.
+- **How to prevent**: Never approve a model/index migration from a single aggregate score. Require complete-source checks, per-category floors, held-out NDCG/faithfulness, and vector compatibility.
+
+### L-SCALE-2. Railway metrics windows can expose contradictory historical maxima
+- **What**: Seven-day Railway summaries showed a backend maximum above the reported 24 GB service limit while six-hour metrics were internally plausible. This is a metrics aggregation/data-quality anomaly, not evidence for a memory setting change.
+- **Fix applied**: Recorded both windows, preserved the current configuration, and added reconciliation to the cost audit. Worker CPU and memory were measured separately before considering concurrency changes.
+- **How to prevent**: Compare short and long windows, service limits, deploy boundaries, and cgroup observations before acting on a maximum. Treat impossible values as measurement anomalies.
+
+### L-SCALE-3. Worker queue isolation needs an allowlist, not a free-form queue string
+- **What**: The existing worker already runs outside the serving backend, but a future maintenance-only profile could accidentally consume user-memory tasks or miss ingestion work if queue strings were edited ad hoc.
+- **Fix applied**: `start_railway.py` validates `CELERY_QUEUES` against `ingestion`, `embedding`, `indexing`, `okf`, and `memory`, and bounds `CELERY_CONCURRENCY` to `1..32`. The default queue set and concurrency remain unchanged.
+- **How to prevent**: Treat queue profiles as deployment policy. Validate at startup, keep user-memory work explicit, and change concurrency only after active-task throughput and SLA evidence.
+
+## Aug 21, 2026 — Redis Cache Cost Guardrails
+
+### L-REDIS-1. Cache budgets must be namespace-scoped and refresh-safe
+- **What**: A global Redis ceiling or eviction policy can damage queues, sessions, quotas, telemetry, or encrypted Second Brain state. Exact-query response caching is the only namespace that may be bounded by this feature.
+- **Fix applied**: `RedisCacheAdapter` samples only `mukthiguru:cache:*`, publishes fixed-label Prometheus cardinality/TTL gauges, rejects only new writes at `REDIS_CACHE_MAX_KEYS`, and still refreshes an existing key at the ceiling. `REDIS_CACHE_MAX_KEYS=0` preserves prior unlimited behavior. Factory wiring comes from validated Pydantic settings.
+- **How to prevent**: Every cache-cost control needs an explicit key pattern, a bounded scan, fixed metric labels, a safe disable value, and tests for both rejection and overwrite behavior. Never use `FLUSHALL` or global eviction for query-cache maintenance.
+
+### L-REDIS-2. Production dependencies determine where tests run
+- **What**: The sandbox checkout has no `pytest` or `pydantic-settings`, so focused tests cannot be executed locally without violating the no-install constraint. Python compilation and the ReDoS scanner remain runnable locally; the full focused suite must run inside the Railway image or CI environment where locked dependencies are present.
+- **Fix applied**: Added package-free source validation and kept the regression suite dependency-light beyond the application imports. Deployment gates must include the focused test command in the production image before rollout.
+- **How to prevent**: Do not install ad hoc packages into the agent sandbox. Distinguish syntax/security validation from dependency-complete test execution and record both outcomes.
+
 ### L-SERENE-1. Distress response metadata must not be treated as practice consent
 - **What**: A first-time anxiety/distress response carrying a non-zero meditation step could auto-open the Serene Mind modal in both streaming and non-streaming chat paths. This bypassed the intended teaching-first, explicit-offer experience.
 - **Fix applied**: The frontend now auto-continues only when the local `meditationStep` already indicates an active practice. A first distress response teaches and offers Serene Mind without opening it uninvited; voluntary MEDITATION requests remain non-gated.

@@ -18,6 +18,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from urllib.parse import urlparse
 
 import numpy as np
 
@@ -39,6 +40,24 @@ OVERLAP_THRESHOLD = 0.85
 # Corpus sources that could not be loaded. A reduced corpus must never pass
 # the Phase-3 overlap gate, so main() fails the run when this is non-empty.
 CORPUS_MISSING: list[str] = []
+
+
+def _qdrant_scroll_url() -> tuple[str, dict[str, str]]:
+    base_url = os.environ.get("QDRANT_URL", "http://localhost:6333").rstrip("/")
+    parsed = urlparse(base_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise RuntimeError("QDRANT_URL must be an absolute http(s) URL")
+    api_key = os.environ.get("QDRANT_API_KEY", "").strip()
+    if api_key and parsed.scheme != "https" and parsed.hostname not in {
+        "localhost",
+        "127.0.0.1",
+        "qdrant",
+        "qdrant.railway.internal",
+    }:
+        raise RuntimeError("QDRANT_API_KEY requires HTTPS or an explicitly trusted private host")
+    headers = {"api-key": api_key} if api_key else {}
+    url = f"{base_url}/collections/lightrag_vdb_chunks_baai_bge_m3_1024d/points/scroll"
+    return url, headers
 
 
 def _build_corpus() -> list[str]:
@@ -88,10 +107,13 @@ def _build_corpus() -> list[str]:
     import requests
 
     try:
+        scroll_url, headers = _qdrant_scroll_url()
         resp = requests.post(
-            "http://localhost:6333/collections/lightrag_vdb_chunks_baai_bge_m3_1024d/points/scroll",
+            scroll_url,
+            headers=headers,
             json={"limit": 200, "with_payload": ["content"], "with_vector": False},
             timeout=30,
+            allow_redirects=False,
         )
         for p in resp.json()["result"]["points"]:
             t = p["payload"].get("content", "")
