@@ -450,7 +450,7 @@ class SecondBrainService:
                         r["kind"],
                         text,
                         float(r.get("confidence", 0.8)),
-                        float(r.get("created_at", 0)),
+                        _epoch_seconds(r.get("created_at", 0)),
                         int(r.get("access_count", 0)),
                     )
                 )
