@@ -51,8 +51,9 @@ import logging
 import os
 import time
 import uuid
+from datetime import datetime, timezone
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import SecretStr
 
@@ -105,6 +106,27 @@ _DEFAULT_WRAP_MODE = _MODE_A
 
 def _aad(user_id: str, kind: str, item_id: str) -> bytes:
     return f"{user_id}:{kind}:{item_id}".encode()
+
+
+def _epoch_seconds(value: Any) -> float:
+    """Normalize Postgres timestamptz strings and legacy numeric timestamps."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return 0.0
+        try:
+            return float(raw)
+        except ValueError:
+            try:
+                parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                return parsed.timestamp()
+            except (TypeError, ValueError, OverflowError):
+                logger.warning("Invalid Second Brain timestamp encountered; using epoch zero")
+    return 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +286,7 @@ class SecondBrainService:
             "ciphertext": blob,
             "blind": blind_index(vault.dek, text[:64]),
             "confidence": float(confidence),
-            "updated_at": time.time(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
             "access_count": 0,
             "decay": 1.0,
         }
@@ -383,7 +405,7 @@ class SecondBrainService:
                     kind=r["kind"],
                     text=text,
                     confidence=float(r.get("confidence", 0.8)),
-                    created_at=float(r.get("created_at", 0)),
+                    created_at=_epoch_seconds(r.get("created_at", 0)),
                     access_count=int(r.get("access_count", 0)),
                 )
             )
