@@ -69,6 +69,10 @@ USER root
 # Copy app code with explicit ownership
 COPY --chown=appuser:appuser backend/ .
 
+# Ship only the approved BRAIN_KEK maintenance utility; other root ops scripts
+# remain excluded from the serving image by .dockerignore.
+COPY --chown=appuser:appuser scripts/ops/rotate_brain_kek.py ./scripts/ops/rotate_brain_kek.py
+
 # OKF compiled index and memory files from repo root
 COPY --chown=appuser:appuser memory/ ./memory/
 
