@@ -19,10 +19,16 @@
 
 ## Aug 21, 2026 — Redis Cache Cost Guardrails
 
+### L-REDIS-0. Health telemetry must be observable without forcing a cache write
+- **What**: Prometheus had no Redis namespace samples immediately after a targeted cache flush because the original telemetry path refreshed only on exact-cache writes.
+- **Fix applied**: The exact-cache adapter now exposes a throttled telemetry snapshot through `/api/health`; the final production probe reported `keys=1`, `nonexpiring_keys=0`, and `max_keys=10000` after one normal warm request. The read-only namespace report remains the authoritative multi-namespace measurement.
+- **How to prevent**: Do not create synthetic cache writes solely for observability. Make health probes publish bounded, namespace-only telemetry with a refresh interval.
+
 ### L-REDIS-1. Cache budgets must be namespace-scoped and refresh-safe
 - **What**: A global Redis ceiling or eviction policy can damage queues, sessions, quotas, telemetry, or encrypted Second Brain state. Exact-query response caching is the only namespace that may be bounded by this feature.
 - **Fix applied**: `RedisCacheAdapter` samples only `mukthiguru:cache:*`, publishes fixed-label Prometheus cardinality/TTL gauges, rejects only new writes at `REDIS_CACHE_MAX_KEYS`, and still refreshes an existing key at the ceiling. `REDIS_CACHE_MAX_KEYS=0` preserves prior unlimited behavior. Factory wiring comes from validated Pydantic settings.
 - **How to prevent**: Every cache-cost control needs an explicit key pattern, a bounded scan, fixed metric labels, a safe disable value, and tests for both rejection and overwrite behavior. Never use `FLUSHALL` or global eviction for query-cache maintenance.
+- Deep `/api/health` includes Qdrant, Neo4j, LLM, embedding, graph, and cache probes; a transient first-request timeout during replica warm-up is not equivalent to a deployment failure. Confirm with `/api/healthz`, retry after warm-up, and inspect Railway service status.
 
 ### L-REDIS-2. Production dependencies determine where tests run
 - **What**: The sandbox checkout has no `pytest` or `pydantic-settings`, so focused tests cannot be executed locally without violating the no-install constraint. Python compilation and the ReDoS scanner remain runnable locally; the full focused suite must run inside the Railway image or CI environment where locked dependencies are present.
