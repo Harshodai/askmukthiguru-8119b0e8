@@ -121,6 +121,13 @@ def compress_documents(
         except Exception as e:
             logger.warning(f"LLMLingua compression failed ({e}), falling back to CrossEncoder.")
 
+    # A missing reranker is a valid degraded deployment state. Preserve the
+    # retrieved evidence instead of invoking ``None.predict`` once per document
+    # and emitting misleading zero-character compression metrics.
+    if reranker is None:
+        logger.debug("Contextual compression skipped: sentence reranker unavailable")
+        return documents
+
     # CrossEncoder Sentence-level Compression Path (Default / Fallback)
     compressed = []
     total_original = 0

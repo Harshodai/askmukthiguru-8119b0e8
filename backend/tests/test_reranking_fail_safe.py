@@ -90,6 +90,19 @@ def mock_services(monkeypatch):
     return mock_ollama, mock_embedder, mock_qdrant
 
 
+def test_compress_documents_without_reranker_preserves_evidence():
+    from rag.compressor import compress_documents
+
+    documents = [
+        {
+            "text": "Stillness returns attention to the present moment. "
+            "A gentle breath can soften reactivity without forcing the mind.",
+            "source_url": "https://example.com/stillness",
+        }
+    ]
+    assert compress_documents("How can I practice stillness?", documents, None) == documents
+
+
 @pytest.mark.asyncio
 async def test_grade_documents_web_grading_failure_keeps_top_three(mock_services, monkeypatch):
     """If web-doc grading raises, only the top-3 reranked web docs are kept."""
