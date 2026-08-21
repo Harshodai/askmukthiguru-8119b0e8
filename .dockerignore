@@ -53,6 +53,7 @@ docker-compose*.yml
 # Ignore development/ops scripts — not needed at runtime
 scripts/*
 !scripts/prerender-seo.mjs
+!scripts/ops/rotate_brain_kek.py
 benchmarks/
 Makefile
 
