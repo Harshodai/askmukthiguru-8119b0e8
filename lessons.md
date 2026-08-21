@@ -1,5 +1,27 @@
 ## Aug 19, 2026 — Ephemeral Multimodal Chat Evidence Boundary
 
+## Aug 21, 2026 — Second Brain E2E and BRAIN_KEK Rotation
+
+### L-BRAIN-1. PostgreSQL timestamptz boundaries must be explicit
+- **What**: Second Brain writes sent Unix floats to a PostgreSQL `timestamptz` column, while list reads attempted `float(ISO-8601 timestamp)`. This broke authenticated reflection creation and vault reload in production.
+- **Fix applied**: Writes now use timezone-aware ISO-8601 UTC strings; reads normalize both PostgreSQL ISO timestamps and legacy numeric timestamps with a safe fallback. The authenticated disposable reflection was created, reloaded, and deleted successfully.
+- **How to prevent**: Keep persistence timestamps typed at the database boundary, test both serialized forms, and never assume a PostgREST timestamp is numeric.
+
+### L-BRAIN-2. BRAIN_KEK rotation requires database CAS, process cutover, and vault verification
+- **What**: The two Mode-A wrapped DEKs were rewrapped with compare-and-swap successfully, but a first post-rotation browser check hit the still-running pre-cutover processes because variable changes had been staged without an explicit redeploy.
+- **Fix applied**: Backend and worker were redeployed together after setting the replacement key. Railway logs were inspected before any rollback; the authenticated vault then unlocked and loaded normally.
+- **How to prevent**: Treat secret staging, row rewrap, process restart, health check, and authenticated vault read as one release transaction. Never infer that running processes loaded a variable merely because Railway accepted the variable update.
+
+### L-BRAIN-3. Operational base64url generation must match strict decoders
+- **What**: An unpadded base64url candidate caused a safe startup failure because the production decoder required padding. The malformed candidate was never used for rewrap or cutover.
+- **Fix applied**: The decoder now accepts canonical padded and common unpadded base64url while still enforcing strict alphabet validation and exactly 32 decoded bytes. The runbook recommends padded output for operational generation; a direct crypto smoke test covers both forms.
+- **How to prevent**: Validate candidate key format before staging, never put a generated secret in shell history, and keep a package-free decoder smoke test alongside the rotation utility.
+
+### L-BRAIN-4. Staged replacement secrets must be cleared in every Railway scope
+- **What**: Service-scoped `BRAIN_KEK_NEXT` deletion did not remove an earlier shared-environment value. Leaving a staged candidate in an inherited environment would unnecessarily expand secret exposure.
+- **Fix applied**: The shared value was cleared, backend and worker were restarted again, and final service status returned `SUCCESS`. No replacement secret is intentionally retained for rollback.
+- **How to prevent**: Audit both service and shared-environment variable scopes after cutover. Prefer deletion; where the management surface only supports overwrite, clear the shared value and document the residual empty variable name.
+
 ## Aug 21, 2026 — ONNX Shadow Gates, Railway Metrics, and Queue Profiles
 
 ### L-SCALE-1. Aggregate embedding overlap cannot override corpus-completeness gates

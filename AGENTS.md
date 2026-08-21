@@ -33,6 +33,8 @@
 - **LightRAG Direct Ingestion**: Active background ingestion worker (`scripts/ingest_lightrag_data.py`, `CONCURRENCY_WORKERS=8`) reading directly from `spiritual_wisdom` with OpenRouter inference (`meta-llama/llama-3.1-8b-instruct`) and BAAI BGE-M3 1024d embeddings to build dual-level graph vectors.
 
 ### User Personalization & Second Brain Vault Status (Jul 22, 2026) ✅
+
+**Aug 21 rotation invariants:** Second Brain persistence timestamps use PostgreSQL-compatible timezone-aware ISO-8601 values at the write boundary and normalize both ISO and legacy numeric forms on reads. BRAIN_KEK rotation is a staged transaction: take a read-only backup/snapshot, dry-run and CAS-verify every Mode-A row, apply only after explicit authorization, set the replacement on backend and worker, clear BRAIN_KEK_NEXT in service and shared scopes, explicitly redeploy both processes, and verify an authenticated vault unlock. Key material must never be printed, committed, or left in shell history; padded and unpadded base64url inputs are accepted but operational generation should use padded output.
 - **Second Brain Vault (`second_brain_vault`)**: Shared multi-tenant collection in Qdrant indexed with `user_id` keyword filter. Payload NEVER holds plaintext; user notes live encrypted in Postgres (`user_brain_nodes`), vectors in Qdrant (`services/second_brain/vault_index.py`).
 - **User Familiarity Classification**: `classify_user_familiarity` dynamically adapts prompt tone across `Seeker` (simple explanations of Sanskrit terms), `Practitioner` (balanced meditation guidance), and `Advanced Meditator` (deep philosophical & neurobiological terms).
 - **3-Tiered Memory Retention & Automated TTL Cleanup**:

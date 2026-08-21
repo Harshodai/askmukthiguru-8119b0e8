@@ -78,7 +78,11 @@ def _b64e(raw: bytes) -> str:
 
 
 def _b64d(data: str) -> bytes:
-    return base64.b64decode(data.encode("ascii"), altchars=b"-_", validate=True)
+    # Accept canonical padded base64url and the common unpadded variant.
+    # Strict validation still rejects whitespace, embedded padding, and other
+    # non-base64url characters after normalization.
+    normalized = data + ("=" * (-len(data) % 4))
+    return base64.b64decode(normalized.encode("ascii"), altchars=b"-_", validate=True)
 
 
 def zeroize(buf: bytearray) -> None:
