@@ -24,6 +24,7 @@ from app.config import settings
 from rag.corpus_scope import CorpusScope
 from services.qdrant.filters import QdrantFilterBuilder
 from services.qdrant.metrics import track_search_latency
+from services.qdrant.source_policy import is_blocked_source
 from services.qdrant.utils import QdrantUtils
 from services.tenant_context import TenantContext
 
@@ -292,11 +293,19 @@ class QdrantSearcher:
                 except Exception as exc:
                     logger.info("Optional graph-linked Qdrant prefetch failed open: %s", exc)
 
-        # Filter out poisoned nodes
-        hits = [
-            hit for hit in hits if not self._utils.is_poisoned_node(hit.payload.get("text", ""))
-        ]
-        hits = hits[:limit]
+        # Filter out poisoned nodes and quarantined rights-risk sources before
+        # converting payloads into generation-ready documents. This remains a
+        # serving-time defense even while legacy vector points are being removed
+        # through a separate, audited maintenance operation.
+        screened_hits = []
+        for hit in hits:
+            payload = hit.payload or {}
+            if self._utils.is_poisoned_node(payload.get("text", "")):
+                continue
+            if is_blocked_source(payload):
+                continue
+            screened_hits.append(hit)
+        hits = screened_hits[:limit]
 
         return [
             {

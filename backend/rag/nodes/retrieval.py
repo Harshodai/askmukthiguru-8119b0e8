@@ -25,6 +25,7 @@ from services.embedding_service import EmbeddingService, _apply_query_expansion
 from services.lightrag_service import LightRAGService
 from services.qdrant_service import QdrantService
 from services.provenance_context import build_provenance_context
+from services.qdrant.source_policy import filter_blocked_sources
 from services.tenant_context import TenantContext
 
 from . import _services
@@ -1422,6 +1423,13 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     if web_docs:
         logger.info(f"Merging {len(web_docs)} web search results into primary document list")
         all_docs = web_docs + all_docs
+
+    # Final serving policy applies after every candidate channel is merged. The
+    # Qdrant searcher applies the same rule at the vector boundary; this second
+    # pass covers GraphRAG, OKF, web, and fallback documents that bypass Qdrant.
+    all_docs, blocked_count = filter_blocked_sources(all_docs)
+    if blocked_count:
+        logger.error("Retrieval quarantine removed %d prohibited source document(s)", blocked_count)
 
     if len(all_docs) > getattr(
         settings, "rag_top_k_retrieval_after_cutoff", settings.rag_top_k_retrieval

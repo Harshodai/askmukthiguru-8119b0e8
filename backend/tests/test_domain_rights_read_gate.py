@@ -45,3 +45,24 @@ def test_qdrant_search_adds_rights_filter_and_returns_provenance_fields():
         if isinstance(condition, FieldCondition)
     }
     assert values["domain_rights_status"] == "licensed"
+
+
+def test_quarantined_removed_book_source_is_not_served():
+    from services.qdrant.source_policy import filter_blocked_sources, is_blocked_source
+
+    blocked = {
+        "source_url": "The_Four_Sacred_Secrets.pdf",
+        "title": "The Four Sacred Secrets",
+        "text": "legacy content must not reach user-facing retrieval",
+    }
+    allowed = {
+        "source_url": "https://www.youtube.com/watch?v=example",
+        "title": "A teaching on stillness",
+        "text": "ordinary licensed teaching",
+    }
+
+    assert is_blocked_source(blocked)
+    assert is_blocked_source({"source_url": "https://legacy.example/files/The_Four_Sacred_Secrets.pdf?download=1#page=2"})
+    kept, dropped = filter_blocked_sources([blocked, allowed])
+    assert dropped == 1
+    assert kept == [allowed]
