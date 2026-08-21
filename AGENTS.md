@@ -1,6 +1,13 @@
 # Agentic Lessons & Environment Context
 
-> **Active operating status — reviewed 2026-08-12.** This file contains binding repository invariants alongside dated lessons and handoffs. For a conflict, current source configuration, scoped instructions, and approved runbooks prevail; preserve historical notes as provenance rather than treating their dated measurements as live state.
+> **Active operating status — reviewed 2026-08-21.** This file contains binding repository invariants alongside dated lessons and handoffs. For a conflict, current source configuration, scoped instructions, and approved runbooks prevail; preserve historical notes as provenance rather than treating their dated measurements as live state.
+
+### Fresh audit invariants — Aug 21, 2026
+- Production smoke requests must obtain a signed token from `POST /api/auth/anon-session` and send the token itself in the POST `session_id` field or the route-specific session header. The derived `anon:<id>` identity is server output, never a client credential.
+- Pure greeting short-circuits may use deterministic localized phrases for supported Indic locales, but this optimization is limited to `_GREETING_RE` matches. Substantive responses always use the normal safety, retrieval, generation, and translation pipeline.
+- Browser-facing SSE metadata is a public projection. Provenance fields must pass through an explicit allowlist; never stream `memory_context`, `attachment_context`, prompts, safety state, raw graph state, or arbitrary future state fields.
+- The fresh production baseline remains a known risk: simple English 14.67s pipeline latency, comparative English 31.39s with honest zero-source abstention, and Hindi 19.90s. Do not claim that long-tail latency or refusal quality is solved until a held-out benchmark improves these classes.
+- Local validation in the sandbox is dependency-limited: do not install packages. `py_compile`, the regex safety gate, `git diff --check`, and the corpus guard are valid local gates; `pytest` and dependency-complete tests must run in CI or the production/test image.
 
 ## Deployment Readiness Checklist (Jul 19, 2026)
 

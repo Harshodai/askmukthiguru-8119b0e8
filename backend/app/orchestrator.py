@@ -436,19 +436,72 @@ def _coerce_citations_to_str(citations) -> list[str]:
     return out
 
 
+_PUBLIC_PROVENANCE_FIELDS = frozenset(
+    {
+        "text",
+        "band",
+        "score",
+        "source_url",
+        "source_segment_id",
+        "entity_ids",
+        "relation",
+        "hop",
+        "confidence",
+        "ontology_version",
+        "rights_status",
+        "channel",
+        "corroborated",
+    }
+)
+
+
+def _public_provenance_context(context: dict) -> dict:
+    """Return only bounded, user-visible provenance fields.
+
+    Provenance is intentionally useful in the UI, but it is not a general state
+    dump. Keep this projection allowlisted so a future retrieval or memory
+    adapter cannot accidentally stream ``memory_context``, attachment text,
+    prompts, safety state, or other private fields to the browser.
+    """
+    public_bands = {}
+    bands = context.get("bands")
+    if isinstance(bands, dict):
+        for band, items in bands.items():
+            if not isinstance(band, str) or not isinstance(items, list):
+                continue
+            public_items = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                public_items.append(
+                    {key: value for key, value in item.items() if key in _PUBLIC_PROVENANCE_FIELDS}
+                )
+            public_bands[band] = public_items
+    entities = context.get("entities_touched", [])
+    if not isinstance(entities, list):
+        entities = []
+    return {
+        "bands": public_bands,
+        "total_tokens": context.get("total_tokens", 0),
+        "evidence_count": context.get("evidence_count", 0),
+        "entities_touched": [str(value) for value in entities if value][:64],
+    }
+
+
 def _provenance_manifest_for_result(result) -> dict | None:
-    """Project retrieval evidence into the compliance manifest metadata contract."""
+    """Project retrieval evidence into a public compliance manifest contract."""
     context = getattr(result, "provenance_context", None)
     if not isinstance(context, dict) or not context.get("evidence_count"):
         return None
+    public_context = _public_provenance_context(context)
     return {
         "manifest_id": getattr(result, "trace_id", None),
         "model_name": getattr(result, "model_used", None),
         "model_provider": getattr(result, "model_provider", None),
         "metadata": {
-            "provenance_context": context,
-            "evidence_count": context.get("evidence_count"),
-            "entities_touched": context.get("entities_touched", []),
+            "provenance_context": public_context,
+            "evidence_count": public_context.get("evidence_count"),
+            "entities_touched": public_context.get("entities_touched", []),
         },
     }
 

@@ -398,6 +398,24 @@ async def test_instant_greeting_and_result_assembly_attach_manifest():
     assert res_greeting.release_manifest is not None
     assert res_greeting.release_manifest["release_id"] == get_release_manifest().release_id
 
+    # Supported Indic greetings must remain provider-free on the short path.
+    indic_translation = AsyncMock()
+    indic_container = MagicMock()
+    indic_container.translation.translate_text = indic_translation
+    ctx_indic_greeting = PipelineContext(
+        container=indic_container,
+        coordinator=coordinator,
+        request=ChatRequest(user_message="Namaste", messages=[], language="hi"),
+        user_msg="Namaste",
+        preferred_lang="hi",
+        is_indic=True,
+        state={"user_msg_en": "namaste"},
+    )
+    res_indic_greeting = await greeting_stage.run(ctx_indic_greeting)
+    assert res_indic_greeting is not None
+    assert "नमस्ते" in res_indic_greeting.final_answer
+    indic_translation.assert_not_awaited()
+
     # Result assembly
     assembly_stage = ResultAssemblyStage()
     ctx_assembly = PipelineContext(
@@ -700,14 +718,30 @@ def test_chat_engine_coalesce_key_scoped_by_release_id():
 def test_retrieval_provenance_context_survives_result_and_stream_serialization():
     context = {
         "bands": {
-            "direct_source": [{"text": "Teaching", "source_segment_id": "seg-1"}],
-            "graph_one_hop": [{"text": "Graph fact", "relation": "EXPOUNDS", "hop": 1}],
+            "direct_source": [
+                {
+                    "text": "Teaching",
+                    "source_segment_id": "seg-1",
+                    "memory_context": "private memory must not stream",
+                    "attachment_context": "private attachment must not stream",
+                }
+            ],
+            "graph_one_hop": [
+                {
+                    "text": "Graph fact",
+                    "relation": "EXPOUNDS",
+                    "hop": 1,
+                    "prompt": "private prompt must not stream",
+                }
+            ],
             "corroborated": [],
             "community_summary": [],
         },
         "total_tokens": 12,
         "evidence_count": 2,
         "entities_touched": ["Soul Sync"],
+        "memory_context": "private top-level memory must not stream",
+        "attachment_context": "private top-level attachment must not stream",
     }
     result = PipelineResult(trace_id="trace-1", provenance_context=context)
 
@@ -715,5 +749,12 @@ def test_retrieval_provenance_context_survives_result_and_stream_serialization()
     stream_meta = _stream_done_metadata(result)
 
     assert serialized["provenance_context"] == context
-    assert stream_meta["provenance_manifest"]["metadata"]["provenance_context"] == context
+    public_context = stream_meta["provenance_manifest"]["metadata"]["provenance_context"]
+    assert "memory_context" not in public_context
+    assert "attachment_context" not in public_context
+    assert "memory_context" not in public_context["bands"]["direct_source"][0]
+    assert "attachment_context" not in public_context["bands"]["direct_source"][0]
+    assert "prompt" not in public_context["bands"]["graph_one_hop"][0]
+    assert public_context["bands"]["direct_source"][0]["text"] == "Teaching"
+    assert public_context["bands"]["graph_one_hop"][0]["relation"] == "EXPOUNDS"
     assert stream_meta["provenance_manifest"]["metadata"]["entities_touched"] == ["Soul Sync"]

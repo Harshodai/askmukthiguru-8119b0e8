@@ -179,6 +179,28 @@ _GREETING_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Pure greetings are deliberately handled without a provider call.  This keeps
+# the sub-200ms short-circuit honest for supported Indic locales instead of
+# paying the full translation tail for a canned response.  The map is only
+# used after _GREETING_RE matches; full answer translation remains unchanged.
+_INDIC_GREETING_RESPONSES = {
+    "hi": "🙏 नमस्ते! मैं मुक्ति गुरु हूँ। आज आप किस ज्ञान को समझना चाहेंगे?",
+    "te": "🙏 నమస్తే! నేను ముక్తి గురువును. ఈ రోజు మీరు ఏ జ్ఞానాన్ని అన్వేషించాలనుకుంటున్నారు?",
+    "ta": "🙏 வணக்கம்! நான் முக்தி குரு. இன்று எந்த ஞானத்தை ஆராய விரும்புகிறீர்கள்?",
+    "kn": "🙏 ನಮಸ್ಕಾರ! ನಾನು ಮುಕ್ತಿ ಗುರು. ಇಂದು ನೀವು ಯಾವ ಜ್ಞಾನವನ್ನು ಅನ್ವೇಷಿಸಲು ಬಯಸುತ್ತೀರಿ?",
+    "ml": "🙏 നമസ്കാരം! ഞാൻ മുക്തി ഗുരുവാണ്. ഇന്ന് ഏത് ജ്ഞാനം അന്വേഷിക്കാൻ ആഗ്രഹിക്കുന്നു?",
+    "mr": "🙏 नमस्कार! मी मुक्ति गुरु आहे. आज तुम्हाला कोणते ज्ञान जाणून घ्यायचे आहे?",
+    "bn": "🙏 নমস্কার! আমি মুক্তি গুরু। আজ আপনি কোন জ্ঞান অন্বেষণ করতে চান?",
+    "gu": "🙏 નમસ્તે! હું મુક્તિ ગુરુ છું. આજે તમે કયું જ્ઞાન જાણવા માંગો છો?",
+    "pa": "🙏 ਨਮਸਤੇ! ਮੈਂ ਮੁਕਤੀ ਗੁਰੂ ਹਾਂ। ਅੱਜ ਤੁਸੀਂ ਕਿਹੜੀ ਸਿਆਣਪ ਖੋਜਣਾ ਚਾਹੁੰਦੇ ਹੋ?",
+}
+
+
+def _deterministic_greeting(preferred_lang: str | None) -> str | None:
+    """Return a localized canned greeting, or None when no safe map exists."""
+    language = str(preferred_lang or "").strip().lower().split("-", 1)[0]
+    return _INDIC_GREETING_RESPONSES.get(language)
+
 
 class RequestStateStage(Stage):
     """Prepare request state (language detection, translation, memory context)."""
@@ -211,11 +233,13 @@ class CasualShortCircuitStage(Stage):
         preferred_lang = ctx.preferred_lang
 
         if _GREETING_RE.match(user_msg_en):
-            greeting = random.choice(_WARM_GREETINGS)
-            if is_indic:
-                greeting = await ctx.container.translation.translate_text(
-                    text=greeting, source_lang="en", target_lang=preferred_lang
-                )
+            greeting = _deterministic_greeting(preferred_lang) if is_indic else None
+            if greeting is None:
+                greeting = random.choice(_WARM_GREETINGS)
+                if is_indic:
+                    greeting = await ctx.container.translation.translate_text(
+                        text=greeting, source_lang="en", target_lang=preferred_lang
+                    )
             latency_ms = int((time.time() - ctx.start_time) * 1000)
             logger.info(f"Instant greeting short-circuit: {latency_ms}ms")
             return PipelineResult(

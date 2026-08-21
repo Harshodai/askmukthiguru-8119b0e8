@@ -1,11 +1,13 @@
 # Graph-Based Latency Optimization Plan
 
-## Current State
-- LightRAG queries: **30s timeout** (can exceed on complex graphs)
-- Neo4j cross-teacher queries: **unbounded** (syncs on every comparison question)
-- Graph result caching: **none**
-- Concurrent retrieval: **exists** but not fully leveraged
-- Index status: **unknown**
+## Current State — rechecked Aug 21, 2026
+- LightRAG queries: **30s timeout**, with a bounded thread-safe `TTLCache` (5-minute TTL, max 2,000 entries) already deployed.
+- Neo4j cross-teacher queries: bounded by the existing service/query timeouts; index status still requires a read-only production audit.
+- Graph result caching: **implemented** in `backend/services/lightrag_service.py`; scoped invalidation after insertion is deployed.
+- Concurrent retrieval: **implemented** for primary Qdrant, summary, BM25, and optional graph tasks; live comparative traces still show retrieval as a 7.74s contributor.
+- Adaptive graph depth: **implemented** in `retrieve_for_single_query()` (`local` for fast/simple, `hybrid` for tier3/deep).
+- Application startup is intentionally read-only. Neo4j schema mutations must use a separately locked maintenance operation after a read-only index audit; do not add `CREATE INDEX` calls to lifespan.
+- Fresh live baseline: simple English 14.67s, comparative English 31.39s with honest zero-source abstention, Hindi 19.90s. These measurements supersede optimistic estimates below until held-out benchmarks improve them.
 
 ## Optimization Phases (Est. 15–40s reduction)
 
@@ -176,12 +178,12 @@ def extract_graph_entities(self, source_url, text, max_depth=2, entity_types=Non
 
 ---
 
-## Implementation Priority
-1. **Phase 1 (Caching)** — 2 hrs, **highest ROI** (5–10s immediate)
-2. **Phase 2 (Indexes)** — 1 hr, quick win (2–5s)
-3. **Phase 3 (Adaptive Depth)** — 3 hrs, broad (3–8s)
-4. **Phase 4 (Parallel)** — 2 hrs, architectural (2–4s)
-5. **Phase 5 (Batch Extraction)** — 4 hrs, background only
+## Implementation Priority — measured status
+1. **Phase 1 (Caching)** — **implemented and deployed**; measure hit rate and invalidation before further tuning.
+2. **Phase 2 (Indexes)** — **not yet applied**; run read-only `SHOW INDEXES`/equivalent first, then use the locked maintenance runner rather than startup mutation.
+3. **Phase 3 (Adaptive Depth)** — **implemented and deployed**; keep tier3/deep on hybrid until comparative retrieval quality is improved.
+4. **Phase 4 (Parallel cross-teacher reasoning)** — **deferred**; requires explicit LangGraph reducers/join tests and a held-out comparative faithfulness benchmark.
+5. **Phase 5 (Ingestion-time graph extraction)** — **partially available via the ingestion worker**, but isolation from the serving project and queue/SLA measurement remain open.
 
 ## Expected Cumulative Impact
 - **Baseline:** 9–98s (fast to complex with confidence gate)
@@ -197,8 +199,9 @@ def extract_graph_entities(self, source_url, text, max_depth=2, entity_types=Non
 
 ---
 
-## Quick Wins (Start Today)
-1. Add `@lru_cache` to `lightrag_service.aquery()` (30 min)
-2. Add Neo4j indexes in `main.py` lifespan (20 min)
-3. Tier-aware mode selection in retrieval.py (20 min)
-4. **Total: 70 min → 7–12s savings on most queries**
+## Next measured actions
+1. Run the read-only Neo4j index inventory in production and record whether teacher/concept lookup indexes already exist.
+2. Build a held-out comparative evaluation slice with expected concepts, source segments, citation correctness, faithfulness, and latency before changing candidate limits or fusion weights.
+3. Instrument GenAI-compatible metadata (model, token counts, duration, retry count, tool/provider calls) without default prompt, attachment, or private-memory content capture.
+4. Parallelize only independent graph branches with explicit reducers and join failure tests; do not trade refusal safety for a speculative 2–4s estimate.
+5. Keep the 5-minute LightRAG cache and adaptive mode changes under production hit-rate, p95, and quality monitoring.

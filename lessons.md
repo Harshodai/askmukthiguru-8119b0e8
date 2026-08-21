@@ -1,5 +1,22 @@
 ## Aug 19, 2026 — Ephemeral Multimodal Chat Evidence Boundary
 
+## Aug 21, 2026 — Fresh production audit: latency, greeting fast path, and streaming provenance
+
+### L-AUDIT-1. Production smoke payloads must follow the signed anonymous-session contract
+- **What**: The documented smoke endpoint path was stale (`/api/session/anonymous` instead of `/api/auth/anon-session`), and the signed token must be sent in the POST `session_id` field (or the header on routes that read the header). Sending the derived `anon:<id>` identifier caused a correct 400 rejection.
+- **Fix applied**: Re-ran smoke tests using the repository-confirmed route and token contract. Health was healthy; simple English completed in 14.67s pipeline latency, comparative completed in 31.39s and honestly abstained with zero verified sources, and Hindi completed in 19.90s with faithfulness 0.80. The comparative node trace identified retrieval (7.74s), decomposition (2.68s), and intent routing (1.04s) as the dominant measured stages.
+- **How to prevent**: Keep smoke scripts generated from the live Pydantic request model and auth route, record the raw response plus wall-clock time, and treat a refusal with no verified citations as a quality signal rather than a transport failure.
+
+### L-AUDIT-2. Pure Indic greetings must not pay the translation-provider tail
+- **What**: The greeting short-circuit already skipped the LLM but still invoked the translation provider for Indic locales, contradicting its sub-200ms contract.
+- **Fix applied**: Added deterministic localized responses for supported Indic greeting locales (`hi`, `te`, `ta`, `kn`, `ml`, `mr`, `bn`, `gu`, `pa`). Unsupported locales retain the existing translation fallback, and full answer translation is unchanged. Added a regression test asserting the translation provider is not awaited for Hindi `Namaste`.
+- **How to prevent**: Keep deterministic phrase maps limited to pure short-circuit phrases; never reuse them for substantive answers or bypass the normal translation/safety pipeline.
+
+### L-AUDIT-3. Streaming provenance is a public projection, not a state dump
+- **What**: The SSE completion event intentionally exposes bounded provenance for the UI, but future retrieval or memory adapters could add private fields to the context object and accidentally stream them.
+- **Fix applied**: Added an allowlist projection for public provenance evidence fields. Private memory, attachment, prompt, safety, and arbitrary internal keys are excluded from the streaming manifest while public source text, source segment, relation, hop, confidence, rights, and entity fields remain available for the ProvenanceDrawer. Regression coverage injects private keys and verifies they are absent from the stream projection.
+- **How to prevent**: Treat every browser-facing stream event as an explicit schema. Add new fields only through a public allowlist and test private-memory/attachment non-leakage.
+
 ## Aug 21, 2026 — Second Brain E2E and BRAIN_KEK Rotation
 
 ### L-BRAIN-1. PostgreSQL timestamptz boundaries must be explicit
