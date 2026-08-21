@@ -58,6 +58,24 @@ def _number(value: object) -> float | None:
     return None
 
 
+def _citations_verified(graph_result: dict) -> bool | None:
+    value = graph_result.get("citations_verified")
+    if value is None:
+        verification = graph_result.get("verification")
+        if isinstance(verification, dict):
+            value = verification.get("citations_verified")
+    return value if isinstance(value, bool) else None
+
+
+def _faithfulness_score(graph_result: dict, response_data: dict) -> float | None:
+    score = graph_result.get("faithfulness_score")
+    if graph_result.get("is_faithful") is None and score == 0.0:
+        return None
+    if score is not None:
+        return score
+    return response_data.get("faithfulness")
+
+
 def _answer_evidence(
     ctx, graph_result: dict, citations: list, response_data: dict
 ) -> AnswerEvidence:
@@ -89,7 +107,7 @@ def _answer_evidence(
         ),
         source_count=source_count,
         top_source_score=max(scores) if scores else None,
-        citations_verified=graph_result.get("citations_verified"),
+        citations_verified=_citations_verified(graph_result),
     )
 
 
@@ -327,11 +345,10 @@ class ResultAssemblyStage(Stage):
             blocked=False,
             cache_hit=False,
             proactive_serene_mind=ctx.state.get("proactive_serene_mind"),
-            # Forward the score computed by verify_answer/format_final_answer;
-            # fall back to the coordinator-derived value only when missing.
-            faithfulness_score=graph_result.get(
-                "faithfulness_score", response_data.get("faithfulness", 0.0)
-            ),
+            # Forward the score computed by verify_answer/format_final_answer.
+            # A skipped verifier uses is_faithful=None; a zero placeholder in
+            # that state means unknown, not a measured failure.
+            faithfulness_score=_faithfulness_score(graph_result, response_data),
             hallucination_flag=response_data.get("hallucination_flag", False),
             # verify_answer (rag/nodes/verification.py) already returns this dict in
             # graph state ({"passed": is_valid, "details": ...}) -- it was never
@@ -343,7 +360,7 @@ class ResultAssemblyStage(Stage):
             context_recall=response_data.get("context_recall", 0.0),
             confidence_score=response_data.get("confidence_score"),
             judge_reasoning=response_data.get("judge_reasoning", ""),
-            citations_verified=graph_result.get("citations_verified"),
+            citations_verified=_citations_verified(graph_result),
             orphan_citations_stripped=graph_result.get("orphan_citations_stripped"),
             evaluation_trace=graph_result.get("evaluation_trace"),
             retrieval_metadata=retrieval_meta,

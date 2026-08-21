@@ -7,7 +7,11 @@ from types import SimpleNamespace
 
 from app.coalescer import RedisCoalescer
 from app.pipeline.result import AnswerEvidence, PipelineResult
-from app.pipeline.stages.glue_stages import _answer_evidence
+from app.pipeline.stages.glue_stages import (
+    _answer_evidence,
+    _citations_verified,
+    _faithfulness_score,
+)
 
 
 def context(corpus_id="preethaji-approved"):
@@ -40,6 +44,24 @@ def test_evidence_uses_structured_retrieval_facts_only():
     assert evidence.top_source_score == 0.91
     assert evidence.citations_verified is True
     assert evidence.evidence_support_label == "Teaching-supported"
+
+
+def test_nested_citation_verification_is_forwarded():
+    assert _citations_verified({"verification": {"citations_verified": True}}) is True
+    assert _citations_verified({"verification": {"citations_verified": False}}) is False
+    assert _citations_verified({}) is None
+
+
+def test_pending_faithfulness_zero_is_unknown_but_measured_zero_is_failure():
+    assert _faithfulness_score(
+        {"is_faithful": None, "faithfulness_score": 0.0}, {"faithfulness": 0.9}
+    ) is None
+    assert _faithfulness_score(
+        {"is_faithful": False, "faithfulness_score": 0.0}, {"faithfulness": 0.9}
+    ) == 0.0
+    assert _faithfulness_score(
+        {"is_faithful": None, "faithfulness_score": 0.7}, {"faithfulness": 0.9}
+    ) == 0.7
 
 
 def test_no_retrieval_never_manufactures_support():
