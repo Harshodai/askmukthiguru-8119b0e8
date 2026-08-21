@@ -79,6 +79,15 @@ def _is_generic_stillness_practice_request(question: str) -> bool:
     )
 
 
+def _generic_stillness_practice_fallback() -> str:
+    return (
+        "I could not find a specific teaching for that request right now. "
+        "As a gentle, non-doctrinal reflection, sit comfortably, take three "
+        "slow breaths, and notice one sensation in the present moment. "
+        "There is nothing to force; simply return to the next breath."
+    )
+
+
 def _is_non_english_language(language: str | None) -> bool:
     code = str(language or "en").strip().lower().split("-", 1)[0]
     return code not in {"en", "eng", "english"}
@@ -870,12 +879,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
 
     if not relevant_docs and not assistant_system_prompt:
         if _is_generic_stillness_practice_request(state.get("question", "")):
-            answer = (
-                "I could not find a specific teaching for that request right now. "
-                "As a gentle, non-doctrinal reflection, sit comfortably, take three "
-                "slow breaths, and notice one sensation in the present moment. "
-                "There is nothing to force; simply return to the next breath."
-            )
+            answer = _generic_stillness_practice_fallback()
             route_decision = "reflective_practice_fallback"
         else:
             answer = (
@@ -1018,13 +1022,18 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         context = ""
 
     if not surviving_docs and not assistant_system_prompt:
-        answer = (
-            "I am unable to find specific teachings on this topic in the wisdom of Sri Preethaji and Sri Krishnaji. "
-            "Would you like to rephrase your question, or ask about a different practice or teaching?"
-        )
+        if _is_generic_stillness_practice_request(state.get("question", "")):
+            answer = _generic_stillness_practice_fallback()
+            route_decision = "reflective_practice_fallback"
+        else:
+            answer = (
+                "I am unable to find specific teachings on this topic in the wisdom of Sri Preethaji and Sri Krishnaji. "
+                "Would you like to rephrase your question, or ask about a different practice or teaching?"
+            )
+            route_decision = "no_context_short_circuit"
         logger.warning(
-            "generate_answer: zero surviving docs after compression/filtering — returning content-gap "
-            "message without calling the LLM"
+            "generate_answer: zero surviving docs after compression/filtering — returning bounded %s without calling the LLM",
+            route_decision,
         )
         if stream_queue:
             await stream_queue.put(answer)
@@ -1036,7 +1045,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "confidence_score": NO_EVIDENCE_CONFIDENCE,
             "faithfulness_score": 0.0,
             "grounding_state": "abstained",
-            "verification": {"passed": True, "method": "no_context_short_circuit"},
+            "verification": {"passed": True, "method": route_decision},
             "evaluation_trace": _trace_update(
                 state,
                 generated_answer_chars=len(answer),
@@ -1044,7 +1053,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                 memory_used=bool(state.get("memory_context")),
                 model_used=None,
                 model_provider=None,
-                route_decision="no_context_short_circuit",
+                route_decision=route_decision,
             ),
         }
 
