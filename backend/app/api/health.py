@@ -180,6 +180,18 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
         "latency_ms": 0,
         "critical": False,
     }
+    if container.exact_cache and hasattr(container.exact_cache, "telemetry_snapshot"):
+        try:
+            cache_snapshot = await asyncio.to_thread(container.exact_cache.telemetry_snapshot)
+            results["exact_cache"].update(
+                {
+                    "keys": cache_snapshot.get("keys", 0),
+                    "nonexpiring_keys": cache_snapshot.get("nonexpiring", 0),
+                    "max_keys": cache_snapshot.get("max_keys", 0),
+                }
+            )
+        except Exception as exc:
+            logger.debug("Exact-cache telemetry unavailable during health check: %s", exc)
     results["semantic_cache"] = {
         "ok": container.semantic_cache.is_available if container.semantic_cache else False,
         "latency_ms": 0,

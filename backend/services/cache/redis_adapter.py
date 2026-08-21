@@ -135,9 +135,9 @@ class RedisCacheAdapter(ICacheRepository):
             logger.warning("Redis exact-query telemetry failed: %s", exc)
         return {"keys": keys, "nonexpiring": nonexpiring}
 
-    def telemetry_snapshot(self) -> Dict[str, Union[int, str]]:
+    def telemetry_snapshot(self, force: bool = False) -> Dict[str, Union[int, str]]:
         """Return non-sensitive exact-query namespace telemetry for health/ops."""
-        snapshot = self._refresh_namespace_telemetry(force=True)
+        snapshot = self._refresh_namespace_telemetry(force=force)
         snapshot.update({"namespace": self._NAMESPACE, "max_keys": self._max_keys})
         return snapshot
 
