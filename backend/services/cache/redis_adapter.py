@@ -85,8 +85,12 @@ class RedisCacheAdapter(ICacheRepository):
         if not self._redis:
             return False
         try:
-            return self._redis.ping()
-        except Exception:
+            healthy = bool(self._redis.ping())
+            if healthy:
+                self._refresh_namespace_telemetry()
+            return healthy
+        except Exception as exc:
+            logger.debug("Redis health check failed: %s", exc)
             return False
 
     def _make_key(self, query: str) -> str:
