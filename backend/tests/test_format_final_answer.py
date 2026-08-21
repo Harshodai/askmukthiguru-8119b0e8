@@ -29,6 +29,18 @@ _LONG_ANSWER = (
 )
 
 
+def test_comparison_detector_is_narrow():
+    assert generation._is_simple_meditation_comparison_request(
+        "What is the difference between meditation and contemplation?"
+    )
+    assert not generation._is_simple_meditation_comparison_request(
+        "How can meditation help with stillness?"
+    )
+    assert not generation._is_simple_meditation_comparison_request(
+        "Compare the history of meditation and contemplation in every tradition"
+    )
+
+
 def test_generic_stillness_practice_detector_is_narrow():
     assert generation._is_generic_stillness_practice_request(
         "Give me one small practice for stillness today"
@@ -69,6 +81,25 @@ def _state(**overrides) -> GraphState:
     )
     base.update(overrides)
     return GraphState(**base)
+
+
+@pytest.mark.asyncio
+async def test_simple_comparison_refusal_uses_limited_fallback():
+    state = _state(
+        answer="I am unable to find specific teachings on this topic.",
+        question="What is the difference between meditation and contemplation?",
+        relevant_docs=[{"text": "retrieved but limited context"}],
+        retry_count=1,
+        is_faithful=False,
+        verification={"passed": False},
+    )
+
+    result = await format_final_answer(state)
+
+    assert result["verification"]["method"] == "limited_comparison_fallback"
+    assert result["_needs_retry"] is False
+    assert "general distinction" in result["final_answer"]
+    assert result["citations"] == []
 
 
 @pytest.mark.asyncio

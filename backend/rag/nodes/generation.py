@@ -62,6 +62,17 @@ _BOUNDED_REFUSAL_RE = re.compile(
 _LANGUAGE_AWARE_FAST_TIER_SCORE = 0.8
 _GENERIC_PRACTICE_TERMS = ("practice", "exercise", "try", "do right now")
 _STILLNESS_TERMS = ("stillness", "quiet", "calm", "settle", "presence")
+_COMPARISON_TERMS = ("difference between", "compare", "versus", " vs ", " vs.")
+
+
+def _is_simple_meditation_comparison_request(question: str) -> bool:
+    lowered = " ".join(str(question or "").casefold().split())
+    return bool(
+        any(term in lowered for term in _COMPARISON_TERMS)
+        and "meditation" in lowered
+        and "contemplation" in lowered
+        and len(lowered) <= 180
+    )
 
 
 def _is_generic_stillness_practice_request(question: str) -> bool:
@@ -85,6 +96,16 @@ def _generic_stillness_practice_fallback() -> str:
         "As a gentle, non-doctrinal reflection, sit comfortably, take three "
         "slow breaths, and notice one sensation in the present moment. "
         "There is nothing to force; simply return to the next breath."
+    )
+
+
+def _simple_meditation_comparison_fallback() -> str:
+    return (
+        "Here is a general distinction, not a quoted teaching: meditation usually "
+        "emphasizes stabilizing attention, while contemplation usually emphasizes "
+        "sustained inquiry or reflection on a theme. They can overlap—meditation "
+        "steadies the mind, and contemplation examines what becomes clear. I could "
+        "not verify a direct teaching on this comparison from the retrieved sources."
     )
 
 
@@ -1933,6 +1954,34 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             citations_verified = (state.get("verification") or {}).get("citations_verified", True)
 
     refusal_action, refusal_answer = _evidence_refusal_action(answer, relevant_docs)
+    if (
+        refusal_action == "retry"
+        and _is_simple_meditation_comparison_request(state.get("question", ""))
+    ):
+        logger.info(
+            "Final: replacing simple meditation comparison refusal with limited-support explanation"
+        )
+        fallback_answer = _simple_meditation_comparison_fallback()
+        return {
+            "final_answer": fallback_answer,
+            "citations": [],
+            "intent": intent,
+            "_needs_retry": False,
+            "is_faithful": False,
+            "verification": {"passed": False, "method": "limited_comparison_fallback"},
+            "faithfulness_score": 0.0,
+            "confidence_score": 0.0,
+            "citations_verified": citations_verified,
+            "refusal_quality_failure": False,
+            "evaluation_trace": _trace_update(
+                state,
+                final_answer_chars=len(fallback_answer),
+                final_citations=[],
+                verification_passed=False,
+                confidence_score=0.0,
+                route_decision="limited_comparison_fallback",
+            ),
+        }
     if (
         refusal_action == "retry"
         and _is_generic_stillness_practice_request(state.get("question", ""))
