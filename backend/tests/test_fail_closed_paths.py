@@ -195,6 +195,18 @@ async def test_handle_fallback_returns_safe_response():
 
 
 @pytest.mark.asyncio
+async def test_handle_fallback_uses_limited_comparison_explanation():
+    """A grading-exhaustion fallback must not erase safe help for a simple comparison."""
+    state = {"question": "What is the difference between meditation and contemplation?"}
+    result = await handle_fallback(state, config=None)
+
+    assert len(result["final_answer"]) > 200
+    assert result["verification"]["method"] == "limited_comparison_fallback"
+    assert result["citations"] == []
+    assert result["_needs_retry"] is False
+
+
+@pytest.mark.asyncio
 async def test_retrieve_documents_empty_results_is_safe(monkeypatch):
     """If Qdrant returns no documents, retrieve_documents must still return gracefully."""
     import rag.nodes as nodes

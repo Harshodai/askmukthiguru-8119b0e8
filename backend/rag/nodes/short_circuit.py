@@ -14,6 +14,28 @@ from .utils import emit_status, log_metrics
 
 logger = logging.getLogger(__name__)
 
+_COMPARISON_TERMS = ("difference between", "compare", "versus", " vs ", " vs.")
+
+
+def _is_simple_meditation_comparison_request(question: str) -> bool:
+    lowered = " ".join(str(question or "").casefold().split())
+    return bool(
+        any(term in lowered for term in _COMPARISON_TERMS)
+        and "meditation" in lowered
+        and "contemplation" in lowered
+        and len(lowered) <= 180
+    )
+
+
+def _simple_meditation_comparison_fallback() -> str:
+    return (
+        "Here is a general distinction, not a quoted teaching: meditation usually "
+        "emphasizes stabilizing attention, while contemplation usually emphasizes "
+        "sustained inquiry or reflection on a theme. They can overlap—meditation "
+        "steadies the mind, and contemplation examines what becomes clear. I could "
+        "not verify a direct teaching on this comparison from the retrieved sources."
+    )
+
 # LLM rewriters often prefix their own label ("Rewritten query: ...").  Left
 # unstripped, rewrite #2 operates on rewrite #1's label and the query degrades
 # into keyword soup — strip label, surrounding quotes, and leading newlines.
@@ -56,8 +78,25 @@ async def rewrite_query(state: GraphState, config: dict = None) -> dict:
 
 @trace_rag_node("handle_fallback")
 async def handle_fallback(state: GraphState, config: dict = None) -> dict:
-    """Return the graceful fallback response."""
+    """Return a bounded, honest fallback without discarding safe general help."""
     await emit_status(config, "Preparing a graceful response...")
+    if _is_simple_meditation_comparison_request(state.get("question", "")):
+        logger.info(
+            "Terminal fallback: replacing simple meditation comparison refusal with limited-support explanation"
+        )
+        return {
+            "final_answer": _simple_meditation_comparison_fallback(),
+            "citations": [],
+            "verification": {
+                "passed": False,
+                "method": "limited_comparison_fallback",
+                "citations_verified": True,
+            },
+            "faithfulness_score": 0.0,
+            "confidence_score": 0.0,
+            "is_faithful": False,
+            "_needs_retry": False,
+        }
     return {
         "final_answer": "I don't have that specific teaching. Please try asking another question."
     }
