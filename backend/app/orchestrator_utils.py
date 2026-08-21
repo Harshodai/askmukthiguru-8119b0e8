@@ -380,12 +380,20 @@ async def prepare_request_state(
         logger.info(f"Translated user query from {preferred_lang} to English: {user_msg_en}")
 
     chat_history_en = []
-    if is_indic and should_translate:
-        for msg in chat_history:
+    if is_indic and should_translate and chat_history:
+        # Preserve history order while translating messages concurrently. The
+        # previous sequential loop paid one full provider round trip per message
+        # before retrieval could begin; gather keeps the same translated content
+        # contract but makes the tail bounded by the slowest translation call.
+        async def _translate_history_message(msg: dict[str, Any]) -> dict[str, str]:
             msg_content_en = await container.translation.translate_text(
                 text=msg["content"], source_lang=preferred_lang, target_lang="en"
             )
-            chat_history_en.append({"role": msg["role"], "content": msg_content_en})
+            return {"role": msg["role"], "content": msg_content_en}
+
+        chat_history_en = list(
+            await asyncio.gather(*(_translate_history_message(msg) for msg in chat_history))
+        )
     else:
         chat_history_en = chat_history
 

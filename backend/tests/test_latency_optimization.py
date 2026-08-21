@@ -10,6 +10,8 @@ Tests that:
 import asyncio
 import sys
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -58,6 +60,56 @@ def test_distress_keyword_regex():
     assert not _DISTRESS_KEYWORD_RE.search("Hello")
     assert not _DISTRESS_KEYWORD_RE.search("What is Deeksha?")
     assert not _DISTRESS_KEYWORD_RE.search("How do I practice meditation?")
+
+
+def test_indic_history_translation_preserves_order_with_concurrency():
+    """History translations run concurrently but retain their original order."""
+    async def _run():
+        from app import orchestrator_utils as utils
+
+        async def translate_text(*, text, source_lang, target_lang):
+            await asyncio.sleep(0)
+            return f"en:{text}"
+
+        class Message:
+            def __init__(self, role, content):
+                self.role = role
+                self.content = content
+
+            def model_dump(self):
+                return {"role": self.role, "content": self.content}
+
+        body = SimpleNamespace(
+            user_message="शांति क्या है?",
+            messages=[
+                Message("user", "पहला संदेश"),
+                Message("assistant", "पहला उत्तर"),
+            ],
+            session_id=None,
+        )
+        container = SimpleNamespace(
+            translation=SimpleNamespace(translate_text=translate_text),
+        )
+        with (
+            patch.object(
+                utils,
+                "detect_and_prepare_language_info",
+                return_value=(None, "hi", True, True),
+            ),
+            patch.object(
+                utils,
+                "prepare_user_memory",
+                new=AsyncMock(return_value=("", [])),
+            ),
+        ):
+            state = await utils.prepare_request_state(container, body, "hi")
+
+        assert state["chat_history_en"] == [
+            {"role": "user", "content": "en:पहला संदेश"},
+            {"role": "assistant", "content": "en:पहला उत्तर"},
+        ]
+
+    asyncio.run(_run())
 
 
 def test_select_graph_heuristics_simple():

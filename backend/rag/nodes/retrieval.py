@@ -595,15 +595,42 @@ async def navigate_and_hyde(state: GraphState, config: dict = None) -> dict:
     return merged
 
 
+def _can_skip_llm_decomposition(question: str, query_tier: str | None) -> bool:
+    """Return True for a single, explicit comparison that needs no query split.
+
+    A short ``difference between X and Y`` request is already a complete
+    retrieval query. Avoiding a planner call here preserves the complex-tier
+    grading and verification gates while removing one avoidable provider round
+    trip. More open-ended comparisons and multi-part questions remain on the
+    existing LLM decomposition path.
+    """
+    if query_tier != "tier3_complex":
+        return False
+    normalized = " ".join(str(question or "").split())
+    if len(normalized) < 32 or len(normalized) > 180:
+        return False
+    return bool(
+        re.fullmatch(
+            r"what(?:'s|\s+is)\s+the\s+difference\s+between\s+[^?]{2,80}\s+and\s+[^?]{2,80}\??",
+            normalized,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
 @trace_rag_node("decompose_query")
 @log_metrics
 async def decompose_query(state: GraphState, config: dict = None) -> dict:
-    """Always decompose queries into sub-queries."""
+    """Decompose complex queries, with a safe single-comparison fast path."""
     question = state["question"]
     ollama = _services._ollama
 
     if state.get("query_tier") in ("fast", "tier2_simple"):
         return {"sub_queries": [question], "is_complex": False}
+
+    if _can_skip_llm_decomposition(question, state.get("query_tier")):
+        logger.info("Decomposition bypass: explicit single comparison query")
+        return {"sub_queries": [question], "is_complex": True}
 
     await emit_status(config, "Breaking the question into deeper parts...")
     t_out = get_node_timeout("decompose_query", 15)

@@ -109,6 +109,24 @@ async def test_decompose_query_bypass(mock_services):
 
 
 @pytest.mark.asyncio
+async def test_single_comparison_decomposition_bypass(mock_services):
+    mock_ollama, _ = mock_services
+    mock_ollama.decompose_query = AsyncMock(
+        side_effect=AssertionError("single comparison must not call the planner")
+    )
+    question = "What is the difference between meditation and contemplation?"
+    state = GraphState(
+        question=question,
+        chat_history=[],
+        request_id="test-comparison-bypass",
+        query_tier="tier3_complex",
+    )
+    res = await nodes.decompose_query(state)
+    assert res == {"sub_queries": [question], "is_complex": True}
+    mock_ollama.decompose_query.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_navigate_tree_bypass(mock_services):
     state = GraphState(
         question="What is meditation?",
