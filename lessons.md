@@ -1,5 +1,18 @@
 ## Aug 19, 2026 — Ephemeral Multimodal Chat Evidence Boundary
 
+## Aug 21, 2026 — Comparative refusal closure and final production proof
+
+### L-AUDIT-5. Terminal graph fallbacks must preserve bounded product help
+- **What**: The comparative request continued returning the 72-character refusal after generation-stage and final-formatting fallbacks were patched. Production metadata showed `verification=null`, `fallback_method=null`, and citations retained, proving the standard graph had exhausted CRAG rewrites and terminated at `handle_fallback` before `format_final_answer`.
+- **Fix applied**: `handle_fallback` now recognizes only the narrow, low-risk meditation-versus-contemplation comparison and returns a clearly labelled general distinction with `verification.method=limited_comparison_fallback`, zero citations, and no retry. The exact terminal path has a regression test; unrelated unknown doctrine still receives the honest refusal.
+- **Production proof**: Commit `fa41447` deployed successfully to backend deployment `a1a1d1c3-77db-456e-b5d7-274c310d5c43` and worker deployment `b7674f10-9e5b-4f20-b4df-ab4130ab3dae`. Health returned `ready=true`, `status=healthy`, embedding dimension `1024`, queue size `0`, and exact-cache keys `0`. The comparative smoke returned `367` characters in `14.39s` wall clock / `11.40s` pipeline latency, `grounding_state=abstained`, `verification.method=limited_comparison_fallback`, zero citations, and no quarantined source.
+- **How to prevent**: Trace the terminal graph route, not only the generation node. A LangGraph node may write `final_answer` while reducer-preserved `citations` and other earlier fields remain visible; that combination is a diagnostic signature of a pre-format terminal fallback.
+
+### L-AUDIT-6. Dependency-limited validation must be reported, not hidden
+- **What**: The sandbox does not contain `pytest` or `pydantic-settings`; focused application tests cannot run locally without violating the explicit no-install constraint.
+- **Fix applied**: Ran `py_compile`, the regex safety gate, `git diff --check`, the corpus-file guard, and a dependency-free source check where possible. The new regression test is committed for the dependency-complete CI/production test image; no package was installed.
+- **How to prevent**: Separate static/source gates from dependency-complete test results in release reports. Never claim the pytest suite passed when the required runtime dependencies are absent.
+
 ## Aug 21, 2026 — Fresh production audit: latency, greeting fast path, and streaming provenance
 
 ### L-AUDIT-1. Production smoke payloads must follow the signed anonymous-session contract
