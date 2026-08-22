@@ -8,7 +8,8 @@ const RELOAD_FLAG = 'chunk_reload_attempted';
  * already-open tab can request an old chunk the server no longer has —
  * that's a signal to refresh, not a bug worth surfacing as a crash.
  */
-export function lazyWithRetry<T extends ComponentType<unknown>>(
+export function lazyWithRetry<// eslint-disable-next-line @typescript-eslint/no-explicit-any
+  T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>
 ) {
   return lazy(async () => {
@@ -31,7 +32,8 @@ export function lazyWithRetry<T extends ComponentType<unknown>>(
  * Preload a lazy component's chunk in the background.
  * Call this when you anticipate the user will navigate to a route.
  */
-export function preloadLazy<T extends ComponentType<unknown>>(
+export function preloadLazy<// eslint-disable-next-line @typescript-eslint/no-explicit-any
+  T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>
 ) {
   // Trigger the dynamic import without waiting

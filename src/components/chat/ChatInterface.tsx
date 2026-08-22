@@ -201,7 +201,7 @@ export const ChatInterface = () => {
 
     let name: string;
     let content: string;
-    if (typeof File !== 'undefined' && file instanceof File) {
+    if (!('content' in file)) {
       const processed = await uploadChatAttachment(file, getAIConfig().language || 'en');
       name = file.name;
       content = processed.attachment_context;
@@ -397,18 +397,18 @@ export const ChatInterface = () => {
     const currentText = e.currentTarget.value;
     const combinedLength = currentText.length + pastedText.length;
     if (pastedText && combinedLength > PASTE_ATTACHMENT_THRESHOLD) {
-      const added = handleAddFile({
+      e.preventDefault();
+      void handleAddFile({
         name: `pasted-text-${attachedFiles.length + 1}.txt`,
         content: currentText ? `${currentText}\n\n${pastedText}` : pastedText,
-      });
-      if (added) {
-        e.preventDefault();
+      }).then((added) => {
+        if (!added) return;
         setInputValue('');
         toast({
           title: 'Converted to Attachment',
           description: 'Text paste exceeded 2,000 characters and was converted to a text file.',
         });
-      }
+      });
     }
   }, [attachedFiles.length, handleAddFile, toast]);
 
