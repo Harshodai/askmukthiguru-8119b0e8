@@ -75,6 +75,7 @@ _STILLNESS_TERMS = ("stillness", "quiet", "calm", "settle", "presence")
 _STILLNESS_MEANING_TERMS = ("what is", "meaning of", "define", "definition of", "explain")
 _PEACE_TERMS = ("peace", "shanti", "शांति", "शांती", "శాంతి", "சாந்தி", "ಶಾಂತಿ")
 _COMPARISON_TERMS = ("difference between", "compare", "versus", " vs ", " vs.")
+_COMPARISON_BROAD_TERMS = ("history", "every tradition", "all traditions", "in every", "detailed")
 
 
 def _is_simple_meditation_comparison_request(question: str) -> bool:
@@ -83,6 +84,7 @@ def _is_simple_meditation_comparison_request(question: str) -> bool:
         any(term in lowered for term in _COMPARISON_TERMS)
         and "meditation" in lowered
         and "contemplation" in lowered
+        and not any(term in lowered for term in _COMPARISON_BROAD_TERMS)
         and len(lowered) <= 180
     )
 
