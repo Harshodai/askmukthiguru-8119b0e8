@@ -70,6 +70,32 @@ def test_embedding_service_ragatouille_optional_graceful_fallback(monkeypatch):
     assert service._colbert is False
 
 
+def test_prunes_unused_onnx_variant_without_touching_pytorch_weights(tmp_path, monkeypatch):
+    from app.config import settings
+    from services.embedding_service import EmbeddingService
+
+    model_root = tmp_path / "hub" / "models--BAAI--bge-m3"
+    snapshot = model_root / "snapshots" / "revision"
+    blobs = model_root / "blobs"
+    (snapshot / "onnx").mkdir(parents=True)
+    blobs.mkdir(parents=True)
+    onnx_blob = blobs / "onnx-data"
+    pytorch_blob = blobs / "pytorch-data"
+    onnx_blob.write_bytes(b"onnx-unused")
+    pytorch_blob.write_bytes(b"pytorch-required")
+    (snapshot / "onnx" / "model.onnx_data").symlink_to("../../../blobs/onnx-data")
+    (snapshot / "pytorch_model.bin").symlink_to("../../blobs/pytorch-data")
+
+    monkeypatch.setenv("HF_HOME", str(tmp_path))
+    monkeypatch.setattr(settings, "embedding_backend", "flagembedding")
+
+    EmbeddingService()._prune_unused_hf_variants("BAAI/bge-m3")
+
+    assert not (snapshot / "onnx").exists()
+    assert not onnx_blob.exists()
+    assert pytorch_blob.read_bytes() == b"pytorch-required"
+
+
 def test_ensure_encoder_clears_cache_and_retries_on_load_failure(monkeypatch):
     """A corrupted HF cache on the primary model self-heals via clear+retry instead of falling back.
 

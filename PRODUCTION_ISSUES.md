@@ -22,3 +22,14 @@ This register intentionally separates **verified**, **partially verified**, **bl
 ## Closure rule
 
 An issue may be closed only when the register records the changed file or configuration, exact command or browser action, test result, production evidence where applicable, and an independent verification result. A theoretical saving, source inspection, or healthy readiness probe is not sufficient to close a cost, performance, or quality issue.
+
+
+## Latest Railway end-to-end evidence — 2026-08-22 16:00–16:30 UTC
+
+- Backend deployment `fc45e021-d08f-4c02-a8c4-dc13c2b7f58e` reached `SUCCESS`; readiness eventually returned `ready=true`, `status=healthy`, with the expected transient startup interval. The reranker is still not baked into `/app/model_cache`; startup logs report a first-use download risk.
+- Dependency-complete tests executed inside the Railway image: the focused set reached **86 passed, 3 skipped**. The first broad non-live collection was intentionally stopped by missing root ingestion/ops files that are excluded from the serving image (`test_batched_ingest_pipeline.py`, `test_context_graph_expansion.py`, and `test_regex_safety_scanner.py`); this is a test-packaging boundary, not a production runtime pass.
+- Five repeated Telugu peace queries after the multilingual fallback release were all `200`, grounded, faithfulness `0.80`, with one evidence item each. Chat time was approximately `4.9–6.1s` for four warm runs; one run reached `17.5s`, confirming a remaining cold/queue tail. The fallback remains abstained and citation-free only when the evidence-aware refusal path actually fails.
+- A warm-token concurrent probe measured greeting `1.64s`, Hindi `10.10s`, Telugu `10.12s`, and safety `7.42s`; the sequential warm-token control measured greeting `1.48s`, safety `1.26s`, Hindi `5.13s`, and Telugu `5.66s`. Anonymous-session issuance itself measured about `4.0–4.7s` under concurrent setup. These measurements separate session overhead from chat latency but do not yet isolate Railway edge, admission, provider, or database spans.
+- Live backend RSS after the latest deployment was approximately `2.26 GiB` with a high-water mark around `3.74 GiB` in `/proc/1/status`; cgroup current was about `7.54 GB`, while `/app/.cache/huggingface` occupied `4.4 GB` on disk. The discrepancy requires memory-map/page-cache attribution before any model or cache removal. No memory reduction is claimed.
+- Current Railway usage snapshot: `$29.6933` against the `$30` hard limit, estimated bill `$55.2651`, memory `$27.9814`, CPU `$1.3618`, volume `$0.2709`, egress `$0.0791`. Memory remains the dominant scaling blocker.
+- No corpus files, global Redis state, Neo4j schema, embedding backend, RRF/DBSF policy, or broad graph concurrency were changed during this evidence wave.

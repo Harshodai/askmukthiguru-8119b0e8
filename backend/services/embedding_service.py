@@ -441,6 +441,7 @@ class EmbeddingService:
                         )
 
                     logger.info(f"Successfully loaded embedding model '{model_name}'")
+                    self._prune_unused_hf_variants(model_name)
                     if model_name != settings.embedding_model:
                         settings.embedding_model = model_name
                         logger.info(
@@ -464,6 +465,80 @@ class EmbeddingService:
                 exc_info=True,
             )
             raise last_error
+
+    def _prune_unused_hf_variants(self, model_name: str) -> None:
+        """Remove unused model variants from the serving cache after load.
+
+        FlagEmbedding loads the PyTorch BGE-M3 weights. The upstream snapshot also
+        contains a roughly 2.2 GB ONNX data blob, but ONNX INT8 is intentionally
+        gated and must not be selected by this path. Removing only the ONNX
+        snapshot links and blobs that are no longer referenced reduces volume and
+        page-cache pressure; it never changes the loaded encoder or Qdrant vectors.
+        Set ``PRUNE_UNUSED_HF_VARIANTS=false`` to disable this maintenance action,
+        or keep it disabled automatically when ``onnx_int8`` is selected.
+        """
+        if model_name != "BAAI/bge-m3" or settings.embedding_backend == "onnx_int8":
+            return
+        enabled = os.getenv("PRUNE_UNUSED_HF_VARIANTS", "true").strip().casefold()
+        if enabled not in {"1", "true", "yes", "on"}:
+            return
+        hf_home = os.getenv("HF_HOME")
+        if not hf_home:
+            return
+        model_root = Path(hf_home) / "hub" / "models--BAAI--bge-m3"
+        snapshots = model_root / "snapshots"
+        if not snapshots.is_dir():
+            return
+
+        import shutil
+
+        removed_blobs: list[Path] = []
+        removed_bytes = 0
+        for snapshot in snapshots.iterdir():
+            onnx_dir = snapshot / "onnx"
+            if not onnx_dir.is_dir():
+                continue
+            for item in onnx_dir.rglob("*"):
+                if item.is_symlink():
+                    try:
+                        removed_blobs.append(item.resolve(strict=True))
+                    except FileNotFoundError:
+                        pass
+                elif item.is_file():
+                    try:
+                        removed_bytes += item.stat().st_size
+                    except OSError:
+                        pass
+            try:
+                shutil.rmtree(onnx_dir)
+            except OSError as exc:
+                logger.warning("Could not prune unused BGE-M3 ONNX snapshot: %s", exc)
+                continue
+
+        if not removed_blobs:
+            return
+
+        still_linked: set[Path] = set()
+        for link in snapshots.rglob("*"):
+            if link.is_symlink():
+                try:
+                    still_linked.add(link.resolve(strict=True))
+                except FileNotFoundError:
+                    continue
+        for blob in set(removed_blobs):
+            if blob in still_linked or not blob.is_file():
+                continue
+            try:
+                removed_bytes += blob.stat().st_size
+                blob.unlink()
+            except OSError as exc:
+                logger.debug("Could not remove orphaned HF blob %s: %s", blob.name, exc)
+
+        if removed_bytes:
+            logger.info(
+                "Pruned unused BGE-M3 ONNX cache variant: %.1f MB reclaimed",
+                removed_bytes / (1024 * 1024),
+            )
 
     def _clear_hf_cache_for(self, model_id: str) -> None:
         """Remove cached files for a model from HuggingFace cache directories."""
