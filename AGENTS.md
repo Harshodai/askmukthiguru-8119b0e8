@@ -677,7 +677,7 @@ Warm repeated Hindi FAQ requests completed in roughly 7 seconds wall-clock with 
 
 
 ### Master Mission handoff — 2026-08-22
-- Current repository head is `1f91239`; backend/worker runtime deployment for the SSE fix is `3980b6ec-2080-4a78-94f8-776cca43d379` / `fd44c8ff-6363-42a7-8bac-3a5c32642ecb`. Both reached `SUCCESS`; the correct Railway service domain is `askmukthiguru-8119b0e8-production.up.railway.app`.
+- Current repository head is `17bd55b`; backend/worker runtime deployment for the SSE fix is `3980b6ec-2080-4a78-94f8-776cca43d379` / `fd44c8ff-6363-42a7-8bac-3a5c32642ecb`. Both reached `SUCCESS`; the correct Railway service domain is `askmukthiguru-8119b0e8-production.up.railway.app`.
 - The backend SSE stream emits a separate `final` event containing the authoritative post-normalization answer after raw tokens. Frontend consumers must parse and persist this final event; otherwise the Lovable UI can display a pre-normalized refusal.
 - Live stillness validation now returns `reflective_meaning_fallback`, `grounding_state=abstained`, zero citations, and faithfulness `0.0` rather than the old short refusal. This is a UX regression mitigation only; it does not close the grounded-answer quality gate.
 - The Lovable browser route rendered the public homepage and chat controls and accepted a harmless query, but the captured bundle showed the pre-fix limited-support text. Do not mark frontend streaming integration verified until the Lovable-hosted bundle is republished or otherwise proven to contain the new parser.

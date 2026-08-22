@@ -1,7 +1,7 @@
 # AskMukthiGuru Production Readiness Matrix
 
 **Assessment date:** 2026-08-22  
-**Current repository head:** `8c9662d`  
+**Current repository head:** `17bd55b`  
 **Current backend/worker deployment:** `3980b6ec-2080-4a78-94f8-776cca43d379` / `fd44c8ff-6363-42a7-8bac-3a5c32642ecb`
 
 ## Verdict
