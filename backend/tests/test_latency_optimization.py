@@ -143,6 +143,21 @@ def test_select_graph_heuristics_simple():
     assert result == "fast", f"Expected 'fast' for definition-plus-practice FAQ, got '{result}'"
 
 
+def test_select_graph_native_short_query_fast_path():
+    """Short native-script FAQs avoid semantic-router latency without broadening fast routing."""
+    from app.orchestrator_utils import select_graph_for_query
+
+    result = asyncio.get_event_loop().run_until_complete(
+        select_graph_for_query("शांति का अर्थ क्या है?")
+    )
+    assert result == "fast"
+
+    result = asyncio.get_event_loop().run_until_complete(
+        select_graph_for_query("तुलना करें ध्यान और प्रार्थना में")
+    )
+    assert result != "fast"
+
+
 def test_select_graph_heuristics_deep():
     """Kill #1: Deep patterns should still route to 'deep'."""
     from app.orchestrator_utils import select_graph_for_query

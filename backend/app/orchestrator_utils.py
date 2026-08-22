@@ -248,6 +248,35 @@ async def select_graph_for_query(
     )
     is_multi_part = any(re.search(patn, q) for patn in _MULTI_PART_INDICATORS) and not is_definition_practice_faq
 
+    # Bounded multilingual latency guard: a short, single-focus non-English
+    # question should use the same fast graph as its English FAQ equivalent.
+    # The on-device classifier can return no label for Indic scripts, which
+    # previously fell through to semantic-router inference (~8s in production)
+    # before the fast graph was selected. This guard never handles multipart or
+    # comparative wording, and the fast graph still runs distress detection,
+    # retrieval, answer guardrails, and final formatting.
+    _native_comparison_terms = ("versus", "compare", "difference", "vs", "तुलना", "తేడా")
+    if (
+        not q.isascii()
+        and len(tokens) <= 8
+        and detected_intent in (None, "FACTUAL", "QUERY", "CASUAL", "MEDITATION")
+        and not is_multi_part
+        and not any(term in q for term in _native_comparison_terms)
+    ):
+        try:
+            _t = asyncio.create_task(
+                log_router_decision(
+                    query=query,
+                    tier="fast",
+                    confidence=1.0,
+                    method="heuristic_native_short",
+                )
+            )
+            _t.add_done_callback(_observe_background_task_error)
+        except Exception as _e:
+            logger.debug("[telemetry task] suppressed non-critical error: %s", _e)
+        return "fast"
+
     # Doctrine keyword fast-path: known spiritual terms get fast even at 25 tokens
     if detected_intent in ("FACTUAL", "QUERY"):
         if any(kw in q for kw in _DOCTRINE_FAST_PATH_KEYWORDS) and not is_multi_part:
