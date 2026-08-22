@@ -618,3 +618,14 @@ CI or deployment. Clean release evidence must include `npm ci`, `npm test --
 Python 3.12 environment and `pip install -r backend/requirements.lock` before
 running the backend suite. Do not claim a release is reproducible solely because
 the existing development virtual environment passes tests.
+
+
+## Active latency and quality invariants — 2026-08-22
+
+The production latency pass introduced two safe hot-path rules. First, the bounded meditation-versus-contemplation answer may short-circuit only after input and distress guardrails, only for English, and only with explicit limited-support metadata, zero citations, and abstained grounding. Second, translation is a bounded dependency: query, history, and final-answer provider calls use `translation_timeout_s` (default 5 seconds) and fail open with native/original text rather than blocking the full chat pipeline. The English-with-Indic-preference case must not invoke translation at all; native and code-switched Indic input must retain translation and guardrail coverage.
+
+The following changes remain evidence-gated and must not be activated from intuition or an aggregate average: `EMBEDDING_BACKEND=onnx_int8` for query/index migration, RRF/DBSF weights or prefetch multipliers, Neo4j schema mutations, and broad graph parallelization. Activation requires a held-out evaluation with per-query-class NDCG/recall/precision, answer faithfulness, citation correctness, abstention/false-refusal behavior, p95/p99 latency, timeout/error rate, tenant/rights isolation, and a documented rollback. Existing fp32 query/index compatibility, fusion configuration, Neo4j schema, graph caps, and fail-open behavior are the production defaults until those gates pass.
+
+The 2026-08-22 production verification observed the bounded comparison at approximately 7 ms with a 367-character limited-support response and no citations. English text submitted under Hindi preference completed in approximately 4.3 seconds without input translation; a native Hindi FAQ completed in approximately 4.0 seconds after the bounded translation policy shipped. Deep health reported `ready=true`, `status=healthy`, embedding dimension 1024, queue size 0, exact-cache keys 0, and healthy Qdrant, Redis, Neo4j, LLM, embedding, fast graph, and LightRAG checks. Railway's deployment-list API intermittently returned a response-decoding error during rollout, so release evidence must distinguish endpoint health/behavior from deployment-list transport status.
+
+The sandbox has no `pytest` or `pydantic-settings`. Do not install packages for a release check when the task forbids installation, and never represent static compilation or regex safety as a substitute for dependency-complete tests. The focused regression test is committed for execution in CI or the locked production test image.
