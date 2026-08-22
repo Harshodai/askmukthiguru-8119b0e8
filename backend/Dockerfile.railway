@@ -13,6 +13,8 @@
 FROM python:3.12-slim
 
 # ── Cache Buster ──
+# This layer is intentionally touched for the terminal-fallback corrective release;
+# keep it behavior-neutral and never use it to bypass corpus or model evidence gates.
 # This arg is filled by railway up (or buildx) with the commit hash.
 # It busts the Docker build cache on every new commit. Platforms without
 # --build-arg support will silently ignore it (no effect on dev).
