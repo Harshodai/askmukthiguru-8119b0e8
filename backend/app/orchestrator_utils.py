@@ -374,10 +374,28 @@ async def prepare_request_state(
 
     user_msg_en = user_msg
     if should_translate:
-        user_msg_en = await container.translation.translate_text(
-            text=user_msg, source_lang=preferred_lang, target_lang="en"
-        )
-        logger.info(f"Translated user query from {preferred_lang} to English: {user_msg_en}")
+        translation_timeout = getattr(settings, "translation_timeout_s", 5.0)
+        try:
+            user_msg_en = await asyncio.wait_for(
+                container.translation.translate_text(
+                    text=user_msg, source_lang=preferred_lang, target_lang="en"
+                ),
+                timeout=translation_timeout,
+            )
+            logger.info(f"Translated user query from {preferred_lang} to English: {user_msg_en}")
+        except asyncio.TimeoutError:
+            # BGE-M3 and the generation model support multilingual text. Keep
+            # the original query rather than turning a provider tail into a
+            # user-visible timeout; retrieval remains fail-open.
+            logger.warning(
+                "Query translation timed out after %.1fs; preserving native text",
+                translation_timeout,
+            )
+        except Exception as translation_err:
+            logger.warning(
+                "Query translation failed; preserving native text: %s",
+                translation_err,
+            )
 
     chat_history_en = []
     if is_indic and should_translate and chat_history:
@@ -386,9 +404,26 @@ async def prepare_request_state(
         # before retrieval could begin; gather keeps the same translated content
         # contract but makes the tail bounded by the slowest translation call.
         async def _translate_history_message(msg: dict[str, Any]) -> dict[str, str]:
-            msg_content_en = await container.translation.translate_text(
-                text=msg["content"], source_lang=preferred_lang, target_lang="en"
-            )
+            translation_timeout = getattr(settings, "translation_timeout_s", 5.0)
+            try:
+                msg_content_en = await asyncio.wait_for(
+                    container.translation.translate_text(
+                        text=msg["content"], source_lang=preferred_lang, target_lang="en"
+                    ),
+                    timeout=translation_timeout,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "History translation timed out after %.1fs; preserving native text",
+                    translation_timeout,
+                )
+                msg_content_en = msg["content"]
+            except Exception as translation_err:
+                logger.warning(
+                    "History translation failed; preserving native text: %s",
+                    translation_err,
+                )
+                msg_content_en = msg["content"]
             return {"role": msg["role"], "content": msg_content_en}
 
         chat_history_en = list(

@@ -113,6 +113,10 @@ class Settings(BaseSettings):
     # the deterministic verification signal bounded; a timeout is reported as
     # unverified rather than being promoted to a passing score.
     faithfulness_verification_timeout: float = Field(default=8.0, gt=0.0, le=30.0)
+    # Bound user-visible translation tails. BGE-M3 and the generation model are
+    # multilingual, so a timeout can safely preserve the original Indic text
+    # rather than holding the request until a degraded provider returns.
+    translation_timeout_s: float = Field(default=5.0, gt=0.0, le=15.0)
 
     serene_mind_enabled: bool = True
     # Enable/disable Serene Mind distress detection engine

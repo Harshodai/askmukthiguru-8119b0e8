@@ -359,9 +359,26 @@ class TranslationStage(Stage):
             # If the model already produced native Indic script, re-translating with source_lang="en"
             # causes grammar distortion, phrase duplication, and doubles request latency.
             if detected == "en":
-                ctx.final_answer = await ctx.container.translation.translate_text(
-                    text=ctx.final_answer, source_lang="en", target_lang=ctx.preferred_lang
-                )
+                translation_timeout = getattr(settings, "translation_timeout_s", 5.0)
+                try:
+                    ctx.final_answer = await asyncio.wait_for(
+                        ctx.container.translation.translate_text(
+                            text=ctx.final_answer,
+                            source_lang="en",
+                            target_lang=ctx.preferred_lang,
+                        ),
+                        timeout=translation_timeout,
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "Answer translation timed out after %.1fs; preserving English answer",
+                        translation_timeout,
+                    )
+                except Exception as translation_err:
+                    logger.warning(
+                        "Answer translation failed; preserving English answer: %s",
+                        translation_err,
+                    )
         return None
 
 
