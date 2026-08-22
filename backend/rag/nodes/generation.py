@@ -72,6 +72,7 @@ _BOUNDED_REFUSAL_RE = re.compile(
 _LANGUAGE_AWARE_FAST_TIER_SCORE = 0.8
 _GENERIC_PRACTICE_TERMS = ("practice", "exercise", "try", "do right now")
 _STILLNESS_TERMS = ("stillness", "quiet", "calm", "settle", "presence")
+_STILLNESS_MEANING_TERMS = ("what is", "meaning of", "define", "definition of", "explain")
 _COMPARISON_TERMS = ("difference between", "compare", "versus", " vs ", " vs.")
 
 
@@ -97,6 +98,25 @@ def _is_generic_stillness_practice_request(question: str) -> bool:
         any(term in lowered for term in _GENERIC_PRACTICE_TERMS)
         and any(term in lowered for term in _STILLNESS_TERMS)
         and len(lowered) <= 180
+    )
+
+
+def _generic_stillness_meaning_request(question: str) -> bool:
+    """Identify a narrow request for a general, non-doctrinal definition."""
+    lowered = " ".join(str(question or "").casefold().split())
+    return bool(
+        any(term in lowered for term in _STILLNESS_MEANING_TERMS)
+        and any(term in lowered for term in _STILLNESS_TERMS)
+        and len(lowered) <= 180
+    )
+
+
+def _generic_stillness_meaning_fallback() -> str:
+    return (
+        "I could not verify a specific teaching for that question right now. "
+        "As a general, non-doctrinal reflection, stillness can mean a quieter "
+        "relationship with passing thoughts and sensations, without needing to "
+        "push them away. Notice one breath and let the next moment be as it is."
     )
 
 
@@ -912,6 +932,9 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         if _is_generic_stillness_practice_request(state.get("question", "")):
             answer = _generic_stillness_practice_fallback()
             route_decision = "reflective_practice_fallback"
+        elif _generic_stillness_meaning_request(state.get("question", "")):
+            answer = _generic_stillness_meaning_fallback()
+            route_decision = "reflective_meaning_fallback"
         else:
             answer = (
                 "I couldn't find relevant teachings in my knowledge base for this "
@@ -1056,6 +1079,9 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
         if _is_generic_stillness_practice_request(state.get("question", "")):
             answer = _generic_stillness_practice_fallback()
             route_decision = "reflective_practice_fallback"
+        elif _generic_stillness_meaning_request(state.get("question", "")):
+            answer = _generic_stillness_meaning_fallback()
+            route_decision = "reflective_meaning_fallback"
         else:
             answer = (
                 "I am unable to find specific teachings on this topic in the wisdom of Sri Preethaji and Sri Krishnaji. "
@@ -1990,6 +2016,34 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
                 verification_passed=False,
                 confidence_score=0.0,
                 route_decision="limited_comparison_fallback",
+            ),
+        }
+    if (
+        refusal_action == "retry"
+        and _generic_stillness_meaning_request(state.get("question", ""))
+    ):
+        logger.info(
+            "Final: replacing stillness meaning refusal with bounded non-doctrinal reflection"
+        )
+        fallback_answer = _generic_stillness_meaning_fallback()
+        return {
+            "final_answer": fallback_answer,
+            "citations": [],
+            "intent": intent,
+            "_needs_retry": False,
+            "is_faithful": False,
+            "verification": {"passed": False, "method": "reflective_meaning_fallback"},
+            "faithfulness_score": 0.0,
+            "confidence_score": 0.0,
+            "citations_verified": citations_verified,
+            "refusal_quality_failure": False,
+            "evaluation_trace": _trace_update(
+                state,
+                final_answer_chars=len(fallback_answer),
+                final_citations=[],
+                verification_passed=False,
+                confidence_score=0.0,
+                route_decision="reflective_meaning_fallback",
             ),
         }
     if (
