@@ -436,6 +436,7 @@ async def prepare_request_state(
         container,
         user_id,
         chat_history_en,
+        user_msg_en=user_msg_en,
     )
 
     recommended_course = None
