@@ -35,7 +35,7 @@ Only independent, read-only graph branches may be parallelized. Their state writ
 
 ## Current safe changes and deployment boundary
 
-The repository head contains two changes that do not alter retrieval evidence: a narrow English bounded-comparison short-circuit after input and distress guardrails, and a five-second translation deadline with fail-open multilingual behavior. English messages under an Indic UI preference skip redundant input translation; native Indic and code-switched text retain translation and guardrail coverage. The bounded-comparison shortcut is active in production through `8655709`. The translation-timeout and multilingual evidence-retry changes are pushed, but Railway has not promoted them: the attempted snapshots failed during initialization before Build/Deploy. All other gated defaults remain unchanged in production.
+The repository head contains two changes that do not alter retrieval evidence: a narrow English bounded-comparison short-circuit after input and distress guardrails, and a five-second translation deadline with fail-open multilingual behavior. English messages under an Indic UI preference skip redundant input translation; native Indic and code-switched text retain translation and guardrail coverage. The bounded-comparison shortcut and multilingual evidence-retry are active in production through successful `806799d` deployments. Warm repeated Hindi requests are approximately 7 seconds wall-clock, but a 21-second matrix outlier remains an open tail-observability issue. All other gated defaults remain unchanged in production.
 
 ## Evidence references
 
