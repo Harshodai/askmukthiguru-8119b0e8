@@ -2,7 +2,7 @@
 
 Order mirrors the original PipelineCoordinator.execute() flow:
   cache_check → circuit_breaker → request_state → input_guardrails →
-  doctrine_cache → casual_short_circuit → distress → graph →
+  doctrine_cache → casual_short_circuit → distress → bounded_comparison → graph →
   meditation_gen → translation → tone_adapter → output_guardrails →
   memory_save → cache_update → result_assembly
 """
@@ -14,6 +14,7 @@ from app.pipeline.stages.cache_stage import CacheCheckStage, CacheUpdateStage
 from app.pipeline.stages.distress_stage import DistressStage
 from app.pipeline.stages.doctrine_cache_stage import DoctrineCacheStage
 from app.pipeline.stages.glue_stages import (
+    BoundedComparisonShortCircuitStage,
     CasualShortCircuitStage,
     RequestStateStage,
     ResultAssemblyStage,
@@ -40,6 +41,7 @@ def build_default_pipeline() -> list[Stage]:
         DoctrineCacheStage(),
         CasualShortCircuitStage(),
         DistressStage(),
+        BoundedComparisonShortCircuitStage(),
         GraphStage(),
         MeditationGenStage(),
         TranslationStage(),

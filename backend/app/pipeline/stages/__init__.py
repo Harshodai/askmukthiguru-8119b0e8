@@ -10,6 +10,7 @@ from app.pipeline.stages.cache_stage import CacheCheckStage, CacheUpdateStage
 from app.pipeline.stages.context import PipelineContext
 from app.pipeline.stages.distress_stage import DistressStage
 from app.pipeline.stages.glue_stages import (
+    BoundedComparisonShortCircuitStage,
     CasualShortCircuitStage,
     RequestStateStage,
     ResultAssemblyStage,
@@ -42,6 +43,7 @@ __all__ = [
     "MeditationGenStage",
     "MemoryStage",
     "RequestStateStage",
+    "BoundedComparisonShortCircuitStage",
     "CasualShortCircuitStage",
     "TranslationStage",
     "ToneAdapterStage",

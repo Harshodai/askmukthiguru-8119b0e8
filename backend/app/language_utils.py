@@ -144,16 +144,20 @@ def detect_and_prepare_language_info(
     else:
         lang_detection = container.language_router.detect(message)
 
-    # Determine if translation is needed
+    # Determine if translation is needed. An Indic preference does not mean
+    # every message is Indic: users commonly select Hindi/Telugu and type an
+    # English question. Avoid paying a provider round trip for that case. Native
+    # Indic or code-switched text still follows the established translation path.
     should_translate = False
     if is_indic:
         normalized_preferred = normalized_lang
-        if normalized_preferred != "en":
-            should_translate = True
-        else:
-            detected = container.language_router.detect(message)
-            should_translate = detected.primary.value != "en" or any(
-                ord(char) > 127 for char in message
-            )
+        message_lang = detect_message_lang(message)
+        should_translate = message_lang != "en"
+        logger.debug(
+            "Language preparation: preferred=%s message=%s should_translate=%s",
+            normalized_preferred,
+            message_lang,
+            should_translate,
+        )
 
     return lang_detection, normalized_lang, is_indic, should_translate

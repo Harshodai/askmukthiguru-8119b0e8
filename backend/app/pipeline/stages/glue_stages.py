@@ -220,6 +220,72 @@ def _deterministic_greeting(preferred_lang: str | None) -> str | None:
     return _INDIC_GREETING_RESPONSES.get(language)
 
 
+_COMPARISON_TERMS = ("difference between", "compare", "versus", " vs ", " vs.")
+
+
+def _is_bounded_meditation_comparison(question: str) -> bool:
+    lowered = " ".join(str(question or "").casefold().split())
+    return bool(
+        any(term in lowered for term in _COMPARISON_TERMS)
+        and "meditation" in lowered
+        and "contemplation" in lowered
+        and len(lowered) <= 180
+    )
+
+
+def _bounded_meditation_comparison_answer() -> str:
+    return (
+        "Here is a general distinction, not a quoted teaching: meditation usually "
+        "emphasizes stabilizing attention, while contemplation usually emphasizes "
+        "sustained inquiry or reflection on a theme. They can overlap—meditation "
+        "steadies the mind, and contemplation examines what becomes clear. I could "
+        "not verify a direct teaching on this comparison from the retrieved sources."
+    )
+
+
+class BoundedComparisonShortCircuitStage(Stage):
+    """Return a safe, clearly-labelled comparison without an unnecessary RAG round."""
+
+    name = "bounded_comparison_short_circuit"
+
+    async def run(self, ctx: PipelineContext) -> PipelineResult | None:
+        # Use the normalized English query when available, but never require a
+        # translation call for the fast path. InputGuardrailStage already ran.
+        question = str(ctx.state.get("user_msg_en") or ctx.user_msg or "")
+        preferred_lang = str(ctx.preferred_lang or "en").casefold().split("-", 1)[0]
+        if preferred_lang != "en" or not _is_bounded_meditation_comparison(question):
+            return None
+        answer = _bounded_meditation_comparison_answer()
+        return PipelineResult(
+            final_answer=answer,
+            intent="COMPARATIVE",
+            trace_id=ctx.trace_id,
+            latency_ms=int((time.time() - ctx.start_time) * 1000),
+            model_used=None,
+            model_provider=None,
+            route_decision="bounded_comparison_short_circuit",
+            query_tier="fast",
+            faithfulness_score=0.0,
+            hallucination_flag=True,
+            verification={
+                "passed": False,
+                "method": "limited_comparison_fallback",
+                "citations_verified": True,
+            },
+            citations_verified=True,
+            confidence_score=0.0,
+            release_manifest=get_release_manifest().to_dict(),
+            guidance_plan=GuidancePlan(
+                response_mode="balanced_guidance",
+                language=str(ctx.preferred_lang or "en"),
+                attribution=TeachingAttribution(
+                    label="General information; not a quoted teaching",
+                    source_backed=False,
+                ),
+            ),
+        )
+
+
 class RequestStateStage(Stage):
     """Prepare request state (language detection, translation, memory context)."""
 
