@@ -7510,3 +7510,17 @@ The post-deploy concurrent smoke was healthy but showed approximately 18–23 se
 ### L-RAILWAY-5. Cost and memory evidence must distinguish point measurements from invoices
 - **What**: The latest Railway snapshot was `$29.6933` against a `$30` hard limit with a `$55.2651` forecast and approximately `94%` memory share. The cache cleanup produced point-in-time filesystem and cgroup improvements, but it did not yet prove invoice reduction.
 - **How to prevent**: Label every number as invoice, service metric, cgroup snapshot, estimate, or scenario. Require a fixed post-release observation window before converting working-set reductions into savings claims.
+
+
+## Aug 22, 2026 — Retrieval return-contract and no-context answer gating
+
+### L-RETRIEVAL-1. Instrumentation must preserve the node's output contract
+- **What**: Adding privacy-safe `RETRIEVAL_STAGE_TIMING` logging exposed a latent final-return regression: `retrieve_documents()` returned an undefined `documents` variable after the assembled retrieval list had been renamed and progressively enriched as `all_docs`. The wrapper converted the `NameError` into an error-shaped state, making empty-result tests fail and causing live no-context behavior.
+- **Fix applied**: Return `all_docs` at the final contract boundary. No retrieval ranking, graph selection, embedding backend, corpus, or cache policy was changed. The dependency-complete Railway suite then passed `83 passed, 2 skipped`.
+- **How to prevent**: When instrumenting a pipeline node, run the empty-result and final-contract tests before deployment. Inspect the complete function after adding timing code; do not infer the final variable name from an intermediate block.
+
+### L-RETRIEVAL-2. Content-gap answers need a pre-gate product branch
+- **What**: A no-surviving-document content-gap answer was longer than the canonical bounded refusal, so `_is_bounded_refusal` did not recognize it. The generic fast-tier retry/gating ladder then collapsed it to a 38-character refusal even though a narrow, non-doctrinal reflective response was available.
+- **Fix applied**: Added a narrow early branch in `generation.py` for no-document peace/stillness meaning predicates. It returns an explicitly reflective, citation-free answer with `grounding_state=abstained` and does not claim corpus support. The terminal `short_circuit.py` guard remains as a separate defense for the distinct terminal graph path.
+- **Production proof**: After deployment `f1d6d75e-2e83-48f6-b269-2a940f7bff91`, the exact Hindi prompt `शांति का अर्थ क्या है?` returned `5/5` HTTP 200, grounded at faithfulness `0.80`, with `243–507` response characters and no 38-character refusal. The Telugu control returned `4/5` grounded and `1/5` honest reflective abstention; this is not a multilingual closure claim.
+- **How to prevent**: Distinguish retrieval-quality repair from UX fallback repair. Measure both; preserve abstention metadata and zero citations whenever evidence is absent; never use a friendly fallback as proof that retrieval is grounded.
