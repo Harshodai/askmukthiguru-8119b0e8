@@ -460,51 +460,32 @@ const ProfilePage = () => {
                   <CardDescription>Tell the Guru about yourself and your spiritual focus.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 p-5 sm:p-7">
-                  <div className="flex flex-col sm:flex-row items-center gap-6 pb-2">
-                    <div className="relative shrink-0">
-                      <Avatar className="w-20 h-20 sm:w-24 sm:h-24 ring-1 ring-border relative">
-                        {(profile.avatarDataUrl || profile.avatarUrl) ? (
-                          <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
-                        ) : null}
-                        <AvatarFallback className="bg-muted text-foreground text-xl font-serif font-semibold">
-                          {getInitials(profile.displayName)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        aria-label="Change profile photo"
-                        className="absolute bottom-0 right-0 min-w-[44px] min-h-[44px] flex items-center justify-center p-2.5 rounded-full bg-ojas text-primary-foreground shadow-sm hover:bg-ojas-light transition-all"
-                      >
-                        <Camera className="w-4 h-4" />
-                      </button>
-
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleAvatarPick}
+                  <div className="space-y-3">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarPick}
+                    />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="displayName" className="text-sm font-medium">Display Name</Label>
+                      <Input
+                        id="displayName"
+                        value={form.displayName}
+                        onChange={(e) => patch('displayName', e.target.value)}
+                        placeholder="How should I address you?"
+                        maxLength={40}
+                        className="min-h-[44px] rounded-xl"
                       />
                     </div>
-                    <div className="flex-1 space-y-3 w-full">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="displayName" className="text-sm font-medium">Display Name</Label>
-                        <Input
-                          id="displayName"
-                          value={form.displayName}
-                          onChange={(e) => patch('displayName', e.target.value)}
-                          placeholder="How should I address you?"
-                          maxLength={40}
-                          className="min-h-[44px] rounded-xl"
-                        />
-                      </div>
-                      {profile.avatarDataUrl && (
-                        <Button variant="ghost" size="sm" onClick={handleRemoveAvatar} className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs min-h-[36px] px-2.5 rounded-lg">
-                          <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Remove photo
-                        </Button>
-                      )}
-                    </div>
+                    {profile.avatarDataUrl && (
+                      <Button variant="ghost" size="sm" onClick={handleRemoveAvatar} className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs min-h-[36px] px-2.5 rounded-lg">
+                        <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Remove photo
+                      </Button>
+                    )}
                   </div>
+
 
                   <div className="space-y-2">
                     <Label htmlFor="bio" className="text-sm font-medium">Your Path & Intention</Label>
@@ -659,7 +640,7 @@ const ProfilePage = () => {
                   )}
                   {metrics && (
                     <>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-3 gap-3">
                         <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Flame className="w-3.5 h-3.5" />
@@ -676,15 +657,6 @@ const ProfilePage = () => {
                           </div>
                           <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
                             {metrics.totalMessages}
-                          </p>
-                        </div>
-                        <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Clock className="w-3.5 h-3.5" />
-                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">Meditation</span>
-                          </div>
-                          <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
-                            {Math.round(metrics.totalMeditationMinutes)}m
                           </p>
                         </div>
                         <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
