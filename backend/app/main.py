@@ -477,6 +477,31 @@ async def _background_startup_body(container, fastapi_app) -> None:
     except Exception as _intent_warmup_err:
         logger.warning("On-device intent warm-up failed (non-fatal): %s", _intent_warmup_err)
 
+    # Semantic-router warm-up canary — its first classify_with_score call may
+    # initialize a model/embedding path lazily and previously added an observed
+    # multi-second graph-selection tail to the first short Indic request. Warm
+    # it during deployment while preserving the existing router policy; failures
+    # remain non-fatal and fall back to the current routing path.
+    try:
+        semantic_router = getattr(container, "semantic_router", None)
+        if getattr(settings, "use_semantic_router", True) and semantic_router is not None:
+            _t0 = time.time()
+            _semantic_probe = await asyncio.to_thread(
+                semantic_router.classify_with_score, "What is meditation?"
+            )
+            logger.info(
+                "Semantic-router warm-up complete: tier=%s confidence=%s latency=%dms",
+                _semantic_probe[0]
+                if isinstance(_semantic_probe, tuple) and _semantic_probe
+                else "none",
+                _semantic_probe[1]
+                if isinstance(_semantic_probe, tuple) and len(_semantic_probe) > 1
+                else "none",
+                int((time.time() - _t0) * 1000),
+            )
+    except Exception as _semantic_warmup_err:
+        logger.warning("Semantic-router warm-up failed (non-fatal): %s", _semantic_warmup_err)
+
     _app_deps.startup_complete = True
     logger.info("=== Mukthi Guru Backend Ready ===")
 
