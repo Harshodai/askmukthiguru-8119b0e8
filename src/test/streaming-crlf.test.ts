@@ -95,6 +95,21 @@ describe('sendMessageStreaming with CRLF SSE payload', () => {
     expect(chunks[0].type).toBe('token');
   });
 
+  it('parses the authoritative normalized final answer event', async () => {
+    fetchWithRetryMock.mockResolvedValue(
+      sseResponse('data: {"token":"raw refusal"}\n\nevent: final\ndata: "normalized fallback"\n\nevent: done\ndata: {"intent":"QUERY","citations":[],"grounding_state":"abstained"}\n\ndata: [DONE]\n\n'),
+    );
+
+    const chunks: StreamChunk[] = [];
+    for await (const chunk of sendMessageStreaming([], 'What is stillness?')) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks[0]).toEqual({ type: 'token', text: 'raw refusal' });
+    expect(chunks[1]).toEqual({ type: 'final', text: 'normalized fallback' });
+    expect(chunks[2]).toMatchObject({ type: 'done', intent: 'QUERY', citations: [] });
+  });
+
   it('matches CRLF event lines to the current SSE event type', async () => {
     fetchWithRetryMock.mockResolvedValue(
       sseResponse('event: status\r\ndata: {"step":1}\r\n\r\nevent: done\r\ndata: {"intent":"CASUAL","citations":[]}\r\n\r\ndata: [DONE]\r\n'),
