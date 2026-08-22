@@ -2186,6 +2186,74 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     state["verification"] = verification
     verified = verification.get("passed", False)  # refresh for downstream gate
 
+    # No-context short-circuit answers are longer than the canonical bounded
+    # refusal, so they bypass _is_bounded_refusal and used to fall through the
+    # retry/gating ladder before collapsing to a bare 38-character refusal.
+    # Handle only narrow general meaning requests here; unrelated no-evidence
+    # questions retain the existing honest content-gap behavior.
+    if not relevant_docs and _generic_peace_meaning_request(state.get("question", "")):
+        logger.info(
+            "Final: replacing no-evidence peace meaning content-gap answer with bounded reflection"
+        )
+        fallback_answer = _generic_peace_meaning_fallback()
+        return {
+            "final_answer": fallback_answer,
+            "citations": [],
+            "intent": intent,
+            "_needs_retry": False,
+            "is_faithful": False,
+            "verification": {
+                "passed": False,
+                "method": "reflective_peace_meaning_fallback",
+                "citations_verified": citations_verified,
+            },
+            "faithfulness_score": 0.0,
+            "confidence_score": 0.0,
+            "citations_verified": citations_verified,
+            "orphan_citations_stripped": orphan_citations_stripped,
+            "evaluation_trace": _trace_update(
+                state,
+                final_answer_chars=len(fallback_answer),
+                final_citations=[],
+                verification_passed=False,
+                confidence_score=0.0,
+                citations_verified=citations_verified,
+                orphan_citations_stripped=orphan_citations_stripped,
+                route_decision="reflective_peace_meaning_fallback",
+            ),
+        }
+    if not relevant_docs and _generic_stillness_meaning_request(state.get("question", "")):
+        logger.info(
+            "Final: replacing no-evidence stillness meaning content-gap answer with bounded reflection"
+        )
+        fallback_answer = _generic_stillness_meaning_fallback()
+        return {
+            "final_answer": fallback_answer,
+            "citations": [],
+            "intent": intent,
+            "_needs_retry": False,
+            "is_faithful": False,
+            "verification": {
+                "passed": False,
+                "method": "reflective_meaning_fallback",
+                "citations_verified": citations_verified,
+            },
+            "faithfulness_score": 0.0,
+            "confidence_score": 0.0,
+            "citations_verified": citations_verified,
+            "orphan_citations_stripped": orphan_citations_stripped,
+            "evaluation_trace": _trace_update(
+                state,
+                final_answer_chars=len(fallback_answer),
+                final_citations=[],
+                verification_passed=False,
+                confidence_score=0.0,
+                citations_verified=citations_verified,
+                orphan_citations_stripped=orphan_citations_stripped,
+                route_decision="reflective_meaning_fallback",
+            ),
+        }
+
     # Fast tier skips the heavy verification NODES, not the faithfulness GATE.
     #
     # This branch used to accept unconditionally and hardcode
