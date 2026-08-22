@@ -2285,6 +2285,37 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
     answer = remap_citation_markers(answer, relevant_docs, citations)
 
     if _is_bounded_refusal(answer):
+        if _generic_peace_meaning_request(state.get("question", "")):
+            logger.info(
+                "Final: replacing no-evidence peace meaning refusal with bounded non-doctrinal reflection"
+            )
+            fallback_answer = _generic_peace_meaning_fallback()
+            return {
+                "final_answer": fallback_answer,
+                "citations": [],
+                "intent": intent,
+                "_needs_retry": False,
+                "is_faithful": False,
+                "verification": {
+                    "passed": False,
+                    "method": "reflective_peace_meaning_fallback",
+                    "citations_verified": citations_verified,
+                },
+                "faithfulness_score": 0.0,
+                "confidence_score": 0.0,
+                "citations_verified": citations_verified,
+                "orphan_citations_stripped": orphan_citations_stripped,
+                "evaluation_trace": _trace_update(
+                    state,
+                    final_answer_chars=len(fallback_answer),
+                    final_citations=[],
+                    verification_passed=False,
+                    confidence_score=0.0,
+                    citations_verified=citations_verified,
+                    orphan_citations_stripped=orphan_citations_stripped,
+                    route_decision="reflective_peace_meaning_fallback",
+                ),
+            }
         if _is_simple_meditation_comparison_request(state.get("question", "")):
             logger.info(
                 "Final: replacing bounded meditation comparison refusal with limited-support explanation"

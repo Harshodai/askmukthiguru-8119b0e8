@@ -166,6 +166,26 @@ async def test_peace_meaning_refusal_uses_non_doctrinal_fallback():
 
 
 @pytest.mark.asyncio
+async def test_no_evidence_hindi_peace_refusal_uses_non_doctrinal_fallback():
+    state = _state(
+        answer="I am unable to find specific teachings on this topic.",
+        relevant_docs=[],
+        retry_count=1,
+        is_faithful=False,
+        verification={"passed": False},
+        question="शांति का अर्थ क्या है?",
+    )
+
+    result = await format_final_answer(state)
+
+    assert result["verification"]["method"] == "reflective_peace_meaning_fallback"
+    assert result["_needs_retry"] is False
+    assert "general, non-doctrinal reflection" in result["final_answer"]
+    assert result["citations"] == []
+    assert result["faithfulness_score"] == 0.0
+
+
+@pytest.mark.asyncio
 async def test_verification_timeout_returns_fallback(monkeypatch):
     """Verification timed out (is_faithful never written) AND the citation
     check did not verify → FALLBACK_RESPONSE, not an unverified answer."""
