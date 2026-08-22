@@ -70,3 +70,19 @@ The application remains **NOT READY FOR BROAD PRODUCTION**. Open gates include R
 - `/home/ubuntu/railway_telugu_post_retrieval_fix_2026-08-22.json`
 - `/home/ubuntu/railway_scoped_suite_after_retrieval_fix_2026-08-22.txt`
 - `/home/ubuntu/combined_correctness_deployment_2026-08-22.json`
+
+
+## Post-fix concurrent control
+
+The established metadata-only four-case concurrent control was run once after the combined release. It obtained a separate signed anonymous session for each case, so token issuance is reported separately from chat time.
+
+| Case | HTTP | Token issuance | Chat time | Internal latency | State | Faithfulness | Interpretation |
+|---|---:|---:|---:|---:|---|---:|---|
+| Greeting | 200 | 3.007s | 3.215s | 0ms | abstained / casual | 1.0 | Deterministic answer remained semantically safe but session issuance dominated total time (`6.222s`). |
+| Hindi peace | 200 | 2.843s | 6.365s | 5.056s | grounded | 0.8 | The exact held query remained grounded under concurrency; chat tail is materially slower than the warm sequential median. |
+| Telugu peace | 200 | 2.831s | 6.380s | 5.079s | grounded | 0.8 | Same concurrency amplification pattern as Hindi. |
+| Safety | 200 | 2.871s | 1.087s | 22ms | safety redirect | 1.0 | Safety route stayed fast after token issuance; no model/retrieval dependency was needed. |
+
+This control continues to show that anonymous-session issuance is a meaningful user-perceived cost and that concurrent semantic turns have a roughly six-second chat tail in this sample. It is not a p95/p99 benchmark and does not justify a production concurrency change by itself.
+
+Raw metadata artifact: `/home/ubuntu/railway_split_latency_post_correctness_2026-08-22.json`.
