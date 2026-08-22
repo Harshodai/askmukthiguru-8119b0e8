@@ -93,6 +93,8 @@ The third action should be to protect the Railway hard limit. The current period
 
 Qdrant’s official guidance supports scalar quantization as a lower-risk memory and search optimization than more aggressive binary or product quantization, but it requires oversampling, rescoring, and held-out quality checks. Qdrant also warns that leaving original vectors in RAM can erase expected memory savings [6]. Neo4j’s memory guidance separates JVM heap, native memory, transaction memory, page cache, and OS reserve, and warns that inadequate OS reserve can cause swapping and severe performance degradation [7]. OpenRouter documents `cached_tokens`, `cache_write_tokens`, and cache-discount fields as the basis for measuring prompt-cache savings [8]. Redis’ production RAG guidance emphasizes request correlation, retrieval precision, and cache-hit monitoring before scaling [9].
 
+The runtime CPU reranker model card identifies `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` as an Apache-2.0, approximately 0.1B-parameter multilingual MS MARCO cross-encoder covering 15 languages [12]. The Sentence Transformers documentation presents cross-encoders as a retrieve-then-rerank stage and reports that smaller MiniLM variants trade ranking quality against throughput on GPU hardware [13]. The exact model revision resolved from the public Hugging Face API is `1427fd652930e4ba29e8149678df786c240d8825`; adding it to an image must still be tested for cache-path correctness, cold/warm latency, RSS, and retrieval quality on this CPU Railway service.
+
 A first-hand inference-optimization talk recommended separating TTFT from decode latency, hardcoding trivial intents, using model cascades, and optimizing p90/p99 rather than only averages [10]. A vLLM engineering talk reported a Gemma-3 27B throughput change from 0.48 to 0.91 requests per second using a hybrid allocator on H100 hardware, but that GPU-specific result is not transferable to this CPU/external-API Railway architecture [11]. These sources support the implementation order—instrument first, then evaluate memory and routing candidates—but do not authorize an ONNX switch or a new self-hosted inference stack.
 
 ## Final cost-effectiveness verdict
@@ -114,3 +116,5 @@ The project is therefore cost-effective enough for controlled testing, but not y
 [9]: <https://redis.io/blog/rag-at-scale/> "Redis production RAG scaling guidance"
 [10]: <https://www.youtube.com/watch?v=sWgrAsKM9j8> "Inference optimization talk"
 [11]: <https://www.youtube.com/watch?v=0cUFUtNW_S8> "vLLM hybrid memory allocator engineering talk"
+[12]: <https://huggingface.co/cross-encoder/mmarco-mMiniLMv2-L12-H384-v1> "Hugging Face multilingual mmarco cross-encoder model card"
+[13]: <https://www.sbert.net/docs/pretrained-models/ce-msmarco.html> "Sentence Transformers MS MARCO cross-encoder documentation"
