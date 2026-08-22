@@ -66,6 +66,10 @@ logger = logging.getLogger(__name__)
 _OPENROUTER_FALLBACK_RATES_PER_MILLION: dict[str, tuple[float, float]] = {
     "qwen/qwen3-30b-a3b-instruct-2507": (0.04815, 0.1931),
     "meta-llama/llama-3.1-8b-instruct": (0.02, 0.04),
+    # OpenRouter pricing pages verified 2026-08-22. Provider-reported
+    # usage.cost always takes precedence over these accounting fallbacks.
+    "google/gemini-2.5-flash": (0.30, 2.50),
+    "google/gemini-3.6-flash": (0.75, 3.75),
 }
 
 
@@ -222,6 +226,9 @@ class OpenRouterService:
         tokens_in: int,
         tokens_out: int,
         model: str,
+        operation: str = "generate",
+        cached_tokens: int = 0,
+        cache_write_tokens: int = 0,
         cost_usd: float | None = None,
     ) -> None:
         """Push provider cost or an explicit fallback estimate into accounting."""
@@ -229,11 +236,15 @@ class OpenRouterService:
             from services.cost_tracker import token_accumulator_var
 
             acc = token_accumulator_var.get()
+            estimated_cost = (
+                self._fallback_cost(tokens_in, tokens_out, model)
+                if cost_usd is None
+                else 0.0
+            )
             if acc is not None:
                 acc.tokens_in += tokens_in
                 acc.tokens_out += tokens_out
                 if cost_usd is None:
-                    estimated_cost = self._fallback_cost(tokens_in, tokens_out, model)
                     acc.estimated_cost_usd += estimated_cost
                     if estimated_cost > 0:
                         logger.info(
@@ -246,8 +257,21 @@ class OpenRouterService:
                     acc.cost_usd += max(0.0, cost_usd)
                 acc.model = model
                 acc.provider = "openrouter"
-            from app.runtime_metrics import observe_provider_actual_cost
+            from app.runtime_metrics import (
+                observe_openrouter_accounting,
+                observe_provider_actual_cost,
+            )
 
+            fallback_cost_known = model in _OPENROUTER_FALLBACK_RATES_PER_MILLION
+            observe_openrouter_accounting(
+                model=model,
+                operation=operation,
+                cached_tokens=cached_tokens,
+                cache_write_tokens=cache_write_tokens,
+                estimated_cost_usd=estimated_cost,
+                cost_known=cost_usd is not None,
+                fallback_cost_known=fallback_cost_known,
+            )
             if cost_usd is not None and cost_usd > 0:
                 observe_provider_actual_cost("openrouter", cost_usd)
         except Exception as exc:
@@ -368,10 +392,19 @@ class OpenRouterService:
             cached_tokens = (
                 prompt_details.get("cached_tokens") or usage.get("cache_read_input_tokens") or 0
             )
-            if cached_tokens > 0:
+            cache_write_tokens = (
+                prompt_details.get("cache_write_tokens")
+                or usage.get("cache_creation_input_tokens")
+                or 0
+            )
+            if cached_tokens > 0 or cache_write_tokens > 0:
                 logger.info(
-                    f"OpenRouter Cache Hit: cached_tokens={cached_tokens} "
-                    f"out of prompt_tokens={tokens_in} for model={model}"
+                    "OpenRouter Cache Hit: cached_tokens=%s cache_write_tokens=%s "
+                    "model=%s operation=%s",
+                    cached_tokens,
+                    cache_write_tokens,
+                    model,
+                    operation,
                 )
 
             cost_usd = self._usage_cost(usage)
@@ -379,6 +412,9 @@ class OpenRouterService:
                 tokens_in=tokens_in,
                 tokens_out=tokens_out,
                 model=model,
+                operation=operation,
+                cached_tokens=cached_tokens,
+                cache_write_tokens=cache_write_tokens,
                 cost_usd=cost_usd,
             )
             await reservation.settle(cost_usd)

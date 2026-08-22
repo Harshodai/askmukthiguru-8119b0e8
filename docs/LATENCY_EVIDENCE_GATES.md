@@ -15,6 +15,8 @@ Every candidate change must be evaluated against the same held-out set and the s
 | Latency | p50/p95/p99 and timeout rate by class, including cold and warm runs | Keep current path; optimize only isolated safe work |
 | Safety and privacy | Distress, prompt-injection, rights quarantine, tenant isolation, and private-memory non-leak probes | Reject the change and roll back |
 | Cost and capacity | Provider calls, tokens, CPU, memory, Qdrant payload size, and queue SLA | Do not trade cost for an unmeasured tail improvement |
+| Cost attribution integrity | Provider actual cost, known fallback estimate, unknown cost, cache-read/write tokens, avoided calls, and infrastructure usage kept as separate ledgers | Do not treat missing provider cost or cache savings as zero |
+| Cost per useful answer | Cost per successful grounded answer, split by route/query class and including retries/fallbacks | Do not scale a path that is merely cheaper per request but produces more refusals or retries |
 | Rollback | Reversible configuration or deployment and a known-good revision | Do not activate |
 
 ## ONNX INT8 embedding migration
@@ -33,6 +35,16 @@ Neo4j indexes and constraints must be applied through an idempotent, lock-protec
 
 Only independent, read-only graph branches may be parallelized. Their state writes must use explicit reducers or isolated result fields, their concurrency must be capped to host and Neo4j capacity, and a timeout on any branch must fail open to the vector path. The canary must compare graph-enabled and Qdrant-only runs for answer faithfulness, provenance completeness, graph timeout rate, p95/p99 latency, and resource usage. Do not parallelize branches that mutate shared state, rely on ordering, or may expose private memory through values streaming.
 
+## Cost-efficiency gates
+
+The current Railway evidence is memory-dominated: the active billing period reported $28.79 usage, with $27.09 (94.1%) from memory, $1.35 (4.7%) from CPU, $0.26 (0.9%) from volume, and $0.08 (0.3%) from egress. The workspace hard limit is $30 and the current estimate is $53.84. These values make memory attribution the first optimization target, but they do not authorize a blind heap, page-cache, model, or replica reduction.
+
+A memory optimization is accepted only when it records before/after RSS and startup measurements and demonstrates no regression in held-out retrieval, faithfulness, citation correctness, multilingual quality, safety, p95/p99 latency, or error/timeout rate. At Railway’s published rate, one sustained GB is approximately $10/month and one sustained vCPU is approximately $20/month; report the arithmetic as a scenario unless the lower resident footprint is sustained in production.
+
+OpenRouter accounting must distinguish provider-reported `usage.cost`, known-rate fallback estimates, and unknown cost. Prompt-cache reads and writes must be captured from `prompt_tokens_details.cached_tokens` and `cache_write_tokens`, while local exact/semantic cache hits must be counted as avoided calls rather than provider prompt-cache savings. Cost per useful grounded answer must include retrieval, graph, verifier, retry, translation, and generation work.
+
+The safe cost-first order is: instrument, attribute, reduce memory with a reversible candidate, validate quality and latency, then scale. Do not activate ONNX INT8, RRF/DBSF or prefetch changes, Neo4j schema mutations, or broad graph concurrency solely because a theoretical dollar saving is available.
+
 ## Current safe changes and deployment boundary
 
 The production runtime `36e6f22` contains changes that do not alter retrieval evidence: a narrow English bounded-comparison short-circuit after input and distress guardrails, a five-second translation deadline with fail-open multilingual behavior, a privacy-bounded process-local translation cache, translation-stage timing logs, and an on-device intent-model startup prewarm. English messages under an Indic UI preference skip redundant input translation; native Indic and code-switched text retain translation and guardrail coverage. The bounded-comparison shortcut and multilingual evidence-retry are active. Post-prewarm smoke showed comparative about 2.6 seconds wall-clock, relational about 9.0 seconds, Telugu about 7.6 seconds, and a Hindi sample about 17.7 seconds wall-clock; the Hindi tail remains open because the full budget is not yet explained by node timings. All ONNX, RRF/DBSF, Neo4j schema, and broad graph-parallelization defaults remain unchanged in production.
@@ -50,5 +62,13 @@ Oracle's production RAG evaluation guidance: <https://blogs.oracle.com/developer
 Qdrant hybrid and multi-stage query guidance: <https://qdrant.tech/documentation/search/hybrid-queries/>
 
 Neo4j performance and page-cache guidance: <https://neo4j.com/docs/operations-manual/current/performance/disks-ram-and-other-tips/>
+
+Neo4j memory configuration guidance: <https://neo4j.com/docs/operations-manual/current/performance/memory-configuration/>
+
+OpenRouter prompt-caching and usage-field guidance: <https://openrouter.ai/docs/guides/best-practices/prompt-caching>
+
+Qdrant vector quantization guidance: <https://qdrant.tech/articles/what-is-vector-quantization/>
+
+Redis production RAG scaling guidance: <https://redis.io/blog/rag-at-scale/>
 
 LangGraph state, reducers, and streaming guidance: <https://langchain-ai.github.io/langgraph/concepts/low_level/>

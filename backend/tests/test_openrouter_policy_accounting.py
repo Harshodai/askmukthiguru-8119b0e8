@@ -102,3 +102,21 @@ def test_openrouter_usage_cost_distinguishes_missing_and_zero():
     assert OpenRouterService._usage_cost({"cost": None}) == 0.0
     assert OpenRouterService._usage_cost({"cost": "0.0125"}) == pytest.approx(0.0125)
     assert OpenRouterService._usage_cost({"cost": "invalid"}) is None
+
+
+def test_openrouter_gemini_fallback_rates_are_accounted_when_provider_omits_cost():
+    production_estimate = OpenRouterService._fallback_cost(
+        1_000,
+        2_000,
+        "google/gemini-2.5-flash",
+    )
+    assert production_estimate == pytest.approx((1_000 * 0.30 + 2_000 * 2.50) / 1_000_000)
+
+    configured_default_estimate = OpenRouterService._fallback_cost(
+        1_000,
+        2_000,
+        "google/gemini-3.6-flash",
+    )
+    assert configured_default_estimate == pytest.approx(
+        (1_000 * 0.75 + 2_000 * 3.75) / 1_000_000
+    )

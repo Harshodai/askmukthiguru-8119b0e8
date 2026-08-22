@@ -547,6 +547,30 @@ PROVIDER_REPORTED_COST_USD = Counter(
     ["provider"],
 )
 
+OPENROUTER_COST_UNKNOWN_TOTAL = Counter(
+    "guru_openrouter_cost_unknown_total",
+    "OpenRouter responses without provider cost or a known fallback rate",
+    ["model", "operation"],
+)
+
+OPENROUTER_ESTIMATED_COST_USD = Counter(
+    "guru_openrouter_estimated_cost_usd_total",
+    "Fallback-estimated OpenRouter cost when provider cost is absent",
+    ["model", "operation"],
+)
+
+OPENROUTER_CACHED_TOKENS_TOTAL = Counter(
+    "guru_openrouter_cached_tokens_total",
+    "Prompt tokens read from OpenRouter provider caches",
+    ["model", "operation"],
+)
+
+OPENROUTER_CACHE_WRITE_TOKENS_TOTAL = Counter(
+    "guru_openrouter_cache_write_tokens_total",
+    "Prompt tokens written to OpenRouter provider caches",
+    ["model", "operation"],
+)
+
 ANON_QUOTA_DEGRADED_MODE = Counter(
     "anon_quota_degraded_mode_total",
     "Total anonymous quota operations processed in degraded in-memory mode due to Redis outage/failure",

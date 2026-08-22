@@ -8,6 +8,10 @@ import sys
 from collections.abc import Mapping
 
 from app.metrics import (
+    OPENROUTER_CACHE_WRITE_TOKENS_TOTAL,
+    OPENROUTER_CACHED_TOKENS_TOTAL,
+    OPENROUTER_COST_UNKNOWN_TOTAL,
+    OPENROUTER_ESTIMATED_COST_USD,
     PROCESS_CPU_SECONDS,
     PROCESS_RSS_BYTES,
     PROVIDER_REPORTED_COST_USD,
@@ -61,3 +65,51 @@ def observe_provider_actual_cost(provider: str, cost_usd: float) -> None:
         return
     if cost > 0:
         PROVIDER_REPORTED_COST_USD.labels(provider=provider).inc(cost)
+
+
+def observe_openrouter_accounting(
+    *,
+    model: str,
+    operation: str,
+    cached_tokens: int = 0,
+    cache_write_tokens: int = 0,
+    estimated_cost_usd: float = 0.0,
+    cost_known: bool = False,
+    fallback_cost_known: bool = False,
+) -> None:
+    """Publish bounded provider-accounting signals without request content.
+
+    Model and operation are controlled server-side values. Unknown cost is
+    counted separately so dashboards never mistake missing provider metadata
+    for a free request.
+    """
+    safe_model = str(model or "unknown")[:120]
+    safe_operation = str(operation or "unknown")[:80]
+    try:
+        cached = max(0, int(cached_tokens or 0))
+    except (TypeError, ValueError):
+        cached = 0
+    try:
+        written = max(0, int(cache_write_tokens or 0))
+    except (TypeError, ValueError):
+        written = 0
+    if cached:
+        OPENROUTER_CACHED_TOKENS_TOTAL.labels(
+            model=safe_model, operation=safe_operation
+        ).inc(cached)
+    if written:
+        OPENROUTER_CACHE_WRITE_TOKENS_TOTAL.labels(
+            model=safe_model, operation=safe_operation
+        ).inc(written)
+    try:
+        estimated = float(estimated_cost_usd or 0.0)
+    except (TypeError, ValueError):
+        estimated = 0.0
+    if estimated > 0:
+        OPENROUTER_ESTIMATED_COST_USD.labels(
+            model=safe_model, operation=safe_operation
+        ).inc(estimated)
+    if not cost_known and not fallback_cost_known:
+        OPENROUTER_COST_UNKNOWN_TOTAL.labels(
+            model=safe_model, operation=safe_operation
+        ).inc()
