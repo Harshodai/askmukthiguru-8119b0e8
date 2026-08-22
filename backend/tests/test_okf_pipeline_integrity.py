@@ -16,6 +16,7 @@ unreviewed dirs at any depth, and rglob must keep recursing into real teacher su
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 
 import pytest
 
@@ -121,6 +122,10 @@ def test_extractor_copies_are_identical():
     backend_path = repo_root / "backend" / "scripts" / "extract_okf_from_stores.py"
 
     assert root_path.exists(), "root scripts/extract_okf_from_stores.py is missing"
+    if not backend_path.exists() and repo_root == Path("/app"):
+        # The serving image copies backend/ into /app/, so the source-repository
+        # backend/scripts path is intentionally flattened to /app/scripts.
+        pytest.skip("serving image uses flattened backend/ layout")
     assert backend_path.exists(), "backend/scripts/extract_okf_from_stores.py is missing"
 
     assert root_path.read_text(encoding="utf-8") == backend_path.read_text(encoding="utf-8"), (
