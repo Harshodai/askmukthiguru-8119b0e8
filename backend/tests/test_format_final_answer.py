@@ -41,6 +41,10 @@ def test_comparison_detector_is_narrow():
     )
 
 
+def test_telugu_peace_meaning_detector_accepts_native_wording():
+    assert generation._generic_peace_meaning_request("శాంతి అంటే ఏమిటి?") is True
+
+
 def test_generic_stillness_practice_detector_is_narrow():
     assert generation._is_generic_stillness_practice_request(
         "Give me one small practice for stillness today"

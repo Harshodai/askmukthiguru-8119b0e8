@@ -74,6 +74,23 @@ _GENERIC_PRACTICE_TERMS = ("practice", "exercise", "try", "do right now")
 _STILLNESS_TERMS = ("stillness", "quiet", "calm", "settle", "presence")
 _STILLNESS_MEANING_TERMS = ("what is", "meaning of", "define", "definition of", "explain")
 _PEACE_TERMS = ("peace", "shanti", "शांति", "शांती", "శాంతి", "சாந்தி", "ಶಾಂತಿ")
+# Native-language meaning forms are deliberately explicit rather than a broad
+# translation heuristic; this keeps the bounded fallback from catching unrelated
+# questions while covering the scripts used by the language router.
+_PEACE_MEANING_TERMS = (
+    "peace meaning",
+    "meaning of peace",
+    "what is peace",
+    "what does peace mean",
+    "शांति क्या है",
+    "शांति का अर्थ",
+    "శాంతి అంటే ఏమిటి",
+    "శాంతి యొక్క అర్థం",
+    "சாந்தி என்றால் என்ன",
+    "சாந்தியின் பொருள்",
+    "ಶಾಂತಿ ಎಂದರೇನು",
+    "ಶಾಂತಿಯ ಅರ್ಥ",
+)
 _COMPARISON_TERMS = ("difference between", "compare", "versus", " vs ", " vs.")
 _COMPARISON_BROAD_TERMS = ("history", "every tradition", "all traditions", "in every", "detailed")
 
@@ -127,7 +144,10 @@ def _generic_peace_meaning_request(question: str) -> bool:
     """Identify a narrow general-definition request about peace."""
     lowered = " ".join(str(question or "").casefold().split())
     return bool(
-        any(term in lowered for term in _STILLNESS_MEANING_TERMS)
+        (
+            any(term in lowered for term in _STILLNESS_MEANING_TERMS)
+            or any(term.casefold() in lowered for term in _PEACE_MEANING_TERMS)
+        )
         and any(term.casefold() in lowered for term in _PEACE_TERMS)
         and len(lowered) <= 180
     )
