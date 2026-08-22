@@ -195,6 +195,18 @@ async def test_handle_fallback_returns_safe_response():
 
 
 @pytest.mark.asyncio
+async def test_handle_fallback_uses_non_doctrinal_hindi_peace_reflection():
+    """Terminal fallback must not collapse an exact Hindi peace meaning query to a bare refusal."""
+    state = {"question": "शांति का अर्थ क्या है?"}
+    result = await handle_fallback(state, config=None)
+
+    assert result["verification"]["method"] == "reflective_peace_meaning_fallback"
+    assert result["_needs_retry"] is False
+    assert "non-doctrinal reflection" in result["final_answer"]
+    assert result["citations"] == []
+
+
+@pytest.mark.asyncio
 async def test_handle_fallback_uses_limited_comparison_explanation():
     """A grading-exhaustion fallback must not erase safe help for a simple comparison."""
     state = {"question": "What is the difference between meditation and contemplation?"}

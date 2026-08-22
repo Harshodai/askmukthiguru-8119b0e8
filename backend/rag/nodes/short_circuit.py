@@ -97,6 +97,36 @@ async def handle_fallback(state: GraphState, config: dict = None) -> dict:
             "is_faithful": False,
             "_needs_retry": False,
         }
+
+    # Keep the terminal route consistent with format_final_answer: a narrow
+    # general peace question gets a useful, explicitly non-doctrinal reflection
+    # even when retrieval/CRAG exhausted before the formatter ran.
+    try:
+        from rag.nodes.generation import (
+            _generic_peace_meaning_fallback,
+            _generic_peace_meaning_request,
+        )
+
+        if _generic_peace_meaning_request(state.get("question", "")):
+            logger.info(
+                "Terminal fallback: replacing no-evidence peace meaning refusal with bounded reflection"
+            )
+            return {
+                "final_answer": _generic_peace_meaning_fallback(),
+                "citations": [],
+                "verification": {
+                    "passed": False,
+                    "method": "reflective_peace_meaning_fallback",
+                    "citations_verified": True,
+                },
+                "faithfulness_score": 0.0,
+                "confidence_score": 0.0,
+                "is_faithful": False,
+                "_needs_retry": False,
+            }
+    except Exception as exc:
+        logger.warning("Terminal peace fallback unavailable; using canonical fallback: %s", exc)
+
     return {
         "final_answer": "I don't have that specific teaching. Please try asking another question."
     }
