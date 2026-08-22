@@ -640,7 +640,7 @@ const ProfilePage = () => {
                   )}
                   {metrics && (
                     <>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-3 gap-3">
                         <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
                           <div className="flex items-center gap-1.5 text-muted-foreground">
                             <Flame className="w-3.5 h-3.5" />
@@ -657,15 +657,6 @@ const ProfilePage = () => {
                           </div>
                           <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
                             {metrics.totalMessages}
-                          </p>
-                        </div>
-                        <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Clock className="w-3.5 h-3.5" />
-                            <span className="text-[10px] uppercase tracking-[0.14em] font-medium text-muted-foreground">Meditation</span>
-                          </div>
-                          <p className="text-2xl font-serif font-semibold text-foreground tabular-nums leading-none mt-1">
-                            {Math.round(metrics.totalMeditationMinutes)}m
                           </p>
                         </div>
                         <div className="rounded-2xl border border-hairline bg-card px-4 py-3.5 flex flex-col gap-1">
