@@ -53,6 +53,13 @@ class StageRunner:
                 duration_ms = max(0.0, round((time.time_ns() - start_ns) / 1_000_000, 2))
                 status = str(getattr(ctx, "last_stage_status", "success") or "success")[:32]
                 metadata = getattr(ctx, "last_stage_metadata", None)
+                logger.info(
+                    "PIPELINE_STAGE_TIMING trace_id=%s stage=%s status=%s duration_ms=%.2f",
+                    getattr(ctx, "trace_id", "unknown"),
+                    stage_name,
+                    status,
+                    duration_ms,
+                )
                 if status == prev_status and metadata is prev_metadata:
                     status = "success"
                     metadata = None
@@ -81,6 +88,12 @@ class StageRunner:
                     return result
             except Exception as exc:
                 duration_ms = max(0.0, round((time.time_ns() - start_ns) / 1_000_000, 2))
+                logger.warning(
+                    "PIPELINE_STAGE_TIMING trace_id=%s stage=%s status=error duration_ms=%.2f",
+                    getattr(ctx, "trace_id", "unknown"),
+                    stage_name,
+                    duration_ms,
+                )
                 err_type_name = type(exc).__name__
                 error_code = (
                     "".join(c for c in err_type_name if c.isalnum() or c == "_")[:64] or "Exception"

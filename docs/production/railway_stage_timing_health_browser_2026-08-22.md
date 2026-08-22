@@ -1,0 +1,5 @@
+# Railway stage-timing deployment health cross-check — 2026-08-22
+
+The retrieval-stage instrumentation deployment `645965ed-3d81-41ae-9c76-61a624574f3c` reached `SUCCESS` and its active instance was `RUNNING`. A command-line curl check intermittently encountered TLS connection timeouts immediately after rollout. The connected browser then reached `https://askmukthiguru-8119b0e8-production.up.railway.app/api/health` and displayed JSON with `ready: true`, `status: "healthy"`, Qdrant/Redis/Neo4j/LLM/embedding all healthy, and embedding dimension `1024`. Internal Railway SSH health checks also returned healthy and `/api/healthz` returned alive. This establishes application readiness while preserving the observation that edge TLS propagation can be intermittent during/after Railway rollouts.
+
+A second browser navigation to `/api/healthz` returned `{"ok": true, "status": "alive"}`. In the same period, command-line `curl` encountered TLS connection timeouts/EOFs, so public-edge reachability is intermittent by client/path during rollout even though the Railway instance is running and internal health is good.

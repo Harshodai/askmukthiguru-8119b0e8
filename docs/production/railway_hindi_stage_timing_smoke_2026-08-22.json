@@ -1,0 +1,1 @@
+{"faithfulness_score": 0.8, "grounding_state": "grounded", "latency_ms": 20499, "node_timings": {"generate_answer": 1006.4, "intent_router": 973.3, "retrieve_documents": 6684.0}, "query_tier": "tier2_simple", "response_chars": 243, "status": 200, "wall_ms": 22358}

@@ -1,0 +1,5 @@
+faithfulness_score":0.0
+latency_ms":15562
+node_timings":{"intent_router":1371.6
+query_tier":"tier2_simple"
+grounding_state":"abstained"
