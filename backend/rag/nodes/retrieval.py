@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import time
 from typing import Any, Optional
 
 from app.metrics import (
@@ -1018,6 +1019,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         return contract_err
 
     query_tier = state.get("query_tier", "standard")
+    retrieval_started = time.perf_counter()
+    retrieval_stage_times: dict[str, float] = {}
+    preparation_started = retrieval_started
     # Canonical deep tier: select_graph_for_query / graph_stage use "deep"
     # while the in-graph intent_router emits "tier4_deep". Normalize once so
     # every downstream check (depth, escalation, compression) agrees on one
@@ -1098,6 +1102,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         logger.warning("KG ontology expansion timed out; continuing without neighbor terms")
     except Exception as _kg_err:
         logger.debug(f"KG ontology expansion skipped: {_kg_err}")
+    retrieval_stage_times["prepare_ms"] = round(
+        (time.perf_counter() - preparation_started) * 1000, 1
+    )
     sub_queries = state.get("sub_queries", [base_question]) or [base_question]
 
     # OPTIMIZATION (Phase-3 / Truth-3): Fire LLM expansion CONCURRENTLY with
@@ -1148,6 +1155,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     # individually (capped at remaining_budget, usually 0-3) to preserve
     # the parallel-fire pattern with the LLM expansion call.
     precomputed_embeddings: list[Optional[dict]] = [None] * len(primary_queries)
+    encode_started = time.perf_counter()
     if primary_queries:
         primary_query_texts = [
             _compute_query_for_embedding(q, chat_history, hyde_text) for q in primary_queries
@@ -1162,6 +1170,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             logger.warning(
                 f"Batched encode failed (non-fatal, falling back to per-query): {enc_err}"
             )
+    retrieval_stage_times["encode_ms"] = round(
+        (time.perf_counter() - encode_started) * 1000, 1
+    )
 
     # --- BM25 sparse-vector search (concurrent with vector retrieval) ---
     bm25_task = None
@@ -1183,6 +1194,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         except Exception as bm25_err:
             logger.warning(f"BM25 sparse search setup failed (non-fatal): {bm25_err}")
 
+    primary_started = time.perf_counter()
     primary_results = await asyncio.gather(
         *[
             asyncio.wait_for(
@@ -1208,18 +1220,26 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         ],
         return_exceptions=True,
     )
+    retrieval_stage_times["primary_retrieval_ms"] = round(
+        (time.perf_counter() - primary_started) * 1000, 1
+    )
 
     # --- Await BM25 sparse-vector search result ---
     bm25_results: list[dict] = []
+    bm25_started = time.perf_counter()
     if bm25_task is not None:
         try:
             bm25_results = await bm25_task
             logger.info(f"BM25 sparse search returned {len(bm25_results)} results")
         except Exception as bm25_err:
             logger.warning(f"BM25 sparse search failed (non-fatal): {bm25_err}")
+    retrieval_stage_times["bm25_wait_ms"] = round(
+        (time.perf_counter() - bm25_started) * 1000, 1
+    )
 
     # Now consume the (likely already-completed) expansion task.
     # Cap total retrievals at 6 to bound LLM/Qdrant load.
+    expansion_started = time.perf_counter()
     expansion_queries = []
     if expansion_task is not None:
         try:
@@ -1228,6 +1248,9 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
             logger.warning(f"LLM retrieval expansion failed (non-fatal): {exp_err}")
             expansion_queries = []
 
+    retrieval_stage_times["expansion_planner_wait_ms"] = round(
+        (time.perf_counter() - expansion_started) * 1000, 1
+    )
     expansion_results: list = []
     remaining_budget = max(0, 6 - len(primary_queries))
     if expansion_queries and remaining_budget > 0:
@@ -1588,8 +1611,18 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
         band: len(values) for band, values in provenance_context.bands.items()
     }
     logger.info(f"Retrieved {len(all_docs)} unique documents (two-phase hybrid, parallel)")
+    retrieval_stage_times["total_logged_ms"] = round(
+        (time.perf_counter() - retrieval_started) * 1000, 1
+    )
+    logger.info(
+        "RETRIEVAL_STAGE_TIMING trace_id=%s query_tier=%s stages=%s",
+        state.get("trace_id", "unknown"),
+        query_tier,
+        retrieval_stage_times,
+    )
+
     return {
-        "documents": all_docs,
+        "documents": documents,
         "raw_documents": raw_docs_copy,
         "query_tier": query_tier,
         "provenance_context": provenance_manifest,
