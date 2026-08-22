@@ -44,7 +44,8 @@ RUN pip install --no-cache-dir -r requirements.lock && \
 # digest is immutable across rebuilds — see lessons.md "Embedding dimension
 # contract" for the full incident analysis.
 ENV HF_HOME=/app/.cache/huggingface
-RUN mkdir -p /app/.cache/huggingface && chown -R appuser:appuser /app/.cache
+RUN mkdir -p /app/.cache/huggingface /app/model_cache/sentence_transformers /app/model_cache/huggingface && \
+    chown -R appuser:appuser /app/.cache /app/model_cache
 USER appuser
 # Do not pre-cache or activate the ONNX encoder/reranker here. ONNX INT8 remains
 # evidence-gated because existing Qdrant vectors were produced by FlagEmbedding.
@@ -56,6 +57,12 @@ USER root
 
 # Copy app code with explicit ownership
 COPY --chown=appuser:appuser backend/ .
+
+# Prefetch only the exact CPU CrossEncoder selected by the serving path. This
+# avoids a first-user model download while keeping ONNX and the embedding
+# backend unchanged. The model and revision are pinned in
+# scripts/download_runtime_reranker.py.
+RUN python /app/scripts/download_runtime_reranker.py
 
 # Ship only the approved BRAIN_KEK maintenance utility; other root ops scripts
 # remain excluded from the serving image by .dockerignore.
@@ -70,6 +77,8 @@ RUN mkdir -p /app/data /app/logs && chown -R appuser:appuser /app/data /app/logs
 # Production environment flags — TOKEN OPTIMIZATION ENABLED
 ENV ENV=production \
     IS_PRODUCTION=true \
+    SENTENCE_TRANSFORMERS_HOME=/app/model_cache/sentence_transformers \
+    TRANSFORMERS_CACHE=/app/model_cache/huggingface \
     WEB_CONCURRENCY=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
