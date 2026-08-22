@@ -110,6 +110,7 @@ async def test_generic_stillness_refusal_uses_reflective_fallback():
         retry_count=1,
         is_faithful=False,
         verification={"passed": False},
+        question="Give me one small practice for stillness today",
     )
 
     result = await format_final_answer(state)
