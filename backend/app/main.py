@@ -461,6 +461,22 @@ async def _background_startup_body(container, fastapi_app) -> None:
     except Exception as _warmup_err:
         logger.warning("Embedding warm-up canary failed (non-fatal): %s", _warmup_err)
 
+    # Intent-model warm-up canary — the classifier is otherwise lazy-loaded on
+    # the first non-English/keyword-miss query. Prewarm with a native Indic
+    # sample so the first user request does not absorb model initialization.
+    try:
+        from rag.nodes.on_device_intent import classify_with_reason
+
+        _t0 = time.time()
+        _intent_probe = await asyncio.to_thread(classify_with_reason, "शांति क्या है?")
+        logger.info(
+            "On-device intent warm-up complete: result=%s latency=%dms",
+            _intent_probe[0] if _intent_probe else "none",
+            int((time.time() - _t0) * 1000),
+        )
+    except Exception as _intent_warmup_err:
+        logger.warning("On-device intent warm-up failed (non-fatal): %s", _intent_warmup_err)
+
     _app_deps.startup_complete = True
     logger.info("=== Mukthi Guru Backend Ready ===")
 
