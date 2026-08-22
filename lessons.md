@@ -7438,3 +7438,21 @@ After the benchmark load, `What is the meaning of stillness?` returned a 38-char
 ### L-QUALITY-6. Full live question-bank benchmarks need a dedicated target and global budget
 
 The all-question-bank benchmark at concurrency three generated sustained 30–83 second cases and was stopped after more than twenty minutes before writing a report. A sequential core benchmark likewise produced no buffered progress within five minutes and was stopped. These partial runs are evidence of tail behavior, not complete scorecards. Future full runs must use staging or a dedicated benchmark replica, unbuffered per-case output, a global time budget, and no user-serving production load.
+
+## Aug 22, 2026 — Cost-effectiveness audit
+
+### L-COST-1. Memory is the dominant measured Railway cost
+
+The current Railway billing period reported $28.7854 usage: $27.0931 memory (94.1%), $1.3513 CPU (4.7%), $0.2645 volume (0.9%), and $0.0766 egress (0.3%). The previous completed period was $30.0068. The current workspace hard limit is $30; current usage is already 95.95% of that limit and Railway estimates $53.84 for the current period. Treat memory reduction as the first cost optimization target. At Railway’s official rate, one sustained GB is approximately $10/month and one sustained vCPU is approximately $20/month.
+
+### L-COST-2. Backend and Neo4j memory floors matter more than worker CPU
+
+The 30-minute live metrics window measured backend memory around 8.07 GB, Neo4j around 2.45 GB, and worker around 154 MB. Backend and Neo4j are the meaningful resource targets; the worker’s CPU and memory are already negligible in this window. Never reduce worker concurrency solely to save cost without queue throughput and ingestion SLA evidence.
+
+### L-COST-3. Graph concurrency is not automatically a cost optimization
+
+The current GraphRAG implementation starts vector and graph work concurrently, bounded by semaphores and deadlines. This can lower elapsed latency by overlap, but it does not inherently reduce the number of database/vector operations and can increase peak resource use. A graph-on versus graph-off A/B must compare cost per successful grounded answer, quality, p95/p99 latency, timeouts, and resource utilization before broader concurrency is enabled.
+
+### L-COST-4. Provider cost accounting must not treat unknown as free
+
+OpenRouter records provider-reported `usage.cost` when present and otherwise uses a model-specific fallback table. The configured Gemini generation model is not covered by the checked-in fallback-rate table, so missing provider cost metadata can become a zero estimate. Keep actual provider cost, known-rate estimate, and unknown cost as separate categories; reconcile against the provider account before claiming model savings.

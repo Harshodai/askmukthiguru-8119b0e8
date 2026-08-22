@@ -655,3 +655,10 @@ Warm repeated Hindi FAQ requests completed in roughly 7 seconds wall-clock with 
 - A single-session remote graph benchmark measured indexed concept, teacher, one-hop expansion, and full-text calls at roughly 1.18–1.34 seconds including cypher-shell overhead. Per-query SSH timing around 8–9 seconds was invalid for database-performance comparison because connection setup dominated.
 - The latest production smoke found an open quality regression: `What is the meaning of stillness?` returned a 38-character `refusal_quality_gate` answer with faithfulness `0.0` despite three direct-source provenance items and an `Inner Stillness` entity. Treat retrieved-evidence refusals as P0 quality defects.
 - Full question-bank production load tests must not run uncontrolled against user-serving production. Use staging or a dedicated benchmark replica, unbuffered progress, a global budget, and bounded concurrency. The interrupted live run is evidence of tail load, not a complete benchmark pass.
+
+## Cost-effectiveness invariants — Aug 22, 2026
+
+- Current Railway workspace usage is $28.7854, with $27.0931 (94.1%) from memory, $1.3513 (4.7%) from CPU, $0.2645 (0.9%) from volume, and $0.0766 (0.3%) from egress. The $30 hard limit is nearly reached and the current estimate is $53.84. Memory reduction is the first cost target.
+- The observed 30-minute memory averages were approximately 8.07 GB backend, 2.45 GB Neo4j, and 154 MB worker. Do not reduce worker concurrency without queue/SLA evidence.
+- Graph parallelization overlaps vector and graph calls but does not automatically reduce billable work. Require graph-on/off cost-per-successful-answer, quality, timeout, p95/p99, and resource evidence before broadening it.
+- OpenRouter provider-reported cost, known-rate estimates, and unknown costs must remain separate. The configured Gemini generation model is not covered by the fallback-rate table; missing provider cost must never silently aggregate as zero.
