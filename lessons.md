@@ -7471,3 +7471,15 @@ Graph parallelization primarily overlaps vector and graph work. It is not a dire
 The post-deploy image logs reported that BGE-M3 was fetched at startup, the reranker model was not cached, and the OKF compiled index and doctrine lexicon were absent. Do not suppress these warnings or create empty artifacts. Resolve image/reingestion packaging separately, without editing or uploading `scripts/ingestion/corpus/`.
 
 The post-deploy concurrent smoke was healthy but showed approximately 18–23 second wall-clock waits while internal route timings for safety and multilingual cases were much lower. This indicates a queueing, connection, cold-start, or concurrency interaction that remains open; never claim that lower internal pipeline latency alone proves a lower user-perceived cost or latency.
+
+
+## 2026-08-22 — Master mission cost and streaming hardening
+
+- **Cost truth:** Railway’s measured bill is dominated by memory, not CPU. The latest snapshot was $29.3763 against a $30 hard limit with 94.2% of line-item usage attributed to memory. Do not call the system broad-scale cost-efficient until sustained RSS attribution and cost per successful grounded answer improve.
+- **Provider accounting:** Actual provider-reported cost, model-aware fallback estimate, unknown cost, and prompt-cache tokens must remain separate. Missing provider cost is unknown, never zero.
+- **ONNX policy:** `Dockerfile.railway` must not pre-cache or imply activation of ONNX INT8 while the existing Qdrant vectors remain FlagEmbedding-produced. Keep `EMBEDDING_BACKEND=flagembedding` until held-out overlap/NDCG/faithfulness/citation/multilingual/safety/latency/RSS/cost evidence passes.
+- **Streaming contract:** A pipeline may normalize raw model text after tokens have already streamed. Backend SSE now emits an authoritative `final` event after raw tokens; the frontend parser consumes it and persists that final text rather than earlier raw refusal text.
+- **Browser verification:** The canonical Railway service domain includes the `-production` suffix. A stale domain returns Railway fallback 404 even when deployment is healthy. Always confirm the active service domain before declaring the API unavailable.
+- **Stillness quality:** The non-doctrinal stillness-meaning fallback mitigates the abrupt 38-character refusal, but an abstained fallback with zero citations is not proof of grounded retrieval. The grounded-answer gap stays open.
+- **Packaging warnings:** Missing OKF compiled index, missing doctrine lexicon, and runtime model downloads are quality/cold-start evidence. Do not create empty artifacts or alter `scripts/ingestion/corpus/` to hide them.
+- **Validation limits:** Local pytest/Vitest/TypeScript dependencies were unavailable and were not installed. Python compilation, JSON validation, diff checks, corpus immutability, live health, direct SSE, and bounded browser smoke were the verified gates.
