@@ -360,6 +360,7 @@ class TranslationStage(Stage):
             # causes grammar distortion, phrase duplication, and doubles request latency.
             if detected == "en":
                 translation_timeout = getattr(settings, "translation_timeout_s", 5.0)
+                translation_started = time.monotonic()
                 try:
                     ctx.final_answer = await _translate_cached(
                         ctx.container.translation,
@@ -368,14 +369,21 @@ class TranslationStage(Stage):
                         target_lang=ctx.preferred_lang,
                         timeout=translation_timeout,
                     )
+                    logger.info(
+                        "answer_translation_complete source=en target=%s duration_ms=%.1f",
+                        ctx.preferred_lang,
+                        (time.monotonic() - translation_started) * 1000,
+                    )
                 except asyncio.TimeoutError:
                     logger.warning(
-                        "Answer translation timed out after %.1fs; preserving English answer",
+                        "Answer translation timed out after %.1fs duration_ms=%.1f; preserving English answer",
                         translation_timeout,
+                        (time.monotonic() - translation_started) * 1000,
                     )
                 except Exception as translation_err:
                     logger.warning(
-                        "Answer translation failed; preserving English answer: %s",
+                        "Answer translation failed after %.1fms; preserving English answer: %s",
+                        (time.monotonic() - translation_started) * 1000,
                         translation_err,
                     )
         return None

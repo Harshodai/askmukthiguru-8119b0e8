@@ -457,6 +457,7 @@ async def prepare_request_state(
     user_msg_en = user_msg
     if should_translate:
         translation_timeout = getattr(settings, "translation_timeout_s", 5.0)
+        translation_started = time.monotonic()
         try:
             user_msg_en = await _translate_cached(
                 container.translation,
@@ -465,18 +466,24 @@ async def prepare_request_state(
                 target_lang="en",
                 timeout=translation_timeout,
             )
-            logger.info(f"Translated user query from {preferred_lang} to English: {user_msg_en}")
+            logger.info(
+                "query_translation_complete source=%s target=en duration_ms=%.1f",
+                preferred_lang,
+                (time.monotonic() - translation_started) * 1000,
+            )
         except asyncio.TimeoutError:
             # BGE-M3 and the generation model support multilingual text. Keep
             # the original query rather than turning a provider tail into a
             # user-visible timeout; retrieval remains fail-open.
             logger.warning(
-                "Query translation timed out after %.1fs; preserving native text",
+                "Query translation timed out after %.1fs duration_ms=%.1f; preserving native text",
                 translation_timeout,
+                (time.monotonic() - translation_started) * 1000,
             )
         except Exception as translation_err:
             logger.warning(
-                "Query translation failed; preserving native text: %s",
+                "Query translation failed after %.1fms; preserving native text: %s",
+                (time.monotonic() - translation_started) * 1000,
                 translation_err,
             )
 
@@ -510,8 +517,15 @@ async def prepare_request_state(
                 msg_content_en = msg["content"]
             return {"role": msg["role"], "content": msg_content_en}
 
+        history_translation_started = time.monotonic()
         chat_history_en = list(
             await asyncio.gather(*(_translate_history_message(msg) for msg in chat_history))
+        )
+        logger.info(
+            "history_translation_complete source=%s target=en count=%d duration_ms=%.1f",
+            preferred_lang,
+            len(chat_history),
+            (time.monotonic() - history_translation_started) * 1000,
         )
     else:
         chat_history_en = chat_history
