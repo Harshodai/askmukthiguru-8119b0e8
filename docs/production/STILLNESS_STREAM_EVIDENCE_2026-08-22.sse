@@ -1,0 +1,21 @@
+event: status
+data: Query received, starting pipeline…
+
+event: status
+data: Understanding your question...
+
+event: status
+data: Searching knowledge base...
+
+event: status
+data: Finalizing your response...
+
+event: token
+data: I am unable to find specific teachings on this topic.
+
+event: final
+data: "I could not verify a specific teaching for that question right now. As a general, non-doctrinal reflection, stillness can mean a quieter relationship with passing thoughts and sensations, without needing to push them away. Notice one breath and let the next moment be as it is."
+
+event: done
+data: {"intent": "QUERY", "citations": [], "meditation_step": 0, "proactive_serene_mind": null, "trace_id": "bf3dc13e-cef8-462c-9b5b-a52921b9d628", "latency_ms": 4070, "model_used": "google/gemini-2.5-flash", "model_provider": "openrouter", "route_decision": "query", "query_tier": "tier2_simple", "cache_hit": false, "faithfulness_score": 0.0, "hallucination_flag": true, "follow_up_suggestions": [], "confidence_score": 0.0, "citations_verified": null, "orphan_citations_stripped": null, "live_logistics_events": [], "answer_evidence": {"corpus_id": "askmukthiguru", "release_version": null, "model_policy_id": "gemini-flash-budget-v1", "evidence_support_label": "Limited support", "source_count": 0, "top_source_score": null, "citations_verified": null}, "guidance_plan": {"response_mode": "balanced_guidance", "language": "en", "attribution": {"label": "Reflective guidance", "source_backed": false, "teacher_name": null}, "action_step": null, "reflection_prompt": null}, "grounding_state": "abstained", "verification": {"passed": false, "method": "reflective_meaning_fallback"}, "release_manifest": {"release_id": "rel-dev-c1-pgemini-flash-budget-v1", "git_sha": "unknown-sha", "build_timestamp": "2026-08-17T00:00:00Z", "corpus_version": "1", "embedding_model": "BAAI/bge-m3", "embedding_dim": 1024, "reranker_model": "BAAI/bge-reranker-v2-m3", "policy_version": "gemini-flash-budget-v1", "schema_version": "1.0.0"}, "provenance_manifest": {"manifest_id": "bf3dc13e-cef8-462c-9b5b-a52921b9d628", "model_name": "google/gemini-2.5-flash", "model_provider": "openrouter", "metadata": {"provenance_context": {"bands": {"direct_source": [{"text": "rection would be the punctuation. * Result: \"Yoga, Ha, Karma, Shukhaushala\" * Which is more likely? The prompt says \"fix transcription errors\". A missing space is a classic transc", "band": "direct_source", "score": 0.33333334, "source_url": "https://www.youtube.com/watch?v=3EqnSkAzfIg", "source_segment_id": "66b1f47b-f7d1-56d1-a214-d94fed7febc8", "entity_ids": [], "relation": null, "hop": 0, "confidence": 0.33333334, "ontology_version": null, "rights_status": "licensed", "channel": "vector", "corroborated": false}, {"text": "ly observing. Simply see a", "band": "direct_source", "score": 0.25, "source_url": "https://www.youtube.com/watch?v=hqre34QIMZg", "source_segment_id": "e4a55b35-e691-521e-9e94-5780d11eaeb1", "entity_ids": [], "relation": null, "hop": 0, "confidence": 0.25, "ontology_version": null, "rights_status": "licensed", "channel": "vector", "corroborated": false}, {"text": "Is it all that is to life? And meaninglessness therefore.\" * Okay, I've read it multiple times. There is no repetition. The final sentence is \"And meaninglessness therefore.\" It's a fragment. It's an error. * How to fix it? The instruction is to fix errors, not rewrite. The error is the fragment. The", "band": "direct_source", "score": 0.2, "source_url": "https://www.youtube.com/watch?v=E8N04l1Lptk", "source_segment_id": "b6b2d1e3-c8b0-5236-82f5-087e1eaf147d", "entity_ids": [], "relation": null, "hop": 0, "confidence": 0.2, "ontology_version": null, "rights_status": "licensed", "channel": "vector", "corroborated": false}], "graph_one_hop": [], "corroborated": [], "community_summary": []}, "total_tokens": 125, "evidence_count": 3, "entities_touched": ["Inner Stillness"]}, "evidence_count": 3, "entities_touched": ["Inner Stillness"]}}}
+
