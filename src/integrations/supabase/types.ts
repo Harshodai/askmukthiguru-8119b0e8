@@ -262,6 +262,59 @@ export type Database = {
         }
         Relationships: []
       }
+      assistant_scope_metadata: {
+        Row: {
+          assistant_id: string
+          assistant_scope_version: string
+          corpus_id: string
+          created_at: string
+          graph_namespace: string | null
+          ingestion_source_filter: Json
+          knowledge_tags: string[]
+          rights_status: string
+          rollout_enabled: boolean
+          source_release_id: string | null
+          teacher_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          assistant_id: string
+          assistant_scope_version?: string
+          corpus_id?: string
+          created_at?: string
+          graph_namespace?: string | null
+          ingestion_source_filter?: Json
+          knowledge_tags?: string[]
+          rights_status?: string
+          rollout_enabled?: boolean
+          source_release_id?: string | null
+          teacher_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assistant_id?: string
+          assistant_scope_version?: string
+          corpus_id?: string
+          created_at?: string
+          graph_namespace?: string | null
+          ingestion_source_filter?: Json
+          knowledge_tags?: string[]
+          rights_status?: string
+          rollout_enabled?: boolean
+          source_release_id?: string | null
+          teacher_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_scope_metadata_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: true
+            referencedRelation: "assistants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistants: {
         Row: {
           avatar_url: string | null
