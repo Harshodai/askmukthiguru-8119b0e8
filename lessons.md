@@ -7456,3 +7456,18 @@ The current GraphRAG implementation starts vector and graph work concurrently, b
 ### L-COST-4. Provider cost accounting must not treat unknown as free
 
 OpenRouter records provider-reported `usage.cost` when present and otherwise uses a model-specific fallback table. The configured Gemini generation model is not covered by the checked-in fallback-rate table, so missing provider cost metadata can become a zero estimate. Keep actual provider cost, known-rate estimate, and unknown cost as separate categories; reconcile against the provider account before claiming model savings.
+
+
+## 2026-08-22 — Cost-efficient scaling and provider accounting
+
+Railway usage remains memory-dominated. The latest snapshot was $29.3763 for the current period, with $27.6770 (94.2%) memory, $1.3536 (4.6%) CPU, $0.2685 (0.9%) volume, and $0.0772 (0.3%) egress. The workspace hard limit is $30 and the current estimate is $54.7602. A broad production benchmark is therefore operationally unsafe until it is isolated or budgeted separately.
+
+The latest 30-minute resource window measured backend memory at 6,767.6 MB average and 13,634.7 MB maximum, Neo4j at 2,399.7 MB average, and worker at 177.4 MB average. These numbers identify the backend as the first memory investigation target, but they do not prove which model, cache, allocator, or library owns the resident set. Do not lower Neo4j page cache, embedding model precision, or cache retention without a before/after RSS and quality/latency experiment.
+
+Production’s actual generation override is Gemini 2.5 Flash. OpenRouter fallback accounting must match the deployed model, use $0.30/M input and $2.50/M output as the current known rates, and always prefer provider-reported `usage.cost`. Commit `34c98a5` adds bounded counters for actual cost, fallback-estimated cost, unknown cost, prompt-cache reads, and prompt-cache writes. Missing provider cost is an accounting uncertainty, not a free request.
+
+Graph parallelization primarily overlaps vector and graph work. It is not a direct cost reduction unless it increases useful throughput or avoids retries/extra replicas. Neo4j index mutation, RRF/DBSF tuning, ONNX INT8, and broad graph concurrency remain gated behind held-out retrieval, quality, privacy, latency, RSS, provider-call, and cost-per-successful-grounded-answer evidence.
+
+The post-deploy image logs reported that BGE-M3 was fetched at startup, the reranker model was not cached, and the OKF compiled index and doctrine lexicon were absent. Do not suppress these warnings or create empty artifacts. Resolve image/reingestion packaging separately, without editing or uploading `scripts/ingestion/corpus/`.
+
+The post-deploy concurrent smoke was healthy but showed approximately 18–23 second wall-clock waits while internal route timings for safety and multilingual cases were much lower. This indicates a queueing, connection, cold-start, or concurrency interaction that remains open; never claim that lower internal pipeline latency alone proves a lower user-perceived cost or latency.
