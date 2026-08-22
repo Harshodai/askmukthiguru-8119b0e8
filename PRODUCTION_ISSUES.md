@@ -58,3 +58,9 @@ The final non-destructive operational check returned Railway `/api/healthz` HTTP
 ## Targeted cache flush — 2026-08-22
 
 The approved flusher ran inside the healthy Railway backend. It deleted and recreated only `mukthi_semantic_cache_1024d` and `semantic_query_cache`; Redis reported zero matching keys for both `mukthiguru:cache:*` and `mukthiguru:semcache:*`. The verifier then reported zero keys in the protected queue, session, quota, telemetry, and memory patterns. The recreated Qdrant collections were confirmed present. This was not a Redis `FLUSHALL`; user memory, queue state, sessions, quotas, telemetry, rate limits, and corpus data were not flushed. The Railway health endpoint remained healthy after the operation.
+
+## Reranker-prefetch experiment and rollback — 2026-08-22
+
+A narrowly scoped attempt to prefetch the pinned multilingual CPU reranker into the Railway image was halted. The first build failed because the installed `CrossEncoder` API does not accept `cache_folder`; the corrected build succeeded, but the runtime became unhealthy because the new cache-path configuration caused `/app/model_cache/huggingface/.locks/models--BAAI--bge-m3` permission failures and the 1024-dimensional encoder could not load. Production was restored by deploying the prior known-good FlagEmbedding-only configuration. The rollback deployment `cf5dca19-659d-440b-aaee-32c18df96280` reached `SUCCESS`, and the live backend returned `ready=true`, `status=healthy`, embedding dimension `1024`.
+
+The attempted prefetch change was reverted in commit `74273fa`; no ONNX activation, embedding-vector change, corpus change, or user-data mutation occurred. The reranker packaging issue remains open and must be solved in an isolated test image with verified cache ownership and a build/runtime environment contract before another production attempt.
