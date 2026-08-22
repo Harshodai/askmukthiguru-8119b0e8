@@ -10,8 +10,11 @@ intent, doctrine keywords, and query structure.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import re
+import time
+from collections import OrderedDict
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -30,6 +33,65 @@ if TYPE_CHECKING:
     from app.schemas import ChatRequest
 
 logger = logging.getLogger(__name__)
+
+# Bounded, process-local translation cache. Keys are digests rather than raw
+# user text, and entries expire quickly so personal prompts are not persisted
+# in Redis or shared storage. This reduces repeated provider calls for common
+# multilingual FAQs while keeping memory and staleness bounded.
+_TRANSLATION_CACHE: OrderedDict[str, tuple[float, str]] = OrderedDict()
+_TRANSLATION_CACHE_MAXSIZE = 512
+_TRANSLATION_CACHE_TTL_SECONDS = 900.0
+
+
+def _translation_cache_key(text: str, source_lang: str, target_lang: str) -> str:
+    payload = f"{source_lang}\x00{target_lang}\x00{text}".encode("utf-8", "ignore")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _translation_cache_get(text: str, source_lang: str, target_lang: str) -> str | None:
+    key = _translation_cache_key(text, source_lang, target_lang)
+    cached = _TRANSLATION_CACHE.get(key)
+    if cached is None:
+        return None
+    expires_at, value = cached
+    if expires_at <= time.monotonic():
+        _TRANSLATION_CACHE.pop(key, None)
+        return None
+    _TRANSLATION_CACHE.move_to_end(key)
+    return value
+
+
+def _translation_cache_put(text: str, source_lang: str, target_lang: str, value: str) -> None:
+    if not isinstance(value, str) or not value.strip():
+        return
+    key = _translation_cache_key(text, source_lang, target_lang)
+    _TRANSLATION_CACHE[key] = (time.monotonic() + _TRANSLATION_CACHE_TTL_SECONDS, value)
+    _TRANSLATION_CACHE.move_to_end(key)
+    while len(_TRANSLATION_CACHE) > _TRANSLATION_CACHE_MAXSIZE:
+        _TRANSLATION_CACHE.popitem(last=False)
+
+
+async def _translate_cached(
+    translation_service,
+    *,
+    text: str,
+    source_lang: str,
+    target_lang: str,
+    timeout: float,
+) -> str:
+    cached = _translation_cache_get(text, source_lang, target_lang)
+    if cached is not None:
+        return cached
+    translated = await asyncio.wait_for(
+        translation_service.translate_text(
+            text=text,
+            source_lang=source_lang,
+            target_lang=target_lang,
+        ),
+        timeout=timeout,
+    )
+    _translation_cache_put(text, source_lang, target_lang, translated)
+    return translated
 
 # Query patterns live in rag.query_patterns so intent routing and graph
 # selection pull from a single source. Aliased here with the original
@@ -376,10 +438,11 @@ async def prepare_request_state(
     if should_translate:
         translation_timeout = getattr(settings, "translation_timeout_s", 5.0)
         try:
-            user_msg_en = await asyncio.wait_for(
-                container.translation.translate_text(
-                    text=user_msg, source_lang=preferred_lang, target_lang="en"
-                ),
+            user_msg_en = await _translate_cached(
+                container.translation,
+                text=user_msg,
+                source_lang=preferred_lang,
+                target_lang="en",
                 timeout=translation_timeout,
             )
             logger.info(f"Translated user query from {preferred_lang} to English: {user_msg_en}")
@@ -406,10 +469,11 @@ async def prepare_request_state(
         async def _translate_history_message(msg: dict[str, Any]) -> dict[str, str]:
             translation_timeout = getattr(settings, "translation_timeout_s", 5.0)
             try:
-                msg_content_en = await asyncio.wait_for(
-                    container.translation.translate_text(
-                        text=msg["content"], source_lang=preferred_lang, target_lang="en"
-                    ),
+                msg_content_en = await _translate_cached(
+                    container.translation,
+                    text=msg["content"],
+                    source_lang=preferred_lang,
+                    target_lang="en",
                     timeout=translation_timeout,
                 )
             except asyncio.TimeoutError:

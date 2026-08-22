@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 
 from app.config import settings
 from app.evidence_support import evidence_support_label
-from app.orchestrator_utils import prepare_request_state
+from app.orchestrator_utils import _translate_cached, prepare_request_state
 from app.pipeline.result import (
     ActionStep,
     AnswerEvidence,
@@ -361,12 +361,11 @@ class TranslationStage(Stage):
             if detected == "en":
                 translation_timeout = getattr(settings, "translation_timeout_s", 5.0)
                 try:
-                    ctx.final_answer = await asyncio.wait_for(
-                        ctx.container.translation.translate_text(
-                            text=ctx.final_answer,
-                            source_lang="en",
-                            target_lang=ctx.preferred_lang,
-                        ),
+                    ctx.final_answer = await _translate_cached(
+                        ctx.container.translation,
+                        text=ctx.final_answer,
+                        source_lang="en",
+                        target_lang=ctx.preferred_lang,
                         timeout=translation_timeout,
                     )
                 except asyncio.TimeoutError:

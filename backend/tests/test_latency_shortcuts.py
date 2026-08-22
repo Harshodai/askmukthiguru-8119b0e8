@@ -65,3 +65,37 @@ def test_telugu_refusal_marker_is_retried_when_evidence_exists() -> None:
 
     assert action == "retry"
     assert answer.startswith("నేను")
+
+
+@pytest.mark.asyncio
+async def test_query_translation_cache_suppresses_repeat_provider_call() -> None:
+    from app.orchestrator_utils import _TRANSLATION_CACHE, _translate_cached
+
+    class FakeTranslation:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def translate_text(self, **kwargs):
+            self.calls += 1
+            return "peace"
+
+    _TRANSLATION_CACHE.clear()
+    service = FakeTranslation()
+    first = await _translate_cached(
+        service,
+        text="शांति क्या है?",
+        source_lang="hi",
+        target_lang="en",
+        timeout=1.0,
+    )
+    second = await _translate_cached(
+        service,
+        text="शांति क्या है?",
+        source_lang="hi",
+        target_lang="en",
+        timeout=1.0,
+    )
+
+    assert first == second == "peace"
+    assert service.calls == 1
+    _TRANSLATION_CACHE.clear()
