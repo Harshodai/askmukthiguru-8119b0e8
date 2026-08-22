@@ -73,6 +73,7 @@ _LANGUAGE_AWARE_FAST_TIER_SCORE = 0.8
 _GENERIC_PRACTICE_TERMS = ("practice", "exercise", "try", "do right now")
 _STILLNESS_TERMS = ("stillness", "quiet", "calm", "settle", "presence")
 _STILLNESS_MEANING_TERMS = ("what is", "meaning of", "define", "definition of", "explain")
+_PEACE_TERMS = ("peace", "shanti", "शांति", "शांती", "శాంతి", "சாந்தி", "ಶಾಂತಿ")
 _COMPARISON_TERMS = ("difference between", "compare", "versus", " vs ", " vs.")
 
 
@@ -117,6 +118,25 @@ def _generic_stillness_meaning_fallback() -> str:
         "As a general, non-doctrinal reflection, stillness can mean a quieter "
         "relationship with passing thoughts and sensations, without needing to "
         "push them away. Notice one breath and let the next moment be as it is."
+    )
+
+
+def _generic_peace_meaning_request(question: str) -> bool:
+    """Identify a narrow general-definition request about peace."""
+    lowered = " ".join(str(question or "").casefold().split())
+    return bool(
+        any(term in lowered for term in _STILLNESS_MEANING_TERMS)
+        and any(term.casefold() in lowered for term in _PEACE_TERMS)
+        and len(lowered) <= 180
+    )
+
+
+def _generic_peace_meaning_fallback() -> str:
+    return (
+        "I could not verify a specific teaching for that question right now. "
+        "As a general, non-doctrinal reflection, peace can mean meeting the "
+        "present moment with less inner conflict, while thoughts and feelings "
+        "are allowed to arise and pass. One gentle breath can be a place to begin."
     )
 
 
@@ -2016,6 +2036,35 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
                 verification_passed=False,
                 confidence_score=0.0,
                 route_decision="limited_comparison_fallback",
+            ),
+        }
+    if (
+        refusal_action == "retry"
+        and _generic_peace_meaning_request(state.get("question", ""))
+    ):
+        logger.info(
+            "Final: replacing peace meaning refusal with bounded non-doctrinal reflection"
+        )
+        fallback_answer = _generic_peace_meaning_fallback()
+        return {
+            "final_answer": fallback_answer,
+            "citations": [],
+            "intent": intent,
+            "_needs_retry": False,
+            "is_faithful": False,
+            "verification": {"passed": False, "method": "reflective_peace_meaning_fallback"},
+            "faithfulness_score": 0.0,
+            "confidence_score": 0.0,
+            "citations_verified": citations_verified,
+            "refusal_quality_failure": False,
+            "evaluation_trace": _trace_update(
+                state,
+                final_answer_chars=len(fallback_answer),
+                final_citations=[],
+                verification_passed=False,
+                confidence_score=0.0,
+                citations_verified=citations_verified,
+                route_decision="reflective_peace_meaning_fallback",
             ),
         }
     if (
