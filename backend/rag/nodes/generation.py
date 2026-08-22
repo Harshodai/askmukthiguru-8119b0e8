@@ -46,6 +46,15 @@ _EVIDENCE_REFUSAL_MARKERS = (
     "i'm unable to find specific teachings",
     "i was unable to find specific teachings",
     "i wasn't able to find specific teachings",
+    # Native-language fast-tier refusals must receive the same one-shot
+    # evidence retry as English; otherwise a cited answer can remain a tiny
+    # refusal with an apparently healthy faithfulness score.
+    "निर्दिष्ट शिक्षाओं को नहीं ढूँढ पाया",
+    "विशिष्ट शिक्षाएं नहीं मिलीं",
+    "నిర్దిష్ట బోధనలను కనుగొనలేకపోయాను",
+    "குறிப்பிட்ட போதனைகளைக் கண்டுபிடிக்க முடியவில்லை",
+    "ನಿರ್ದಿಷ್ಟ ಬೋಧನೆಗಳನ್ನು ಕಂಡುಹಿಡಿಯಲಾಗಲಿಲ್ಲ",
+    "विशिष्ट शिक्षण सापडले नाही",
 )
 _BOUNDED_REFUSAL_RE = re.compile(
     r"^i(?:'m| am| do not| don't) (?:unable to find|have) "
@@ -1300,7 +1309,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
             "INSTRUCTIONS:\n"
             "1. Formulate your answer based ONLY on the provided context, delivered as a warm, understanding Guru.\n"
             '2. If the Context contains YouTube links or source URLs, ALWAYS suggest the relevant ones at the end of your response as "Watch more here: [URL]".\n'
-            '3. If you cannot answer from the context, respond ONLY with: "I am unable to find specific teachings on this topic." Do NOT say you cannot find specific teachings and then proceed to provide a detailed answer anyway. Choose one.\n'
+            '3. If you cannot answer from the context, respond ONLY with: "I am unable to find specific teachings on this topic." Do NOT say you cannot find specific teachings and then proceed to provide a detailed answer anyway. Choose one. If relevant context is present in another language, use it cautiously rather than refusing only because the wording is multilingual.\n'
             "4. NEVER fabricate teachings or add information from your training data.\n"
             "5. Maintain a warm, compassionate, and wise tone.\n"
             "6. Start with the most directly relevant teaching and end with an encouraging or reflective note.\n"
@@ -1649,7 +1658,7 @@ async def generate_answer(state: GraphState, config: dict = None) -> dict:
                     "INSTRUCTIONS:\n"
                     "1. Formulate your answer based ONLY on the provided context, delivered as a warm, understanding Guru.\n"
                     '2. If the Context contains YouTube links or source URLs, ALWAYS suggest the relevant ones at the end of your response as "Watch more here: [URL]".\n'
-                    '3. If you cannot answer from the context, respond ONLY with: "I am unable to find specific teachings on this topic." Do NOT say you cannot find specific teachings and then proceed to provide a detailed answer anyway. Choose one.\n'
+                    '3. If you cannot answer from the context, respond ONLY with: "I am unable to find specific teachings on this topic." Do NOT say you cannot find specific teachings and then proceed to provide a detailed answer anyway. Choose one. If relevant context is present in another language, use it cautiously rather than refusing only because the wording is multilingual.\n'
                     "4. NEVER fabricate teachings or add information from your training data.\n"
                     "5. Maintain a warm, compassionate, and wise tone.\n"
                     "6. Start with the most directly relevant teaching and end with an encouraging or reflective note.\n"

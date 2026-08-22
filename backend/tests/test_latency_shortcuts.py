@@ -53,3 +53,15 @@ async def test_bounded_comparison_does_not_bypass_indic_translation() -> None:
     result = await BoundedComparisonShortCircuitStage().run(ctx)
 
     assert result is None
+
+
+def test_telugu_refusal_marker_is_retried_when_evidence_exists() -> None:
+    from rag.nodes.generation import _evidence_refusal_action
+
+    action, answer = _evidence_refusal_action(
+        "నేను ఈ అంశంపై నిర్దిష్ట బోధనలను కనుగొనలేకపోయాను.",
+        [{"text": "శాంతి అనేది అంతర్గత ప్రశాంతత యొక్క స్థితి."}],
+    )
+
+    assert action == "retry"
+    assert answer.startswith("నేను")
