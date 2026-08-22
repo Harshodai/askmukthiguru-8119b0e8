@@ -54,3 +54,7 @@ A fresh public Lovable browser conversation remained visually functional and sho
 A live serving-image audit on the healthy backend found `/app/memory/okf/compiled.json` absent, `/app/data/doctrine_lexicon.json` absent, and no matching CPU reranker directory under `/app/model_cache` or `/app/.cache/huggingface`. These warnings are now independently confirmed by both startup logs and filesystem inspection. No placeholder artifacts were created; approved artifact compilation and reproducible reranker packaging remain gated work.
 
 The final non-destructive operational check returned Railway `/api/healthz` HTTP 200 with `status=alive`, and `/api/health` HTTP 200 with `ready=true`, `status=healthy`, and no startup error. `api.askmukthiguru.com` still failed DNS resolution from the verification environment, so the custom-domain gap remains open; no DNS record was changed.
+
+## Targeted cache flush — 2026-08-22
+
+The approved flusher ran inside the healthy Railway backend. It deleted and recreated only `mukthi_semantic_cache_1024d` and `semantic_query_cache`; Redis reported zero matching keys for both `mukthiguru:cache:*` and `mukthiguru:semcache:*`. The verifier then reported zero keys in the protected queue, session, quota, telemetry, and memory patterns. The recreated Qdrant collections were confirmed present. This was not a Redis `FLUSHALL`; user memory, queue state, sessions, quotas, telemetry, rate limits, and corpus data were not flushed. The Railway health endpoint remained healthy after the operation.
