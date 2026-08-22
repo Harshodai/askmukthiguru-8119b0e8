@@ -117,6 +117,19 @@ class ChatRequestOrchestrator:
                 user_id,
             )
 
+        response_grounding_state = grounding_state_for(result)
+        logger.info(
+            "CHAT_STAGE_TIMING trace_id=%s total_ms=%s node_timings=%s cache_hit=%s "
+            "query_tier=%s grounding_state=%s provider=%s",
+            result.trace_id,
+            result.latency_ms,
+            result.node_timings or {},
+            bool(result.cache_hit),
+            result.query_tier or "unknown",
+            response_grounding_state,
+            result.model_provider or "unknown",
+        )
+
         return ChatResponse(
             response=result.final_answer,
             intent=result.intent,
@@ -144,7 +157,7 @@ class ChatRequestOrchestrator:
                 None if result.answer_evidence is None else asdict(result.answer_evidence)
             ),
             guidance_plan=(None if result.guidance_plan is None else asdict(result.guidance_plan)),
-            grounding_state=grounding_state_for(result),
+            grounding_state=response_grounding_state,
             release_manifest=result.release_manifest or get_release_manifest().to_dict(),
             provenance_manifest=_provenance_manifest_for_result(result),
         )
