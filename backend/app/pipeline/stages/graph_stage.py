@@ -172,7 +172,13 @@ class GraphStage(Stage):
             # Pre-classify intent before graph selection for fast-path routing
             from rag.nodes.on_device_intent import classify_with_reason
 
+            on_device_started = time.perf_counter()
             on_device_result = await asyncio.to_thread(classify_with_reason, user_msg_en)
+            logger.info(
+                "GRAPH_ROUTING_TIMING trace_id=%s phase=on_device_intent duration_ms=%.1f",
+                ctx.trace_id,
+                (time.perf_counter() - on_device_started) * 1000,
+            )
             detected_intent = on_device_result[0] if on_device_result else None
             if detected_intent:
                 initial_state["intent"] = detected_intent
@@ -210,11 +216,18 @@ class GraphStage(Stage):
                         else "fast"
                     )
             else:
+                graph_selection_started = time.perf_counter()
                 graph_variant = await select_graph_for_query(
                     user_msg_en,
                     container=container,
                     detected_intent=detected_intent,
                     query_tier=tier_for_graph,
+                )
+                logger.info(
+                    "GRAPH_ROUTING_TIMING trace_id=%s phase=graph_selection variant=%s duration_ms=%.1f",
+                    ctx.trace_id,
+                    graph_variant,
+                    (time.perf_counter() - graph_selection_started) * 1000,
                 )
 
             # Explicit check to preserve full RAG/guardrail path for DISTRESS
@@ -274,7 +287,15 @@ class GraphStage(Stage):
                         **({"stream_queue": stream_queue} if stream_queue else {}),
                     },
                 }
-                return await selected_graph.ainvoke(initial_state, config=config)
+                graph_invoke_started = time.perf_counter()
+                graph_result = await selected_graph.ainvoke(initial_state, config=config)
+                logger.info(
+                    "GRAPH_ROUTING_TIMING trace_id=%s phase=graph_invoke variant=%s duration_ms=%.1f",
+                    ctx.trace_id,
+                    graph_variant,
+                    (time.perf_counter() - graph_invoke_started) * 1000,
+                )
+                return graph_result
             except GraphRecursionError as e:
                 logger.warning(f"Graph recursion limit reached ({e}). Returning fallback response.")
                 return {
