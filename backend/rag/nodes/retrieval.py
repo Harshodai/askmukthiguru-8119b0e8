@@ -1622,7 +1622,7 @@ async def retrieve_documents(state: GraphState, config: dict = None) -> dict:
     )
 
     return {
-        "documents": documents,
+        "documents": all_docs,
         "raw_documents": raw_docs_copy,
         "query_tier": query_tier,
         "provenance_context": provenance_manifest,
