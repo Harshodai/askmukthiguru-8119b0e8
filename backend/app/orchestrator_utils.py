@@ -41,6 +41,17 @@ logger = logging.getLogger(__name__)
 _TRANSLATION_CACHE: OrderedDict[str, tuple[float, str]] = OrderedDict()
 _TRANSLATION_CACHE_MAXSIZE = 512
 _TRANSLATION_CACHE_TTL_SECONDS = 900.0
+_TRANSLATION_CACHE_MAX_TEXT_CHARS = 240
+
+
+def _translation_cacheable(text: str) -> bool:
+    normalized = str(text or "").strip()
+    if not normalized or len(normalized) > _TRANSLATION_CACHE_MAX_TEXT_CHARS:
+        return False
+    lowered = normalized.lower()
+    if "@" in normalized or "http://" in lowered or "https://" in lowered:
+        return False
+    return sum(character.isdigit() for character in normalized) < 7
 
 
 def _translation_cache_key(text: str, source_lang: str, target_lang: str) -> str:
@@ -79,6 +90,15 @@ async def _translate_cached(
     target_lang: str,
     timeout: float,
 ) -> str:
+    if not _translation_cacheable(text):
+        return await asyncio.wait_for(
+            translation_service.translate_text(
+                text=text,
+                source_lang=source_lang,
+                target_lang=target_lang,
+            ),
+            timeout=timeout,
+        )
     cached = _translation_cache_get(text, source_lang, target_lang)
     if cached is not None:
         return cached

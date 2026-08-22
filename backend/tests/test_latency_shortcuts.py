@@ -99,3 +99,12 @@ async def test_query_translation_cache_suppresses_repeat_provider_call() -> None
     assert first == second == "peace"
     assert service.calls == 1
     _TRANSLATION_CACHE.clear()
+
+
+def test_translation_cache_excludes_personal_or_url_like_text() -> None:
+    from app.orchestrator_utils import _translation_cacheable
+
+    assert not _translation_cacheable("contact me at seeker@example.com")
+    assert not _translation_cacheable("https://example.com/private-note")
+    assert not _translation_cacheable("call 9876543210 for details")
+    assert _translation_cacheable("शांति क्या है?")
