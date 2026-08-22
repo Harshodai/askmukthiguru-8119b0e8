@@ -86,3 +86,8 @@ The established metadata-only four-case concurrent control was run once after th
 This control continues to show that anonymous-session issuance is a meaningful user-perceived cost and that concurrent semantic turns have a roughly six-second chat tail in this sample. It is not a p95/p99 benchmark and does not justify a production concurrency change by itself.
 
 Raw metadata artifact: `/home/ubuntu/railway_split_latency_post_correctness_2026-08-22.json`.
+
+
+## Runtime artifact availability gate
+
+A repository audit found zero reviewed `memory/okf/*.md` entries in the deployable checkout; only the two OKF maintenance scripts are present. Therefore the approved compiler has no reviewed source bundle from which to produce `memory/okf/compiled.json`. The doctrine lexicon builder similarly requires reviewed authority and corpus inputs that are not available as a packaged runtime artifact. Generating an empty, synthetic, or guessed artifact would hide a data-integrity problem, so no artifact was created. The correct next step is the approved audited reingestion/package flow, with the immutable corpus directory remaining untouched.
