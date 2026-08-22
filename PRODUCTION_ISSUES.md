@@ -33,3 +33,20 @@ An issue may be closed only when the register records the changed file or config
 - Live backend RSS after the latest deployment was approximately `2.26 GiB` with a high-water mark around `3.74 GiB` in `/proc/1/status`; cgroup current was about `7.54 GB`, while `/app/.cache/huggingface` occupied `4.4 GB` on disk. The discrepancy requires memory-map/page-cache attribution before any model or cache removal. No memory reduction is claimed.
 - Current Railway usage snapshot: `$29.6933` against the `$30` hard limit, estimated bill `$55.2651`, memory `$27.9814`, CPU `$1.3618`, volume `$0.2709`, egress `$0.0791`. Memory remains the dominant scaling blocker.
 - No corpus files, global Redis state, Neo4j schema, embedding backend, RRF/DBSF policy, or broad graph concurrency were changed during this evidence wave.
+
+
+## Cache-pruning and Railway regression result — 2026-08-22 16:50–17:00 UTC
+
+The FlagEmbedding-only cache maintenance was deployed in `de020c1e-23a5-4ea8-a80e-87ebb6b79fdd`, followed by the comparison-scope correction and test-fixture release in `3b499c53-da32-4b32-be95-68b117dfe0b2`. The final image reached `SUCCESS` and `/api/health` returned `ready=true`, `status=healthy` after the expected warm-up interval.
+
+The cache cleanup removed the unused BGE-M3 ONNX snapshot from the serving cache while preserving `pytorch_model.bin`. The live Hugging Face cache fell from approximately `4.4G` to `2.3–2.7G` across post-rollout observations. `/proc/1/status` reported RSS around `2.78–3.02 GiB` and cgroup current around `4.26–4.40 GB`; this is a measured footprint improvement, but a sustained Railway billing reduction is not yet proven.
+
+The dependency-complete focused Railway suite completed **105 passed, 3 skipped** across embedding lifecycle, fallback formatting, OKF layout, answer-path regressions, generation, pipeline fallbacks, latency shortcuts, and text quality. A broad all-tests collection remains intentionally split because serving images exclude root ingestion and security/ops scripts; the omitted tests are repository/CI checks rather than runtime regressions.
+
+Post-prune logs still report that the CPU reranker is not baked into `/app/model_cache/sentence_transformers` and that OKF/doctrine curated runtime artifacts are absent. No empty replacement artifacts were created. The reranker packaging and approved OKF rebuild remain open blockers.
+
+## Latest post-detector and browser evidence — 2026-08-22 17:00–17:15 UTC
+
+The native-language peace-meaning detector release `a88a9362-a256-49c1-b654-6a9a8e314b72` reached `SUCCESS`; readiness returned `ready=true`, `status=healthy`. The targeted Railway suite completed **27 passed, 2 skipped**. A five-run production probe for the exact Telugu query `శాంతి అంటే ఏమిటి?` returned **5/5 HTTP 200, 5/5 grounded, faithfulness 0.80**, with internal latency `3.65–4.49s` and wall time `5.09–5.72s`. This closes the observed native-language detector miss for this exact phrase, but it does not close the broader multilingual or retrieval-quality benchmark.
+
+A fresh public Lovable browser conversation remained visually functional and showed the expected processing state, controls, and support labels. The completed current turn did not expose the normalized fallback answer body in extracted text, while older entries still showed the historical short refusal. Therefore the Lovable-hosted bundle still lacks independent proof of the repository’s authoritative SSE-final integration. No authenticated or destructive browser action was taken.

@@ -27,3 +27,18 @@ This is evidence of correct submission and visible progress controls, but it als
 After the additional wait, the current turn rendered the final text: `I am unable to find specific teachings on this topic.` The UI exposed follow-up actions `Tell me more`, `Explain simply`, `How relates to me`, feedback (`Yes`, `Not quite`), and `Turn this into a practice` with `Begin practice`. The answer was labelled `AI Generated`, `Reflective guidance`, and `Limited support`, with `0 sources` in the sources-panel control. The healing-path and `Serene Mind now` controls remained visible.
 
 This confirms that the new backend response was not surfaced verbatim in the Lovable UI; the frontend displayed the older/shorter limited-support copy for this public session. The answer is clearly labelled and offers a practice handoff, but the stillness turn remains a quality and integration discrepancy requiring reconciliation between backend response payload and frontend rendered text. The completed chat interaction did not crash, and the visible controls for copy, regenerate, read aloud, save to memory, save as note, share card, feedback, and practice handoff were present.
+
+
+## 2026-08-22 post-fallback browser recheck
+
+The Lovable chat route loaded successfully at `https://askmukthiguru.lovable.app/chat` with the expected sidebar controls: Serene Mind Meditation, Practices, Notebooks, Wisdom Map, My Reflections, private conversation, language selector, assistant switcher, voice input, and healing-path actions. A harmless `What is the meaning of stillness?` query was accepted.
+
+The rendered conversation contains a historical earlier one-line refusal and a newer `Limited support` / `Reflective guidance` response for the same question. The newer response is represented in the conversation history but the visible text extraction does not show the full bounded answer in the latest viewport; it shows the expected support labels and zero-source state. The route remains visually functional, but this is not proof that the hosted bundle has fully adopted the repository’s authoritative-final SSE parser. The frontend bundle must still be checked by inspecting the captured HTML/asset revision or by a fresh conversation whose network events can be inspected.
+
+The UI visibly renders the `Quieting Anxiety` healing path with `Continue path` and `Serene Mind now`, plus an opt-in daily teaching prompt with `Not now` and `Enable`. No sensitive action was taken.
+
+## 2026-08-22 fresh post-detector browser check
+
+A new harmless `What is the meaning of stillness?` turn was submitted at `https://askmukthiguru.lovable.app/chat`. The page rendered the expected chat controls, healing-path card, assistant selector, language selector, voice input, source drawer control, copy/read-aloud/save/share actions, and visible processing state. The browser did not crash.
+
+After completion, the hosted conversation showed the question and the `Reflective guidance` / `Limited support` labels, but the answer body was blank in the extracted final state; the older conversation entries still showed the historical one-line refusal. The fresh browser result therefore does **not** prove that the Lovable bundle has adopted the repository’s authoritative SSE `final` event parser or that the normalized backend fallback is rendered. This remains a frontend publication/integration blocker. No authenticated, disposable-memory, mobile, tablet, or custom-domain action was performed in this check.

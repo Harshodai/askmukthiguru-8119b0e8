@@ -7483,3 +7483,30 @@ The post-deploy concurrent smoke was healthy but showed approximately 18–23 se
 - **Stillness quality:** The non-doctrinal stillness-meaning fallback mitigates the abrupt 38-character refusal, but an abstained fallback with zero citations is not proof of grounded retrieval. The grounded-answer gap stays open.
 - **Packaging warnings:** Missing OKF compiled index, missing doctrine lexicon, and runtime model downloads are quality/cold-start evidence. Do not create empty artifacts or alter `scripts/ingestion/corpus/` to hide them.
 - **Validation limits:** Local pytest/Vitest/TypeScript dependencies were unavailable and were not installed. Python compilation, JSON validation, diff checks, corpus immutability, live health, direct SSE, and bounded browser smoke were the verified gates.
+
+
+## Aug 22, 2026 — Railway release verification, cache footprint, and multilingual fallback stability
+
+### L-RAILWAY-1. Deployment SUCCESS is not readiness
+- **What**: The native-language detector release reached Railway `SUCCESS`, but the service remained `starting` through several health polls before returning `ready=true`, `status=healthy`. Focused tests must run only after readiness, not immediately after deployment status changes.
+- **Evidence**: Deployment `a88a9362-a256-49c1-b654-6a9a8e314b72`; focused Railway suite `27 passed, 2 skipped`. The preceding broader focused set completed `105 passed, 3 skipped`.
+- **How to prevent**: Poll `/api/healthz` for liveness, then `/api/health` for dependency readiness, and record both the warm-up interval and test result.
+
+### L-RAILWAY-2. Native-script prompts need explicit detector coverage
+- **What**: The Telugu prompt `శాంతి అంటే ఏమిటి?` intermittently bypassed the English-only meaning detector and ended in the short refusal even though a bounded non-doctrinal fallback existed.
+- **Fix applied**: Added explicit, narrow Hindi/Telugu/Tamil/Kannada peace-meaning phrase forms and an exact regression assertion. After deployment, five consecutive production runs returned HTTP 200, `grounding_state=grounded`, faithfulness `0.80`, response lengths `173–261`, internal latency `3.65–4.49s`, and chat wall time `5.09–5.72s`.
+- **How to prevent**: Treat language routing and fallback detection as separate contracts. Every supported script needs an exact regression query, while broad translation heuristics remain prohibited for fallback routing.
+
+### L-RAILWAY-3. Safe cache cleanup can reduce footprint without changing retrieval semantics
+- **What**: BGE-M3 serving had both required PyTorch weights and an unused upstream ONNX snapshot. Removing the ONNX variant only under the FlagEmbedding backend reduced the Hugging Face cache from about `4.4G` to `2.3–2.7G` while preserving the PyTorch model.
+- **Evidence**: Post-release SSH observations showed process RSS around `2.78–3.02 GiB` and cgroup current around `4.26–4.40 GB`; the ONNX directory was absent. The cleanup is disabled for `onnx_int8` and can be disabled with `PRUNE_UNUSED_HF_VARIANTS=false`.
+- **How to prevent**: Remove only unused variants after a successful backend-specific load, preserve required files, test link/blob behavior, and never claim dollar savings until a sustained billing window confirms them.
+
+### L-RAILWAY-4. Serving and maintenance test images have different contracts
+- **What**: The serving archive intentionally omits root ingestion, ops, and security scripts. Running the entire repository test collection inside that image produces import/path failures unrelated to user-serving runtime.
+- **Fix applied**: Kept the serving-image test correction and ran the dependency-complete serving-focused suite instead of expanding the production archive with corpus or maintenance files.
+- **How to prevent**: Maintain separate CI/maintenance and serving-image test contracts. Do not upload or package `scripts/ingestion/corpus/` merely to satisfy tests that belong in a maintenance image.
+
+### L-RAILWAY-5. Cost and memory evidence must distinguish point measurements from invoices
+- **What**: The latest Railway snapshot was `$29.6933` against a `$30` hard limit with a `$55.2651` forecast and approximately `94%` memory share. The cache cleanup produced point-in-time filesystem and cgroup improvements, but it did not yet prove invoice reduction.
+- **How to prevent**: Label every number as invoice, service metric, cgroup snapshot, estimate, or scenario. Require a fixed post-release observation window before converting working-set reductions into savings claims.

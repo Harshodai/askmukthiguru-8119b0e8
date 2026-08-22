@@ -1,13 +1,14 @@
 # AskMukthiGuru Cost-Effectiveness Audit
 
 **Date:** 2026-08-22  
-**Production runtime:** `36e6f22`  
+**Production repository head:** `d44b1c4`
+**Latest backend deployment:** `a88a9362-a256-49c1-b654-6a9a8e314b72`
 **Railway project:** `resilient-embrace`  
 **Billing workspace:** Harshodai’s Projects
 
 ## Executive decision
 
-AskMukthiGuru is currently **functionally cost-controlled but not cost-efficient enough to scale without further measurement**. The largest measured cost driver is memory, not CPU, network, or volume storage. The latest Railway read shows **$29.38 of current-period usage**, with **$27.68, or 94.2%, attributable to memory**. The workspace has a **$30 hard limit**, so it is now at approximately **97.9% of the limit**. Railway’s latest estimate is **$54.76**, which would exceed the hard limit by approximately **82.5%** if the present trajectory continues. The previous completed billing period was **$30.01**, so the forecast is approximately **82.5% above the previous month**.
+AskMukthiGuru is currently **functionally cost-controlled but not cost-efficient enough to scale without further measurement**. The largest measured cost driver is memory, not CPU, network, or volume storage. The latest recorded Railway snapshot shows **$29.6933 of current-period usage** against the **$30 hard limit**, with a **$55.2651 forecast**. The memory share is approximately **94%**, leaving negligible headroom for broad public traffic. The cache-pruning release produced a measured working-set reduction, but a sustained invoice reduction has not yet been proven.
 
 The most economically attractive safe work is memory reduction and cache/accounting instrumentation. A sustained **1 GB reduction is worth approximately $10 per month**, and a sustained **2 GB reduction approximately $20 per month**, using Railway’s official resource rate [1]. However, the current production evidence does not prove that ONNX INT8 would save one or two GB, nor that it would preserve retrieval quality. It therefore remains correctly gated. Neo4j schema mutation and broader graph concurrency have no demonstrated cost payback yet: the remote graph is healthy, current Neo4j CPU is low, and no controlled graph-on versus graph-off experiment has established either a quality lift or a lower cost per successful answer.
 
@@ -17,13 +18,12 @@ Railway bills CPU, memory, volumes, and egress by actual usage. The current-peri
 
 | Cost component | Current period | Share of usage | Previous period | Interpretation |
 |---|---:|---:|---:|---|
-| Memory | **$27.6770** | **94.2%** | $28.6301 | Dominant cost driver and first optimization target |
-| CPU | $1.3536 | 4.6% | $0.5690 | Low relative to memory; CPU optimization is secondary |
-| Volume storage | $0.2685 | 0.9% | $0.7473 | Small, reduced versus previous period |
-| Egress | $0.0772 | 0.3% | $0.0605 | Currently immaterial; avoid premature network tuning |
-| **Total usage** | **$29.3763** | **100%** | **$30.0068** | Current period is at approximately 97.9% of the $30 hard limit |
+| Memory | **Approximately 94% of current usage** | **94%** | Not available in this snapshot | Dominant cost driver and first optimization target |
+| CPU | Included in the remaining approximately 6% | **Approximately 5%** | Not available in this snapshot | Secondary to memory |
+| Volume storage and egress | Included in the remaining approximately 1% | **Approximately 1% combined** | Not available in this snapshot | Currently immaterial |
+| **Total usage** | **$29.6933** | **100%** | Prior period values retained in historical evidence | Current period is approximately 98.98% of the $30 hard limit |
 
-The current billing window is 2026-08-11 through 2026-09-11. Its present usage is approximately 97.92% of the configured $30 hard limit. The current estimated bill is $54.76. The application’s own configured monthly cost envelope is $36, so the Railway forecast is approximately 52.1% above that application-level envelope. These are workspace-level values; this project is currently the only project in the workspace and accounts for 100% of the reported project usage.
+The current billing window was reported as 2026-08-11 through 2026-09-11 in the captured Railway snapshot. Its present usage was approximately 98.98% of the configured $30 hard limit, with a forecast of $55.2651. The application’s configured monthly cost envelope is $36, so the forecast is approximately 53.5% above that application-level envelope. These are workspace-level values; the exact billing window and project allocation should be re-read before using this figure for an operational budget decision.
 
 ## Resource attribution from the live 30-minute telemetry window
 
@@ -36,7 +36,9 @@ Railway resource metrics from the benchmark window show a substantial memory flo
 | Worker | **177.4 MB** | 461.3 MB | 0.004 vCPU | If sustained continuously, roughly $1.77/month of RAM and $0.08/month of CPU |
 | **Measured subset** | **9.34 GB** | — | **0.082 vCPU** | A steady-state envelope, not the current invoice total |
 
-The backend is the principal known memory target, followed by Neo4j’s page-cache/runtime floor. The worker is already economically efficient and should not be optimized by reducing concurrency until ingestion SLA and queue throughput are measured. The current health probe reported Neo4j latency of 47 ms, Qdrant 37 ms, and Redis 36 ms with queue size zero; these healthy dependency checks do not imply that removing any dependency would be safe or cost-positive.
+The backend is the principal known memory target, followed by Neo4j’s page-cache/runtime floor. The worker is already economically efficient and should not be optimized by reducing concurrency until ingestion SLA and queue throughput are measured. The historical health probe reported Neo4j latency of 47 ms, Qdrant 37 ms, and Redis 36 ms with queue size zero; these healthy dependency checks do not imply that removing any dependency would be safe or cost-positive.
+
+After the FlagEmbedding-only cache-pruning release, live SSH observations reported `/app/.cache/huggingface` at approximately `2.3–2.7G`, process RSS around `2.78–3.02 GiB`, and cgroup current around `4.26–4.40 GB`. The unused ONNX snapshot was absent while the required PyTorch model remained. These are point-in-time post-release observations, not a replacement for the historical 30-minute service-metrics window and not proof of reduced invoice spend.
 
 ## Cost per request: what can and cannot be claimed
 
@@ -97,7 +99,7 @@ A first-hand inference-optimization talk recommended separating TTFT from decode
 
 The system’s current cost profile is **memory-heavy and under-instrumented for model spend**. The most defensible near-term savings are from reducing resident memory, not from adding Neo4j indexes or increasing graph concurrency. A successful 2 GB reduction would be worth approximately $20 per month at Railway’s official rate, but no implementation has yet proven that amount is available without retrieval or quality regression. Neo4j constraints are healthy, graph queries are responsive, and the worker is inexpensive; neither warrants speculative cost-driven changes.
 
-The project is therefore cost-effective enough for controlled testing, but not yet cost-optimized for broad scale. The immediate economic blocker is the current memory floor and the near-limit Railway budget. The immediate accounting blocker is incomplete separation of provider-reported OpenRouter cost from unknown/estimated cost. ONNX INT8, RRF/DBSF changes, schema mutations, and broader graph concurrency should remain gated until they demonstrate a positive cost-quality-latency result on held-out evidence.
+The project is therefore cost-effective enough for controlled testing, but not yet cost-optimized for broad scale. The immediate economic blocker is the current memory floor and the near-limit Railway budget. The cache-pruning change is safe and measured at the filesystem/working-set level, but billing savings require a sustained observation window. Provider-reported OpenRouter cost is now separated from known estimates and unknown cost in code, while authenticated aggregate dashboard proof remains open. ONNX INT8, RRF/DBSF changes, schema mutations, and broader graph concurrency should remain gated until they demonstrate a positive cost-quality-latency result on held-out evidence.
 
 ## References
 
