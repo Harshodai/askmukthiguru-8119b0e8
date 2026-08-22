@@ -33,9 +33,9 @@ Neo4j indexes and constraints must be applied through an idempotent, lock-protec
 
 Only independent, read-only graph branches may be parallelized. Their state writes must use explicit reducers or isolated result fields, their concurrency must be capped to host and Neo4j capacity, and a timeout on any branch must fail open to the vector path. The canary must compare graph-enabled and Qdrant-only runs for answer faithfulness, provenance completeness, graph timeout rate, p95/p99 latency, and resource usage. Do not parallelize branches that mutate shared state, rely on ordering, or may expose private memory through values streaming.
 
-## Current safe production changes
+## Current safe changes and deployment boundary
 
-The current release applies two changes that do not alter retrieval evidence: a narrow English bounded-comparison short-circuit after input and distress guardrails, and a five-second translation deadline with fail-open multilingual behavior. English messages under an Indic UI preference skip redundant input translation; native Indic and code-switched text retain translation and guardrail coverage. All other gated defaults remain unchanged.
+The repository head contains two changes that do not alter retrieval evidence: a narrow English bounded-comparison short-circuit after input and distress guardrails, and a five-second translation deadline with fail-open multilingual behavior. English messages under an Indic UI preference skip redundant input translation; native Indic and code-switched text retain translation and guardrail coverage. The bounded-comparison shortcut is active in production through `8655709`. The translation-timeout and multilingual evidence-retry changes are pushed, but Railway has not promoted them: the attempted snapshots failed during initialization before Build/Deploy. All other gated defaults remain unchanged in production.
 
 ## Evidence references
 
