@@ -7417,3 +7417,24 @@ Railway's dashboard diagnosis is more specific than the CLI error: `940eb55` fai
 - **What**: The public Lovable homepage and `/chat` route were rechecked after the final runtime rollout.
 - **Fix applied**: None required. The homepage rendered its hero, practices, privacy/crisis copy, and Start Chat action. `/chat` rendered the healing path, Serene Mind entry point, assistant switcher, Notebooks, Wisdom Map, My Reflections, private conversation, language selector, voice input, and message composer.
 - **How to prevent**: Keep route smoke checks in the release matrix; separately schedule authenticated vault mutation and complete mobile/tablet/font/accessibility verification.
+
+
+## Aug 22, 2026 — Remote Neo4j schema and graph benchmark audit
+
+### L-GRAPH-1. Remote uniqueness constraints are online, but ordinary index maintenance is incomplete
+
+The production Neo4j read-only audit verified `UNIQUE_CONCEPT_NAME` on `Concept.name`, `UNIQUE_PRACTICE_NAME` on `Practice.name`, and `UNIQUE_TEACHER_NAME` on `Teacher.name`. All three owned range indexes were `ONLINE` at 100% population. Representative `Concept.name` and `Teacher.name` plans used `NodeUniqueIndexSeek`; the one-hop neighborhood plan also began with an indexed seek before `Expand(All)`. The remote graph also exposed online node/relationship lookup indexes, a `base.entity_id` range index, and `entity_id_fulltext_idx_base`.
+
+The separate `scripts/ops/add_neo4j_indexes.py` declares ordinary `entity_type`, `source_id`, `entity_id`, and `tenant_id` indexes. Only the `entity_id` coverage was visible remotely; the other three were not. No mutation was applied because schema changes require a lock, snapshot, bounded migration, post-change plan verification, and rollback note. Never infer “all schema is applied” from healthy Neo4j connectivity alone.
+
+### L-GRAPH-2. Remote shell overhead must be removed from graph-query measurements
+
+A first benchmark opened one Railway SSH session per Cypher query and produced approximately 8–9 second timings dominated by connection/setup overhead. A corrected single-session benchmark measured ten repetitions each for indexed concept lookup, indexed teacher lookup, one-hop neighborhood expansion, and full-text entity lookup at approximately 1.18–1.34 seconds per call. These remain operational shell-call timings, not pure in-process database latency; application A/B measurements must instrument the existing driver session instead.
+
+### L-QUALITY-5. A retrieved-evidence refusal is a quality regression even when transport is healthy
+
+After the benchmark load, `What is the meaning of stillness?` returned a 38-character `refusal_quality_gate` response with faithfulness `0.0` and no citations, even though its provenance context contained three direct-source items and the `Inner Stillness` entity. The comparative, Hindi, Telugu, and distress controls remained structurally correct. This is an open P0 evidence-filtering/refusal-path regression, not a latency-only issue; add a production-shaped regression before claiming generic simple-query quality is complete.
+
+### L-QUALITY-6. Full live question-bank benchmarks need a dedicated target and global budget
+
+The all-question-bank benchmark at concurrency three generated sustained 30–83 second cases and was stopped after more than twenty minutes before writing a report. A sequential core benchmark likewise produced no buffered progress within five minutes and was stopped. These partial runs are evidence of tail behavior, not complete scorecards. Future full runs must use staging or a dedicated benchmark replica, unbuffered per-case output, a global time budget, and no user-serving production load.

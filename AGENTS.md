@@ -646,3 +646,12 @@ Warm repeated Hindi FAQ requests completed in roughly 7 seconds wall-clock with 
 - Query, history, and final-answer translation logs report source/target and duration only; never log raw user text, translated text, or attachment content in latency instrumentation.
 - Final production smoke preserved the bounded comparison fast path, grounded Telugu response, abstained unsupported capability response, and distress safety redirect. Hindi improved after prewarm but still has a non-zero long tail; do not claim universal low latency until stable multi-run p95 evidence improves.
 - ONNX INT8, RRF/DBSF changes, Neo4j schema mutation, and broad graph parallelization remain disabled until the held-out evaluation contract in `docs/LATENCY_EVIDENCE_GATES.md` passes. Missing local dependencies are an indeterminate result, never a pass.
+
+
+## Remote Neo4j and benchmark audit — Aug 22, 2026
+
+- Remote Neo4j constraints verified read-only: `UNIQUE_CONCEPT_NAME`, `UNIQUE_PRACTICE_NAME`, and `UNIQUE_TEACHER_NAME`; all owned range indexes were `ONLINE` at 100% population. Concept and teacher lookups used `NodeUniqueIndexSeek`; one-hop concept traversal used indexed seek plus `Expand(All)`.
+- The ordinary-index maintenance script declares `entity_type`, `source_id`, `entity_id`, and `tenant_id`. Remote inspection showed `entity_id` range/full-text coverage but did not show ordinary `entity_type`, `source_id`, or `tenant_id` indexes. Do not add them from application startup. Use a separate lock-protected maintenance job with schema snapshot, health check, bounded execution, post-plan verification, and rollback note.
+- A single-session remote graph benchmark measured indexed concept, teacher, one-hop expansion, and full-text calls at roughly 1.18–1.34 seconds including cypher-shell overhead. Per-query SSH timing around 8–9 seconds was invalid for database-performance comparison because connection setup dominated.
+- The latest production smoke found an open quality regression: `What is the meaning of stillness?` returned a 38-character `refusal_quality_gate` answer with faithfulness `0.0` despite three direct-source provenance items and an `Inner Stillness` entity. Treat retrieved-evidence refusals as P0 quality defects.
+- Full question-bank production load tests must not run uncontrolled against user-serving production. Use staging or a dedicated benchmark replica, unbuffered progress, a global budget, and bounded concurrency. The interrupted live run is evidence of tail load, not a complete benchmark pass.
