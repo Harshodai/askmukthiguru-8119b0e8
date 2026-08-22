@@ -1058,6 +1058,7 @@ export const ChatInterface = () => {
 
         let gotFirstToken = false;
         let streamCompleted = false;
+        let streamedFinalText: string | null = null;
         let streamedCitations: string[] = [];
         let streamedMedStep = 0;
         let streamedBlocked = false;
@@ -1156,6 +1157,11 @@ export const ChatInterface = () => {
             continue;
           }
 
+          if (chunk.type === 'final') {
+            streamedFinalText = chunk.text;
+            continue;
+          }
+
           // First token → hide pipeline pills
           if (!gotFirstToken) {
             gotFirstToken = true;
@@ -1184,6 +1190,10 @@ export const ChatInterface = () => {
               }
             });
           }
+        }
+
+        if (streamedFinalText !== null) {
+          fullContent = streamedFinalText;
         }
 
         if (fullContent) {

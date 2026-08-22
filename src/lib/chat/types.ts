@@ -151,6 +151,7 @@ export interface ProactiveSereneMindTrigger {
 /** Streaming chunk: either a content token, a pipeline status update, or final metadata */
 export type StreamChunk =
   | { type: 'token'; text: string }
+  | { type: 'final'; text: string }
   | { type: 'status'; text: string; jobId?: string }
   | {
       type: 'done';

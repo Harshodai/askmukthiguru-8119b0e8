@@ -235,6 +235,18 @@ export async function* sendMessageStreaming(
           continue;
         }
 
+        // Handle the authoritative normalized answer emitted after raw tokens.
+        if (currentEvent === 'final') {
+          currentEvent = 'message';
+          try {
+            const finalText = JSON.parse(payload);
+            if (typeof finalText === 'string') yield { type: 'final', text: finalText };
+          } catch {
+            // Ignore malformed final payload; the token stream remains available.
+          }
+          continue;
+        }
+
         // Handle done event with final metadata (intent, citations, meditation_step)
         if (currentEvent === 'done') {
           currentEvent = 'message';

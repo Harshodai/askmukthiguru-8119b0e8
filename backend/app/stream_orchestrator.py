@@ -296,6 +296,13 @@ class ChatStreamRequestOrchestrator:
                     yield f"event: token\ndata: {escaped}\n\n"
                     await asyncio.sleep(0.01)
 
+            # The pipeline may have normalized the raw streamed model text after
+            # generation (for example, an evidence-aware refusal or bounded
+            # non-doctrinal fallback). Emit the authoritative final answer
+            # separately so clients do not persist an earlier raw refusal.
+            final_payload = json.dumps(result.final_answer, ensure_ascii=False)
+            yield f"event: final\ndata: {final_payload}\n\n"
+
             # Done event with metadata
             meta = json.dumps(_stream_done_metadata(result))
             yield f"event: done\ndata: {meta}\n\n"
