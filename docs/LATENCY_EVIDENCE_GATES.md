@@ -35,7 +35,13 @@ Only independent, read-only graph branches may be parallelized. Their state writ
 
 ## Current safe changes and deployment boundary
 
-The repository head contains two changes that do not alter retrieval evidence: a narrow English bounded-comparison short-circuit after input and distress guardrails, and a five-second translation deadline with fail-open multilingual behavior. English messages under an Indic UI preference skip redundant input translation; native Indic and code-switched text retain translation and guardrail coverage. The bounded-comparison shortcut and multilingual evidence-retry are active in production through successful `806799d` deployments. Warm repeated Hindi requests are approximately 7 seconds wall-clock, but a 21-second matrix outlier remains an open tail-observability issue. All other gated defaults remain unchanged in production.
+The production runtime `36e6f22` contains changes that do not alter retrieval evidence: a narrow English bounded-comparison short-circuit after input and distress guardrails, a five-second translation deadline with fail-open multilingual behavior, a privacy-bounded process-local translation cache, translation-stage timing logs, and an on-device intent-model startup prewarm. English messages under an Indic UI preference skip redundant input translation; native Indic and code-switched text retain translation and guardrail coverage. The bounded-comparison shortcut and multilingual evidence-retry are active. Post-prewarm smoke showed comparative about 2.6 seconds wall-clock, relational about 9.0 seconds, Telugu about 7.6 seconds, and a Hindi sample about 17.7 seconds wall-clock; the Hindi tail remains open because the full budget is not yet explained by node timings. All ONNX, RRF/DBSF, Neo4j schema, and broad graph-parallelization defaults remain unchanged in production.
+
+## Measurement notes
+
+Railway route-level telemetry must be interpreted separately from all-route telemetry. The last-hour POST `/api/chat` slice after the earlier cache rollout showed zero 4xx/5xx responses for 27 requests, with p50 about 3.56 seconds and p95/p99 about 4.35 seconds; a later 15-minute window containing rollout and tail probes showed p50 about 4.42 seconds and p95/p99 about 19.72 seconds. These windows are diagnostic, not a substitute for a stable multi-run load test. The worker remained low utilization in the sampled windows, with average memory below 0.5 GB and CPU below 0.02 vCPU; the backend memory maximum was below 13 GB against a 24 GB limit.
+
+The sandbox lacks `pytest`, `pydantic-settings`, and `langgraph`, so dependency-complete tests and runtime graph construction were not executed locally. Static compilation, regex safety, diff, corpus immutability, and graph-source topology checks ran; missing dependencies are recorded as indeterminate and never treated as a pass.
 
 ## Evidence references
 

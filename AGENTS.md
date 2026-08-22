@@ -636,3 +636,13 @@ The sandbox has no `pytest` or `pydantic-settings`. Do not install packages for 
 The current production runtime is `806799d`: Railway backend deployment `8515a2e2-5f40-4901-93be-fd31206526b0` and worker deployment `9061f71f-1f29-46a0-b470-eeb8743e5217` both reached SUCCESS. Public health returned `ready=true`, `status=healthy`, embedding dimension 1024, exact-cache keys 0, queue size 0, and `/api/healthz` returned `{"ok":true,"status":"alive"}`. The Telugu quality regression was corrected in production: the prior 52-character refusal became a 289-character grounded response with one citation and language-aware verification.
 
 Warm repeated Hindi FAQ requests completed in roughly 7 seconds wall-clock with 3.3–3.8 seconds reported pipeline latency, but the final matrix also recorded a 21.2-second Hindi wall-clock outlier during rollout. Multilingual latency therefore remains a tail-observability item, not a solved claim. The current query is now passed into Second Brain recall; preserve this contract for all authenticated memory paths.
+
+
+## Final latency hardening evidence — Aug 22, 2026
+
+- Runtime `36e6f22` is the latest verified production revision; backend deployment `c1387196-6860-4da9-b7f5-1c74acfce205` and worker deployment `49e64d1d-e979-4459-9f3c-226cf002b8a7` completed successfully. `/api/health` returned `ready=true`, `status=healthy`, Qdrant/Redis/Neo4j/LLM/embedding/graph/LightRAG checks healthy, and chat backpressure clear.
+- The translation cache is process-local only, SHA-256 keyed, capped at 512 entries with a 15-minute TTL, and excludes text over 240 characters plus obvious email-like, URL-like, and phone-like input. Never move this cache to shared storage without a privacy review and hit-rate evidence.
+- The on-device intent classifier is prewarmed during non-fatal application startup with a native Indic probe. This prevents the first non-keyword Indic request from loading `all-MiniLM-L6-v2` on the user-visible path. Startup prewarm failure must remain non-fatal.
+- Query, history, and final-answer translation logs report source/target and duration only; never log raw user text, translated text, or attachment content in latency instrumentation.
+- Final production smoke preserved the bounded comparison fast path, grounded Telugu response, abstained unsupported capability response, and distress safety redirect. Hindi improved after prewarm but still has a non-zero long tail; do not claim universal low latency until stable multi-run p95 evidence improves.
+- ONNX INT8, RRF/DBSF changes, Neo4j schema mutation, and broad graph parallelization remain disabled until the held-out evaluation contract in `docs/LATENCY_EVIDENCE_GATES.md` passes. Missing local dependencies are an indeterminate result, never a pass.

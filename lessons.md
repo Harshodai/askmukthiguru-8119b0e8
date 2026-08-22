@@ -7387,3 +7387,33 @@ Railway's dashboard diagnosis is more specific than the CLI error: `940eb55` fai
 - **L-LAT-8 — Hindi latency has a warm-path floor but a cold/outlier tail.** The final matrix captured a 21.2-second Hindi wall-clock run during the rollout window, while three repeated warm Hindi requests completed at approximately 7.0 seconds wall-clock and 3.3–3.8 seconds pipeline latency. Treat the warm result as the operating baseline and the 21-second observation as a tail requiring continued provider/request-stage telemetry; do not claim multilingual latency is solved.
 - **L-MEM-1 — Memory recall must use the current query.** `prepare_request_state()` now passes the current translated `user_msg_en` into `prepare_user_memory()`. Without this, a new turn with no history caused recall to fall back to an empty or stale last-history query, reducing Second Brain relevance and potentially wasting the bounded recall budget. The fix is deployed as `806799d`.
 - **L-REL-1 — Deployment proof.** Railway recorded backend deployment `8515a2e2-5f40-4901-93be-fd31206526b0` and worker deployment `9061f71f-1f29-46a0-b470-eeb8743e5217` as SUCCESS for `806799d query-aware memory recall`; `/api/health` returned `ready=true`, `status=healthy`, embedding dimension 1024, exact-cache keys 0, queue size 0, and `/api/healthz` returned `{"ok":true,"status":"alive"}`.
+
+
+## Aug 22, 2026 — Translation cache, intent prewarm, and final latency evidence
+
+### L-SCALE-4. Translation caches must be ephemeral, bounded, and privacy-filtered
+- **What**: Repeated multilingual FAQ requests were paying avoidable translation-provider work. A broad cache would risk retaining personal prompts or URLs across users.
+- **Fix applied**: Added a process-local SHA-256-keyed translation cache with a 512-entry cap and 15-minute TTL. Text longer than 240 characters and obvious email-like, URL-like, or phone-like prompts are excluded. Query, history, and final-answer translation paths reuse the helper; no Redis or durable plaintext cache is used.
+- **Production proof**: Runtime `364ff06` deployed successfully; health remained ready and healthy. Cache behavior is covered by focused tests, while local pytest execution remains unavailable because the sandbox has no pytest installation.
+- **How to prevent**: Never cache raw user text in a shared store by default. Use privacy-safe keys, strict bounds, short TTLs, explicit exclusions, and measured hit-rate telemetry before tuning.
+
+### L-SCALE-5. First-request tails can be model warm-up, not provider latency
+- **What**: A 20+ second Hindi outlier was initially attributed to translation. Railway logs showed query translation at 0ms from the cache, while the first request loaded `all-MiniLM-L6-v2` on-device intent classification; subsequent intent-node calls were below 1 second.
+- **Fix applied**: Added a non-fatal startup prewarm using a native Indic probe. The prewarm took about 3.2 seconds during deploy, shifting model initialization out of the first-user path. Translation-stage logs now record query, history, and answer translation durations without logging user text.
+- **Production proof**: Commit `36e6f22` and observability commit `df5e2d1` are deployed successfully. The post-prewarm Hindi matrix request completed in 17.7s wall clock / 14.4s pipeline in one run, while Telugu completed in 7.6s / 4.6s and later warm runs remained materially faster. The remaining Hindi tail is still open because the full wall-clock budget is not explained by graph node timings.
+- **How to prevent**: Inspect cold-start logs before changing provider or model policy. Prewarm only bounded, optional models during the existing startup budget and keep failures non-fatal.
+
+### L-SCALE-6. Production HTTP aggregate metrics need route-level interpretation
+- **What**: Last-hour aggregate backend metrics included health/startup 5xx responses, which overstated user-chat failure risk.
+- **Fix applied**: Broke metrics down by route. The last-hour POST `/api/chat` slice showed 27 successful requests, zero 4xx/5xx, p50 about 3.56s, and p95/p99 about 4.35s; health traffic accounted for the sampled 5xx count. A later 15-minute chat window was contaminated by rollout and Hindi tail probes, so it is not a stable baseline.
+- **How to prevent**: Report `/api/chat`, health, auth, and startup traffic separately; never infer user error rate from an all-route aggregate.
+
+### L-SCALE-7. Evidence gates remain mandatory for retrieval and graph mutations
+- **What**: Static graph validation passed syntax, fast-graph exclusions, standard nav+HyDE wiring, and runtime selection checks, but dependency-free execution could not import `langgraph`; the validator also expects dependency-backed graph container symbols that are not available in the sandbox.
+- **Fix applied**: No ONNX INT8 migration, RRF/DBSF change, Neo4j schema mutation, or broad graph parallelization was activated. The existing evidence-gate runbook remains authoritative until a dependency-complete held-out benchmark produces NDCG/faithfulness/citation/abstention/latency/rollback evidence.
+- **How to prevent**: Treat missing dependencies as indeterminate, not as quality evidence. Do not “fix” a gate by weakening its thresholds or activating a candidate without a reproducible comparison.
+
+### L-UX-3. Lovable public flow remains reachable after backend releases
+- **What**: The public Lovable homepage and `/chat` route were rechecked after the final runtime rollout.
+- **Fix applied**: None required. The homepage rendered its hero, practices, privacy/crisis copy, and Start Chat action. `/chat` rendered the healing path, Serene Mind entry point, assistant switcher, Notebooks, Wisdom Map, My Reflections, private conversation, language selector, voice input, and message composer.
+- **How to prevent**: Keep route smoke checks in the release matrix; separately schedule authenticated vault mutation and complete mobile/tablet/font/accessibility verification.
