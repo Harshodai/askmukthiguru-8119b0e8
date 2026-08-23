@@ -265,5 +265,29 @@ def test_distress_re_empty_and_blank():
     assert preroute_intent("\n\t") == "CASUAL"
 
 
+def test_doctrine_framed_suffering_routes_to_factual_retrieval():
+    """Core corpus concept wording must not be preempted as a safety redirect."""
+    from rag.nodes.on_device_intent import classify_with_reason
+
+    assert classify_with_reason("Inner truth of suffering") == (
+        "FACTUAL",
+        "tier2_simple",
+        "on_device_doctrine_distress_disambiguation",
+    )
+    assert classify_with_reason("What is the suffering state?") == (
+        "FACTUAL",
+        "tier2_simple",
+        "on_device_doctrine_distress_disambiguation",
+    )
+
+
+def test_first_person_and_acute_suffering_remain_distress_routed():
+    """The narrow teaching exception must not weaken crisis detection."""
+    from rag.nodes.on_device_intent import classify_with_reason
+
+    assert classify_with_reason("I am suffering and cannot go on")[0] == "DISTRESS"
+    assert classify_with_reason("I want to die")[0] == "DISTRESS"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

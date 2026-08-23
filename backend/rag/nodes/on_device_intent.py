@@ -469,6 +469,31 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
             )
             return "FACTUAL", "tier3_complex", "on_device_manifest_temporal_factual"
 
+    # ``suffering`` is both a core corpus concept and a legitimate distress
+    # signal. A doctrine-framed noun phrase such as ``Inner truth of
+    # suffering`` is a teaching lookup, not a first-person crisis disclosure;
+    # the generic DISTRESS keyword otherwise wins the tie against FACTUAL and
+    # incorrectly preempts retrieval. Keep this override deliberately narrow:
+    # explicit first-person or acute-crisis language still reaches DISTRESS.
+    doctrine_suffering = re.search(
+        r"\b(?:inner\s+truth|truth|meaning|nature)\s+of\s+suffering\b",
+        lower,
+    ) or re.search(r"\bsuffering\s+state\b", lower)
+    first_person_distress = re.search(
+        r"\b(?:i|im|i'm|my|me)\b.*\b(?:suffer|suffering|pain|hurt|hopeless|die|suicide)\b",
+        lower,
+    )
+    acute_distress = re.search(
+        r"\b(?:want\s+to\s+die|kill\s+myself|hurt\s+myself|self[-\s]?harm|suicid)\b",
+        lower,
+    )
+    if doctrine_suffering and not first_person_distress and not acute_distress:
+        logger.info(
+            "On-device classifier FACTUAL bypass (doctrine-framed suffering): '%s...'",
+            text[:60],
+        )
+        return "FACTUAL", "tier2_simple", "on_device_doctrine_distress_disambiguation"
+
     result = classify_with_embeddings(text, threshold=threshold)
     if result is None:
         return None
