@@ -29,6 +29,12 @@
 - The local Compose file now makes the ingestion worker opt-in through the `ingestion` profile and changes core health-check intervals from 10s to 30s. Compose service-list validation passed in an isolated clean clone. No Railway deployment was started for these changes.
 - The worker was manually stopped for idle savings; Docker reported exit `137` with `OOMKilled=false`, so do not call this an OOM incident. No unrelated project, volume, model cache, database, or user data was changed.
 
+### Localhost safety-order handoff — Aug 23, 2026
+- The default pipeline now runs `InputGuardrailStage` before `CircuitBreakerStage`. This is required so deterministic acute self-harm and other input safety decisions are not bypassed when an LLM provider circuit is open. The change is limited to `backend/app/pipeline/stages/pipeline_builder.py` and is covered by an explicit stage-order regression.
+- Provider distress-classifier failures remain indeterminate and do not invoke degraded intent classification. An unblocked `ERROR` or `TIMEOUT` maps to public `grounding_state=system_error`, not `abstained` or `safety_redirect`.
+- Desktop Docker focused validation passed `84 passed in 9.81s` across provider-failure, distress-regex, crisis-preemption, and fail-closed tests. A metadata-only localhost probe returned an acute self-harm prompt as blocked `DISTRESS`; the benign teaching prompt returned `QUERY` with `no_context_short_circuit` because the selected local Qdrant collection has zero points. This is safety/transport evidence only, not production corpus-quality evidence.
+- The local backend health response was HTTP 200 with `ready=true,status=degraded`; the only reported degraded component was optional OCR. Local Qdrant data, absent OKF compiled artifacts, and local provider configuration remain non-equivalent to the deployed production environment. Do not claim a production retest from these results. No Railway deployment was started.
+
 ## Deployment Readiness Checklist (Jul 19, 2026)
 
 ### Language Selection

@@ -39,6 +39,14 @@ The Compose file now exposes overrideable Neo4j memory settings with defaults of
 
 No action was taken against the unrelated Compose project. No user data, Redis data, Qdrant data, Neo4j data, model cache, or volumes were deleted. No global cache flush was performed.
 
+## Post-fix localhost safety validation — 2026-08-23
+
+The desktop-bound backend was restarted without deleting volumes or changing the unrelated `tayari-skill-boost` project. Its `/api/health` endpoint returned HTTP 200 with `ready=true,status=degraded`; the reported degraded component was optional OCR, while Qdrant, Redis, Neo4j, LLM, embedding, graph, cache, and queue probes reported operational status in the captured response.
+
+The safety-order fix was validated inside the active Docker backend with **84 passed tests in 9.81 seconds** across provider-failure, distress-regex, crisis-preemption, and fail-closed paths. A metadata-only stream probe returned the acute self-harm control as blocked `DISTRESS` and returned the benign Beautiful State control as `QUERY` with `no_context_short_circuit`. The latter is explained by the selected local Qdrant `spiritual_wisdom` collection having zero points; no answer text was captured or inferred.
+
+These results demonstrate localhost routing and safety behavior only. They do not establish Railway billing, production provider validity, production corpus availability, citation quality, or production readiness. No Railway deployment, volume deletion, global Redis flush, corpus modification, or unrelated-project change was performed.
+
 ## What remains unproven
 
 The Docker snapshot does not prove the cause of the Railway billing spike. Railway billing must be reconciled with Railway’s service-level resource metrics and billing period, not inferred from local Docker Desktop values. It also does not prove that the backend’s model memory can be reduced safely; that requires a controlled model-loading experiment with response quality and latency checks. A sustained memory/CPU observation window, worker queue depth, scheduled task inventory, and service-by-service Railway metrics are still required before claiming savings. The existing graph volume must be benchmarked before enabling a smaller Neo4j page cache or removing plugins in any serving environment.

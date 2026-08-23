@@ -1,7 +1,7 @@
 """Pipeline builder — ordered list of default stages.
 
-Order mirrors the original PipelineCoordinator.execute() flow:
-  cache_check → circuit_breaker → request_state → input_guardrails →
+Order keeps request validation and safety ahead of provider availability:
+  cache_check → request_state → input_guardrails → circuit_breaker →
   doctrine_cache → casual_short_circuit → distress → bounded_comparison → graph →
   meditation_gen → translation → tone_adapter → output_guardrails →
   memory_save → cache_update → result_assembly
@@ -35,9 +35,9 @@ def build_default_pipeline() -> list[Stage]:
     """Return the ordered default stage chain for a chat request."""
     return [
         CacheCheckStage(),
-        CircuitBreakerStage(),
         RequestStateStage(),
         InputGuardrailStage(),
+        CircuitBreakerStage(),
         DoctrineCacheStage(),
         CasualShortCircuitStage(),
         DistressStage(),

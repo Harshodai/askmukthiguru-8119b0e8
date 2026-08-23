@@ -1,7 +1,7 @@
 # AskMukthiGuru Production Readiness Matrix
 
 **Assessment date:** 2026-08-23
-**Current repository head:** `10aaf48` (verified synchronized with `origin/main`)
+**Current repository head:** updated in the final release commit for this evidence wave; verify with `git rev-parse HEAD` and `git rev-parse origin/main`
 **Latest observed backend deployment:** `ad84d6a6-04ce-43e5-8e8a-a0e901a7b18d` (the user subsequently requested the rollout be stopped; final control-plane state was not independently confirmed as removed)
 **Current worker deployment:** `f9d05731-6fb0-4b8d-92bd-21fb14b01aa9`
 **Production backend:** `https://askmukthiguru-8119b0e8-production.up.railway.app`
@@ -45,6 +45,14 @@ The authoritative SSE final-answer change is proven in the backend contract, par
 Grounded partial evidence is now deliberately cached only in the exact scoped Redis/hot tiers. Semantic/vector writes are skipped because those tiers have no fresh-evidence, source-version, or support gate on reads; the matching semantic entry is invalidated by exact query only. This is a bounded repeat-latency optimization, not permission to reuse a partial excerpt for paraphrases.
 
 The Docker memory changes are local-Compose controls only. The disposable Neo4j canary proved startup under smaller heap/page-cache settings, but no existing graph-volume query benchmark was run. It is therefore not evidence that the settings are safe for production or that Railway cost has fallen.
+
+## Latest localhost safety validation — 2026-08-23
+
+A genuine ordering defect was fixed in the canonical source: the default pipeline now executes `InputGuardrailStage` before `CircuitBreakerStage`. This prevents an open provider circuit from bypassing deterministic acute self-harm and other input safety checks. Provider distress-classifier failures remain indeterminate rather than falling through to degraded intent classification, and unblocked `ERROR`/`TIMEOUT` results now map to `grounding_state=system_error`.
+
+The active desktop Docker backend passed **84 focused tests in 9.81 seconds** across provider-failure, distress-regex, crisis-preemption, and fail-closed paths. A metadata-only localhost probe returned the acute self-harm control as blocked `DISTRESS`; the benign Beautiful State control returned `QUERY` with `no_context_short_circuit` because the selected local `spiritual_wisdom` Qdrant collection has zero points. Local health returned HTTP 200 with `ready=true,status=degraded`, with optional OCR as the reported degraded component.
+
+This evidence closes the identified **local safety-order regression**, but it does not close production readiness. The local stack remains non-equivalent to production because the selected Qdrant collection is empty, reviewed OKF/runtime artifacts are absent, and local provider configuration has previously produced authorization failures. The localhost probe therefore cannot validate production answers, citations, latency, or provider failover. No Railway deployment was started.
 
 ## Scoring rule
 

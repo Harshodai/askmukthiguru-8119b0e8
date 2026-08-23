@@ -7590,3 +7590,20 @@ The post-deploy concurrent smoke was healthy but showed approximately 18–23 se
 - **What**: A successful Add click briefly returned to an empty-state presentation, so immediate UI state was insufficient to prove persistence.
 - **Fix applied**: Reloaded the authenticated-looking vault and observed the exact disposable reflection, deleted it with `Forget this`, waited for the settled empty state, and reloaded again after the key cutover. The item was absent and the vault view unlocked normally.
 - **How to prevent**: For destructive test fixtures, use an unmistakable label, verify create by reload, delete only the exact fixture, and verify deletion by a fresh settled read. Do not use broad `Delete Everything` for a targeted test.
+
+
+## Aug 23, 2026 — Provider outage safety ordering and truthful error states
+
+### L-PROD-11. Deterministic input safety must precede provider circuit short-circuits
+- **What**: The default pipeline previously evaluated `CircuitBreakerStage` before `InputGuardrailStage`. When the provider circuit was open, a request could terminate before deterministic self-harm and blocked-topic checks ran.
+- **Fix applied**: `backend/app/pipeline/stages/pipeline_builder.py` now orders `RequestStateStage` → `InputGuardrailStage` → `CircuitBreakerStage`. The provider-failure regression file asserts the ordering, and the Docker focused suite passed 84 tests.
+- **How to prevent**: Keep deterministic safety and request-policy checks ahead of provider availability gates. Test both crisis and benign prompts while the provider circuit is open; a provider outage must not weaken safety routing.
+
+### L-PROD-12. Provider failure is a system error, not a safety label or doctrine abstention
+- **What**: A provider distress-classifier failure must not invoke a degraded intent classifier, because normal questions could be mislabeled as distress. Conversely, an unblocked provider `ERROR`/`TIMEOUT` should not be presented as if the corpus had no evidence.
+- **Fix applied**: Distress provider failures remain indeterminate; `grounding_state_for()` maps unblocked `ERROR` and `TIMEOUT` to `system_error`. The circuit-open result remains `blocked=false` with no safety block reason.
+- **How to prevent**: Preserve three separate public states: safety redirect, ordinary evidence abstention, and infrastructure/system error. Add regressions for each state and never use provider availability as a proxy for user intent.
+
+### L-PROD-13. Local safety proof does not establish production corpus quality
+- **What**: The active desktop Docker stack returned the acute self-harm control as blocked `DISTRESS`, but the benign Beautiful State control used `no_context_short_circuit` because the selected local Qdrant collection had zero points.
+- **Rule**: Treat localhost results as environment-specific evidence. Do not infer production answer quality, citations, provider behavior, or deployment state from a stale/empty local data plane. Preserve the production NOT READY verdict until the relevant production gates have independent evidence.

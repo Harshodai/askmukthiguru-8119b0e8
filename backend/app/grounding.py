@@ -27,6 +27,8 @@ def grounding_state_for(result: Any) -> GroundingState:
         "DISTRESS_SAFETY",
     }:
         return "safety_redirect"
+    if intent in {"ERROR", "TIMEOUT"}:
+        return "system_error"
 
     verification = getattr(result, "verification", None)
     if not isinstance(verification, dict):

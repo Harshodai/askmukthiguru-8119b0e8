@@ -28,3 +28,20 @@ def test_circuit_open_provider_failure_is_not_a_safety_block():
     assert result.route_decision == "error"
     assert result.blocked is False
     assert result.block_reason is None
+
+
+def test_input_guardrails_precede_circuit_breaker():
+    from app.pipeline.stages.pipeline_builder import build_default_pipeline
+
+    names = [stage.name for stage in build_default_pipeline()]
+
+    assert names.index("input_guardrails") < names.index("circuit_breaker")
+
+
+def test_provider_error_is_exposed_as_system_error_grounding():
+    from types import SimpleNamespace
+
+    from app.grounding import grounding_state_for
+
+    assert grounding_state_for(SimpleNamespace(intent="ERROR", blocked=False)) == "system_error"
+    assert grounding_state_for(SimpleNamespace(intent="TIMEOUT", blocked=False)) == "system_error"
