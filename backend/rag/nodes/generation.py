@@ -235,6 +235,47 @@ def _evidence_refusal_action(answer: str, relevant_docs: list[dict]) -> tuple[st
     return "retry", answer
 
 
+def _grounded_partial_answer(relevant_docs: list[dict], max_docs: int = 3) -> tuple[str, list[str]] | None:
+    """Build a citation-preserving extractive answer when generation is rejected.
+
+    This is a safety valve, not a second generative path: it exposes only short
+    excerpts already present in retrieved documents and labels the result as
+    partial. Every excerpt is tied to its document's absolute source URL, so the
+    response cannot claim a generated teaching passed verification when it did not.
+    """
+    excerpts: list[tuple[int, str, str, str]] = []
+    for raw_index, doc in enumerate(relevant_docs):
+        text = doc_text(doc).strip()
+        url = str(doc.get("source_url") or "").strip()
+        if not text or not url.startswith(("http://", "https://")):
+            continue
+        title = str(doc.get("title") or url).strip()
+        excerpt = " ".join(text.split())
+        if len(excerpt) > 560:
+            excerpt = excerpt[:557].rsplit(" ", 1)[0] + "..."
+        excerpts.append((raw_index, title, excerpt, url))
+        if len(excerpts) >= max_docs:
+            break
+
+    if not excerpts:
+        return None
+
+    answer_lines = [
+        "I found relevant source material, but the generated draft did not pass the full verification gate. "
+        "Rather than give a bare refusal, here is a grounded partial answer taken directly from the retrieved excerpts:",
+    ]
+    citations: list[str] = []
+    for raw_index, title, excerpt, url in excerpts:
+        if url not in citations:
+            citations.append(url)
+        answer_lines.append(f"\n**{title}**\n{excerpt} [[CITE:{raw_index + 1}]]")
+    answer_lines.append(
+        "\nThis is an evidence excerpt, not a complete or newly generated interpretation. "
+        "Please open the cited source for the full teaching."
+    )
+    return "\n".join(answer_lines), citations
+
+
 # An abstention has no supporting teaching or personal-memory evidence. Keep its
 # internal telemetry deliberately low; the UI presents this as a support label.
 NO_EVIDENCE_CONFIDENCE = settings.generation_no_evidence_confidence
@@ -2156,6 +2197,33 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
                 "_needs_retry": True,
                 "refusal_quality_failure": True,
             }
+        partial = _grounded_partial_answer(relevant_docs)
+        if partial:
+            partial_answer, partial_citations = partial
+            partial_citations = _sanitize_citations(partial_citations)
+            partial_answer = remap_citation_markers(
+                partial_answer, relevant_docs, partial_citations
+            )
+            logger.warning(
+                "Final: citation-backed refusal persisted after retry; returning grounded partial evidence"
+            )
+            return {
+                "final_answer": scrub(partial_answer),
+                "citations": partial_citations,
+                "intent": intent,
+                "_needs_retry": False,
+                "is_faithful": False,
+                "grounding_state": "grounded",
+                "verification": {
+                    "passed": False,
+                    "method": "grounded_partial_evidence",
+                    "partial": True,
+                },
+                "faithfulness_score": 0.0,
+                "confidence_score": 0.0,
+                "citations_verified": True,
+                "refusal_quality_failure": True,
+            }
         logger.warning(
             "Final: citation-backed refusal persisted after retry; using bounded fallback"
         )
@@ -2502,6 +2570,41 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             return {
                 "retry_count": retry_count + 1,
                 "_needs_retry": True,
+            }
+        partial = _grounded_partial_answer(relevant_docs)
+        if partial:
+            partial_answer, partial_citations = partial
+            partial_citations = _sanitize_citations(partial_citations)
+            partial_answer = remap_citation_markers(
+                partial_answer, relevant_docs, partial_citations
+            )
+            logger.warning(
+                "Final: answer rejected after retries; returning grounded partial evidence"
+            )
+            return {
+                "final_answer": scrub(partial_answer),
+                "citations": partial_citations,
+                "intent": intent,
+                "_needs_retry": False,
+                "is_faithful": False,
+                "grounding_state": "grounded",
+                "verification": {
+                    **verification,
+                    "passed": False,
+                    "method": "grounded_partial_evidence",
+                    "partial": True,
+                },
+                "faithfulness_score": 0.0,
+                "confidence_score": confidence,
+                "citations_verified": True,
+                "evaluation_trace": _trace_update(
+                    state,
+                    final_answer_chars=len(partial_answer),
+                    final_citations=partial_citations,
+                    verification_passed=False,
+                    confidence_score=confidence,
+                    route_decision="grounded_partial_evidence",
+                ),
             }
         logger.warning(
             f"Final: Answer rejected, max retries exhausted (retry_count={retry_count}), using fallback"

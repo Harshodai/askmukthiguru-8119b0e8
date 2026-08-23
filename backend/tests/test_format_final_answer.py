@@ -352,3 +352,35 @@ if __name__ == "__main__":
     import sys
 
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+@pytest.mark.asyncio
+async def test_evidence_bearing_refusal_uses_grounded_partial_answer():
+    source_url = "https://doc.example/serene-mind"
+    state = _state(
+        answer="I am unable to find specific teachings on this topic.",
+        relevant_docs=[
+            {
+                "title": "Serene Mind Practice",
+                "source_url": source_url,
+                "text": "The Serene Mind practice begins by noticing the breath and allowing the mind to settle without force.",
+            }
+        ],
+        citations=[source_url],
+        retry_count=1,
+        is_faithful=False,
+        verification={"passed": False, "method": "lettuce_detect_fast_tier"},
+        query_tier="tier2_simple",
+        question="How do I do the serene mind practice?",
+    )
+
+    result = await format_final_answer(state)
+
+    assert result["final_answer"] != FALLBACK_RESPONSE
+    assert result["verification"]["method"] == "grounded_partial_evidence"
+    assert result["grounding_state"] == "grounded"
+    assert result["citations"] == [source_url]
+    assert "Serene Mind practice begins" in result["final_answer"]
+    assert "[1]" in result["final_answer"]
+    assert result["faithfulness_score"] == 0.0
+    assert result["_needs_retry"] is False
