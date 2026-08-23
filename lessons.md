@@ -7628,3 +7628,10 @@ A reachable Qdrant collection with zero points must skip NDCG integration tests 
 
 ### L-MEM-1 — Local feature routes are not proof of authenticated persistence
 Unauthenticated 401 responses from personal-memory and Second Brain routes demonstrate an auth boundary, not a persistence failure. Public ontology graph counts and local Qdrant/Redis counts cannot establish a user’s memory buildup. A valid buildup claim requires an authenticated, owner-scoped E2E plus a safe count/retention observation; Postgres data must not be inspected or mutated without explicit scope.
+
+
+### L-MEM-2 — Incognito interaction sweeps must be state-checked before and after
+A broad local question sweep is useful for routing and stream-contract coverage, but it must use `incognito=true` when the goal is non-destructive testing. Capture read-only Qdrant, Redis, graph, and queue counts before and after. Unchanged auxiliary counts show that the probe did not create local buildup; they do not prove authenticated persistent-memory writes, retention, or user-scoped Second Brain behavior.
+
+### L-QUAL-2 — Provider-outage interaction results are not retrieval-quality results
+When the provider circuit is open, ordinary prompts can correctly surface `system_error` quickly while safety prompts continue through deterministic guardrails. Those fast outage responses must not be counted as grounded/abstained answer-quality outcomes. Retrieval-quality claims require a populated target collection and a functioning provider or a deliberately isolated retrieval-only evaluation.
