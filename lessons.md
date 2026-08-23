@@ -1,3 +1,30 @@
+## Aug 23, 2026 — Flagship partial evidence, cache safety, and hosted SSE proof
+
+### L-PROD-1. A cited refusal must become bounded evidence, not an unverified teaching
+- **What**: Serene Mind and Four Sacred Secrets had retrieved citations but the verification gate collapsed the response to a bare refusal. That was a severe product truthfulness failure: the system had evidence, but it also lacked grounds to claim a faithful generated answer.
+- **Fix applied**: `format_final_answer` now returns a clearly labelled extractive `grounded_partial_evidence` envelope when usable citable documents exist after refusal/retry exhaustion. It preserves absolute URLs, `partial=true`, `verification.passed=false`, and `faithfulness_score=0.0`; it never promotes the rejected draft to faithful doctrine. The envelope is capped at two excerpts of 360 characters each.
+- **How to prevent**: Keep the three states distinct: verified generated teaching, bounded source excerpt, and honest no-evidence abstention. Tests must assert both the user-visible fallback and the negative verification metadata.
+
+### L-PROD-2. Similarity caches need evidence gates, so partial excerpts are exact-only
+- **What**: The initial latency fix admitted deterministic partial answers into hot, exact, semantic, and vector caches. Semantic/vector reuse can pair a paraphrased question with stale or mismatched evidence because those adapters do not yet enforce evidence overlap, source version, or support gates.
+- **Fix applied**: Grounded partials now invalidate only the matching legacy semantic entry and write only hot/exact scoped tiers. Semantic and vector writes are skipped. A focused regression asserts exact/hot reuse and no similarity-tier write.
+- **How to prevent**: Do not trade grounding guarantees for hit rate. Add an evidence signature/source-version/support contract before reopening semantic/vector reuse; never use a global cache flush to work around this.
+
+### L-PROD-3. Queued SSE must always carry an authoritative final event
+- **What**: Queue cache hits could emit `done` without `final`, leaving the frontend with no authoritative answer body even though the backend had a valid normalized result.
+- **Fix applied**: The queue drain emits `event: final` before `event: done` for every queued completion, including cache hits; polling suppresses duplicate synthetic completion. The live queued probe now returns exactly `[final, done]`.
+- **How to prevent**: Treat `status`, `token`, `final`, and `done` as a contract. `done` is a lifecycle marker, never the sole answer carrier. Keep a browser proof for at least one fresh flagship turn and one cache-hit turn.
+
+### L-PROD-4. Source citations must be inspectable in the user journey
+- **What**: Backend citation metadata alone did not prove the hosted UI displayed the correct source links.
+- **Fix applied**: The connected Lovable browser test submitted Four Sacred Secrets, waited for completion, opened References, and verified both full YouTube URLs plus the `Grounded response`, `2 verified sources provided`, and `Limited support` labels.
+- **How to prevent**: Browser evidence must inspect the rendered answer and source drawer, not only route loading or backend HTTP 200. One route is not coverage of mobile, tablet, custom DNS, or authenticated flows.
+
+### L-PROD-5. Doctrine wording and acute distress require separate routing tests
+- **What**: The generic word `suffering` caused the neutral question `Inner truth of suffering` to enter the distress redirect, adding latency and removing teaching citations.
+- **Fix applied**: A narrow doctrine-phrase override routes `inner truth/truth/meaning/nature of suffering` and `suffering state` to `QUERY` only when first-person or acute self-harm language is absent. A fresh production control returned grounded `QUERY`; an acute self-harm control remained blocked `DISTRESS` with no citations.
+- **How to prevent**: Every safety allowlist/override must be paired with explicit first-person and acute-language preservation tests. Never resolve a routing regression by weakening crisis detection globally.
+
 ## Aug 19, 2026 — Ephemeral Multimodal Chat Evidence Boundary
 
 ## Aug 21, 2026 — Comparative refusal closure and final production proof

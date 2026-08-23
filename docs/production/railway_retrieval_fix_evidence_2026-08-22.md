@@ -1,8 +1,8 @@
 # Railway Retrieval Return Fix and Multilingual Fallback Evidence
 
-**Date:** 2026-08-22 UTC  
-**Repository head:** `0bb0782f45824d82d4af8245366ca7f437c4a65e`  
-**Backend deployment:** `f1d6d75e-2e83-48f6-b269-2a940f7bff91`  
+**Date:** 2026-08-23 UTC
+**Repository head:** `4dffcb2`
+**Backend deployment:** `6374d867-65f8-4d7d-857d-cdc9531699c1`
 **Endpoint:** `https://askmukthiguru-8119b0e8-production.up.railway.app`
 
 ## Scope
@@ -100,3 +100,23 @@ The explicitly authorized browser test created `Disposable production verificati
 The rotation utility dry-run inside the healthy Railway backend found 2 Mode-A wrapped DEK rows and verified replacement unwrap integrity without writing rows. The authorized apply updated exactly 2 rows using compare-and-swap predicates. The replacement was promoted to `BRAIN_KEK` in both backend and worker scopes, both services were redeployed, `BRAIN_KEK_NEXT` was deleted from both scopes, and both services were explicitly redeployed again to clear the staged variable from running process environments. A name-only audit confirmed `BRAIN_KEK` present and `BRAIN_KEK_NEXT` absent for both services. No secret value was printed, committed, or placed in the evidence pack.
 
 Post-rotation compatible tests passed **17/17 in 16.63s**. The full scoped serving-image suite passed **83 passed, 2 skipped in 29.43s**. The separate schema test file was not counted as a runtime failure because it requires repository-only `/supabase/migrations` paths excluded from the flattened serving image; the earlier combined collection showed this packaging boundary explicitly.
+
+## Flagship false-refusal, cache-safety, routing, and stream evidence — 2026-08-23
+
+Commit `4dffcb2` deployed as Railway backend deployment `6374d867-65f8-4d7d-857d-cdc9531699c1`. `/api/healthz` returned `{"ok":true,"status":"alive"}` and `/api/health` returned `ready=true`, `status=healthy`, `startup_error=null`, with Qdrant, Redis, LLM, embedding dimension `1024`, fast/standard graph, LightRAG, and queue checks healthy. The production-image suite covering distress routing, final-answer formatting, grounding, cache faithfulness, queued stream draining, fail-closed paths, generation, pipeline fallbacks, latency shortcuts, embeddings, OKF integrity, quality gates, and reranking fail-safe behavior passed **162 tests with 2 skips in 45.21 seconds**.
+
+The deterministic safety valve now caps a grounded partial response at two source excerpts of at most 360 characters each. It preserves absolute source URLs and explicit `verification.method=grounded_partial_evidence`, `partial=true`, `verification.passed=false`, and `faithfulness_score=0.0`; it does not paraphrase or claim that the rejected generated draft is faithful. The cache stage writes such envelopes only to exact/hot scoped tiers and skips semantic/vector writes; a matching legacy semantic entry is invalidated by exact natural-language query only. This implements the safer option pending a future evidence-signature/source-version gate for similarity reuse.
+
+| Control | Result | Evidence interpretation |
+|---|---|---|
+| Serene Mind | HTTP 200; `grounded_partial_evidence`; `partial=true`; public `grounding_state=grounded`; `hallucination_flag=false`; 2 exact YouTube URLs; `1,152` chars | Bare refusal mitigated, but the answer remains explicitly partial and unverified |
+| Four Sacred Secrets | HTTP 200; `grounded_partial_evidence`; `partial=true`; public `grounding_state=grounded`; `hallucination_flag=false`; 2 exact YouTube URLs; `1,139` chars | Bare refusal mitigated, but canonical curated runtime artifacts remain absent |
+| Beautiful State | HTTP 200; grounded `QUERY`; `faithfulness=0.8014`; citations present; `580` chars | The earlier abstention inconsistency was not reproduced in the fresh control |
+| Inner truth of suffering | HTTP 200; `QUERY`; grounded; `faithfulness=0.7815`; 3 citations; `643` chars | Neutral doctrine wording no longer enters the distress redirect |
+| Acute self-harm | HTTP 200; blocked; `DISTRESS`; `safety_redirect`; no citations; `1,022ms` wall | Crisis protection remains separate from doctrine retrieval |
+
+The direct SSE probe emitted `status` events, a `token`, `final`, and `done`; first event was `982ms`, final event `4,881ms`, total `5,185ms`. The queued normal-mode exact-cache probe emitted exactly `final` then `done` on both attempts, with `cache_hit=true` and internal latency approximately `199–200ms`; frontend-visible totals remained `3,617–3,812ms` because queue/admission/poll overhead is outside the internal pipeline timing. These are bounded controls, not p95/p99 closure.
+
+A fresh connected-browser test on `https://askmukthiguru.lovable.app/chat` submitted `What are the Four Sacred Secrets?`. The hosted bundle rendered the grounded-partial text and the labels `Grounded response`, `2 verified sources provided`, `Limited support`, and `Guidance inspired by retrieved teachings`. Opening References exposed `https://www.youtube.com/watch?v=UlOt31lBhLY` and `https://www.youtube.com/watch?v=tl2Ek-QakME`. This verifies the flagship hosted final/citation journey only; responsive, custom-domain, broader authenticated, and source-panel coverage remain open.
+
+Raw metadata artifacts: `/home/ubuntu/postdeploy_citation_audit_2026-08-23.json`, `/home/ubuntu/postdeploy_flagship_probe_2026-08-23.json`, `/home/ubuntu/postdeploy_sse_probe_2026-08-23.json`, `/home/ubuntu/postdeploy_stream_cache_probe_2026-08-23.json`, `/home/ubuntu/postdeploy_suffering_crisis_control_2026-08-23.json`, `/home/ubuntu/railway_cache_partial_regression_suite_2026-08-23.txt`.
