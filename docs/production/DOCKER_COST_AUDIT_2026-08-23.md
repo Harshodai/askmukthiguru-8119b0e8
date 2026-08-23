@@ -27,7 +27,7 @@ The same Docker host also had 17 visible containers from the unrelated `tayari-s
 | Docker build cache | 158 records, 38.61 GB; 21.36 GB reclaimable | Large local disk footprint; safe cleanup requires explicit confirmation because it can slow future builds |
 | Docker volumes | 13 total, 11 active, 2.605 GB | Persistent data; no volumes were deleted |
 
-The backend log sample contained **176 `/api/health` requests in the last 30 minutes**, all of the observed backend request paths in that interval. This is consistent with an active health-check or monitoring loop and is not evidence of end-user traffic. The worker log sample contained no matched task/heartbeat/error lines in the inspected 30-minute tail.
+The backend log sample contained **176 `/api/health` requests in the last 30 minutes**, all of the observed backend request paths in that interval. This is consistent with an active health-check or monitoring loop and is not evidence of end-user traffic. The worker log sample contained no matched task/heartbeat/error lines in the inspected 30-minute tail. After the worker was manually stopped, Docker reported exit code `137` with `OOMKilled=false`; this audit does not classify that stop as an OOM event.
 
 ## Changes applied
 

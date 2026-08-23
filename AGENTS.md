@@ -23,6 +23,12 @@
 - A fresh connected-browser Four Sacred Secrets turn on `askmukthiguru.lovable.app/chat` rendered the grounded partial and exposed both full YouTube URLs in References. This proves one hosted flagship journey only; mobile/tablet, custom DNS, broader authenticated, and full source-panel coverage remain open.
 - Curated `/app/memory/okf/compiled.json` and `/app/data/doctrine_lexicon.json` remain absent. Do not manufacture placeholders, activate ONNX/RRF/DBSF, mutate Neo4j schema, widen graph concurrency, or modify `scripts/ingestion/corpus/` without approved audited artifacts and held-out evidence.
 
+### Docker idle-cost handoff — Aug 23, 2026
+- The connected desktop was running two Compose projects. AskMukthiGuru’s six containers displayed approximately `2,287.8 MiB` combined memory; the separate `tayari-skill-boost` project displayed approximately `2,655.7 MiB` across 17 containers. These are local Docker measurements, not Railway billing values.
+- AskMukthiGuru’s backend displayed approximately `1.378 GiB`; Neo4j approximately `691 MiB`; Qdrant approximately `150 MiB`; worker approximately `49 MiB`. The backend log tail contained 176 `/api/health` requests in 30 minutes and no other observed backend path; worker logs showed no matched task/heartbeat/error lines in the inspected tail.
+- The local Compose file now makes the ingestion worker opt-in through the `ingestion` profile and changes core health-check intervals from 10s to 30s. Compose service-list validation passed in an isolated clean clone. No Railway deployment was started for these changes.
+- The worker was manually stopped for idle savings; Docker reported exit `137` with `OOMKilled=false`, so do not call this an OOM incident. No unrelated project, volume, model cache, database, or user data was changed.
+
 ## Deployment Readiness Checklist (Jul 19, 2026)
 
 ### Language Selection

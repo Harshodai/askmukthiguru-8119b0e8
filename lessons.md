@@ -1,3 +1,14 @@
+## Aug 23, 2026 — Docker idle-cost attribution
+
+### L-PROD-9. Local Docker metrics are not Railway billing metrics
+- **Verified**: The connected desktop ran six AskMukthiGuru containers and a separate 17-container `tayari-skill-boost` project. The displayed memory sums were approximately `2.29 GiB` and `2.66 GiB`, respectively.
+- **Rule**: Attribute containers by Compose project before changing anything. Do not convert Docker Desktop memory, image size, or build-cache size into Railway dollars. Railway billing requires service-level resource and billing-period evidence.
+
+### L-PROD-10. Ingestion compute should be opt-in when serving is idle
+- **Verified**: The local Celery worker had no matched task/heartbeat/error lines in the inspected 30-minute tail and was not the main memory consumer, but it remained continuously running under `restart: unless-stopped`.
+- **Fix applied**: The worker is now behind the explicit `ingestion` Compose profile. Core serving services remain available without it, and ingestion can be enabled explicitly. Core health-check intervals were reduced from 10s to 30s.
+- **Rule**: Do not stop databases or the serving backend merely to save idle resources; first disable inactive ingestion/observability services and measure the result. Do not delete volumes or build caches without explicit authorization.
+
 ## Aug 23, 2026 — Post-report audit corrections and Docker verification
 
 ### L-PROD-6. Do not generalize queued SSE replay to direct fetch streaming
