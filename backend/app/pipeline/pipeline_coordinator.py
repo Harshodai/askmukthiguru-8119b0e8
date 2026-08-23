@@ -639,13 +639,27 @@ class PipelineCoordinator:
         # is excluded from the faithfulness percentile instead of recorded as
         # 1.0, which had a retrieval outage reading as a perfect answer.
         no_context = is_rag and bool(result.get("no_context"))
+        verification = result.get("verification") or {}
+        partial_evidence = (
+            verification.get("method") == "grounded_partial_evidence"
+            and verification.get("partial") is True
+            and bool(result.get("citations"))
+        )
         return {
             "faithfulness": None
             if no_context
             else (result.get("faithfulness_score", 0.0) if is_rag else 1.0),
-            "hallucination_flag": not result.get("is_faithful")
-            if (is_rag and result.get("is_faithful") is not None)
-            else False,
+            # A partial-evidence response is deterministic text copied from
+            # retrieved, citable documents. The rejected model draft may have
+            # is_faithful=False, but that must not turn the excerpt envelope
+            # into a public hallucination signal.
+            "hallucination_flag": False
+            if partial_evidence
+            else (
+                not result.get("is_faithful")
+                if (is_rag and result.get("is_faithful") is not None)
+                else False
+            ),
             "judge_reasoning": result.get("verification_reason", "") if is_rag else "",
             "confidence_score": confidence,
             "node_timings": result.get("node_timings", {}),
