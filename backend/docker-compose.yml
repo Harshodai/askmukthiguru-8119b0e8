@@ -13,9 +13,9 @@
 #   - The backend connects to Ollama via host.docker.internal
 #
 # Usage:
-#   docker compose up -d                            # Start serving stack; no ingestion worker
+#   docker compose up -d                            # Start serving stack; no worker/tracing
 #   COMPOSE_PROFILES=ingestion docker compose up -d       # + Celery ingestion worker
-#   COMPOSE_PROFILES=observability docker compose up -d   # + jaeger, prometheus, grafana
+#   COMPOSE_PROFILES=observability OTEL_ENABLED=true docker compose up -d # + tracing/metrics
 #   COMPOSE_PROFILES=cache docker compose up -d           # + gptcache-server
 #   COMPOSE_PROFILES=ingestion,observability,cache docker compose up -d  # everything
 #   docker compose logs -f                          # Watch logs
@@ -33,6 +33,10 @@ services:
     environment:
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-mukthiguru_neo4j_pass}
       - NEO4J_PLUGINS=["apoc","n10s","graph-data-science"]
+      # Explicit local memory budget; override for a measured canary if needed.
+      - NEO4J_server_memory_heap_initial__size=${NEO4J_HEAP_INITIAL_SIZE:-256M}
+      - NEO4J_server_memory_heap_max__size=${NEO4J_HEAP_MAX_SIZE:-512M}
+      - NEO4J_server_memory_pagecache_size=${NEO4J_PAGECACHE_SIZE:-512M}
     volumes:
       - neo4j_data:/data
     healthcheck:
@@ -209,7 +213,8 @@ services:
       # Redis cache
       - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379/0
       # OpenTelemetry
-      - OTEL_ENABLED=${OTEL_ENABLED:-true}
+      # Tracing is opt-in locally because Jaeger is an observability profile.
+      - OTEL_ENABLED=${OTEL_ENABLED:-false}
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
       - OTEL_SERVICE_NAME=mukthiguru-backend
