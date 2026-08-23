@@ -40,6 +40,10 @@ _HARMFUL_PATTERNS_COMPILED = [re.compile(p, re.IGNORECASE) for p in _HARMFUL_PAT
 # Keep this many chars of recent streamed text for the rolling filter window.
 _STREAM_FILTER_WINDOW_CHARS = 200
 
+# Prevent intermediary/browser buffering and stale replay of live SSE responses.
+# Queued polling already uses the same contract in app.api.chat.
+_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
 
 def _chunk_matches_harmful(window_text: str, patterns=None) -> bool:
     """Return True if any harmful pattern appears within the rolling window."""
@@ -83,7 +87,9 @@ class ChatStreamRequestOrchestrator:
             async def _empty():
                 yield "event: error\ndata: Message cannot be empty\n\n"
 
-            return StreamingResponse(_empty(), media_type="text/event-stream")
+            return StreamingResponse(
+                _empty(), media_type="text/event-stream", headers=_SSE_HEADERS
+            )
 
         if len(user_msg) > settings.max_input_length:
             # Message rejected before pipeline work; give the reservation back.
@@ -93,7 +99,9 @@ class ChatStreamRequestOrchestrator:
             async def _too_long():
                 yield f"event: error\ndata: {msg}\n\n"
 
-            return StreamingResponse(_too_long(), media_type="text/event-stream")
+            return StreamingResponse(
+                _too_long(), media_type="text/event-stream", headers=_SSE_HEADERS
+            )
 
         # Create an asyncio.Queue to receive streaming events
         stream_queue = asyncio.Queue()
@@ -313,7 +321,7 @@ class ChatStreamRequestOrchestrator:
                     self._log_telemetry, result, user_id, session_id, user_msg, assistant_slug
                 )
 
-        return StreamingResponse(_sse(), media_type="text/event-stream")
+        return StreamingResponse(_sse(), media_type="text/event-stream", headers=_SSE_HEADERS)
 
     async def _claim_anon_quota(
         self,

@@ -227,3 +227,28 @@ async def test_stream_disconnect_cancels_pipeline_task() -> None:
             await stream.__anext__()
 
     await asyncio.wait_for(pipeline_cancelled.wait(), timeout=1)
+
+
+@pytest.mark.asyncio
+async def test_direct_stream_sets_no_cache_and_no_buffering_headers():
+    """Live SSE must not be delayed or replayed by an intermediary cache."""
+    container = _make_container()
+    orchestrator = ChatStreamRequestOrchestrator(container)
+
+    async def _pipeline_execute(*args, **kwargs):
+        return _FakePipelineResult()
+
+    request = MagicMock()
+    request.headers = {}
+    chat_body = ChatRequest(messages=[], user_message="hello")
+
+    with patch.object(orchestrator.coordinator, "execute", _pipeline_execute):
+        response = await orchestrator.orchestrate_stream(
+            request=request,
+            chat_body=chat_body,
+            background_tasks=MagicMock(),
+            user={"id": "u1"},
+        )
+
+    assert response.headers["cache-control"] == "no-cache"
+    assert response.headers["x-accel-buffering"] == "no"
