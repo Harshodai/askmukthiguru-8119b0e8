@@ -2213,6 +2213,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
                 "intent": intent,
                 "_needs_retry": False,
                 "is_faithful": False,
+                "hallucination_flag": False,
                 "grounding_state": "grounded",
                 "verification": {
                     "passed": False,
@@ -2596,6 +2597,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
                 },
                 "faithfulness_score": 0.0,
                 "confidence_score": confidence,
+                "hallucination_flag": False,
                 "citations_verified": True,
                 "evaluation_trace": _trace_update(
                     state,
