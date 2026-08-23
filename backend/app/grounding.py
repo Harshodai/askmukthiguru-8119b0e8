@@ -35,7 +35,10 @@ def grounding_state_for(result: Any) -> GroundingState:
         verification.get("method") == "grounded_partial_evidence"
         and getattr(result, "citations", None)
         and verification.get("partial") is True
-        and getattr(result, "citations_verified", True) is not False
+        # citations_verified can describe the rejected model draft rather than
+        # this deterministic excerpt envelope. The fallback itself derives its
+        # citations from the same retrieved documents, so require citations and
+        # no hallucination flag but do not inherit the draft's failed verdict.
         and not bool(getattr(result, "hallucination_flag", False))
     ):
         # The model draft failed verification, but the public answer is made

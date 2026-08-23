@@ -8,7 +8,7 @@ def test_grounded_partial_evidence_is_publicly_grounded():
         blocked=False,
         intent="QUERY",
         citations=["https://doc.example/teaching"],
-        citations_verified=True,
+        citations_verified=False,
         hallucination_flag=False,
         verification={
             "method": "grounded_partial_evidence",
