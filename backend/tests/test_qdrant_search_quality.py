@@ -54,28 +54,47 @@ def qdrant_searcher():
 
     try:
         client_mgr = QdrantClientManager(collection=settings.qdrant_collection)
-        # health_check() returns False rather than raising on connection failure
-        # (services/qdrant/client.py:335) — check the boolean, don't rely on an exception.
-        if not client_mgr.health_check():
-            pytest.skip("Qdrant unreachable, skipping search-quality integration test")
-        # Verify the collection exists and has points — a reachable but
-        # empty container (fresh local stack without ingested corpus) would
-        # produce NDCG=0.0 and fail the threshold assertion without testing
-        # real retrieval quality.
-        try:
-            info = client_mgr.client.get_collection(settings.qdrant_collection)
-            if info.points_count == 0:
-                pytest.skip(
-                    f"Qdrant collection '{settings.qdrant_collection}' has 0 points "
-                    "— ingest the corpus before running search-quality tests"
-                )
-        except Exception:
-            pytest.skip(
-                f"Qdrant collection '{settings.qdrant_collection}' not found "
-                "— skipping search-quality integration test"
-            )
-    except Exception as e:
-        pytest.skip(f"Qdrant unreachable, skipping search-quality integration test: {e}")
+    except Exception as exc:
+        pytest.skip(
+            f"Qdrant client initialization failed ({type(exc).__name__}); "
+            "skipping search-quality integration test"
+        )
+
+    # Verify the target collection through Qdrant REST metadata. This avoids
+    # turning a client-side deserialization/connection artifact into a
+    # misleading retrieval-quality result while preserving the real searcher
+    # below for non-empty collections.
+    try:
+        import requests
+
+        headers = {}
+        api_key = getattr(settings, "qdrant_api_key", "") or ""
+        if api_key:
+            headers["api-key"] = api_key
+        response = requests.get(
+            f"{settings.qdrant_url.rstrip('/')}/collections/{settings.qdrant_collection}",
+            headers=headers,
+            timeout=10,
+        )
+        response.raise_for_status()
+        info = response.json().get("result", {})
+    except Exception as exc:
+        pytest.skip(
+            f"Qdrant collection '{settings.qdrant_collection}' lookup failed "
+            f"({type(exc).__name__}: {str(exc)[:180]}); "
+            "skipping search-quality integration test"
+        )
+    points_count = info.get("points_count") if isinstance(info, dict) else None
+    if points_count == 0:
+        pytest.skip(
+            f"Qdrant collection '{settings.qdrant_collection}' has 0 points "
+            "— ingest the corpus before running search-quality tests"
+        )
+    if points_count is None:
+        pytest.skip(
+            f"Qdrant collection '{settings.qdrant_collection}' did not expose a point count "
+            "— skipping search-quality integration test"
+        )
 
     return QdrantSearcher(client_mgr.client, settings.qdrant_collection)
 

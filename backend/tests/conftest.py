@@ -39,9 +39,8 @@ os.environ["REDIS_URL"] = os.environ.get("REDIS_URL", "redis://localhost:6379/0"
 # Unit tests exercise limiter behaviour separately; collection must not require
 # a Redis client merely because integration services use REDIS_URL.
 os.environ["RATE_LIMIT_STORAGE_URI"] = "memory://"
-# backend/.env carries docker hostnames (qdrant:6333) that do not resolve on
-# the host; point QDRANT_URL at the host-mapped port instead.
-os.environ["QDRANT_URL"] = "http://127.0.0.1:6333"
+# Host-run tests use the mapped localhost port; Docker tests re-apply the
+# Compose service hostname after `.env.test` is loaded below.
 os.environ["IS_PRODUCTION"] = "false"
 
 # Enable the X-Test-Key benchmark auth backdoor (dev-only; guarded by
@@ -65,6 +64,12 @@ from dotenv import load_dotenv
 test_env_path = os.path.join(_BACKEND_DIR, ".env.test")
 if os.path.exists(test_env_path):
     load_dotenv(test_env_path, override=True)
+
+# `.env.test` may contain host defaults. Use the reachable Compose hostname
+# inside Docker and the host-mapped port for host-run pytest.
+os.environ["QDRANT_URL"] = (
+    "http://qdrant:6333" if os.path.exists("/.dockerenv") else "http://127.0.0.1:6333"
+)
 
 # Disable rate limiting during tests to avoid Redis connections
 from app.core.limiter import limiter

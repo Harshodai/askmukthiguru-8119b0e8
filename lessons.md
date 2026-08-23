@@ -7616,3 +7616,15 @@ The post-deploy concurrent smoke was healthy but showed approximately 18–23 se
 
 ### L-LAT-1 — Terminate queued delivery on authoritative completion
 A queued SSE worker may emit the authoritative `final` and `done` events without a separate completion sentinel. The consumer must return immediately after yielding `done`; otherwise a blocking Redis read can add a full poll interval to user-perceived latency. Client-side non-stream queue fallbacks should poll once immediately and use bounded backoff rather than sleeping before the first status check. This is a transport optimization only: production p95/p99, provider latency, session issuance, admission, and concurrency still require independent measurement.
+
+
+## Aug 23, 2026 — Docker retrieval, memory, graph, and provider audit
+
+### L-LAT-2 — Separate embedding, retrieval, and provider timing
+Cold embedding initialization and warm query encoding are different costs. In the local Docker probe, cold initialization was approximately 8.6 seconds, while warm full encoding was 82 ms followed by two sub-millisecond samples. Empty-collection Qdrant search was 11.1 ms followed by 1.8 ms and 1.7 ms, but that is not representative retrieval latency. A fresh OpenRouter generation attempt took approximately 1.55 seconds and failed HTTP 401; no local Ollama endpoint was reachable. Do not optimize retrieval based on empty-collection timings or call provider authorization failure a model-latency result.
+
+### L-LAT-3 — A retrieval gate must distinguish unreachable from empty
+A reachable Qdrant collection with zero points must skip NDCG integration tests with an explicit empty-corpus reason. It must not be silently collapsed into a generic unreachable message, and it must never be “fixed” by inserting synthetic vectors or placeholder doctrine artifacts. The corpus remains immutable; approved ingestion is the only path to meaningful retrieval-quality evidence.
+
+### L-MEM-1 — Local feature routes are not proof of authenticated persistence
+Unauthenticated 401 responses from personal-memory and Second Brain routes demonstrate an auth boundary, not a persistence failure. Public ontology graph counts and local Qdrant/Redis counts cannot establish a user’s memory buildup. A valid buildup claim requires an authenticated, owner-scoped E2E plus a safe count/retention observation; Postgres data must not be inspected or mutated without explicit scope.
