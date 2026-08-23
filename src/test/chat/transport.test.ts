@@ -136,12 +136,45 @@ describe('chat/transport helpers', () => {
 
     await sendMessage([], 'hello');
 
-    // Second call is the poll — must hit the backend origin, not a bare relative path.
+    // Second call is the immediate poll — it must hit the backend origin, not a bare relative path.
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       'http://localhost:8000/api/jobs/job_1',
       expect.anything(),
     );
+  });
+
+  it('queued non-stream polling backs off from 250ms to at most 1s', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+      fetchMock
+        .mockResolvedValueOnce({
+          status: 202,
+          json: async () => ({ job_id: 'job_2', poll_url: '/api/jobs/job_2' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ status: 'queued' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ status: 'completed', result: { response: 'ready' } }),
+        });
+
+      const pending = sendMessage([], 'hello');
+      for (let i = 0; i < 6; i += 1) await Promise.resolve();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(249);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(1);
+      for (let i = 0; i < 6; i += 1) await Promise.resolve();
+      await pending;
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

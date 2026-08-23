@@ -183,8 +183,8 @@ export const sendMessage = async (
         const rawPollUrl = jobData.poll_url || `/api/jobs/${jobId}`;
         const pollUrl = /^https?:\/\//.test(rawPollUrl) ? rawPollUrl : `${baseUrl}${rawPollUrl}`;
         const pollStart = Date.now();
+        let pollDelayMs = 250;
         while (Date.now() - pollStart < 120_000) {
-          await new Promise(r => setTimeout(r, 2000));
           try {
             const pollResp = await fetch(pollUrl, {
               headers: {
@@ -233,6 +233,8 @@ export const sendMessage = async (
           } catch {
             // Network hiccup — keep polling
           }
+          await new Promise(r => setTimeout(r, pollDelayMs));
+          pollDelayMs = Math.min(1000, pollDelayMs + 250);
         }
         return { content: '', error: 'The Guru took too long to respond. Please retry your question.', errorCode: 'timeout' };
       }

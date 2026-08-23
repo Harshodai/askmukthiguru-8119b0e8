@@ -7612,3 +7612,7 @@ The post-deploy concurrent smoke was healthy but showed approximately 18–23 se
 ### L-PROD-14. A broad test command is not evidence when the serving mount is incomplete
 - **What**: Running `pytest -q` in the active desktop backend stopped during collection with 12 errors because the stale backend-only mount lacked repository-root ingestion/ops modules and newer tests. A focused dependency-complete suite remained valid and passed 103 tests.
 - **How to prevent**: Record the exact image, checkout, mount layout, and test selection for every Docker result. Treat collection errors caused by missing source artifacts as a harness/source-sync boundary, not as a product regression and not as a passing full-suite result.
+
+
+### L-LAT-1 — Terminate queued delivery on authoritative completion
+A queued SSE worker may emit the authoritative `final` and `done` events without a separate completion sentinel. The consumer must return immediately after yielding `done`; otherwise a blocking Redis read can add a full poll interval to user-perceived latency. Client-side non-stream queue fallbacks should poll once immediately and use bounded backoff rather than sleeping before the first status check. This is a transport optimization only: production p95/p99, provider latency, session issuance, admission, and concurrency still require independent measurement.

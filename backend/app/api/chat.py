@@ -808,6 +808,8 @@ async def chat_stream_poll(
                                 dat = parsed.get("data", "")
                                 if evt == "done":
                                     last_done_data = str(dat)
+                                    yield f"{event_id}event: {evt}\ndata: {dat}\n\n"
+                                    return
                                 yield f"{event_id}event: {evt}\ndata: {dat}\n\n"
                             else:
                                 yield f"{event_id}event: token\ndata: {str(parsed)}\n\n"
