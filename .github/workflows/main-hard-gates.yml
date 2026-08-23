@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   frontend:
-    name: Frontend build, lint, unit tests
+    name: Frontend build, lint, typecheck, unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -21,6 +21,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      - run: npm run typecheck
       - run: npm test -- --run
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
@@ -77,6 +78,7 @@ jobs:
           text = p.read_text()
           assert 'ALLOW_UNREACHABLE_SUCCESS' in text, 'Nightly load evidence policy marker missing'
           assert 'exit 1' in text, 'Nightly load workflow must contain a hard failure path'
-          assert 'NO_BACKEND_EVIDENCE' in text, 'Missing explicit no-evidence marker'
+          assert 'NO_BACKEND_EVIDENCE' in text, 'Missing no-evidence marker'
+          assert 'if: steps.reachable.outputs.reachable == \'true\'' in text, 'Load jobs must be conditioned on a proven reachable backend'
           print('Load-test evidence policy present.')
           PY
