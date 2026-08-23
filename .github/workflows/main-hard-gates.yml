@@ -36,30 +36,38 @@ jobs:
         with:
           python-version: '3.12'
       - name: Compile Python sources
-        run: |
-          python -m compileall -q backend
+        run: python -m compileall -q backend
       - name: Git diff cleanliness
         run: git diff --check
       - name: Reject obvious committed secret material
-        run: |
-          python scripts/security_audit.py --report
+        run: python scripts/security_audit.py --report
 
-  required-runtime-artifacts:
-    name: Required runtime artifact contract
+  repository-production-contract:
+    name: Repository production contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Validate artifact contract without manufacturing placeholders
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate required source contracts
         run: |
           set -euo pipefail
           test -f backend/app/config.py
           test -f backend/app/chat_uploads.py
           test -f backend/tests/test_qdrant_search_quality.py
           test -f backend/tests/redteam_harness.py
+          test -f backend/app/runtime_artifacts.py
+          test -f backend/tests/test_runtime_artifacts.py
           test -f docs/production/PRODUCTION_READINESS.md
-          echo 'Runtime source contract present.'
-          if grep -R --line-number --exclude-dir=.git --exclude='*.md' -E 'memory/okf/compiled\.json|data/doctrine_lexicon\.json' backend scripts supabase 2>/dev/null | grep -v 'FileNotFoundError' >/tmp/runtime-artifact-refs.txt; then
+          python - <<'PY'
+          from app.runtime_artifacts import inspect_runtime_artifacts
+          result = inspect_runtime_artifacts()
+          print(result)
+          assert result['total'] == 3
+          PY
+          if grep -R --line-number --exclude-dir=.git --exclude='*.md' -E 'memory/okf/compiled\\.json|data/doctrine_lexicon\\.json' backend scripts supabase 2>/dev/null | grep -v 'FileNotFoundError' >/tmp/runtime-artifact-refs.txt; then
             echo 'Runtime artifact references detected:'
             cat /tmp/runtime-artifact-refs.txt
           fi
@@ -79,6 +87,6 @@ jobs:
           assert 'ALLOW_UNREACHABLE_SUCCESS' in text, 'Nightly load evidence policy marker missing'
           assert 'exit 1' in text, 'Nightly load workflow must contain a hard failure path'
           assert 'NO_BACKEND_EVIDENCE' in text, 'Missing no-evidence marker'
-          assert 'if: steps.reachable.outputs.reachable == \'true\'' in text, 'Load jobs must be conditioned on a proven reachable backend'
+          assert "if: steps.reachable.outputs.reachable == 'true'" in text, 'Load jobs must be conditioned on a proven reachable backend'
           print('Load-test evidence policy present.')
           PY
