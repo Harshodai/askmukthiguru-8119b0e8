@@ -429,13 +429,18 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                   className="w-full p-3 rounded-xl bg-muted/50 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/60 resize-none outline-none focus:border-ojas/40"
                 />
                 <button
-                  onClick={async () => {
-                    // Save reflection extras to existing session.
+                  onClick={() => {
+                    // Save reflection extras to existing session. Fire-and-forget
+                    // (matches the other completeMeditationSession call sites in
+                    // this file) — awaiting it here blocked the "Skip" path on
+                    // the Supabase round-trip, so a slow/loaded backend made
+                    // Skip hang up to its ~30s network timeout instead of
+                    // dismissing instantly.
                     // Guard against a zeroed startTimeRef (defensive).
                     const durationSec = startTimeRef.current > 0
                       ? Math.round((Date.now() - startTimeRef.current) / 1000)
                       : 0;
-                    await completeMeditationSession(sessionIdRef.current, durationSec, 0, {
+                    completeMeditationSession(sessionIdRef.current, durationSec, 0, {
                       mood: selectedMood,
                       reflection: journalText.trim() || undefined,
                       gratitude: gratitudeText.trim() || undefined,
