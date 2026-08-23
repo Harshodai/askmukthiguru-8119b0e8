@@ -1,0 +1,82 @@
+name: Main Hard Gates
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend build, lint, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test -- --run
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+
+  backend-static:
+    name: Backend syntax and repository guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile Python sources
+        run: |
+          python -m compileall -q backend
+      - name: Git diff cleanliness
+        run: git diff --check
+      - name: Reject obvious committed secret material
+        run: |
+          python scripts/security_audit.py --report
+
+  required-runtime-artifacts:
+    name: Required runtime artifact contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate artifact contract without manufacturing placeholders
+        run: |
+          set -euo pipefail
+          test -f backend/app/config.py
+          test -f backend/app/chat_uploads.py
+          test -f backend/tests/test_qdrant_search_quality.py
+          test -f backend/tests/redteam_harness.py
+          test -f docs/production/PRODUCTION_READINESS.md
+          echo 'Runtime source contract present.'
+          if grep -R --line-number --exclude-dir=.git --exclude='*.md' -E 'memory/okf/compiled\.json|data/doctrine_lexicon\.json' backend scripts supabase 2>/dev/null | grep -v 'FileNotFoundError' >/tmp/runtime-artifact-refs.txt; then
+            echo 'Runtime artifact references detected:'
+            cat /tmp/runtime-artifact-refs.txt
+          fi
+
+  load-evidence-policy:
+    name: Load-test evidence policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure nightly load workflow cannot silently pass as a release gate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/nightly-load.yml')
+          text = p.read_text()
+          assert 'ALLOW_UNREACHABLE_SUCCESS' in text, 'Nightly load evidence policy marker missing'
+          assert 'exit 1' in text, 'Nightly load workflow must contain a hard failure path'
+          assert 'NO_BACKEND_EVIDENCE' in text, 'Missing explicit no-evidence marker'
+          print('Load-test evidence policy present.')
+          PY
