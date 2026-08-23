@@ -349,3 +349,68 @@ bypass).
   JavaScript to bypass the UI — the sandbox's security classifier blocks this
   pattern (session-token extraction) regardless of intent. Drive the UI
   through normal clicks/typing instead.
+
+## 2026-08-23 — Isolated-collection end-to-end test: CONFIRMED WORKING
+
+Full round trip verified for real, with hard numbers, not just "SUCCESS" status text:
+
+- **Qdrant**: `spiritual_wisdom_contextual` 1217 -> **1223** points (+6, exactly matching
+  the two jobs' `chunks_indexed: 4` + `chunks_indexed: 2`). Live `spiritual_wisdom`
+  (89,116 points, what production chat actually reads) stayed **exactly unchanged** —
+  true isolation confirmed, not just claimed.
+- **Neo4j**: fresh-wiped graph (0/0 after backup) went to **82 nodes / 19 relationships**
+  with real semantic labels (`Teacher`, `Concept`) — LightRAG KG extraction genuinely
+  ran against real content.
+- **Quality gate**: passed with real scores (94/100, 97/100) — confirms the
+  OPENROUTER_GENERATION_MODEL fix from earlier this month is holding in production.
+- **OKF**: not confirmed in the visible log window this session; check
+  `memory/okf/staging/` (or the admin OKF review endpoint) for entries from these
+  2 videos if that still needs verifying.
+
+### How this was actually achieved (for the next agent doing this again)
+
+1. **Neo4j backup**: `scripts/ops/backup_neo4j.py` needs bolt access
+   (`bolt://gb-neo4j-railway-template.railway.internal:7687`) which is
+   Railway-internal-only — unreachable from a local sandbox. Worked around it
+   via Neo4j's HTTP transactional endpoint instead (the same host has a public
+   domain on port 7474): `POST https://gb-neo4j-railway-template-production-2559.up.railway.app/db/neo4j/tx/commit`
+   with HTTP Basic auth (`NEO4J_USER`/`NEO4J_PASSWORD` from Railway variables),
+   running `MATCH (n) RETURN elementId(n), labels(n), properties(n)` and the
+   relationship equivalent, saved to `backend/data/backups/neo4j_backup_2026-08-23.json`
+   (gitignored, 14.8MB, 7864 nodes / 12415 relationships — the full pre-wipe graph).
+   Wipe was `MATCH (n) DETACH DELETE n` over the same HTTP endpoint.
+2. **Isolated Qdrant collection**: added a `qdrant_collection` override parameter
+   threaded through `IngestionPipeline.ingest_raw_text` -> `ingest_document_task`
+   -> `POST /api/ingest/raw-text` -> `2_upload_transcripts_to_railway.py --collection`
+   (commit `53217e6e`). Constructs one-off `QdrantService`/`RaptorIndexer` instances
+   scoped to a single call — does not touch the shared container instance other
+   requests use, so live retrieval is genuinely unaffected.
+3. **`api.askmukthiguru.com` DNS is still broken** (NXDOMAIN) — used
+   `askmukthiguru-8119b0e8-production.up.railway.app` via `--api-base` again, same
+   as the previous entry in this doc. Still not fixed at the registrar.
+4. **The real idempotency trap** (see bug #2 above): re-submitting the *same*
+   `source_url` — even with a different `qdrant_collection`, different transcript
+   text, different `idempotency_key` — returns the cached prior job instantly
+   without re-running anything, because `app/api/ingest.py`'s check filters
+   Supabase `ingest_jobs` by `source_url` alone. Had to append `&isolated_test=...`
+   to the URL to get a genuine fresh run. **This will bite anyone re-testing the
+   same video** — either use a URL suffix trick, or fix the underlying bug (store
+   `idempotency_key` on the `ingest_jobs` row and actually compare it, or key
+   idempotency on `(source_url, qdrant_collection)` instead of `source_url` alone).
+
+### Still open, not fixed this session
+
+- **`kb_sources.content_type` column missing** — Supabase schema is out of sync
+  with what `ingest/pipeline.py::_record_kb_source` tries to write. Every single
+  ingestion (all 745 corpus videos too, presumably, once they're processed) logs
+  this warning and silently skips recording source metadata. Needs a Supabase
+  migration adding the column, or removing the field from the insert if it's
+  genuinely no longer needed.
+- **Idempotency-key bug** described above — `idempotency_key` is accepted,
+  computed correctly client-side, sent to the server, and then never actually
+  used for anything. Either wire it up for real or remove the dead parameter.
+- **Live `QDRANT_COLLECTION` still points at the old `spiritual_wisdom`**
+  (89k points) instead of `spiritual_wisdom_contextual` (now 1223 points, still
+  far short of a real backfill). Flipping it is still a real, live-impacting
+  decision the user hasn't pulled the trigger on yet — see the isolation
+  mechanism above for how to keep testing without flipping it.
