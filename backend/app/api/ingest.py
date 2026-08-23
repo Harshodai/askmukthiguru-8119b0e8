@@ -200,6 +200,12 @@ class RawTextIngestRequest(BaseModel):
     idempotency_key: Optional[str] = Field(
         default=None, description="Idempotency key: sha256(canonical_json(video_id, hash, version))"
     )
+    qdrant_collection: Optional[str] = Field(
+        default=None,
+        description="Write to this Qdrant collection instead of the live default "
+        "(settings.qdrant_collection) — for isolated testing without touching "
+        "what production chat retrieves from.",
+    )
 
 
 MAX_RAW_TEXT_CHARS = 2_000_000  # ~2MB of text — a single video transcript is a few KB-100KB
@@ -289,6 +295,7 @@ async def ingest_raw_text_endpoint(
     dispatch_kwargs = {"task_id": job_id} if job_id else {}
     ingest_document_task.apply_async(
         args=[text, source_url, title, tag_list, body.max_accuracy, job_id, speaker],
+        kwargs={"qdrant_collection": body.qdrant_collection},
         **dispatch_kwargs,
     )
 

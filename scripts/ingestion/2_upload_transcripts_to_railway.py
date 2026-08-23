@@ -225,6 +225,7 @@ def forward_to_railway(
     item: dict,
     api_base: str = API_BASE,
     admin_token: str = ADMIN_TOKEN,
+    collection: str = None,
 ) -> dict:
     resp = client.post(
         f"{api_base}/api/ingest/raw-text",
@@ -240,6 +241,7 @@ def forward_to_railway(
             "artifact_manifest_hash": item.get("artifact_manifest_hash"),
             "pipeline_version": item.get("pipeline_version", "2.0.0"),
             "idempotency_key": item.get("idempotency_key"),
+            "qdrant_collection": collection,
         },
         headers={"Authorization": f"Bearer {admin_token}"},
         timeout=45,
@@ -254,6 +256,7 @@ def upload_batch_to_railway(
     admin_token: str = ADMIN_TOKEN,
     delay: float = 0.5,
     poll_completion: bool = True,
+    collection: str = None,
 ) -> tuple[int, int, int, bool]:
     """Upload a batch of trusted transcripts with idempotency and reconciliation polling."""
     state = load_state()
@@ -281,7 +284,7 @@ def upload_batch_to_railway(
             uploaded = False
             for attempt in range(max_retries):
                 try:
-                    result = forward_to_railway(client, item, api_base, admin_token)
+                    result = forward_to_railway(client, item, api_base, admin_token, collection)
                     job_id = result.get("job_id")
 
                     if result.get("status") == "already_processed":
@@ -383,6 +386,7 @@ def main() -> None:
     parser.add_argument("--delay", type=float, default=0.5, help="Seconds between uploads (default 0.5)")
     parser.add_argument("--api-base", default=API_BASE, help=f"Railway API base (default {API_BASE})")
     parser.add_argument("--no-poll", action="store_true", help="Submit asynchronously without polling for terminal completion")
+    parser.add_argument("--collection", default=None, help="Write to this Qdrant collection instead of the live default (isolated testing)")
     args = parser.parse_args()
 
     token = os.environ.get("MUKTHI_ADMIN_TOKEN", ADMIN_TOKEN).strip()
@@ -401,7 +405,8 @@ def main() -> None:
 
     print(f"\nUploading {len(md_files)} trusted transcript(s) -> {args.api_base}/api/ingest/raw-text\n")
     ok_c, fail_c, skip_c, expired = upload_batch_to_railway(
-        md_files, api_base=args.api_base, admin_token=token, delay=args.delay, poll_completion=not args.no_poll
+        md_files, api_base=args.api_base, admin_token=token, delay=args.delay,
+        poll_completion=not args.no_poll, collection=args.collection,
     )
 
     if expired:

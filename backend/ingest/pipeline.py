@@ -917,12 +917,25 @@ class IngestionPipeline:
         source_version: int = 1,
         authority_tier: str = "primary",
         assistant_slug: Optional[str] = None,
+        qdrant_collection: Optional[str] = None,
     ) -> dict:
         """
         Ingest raw text directly, bypassing any fetching/loaders.
         Useful for migrations or re-processing existing data.
+
+        qdrant_collection: when set, writes leaf chunks and RAPTOR summaries to
+        this collection instead of the process-wide default (settings.qdrant_collection),
+        via one-off QdrantService/RaptorIndexer instances scoped to this call only —
+        does not touch the shared container instance other requests use. For isolated
+        testing against a non-default collection without affecting live traffic.
         """
         import hashlib
+
+        qdrant_override = None
+        raptor_override = None
+        if qdrant_collection:
+            qdrant_override = QdrantService(collection=qdrant_collection)
+            raptor_override = RaptorIndexer(self._embedder, self._llm, qdrant_override)
 
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
         source_version = self._resolve_active_source_version(
@@ -1048,9 +1061,11 @@ class IngestionPipeline:
                 source_version=source_version,
                 authority_tier=authority_tier,
                 assistant_slug=assistant_slug,
+                qdrant_override=qdrant_override,
             )
 
             # Step 6: RAPTOR tree
+            raptor = raptor_override or self._raptor
             self._notify(on_progress, "Building RAPTOR tree...", 0.85)
             chunk_dicts = [
                 {
@@ -1064,8 +1079,8 @@ class IngestionPipeline:
             ]
             if getattr(settings, "raptor_parent_summaries_enabled", False):
                 self._notify(on_progress, "Summarizing parent chunks for RAPTOR...", 0.87)
-                chunk_dicts = await self._raptor.summarize_parent_chunks(chunk_dicts)
-            summaries_count = await self._raptor.build_tree(chunk_dicts)
+                chunk_dicts = await raptor.summarize_parent_chunks(chunk_dicts)
+            summaries_count = await raptor.build_tree(chunk_dicts)
 
             # Step 7: Graph RAG Extraction (Phase 4 Improvement)
             if self._lightrag:
@@ -2482,15 +2497,21 @@ class IngestionPipeline:
         source_version: int = 1,
         authority_tier: str = "primary",
         assistant_slug: Optional[str] = None,
+        qdrant_override: Optional[Any] = None,
     ) -> int:
         """
         Embed pre-split chunks (dense + sparse) and upsert to Qdrant.
 
         Uses encode_batch() to generate both dense and sparse vectors
         in a single pass for hybrid search support.
+
+        qdrant_override: use this QdrantService instead of self._qdrant for
+        this call only (isolated-collection testing — see ingest_raw_text).
         """
         if not chunks:
             return 0
+
+        qdrant = qdrant_override or self._qdrant
 
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
 
@@ -2646,9 +2667,9 @@ class IngestionPipeline:
             )
 
         # Check for existing content and delete for clean re-ingestion
-        if self._qdrant.check_source_exists(source_url):
+        if qdrant.check_source_exists(source_url):
             logger.info(f"Source already indexed, overwriting: {source_url}")
-            self._qdrant.delete_by_source(source_url)
+            qdrant.delete_by_source(source_url)
 
         # Defense-in-depth: Unicode NFC normalization, null byte stripping & doctrine corrections
         import unicodedata
@@ -2718,7 +2739,7 @@ class IngestionPipeline:
         self._record_kb_source(source_url, title, content_type, tags)
 
         # Upsert to Qdrant with both dense and sparse vectors
-        upserted = self._qdrant.upsert_chunks(
+        upserted = qdrant.upsert_chunks(
             clean_chunks,
             embeddings["dense"],
             metadatas,

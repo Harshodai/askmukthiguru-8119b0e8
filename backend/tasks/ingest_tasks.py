@@ -229,9 +229,13 @@ def ingest_document_task(
     job_id: str = None,
     speaker: str = "Unknown",
     assistant_slug: Optional[str] = None,
+    qdrant_collection: Optional[str] = None,
 ) -> dict[str, Any]:
     """Ingest already-extracted document text (e.g. an uploaded PDF or local transcript) through the
-    full pipeline: hierarchical chunking, embed, Qdrant, RAPTOR, LightRAG, OKF."""
+    full pipeline: hierarchical chunking, embed, Qdrant, RAPTOR, LightRAG, OKF.
+
+    qdrant_collection: write to this collection instead of the live default —
+    for isolated testing without touching what production chat retrieves from."""
     logger.info(f"Ingesting uploaded document: {source_url} (Speaker: {speaker})")
 
     if job_id:
@@ -257,6 +261,7 @@ def ingest_document_task(
                 on_progress=progress_cb,
                 tags=tags or ["general"],
                 assistant_slug=assistant_slug,
+                qdrant_collection=qdrant_collection,
             )
         )
 
@@ -270,11 +275,14 @@ def ingest_document_task(
                 job_id, "completed", progress_pct=100, chunks_indexed=chunks_indexed
             )
 
-        try:
-            container.exact_cache.invalidate_all()
-            container.semantic_cache.invalidate_all()
-        except Exception as cache_e:
-            logger.warning(f"Failed to invalidate cache: {cache_e}")
+        # Skip live-cache invalidation for isolated-collection test writes —
+        # they didn't touch what production chat actually retrieves from.
+        if not qdrant_collection:
+            try:
+                container.exact_cache.invalidate_all()
+                container.semantic_cache.invalidate_all()
+            except Exception as cache_e:
+                logger.warning(f"Failed to invalidate cache: {cache_e}")
 
         return {
             "status": "success",
