@@ -2078,20 +2078,8 @@ return (
                 ))}
               </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="w-full max-w-2xl px-4 flex justify-center"
-              >
-                <Link
-                  to="/guides/ai-spiritual-companion"
-                  className="inline-flex items-center gap-1.5 min-h-[44px] text-xs text-muted-foreground hover:text-ojas transition-colors underline-offset-4 hover:underline"
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  {t('chat.seekersGuideLink', "New here? Read The Seeker's Guide to AI-Guided Meditation")}
-                </Link>
-              </motion.div>
+
+
 
               {messages.length === 1 && (
                 <div className="w-full max-w-2xl px-4">
