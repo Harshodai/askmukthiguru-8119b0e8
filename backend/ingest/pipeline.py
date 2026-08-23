@@ -2782,18 +2782,22 @@ class IngestionPipeline:
             if not client:
                 return
 
+            # Column names match the actual kb_sources schema (supabase/migrations/
+            # 20260605023720_...sql): url/kind/status/chunk_count/metadata — NOT
+            # source_url/content_type/tags, which don't exist as columns and were
+            # silently rejected by PostgREST's schema cache on every ingestion.
             payload = {
-                "source_url": source_url,
+                "url": source_url,
                 "title": title,
-                "content_type": content_type,
-                "tags": tags,
+                "kind": content_type,
+                "status": "indexed",
+                "metadata": {"tags": tags},
                 "updated_at": datetime.now(UTC).isoformat(),
             }
-            # Upsert by source_url if the table supports it; otherwise insert.
-            try:
-                client.table("kb_sources").upsert(payload).execute()
-            except Exception:
-                client.table("kb_sources").insert(payload).execute()
+            # No unique constraint on url in this table — plain insert (matches
+            # the pre-existing behavior; kb_sources is an append-only telemetry
+            # log, not a dedup index).
+            client.table("kb_sources").insert(payload).execute()
             logger.debug(f"Recorded kb_sources entry for {source_url}")
         except Exception as e:
             # Non-fatal: ingestion must succeed even if telemetry table is absent.

@@ -256,13 +256,19 @@ async def ingest_raw_text_endpoint(
 
     job_id = None
     if container.supabase_client:
-        try:
-            # Idempotency check: look up existing job with matching source_url
-            if body.idempotency_key:
+        # Idempotency check: match on idempotency_key (content + collection +
+        # pipeline version), not source_url alone -- source_url-only matching
+        # meant a single successful job permanently blocked any reprocessing
+        # of that URL, even with different content or a different target
+        # collection. Needs supabase/migrations/20260823130000_... applied;
+        # falls back to the old source_url-only behavior until it is, so this
+        # doesn't break ingestion if the migration hasn't run yet.
+        if body.idempotency_key:
+            try:
                 existing = (
                     container.supabase_client.table("ingest_jobs")
                     .select("id, status")
-                    .eq("source_url", source_url)
+                    .eq("idempotency_key", body.idempotency_key)
                     .execute()
                 )
                 for row in getattr(existing, "data", []) or []:
@@ -273,18 +279,41 @@ async def ingest_raw_text_endpoint(
                             source_url=source_url,
                             job_id=row.get("id"),
                         )
-
-            resp = (
-                container.supabase_client.table("ingest_jobs")
-                .insert(
-                    {
-                        "source_url": source_url,
-                        "status": "pending",
-                        "progress_pct": 0,
-                    }
+            except Exception as e:
+                logger.debug(
+                    f"idempotency_key lookup failed (migration not applied yet?), "
+                    f"falling back to source_url-only check: {e}"
                 )
-                .execute()
-            )
+                try:
+                    existing = (
+                        container.supabase_client.table("ingest_jobs")
+                        .select("id, status")
+                        .eq("source_url", source_url)
+                        .execute()
+                    )
+                    for row in getattr(existing, "data", []) or []:
+                        if row.get("status") in ["success", "completed"]:
+                            return IngestResponse(
+                                status="already_processed",
+                                message=f"Already processed (source_url match): {source_url}",
+                                source_url=source_url,
+                                job_id=row.get("id"),
+                            )
+                except Exception as e2:
+                    logger.warning(f"Idempotency check failed entirely: {e2}")
+
+        try:
+            insert_payload = {
+                "source_url": source_url,
+                "status": "pending",
+                "progress_pct": 0,
+                "idempotency_key": body.idempotency_key,
+            }
+            try:
+                resp = container.supabase_client.table("ingest_jobs").insert(insert_payload).execute()
+            except Exception:
+                insert_payload.pop("idempotency_key", None)
+                resp = container.supabase_client.table("ingest_jobs").insert(insert_payload).execute()
             if resp.data:
                 job_id = resp.data[0]["id"]
         except Exception as e:
