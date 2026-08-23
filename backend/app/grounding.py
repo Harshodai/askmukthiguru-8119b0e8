@@ -28,6 +28,22 @@ def grounding_state_for(result: Any) -> GroundingState:
     }:
         return "safety_redirect"
 
+    verification = getattr(result, "verification", None)
+    if not isinstance(verification, dict):
+        verification = {}
+    if (
+        verification.get("method") == "grounded_partial_evidence"
+        and getattr(result, "citations", None)
+        and verification.get("partial") is True
+        and getattr(result, "citations_verified", True) is not False
+        and not bool(getattr(result, "hallucination_flag", False))
+    ):
+        # The model draft failed verification, but the public answer is made
+        # exclusively from retrieved excerpts with resolvable source URLs.
+        # Keep the user-visible state grounded while the verification metadata
+        # transparently records that this is a partial evidence envelope.
+        return "grounded"
+
     evidence = getattr(result, "answer_evidence", None)
     source_count = getattr(evidence, "source_count", None)
     if source_count is None and isinstance(evidence, dict):
