@@ -61,7 +61,7 @@ jobs:
           test -f backend/app/runtime_artifacts.py
           test -f backend/tests/test_runtime_artifacts.py
           test -f docs/production/PRODUCTION_READINESS.md
-          python - <<'PY'
+          PYTHONPATH=backend python - <<'PY'
           from app.runtime_artifacts import inspect_runtime_artifacts
           result = inspect_runtime_artifacts()
           print(result)
