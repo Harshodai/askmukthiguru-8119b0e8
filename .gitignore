@@ -173,6 +173,7 @@ test-results/
 .ruff_cache/
 .mypy_cache/
 htmlcov/
+coverage/
 .coverage
 .coverage.*
 coverage.xml

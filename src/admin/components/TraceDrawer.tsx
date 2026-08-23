@@ -3,6 +3,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,9 @@ export function TraceDrawer({ queryId, onClose }: Props) {
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="text-base">Query trace</SheetTitle>
+          <SheetDescription className="sr-only">
+            Detailed pipeline trace for the selected query
+          </SheetDescription>
         </SheetHeader>
 
         {isLoading ? (
