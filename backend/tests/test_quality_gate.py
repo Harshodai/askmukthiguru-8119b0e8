@@ -153,9 +153,12 @@ def test_ingest_playlist_chord(mock_get_urls, mock_orchestrate, mock_supabase):
         patch("celery.app.task.Task.update_state"),
         patch("celery.chord", return_value=MagicMock()),
         patch("tasks.ingest_tasks.update_job_progress"),
-        patch("app.config.settings"),
+        patch("tasks.ingest_tasks.settings") as mock_settings,
         patch("supabase.create_client") as mock_create_client,
     ):
+        mock_settings.supabase_url = "https://example.supabase.co"
+        mock_settings.supabase_service_key = "test-service-key"
+        mock_settings.supabase_key = "test-anon-key"
         mock_create_client.return_value = mock_supabase
 
         # Call ingest_playlist
