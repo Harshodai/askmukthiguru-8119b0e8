@@ -7607,3 +7607,8 @@ The post-deploy concurrent smoke was healthy but showed approximately 18–23 se
 ### L-PROD-13. Local safety proof does not establish production corpus quality
 - **What**: The active desktop Docker stack returned the acute self-harm control as blocked `DISTRESS`, but the benign Beautiful State control used `no_context_short_circuit` because the selected local Qdrant collection had zero points.
 - **Rule**: Treat localhost results as environment-specific evidence. Do not infer production answer quality, citations, provider behavior, or deployment state from a stale/empty local data plane. Preserve the production NOT READY verdict until the relevant production gates have independent evidence.
+
+
+### L-PROD-14. A broad test command is not evidence when the serving mount is incomplete
+- **What**: Running `pytest -q` in the active desktop backend stopped during collection with 12 errors because the stale backend-only mount lacked repository-root ingestion/ops modules and newer tests. A focused dependency-complete suite remained valid and passed 103 tests.
+- **How to prevent**: Record the exact image, checkout, mount layout, and test selection for every Docker result. Treat collection errors caused by missing source artifacts as a harness/source-sync boundary, not as a product regression and not as a passing full-suite result.

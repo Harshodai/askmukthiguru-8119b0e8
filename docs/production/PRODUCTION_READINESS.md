@@ -54,6 +54,8 @@ The active desktop Docker backend passed **84 focused tests in 9.81 seconds** ac
 
 This evidence closes the identified **local safety-order regression**, but it does not close production readiness. The local stack remains non-equivalent to production because the selected Qdrant collection is empty, reviewed OKF/runtime artifacts are absent, and local provider configuration has previously produced authorization failures. The localhost probe therefore cannot validate production answers, citations, latency, or provider failover. No Railway deployment was started.
 
+A broad `pytest -q` invocation in the active desktop container was not a valid full-suite result: collection stopped with **12 errors** because the stale backend-only mount did not include repository-root ingestion/ops modules and some newer tests, including `test_runtime_artifacts.py`. This is recorded as a test-harness/source-sync boundary, not a product regression. The valid dependency-complete local evidence remains the targeted Docker run of 103 passing tests; canonical sandbox static gates also passed.
+
 ## Scoring rule
 
 No numerical score overrides the verdict. A future score must report the numerator, denominator, source, window, and evidence class for every category. Any unresolved P0, uncontrolled cost risk, critical user-journey failure, data-loss risk, or severe security issue automatically produces **NOT READY FOR PRODUCTION**.
