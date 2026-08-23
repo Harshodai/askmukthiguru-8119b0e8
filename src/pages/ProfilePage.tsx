@@ -389,67 +389,67 @@ const ProfilePage = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 safe-x">
         {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
         {!isOnboarding && (
-          <div className="rounded-2xl border border-hairline bg-card p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+          <div className="rounded-3xl border border-hairline bg-card px-5 py-7 sm:px-8 sm:py-8 flex flex-col sm:flex-row items-center sm:items-center gap-5 sm:gap-7">
             <div className="relative shrink-0">
-              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 ring-1 ring-border relative">
+              <Avatar className="w-[88px] h-[88px] sm:w-24 sm:h-24 ring-1 ring-ojas/20">
                 {(profile.avatarDataUrl || profile.avatarUrl) ? (
                   <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
                 ) : null}
-                <AvatarFallback className="bg-muted text-foreground text-2xl font-serif font-semibold">
+                <AvatarFallback className="bg-muted/60 text-foreground text-2xl font-serif font-normal">
                   {getInitials(profile.displayName)}
                 </AvatarFallback>
               </Avatar>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 aria-label="Change profile photo"
-                className="absolute bottom-0 right-0 min-w-[44px] min-h-[44px] flex items-center justify-center p-2.5 rounded-full bg-ojas text-primary-foreground shadow-sm hover:bg-ojas-light transition-all"
+                className="absolute -bottom-1 -right-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-card border border-hairline text-ojas shadow-sm hover:bg-ojas/10 transition-colors no-tap-highlight"
               >
                 <Camera className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex-1 min-w-0 text-center sm:text-left space-y-2">
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                <h1 className="text-2xl sm:text-3xl font-serif font-semibold text-foreground tracking-tight truncate">
-                  {profile.displayName || 'Seeker'}
-                </h1>
-                <Badge variant="outline" className="bg-ojas/10 text-ojas border-hairline capitalize text-xs px-2.5 py-0.5">
-                  <Sparkles className="w-3 h-3 mr-1 text-ojas" />
-                  {profile.familiarityLevel || 'Seeker'}
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground truncate">
+            <div className="flex-1 min-w-0 text-center sm:text-left space-y-2.5">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
+                {profile.familiarityLevel || 'Seeker'}
+              </p>
+              <h1 className="text-[26px] sm:text-3xl font-serif font-normal text-foreground tracking-tight leading-tight truncate">
+                {profile.displayName || 'Seeker'}
+              </h1>
+              <p className="text-sm text-muted-foreground/80 truncate">
                 {user?.email ?? 'Your sacred journey with Sri Preethaji & Sri Krishnaji'}
               </p>
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-1">
-                {stats && stats.streakDays > 0 && (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ojas/10 border border-hairline text-xs text-ojas font-medium">
-                    <Flame className="w-3.5 h-3.5" />
-                    <span>{stats.streakDays}-day streak</span>
-                  </div>
-                )}
-                {stats && stats.totalMinutes > 0 && (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-hairline text-xs text-muted-foreground font-medium">
-                    <Clock className="w-3.5 h-3.5 text-ojas" />
-                    <span>{stats.totalMinutes} min practiced</span>
-                  </div>
-                )}
-              </div>
+              {stats && (stats.streakDays > 0 || stats.totalMinutes > 0) && (
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-5 gap-y-2 pt-1.5">
+                  {stats.streakDays > 0 && (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-ojas">
+                      <Flame className="w-3.5 h-3.5" />
+                      {stats.streakDays}-day streak
+                    </span>
+                  )}
+                  {stats.totalMinutes > 0 && (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Clock className="w-3.5 h-3.5 text-ojas/70" />
+                      {stats.totalMinutes} min practiced
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
+
         )}
 
         <div className="space-y-6">
           <Tabs value={tab} onValueChange={setTab} className="w-full">
             {/* ── Scrollable tab rail — generous touch targets and sacred minimal background ── */}
             <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto momentum-scroll no-tap-highlight">
-              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-7 gap-1.5 mb-8 bg-muted/50 ring-1 ring-border/30 p-1.5 rounded-full">
-                <TabsTrigger value="conversations" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
-                <TabsTrigger value="profile" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
-                <TabsTrigger value="stats" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
-                <TabsTrigger value="notes" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.notes', 'Notes')}</TabsTrigger>
-                <TabsTrigger value="memory" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
-                <TabsTrigger value="settings" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
-                <TabsTrigger value="support" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 py-2.5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm data-[state=active]:font-medium text-muted-foreground hover:text-foreground transition-all duration-200">{t('profile.tabs.support', 'Support')}</TabsTrigger>
+              <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-7 gap-1 mb-7 bg-muted/40 p-1 rounded-full">
+                <TabsTrigger value="conversations" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.conversations', 'Conversations')}</TabsTrigger>
+                <TabsTrigger value="profile" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.profile', 'Profile')}</TabsTrigger>
+                <TabsTrigger value="stats" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.insights', 'Insights')}</TabsTrigger>
+                <TabsTrigger value="notes" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.notes', 'Notes')}</TabsTrigger>
+                <TabsTrigger value="memory" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
+                <TabsTrigger value="settings" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
+                <TabsTrigger value="support" className="rounded-full min-h-[44px] text-xs sm:text-sm px-4 sm:px-5 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground/80 hover:text-foreground transition-colors">{t('profile.tabs.support', 'Support')}</TabsTrigger>
               </TabsList>
             </div>
 
