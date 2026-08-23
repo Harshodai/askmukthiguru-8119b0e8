@@ -1,7 +1,7 @@
 # AskMukthiGuru Production Readiness Matrix
 
 **Assessment date:** 2026-08-23
-**Current repository head:** `c9bdff1`
+**Current repository head:** `31fa101`
 **Current backend deployment:** `108888e3-757d-4a37-9c77-0a890c5a51c4`
 **Current worker deployment:** `f9d05731-6fb0-4b8d-92bd-21fb14b01aa9`
 **Production backend:** `https://askmukthiguru-8119b0e8-production.up.railway.app`
