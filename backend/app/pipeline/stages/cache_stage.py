@@ -305,18 +305,25 @@ class CacheUpdateStage(Stage):
         # ctx.state would carry no verdict at all. When no verdict was written
         # (non-RAG / no-context / fallback paths), keep the legacy behavior.
         graph_result = ctx.graph_result or {}
+        verification = graph_result.get("verification") or {}
+        partial_evidence = (
+            verification.get("method") == "grounded_partial_evidence"
+            and verification.get("partial") is True
+            and bool(ctx.citations)
+        )
         verdict_present = any(
             key in graph_result
             for key in ("is_faithful", "faithfulness_score", "citations_verified")
         )
         if verdict_present:
-            if graph_result.get("is_faithful") is False:
+            if graph_result.get("is_faithful") is False and not partial_evidence:
                 logger.info("Skipping cache update: answer failed faithfulness verification.")
                 return None
             faithfulness_score = graph_result.get("faithfulness_score")
             if (
                 faithfulness_score is not None
                 and faithfulness_score < settings.cove_compulsory_threshold
+                and not partial_evidence
             ):
                 logger.info(
                     "Skipping cache update: faithfulness score %.2f below cache threshold %.2f.",
@@ -324,8 +331,10 @@ class CacheUpdateStage(Stage):
                     settings.cove_compulsory_threshold,
                 )
                 return None
-            if graph_result.get("is_faithful") is None and not graph_result.get(
-                "citations_verified", False
+            if (
+                graph_result.get("is_faithful") is None
+                and not graph_result.get("citations_verified", False)
+                and not partial_evidence
             ):
                 # P1-AI-2 semantics: is_faithful None means the verifier was
                 # legitimately skipped (fast tier), NOT that the answer failed —

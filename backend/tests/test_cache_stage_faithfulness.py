@@ -192,3 +192,28 @@ async def test_missing_verdict_defaults_to_cache_allowed():
 if __name__ == "__main__":
     # ponytail: one runnable self-check — run pytest on this module.
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+@pytest.mark.asyncio
+async def test_grounded_partial_evidence_is_cacheable():
+    """Deterministic cited excerpts may be reused without caching the rejected draft."""
+    container = _container()
+    coord = _coordinator(container)
+    _, ctx = _run(
+        _ctx(
+            coord,
+            graph_result={
+                "is_faithful": False,
+                "faithfulness_score": 0.0,
+                "verification": {
+                    "method": "grounded_partial_evidence",
+                    "partial": True,
+                    "passed": False,
+                },
+            },
+        )
+    )
+
+    await CacheUpdateStage().run(ctx)
+
+    _assert_cached(container)
