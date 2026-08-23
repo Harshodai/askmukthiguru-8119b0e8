@@ -390,11 +390,28 @@ async def _drain_stream_to_redis(
                 except Exception:
                     completion_payload = "__ERROR__"
                 else:
+                    # Queued workers drain raw generation chunks directly and
+                    # therefore do not pass through ChatStreamRequestOrchestrator
+                    # (which emits the authoritative normalized final event).
+                    # Always persist that final event here, including cache hits
+                    # where the queue contains no text chunks at all.
+                    final_payload = json.dumps(
+                        {
+                            "event": "final",
+                            "data": json.dumps(
+                                getattr(pipeline_result, "final_answer", "") or "",
+                                ensure_ascii=False,
+                            ),
+                        },
+                        ensure_ascii=False,
+                    )
+                    await r.xadd(stream_key, {"data": final_payload}, maxlen=1000)
                     completion_payload = json.dumps(
                         {
                             "event": "done",
                             "data": json.dumps(_stream_done_metadata(pipeline_result)),
-                        }
+                        },
+                        ensure_ascii=False,
                     )
                 await r.xadd(stream_key, {"data": completion_payload}, maxlen=1000)
                 await r.expire(stream_key, max(600, settings.queue_job_ttl))

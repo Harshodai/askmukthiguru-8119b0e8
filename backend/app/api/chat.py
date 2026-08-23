@@ -773,10 +773,17 @@ async def chat_stream_poll(
                             await asyncio.sleep(0.5)
                             continue
                         if status in ("completed", "failed") and last_id != "0":
-                            fallback = last_done_data or json.dumps(
+                            # A terminal done entry was already delivered from
+                            # the Redis stream. Do not synthesize a second done
+                            # event; duplicate completion events can make the
+                            # browser persist metadata twice and obscure the
+                            # authoritative final event.
+                            if last_done_data is not None:
+                                return
+                            fallback = json.dumps(
                                 {"grounding_state": "system_error"}
                             )
-                            yield f"event: done\ndata: {fallback}\n\n"
+                            yield f"event: done\\ndata: {fallback}\\n\\n"
                             return
                     continue
 
