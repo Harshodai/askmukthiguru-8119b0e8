@@ -546,8 +546,11 @@ class PipelineCoordinator:
             model_used=model,
             model_provider=getattr(settings, "llm_provider", None),
             route_decision="error",
-            blocked=True,
-            block_reason="circuit_breaker_open",
+            # A provider circuit outage is a system error, not a user-safety
+            # violation. Keep `blocked` false so the public grounding state is
+            # not incorrectly rendered as `safety_redirect`.
+            blocked=False,
+            block_reason=None,
             release_manifest=get_release_manifest().to_dict(),
         )
 

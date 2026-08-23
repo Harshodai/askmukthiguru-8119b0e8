@@ -716,13 +716,20 @@ class OllamaService:
                 "reason": resp.reason,
             }
         except Exception as e:
-            logger.warning(f"Instructor structured output failed: {e}")
-            # Fallback to naive parsing if Instructor fails
-            intent = await self.classify_intent(message)
+            # A provider or parser failure is not evidence of distress. Do not
+            # call the intent classifier here: when that classifier is degraded
+            # too, an unrelated question can be converted into a safety redirect.
+            # SereneMindEngine retains deterministic lexical checks and its
+            # optional embedding detector as the safety signals.
+            logger.warning(
+                "Ollama distress JSON classification unavailable: %s; "
+                "returning indeterminate non-distress result",
+                e,
+            )
             return {
-                "is_distress": intent == "DISTRESS",
-                "confidence": 0.5,
-                "reason": f"Fallback naive classification (intent={intent})",
+                "is_distress": False,
+                "confidence": 0.0,
+                "reason": "Distress provider unavailable; deterministic safety checks remain authoritative",
             }
 
     async def batch_grade_relevance(self, query: str, documents: list[str], **kwargs) -> list[dict]:

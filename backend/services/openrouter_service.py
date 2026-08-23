@@ -811,12 +811,20 @@ class OpenRouterService:
                 "reason": str(data.get("reason", "Parsed successfully")),
             }
         except Exception as e:
-            logger.warning(f"OpenRouter distress JSON fallback failed: {e}. Using naive fallback.")
-            intent = await self.classify_intent(message)
+            # A provider failure is not evidence of distress. Falling back to
+            # classify_intent here can turn an unrelated question into a safety
+            # redirect when the intent classifier is itself degraded. Deterministic
+            # lexical checks (and the optional embedding detector) remain the
+            # authoritative safety signals in SereneMindEngine.
+            logger.warning(
+                "OpenRouter distress JSON classification unavailable: %s; "
+                "returning indeterminate non-distress result",
+                e,
+            )
             return {
-                "is_distress": intent == "DISTRESS",
-                "confidence": 0.5,
-                "reason": f"Fallback naive classification (intent={intent})",
+                "is_distress": False,
+                "confidence": 0.0,
+                "reason": "Distress provider unavailable; deterministic safety checks remain authoritative",
             }
 
     async def batch_grade_relevance(self, query: str, documents: list[str], **kwargs) -> list[dict]:
