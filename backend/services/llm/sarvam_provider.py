@@ -76,6 +76,9 @@ class SarvamProvider(LLMProvider):
     ) -> str:
         return await self._service.translate_text(text, source_lang, target_lang)
 
+    async def summarize(self, texts: list[str], **kwargs: Any) -> str:
+        return await self._service.summarize(texts, **kwargs)
+
     async def health_check(self) -> bool:
         return await self._service.health_check()
 

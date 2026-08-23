@@ -137,6 +137,11 @@ class LLMProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
+    async def summarize(self, texts: list[str], **kwargs: Any) -> str:
+        """Summarize a cluster of texts (RAPTOR hierarchical summarization)."""
+        pass
+
+    @abc.abstractmethod
     async def health_check(self) -> bool:
         """Return True if the LLM service is reachable and healthy."""
         pass

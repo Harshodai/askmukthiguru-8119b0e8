@@ -110,10 +110,13 @@ class RaptorIndexer:
             return 0
 
         # Step 5: Index summaries as level-1 nodes (with sparse vectors for hybrid search)
-        summary_texts = []
-        for s in summaries:
-            header = f"[RAPTOR Level: 1 | Topic: {s['topic_label'] or 'General'}]\n"
-            summary_texts.append(header + s["text"])
+        # Level/topic are already carried as `raptor_level`/`topic` metadata below —
+        # stamping them into the text too duplicates that and, worse, matches the
+        # `text_quality_filter` artifact pattern that exists to reject exactly this
+        # "[RAPTOR Level: ...]" leaked-debug-header shape, so every summary node was
+        # silently rejected at the storage quality gate. Store the clean text only;
+        # `doc_utils._strip_ingestion_headers` remains a harmless no-op on new data.
+        summary_texts = [s["text"] for s in summaries]
 
         summary_embeddings = self._embedder.encode_batch(summary_texts)
         summary_metas = [
@@ -294,21 +297,21 @@ class RaptorIndexer:
                             "Generate a short topic label (3-6 words).",
                             topic_prompt,
                         )
-                        topic_label = topic_label.strip().strip('"').strip("'")
                         # Some models echo an elaborate reasoning breakdown instead of
                         # following the "3-6 words" instruction — a real label is a
-                        # short phrase, never a multi-line/multi-sentence dump. Reject
-                        # anything that doesn't look like one rather than baking a
-                        # leaked prompt-analysis into the stored chunk header.
-                        if (
-                            len(topic_label) > 60
-                            or "\n" in topic_label
-                            or topic_label.count(".") > 1
-                        ):
+                        # short phrase, never a multi-line/multi-sentence dump. Shared
+                        # with the topic-label validation ingest/pipeline.py uses, so
+                        # this gate can't drift out of sync with that one again.
+                        from services.text_quality_filter import clean_topic_label
+
+                        cleaned_label = clean_topic_label(topic_label)
+                        if cleaned_label is None:
                             logger.warning(
                                 f"Rejected malformed topic label ({len(topic_label)} chars): {topic_label[:80]!r}"
                             )
                             topic_label = ""
+                        else:
+                            topic_label = cleaned_label
                     except Exception as te:
                         logger.debug(f"Topic label generation failed: {te}")
 

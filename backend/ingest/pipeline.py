@@ -1137,6 +1137,22 @@ class IngestionPipeline:
                 logger.warning(f"optional ontology write unavailable for {source_url}: {e}")
 
         checkpoint.save(self._checkpoint_key(content_hash, source_version))
+
+        # OKF auto-extraction: fire-and-forget for newly ingested content.
+        # ponytail: gated by rag_okf_auto_extract_enabled (default on — hardened
+        # w/ Celery retry + logging in _okf_extract_for_video). Non-fatal — OKF
+        # extraction must never break ingestion. Mirrors the hook in _ingest_video —
+        # ingest_raw_text (the split local-transcribe/raw-text pipeline) previously
+        # had no OKF hook at all, so anything ingested through it never reached OKF.
+        if getattr(settings, "rag_okf_auto_extract_enabled", False):
+            try:
+                video_id = extract_video_id(source_url)
+                if video_id:
+                    asyncio.create_task(_okf_extract_for_video(video_id))
+                    logger.debug("OKF extraction queued for video: %s", video_id)
+            except Exception as e:
+                logger.warning(f"Failed to queue OKF extraction for {source_url}: {e}")
+
         self._notify(on_progress, "Complete!", 1.0)
         return {
             "status": "success",
