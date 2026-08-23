@@ -65,16 +65,23 @@ def _is_assistant_config_present(ctx: PipelineContext) -> bool:
     return bool(ctx.assistant_config_present)
 
 
-async def _invalidate_shared_entries(container, cache_key: str) -> None:
-    """Purge previously-cached SHARED entries for ``cache_key``.
+async def _invalidate_shared_entries(
+    container, cache_key: str, *, semantic_query=None
+) -> None:
+    """Purge previously-cached SHARED entries for one exact request scope.
+
+    ``semantic_query`` is accepted separately because the exact cache key is
+    release/tenant scoped while the semantic adapter's point ID is derived
+    from its language-prefixed natural-language query. Both invalidations are
+    targeted; this helper never clears a namespace or the whole cache.
 
     Called when a response was personalization-sensitive (write guard's
     skipped path): a stale entry written earlier by a non-personalized answer
     would otherwise keep shadowing personalization — the next seeker with
     memory would be served it straight from the shared cache. Delete every
     tier that exposes a per-key API: hot (exact-key invalidate) and semantic
-    (per-query invalidate). The Redis exact tier and the vector tier expose
-    no per-key delete from this module (only nuclear ``invalidate_all`` /
+    (per-query invalidate). The Redis exact tier and the vector tier expose no
+    per-key delete from this module (only nuclear ``invalidate_all`` /
     ``clear``), so they are intentionally skipped rather than nuked; their
     TTLs bound the staleness window.
     """
@@ -88,7 +95,9 @@ async def _invalidate_shared_entries(container, cache_key: str) -> None:
         invalidate = getattr(semantic, "invalidate_by_query", None)
         if callable(invalidate):
             try:
-                await asyncio.to_thread(invalidate, cache_key)
+                # The semantic adapter derives its point ID from the exact
+                # natural-language query used at put time, not cache_key.
+                await asyncio.to_thread(invalidate, semantic_query or cache_key)
             except Exception as e:
                 logger.debug("[cache stage] semantic-cache invalidation failed: %s", e)
 
@@ -415,6 +424,19 @@ class CacheUpdateStage(Stage):
 
         if intent in ["QUERY", "CASUAL", "FACTUAL"]:
             try:
+                if partial_evidence:
+                    # A grounded partial is a deterministic excerpt envelope,
+                    # not a semantically portable answer. Reusing it for a
+                    # paraphrase can silently pair the new question with old
+                    # evidence. Keep the latency win for the exact scoped
+                    # request (hot + exact Redis) and remove only a matching
+                    # legacy semantic entry. The process-local vector cache is
+                    # deliberately not written; it is similarity-based and
+                    # has no safe evidence/version gate on reads.
+                    await _invalidate_shared_entries(
+                        container, cache_key, semantic_query=semantic_query
+                    )
+
                 # Update hot cache first (fastest, no I/O)
                 hot_cache.put(cache_key, final_answer, citations, ttl=300.0, intent=intent)
 
@@ -428,26 +450,31 @@ class CacheUpdateStage(Stage):
                     meditation_step=med_step,
                 )
 
-                # Update semantic cache using the natural-language query. The
-                # exact cache keeps the composite release/tenant/preferences
-                # key, while semantic search needs the original utterance for
-                # useful paraphrase similarity and language isolation.
-                # Update semantic cache (Qdrant — slowest, guarded)
+                # A partial-evidence response is intentionally excluded from
+                # semantic/vector writes. Those tiers are similarity-based and
+                # currently have no fresh-evidence/source-version/support gate.
+                if not partial_evidence:
+                    # Update semantic cache using the natural-language query. The
+                    # exact cache keeps the composite release/tenant/preferences
+                    # key, while semantic search needs the original utterance for
+                    # useful paraphrase similarity and language isolation.
+                    # Update semantic cache (Qdrant — slowest, guarded)
 
-                if container.semantic_cache and container.semantic_cache.is_available:
-                    await asyncio.to_thread(
-                        container.semantic_cache.put,
-                        query=semantic_query,
-                        response=final_answer,
-                        intent=intent,
-                        citations=citations,
-                        meditation_step=med_step,
-                    )
+                    if container.semantic_cache and container.semantic_cache.is_available:
+                        await asyncio.to_thread(
+                            container.semantic_cache.put,
+                            query=semantic_query,
+                            response=final_answer,
+                            intent=intent,
+                            citations=citations,
+                            meditation_step=med_step,
+                        )
 
                 # Update local vector cache (P90 fast path). Previously this stage
                 # never wrote to TurboQuantCache, so the P90 cache stayed empty and
-                # every repeat/similar query missed.
-                if getattr(settings, "hybrid_search_enabled", False):
+                # every repeat/similar query missed. Partial evidence is excluded
+                # because this tier has no evidence/version gate on reads.
+                if not partial_evidence and getattr(settings, "hybrid_search_enabled", False):
                     try:
                         query_text = ctx.query_for_embedding or cache_key
                         embedding = await ctx.coordinator._embed_query(query_text)

@@ -195,8 +195,8 @@ if __name__ == "__main__":
 
 
 @pytest.mark.asyncio
-async def test_grounded_partial_evidence_is_cacheable():
-    """Deterministic cited excerpts may be reused without caching the rejected draft."""
+async def test_grounded_partial_evidence_uses_only_exact_scoped_tiers(monkeypatch):
+    """Partial excerpts may use exact/hot reuse, never similarity-based tiers."""
     container = _container()
     coord = _coordinator(container)
     _, ctx = _run(
@@ -214,6 +214,14 @@ async def test_grounded_partial_evidence_is_cacheable():
         )
     )
 
+    monkeypatch.setattr(settings, "hybrid_search_enabled", True)
+    coord._ensure_vector_cache = MagicMock()
+
     await CacheUpdateStage().run(ctx)
 
-    _assert_cached(container)
+    # Exact/hot reuse is scoped to the full release/tenant/preferences key.
+    container.exact_cache.put.assert_called_once()
+    # Similarity-based reuse has no evidence-version/support gate yet.
+    container.semantic_cache.put.assert_not_called()
+    coord._ensure_vector_cache.assert_not_called()
+    container.semantic_cache.invalidate_by_query.assert_called_once_with("en:what is karma")

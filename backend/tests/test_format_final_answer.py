@@ -384,3 +384,49 @@ async def test_evidence_bearing_refusal_uses_grounded_partial_answer():
     assert "[1]" in result["final_answer"]
     assert result["faithfulness_score"] == 0.0
     assert result["_needs_retry"] is False
+
+
+@pytest.mark.asyncio
+async def test_grounded_partial_answer_is_concise_and_maps_each_excerpt_to_source():
+    docs = [
+        {
+            "title": "Serene Mind Practice",
+            "source_url": "https://doc.example/serene-mind",
+            "text": "Serene Mind begins with the breath and a gentle noticing of thought. "
+            + "This source-only continuation should be capped without paraphrase. " * 8,
+        },
+        {
+            "title": "Four Sacred Secrets",
+            "source_url": "https://doc.example/four-sacred-secrets",
+            "text": "The teaching points toward awareness, inner stillness, and a beautiful state. "
+            + "This second source-only continuation should also be capped. " * 8,
+        },
+        {
+            "title": "Third source that must not be included",
+            "source_url": "https://doc.example/third",
+            "text": "This source is outside the bounded partial excerpt budget.",
+        },
+    ]
+    state = _state(
+        answer="I am unable to find specific teachings on this topic.",
+        relevant_docs=docs,
+        citations=[doc["source_url"] for doc in docs],
+        retry_count=1,
+        is_faithful=False,
+        verification={"passed": False, "method": "lettuce_detect_fast_tier"},
+        query_tier="tier2_simple",
+        question="How do these teachings relate?",
+    )
+
+    result = await format_final_answer(state)
+
+    answer = result["final_answer"]
+    assert result["verification"]["method"] == "grounded_partial_evidence"
+    assert result["citations"] == [
+        "https://doc.example/serene-mind",
+        "https://doc.example/four-sacred-secrets",
+    ]
+    assert "[1]" in answer and "[2]" in answer
+    assert "Third source that must not be included" not in answer
+    assert len(answer) < 1200
+    assert "This is an evidence excerpt, not a complete or newly generated interpretation." in answer

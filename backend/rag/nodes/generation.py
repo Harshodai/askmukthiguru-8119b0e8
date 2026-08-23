@@ -235,7 +235,7 @@ def _evidence_refusal_action(answer: str, relevant_docs: list[dict]) -> tuple[st
     return "retry", answer
 
 
-def _grounded_partial_answer(relevant_docs: list[dict], max_docs: int = 3) -> tuple[str, list[str]] | None:
+def _grounded_partial_answer(relevant_docs: list[dict], max_docs: int = 2) -> tuple[str, list[str]] | None:
     """Build a citation-preserving extractive answer when generation is rejected.
 
     This is a safety valve, not a second generative path: it exposes only short
@@ -251,8 +251,11 @@ def _grounded_partial_answer(relevant_docs: list[dict], max_docs: int = 3) -> tu
             continue
         title = str(doc.get("title") or url).strip()
         excerpt = " ".join(text.split())
-        if len(excerpt) > 560:
-            excerpt = excerpt[:557].rsplit(" ", 1)[0] + "..."
+        # Keep the deterministic safety-valve response concise. This is a
+        # source excerpt, not a generated summary, so the cap only truncates
+        # the retrieved text and never adds model-authored content.
+        if len(excerpt) > 360:
+            excerpt = excerpt[:357].rsplit(" ", 1)[0] + "..."
         excerpts.append((raw_index, title, excerpt, url))
         if len(excerpts) >= max_docs:
             break
