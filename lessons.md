@@ -1,3 +1,18 @@
+## Aug 23, 2026 — Post-report audit corrections and Docker verification
+
+### L-PROD-6. Do not generalize queued SSE replay to direct fetch streaming
+- **Verified**: `chat_stream_poll` accepts a valid `Last-Event-ID`, resumes Redis `XREAD`, emits Redis stream IDs, and has replay/invalid-cursor tests. The direct `POST /api/chat/stream` path uses a browser fetch reader and has no event IDs or resume cursor in the inspected implementation.
+- **Rule**: Report transport capabilities by path. `final`→`done` ordering is broader than reconnect/resume support; one must not imply the direct path inherits queued Redis replay.
+
+### L-PROD-7. A Docker test failure can be a harness failure, not a product regression
+- **Verified**: Mounting only `backend/` hid `/app/memory`; mounting the memory tree read-only prevented OKF tests from creating disposable staging fixtures. A playlist test patched `app.config.settings` even though the task module imported `settings` directly.
+- **Fix applied**: The test patches `tasks.ingest_tasks.settings`, and Docker runs use a disposable writable copy of the tracked memory tree. The corrected isolated run passed `169 passed, 2 skipped in 38.58s`.
+- **Rule**: Record the harness, mount mode, and exact test selection with every container result. Never convert an intentionally incomplete artifact tree into a synthetic production artifact just to make a test pass.
+
+### L-PROD-8. External analytics that return no data cannot support scaling claims
+- **Verified**: SimilarWeb returned no traffic/rank/engagement data for either requested domain in this audit. The Internet Skill Finder real-time lookup failed and cached fallback returned no matches; direct GitHub metadata was useful for discovery, but README extraction failed.
+- **Rule**: External discovery is not product evidence. If the provider returns no data, state that result and use first-party telemetry or a user-supplied export for demand/cost decisions.
+
 ## Aug 23, 2026 — Flagship partial evidence, cache safety, and hosted SSE proof
 
 ### L-PROD-1. A cited refusal must become bounded evidence, not an unverified teaching
