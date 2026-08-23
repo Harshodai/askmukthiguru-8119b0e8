@@ -52,3 +52,17 @@ Opened `https://askmukthiguru.lovable.app/chat` in the connected browser. The ho
 ## Authenticated My Reflections navigation check — 2026-08-22
 
 The connected browser displayed an `HK` user avatar and accepted a click on `My Reflections`. The URL changed to `/second-brain?returnTo=%2Fchat&conversation=...`, but the extracted surface continued to show the chat conversation and the daily-teaching opt-in rather than a distinct reflections/vault view. This is evidence of the navigation attempt and authenticated-looking session chrome only; it is not proof of Second Brain persistence, vault unlock, or route rendering. No reflection was created, edited, or deleted.
+
+The direct route `https://askmukthiguru.lovable.app/second-brain` then rendered a distinct authenticated-looking `My Reflections` page with the private encrypted-log description, type selector, reflection textarea, Add button, Export, Enable Private Mode, and Delete Everything controls. The page showed `Connected to Guru` and the `HK` avatar. This verifies route rendering and control presence only; persistence and vault unlock remain unverified. No data mutation was performed.
+
+With explicit authorization, entered the clearly labelled disposable reflection `Disposable production verification — delete me` and clicked `Add`. The page returned to the empty-state presentation without showing an error or a saved item in the immediate capture; persistence therefore requires a reload check before this operation can be classified as successful.
+
+A fresh reload displayed the same reflection, `Disposable production verification — delete me`, dated `23/08/2026`, proving persistence across reload. Clicking its `Forget this` control initiated deletion; the item remained visible in the immediate capture, so a final reload/settled-state check is required before classifying deletion as complete.
+
+After the deletion settled, the vault showed the empty state again: `Nothing here yet — your reflections will appear as you use the app, or you can add one above.` The disposable item was absent. This completes the authorized create → reload → delete → settled-state check for the browser flow. It does not independently prove the BRAIN_KEK rotation or a separate backend-only vault-unlock test.
+
+## Post-BRAIN_KEK-cutover vault check — 2026-08-23
+
+After the replacement key was applied to both Mode-A rows, promoted to `BRAIN_KEK` in backend and worker scopes, both services were redeployed successfully, and `BRAIN_KEK_NEXT` was deleted from both scopes, the connected browser reloaded `/second-brain`. The page passed through `Loading your reflections` and settled on the encrypted `My Reflections` empty state. The disposable reflection remained absent. This is browser evidence that the authenticated vault view still unlocks after cutover; it does not expose key material.
+
+After the additional final redeploy performed once `BRAIN_KEK_NEXT` had been deleted from both scopes, the same route again passed through `Loading your reflections` and settled on the empty encrypted-vault state with the disposable item absent. This is the final browser confirmation after the process environment was refreshed.

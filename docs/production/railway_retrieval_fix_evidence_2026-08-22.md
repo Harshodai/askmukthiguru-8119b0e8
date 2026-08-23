@@ -91,3 +91,12 @@ Raw metadata artifact: `/home/ubuntu/railway_split_latency_post_correctness_2026
 ## Runtime artifact availability gate
 
 A repository audit found zero reviewed `memory/okf/*.md` entries in the deployable checkout; only the two OKF maintenance scripts are present. Therefore the approved compiler has no reviewed source bundle from which to produce `memory/okf/compiled.json`. The doctrine lexicon builder similarly requires reviewed authority and corpus inputs that are not available as a packaged runtime artifact. Generating an empty, synthetic, or guessed artifact would hide a data-integrity problem, so no artifact was created. The correct next step is the approved audited reingestion/package flow, with the immutable corpus directory remaining untouched.
+
+
+## Second Brain and BRAIN_KEK rotation evidence — 2026-08-23
+
+The explicitly authorized browser test created `Disposable production verification — delete me`, confirmed it reappeared after reload, deleted it with `Forget this`, and confirmed the empty encrypted-vault state after deletion. Following key cutover and the final process restart, the same authenticated-looking route passed through loading and again settled on the empty state, demonstrating a successful post-rotation vault read without exposing key material.
+
+The rotation utility dry-run inside the healthy Railway backend found 2 Mode-A wrapped DEK rows and verified replacement unwrap integrity without writing rows. The authorized apply updated exactly 2 rows using compare-and-swap predicates. The replacement was promoted to `BRAIN_KEK` in both backend and worker scopes, both services were redeployed, `BRAIN_KEK_NEXT` was deleted from both scopes, and both services were explicitly redeployed again to clear the staged variable from running process environments. A name-only audit confirmed `BRAIN_KEK` present and `BRAIN_KEK_NEXT` absent for both services. No secret value was printed, committed, or placed in the evidence pack.
+
+Post-rotation compatible tests passed **17/17 in 16.63s**. The full scoped serving-image suite passed **83 passed, 2 skipped in 29.43s**. The separate schema test file was not counted as a runtime failure because it requires repository-only `/supabase/migrations` paths excluded from the flattened serving image; the earlier combined collection showed this packaging boundary explicitly.

@@ -7524,3 +7524,16 @@ The post-deploy concurrent smoke was healthy but showed approximately 18–23 se
 - **Fix applied**: Added a narrow early branch in `generation.py` for no-document peace/stillness meaning predicates. It returns an explicitly reflective, citation-free answer with `grounding_state=abstained` and does not claim corpus support. The terminal `short_circuit.py` guard remains as a separate defense for the distinct terminal graph path.
 - **Production proof**: After deployment `f1d6d75e-2e83-48f6-b269-2a940f7bff91`, the exact Hindi prompt `शांति का अर्थ क्या है?` returned `5/5` HTTP 200, grounded at faithfulness `0.80`, with `243–507` response characters and no 38-character refusal. The Telugu control returned `4/5` grounded and `1/5` honest reflective abstention; this is not a multilingual closure claim.
 - **How to prevent**: Distinguish retrieval-quality repair from UX fallback repair. Measure both; preserve abstention metadata and zero citations whenever evidence is absent; never use a friendly fallback as proof that retrieval is grounded.
+
+
+## Aug 23, 2026 — Authorized Second Brain verification and BRAIN_KEK cutover
+
+### L-BRAIN-5. A staged secret is not cleared until the processes are restarted
+- **What**: The authorized rotation used a replacement key staged as `BRAIN_KEK_NEXT`. Deleting the variable from Railway configuration did not itself prove that already-running processes had lost the variable from their environment.
+- **Fix applied**: Validated the replacement against 2 Mode-A wrapped DEK rows in dry-run mode, applied exactly 2 compare-and-swap rewraps, promoted the replacement to `BRAIN_KEK` in backend and worker scopes, redeployed both, deleted `BRAIN_KEK_NEXT` from both scopes, explicitly redeployed both again, and verified the final deployments and health. A name-only audit confirmed `BRAIN_KEK` present and `BRAIN_KEK_NEXT` absent in both scopes.
+- **How to prevent**: Treat secret rotation as a transaction: read-only backup/snapshot, dry-run, CAS apply, process cutover, staged-variable deletion, explicit process restart, health check, and authenticated vault read. Never infer process environment state from the configuration surface alone.
+
+### L-BRAIN-6. Disposable browser E2E must prove persistence and deletion separately
+- **What**: A successful Add click briefly returned to an empty-state presentation, so immediate UI state was insufficient to prove persistence.
+- **Fix applied**: Reloaded the authenticated-looking vault and observed the exact disposable reflection, deleted it with `Forget this`, waited for the settled empty state, and reloaded again after the key cutover. The item was absent and the vault view unlocked normally.
+- **How to prevent**: For destructive test fixtures, use an unmistakable label, verify create by reload, delete only the exact fixture, and verify deletion by a fresh settled read. Do not use broad `Delete Everything` for a targeted test.
