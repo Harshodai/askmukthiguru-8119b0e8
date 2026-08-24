@@ -1082,8 +1082,13 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               </div>
             )}
 
-            {/* Sources / Citations — collapsed by default, max 3 shown inline */}
-            {FEATURE_FLAGS.responseProvenance && isGuru && !isStreaming && (message.content || citations.length > 0 || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (
+            {/* Sources / Citations status. When there ARE citations, this merges into
+                the REFERENCES <details> summary below instead of rendering here —
+                same "grounded, N sources" fact was showing twice in two stacked
+                boxes. Zero-citation states (reflective guidance, safety redirect,
+                unverified attribution, system error) have nothing to expand into,
+                so they keep their own standalone row. */}
+            {FEATURE_FLAGS.responseProvenance && isGuru && !isStreaming && citations.length === 0 && (message.content || typeof message.confidenceScore === 'number' || hasUnverifiedAttribution) && (
               <div
                 data-testid="response-provenance"
                 role="status"
@@ -1100,26 +1105,22 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 />
                 <div className="min-w-0 flex-1 leading-tight">
                   <p className="font-medium text-foreground/80">
-                    {groundingState === 'grounded'
-                      ? 'Grounded response'
-                      : groundingState === 'safety_redirect'
-                        ? 'Safety support'
-                        : groundingState === 'system_error'
-                          ? 'Verification unavailable'
-                          : hasUnverifiedAttribution
-                            ? 'Unverified attribution'
-                            : 'Reflective guidance'}
+                    {groundingState === 'safety_redirect'
+                      ? 'Safety support'
+                      : groundingState === 'system_error'
+                        ? 'Verification unavailable'
+                        : hasUnverifiedAttribution
+                          ? 'Unverified attribution'
+                          : 'Reflective guidance'}
                   </p>
                   <p>
-                    {groundingState === 'grounded'
-                      ? `${citations.length} verified ${citations.length === 1 ? 'source' : 'sources'} provided`
-                      : groundingState === 'safety_redirect'
-                        ? 'Safety guidance is shown instead of doctrine attribution.'
-                        : groundingState === 'system_error'
-                          ? 'The response could not be verified. Please retry before relying on it.'
-                          : hasUnverifiedAttribution
-                            ? 'This answer quotes a teacher without a linked source — treat the wording as paraphrase, not a verified quotation.'
-                            : 'No grounded teaching was found for this response; treat it as reflective guidance.'}
+                    {groundingState === 'safety_redirect'
+                      ? 'Safety guidance is shown instead of doctrine attribution.'
+                      : groundingState === 'system_error'
+                        ? 'The response could not be verified. Please retry before relying on it.'
+                        : hasUnverifiedAttribution
+                          ? 'This answer quotes a teacher without a linked source — treat the wording as paraphrase, not a verified quotation.'
+                          : 'No grounded teaching was found for this response; treat it as reflective guidance.'}
                   </p>
                 </div>
                 {typeof message.confidenceScore === 'number' && Number.isFinite(message.confidenceScore) && (
@@ -1131,9 +1132,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     {evidenceSupport(message.confidenceScore).label}
                   </span>
                 )}
-                {/* "Open sources" trigger lives once, in the REFERENCES accordion
-                    below (same citations.length > 0 gate) — a second identical
-                    button here just duplicated that action. */}
               </div>
             )}
             {isGuru && !isStreaming && <LiveLogisticsCards events={message.liveLogisticsEvents} />}
@@ -1151,18 +1149,31 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             {isGuru && citations.length > 0 && (
               <details className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-card/85 to-card/50 backdrop-blur-md px-4 py-3 group/details shadow-md transition-all duration-300">
                 <summary className="flex items-center gap-2.5 cursor-pointer list-none select-none">
-                  <BookOpen className="w-4 h-4 text-ojas" />
-                  <span className="text-[12px] font-semibold uppercase tracking-wider text-ojas/90">
-                    {t('chat.references')}
-                  </span>
+                  <BookOpen className="w-4 h-4 text-ojas shrink-0" />
+                  <div className="min-w-0 leading-tight">
+                    <span className="block text-[12px] font-semibold uppercase tracking-wider text-ojas/90">
+                      {t('chat.references')}
+                    </span>
+                    <span className="block text-[11px] text-muted-foreground/80">
+                      Grounded — {citations.length} verified {citations.length === 1 ? 'source' : 'sources'}
+                    </span>
+                  </div>
+                  {typeof message.confidenceScore === 'number' && Number.isFinite(message.confidenceScore) && (
+                    <span
+                      className="shrink-0 rounded-full bg-card px-2 py-1 text-[10px] font-medium text-foreground/80"
+                      title={message.confidenceReason || evidenceSupport(message.confidenceScore).description}
+                      aria-label={`Response support: ${evidenceSupport(message.confidenceScore).label}`}
+                    >
+                      {evidenceSupport(message.confidenceScore).label}
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => { e.preventDefault(); setSourcesOpen(true); }}
-                    className="text-[10px] text-muted-foreground/80 ml-auto bg-muted/40 hover:bg-ojas/15 hover:text-ojas px-2.5 py-0.5 rounded-full transition-colors flex items-center gap-1 font-medium"
+                    className="text-[10px] text-muted-foreground/80 ml-auto bg-muted/40 hover:bg-ojas/15 hover:text-ojas px-2.5 py-0.5 rounded-full transition-colors font-medium shrink-0"
                     aria-label="View all sources in panel"
                   >
-                    <span>{citations.length} {citations.length === 1 ? 'source' : 'sources'}</span>
-                    <span>→</span>
+                    Open →
                   </button>
                 </summary>
 
