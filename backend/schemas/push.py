@@ -29,6 +29,14 @@ class PushRegisterResponse(BaseModel):
     device_id: str | None = None
 
 
+class PushUnregisterRequest(BaseModel):
+    token: str = Field(..., min_length=16, max_length=4096, description="FCM or APNs token to deactivate")
+
+
+class PushUnregisterResponse(BaseModel):
+    ok: bool
+
+
 class PushSendRequest(BaseModel):
     user_id: str | None = Field(
         None, description="Target user; if None, broadcast to all active devices"

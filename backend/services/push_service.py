@@ -5,9 +5,12 @@ Handles:
   - Device token registration (FCM / APNs) via Supabase `push_devices` table.
   - Send dispatch: FCM via firebase-admin, APNs via httpx + JWT-signed requests.
 
-Graceful degradation: if push credentials are not configured, `send()` returns
-a no-op result `{ok: True, sent: 0, failed: 0, errors: [...]}` — never raises.
-This keeps the chat pipeline and admin tools running on hosts without creds.
+Graceful degradation: `send()` never raises — a transient failure never crashes
+a caller. But it does NOT report `ok: True` when a target platform's
+credentials are unconfigured or a send genuinely failed; an admin/cron caller
+needs to know delivery didn't happen, not read a false success (audit finding
+OH-P1-02, 2026-08-24). Devices that FCM/APNs report as unregistered/invalid
+are deactivated automatically so stale tokens don't accumulate.
 """
 
 from __future__ import annotations
@@ -194,12 +197,17 @@ class PushService:
         deep_link: str | None,
         data: dict | None,
     ) -> dict:
-        """Fetch tokens for the target (or all active) and dispatch. Never raises."""
+        """Fetch tokens for the target (or all active) and dispatch. Never raises.
+
+        `ok` reflects whether delivery actually happened, not just whether this
+        call avoided throwing — a platform with active devices but unconfigured
+        credentials makes `ok=False` with the reason in `errors`.
+        """
         try:
             tokens_by_platform = await self._fetch_tokens(user_id)
         except Exception as e:
             logger.warning("push token fetch failed: %s", e)
-            return {"ok": True, "sent": 0, "failed": 0, "errors": [f"token fetch failed: {e}"]}
+            return {"ok": False, "sent": 0, "failed": 0, "errors": [f"token fetch failed: {e}"]}
 
         android = tokens_by_platform.get("android", [])
         ios = tokens_by_platform.get("ios", [])
@@ -209,43 +217,79 @@ class PushService:
         sent = 0
         failed = 0
         errors: list[str] = []
+        unconfigured = False
+        stale_ids: list[str] = []
 
         if android:
             r = await self._send_fcm(android, title, body, deep_link, data)
             sent += r["sent"]
             failed += r["failed"]
             errors.extend(r["errors"])
+            unconfigured = unconfigured or r.get("unconfigured", False)
+            stale_ids.extend(r.get("stale_ids", []))
         if ios:
             r = await self._send_apns(ios, title, body, deep_link, data)
             sent += r["sent"]
             failed += r["failed"]
             errors.extend(r["errors"])
+            unconfigured = unconfigured or r.get("unconfigured", False)
+            stale_ids.extend(r.get("stale_ids", []))
 
-        return {"ok": True, "sent": sent, "failed": failed, "errors": errors}
+        if stale_ids:
+            await self._deactivate_devices(stale_ids)
+
+        ok = not unconfigured and failed == 0
+        return {"ok": ok, "sent": sent, "failed": failed, "errors": errors}
+
+    async def unregister_device(self, token: str, user_id: str | None) -> bool:
+        """Deactivate a device by token. Scoped to user_id when the caller is
+        authenticated, so one user cannot deactivate another's device."""
+        try:
+            client = self._client()
+            query = client.table("push_devices").update({"active": False}).eq("token", token)
+            if user_id:
+                query = query.eq("user_id", user_id)
+            resp = await asyncio.to_thread(query.execute)
+            return bool(getattr(resp, "data", None))
+        except Exception as e:
+            logger.warning("push device unregister failed: %s", e)
+            return False
+
+    async def _deactivate_devices(self, device_ids: list[str]) -> None:
+        if not device_ids:
+            return
+        try:
+            client = self._client()
+            await asyncio.to_thread(
+                client.table("push_devices").update({"active": False}).in_("id", device_ids).execute
+            )
+            logger.info("deactivated %d stale push device(s)", len(device_ids))
+        except Exception as e:
+            logger.warning("push stale-device cleanup failed: %s", e)
 
     # --- Token fetch -----------------------------------------------------
 
-    async def _fetch_tokens(self, user_id: str | None) -> dict[str, list[str]]:
-        """Return {platform: [tokens]} for active devices."""
+    async def _fetch_tokens(self, user_id: str | None) -> dict[str, list[dict]]:
+        """Return {platform: [{"id":..., "token":...}]} for active devices."""
         client = self._client()
-        query = client.table("push_devices").select("platform,token").eq("active", True)
+        query = client.table("push_devices").select("id,platform,token").eq("active", True)
         if user_id:
             query = query.eq("user_id", user_id)
         resp = query.execute()
         rows = getattr(resp, "data", None) or []
-        out: dict[str, list[str]] = {"android": [], "ios": []}
+        out: dict[str, list[dict]] = {"android": [], "ios": []}
         for r in rows:
             p = (r.get("platform") or "").lower()
             t = r.get("token")
             if p in out and t:
-                out[p].append(t)
+                out[p].append({"id": r.get("id"), "token": t})
         return out
 
     # --- FCM (firebase-admin) -------------------------------------------
 
     async def _send_fcm(
         self,
-        tokens: list[str],
+        devices: list[dict],
         title: str,
         body: str,
         deep_link: str | None,
@@ -253,7 +297,12 @@ class PushService:
     ) -> dict:
         if not _ensure_firebase():
             logger.warning("firebase credentials not configured — skipping FCM send")
-            return {"sent": 0, "failed": 0, "errors": ["firebase credentials not configured"]}
+            return {
+                "sent": 0,
+                "failed": 0,
+                "errors": ["firebase credentials not configured"],
+                "unconfigured": True,
+            }
         try:
             from firebase_admin import messaging
 
@@ -265,29 +314,37 @@ class PushService:
             sent = 0
             failed = 0
             errors: list[str] = []
-            for i in range(0, len(tokens), batch_size):
-                batch = tokens[i : i + batch_size]
+            stale_ids: list[str] = []
+            for i in range(0, len(devices), batch_size):
+                batch = devices[i : i + batch_size]
                 message = messaging.MulticastMessage(
                     notification=messaging.Notification(title=title, body=body),
                     data={k: str(v) for k, v in payload_data.items()},
-                    tokens=batch,
+                    tokens=[d["token"] for d in batch],
                 )
                 resp = await asyncio.to_thread(messaging.send_each_for_multicast, message)
                 sent += resp.success_count
                 failed += resp.failure_count
                 for j, r in enumerate(resp.responses):
-                    if not r.success:
-                        errors.append(f"fcm:{batch[j]}:{getattr(r.exception, 'code', 'error')}")
-            return {"sent": sent, "failed": failed, "errors": errors}
+                    if r.success:
+                        continue
+                    code = getattr(r.exception, "code", "error")
+                    errors.append(f"fcm:{batch[j]['token']}:{code}")
+                    # UNREGISTERED = the token is dead (uninstalled/expired). Never
+                    # replay it — it is an active FCM error class, not a transient
+                    # failure that will succeed on retry.
+                    if code == "UNREGISTERED" and batch[j].get("id"):
+                        stale_ids.append(batch[j]["id"])
+            return {"sent": sent, "failed": failed, "errors": errors, "stale_ids": stale_ids}
         except Exception as e:
             logger.warning("FCM send failed: %s", e)
-            return {"sent": 0, "failed": len(tokens), "errors": [f"fcm error: {e}"]}
+            return {"sent": 0, "failed": len(devices), "errors": [f"fcm error: {e}"]}
 
     # --- APNs (httpx + JWT) ---------------------------------------------
 
     async def _send_apns(
         self,
-        tokens: list[str],
+        devices: list[dict],
         title: str,
         body: str,
         deep_link: str | None,
@@ -296,7 +353,12 @@ class PushService:
         jwt_token = _apns_jwt()
         if not jwt_token:
             logger.warning("apns credentials not configured — skipping APNs send")
-            return {"sent": 0, "failed": 0, "errors": ["apns credentials not configured"]}
+            return {
+                "sent": 0,
+                "failed": 0,
+                "errors": ["apns credentials not configured"],
+                "unconfigured": True,
+            }
 
         bundle = settings.apns_bundle_id
         headers = {
@@ -318,30 +380,42 @@ class PushService:
 
         host = _apns_host()
 
-        async def _send_one(client: httpx.AsyncClient, tok: str) -> tuple[bool, str | None]:
+        async def _send_one(client: httpx.AsyncClient, device: dict) -> tuple[bool, str | None, str | None]:
+            tok = device["token"]
             url = f"https://{host}/3/device/{tok}"
             try:
                 r = await client.post(url, headers=headers, json=payload)
                 if 200 <= r.status_code < 300:
-                    return True, None
-                return False, f"apns:{tok}:{r.status_code}:{r.text[:120]}"
+                    return True, None, None
+                # 410 Unregistered / 400 BadDeviceToken: the token is dead, not a
+                # transient failure — deactivate it rather than resending forever.
+                body_text = r.text[:120]
+                stale = r.status_code == 410 or (
+                    r.status_code == 400 and "BadDeviceToken" in body_text
+                )
+                return False, f"apns:{tok}:{r.status_code}:{body_text}", (
+                    device.get("id") if stale else None
+                )
             except Exception as e:
-                return False, f"apns:{tok}:{e}"
+                return False, f"apns:{tok}:{e}", None
 
         sent = 0
         failed = 0
         errors: list[str] = []
+        stale_ids: list[str] = []
         async with httpx.AsyncClient(http2=True, timeout=30.0) as client:
-            # Dispatch per-token APNs requests concurrently instead of serially.
-            results = await asyncio.gather(*[_send_one(client, tok) for tok in tokens])
-            for ok, err in results:
+            # Dispatch per-device APNs requests concurrently instead of serially.
+            results = await asyncio.gather(*[_send_one(client, d) for d in devices])
+            for ok, err, stale_id in results:
                 if ok:
                     sent += 1
                 else:
                     failed += 1
                     if err:
                         errors.append(err)
-        return {"sent": sent, "failed": failed, "errors": errors}
+                    if stale_id:
+                        stale_ids.append(stale_id)
+        return {"sent": sent, "failed": failed, "errors": errors, "stale_ids": stale_ids}
 
 
 if __name__ == "__main__":

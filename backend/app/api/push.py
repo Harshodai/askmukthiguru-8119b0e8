@@ -17,6 +17,8 @@ from schemas.push import (
     PushRegisterResponse,
     PushSendRequest,
     PushSendResponse,
+    PushUnregisterRequest,
+    PushUnregisterResponse,
 )
 from services.auth_service import get_current_user_from_supabase
 
@@ -49,6 +51,24 @@ async def register_device(
         user_id=user_id,
     )
     return PushRegisterResponse(ok=True, device_id=device_id)
+
+
+@router.delete("/unregister", response_model=PushUnregisterResponse)
+@limiter.limit(settings.push_register_rate_limit)
+async def unregister_device(
+    request: Request,
+    payload: PushUnregisterRequest,
+    user: Optional[dict] = Depends(get_current_user_from_supabase),
+):
+    """Deactivate a device token — logout / notifications-off (audit OH-P1-02).
+
+    Scoped to the caller's own user_id when authenticated, so no one can
+    deactivate another user's device by guessing/replaying a token.
+    """
+    user_id = user.get("id") if user and not user.get("is_anonymous") else None
+    service = get_container().push_service
+    ok = await service.unregister_device(token=payload.token, user_id=user_id)
+    return PushUnregisterResponse(ok=ok)
 
 
 @router.post("/send", response_model=PushSendResponse)
