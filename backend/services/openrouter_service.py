@@ -344,6 +344,18 @@ class OpenRouterService:
             "messages": payload_messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            # Reasoning models (e.g. google/gemini-3.6-flash) burn hidden
+            # reasoning_tokens out of the same max_tokens budget by default --
+            # unbounded, that can consume the entire ceiling and leave the
+            # visible answer truncated (finish_reason=length) before a word of
+            # actual output. Cap it to a quarter of the ceiling, floor 64, so
+            # there's always budget left for the visible completion. Safe to
+            # send unconditionally: OpenRouter silently ignores `reasoning` for
+            # models that don't support it (verified against gemma-3-12b-it),
+            # and errors only if a caller tries `reasoning.enabled=false` on a
+            # model where reasoning is mandatory -- capping the budget instead
+            # of disabling it avoids that.
+            "reasoning": {"max_tokens": max(64, max_tokens // 4)},
             "provider": self._policy.provider_preferences(),
         }
 
