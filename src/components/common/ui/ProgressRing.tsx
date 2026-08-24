@@ -57,8 +57,8 @@ export const ProgressRing = ({
         />
         <defs>
           <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--ojas))" />
-            <stop offset="100%" stopColor="hsl(var(--ojas-light))" />
+            <stop offset="0%" stopColor="hsl(var(--ojas-gold))" />
+            <stop offset="100%" stopColor="hsl(var(--ojas-gold-light))" />
           </linearGradient>
         </defs>
       </svg>

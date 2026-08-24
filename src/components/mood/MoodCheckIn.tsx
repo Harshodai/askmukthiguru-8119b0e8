@@ -6,6 +6,7 @@ import { X, Mic, MicOff } from 'lucide-react';
 import { recordMoodCheckIn, getMeditationStats } from '@/lib/meditationStorage';
 import { practices } from '@/lib/practicesContent';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
+import { Badge } from '@/components/ui/badge';
 
 export type MoodId = 'calm' | 'anxious' | 'sad' | 'frustrated' | 'open';
 
@@ -137,9 +138,9 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
                   </div>
 
                   {streakDays > 0 && (
-                    <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ojas/10 border border-ojas/25 text-xs font-semibold text-ojas">
+                    <Badge variant="outline" className="mt-3 gap-1.5 px-3 py-1 bg-ojas/10 border-ojas/25 text-ojas">
                       🔥 {streakDays} {streakDays === 1 ? 'day' : 'days'} streak — your beautiful state is taking root!
-                    </div>
+                    </Badge>
                   )}
 
                   <label className="block text-[10px] font-semibold text-muted-foreground/80 uppercase tracking-wider mt-5 mb-1 text-left">
@@ -203,14 +204,14 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
                 >
                   <p className="text-sm text-foreground">{t('mood.thanks')}</p>
                   {streakDays > 0 && (
-                    <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ojas/10 border border-ojas/25 text-xs font-semibold text-ojas">
+                    <Badge variant="outline" className="mt-3 gap-1.5 px-3 py-1 bg-ojas/10 border-ojas/25 text-ojas">
                       🔥 {streakDays} {streakDays === 1 ? 'day' : 'days'} streak — keep it going!
-                    </div>
+                    </Badge>
                   )}
                   {suggestedPractice && (
                     <button
                       onClick={handleStartPractice}
-                      className="mt-4 px-4 py-2 rounded-full bg-ojas/90 hover:bg-ojas text-white text-sm font-semibold transition-all shadow-md"
+                      className="mt-4 px-4 py-2 rounded-full bg-ojas/90 hover:bg-ojas text-primary-foreground text-sm font-semibold transition-all shadow-md"
                     >
                       {t('mood.startPractice')} →
                     </button>

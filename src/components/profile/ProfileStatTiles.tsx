@@ -84,8 +84,8 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
         >
           <defs>
             <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="hsl(var(--ojas))" stopOpacity="0.28" />
-              <stop offset="100%" stopColor="hsl(var(--ojas))" stopOpacity="0" />
+              <stop offset="0%" stopColor="hsl(var(--ojas-gold))" stopOpacity="0.28" />
+              <stop offset="100%" stopColor="hsl(var(--ojas-gold))" stopOpacity="0" />
             </linearGradient>
           </defs>
           {hasData && (
@@ -94,7 +94,7 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
               <path
                 d={linePath}
                 fill="none"
-                stroke="hsl(var(--ojas))"
+                stroke="hsl(var(--ojas-gold))"
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -105,7 +105,7 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
                   cx={p.x}
                   cy={p.y}
                   r={p.seconds > 0 ? 2.2 : 0}
-                  fill="hsl(var(--ojas))"
+                  fill="hsl(var(--ojas-gold))"
                 />
               ))}
             </>
