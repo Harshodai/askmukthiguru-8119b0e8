@@ -90,8 +90,8 @@ export const HeroSection = () => {
             className="w-full h-full object-cover"
           />
 
-          <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/75 to-background" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/35 via-transparent to-black/35" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/82 to-background" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-black/55" />
         </motion.div>
 
         {/* Mandala Corner Motifs */}
@@ -127,7 +127,7 @@ export const HeroSection = () => {
               transition={{ delay: 0.3, duration: 0.7 }}
               className="font-sacred text-center mb-8 leading-[1.1] tracking-tight"
             >
-              <span className="text-white/85 font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl block">{t('landing.hero.heading1')}</span>
+              <span className="text-white font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl block drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">{t('landing.hero.heading1')}</span>
               <span className="text-gradient-gold font-bold text-6xl sm:text-7xl md:text-8xl lg:text-9xl block mt-2">{t('landing.hero.heading2')}</span>
             </motion.h1>
 
@@ -136,7 +136,7 @@ export const HeroSection = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.7 }}
-              className="text-lg md:text-xl text-white/95 drop-shadow-md mb-8 max-w-2xl mx-auto leading-relaxed font-sans"
+              className="text-lg md:text-xl text-white drop-shadow-[0_2px_14px_rgba(0,0,0,0.9)] mb-8 max-w-2xl mx-auto leading-relaxed font-sans"
             >
               {t('landing.hero.subtitle')}
             </motion.p>
@@ -277,7 +277,7 @@ export const HeroSection = () => {
                   style={{
                     fontSize: 14,
                     fontWeight: 600,
-                    color: 'rgba(255,255,255,0.7)',
+                    color: 'rgba(255,255,255,0.92)',
                     letterSpacing: '-0.01em',
                     transition: 'color 0.2s',
                   }}
@@ -288,12 +288,27 @@ export const HeroSection = () => {
               </button>
             </motion.div>
 
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.78, duration: 0.45 }}
+              className="mt-6"
+            >
+              <Link
+                to="/practices/serene-mind?source=landing-hero&path=three-minute-pause"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/35 bg-black/25 px-4 py-2 text-sm font-semibold text-white transition-colors hover:border-ojas/70 hover:bg-black/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              >
+                <Heart className="h-4 w-4 text-ojas" aria-hidden="true" />
+                <span>{t('landing.hero.pauseCta', 'Start with a 3-minute pause')}</span>
+              </Link>
+            </motion.div>
+
             {/* Microcopy */}
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.8, duration: 0.5 }}
-              className="mt-4 text-xs font-light text-muted-foreground/80 tracking-wide"
+              className="mt-4 text-xs font-medium text-white/85 tracking-wide drop-shadow-[0_1px_8px_rgba(0,0,0,0.9)]"
             >
               {t('landing.hero.microcopy', 'No account needed. Your peace is private.')}
             </motion.p>
@@ -307,7 +322,7 @@ export const HeroSection = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1, duration: 0.5 }}
-              className="mt-8 inline-flex items-center gap-2 text-xs text-muted-foreground/80 bg-foreground/[0.03] ring-1 ring-border/30 backdrop-blur-md px-4 py-2.5 rounded-full"
+              className="mt-8 inline-flex items-center gap-2 text-xs text-white/90 bg-black/35 ring-1 ring-white/20 backdrop-blur-md px-4 py-2.5 rounded-full"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>{t('landing.hero.disclaimer')}</span>

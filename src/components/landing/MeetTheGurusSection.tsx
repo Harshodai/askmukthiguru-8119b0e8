@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Heart, Sparkles } from 'lucide-react';
+import { BookOpenCheck, Heart, HeartHandshake, ShieldCheck, Sparkles } from 'lucide-react';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 
 export const MeetTheGurusSection = () => {
@@ -35,26 +35,39 @@ export const MeetTheGurusSection = () => {
           </p>
         </motion.div>
 
-        {/* Social Proof Stats */}
+        {/* Product principles — proof comes from how the companion behaves, not unsupported reach claims. */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.1 }}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="max-w-4xl mx-auto mb-16"
+          className="max-w-5xl mx-auto mb-16"
         >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-y-8 md:gap-y-0 py-8 bg-card/30 backdrop-blur-xl ring-1 ring-border/40 rounded-2xl shadow-xl">
+          <div className="grid gap-4 rounded-2xl bg-card/30 p-4 shadow-xl ring-1 ring-border/40 backdrop-blur-xl md:grid-cols-3 md:p-6">
             {[
-              { value: '30M+', label: t('landing.meetGurus.stat1', 'Souls Guided'), sub: t('landing.meetGurus.stat1Sub', 'Worldwide') },
-              { value: '#1', label: t('landing.meetGurus.stat2', 'Bestseller'), sub: t('landing.meetGurus.stat2Sub', 'USA Today & More') },
-              { value: 'TEDx', label: t('landing.meetGurus.stat3', 'TEDx Speaker'), sub: t('landing.meetGurus.stat3Sub', 'Global Leaders') },
-              { value: '800K+', label: t('landing.meetGurus.stat4', 'Ekam Meditators'), sub: t('landing.meetGurus.stat4Sub', 'Mass Gatherings') },
-            ].map((stat, i) => (
-              <div key={i} className="text-center px-4 flex flex-col justify-center border-border/30 border-r last:border-0 odd:border-r even:border-r-0 md:even:border-r md:last:border-r-0">
-                <span className="font-sacred text-3xl sm:text-4xl md:text-5xl font-bold text-saffron-gold mb-1.5 block">{stat.value}</span>
-                <span className="text-[13px] font-semibold text-foreground/90 leading-tight block">{stat.label}</span>
-                <span className="text-[11px] text-muted-foreground mt-0.5 block">{stat.sub}</span>
-              </div>
+              {
+                icon: BookOpenCheck,
+                title: t('landing.meetGurus.principle1Title'),
+                description: t('landing.meetGurus.principle1Desc'),
+              },
+              {
+                icon: HeartHandshake,
+                title: t('landing.meetGurus.principle2Title'),
+                description: t('landing.meetGurus.principle2Desc'),
+              },
+              {
+                icon: ShieldCheck,
+                title: t('landing.meetGurus.principle3Title'),
+                description: t('landing.meetGurus.principle3Desc'),
+              },
+            ].map(({ icon: Icon, title, description }) => (
+              <article key={title} className="rounded-xl border border-border/50 bg-background/45 p-5 text-left">
+                <span className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-ojas/25 bg-ojas/10 text-ojas">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <h3 className="text-base font-semibold text-foreground">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
+              </article>
             ))}
           </div>
         </motion.div>

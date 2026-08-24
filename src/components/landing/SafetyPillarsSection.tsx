@@ -28,16 +28,16 @@ export const SafetyPillarsSection = () => {
               <Shield className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-semibold text-deep-earth dark:text-foreground/90 mb-2">
-              {t('landing.safety.privacyTitle', 'Privacy First')}
+              {t('landing.safety.privacyTitle', 'Privacy you can review')}
             </h3>
             <p className="text-sm text-muted-foreground mb-4 max-w-xs leading-relaxed">
-              {t('landing.safety.privacyDesc', 'Gated conversation history and zero model training. Your spiritual journey is private.')}
+              {t('landing.safety.privacyDesc', 'Read how conversations and account information are handled before you decide what to share.')}
             </p>
             <Link
               to="/privacy"
               className="text-xs font-semibold text-saffron-gold hover:underline"
             >
-              {t('landing.safety.viewPrivacy', 'Read Privacy Policy')}
+              {t('landing.safety.viewPrivacy', 'Review privacy practices')}
             </Link>
           </div>
 
@@ -47,16 +47,16 @@ export const SafetyPillarsSection = () => {
               <HeartHandshake className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-semibold text-deep-earth dark:text-foreground/90 mb-2">
-              {t('landing.safety.boundariesTitle', 'Compassionate Boundaries')}
+              {t('landing.safety.boundariesTitle', 'A clear role and scope')}
             </h3>
             <p className="text-sm text-muted-foreground mb-4 max-w-xs leading-relaxed">
-              {t('landing.safety.boundariesDesc', 'Mukthi Guru is an AI spiritual guide, not a medical professional, therapist, or counselor.')}
+              {t('landing.safety.boundariesDesc', 'AskMukthiGuru supports spiritual reflection. It does not provide medical, clinical, therapeutic, or emergency care.')}
             </p>
             <Link
               to="/terms"
               className="text-xs font-semibold text-saffron-gold hover:underline"
             >
-              {t('landing.safety.viewTerms', 'Read Terms of Service')}
+              {t('landing.safety.viewTerms', 'Understand the terms')}
             </Link>
           </div>
 
@@ -66,16 +66,16 @@ export const SafetyPillarsSection = () => {
               <PhoneCall className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-semibold text-deep-earth dark:text-foreground/90 mb-2">
-              {t('landing.safety.crisisTitle', 'Crisis Support')}
+              {t('landing.safety.crisisTitle', 'Human help when it matters')}
             </h3>
             <p className="text-sm text-muted-foreground mb-4 max-w-xs leading-relaxed">
-              {t('landing.safety.crisisDesc', 'If you are experiencing acute distress or a crisis, please reach out to qualified professional help.')}
+              {t('landing.safety.crisisDesc', 'For acute distress or crisis, use qualified professional and emergency resources—not an AI companion.')}
             </p>
             <button
               onClick={() => setCrisisOpen(true)}
               className="text-xs font-semibold text-saffron-gold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-saffron-gold focus-visible:ring-offset-2 rounded"
             >
-              {t('landing.safety.viewHelplines', 'Find Helplines & Resources')}
+              {t('landing.safety.viewHelplines', 'Find crisis resources')}
             </button>
           </div>
         </div>

@@ -7675,3 +7675,10 @@ When a full backend suite stalls, retain its partial output and classify the gat
 
 ### L-LOOP-5. Validation runners must continue after failures
 A loop runner should execute independent checks separately, write one log per gate, preserve explicit skips, and return a final aggregate status. This prevents an early failure or a network-stalled dependency scanner from hiding later successful gates.
+
+
+## Aug 24, 2026 — Product Storytelling and First-Value Adoption
+### L-PRODUCT-1. Product proof should be visible behavior, not unverified authority claims
+- **What**: The public landing experience presented hardcoded reach and recognition statistics alongside a generic “ancient wisdom + AI” promise, while its most persuasive proof—a first question, an optional short practice, clear scope, source-oriented reflection, and a route to return—was buried or interrupted by a nonfunctional demo surface and a mandatory chat check-in.
+- **Fix applied**: Reframed the homepage around a practical next step; added an explicit three-minute-practice path; replaced unsupported social-proof statistics with observable product principles; turned the explainer placeholder into the working guided tour; strengthened hero contrast; and made the practice-status modal opt-in through `?prepare=1` so conversation remains the default first-value path.
+- **How to prevent**: Before promoting a capability, name the person’s immediate need, give a direct low-friction action, make trust boundaries reviewable in the same journey, and support every proof claim with verified product behavior or approved evidence. Do not introduce enterprise, clinical, security, scale, or outcome claims without the evidence required by `docs/PRODUCT_STORY_AND_ADOPTION.md`.

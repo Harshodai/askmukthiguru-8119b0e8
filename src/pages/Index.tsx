@@ -16,8 +16,8 @@ import { PRODUCTION_DOMAIN, PRODUCTION_OG_IMAGE, PRODUCTION_ICON, buildCanonical
 
 const Index = () => {
   usePageMeta({
-    title: 'AskMukthiGuru — AI Spiritual Guide',
-    description: 'Discover inner peace through AI-guided conversations grounded in the teachings of Sri Preethaji and Sri Krishnaji. Free, private, and always available.',
+    title: 'AskMukthiGuru — Spiritual Reflection and Guided Practice',
+    description: 'Bring a question, pause with a guided practice, and return to teaching-grounded spiritual reflection inspired by Sri Preethaji and Sri Krishnaji.',
     canonical: buildCanonical('/'),
     ogImage: PRODUCTION_OG_IMAGE,
     jsonLd: [
@@ -27,7 +27,7 @@ const Index = () => {
         name: 'AskMukthiGuru',
         url: PRODUCTION_DOMAIN,
         logo: PRODUCTION_ICON,
-        description: 'AI Spiritual Guide rooted in the teachings of Sri Preethaji & Sri Krishnaji from Ekam World School.',
+        description: 'An AI companion for spiritual reflection and guided practice, inspired by the teachings of Sri Preethaji and Sri Krishnaji.',
         sameAs: ['https://www.ekam.org'],
       },
       {
@@ -39,7 +39,7 @@ const Index = () => {
             name: 'What is AskMukthiGuru?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'AskMukthiGuru is an AI-powered spiritual guide that answers questions based on the teachings of Sri Preethaji and Sri Krishnaji, founders of Ekam World School. It provides guidance on meditation, inner peace, and the Beautiful State.',
+              text: 'AskMukthiGuru is an AI companion for spiritual reflection inspired by the teachings of Sri Preethaji and Sri Krishnaji. Visitors can bring a question, choose a guided practice, and return to personal reflection at their own pace. It is not medical, clinical, therapeutic, or emergency care.',
             },
           },
           {
@@ -55,7 +55,7 @@ const Index = () => {
             name: 'Is AskMukthiGuru free to use?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'Yes, AskMukthiGuru is free to access. You can have private, AI-guided spiritual conversations at any time, in multiple languages including English, Hindi, Telugu, and Malayalam.',
+              text: 'Yes, AskMukthiGuru is free to access. You can begin with an AI-guided spiritual conversation or a short practice, and use the privacy information on this site to decide what to share.',
             },
           },
           {

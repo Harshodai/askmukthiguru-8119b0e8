@@ -48,6 +48,7 @@ venv/
 .venv/
 .venv_whisper/
 .venv_host
+backend/.venv2/
 hyperresearch-venv/
 .hyperresearch-venv/
 hyperresearch_venv/

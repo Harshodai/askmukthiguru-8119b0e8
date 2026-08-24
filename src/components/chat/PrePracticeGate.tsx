@@ -28,7 +28,11 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
   const { t } = useTranslation();
   const [asked, setAsked] = useState<boolean>(() => {
     if (typeof window === 'undefined') return true;
-    return sessionStorage.getItem(SESSION_KEY) === '1';
+
+    // Conversation is the default first-value path. The reflective check-in remains
+    // available for intentional entry points that opt in with `?prepare=1`.
+    const wantsPreparation = new URLSearchParams(window.location.search).get('prepare') === '1';
+    return !wantsPreparation || sessionStorage.getItem(SESSION_KEY) === '1';
   });
   const { open: openSereneMind } = useSereneMind();
 
@@ -128,7 +132,7 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
                 <button
                   key={id}
                   onClick={() => handleAnswer(id)}
-                  className="group text-left rounded-2xl border border-border/60 hover:border-ojas/50 hover:bg-ojas/5 transition-colors p-3 focus:outline-none focus:ring-2 focus:ring-ojas/40"
+                  className="group text-left rounded-2xl border border-border/60 hover:border-ojas/50 hover:bg-ojas/5 transition-colors p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas/40"
                 >
                   <div className="flex items-center gap-2">
                     <Icon className="w-4 h-4 text-ojas group-hover:scale-110 transition-transform" />
