@@ -1,0 +1,14 @@
+repository_state	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/repository_state.log
+json_settings	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/json_settings.log
+diff_check	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/diff_check.log
+frontend_unit	1	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/frontend_unit.log
+frontend_lint	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/frontend_lint.log
+frontend_typecheck	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/frontend_typecheck.log
+frontend_build	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/frontend_build.log
+bundle_budget	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/bundle_budget.log
+backend_focused	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/backend_focused.log
+backend_ruff	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/backend_ruff.log
+backend_bandit	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/backend_bandit.log
+regex_safety	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/regex_safety.log
+backend_compile	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/backend_compile.log
+backend_full	0	/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/production-readiness/loop-runs/20260824T105528Z/backend_full.log

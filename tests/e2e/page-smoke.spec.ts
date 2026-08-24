@@ -49,6 +49,10 @@ for (const route of PUBLIC_ROUTES) {
         // (useChatCapabilities.ts); a standalone frontend preview with no
         // backend behind it logs this as a generic, URL-less resource error.
         !e.includes('Failed to load resource') &&
+        // <link rel="preconnect"> is a performance hint; a sandbox with no
+        // route to the OAuth origin fails the TLS handshake but nothing
+        // functional depends on the hint succeeding.
+        !e.includes('Failed to preconnect') &&
         !(finalPathname === '/auth' && e.includes('Refused to frame') && e.includes('https://accounts.google.com/')) &&
         !(protectedRoute && finalPathname === '/auth' && /401(?:\s|\()|Unauthorized/i.test(e)),
     );

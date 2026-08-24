@@ -45,8 +45,11 @@ export function preloadLazy<// eslint-disable-next-line @typescript-eslint/no-ex
  * Call in a useEffect after the app mounts.
  */
 export function preloadCriticalRoutes() {
-  // Preload chat route (highest probability next navigation)
-  requestIdleCallback?.(() => {
+  // Preload chat route (highest probability next navigation).
+  // Safari has never implemented requestIdleCallback — access it as a
+  // property (never throws) rather than a bare identifier (ReferenceError
+  // on browsers where it's undeclared, even with optional chaining on the call).
+  window.requestIdleCallback?.(() => {
     import('@/pages/ChatPage').catch(() => { /* preload is best-effort */ });
     import('@/pages/ProfilePage').catch(() => { /* preload is best-effort */ });
     import('@/pages/PracticesPage').catch(() => { /* preload is best-effort */ });
