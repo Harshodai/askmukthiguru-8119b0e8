@@ -3,13 +3,9 @@ import { X, Link as LinkIcon, ExternalLink, Play, Youtube } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import type { Citation } from "@/lib/chat/types";
 
-export interface Citation {
-  url: string;
-  title?: string;
-  quote?: string;
-  channel_name?: string;
-}
+export type { Citation };
 
 interface CitationPanelProps {
   isOpen: boolean;

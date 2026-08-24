@@ -15,16 +15,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Library, ExternalLink, Youtube, Globe, Copy, Check, Filter, Maximize2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import type { Citation } from '@/lib/chat/types';
 
 interface MinimalMessage {
   id: string;
   role: 'user' | 'assistant' | string;
-  citations?: string[];
+  citations?: Citation[];
 }
 
 interface AggregatedSource {
   url: string;
   domain: string;
+  /** Real source title, when the backend resolved one; falls back to domain. */
+  title: string | null;
   ytId: string | null;
   usedIn: Array<{ messageId: string; answerNumber: number }>;
 }
@@ -57,10 +60,12 @@ function aggregate(messages: MinimalMessage[]): AggregatedSource[] {
   for (const m of messages) {
     if (m.role !== 'assistant' && m.role !== 'guru') continue;
     answerNumber += 1;
-    for (const url of m.citations ?? []) {
+    for (const c of m.citations ?? []) {
+      const url = c?.url;
       if (!url) continue;
       const existing = map.get(url);
       if (existing) {
+        if (!existing.title && c.title) existing.title = c.title;
         if (!existing.usedIn.some((p) => p.messageId === m.id)) {
           existing.usedIn.push({ messageId: m.id, answerNumber });
         }
@@ -68,6 +73,7 @@ function aggregate(messages: MinimalMessage[]): AggregatedSource[] {
         map.set(url, {
           url,
           domain: getDomain(url),
+          title: c.title ?? null,
           ytId: getYouTubeId(url),
           usedIn: [{ messageId: m.id, answerNumber }],
         });
@@ -127,7 +133,7 @@ function SourceRow({
               ) : (
                 <Globe className="w-3.5 h-3.5 text-ojas shrink-0" aria-hidden />
               )}
-              <span className="truncate underline-offset-2 group-hover:underline">{source.domain}</span>
+              <span className="truncate underline-offset-2 group-hover:underline">{source.title || source.domain}</span>
               <ExternalLink className="w-3 h-3 opacity-70 shrink-0" aria-hidden />
             </a>
             <button
@@ -221,7 +227,7 @@ export function ConversationSourcesPanel({
   const copyAll = async (source: AggregatedSource[]) => {
     if (source.length === 0) return;
     const md = source
-      .map((s, i) => `${i + 1}. [${s.domain}](${s.url})`)
+      .map((s, i) => `${i + 1}. [${s.title || s.domain}](${s.url})`)
       .join('\n');
     try {
       await navigator.clipboard.writeText(md);

@@ -86,12 +86,22 @@ export interface AnswerEvidence {
 
 export type BackendMetadata = Record<string, unknown>;
 
+/** A single cited source. `title` is the real video/article title resolved
+ *  server-side from the retrieved document; null/absent for sources the
+ *  backend could not resolve a title for (renderers fall back to the domain). */
+export interface Citation {
+  url: string;
+  title?: string | null;
+  quote?: string;
+  channel_name?: string;
+}
+
 export interface AIResponse {
   content: string;
   error?: string;
   errorCode?: AIErrorCode;
   intent?: string;
-  citations?: string[];
+  citations?: Citation[];
   meditationStep?: number;
   blocked?: boolean;
   blockReason?: string;
@@ -156,7 +166,7 @@ export type StreamChunk =
   | {
       type: 'done';
       intent: string;
-      citations: string[];
+      citations: Citation[];
       meditationStep: number;
       blocked?: boolean;
       blockReason?: string | null;

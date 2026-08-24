@@ -202,6 +202,8 @@ async def test_chat_engine_stream_final_chunk_coerces_dict_citations():
 
     dict_citations = [
         {"source_url": "https://example.com/teaching-1"},
+        # No resolvable http(s) url — dropped, matching the Citation schema's
+        # required `url` field (title-only entries are not citable).
         {"title": "Beautiful State", "doc_id": "unused"},
     ]
 
@@ -221,7 +223,7 @@ async def test_chat_engine_stream_final_chunk_coerces_dict_citations():
 
     final = chunks[-1]
     assert final.is_final is True
-    assert final.citations == ["https://example.com/teaching-1", "Beautiful State"]
+    assert final.citations == [{"url": "https://example.com/teaching-1", "title": None}]
 
 
 if __name__ == "__main__":

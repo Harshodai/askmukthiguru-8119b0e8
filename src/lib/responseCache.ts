@@ -2,11 +2,12 @@
  * Lightweight in-memory LRU response cache with TTL.
  * Used to skip redundant API calls for repeated/identical queries.
  */
+import type { Citation } from './chat/types';
 
 interface CacheEntry {
   content: string;
   ts: number;
-  citations?: string[];
+  citations?: Citation[];
 }
 
 const MAX_ENTRIES = 50;
@@ -45,7 +46,7 @@ export const getCachedResponse = (key: string): CacheEntry | null => {
 export const setCachedResponse = (
   key: string,
   content: string,
-  citations?: string[],
+  citations?: Citation[],
 ): void => {
   // Evict oldest if at capacity
   if (cache.size >= MAX_ENTRIES) {

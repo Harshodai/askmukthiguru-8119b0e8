@@ -84,8 +84,13 @@ def _retrieval_confidence(reranked_docs: list) -> float:
     return max(0.0, min(1.0, sum(scores) / len(scores)))
 
 
-def _source_authority(citations: list[str]) -> float:
-    """Heuristic authority score based on citation quality and count."""
+def _source_authority(citations: list) -> float:
+    """Heuristic authority score based on citation quality and count.
+
+    `citations` may be plain URL strings (pre-format_final_answer graph
+    state) or `{"url", "title"}` dicts (the public citation contract) —
+    both shapes appear in `calculate_confidence`'s callers.
+    """
     if not citations:
         return 0.3
     _HIGH_AUTH_DOMAINS = (
@@ -95,7 +100,10 @@ def _source_authority(citations: list[str]) -> float:
         "isha.sadhguru.org",
         "iskcon.org",
     )
-    boost = sum(1 for c in citations if any(d in c.lower() for d in _HIGH_AUTH_DOMAINS))
+    urls = [
+        (c.get("url") or "") if isinstance(c, dict) else str(c or "") for c in citations
+    ]
+    boost = sum(1 for u in urls if any(d in u.lower() for d in _HIGH_AUTH_DOMAINS))
     base = min(1.0, len(citations) / 5.0)
     return min(1.0, base + boost * 0.1)
 

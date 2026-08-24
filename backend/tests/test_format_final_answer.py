@@ -334,7 +334,7 @@ async def test_final_citations_contain_only_absolute_urls():
 
     result = await format_final_answer(state)
 
-    assert result["citations"] == ["https://doc.example/teaching"]
+    assert result["citations"] == [{"url": "https://doc.example/teaching", "title": "Doc One"}]
 
 
 @pytest.mark.asyncio
@@ -379,7 +379,7 @@ async def test_evidence_bearing_refusal_uses_grounded_partial_answer():
     assert result["final_answer"] != FALLBACK_RESPONSE
     assert result["verification"]["method"] == "grounded_partial_evidence"
     assert result["grounding_state"] == "grounded"
-    assert result["citations"] == [source_url]
+    assert result["citations"] == [{"url": source_url, "title": "Serene Mind Practice"}]
     assert "Serene Mind practice begins" in result["final_answer"]
     assert "[1]" in result["final_answer"]
     assert result["faithfulness_score"] == 0.0
@@ -423,8 +423,8 @@ async def test_grounded_partial_answer_is_concise_and_maps_each_excerpt_to_sourc
     answer = result["final_answer"]
     assert result["verification"]["method"] == "grounded_partial_evidence"
     assert result["citations"] == [
-        "https://doc.example/serene-mind",
-        "https://doc.example/four-sacred-secrets",
+        {"url": "https://doc.example/serene-mind", "title": "Serene Mind Practice"},
+        {"url": "https://doc.example/four-sacred-secrets", "title": "Four Sacred Secrets"},
     ]
     assert "[1]" in answer and "[2]" in answer
     assert "Third source that must not be included" not in answer

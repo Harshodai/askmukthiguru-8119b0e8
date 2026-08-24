@@ -194,21 +194,40 @@ def _is_bounded_refusal(answer: str) -> bool:
     return bool(_BOUNDED_REFUSAL_RE.fullmatch(normalized))
 
 
-def _sanitize_citations(citations: list) -> list[str]:
-    """Keep only unique absolute HTTP(S) URLs for the public citation contract."""
-    clean: list[str] = []
+def _sanitize_citations(citations: list, docs: list[dict] | None = None) -> list[dict]:
+    """Keep only unique absolute HTTP(S) citations for the public citation contract.
+
+    Each entry is `{"url": str, "title": str | None}`. `docs` (the retrieved
+    documents behind this answer, e.g. `relevant_docs`) is used to resolve a
+    real title per URL from the Qdrant payload's `title` field — without it,
+    the API only ever had the bare URL and the frontend fell back to a
+    synthesized "Video Source A/B" label.
+    """
+    title_by_url: dict[str, str] = {}
+    for doc in docs or []:
+        if not isinstance(doc, dict):
+            continue
+        doc_url = str(doc.get("source_url") or doc.get("url") or "").strip()
+        doc_title = str(doc.get("title") or "").strip()
+        if doc_url and doc_title:
+            title_by_url.setdefault(doc_url, doc_title)
+
+    clean: list[dict] = []
     seen: set[str] = set()
     for citation in citations or []:
         if isinstance(citation, dict):
             value = citation.get("url") or citation.get("source_url") or citation.get("source")
+            title = str(citation.get("title") or "").strip() or None
         else:
             value = citation
+            title = None
         value = str(value or "").strip()
         if not value.startswith(("http://", "https://")):
             continue
-        if value not in seen:
-            seen.add(value)
-            clean.append(value)
+        if value in seen:
+            continue
+        seen.add(value)
+        clean.append({"url": value, "title": title or title_by_url.get(value)})
     return clean
 
 
@@ -2203,7 +2222,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         partial = _grounded_partial_answer(relevant_docs)
         if partial:
             partial_answer, partial_citations = partial
-            partial_citations = _sanitize_citations(partial_citations)
+            partial_citations = _sanitize_citations(partial_citations, docs=relevant_docs)
             partial_answer = remap_citation_markers(
                 partial_answer, relevant_docs, partial_citations
             )
@@ -2377,7 +2396,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
             )
             citations = _inject_canonical_citations(answer, citations)
             citations = enforce_source_diversity(citations, min_distinct=2)
-            citations = _sanitize_citations(citations)
+            citations = _sanitize_citations(citations, docs=relevant_docs)
             answer = remap_citation_markers(answer, relevant_docs, citations)
             answer = scrub(answer)
             fast_confidence = fast_score * 10.0 if measured else 8.0
@@ -2421,7 +2440,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
 
     citations = _inject_canonical_citations(answer, citations)
     citations = enforce_source_diversity(citations, min_distinct=2)
-    citations = _sanitize_citations(citations)
+    citations = _sanitize_citations(citations, docs=relevant_docs)
     answer = remap_citation_markers(answer, relevant_docs, citations)
 
     if _is_bounded_refusal(answer):
@@ -2578,7 +2597,7 @@ async def format_final_answer(state: GraphState, config: dict = None) -> dict:
         partial = _grounded_partial_answer(relevant_docs)
         if partial:
             partial_answer, partial_citations = partial
-            partial_citations = _sanitize_citations(partial_citations)
+            partial_citations = _sanitize_citations(partial_citations, docs=relevant_docs)
             partial_answer = remap_citation_markers(
                 partial_answer, relevant_docs, partial_citations
             )

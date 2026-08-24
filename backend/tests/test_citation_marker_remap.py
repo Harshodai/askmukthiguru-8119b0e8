@@ -45,7 +45,7 @@ async def test_url_less_doc_does_not_shift_citation_numbering():
     # array), not [2].
     assert "[1]" in result["final_answer"]
     assert "[2]" not in result["final_answer"]
-    assert result["citations"] == ["https://cited.example/doc"]
+    assert result["citations"] == [{"url": "https://cited.example/doc", "title": "Cited Doc"}]
 
 
 @pytest.mark.asyncio
@@ -80,7 +80,7 @@ async def test_diversity_reorder_does_not_desync_citation_numbering():
 
     # "Fourth Doc" -> relevant_docs position 4 -> [4] initially. Diversity
     # promotion moves other_source into index 2 (0-based) = citation [3].
-    assert final_citations[2] == other_source
+    assert final_citations[2] == {"url": other_source, "title": "Fourth Doc"}
     assert "[3]" in final_answer
     assert "[4]" not in final_answer
 

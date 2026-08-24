@@ -220,9 +220,9 @@ export function createProvenanceManifestFromMessage(
   }));
   const sources: ProvenanceSource[] = backendSources.length > 0
     ? backendSources
-    : citations.map((url, i) => ({
-      url,
-      title: `Wisdom Reference ${i + 1}`,
+    : citations.map((c, i) => ({
+      url: c.url,
+      title: c.title || `Wisdom Reference ${i + 1}`,
       corpusId: message.answerEvidence?.corpus_id || 'spiritual_wisdom'
     }));
 

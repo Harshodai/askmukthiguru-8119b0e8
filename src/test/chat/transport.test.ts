@@ -95,7 +95,7 @@ describe('chat/transport helpers', () => {
       status: 200,
       json: async () => ({
         response: 'grounded answer',
-        citations: ['https://example.com/teaching'],
+        citations: [{ url: 'https://example.com/teaching', title: 'The Teaching' }],
         citations_verified: true,
         orphan_citations_stripped: false,
         faithfulness_score: 0.91,

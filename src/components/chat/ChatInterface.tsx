@@ -45,7 +45,7 @@ import { getLastCompletedMeditationTimestamp, loadMeditationSessions } from '@/l
 import { hashMessages, getCachedResponse, setCachedResponse, clearResponseCache } from '@/lib/responseCache';
 import { ChatMessage, LazyWisdomCardGenerator } from './ChatMessage';
 import { ChatHeader } from './ChatHeader';
-import type { ResponsePreferences } from '@/lib/chat/types';
+import type { Citation, ResponsePreferences } from '@/lib/chat/types';
 import { DEFAULT_RESPONSE_PREFERENCES, loadResponsePreferences, saveResponsePreferences, clearResponsePreferences } from '@/lib/chat/responsePreferences';
 import { ScrollToBottomFab } from './ScrollToBottomFab';
 import { MobileConversationSheet } from './MobileConversationSheet';
@@ -154,7 +154,7 @@ export const ChatInterface = () => {
     const set = new Set<string>();
     for (const m of messages) {
       if (m.role !== 'guru') continue;
-      for (const c of m.citations ?? []) if (c) set.add(c);
+      for (const c of m.citations ?? []) if (c?.url) set.add(c.url);
     }
     return set.size;
   }, [messages]);
@@ -1059,7 +1059,7 @@ export const ChatInterface = () => {
         let gotFirstToken = false;
         let streamCompleted = false;
         let streamedFinalText: string | null = null;
-        let streamedCitations: string[] = [];
+        let streamedCitations: Citation[] = [];
         let streamedMedStep = 0;
         let streamedBlocked = false;
         let streamedBlockReason: string | null = null;

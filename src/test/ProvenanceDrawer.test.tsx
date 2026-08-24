@@ -57,7 +57,7 @@ describe('ProvenanceDrawer Component', () => {
     role: 'guru',
     content: 'Wisdom begins with self-observation.',
     timestamp: new Date('2026-08-17T20:00:00.000Z'),
-    citations: ['https://example.com/source1', 'https://example.com/source2'],
+    citations: [{ url: 'https://example.com/source1' }, { url: 'https://example.com/source2' }],
     confidenceScore: 0.92,
     groundingState: 'grounded',
   };

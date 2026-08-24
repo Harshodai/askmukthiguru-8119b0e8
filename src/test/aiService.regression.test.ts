@@ -196,13 +196,17 @@ describe('aiService regression — health and fallback paths', () => {
           ok: true,
           json: async () => ({
             status: 'completed',
-            result: { response: 'Queued result', citations: ['https://youtu.be/abc'], meditation_step: 2 },
+            result: {
+              response: 'Queued result',
+              citations: [{ url: 'https://youtu.be/abc', title: 'A Teaching' }],
+              meditation_step: 2,
+            },
           }),
         });
 
       const result = await sendMessage([], 'Hello', 0);
       expect(result.content).toBe('Queued result');
-      expect(result.citations).toEqual(['https://youtu.be/abc']);
+      expect(result.citations).toEqual([{ url: 'https://youtu.be/abc', title: 'A Teaching' }]);
       expect(result.meditationStep).toBe(2);
     });
 

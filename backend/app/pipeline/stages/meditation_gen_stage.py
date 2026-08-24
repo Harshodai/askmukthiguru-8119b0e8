@@ -152,7 +152,10 @@ class MeditationGenStage(Stage):
         total = 0
         for c in citations[:3]:
             if isinstance(c, dict):
-                text = c.get("text") or c.get("content") or c.get("document") or ""
+                # {"url", "title"} is the public citation shape (no chunk text) —
+                # title is a weak but real signal; falls back to nothing rather
+                # than the URL itself, which is not teaching content.
+                text = c.get("text") or c.get("content") or c.get("document") or c.get("title") or ""
             elif isinstance(c, str):
                 text = c
             else:

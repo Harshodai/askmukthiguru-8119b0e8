@@ -153,14 +153,14 @@ describe('ChatMessage (regression)', () => {
   it('renders citations section with source count', () => {
     const message = makeGuruMessage({
       citations: [
-        'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        'https://www.ekam.org/teaching',
+        { url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', title: 'Discourse on Stillness' },
+        { url: 'https://www.ekam.org/teaching', title: null },
       ],
     });
     render(<ChatMessage message={message} />, { wrapper });
 
     expect(screen.getByText(/References/i)).toBeInTheDocument();
-    expect(screen.getByText(/2 sources/)).toBeInTheDocument();
+    expect(screen.getByText(/2 verified sources/)).toBeInTheDocument();
   });
 
   it('uses inline URLs as fallback citations when none provided', () => {
@@ -175,10 +175,10 @@ describe('ChatMessage (regression)', () => {
   it('filters malformed and unsafe citation URLs instead of rendering them as sources', () => {
     const message = makeGuruMessage({
       citations: [
-        '',
-        'not-a-url',
-        'javascript:alert(1)',
-        'https://www.youtube.com/watch?v=abc123',
+        { url: '' },
+        { url: 'not-a-url' },
+        { url: 'javascript:alert(1)' },
+        { url: 'https://www.youtube.com/watch?v=abc123' },
       ],
     });
     render(<ChatMessage message={message} />, { wrapper });
@@ -197,7 +197,7 @@ describe('ChatMessage (regression)', () => {
 
   it("surfaces source context and verifier confidence for a guru response", () => {
     const message = makeGuruMessage({
-      citations: ["https://example.com/one", "https://example.com/two"],
+      citations: [{ url: "https://example.com/one" }, { url: "https://example.com/two" }],
       groundingState: "grounded",
       confidenceScore: 8.4,
       confidenceReason: "Retrieved teaching and answer aligned.",
@@ -210,10 +210,11 @@ describe('ChatMessage (regression)', () => {
       },
     });
     render(<ChatMessage message={message} />, { wrapper });
-    const provenance = screen.getByTestId("response-provenance");
-    expect(provenance).toHaveTextContent("2 verified sources provided");
-    expect(provenance).toHaveTextContent("Teaching-supported");
-    expect(screen.getByRole("button", { name: "Open response sources" })).toBeInTheDocument();
+    // With citations present, source context merges into the References
+    // details summary instead of the standalone response-provenance badge.
+    expect(screen.getByText(/2 verified sources/)).toBeInTheDocument();
+    expect(screen.getByText("Teaching-supported")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View all sources in panel" })).toBeInTheDocument();
   });
 
   it("suppresses unverified teacher-attributed quotations when no source is linked", () => {
@@ -227,9 +228,11 @@ describe('ChatMessage (regression)', () => {
     expect(screen.queryByText(/Awareness is the beginning of freedom/i)).not.toBeInTheDocument();
   });
 
-  it("treats ungrounded responses with inline URLs as abstained (reflective guidance)", () => {
+  it("treats ungrounded responses with no linked source as abstained (reflective guidance)", () => {
+    // No inline URL: one would be promoted to a fallback citation, routing
+    // this into the merged References block instead of response-provenance.
     const message = makeGuruMessage({
-      content: 'Here is some wisdom with inline link https://example.com/audio',
+      content: 'Here is some wisdom without a linked source.',
       confidenceScore: 7.0,
     });
     render(<ChatMessage message={message} />, { wrapper });
@@ -260,7 +263,8 @@ describe('ChatMessage guidance plan', () => {
     expect(screen.getByTestId('guidance-plan')).toHaveTextContent('Try this now');
     expect(screen.getByTestId('guidance-plan')).toHaveTextContent('Notice one breath');
     expect(screen.getByTestId('guidance-plan')).toHaveTextContent('Go deeper');
-    expect(screen.getByTestId('guidance-plan')).toHaveTextContent('Guidance inspired by retrieved teachings');
+    // Attribution text is intentionally omitted here — it duplicates the
+    // response-provenance grounding badge rendered elsewhere on the message.
   });
 
   it('suppresses the guidance plan for a crisis response', () => {

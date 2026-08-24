@@ -49,7 +49,7 @@ describe('StreamChunk type discriminated union', () => {
     const chunk: StreamChunk = {
       type: 'done',
       intent: 'DISTRESS',
-      citations: ['https://youtube.com/watch?v=abc'],
+      citations: [{ url: 'https://youtube.com/watch?v=abc' }],
       meditationStep: 1,
     };
     expect(chunk.type).toBe('done');

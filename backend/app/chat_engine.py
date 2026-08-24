@@ -67,7 +67,7 @@ class ChatResult:
     def __init__(self) -> None:
         self.final_answer: str = ""
         self.intent: str = ""
-        self.citations: list[str] = []
+        self.citations: list[dict] = []
         self.blocked: bool = False
         self.block_reason: str = ""
         self.trace_id: str = ""
@@ -100,7 +100,7 @@ class ChatChunk:
         self,
         text: str = "",
         is_final: bool = False,
-        citations: Optional[list[str]] = None,
+        citations: Optional[list[dict]] = None,
         grounding_state: str = "abstained",
         release_manifest: Optional[dict[str, Any]] = None,
     ):
@@ -475,31 +475,36 @@ class ChatEngine:
             logger.warning(f"Telemetry logging failed (non-critical): {e}")
 
     @staticmethod
-    def _coerce_citations(citations: Any) -> list[str]:
+    def _coerce_citations(citations: Any) -> list[dict]:
+        """Coerce citation objects to the `{"url": str, "title": str | None}`
+        shape ChatResponse.citations (list[Citation]) expects.
+
+        Mirrors `app.orchestrator._coerce_citations` — the graph's main path
+        already emits this shape with a real title, this stays defensive for
+        earlier-exit branches. Entries with no resolvable http(s) URL are
+        dropped, matching the graph's own citation contract.
+        """
         if not citations:
             return []
-        out: list[str] = []
+        out: list[dict] = []
+        seen: set[str] = set()
         for c in citations:
-            if isinstance(c, str):
-                out.append(c)
-            elif isinstance(c, dict):
+            if isinstance(c, dict):
                 source_url = c.get("source_url")
                 url = c.get("url")
+                title = c.get("title")
                 http_url: str | None = None
                 for cand in (source_url, url):
                     if cand and str(cand).startswith(("http://", "https://")):
                         http_url = str(cand)
                         break
-                if http_url:
-                    out.append(http_url)
-                else:
-                    title = (
-                        c.get("title") or c.get("doc_id") or c.get("source") or c.get("quote") or ""
-                    )
-                    if title and title != "unknown":
-                        out.append(str(title))
             else:
-                out.append(str(c))
+                http_url = str(c) if str(c or "").startswith(("http://", "https://")) else None
+                title = None
+            if not http_url or http_url in seen:
+                continue
+            seen.add(http_url)
+            out.append({"url": http_url, "title": str(title).strip() if title else None})
         return out
 
 

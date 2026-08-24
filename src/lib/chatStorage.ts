@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { AnswerEvidence, BackendMetadata, GuidancePlan, GroundingState, LiveLogisticsEvent, ProactiveSereneMindTrigger } from './chat/types';
+import type { AnswerEvidence, BackendMetadata, Citation, GuidancePlan, GroundingState, LiveLogisticsEvent, ProactiveSereneMindTrigger } from './chat/types';
 import { supabase } from '@/integrations/supabase/client';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
@@ -61,7 +61,7 @@ export interface Message {
   role: 'user' | 'guru';
   content: string;
   timestamp: Date;
-  citations?: string[];
+  citations?: Citation[];
   confidenceScore?: number;
   /** E3.2 one-line explainable reason for the confidence score (optional, forward-compat). */
   confidenceReason?: string;
@@ -114,12 +114,20 @@ export const saveFeedback = (messageId: string, feedback: MessageFeedback): void
 };
 
 // ── Zod schemas for safe deserialization ─────────────────────────
+// Citations used to be stored as bare URL strings; accept both shapes so
+// existing local history (pre-title-threading) doesn't fail parsing and get
+// wiped by the "corrupted conversations — clearing" fallback below.
+const CitationSchema = z.union([
+  z.string().transform((url) => ({ url })),
+  z.object({ url: z.string(), title: z.string().nullable().optional() }),
+]);
+
 const MessageSchema = z.object({
   id: z.string(),
   role: z.enum(['user', 'guru']),
   content: z.string(),
   timestamp: z.coerce.date(),
-  citations: z.array(z.string()).optional(),
+  citations: z.array(CitationSchema).optional(),
   language: z.string().optional(),
   confidenceScore: z.number().optional(),
   confidenceReason: z.string().optional(),
@@ -370,7 +378,10 @@ async function syncConversationToDb(conversation: Conversation): Promise<void> {
         conversation_id: conversation.id,
         role: m.role,
         content: m.content,
-        citations: m.citations ?? null,
+        // chat_messages.citations is a Postgres text[] column — project down
+        // to bare URLs; title is a display-only enrichment kept in local
+        // storage, not persisted to this analytics/backup table.
+        citations: m.citations?.length ? m.citations.map((c) => c.url) : null,
         confidence_score: m.confidenceScore ?? null,
         created_at: m.timestamp.toISOString(),
       }));

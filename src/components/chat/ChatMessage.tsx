@@ -376,8 +376,11 @@ const LazyYouTube = ({ videoId, url }: { videoId: string; url: string }) => {
   );
 };
 
-/** Get a display name for a source URL (e.g., 'YouTube — YouTube Domain') */
-const getSourceDisplayName = (url: string, index: number): string => {
+/** Get a display name for a citation: the real title when known, else a
+ *  domain-derived label (e.g., 'Video Source A') synthesized from the URL. */
+const getSourceDisplayName = (citation: Citation, index: number): string => {
+  if (citation.title) return citation.title;
+  const url = citation.url;
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname.replace(/^www\./, '');
@@ -422,15 +425,16 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const { open: openSereneMind } = useSereneMind();
     // Extract any https:// URL from the guru's response as a fallback citation.
     // Covers: YouTube links, source references like "Source: https://...", inline citations.
-    const inlineUrls = isGuru
+    // No title is available for these — the panel falls back to the domain.
+    const inlineCitations: Citation[] = isGuru
       ? Array.from(new Set(
         (message.content.match(/https?:\/\/[^\s)"'<>]+/g) ?? [])
           .filter(isUsableSourceUrl)
-      ))
+      )).map((url) => ({ url }))
       : [];
-    const citations = (message.citations && message.citations.length > 0)
-      ? message.citations.filter(isUsableSourceUrl)
-      : inlineUrls;
+    const citations: Citation[] = (message.citations && message.citations.length > 0)
+      ? message.citations.filter((c) => isUsableSourceUrl(c.url))
+      : inlineCitations;
     const groundingState = message.groundingState ?? 'abstained';
 
     // Attribution integrity: a quoted teacher statement with no linked source
@@ -1181,7 +1185,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   {/* YouTube Videos Section */}
                   {(() => {
                     const ytUrls = citations
-                      .map((url) => ({ videoId: getYouTubeId(url), url }))
+                      .map((c) => ({ videoId: getYouTubeId(c.url), url: c.url }))
                       .filter((item): item is { videoId: string; url: string } => item.videoId !== null);
 
                     if (ytUrls.length === 0) return null;
@@ -1216,10 +1220,11 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       Source Documents
                     </p>
                     <div className="flex flex-col gap-2">
-                      {citations.slice(0, 3).map((url, i) => {
+                      {citations.slice(0, 3).map((c, i) => {
+                        const url = c.url;
                         const ytId = getYouTubeId(url);
                         const isYT = isYouTubeUrl(url);
-                        const displayName = getSourceDisplayName(url, i);
+                        const displayName = getSourceDisplayName(c, i);
                         const domain = getDomain(url);
 
                         return (
@@ -1282,8 +1287,9 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                             Show {citations.length - 3} more source{citations.length > 4 ? 's' : ''}
                           </summary>
                           <div className="flex flex-col gap-2 mt-2">
-                            {citations.slice(3).map((url, i) => {
-                              const displayName = getSourceDisplayName(url, i + 3);
+                            {citations.slice(3).map((c, i) => {
+                              const url = c.url;
+                              const displayName = getSourceDisplayName(c, i + 3);
                               const domain = getDomain(url);
                               return (
                                 <a
@@ -1315,7 +1321,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               <CitationPanel
                 isOpen={sourcesOpen}
                 onClose={() => setSourcesOpen(false)}
-                citations={citations.map((url): Citation => ({ url }))}
+                citations={citations}
               />
             )}
 

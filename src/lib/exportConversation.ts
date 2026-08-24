@@ -30,9 +30,7 @@ export const conversationToMarkdown = (conversation: Conversation): string => {
       lines.push('');
       lines.push('**Sources:**');
       for (const c of msg.citations) {
-        const label = (c as { title?: string; source?: string }).title
-          ?? (c as { source?: string }).source
-          ?? String(c);
+        const label = c.title ?? c.url;
         lines.push(`- ${label}`);
       }
     }

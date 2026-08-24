@@ -179,13 +179,26 @@ class ProfileUpdate(BaseModel):
         return v
 
 
+class Citation(BaseModel):
+    """A single cited source: its URL and, when known, its real title.
+
+    `title` is resolved server-side from the Qdrant document payload (or the
+    live-search/official result) behind the citation — never guessed or
+    synthesized. The frontend falls back to a domain-derived label when it
+    is None.
+    """
+
+    url: str = Field(..., description="Absolute HTTP(S) source URL")
+    title: Optional[str] = Field(None, description="Real source title, when known")
+
+
 class ChatResponse(BaseModel):
     """Chat API response body."""
 
     response: str = Field(..., description="Guru's response")
     intent: Optional[str] = Field(None, description="Detected intent")
     meditation_step: int = Field(default=0, description="Next meditation step")
-    citations: list[str] = Field(default_factory=list, description="Source URLs")
+    citations: list[Citation] = Field(default_factory=list, description="Cited sources")
     blocked: bool = Field(default=False, description="Was the message blocked?")
     block_reason: Optional[str] = Field(None, description="Why it was blocked")
     proactive_serene_mind: Optional[dict] = Field(

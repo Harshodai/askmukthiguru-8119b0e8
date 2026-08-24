@@ -33,7 +33,7 @@ describe('sendMessageStreaming SSE parsing', () => {
       'event: status\ndata: Searching knowledge base...\n',
       'event: message\ndata: {"token":"Hello "}\n',
       'event: message\ndata: {"token":"world"}\n',
-      'event: done\ndata: {"intent":"DISTRESS","citations":["https://youtu.be/abc"],"meditation_step":1,"citations_verified":true,"orphan_citations_stripped":false,"faithfulness_score":0.92,"provenance_manifest":{"manifest_id":"m-1","sources":[{"url":"https://youtu.be/abc","title":"Teaching"}]}}\n',
+      'event: done\ndata: {"intent":"DISTRESS","citations":[{"url":"https://youtu.be/abc","title":"Teaching"}],"meditation_step":1,"citations_verified":true,"orphan_citations_stripped":false,"faithfulness_score":0.92,"provenance_manifest":{"manifest_id":"m-1","sources":[{"url":"https://youtu.be/abc","title":"Teaching"}]}}\n',
       'data: [DONE]\n',
     ]);
 
@@ -59,7 +59,9 @@ describe('sendMessageStreaming SSE parsing', () => {
       intent: 'DISTRESS',
       meditationStep: 1,
     });
-    expect((done as { citations: string[] }).citations).toEqual(['https://youtu.be/abc']);
+    expect((done as { citations: { url: string; title?: string | null }[] }).citations).toEqual([
+      { url: 'https://youtu.be/abc', title: 'Teaching' },
+    ]);
     expect(done).toMatchObject({
       citationsVerified: true,
       orphanCitationsStripped: false,
@@ -93,7 +95,7 @@ describe('sendMessageStreaming SSE parsing', () => {
       if (chunk.type === 'done') done = chunk;
     }
     expect(done).toMatchObject({ type: 'done', intent: 'CASUAL', meditationStep: 0 });
-    expect((done as { citations: string[] }).citations).toEqual([]);
+    expect((done as { citations: { url: string; title?: string | null }[] }).citations).toEqual([]);
   });
 
   it('rejects a stream that ends without completion metadata', async () => {

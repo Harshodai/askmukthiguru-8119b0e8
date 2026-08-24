@@ -134,7 +134,7 @@ class ChatRequestOrchestrator:
             response=result.final_answer,
             intent=result.intent,
             meditation_step=result.meditation_step,
-            citations=_coerce_citations_to_str(result.citations),
+            citations=_coerce_citations(result.citations),
             blocked=result.blocked,
             block_reason=result.block_reason,
             trace_id=result.trace_id,
@@ -434,35 +434,40 @@ def _response_to_dict(response) -> dict:
     return {"response": str(response)}
 
 
-def _coerce_citations_to_str(citations) -> list[str]:
-    """Coerce citation objects to the list[str] shape ChatResponse expects.
+def _coerce_citations(citations) -> list[dict]:
+    """Coerce citation objects to the `{"url": str, "title": str | None}` shape
+    ChatResponse.citations (list[Citation]) expects.
 
-    citation_extractor emits list[dict] with {doc_id, quote, source_url, title, ...};
-    the API contract + frontend expect list[str]. Use source_url (if http), title,
-    or doc_id as the string representation.
+    The graph's main path (`_sanitize_citations` in rag/nodes/generation.py)
+    already emits this shape with a real title resolved from the retrieved
+    doc's Qdrant payload. This stays defensive for earlier-exit branches
+    (e.g. citation_extractor's raw {doc_id, quote, source_url, title, ...}
+    dicts, or a bare url string) that can still reach this boundary.
+
+    Entries with no resolvable http(s) URL are dropped — the schema requires
+    one, matching the graph's own citation contract.
     """
     if not citations:
         return []
-    out: list[str] = []
+    out: list[dict] = []
+    seen: set[str] = set()
     for c in citations:
-        if isinstance(c, str):
-            out.append(c)
-        elif isinstance(c, dict):
+        if isinstance(c, dict):
             source_url = c.get("source_url")
             url = c.get("url")
+            title = c.get("title")
             valid_url: str | None = None
             for cand in (source_url, url):
                 if cand and str(cand).startswith(("http://", "https://")):
                     valid_url = str(cand)
                     break
-            if valid_url:
-                out.append(valid_url)
-            else:
-                title = c.get("title") or c.get("doc_id") or c.get("source") or c.get("quote") or ""
-                if title and title != "unknown":
-                    out.append(str(title))
         else:
-            out.append(str(c))
+            valid_url = str(c) if str(c or "").startswith(("http://", "https://")) else None
+            title = None
+        if not valid_url or valid_url in seen:
+            continue
+        seen.add(valid_url)
+        out.append({"url": valid_url, "title": str(title).strip() if title else None})
     return out
 
 
@@ -542,7 +547,7 @@ def _stream_done_metadata(result) -> dict:
     guidance_plan = getattr(result, "guidance_plan", None)
     return {
         "intent": result.intent,
-        "citations": _coerce_citations_to_str(result.citations),
+        "citations": _coerce_citations(result.citations),
         "meditation_step": result.meditation_step,
         "proactive_serene_mind": result.proactive_serene_mind,
         "trace_id": result.trace_id,

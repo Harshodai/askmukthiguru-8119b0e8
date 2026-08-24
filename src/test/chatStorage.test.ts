@@ -81,7 +81,7 @@ describe('chatStorage', () => {
         role: 'guru',
         content: 'Grounded answer',
         timestamp: new Date('2026-08-19T10:00:00.000Z'),
-        citations: ['https://example.com/teaching'],
+        citations: [{ url: 'https://example.com/teaching', title: 'The Teaching' }],
         citationsVerified: true,
         faithfulnessScore: 0.9,
         verification: { passed: true },
