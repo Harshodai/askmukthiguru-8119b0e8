@@ -25,8 +25,6 @@ aiosqlite==0.22.1
     # via
     #   -r backend/requirements.txt
     #   llama-index-core
-alembic==1.19.1
-    # via optuna
 amqp==5.3.1
     # via kombu
 annotated-doc==0.0.5
@@ -37,7 +35,6 @@ annotated-types==0.8.0
     # via pydantic
 anyio==4.14.2
     # via
-    #   asyncer
     #   dspy
     #   google-genai
     #   gradio
@@ -58,20 +55,13 @@ ascii-colors==0.11.26
     # via pipmaster
 asgiref==3.12.1
     # via opentelemetry-instrumentation-asgi
-asyncer==0.0.8
-    # via dspy
 attrs==26.1.0
     # via
     #   aiohttp
-    #   fuzzysearch
     #   jsonschema
     #   referencing
-backoff==2.2.1
-    # via dspy
 banks==2.5.0
     # via llama-index-core
-bc-detect-secrets==1.5.15
-    # via llm-guard
 bcrypt==5.0.0
     # via
     #   passlib
@@ -87,8 +77,6 @@ bitarray==3.10.1
     # via colbert-ai
 blinker==1.9.0
     # via flask
-blis==1.3.3
-    # via thinc
 brotli==1.2.0
     # via
     #   gradio
@@ -99,10 +87,7 @@ cachetools==5.5.2
     #   dspy
     #   gptcache
 catalogue==2.0.10
-    # via
-    #   spacy
-    #   srsly
-    #   thinc
+    # via srsly
 celery==5.6.3
     # via -r backend/requirements.txt
 certifi==2026.7.22
@@ -129,7 +114,6 @@ click==8.4.2
     #   litellm
     #   magika
     #   nltk
-    #   spacy
     #   uvicorn
 click-didyoumean==0.3.1
     # via celery
@@ -137,33 +121,19 @@ click-plugins==1.1.1.2
     # via celery
 click-repl==0.3.0
     # via celery
-cloudpathlib==0.24.0
-    # via weasel
 cloudpickle==3.1.2
     # via dspy
 colbert-ai==0.2.22
     # via ragatouille
 colorama==0.4.6
     # via griffecli
-colorlog==6.12.0
-    # via optuna
-confection==1.3.3
-    # via
-    #   spacy
-    #   thinc
-    #   weasel
 configparser==7.2.0
     # via lightrag-hku
-cryptography==49.0.0
+cryptography==50.0.0
     # via
     #   -r backend/requirements.txt
     #   google-auth
     #   pyjwt
-cymem==2.0.13
-    # via
-    #   preshed
-    #   spacy
-    #   thinc
 dataclasses-json==0.6.7
     # via
     #   langchain-community
@@ -172,7 +142,6 @@ dataclasses-json==0.6.7
 datasets==2.19.2
     # via
     #   colbert-ai
-    #   dspy
     #   flagembedding
 defusedxml==0.7.1
     # via
@@ -207,9 +176,9 @@ dnspython==2.8.0
     # via email-validator
 docstring-parser==0.18.0
     # via instructor
-dspy==2.6.13
+dspy==3.3.1
     # via dspy-ai
-dspy-ai==2.6.27
+dspy-ai==3.2.1
     # via -r backend/requirements.txt
 easyocr==1.7.2
     # via -r backend/requirements.txt
@@ -217,8 +186,6 @@ email-validator==2.3.0
     # via fastapi-users
 faiss-cpu==1.15.0
     # via ragatouille
-faker==27.4.0
-    # via llm-guard
 fast-pytorch-kmeans==0.2.2
     # via ragatouille
 fastapi==0.141.1
@@ -240,7 +207,6 @@ filelock==3.32.2
     # via
     #   datasets
     #   huggingface-hub
-    #   tldextract
     #   torch
     #   transformers
 filetype==1.2.0
@@ -268,8 +234,8 @@ fsspec==2024.3.1
     #   torch
 ftfy==6.3.1
     # via wordfreq
-fuzzysearch==0.8.1
-    # via llm-guard
+gepa==0.1.4
+    # via dspy
 gitdb==4.0.12
     # via gitpython
 gitpython==3.1.59
@@ -337,6 +303,7 @@ httpx==0.28.1
     #   google-genai
     #   gradio
     #   gradio-client
+    #   langchain-core
     #   langgraph-sdk
     #   langsmith
     #   litellm
@@ -352,7 +319,6 @@ httpx==0.28.1
     #   supabase
     #   supabase-auth
     #   supabase-functions
-    #   weasel
 httpx-sse==0.4.3
     # via langchain-community
 huggingface-hub==0.36.2
@@ -374,7 +340,6 @@ idna==3.18
     #   email-validator
     #   httpx
     #   requests
-    #   tldextract
     #   yarl
 imageio==2.37.4
     # via scikit-image
@@ -398,7 +363,6 @@ jinja2==3.1.6
     #   instructor
     #   litellm
     #   nemoguardrails
-    #   spacy
     #   torch
 jiter==0.14.0
     # via
@@ -406,16 +370,14 @@ jiter==0.14.0
     #   openai
 joblib==1.5.3
     # via
-    #   dspy
     #   nltk
     #   pynndescent
     #   scikit-learn
-json-repair==0.28.4
+json-repair==0.63.3
     # via
     #   -r backend/requirements.txt
     #   dspy
     #   lightrag-hku
-    #   llm-guard
 jsonpatch==1.33
     # via langchain-core
 jsonpointer==3.1.1
@@ -428,14 +390,14 @@ jsonschema-specifications==2025.9.1
     # via jsonschema
 kombu==5.6.2
     # via celery
-langchain==0.3.30
+langchain==1.3.16
     # via
     #   -r backend/requirements.txt
     #   langchain-community
     #   ragatouille
 langchain-community==0.3.31
     # via -r backend/requirements.txt
-langchain-core==0.3.86
+langchain-core==1.6.0
     # via
     #   -r backend/requirements.txt
     #   langchain
@@ -446,35 +408,39 @@ langchain-core==0.3.86
     #   langgraph
     #   langgraph-checkpoint
     #   langgraph-prebuilt
+    #   langgraph-sdk
     #   ragatouille
 langchain-ollama==0.3.10
     # via -r backend/requirements.txt
+langchain-protocol==0.0.18
+    # via
+    #   langchain-core
+    #   langgraph-sdk
 langchain-sarvam==0.1.2
     # via -r backend/requirements.txt
-langchain-text-splitters==0.3.11
-    # via
-    #   -r backend/requirements.txt
-    #   langchain
+langchain-text-splitters==1.1.2
+    # via -r backend/requirements.txt
 langcodes==3.5.1
     # via wordfreq
 langdetect==1.0.9
     # via -r backend/requirements.txt
-langgraph==0.5.4
-    # via -r backend/requirements.txt
-langgraph-checkpoint==2.1.2
+langgraph==1.2.11
+    # via
+    #   -r backend/requirements.txt
+    #   langchain
+langgraph-checkpoint==4.2.0
     # via
     #   -r backend/requirements.txt
     #   langgraph
     #   langgraph-prebuilt
-langgraph-prebuilt==0.5.2
+langgraph-prebuilt==1.1.0
     # via langgraph
-langgraph-sdk==0.1.74
+langgraph-sdk==0.4.3
     # via
     #   -r backend/requirements.txt
     #   langgraph
 langsmith==0.10.18
     # via
-    #   langchain
     #   langchain-community
     #   langchain-core
 lark==1.3.1
@@ -504,8 +470,6 @@ llama-index-llms-openai==0.7.10
     # via llama-index
 llama-index-workflows==2.23.0
     # via llama-index-core
-llm-guard==0.3.15
-    # via -r backend/requirements.txt
 llvmlite==0.49.0
     # via
     #   numba
@@ -518,14 +482,10 @@ lxml==6.1.1
     # via ir-datasets
 lz4==4.4.5
     # via ir-datasets
-magicattr==0.1.6
-    # via dspy
 magika==0.6.3
     # via markitdown
 makefun==1.16.0
     # via fastapi-users
-mako==1.4.1
-    # via alembic
 markdown-it-py==4.2.0
     # via rich
 markdownify==1.2.3
@@ -537,7 +497,6 @@ markupsafe==3.0.3
     #   flask
     #   gradio
     #   jinja2
-    #   mako
     #   werkzeug
 marshmallow==3.26.2
     # via dataclasses-json
@@ -557,11 +516,6 @@ multidict==6.7.1
     #   yarl
 multiprocess==0.70.16
     # via datasets
-murmurhash==1.0.15
-    # via
-    #   preshed
-    #   spacy
-    #   thinc
 mutagen==1.48.1
     # via yt-dlp
 mypy-extensions==1.1.0
@@ -592,7 +546,6 @@ nltk==3.10.2
     # via
     #   llama-index
     #   llama-index-core
-    #   llm-guard
 numba==0.67.0
     # via
     #   -r backend/requirements.txt
@@ -601,7 +554,6 @@ numpy==1.26.4
     # via
     #   -r backend/requirements.txt
     #   accelerate
-    #   blis
     #   datasets
     #   easyocr
     #   faiss-cpu
@@ -619,11 +571,9 @@ numpy==1.26.4
     #   ml-dtypes
     #   nano-vectordb
     #   numba
-    #   oldest-supported-numpy
     #   onnx
     #   onnxruntime
     #   opencv-python-headless
-    #   optuna
     #   pandas
     #   peft
     #   pyarrow
@@ -632,15 +582,11 @@ numpy==1.26.4
     #   scikit-learn
     #   scipy
     #   shapely
-    #   spacy
-    #   thinc
     #   tifffile
     #   torchvision
     #   transformers
     #   turbovec
     #   voyager
-oldest-supported-numpy==2023.8.3
-    # via llm-guard
 ollama==0.6.2
     # via langchain-ollama
 onnx==1.22.0
@@ -720,10 +666,9 @@ opentelemetry-util-http==0.65b0
     # via
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
-optuna==4.9.0
-    # via dspy
 orjson==3.11.9
     # via
+    #   dspy
     #   gradio
     #   langgraph-sdk
     #   langsmith
@@ -748,19 +693,14 @@ packaging==25.0
     #   marshmallow
     #   onnxruntime
     #   opentelemetry-instrumentation
-    #   optuna
     #   peft
     #   pipmaster
     #   pytest
     #   scikit-image
-    #   spacy
-    #   thinc
     #   transformers
-    #   weasel
 pandas==2.3.3
     # via
     #   datasets
-    #   dspy
     #   gradio
     #   lightrag-hku
     #   nemoguardrails
@@ -770,8 +710,6 @@ peft==0.14.0
     # via
     #   -r backend/requirements.txt
     #   flagembedding
-phonenumbers==8.13.55
-    # via presidio-analyzer
 pillow==12.3.0
     # via
     #   -r backend/requirements.txt
@@ -797,14 +735,6 @@ portalocker==3.2.0
     # via qdrant-client
 postgrest==2.31.0
     # via supabase
-preshed==3.0.13
-    # via
-    #   spacy
-    #   thinc
-presidio-analyzer==2.2.354
-    # via llm-guard
-presidio-anonymizer==2.2.354
-    # via llm-guard
 prometheus-client==0.26.0
     # via -r backend/requirements.txt
 prompt-toolkit==3.0.53
@@ -850,8 +780,6 @@ pyclipper==1.4.0
     # via easyocr
 pycparser==3.0
     # via cffi
-pycryptodome==3.23.0
-    # via presidio-anonymizer
 pycryptodomex==3.23.0
     # via yt-dlp
 pydantic==2.13.4
@@ -881,11 +809,8 @@ pydantic==2.13.4
     #   qdrant-client
     #   realtime
     #   sarvamai
-    #   spacy
     #   storage3
     #   supabase-auth
-    #   thinc
-    #   weasel
 pydantic-core==2.46.4
     # via
     #   instructor
@@ -926,7 +851,6 @@ python-bidi==0.6.11
 python-dateutil==2.9.0.post0
     # via
     #   celery
-    #   faker
     #   pandas
 python-dotenv==1.2.2
     # via
@@ -950,21 +874,17 @@ pyyaml==6.0.3
     # via
     #   -r backend/requirements.txt
     #   accelerate
-    #   bc-detect-secrets
     #   datasets
     #   easyocr
     #   gradio
     #   huggingface-hub
     #   ir-datasets
-    #   langchain
     #   langchain-community
     #   langchain-core
     #   lightrag-hku
     #   llama-index-core
     #   nemoguardrails
-    #   optuna
     #   peft
-    #   presidio-analyzer
     #   transformers
     #   uvicorn
 qdrant-client==1.19.0
@@ -984,16 +904,13 @@ referencing==0.37.0
 regex==2024.7.24
     # via
     #   dspy
-    #   llm-guard
     #   nltk
-    #   presidio-analyzer
     #   tiktoken
     #   transformers
     #   wordfreq
 requests==2.34.2
     # via
     #   -r backend/requirements.txt
-    #   bc-detect-secrets
     #   datasets
     #   dspy
     #   fastembed
@@ -1005,22 +922,16 @@ requests==2.34.2
     #   huggingface-hub
     #   instructor
     #   ir-datasets
-    #   langchain
     #   langchain-community
     #   langsmith
     #   llama-index-core
     #   markitdown
     #   opentelemetry-exporter-otlp-proto-http
-    #   requests-file
     #   requests-toolbelt
-    #   spacy
     #   tiktoken
-    #   tldextract
     #   transformers
     #   youtube-transcript-api
     #   yt-dlp
-requests-file==3.0.1
-    # via tldextract
 requests-toolbelt==1.0.0
     # via langsmith
 rich==14.3.4
@@ -1071,8 +982,6 @@ setuptools==84.0.0
     # via
     #   lightrag-hku
     #   llama-index-core
-    #   spacy
-    #   thinc
     #   torch
 shapely==2.1.2
     # via easyocr
@@ -1087,8 +996,6 @@ six==1.17.0
     #   python-dateutil
 slowapi==0.1.10
     # via -r backend/requirements.txt
-smart-open==8.0.1
-    # via weasel
 smmap==5.0.3
     # via gitdb
 sniffio==1.3.1
@@ -1098,26 +1005,13 @@ sniffio==1.3.1
     #   openai
 soupsieve==2.9.2
     # via beautifulsoup4
-spacy==3.8.15
-    # via presidio-analyzer
-spacy-legacy==3.0.12
-    # via spacy
-spacy-loggers==1.0.5
-    # via spacy
 sqlalchemy==2.0.52
     # via
-    #   alembic
     #   fastapi-users-db-sqlalchemy
-    #   langchain
     #   langchain-community
     #   llama-index-core
-    #   optuna
 srsly==2.5.3
-    # via
-    #   ragatouille
-    #   spacy
-    #   thinc
-    #   weasel
+    # via ragatouille
 starlette==1.6.0
     # via
     #   -r backend/requirements.txt
@@ -1127,8 +1021,6 @@ storage3==2.31.0
     # via supabase
 strenum==0.4.15
     # via supabase-functions
-structlog==26.1.0
-    # via llm-guard
 supabase==2.31.0
     # via -r backend/requirements.txt
 supabase-auth==2.31.0
@@ -1146,8 +1038,6 @@ tenacity==9.1.4
     #   langchain-core
     #   lightrag-hku
     #   llama-index-core
-thinc==8.3.13
-    # via spacy
 threadpoolctl==3.6.0
     # via scikit-learn
 tifffile==2026.3.3
@@ -1157,11 +1047,8 @@ tiktoken==0.7.0
     #   lightrag-hku
     #   litellm
     #   llama-index-core
-    #   llm-guard
 tinytag==2.3.0
     # via llama-index-core
-tldextract==5.3.2
-    # via presidio-analyzer
 tokenizers==0.22.2
     # via
     #   fastembed
@@ -1176,7 +1063,6 @@ torch==2.13.0
     #   easyocr
     #   fast-pytorch-kmeans
     #   flagembedding
-    #   llm-guard
     #   peft
     #   ragatouille
     #   sentence-transformers
@@ -1195,17 +1081,14 @@ tqdm==4.70.0
     #   llama-index-core
     #   nltk
     #   openai
-    #   optuna
     #   peft
     #   sentence-transformers
-    #   spacy
     #   transformers
 transformers==4.57.6
     # via
     #   -r backend/requirements.txt
     #   colbert-ai
     #   flagembedding
-    #   llm-guard
     #   peft
     #   sentence-transformers
 turbovec==0.8.0
@@ -1216,13 +1099,10 @@ typer==0.27.1
     #   hf-gradio
     #   instructor
     #   nemoguardrails
-    #   spacy
-    #   weasel
 typing-extensions==4.16.0
     # via
     #   aiohttp
     #   aiosignal
-    #   alembic
     #   anyio
     #   beautifulsoup4
     #   fastapi
@@ -1232,6 +1112,7 @@ typing-extensions==4.16.0
     #   grpcio
     #   huggingface-hub
     #   langchain-core
+    #   langchain-protocol
     #   langsmith
     #   limits
     #   llama-index-core
@@ -1272,11 +1153,7 @@ tzlocal==5.4.4
     #   apscheduler
     #   celery
 ujson==5.13.0
-    # via
-    #   colbert-ai
-    #   dspy
-unidiff==1.0.0
-    # via bc-detect-secrets
+    # via colbert-ai
 urllib3==2.7.0
     # via
     #   qdrant-client
@@ -1299,11 +1176,6 @@ vine==5.1.0
     #   kombu
 voyager==2.1.0
     # via ragatouille
-wasabi==1.1.3
-    # via
-    #   spacy
-    #   thinc
-    #   weasel
 watchfiles==1.2.0
     # via uvicorn
 wcwidth==0.8.2
@@ -1311,11 +1183,10 @@ wcwidth==0.8.2
     #   ascii-colors
     #   ftfy
     #   prompt-toolkit
-weasel==1.0.0
-    # via spacy
 websockets==15.0.1
     # via
     #   google-genai
+    #   langgraph-sdk
     #   langsmith
     #   realtime
     #   sarvamai
@@ -1332,7 +1203,6 @@ wrapt==2.3.0
     #   openinference-instrumentation
     #   openinference-instrumentation-langchain
     #   opentelemetry-instrumentation
-    #   smart-open
 xlsxwriter==3.2.9
     # via
     #   -r backend/requirements.txt

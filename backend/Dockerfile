@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ============================================================
 # Mukthi Guru — Backend Dockerfile
 # Multi-stage build for minimal image size
@@ -55,7 +56,15 @@ RUN python3 -c "from cryptography.hazmat.bindings._rust import exceptions; print
 # Docker Desktop gRPC-FUSE causes SSL malloc failures in httpx (used by huggingface_hub v0.36+).
 # Workaround: configure huggingface_hub to use an httpx client with verify=False.
 COPY backend/scripts/download_models.py /app/scripts/download_models.py
-RUN mkdir -p /app/model_cache && python3 /app/scripts/download_models.py
+# --secret keeps HF_TOKEN out of the image layers entirely (unlike ARG/ENV, which
+# would bake it into layer history, extractable via `docker history`). Optional
+# (required=false): every existing build invocation (docker-compose, skaffold,
+# CI) that doesn't pass --secret keeps working exactly as before — the gated
+# Llama-Guard-3-1B download just stays skipped, same graceful-degradation
+# behavior download_models.py already has. Pass it with:
+#   docker build --secret id=hf_token,env=HF_TOKEN ...
+RUN --mount=type=secret,id=hf_token,env=HF_TOKEN,required=false \
+    mkdir -p /app/model_cache && python3 /app/scripts/download_models.py
 
 
 # Copy application code
