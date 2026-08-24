@@ -21,7 +21,19 @@
 -- ── 1. Realtime Channels Security ──
 -- Drop the permissive "Authenticated users can subscribe" policy on realtime.messages
 -- which used USING (true) and bypassed topic-scoped restrictions.
-DROP POLICY IF EXISTS "Authenticated users can subscribe" ON realtime.messages;
+--
+-- Wrapped for the same insufficient_privilege reason as 20260509180000: on a
+-- fresh local Supabase CLI stack the role running migrations doesn't own
+-- realtime.messages, so even DROP POLICY IF EXISTS fails outright instead of
+-- treating IF EXISTS as a no-op. Hosted already has this applied (tracked by
+-- version), so this edit changes nothing there.
+DO $$
+BEGIN
+    DROP POLICY IF EXISTS "Authenticated users can subscribe" ON realtime.messages;
+EXCEPTION
+    WHEN insufficient_privilege THEN
+        RAISE NOTICE 'Skipping realtime.messages policy drop — insufficient privilege on this environment (expected on a fresh local Supabase CLI stack).';
+END $$;
 
 -- ── 2. Staging Quality Queue Hardening ──
 -- Restrict SELECT on staging_quality_queue to admins only.
