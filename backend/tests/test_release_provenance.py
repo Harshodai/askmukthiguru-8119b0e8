@@ -282,10 +282,15 @@ async def test_crisis_preemption_attaches_manifest():
 @pytest.mark.asyncio
 async def test_doctrine_cache_hit_attaches_manifest():
     """Verify DoctrineCacheStage attaches release_manifest on hit."""
+    from services.doctrine_cache import DoctrineAnswer
+
     stage = DoctrineCacheStage()
     container = MagicMock(spec=ServiceContainer)
     mock_cache = MagicMock()
-    mock_cache.lookup.return_value = "The Four Sacred Secrets lead to inner peace."
+    mock_cache.lookup.return_value = DoctrineAnswer(
+        answer="The Four Sacred Secrets lead to inner peace.",
+        citations=[{"source_id": "four-sacred-secrets", "title": "Four Sacred Secrets"}],
+    )
     container.doctrine_cache = mock_cache
 
     ctx = PipelineContext(
@@ -301,6 +306,7 @@ async def test_doctrine_cache_hit_attaches_manifest():
         res = await stage.run(ctx)
         assert res is not None
         assert res.cache_hit is True
+        assert res.citations == [{"source_id": "four-sacred-secrets", "title": "Four Sacred Secrets"}]
         assert res.release_manifest is not None
         assert res.release_manifest["release_id"] == get_release_manifest().release_id
 

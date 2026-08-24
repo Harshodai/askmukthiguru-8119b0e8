@@ -1,7 +1,19 @@
 """Doctrine exact-match cache for high-frequency spiritual queries.
 
-Uses a pre-seeded JSON map of normalized question → canned response.
-Fuzzy match via Levenshtein distance allows slight paraphrasing.
+Loads a curated question -> {answer, citations} map (JSON file or the
+``doctrine_faqs`` Supabase table) and serves fuzzy/exact matches without
+running the full RAG pipeline.
+
+Every entry MUST carry non-empty structured ``citations`` — an entry without
+them is skipped at load time rather than served. Before 2026-08-24 this cache
+had an embedded ``DEFAULT_DOCTRINE`` fallback of hand-written answers with an
+inline "[Source: X]" text label and no structured citation, and
+DoctrineCacheStage returned those with ``citations=[]``: a config-drift
+bypass around retrieval and verification (audit finding OH-P0-01). The
+embedded fallback is gone; an unconfigured cache is simply empty (harmless
+no-op), and lookup() itself refuses to return an entry with no citations, so
+the stage can no longer short-circuit with an uncited answer regardless of
+how the loader is wired up.
 """
 
 from __future__ import annotations
@@ -10,9 +22,18 @@ import json
 import logging
 import os
 import string
+from dataclasses import dataclass, field
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class DoctrineAnswer:
+    """A cache hit: the canned text plus the structured citations backing it."""
+
+    answer: str
+    citations: list[dict] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -50,92 +71,45 @@ def _normalize(text: str) -> str:
     return " ".join(text.split())
 
 
-# ---------------------------------------------------------------------------
-# Default doctrine dataset (embedded so the cache works out of the box)
-# ---------------------------------------------------------------------------
-DEFAULT_DOCTRINE: dict[str, str] = {
-    "what is the beautiful state": (
-        "The Beautiful State is a state of calm, joy, and inner connection taught by "
-        "Sri Preethaji and Sri Krishnaji. It is not dependent on external circumstances, "
-        "but is a direct experience of peace that arises when we move beyond the "
-        "conditioned mind. It is the foundation of the Ekam teachings and the goal "
-        "of the spiritual journey. [Source: Beautiful State Teachings]"
-    ),
-    "who is sri preethaji": (
-        "Sri Preethaji is a spiritual teacher and the co-founder of Ekam, along with "
-        "Sri Krishnaji. She is known for her mystical experiences and teachings on the "
-        "Beautiful State, Deeksha, and the Four Sacred Secrets. [Source: Sri Preethaji Bio]"
-    ),
-    "who is sri krishnaji": (
-        "Sri Krishnaji is a spiritual teacher and the co-founder of Ekam, along with "
-        "Sri Preethaji. He is known for his teachings on consciousness, the Beautiful State, "
-        "and the science of mysticism. [Source: Sri Krishnaji Bio]"
-    ),
-    "what is soul sync": (
-        "Soul Sync is a powerful 7-minute meditation practice created by Sri Preethaji "
-        "and Sri Krishnaji. It uses specific breathing and visualization techniques to help "
-        "you connect with your soul and enter a state of inner peace and beauty. [Source: Soul Sync]"
-    ),
-    "what is deeksha": (
-        "Deeksha (or Deeksha) is a sacred transmission of energy that awakens the "
-        "Beautiful State within you. It is given through the touch or intention of an "
-        "awakened being and is a central practice in the Ekam tradition. [Source: Deeksha Teachings]"
-    ),
-    "what are the four sacred secrets": (
-        "The Four Sacred Secrets are the core teachings of Sri Preethaji and Sri Krishnaji: "
-        "1. The Secret of the Beautiful State, 2. The Secret of a Powerful Consciousness, "
-        "3. The Secret of a Calm Mind, and 4. The Secret of a Compassionate Heart. "
-        "[Source: Four Sacred Secrets]"
-    ),
-    "what is ekam": (
-        "Ekam is the oneness and higher consciousness field founded by Sri Preethaji "
-        "and Sri Krishnaji. It is a spiritual movement and a science of mysticism that "
-        "offers teachings, Deeksha, and practices like Soul Sync to awaken the Beautiful State. "
-        "[Source: Ekam Overview]"
-    ),
-    "what is oneness": (
-        "Oneness is the experience of being one with all life, free from separation. "
-        "In the Ekam teachings, Oneness is the natural state when the Beautiful State is "
-        "fully awakened. It is the end of conflict within and the beginning of true compassion. "
-        "[Source: Oneness Teachings]"
-    ),
-    "what is moksha": (
-        "Moksha is liberation from the cycle of suffering and the conditioned mind. "
-        "In the Ekam tradition, Moksha is not a future destination but a present possibility "
-        "through Deeksha and the Beautiful State. [Source: Moksha Teachings]"
-    ),
-    "what is the beautiful state meditation": (
-        "The Beautiful State Meditation is a guided practice by Sri Preethaji and Sri Krishnaji "
-        "that helps you move from stress and anxiety to a state of calm, joy, and connection. "
-        "It is the foundation of all Ekam practices. [Source: Beautiful State Meditation]"
-    ),
-    "how do i meditate": (
-        "Start with Soul Sync, a 7-minute guided meditation by Sri Preethaji and Sri Krishnaji. "
-        "Find a quiet place, sit comfortably, and follow the guided instructions. Consistency "
-        "is more important than duration. [Source: Beginner Meditation Guide]"
-    ),
-    "what is the meaning of life": (
-        "According to the Ekam teachings, the meaning of life is to awaken the Beautiful State "
-        "within you and help others do the same. This is achieved through Deeksha, meditation, "
-        "and living from a place of oneness and compassion. [Source: Life Purpose Teachings]"
-    ),
-}
-
 # Minimum similarity threshold for fuzzy match (Levenshtein ratio)
 _FUZZY_THRESHOLD = 0.85
+
+
+def _coerce_entry(question: object, raw: object) -> tuple[str, DoctrineAnswer] | None:
+    """Validate one loaded row/item; return None (and log) if it lacks citations."""
+    if not isinstance(question, str) or not question.strip():
+        return None
+    if isinstance(raw, str):
+        # Legacy flat-string format predates the citation requirement — it is
+        # inherently uncitable, so it is skipped rather than served.
+        logger.warning(
+            "DoctrineCache: skipping %r — legacy string entry has no structured citations", question
+        )
+        return None
+    if not isinstance(raw, dict):
+        return None
+    answer = raw.get("answer")
+    citations = raw.get("citations")
+    if not isinstance(answer, str) or not answer.strip():
+        return None
+    if not isinstance(citations, list) or not citations:
+        logger.warning("DoctrineCache: skipping %r — no citations", question)
+        return None
+    return question, DoctrineAnswer(answer=answer, citations=citations)
 
 
 class DoctrineCache:
     """Exact + fuzzy match cache for common doctrine queries.
 
-    Loads a JSON file if provided, otherwise falls back to the built-in
-    ``DEFAULT_DOCTRINE`` map.  Answers include pre-written citations so
-    that a cache hit is indistinguishable from a generated answer.
+    Loads a JSON file if provided, otherwise the ``doctrine_faqs`` Supabase
+    table. Entries without non-empty structured ``citations`` are dropped at
+    load time — there is no embedded fallback dataset, so an unconfigured
+    cache is simply empty rather than serving fabricated answers.
     """
 
     def __init__(self, doctrine_file: str | None = None, supabase_client=None) -> None:
-        self._map: dict[str, str] = {}
-        self._raw: dict[str, str] = {}
+        self._map: dict[str, DoctrineAnswer] = {}
+        self._raw: dict[str, DoctrineAnswer] = {}
         self._supabase = supabase_client
 
         # 1. Try explicit file
@@ -152,28 +126,23 @@ class DoctrineCache:
             if default_path.exists():
                 self._load_json(str(default_path))
 
-        # 4. Fall back to embedded defaults
-        if not self._raw:
-            self._raw = DEFAULT_DOCTRINE.copy()
-            self._build_index()
-
     def _load_json(self, path: str) -> None:
         try:
             with open(path, encoding="utf-8") as fh:
                 data = json.load(fh)
-            # Accept both flat dict and list-of-dict formats
             if isinstance(data, dict):
-                self._raw = data
+                items = data.items()
             elif isinstance(data, list):
-                self._raw = {
-                    item["question"]: item["answer"]
+                items = (
+                    (item.get("question"), item)
                     for item in data
-                    if "question" in item and "answer" in item
-                }
+                    if isinstance(item, dict) and "question" in item
+                )
             else:
                 raise ValueError("Expected dict or list")
+            self._raw = dict(filter(None, (_coerce_entry(q, a) for q, a in items)))
             self._build_index()
-            logger.info("Loaded doctrine cache from %s (%d entries)", path, len(self._raw))
+            logger.info("Loaded doctrine cache from %s (%d usable entries)", path, len(self._raw))
         except Exception as e:
             logger.warning("Failed to load doctrine cache from %s: %s", path, e)
             self._raw = {}
@@ -183,16 +152,24 @@ class DoctrineCache:
         try:
             # supabase client is synchronous; wrap in to_thread if we ever need async,
             # but init runs in sync context during service construction.
-            res = self._supabase.table("doctrine_faqs").select("question,answer").execute()
+            res = (
+                self._supabase.table("doctrine_faqs")
+                .select("question,answer,citations")
+                .eq("is_active", True)
+                .execute()
+            )
             rows = getattr(res, "data", []) or []
-            if rows:
-                self._raw = {
-                    row["question"]: row["answer"]
-                    for row in rows
-                    if "question" in row and "answer" in row
-                }
-                self._build_index()
-                logger.info("Loaded doctrine cache from Supabase (%d entries)", len(self._raw))
+            self._raw = dict(
+                filter(
+                    None,
+                    (
+                        _coerce_entry(row.get("question"), {k: row.get(k) for k in ("answer", "citations")})
+                        for row in rows
+                    ),
+                )
+            )
+            self._build_index()
+            logger.info("Loaded doctrine cache from Supabase (%d usable entries)", len(self._raw))
         except Exception as e:
             logger.warning("Failed to load doctrine cache from Supabase: %s", e)
             self._raw = {}
@@ -203,9 +180,6 @@ class DoctrineCache:
         self._map = {}
         if self._supabase is not None:
             self._load_from_supabase()
-        if not self._raw:
-            self._raw = DEFAULT_DOCTRINE.copy()
-            self._build_index()
 
     def _build_index(self) -> None:
         self._map = {_normalize(q): a for q, a in self._raw.items()}
@@ -213,10 +187,12 @@ class DoctrineCache:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def lookup(self, query: str) -> str | None:
-        """Return a canned answer if the query is close enough to a known question.
+    def lookup(self, query: str) -> DoctrineAnswer | None:
+        """Return a cited canned answer if the query is close enough to a known question.
 
-        First tries exact normalized match, then fuzzy Levenshtein.
+        First tries exact normalized match, then fuzzy Levenshtein. Every
+        entry in ``self._map`` already carries non-empty citations (enforced
+        at load time), so a returned hit is always citable.
         """
         if not query or not query.strip():
             return None
@@ -230,7 +206,7 @@ class DoctrineCache:
 
         # Fuzzy match (Levenshtein ratio > threshold)
         best_ratio = 0.0
-        best_answer: str | None = None
+        best_answer: DoctrineAnswer | None = None
         for known, answer in self._map.items():
             dist = _levenshtein(normalized, known)
             max_len = max(len(normalized), len(known))
