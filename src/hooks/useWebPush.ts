@@ -7,6 +7,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 const SW_PATH = '/push-sw.js';
+// A service worker's default scope is its own directory ("/", since the
+// script lives at the root) — the same scope src/main.tsx registers /sw.js
+// under. Two registrations at the same scope collide: registering one can
+// replace the other's registration outright. Restrict this one to a narrow
+// scope it doesn't need real pages under; push delivery targets the
+// registration directly and is unaffected by scope. (OH-P1-03, 2026-08-24)
+const SW_SCOPE = '/push/';
 const VAPID_PUBLIC_KEY = (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined) ?? '';
 
 const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
@@ -55,7 +62,7 @@ export const useWebPush = () => {
     }
     (async () => {
       try {
-        const reg = await navigator.serviceWorker.getRegistration(SW_PATH);
+        const reg = await navigator.serviceWorker.getRegistration(SW_SCOPE);
         const existing = reg ? await reg.pushManager.getSubscription() : null;
         setState((s) => ({
           ...s,
@@ -95,8 +102,8 @@ export const useWebPush = () => {
         return false;
       }
       const reg =
-        (await navigator.serviceWorker.getRegistration(SW_PATH)) ??
-        (await navigator.serviceWorker.register(SW_PATH));
+        (await navigator.serviceWorker.getRegistration(SW_SCOPE)) ??
+        (await navigator.serviceWorker.register(SW_PATH, { scope: SW_SCOPE }));
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY).buffer as ArrayBuffer,
@@ -125,7 +132,7 @@ export const useWebPush = () => {
   }, []);
 
   const unsubscribe = useCallback(async (): Promise<void> => {
-    const reg = await navigator.serviceWorker.getRegistration(SW_PATH);
+    const reg = await navigator.serviceWorker.getRegistration(SW_SCOPE);
     const sub = reg ? await reg.pushManager.getSubscription() : null;
     if (sub) {
       const endpoint = sub.endpoint;

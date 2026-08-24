@@ -21,10 +21,12 @@ logger = logging.getLogger(__name__)
 class DoctrineCacheStage(Stage):
     """Fast-path stage using DoctrineCache for known spiritual questions.
 
-    Default disabled (DOCTRINE_CACHE_ENABLED=false) because the built-in canned
-    map lacks structured citations and misses many doctrinal keywords, which
-    tanks ruthless benchmark scores.  Enable only after curating a high-quality
-    FAQ file with citation metadata.
+    Default disabled (DOCTRINE_CACHE_ENABLED=false): even with a curated,
+    fully-cited FAQ file/table loaded, this bypasses retrieval and
+    verification, which tanks ruthless benchmark scores. Enable only after
+    curating a high-quality FAQ source — DoctrineCache.lookup() refuses to
+    return any entry lacking structured citations, so there is no config-drift
+    path back to an uncited answer (OH-P0-01).
     """
 
     name = "doctrine_cache"
@@ -36,9 +38,11 @@ class DoctrineCacheStage(Stage):
         if doctrine_cache is None:
             return None
 
-        answer = doctrine_cache.lookup(ctx.user_msg)
-        if not answer:
+        hit = doctrine_cache.lookup(ctx.user_msg)
+        if not hit:
             return None
+        answer = hit.answer
+        citations = hit.citations
 
         # This stage short-circuits before TranslationStage ever runs (same
         # gap fixed in distress_stage.py's crisis-preemption path) — an Indic
@@ -61,15 +65,15 @@ class DoctrineCacheStage(Stage):
                 logger.warning("DoctrineCache translation failed for Indic request: %s", e)
 
         logger.info("DoctrineCache fast-path hit for: %s", ctx.user_msg[:60])
-        # cache_hit=True also makes the coordinator patch in the real latency;
-        # citations stay empty — the canned answer embeds its own source line,
-        # and "doctrine-cache" is not a retrievable source.
+        # cache_hit=True also makes the coordinator patch in the real latency.
+        # citations come from the matched entry itself — DoctrineCache.lookup()
+        # never returns an entry without them (audit finding OH-P0-01).
         return PipelineResult(
             final_answer=answer,
             intent="doctrine",
             trace_id=getattr(ctx, "trace_id", "doctrine-hit"),
             latency_ms=0,
-            citations=[],
+            citations=citations,
             route_decision="doctrine_cache",
             cache_hit=True,
             release_manifest=get_release_manifest().to_dict(),

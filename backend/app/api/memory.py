@@ -342,6 +342,27 @@ async def delete_all_reflections_endpoint(
     return {"status": "ok", "deleted": count}
 
 
+@router.delete("/account/purge-memory")
+async def purge_account_memory_endpoint(
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container),
+) -> dict:
+    """Delete every memory-plane record this backend owns for the caller.
+
+    supabase/functions/delete-my-account only deletes a fixed Postgres table
+    list — it has no reach into Qdrant, Neo4j, Redis, or several guru_*
+    Postgres tables this service also writes to. The edge function calls this
+    with the user's own still-valid bearer token before it deletes Postgres
+    rows and revokes the Supabase auth user (audit finding OH-P0-02).
+    """
+    if not getattr(container, "memory_service", None):
+        raise HTTPException(
+            status_code=501, detail="Memory features are not available at this time."
+        )
+    result = await container.memory_service.purge_all_user_data(user["id"])
+    return {"status": "ok", **result}
+
+
 @router.post("/memory/regenerate-summary")
 async def regenerate_summary_endpoint(
     user: dict = Depends(get_current_user_from_supabase),

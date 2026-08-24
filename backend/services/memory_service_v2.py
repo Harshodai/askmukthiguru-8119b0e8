@@ -723,6 +723,103 @@ class MemoryServiceV2(MemoryService):
             logger.warning(f"Neo4j graph query failed: {e}")
             return []
 
+    async def purge_all_user_data(self, user_id: str) -> dict[str, Any]:
+        """Delete every memory-plane record owned by ``user_id``, across all tiers.
+
+        supabase/functions/delete-my-account/index.ts deletes a fixed Postgres
+        table list that never included guru_core_memory, guru_memories,
+        guru_session_summaries, or any Qdrant/Neo4j/Redis record — a user's
+        memory could survive "account deletion" in every store this service
+        owns (audit finding OH-P0-02, 2026-08-24). Each store is attempted
+        independently so one failure doesn't block the others; the caller is
+        responsible for deciding whether a partial result is acceptable.
+        """
+        result: dict[str, Any] = {
+            "postgres_core_memory": 0,
+            "postgres_episodic_memory": 0,
+            "postgres_session_summaries": 0,
+            "qdrant_deleted": False,
+            "neo4j_deleted": False,
+            "redis_cleared": False,
+            "errors": [],
+        }
+        if not user_id or self._is_anonymous(user_id):
+            return result
+
+        if self._supabase:
+            for table, key in (
+                ("guru_core_memory", "postgres_core_memory"),
+                ("guru_memories", "postgres_episodic_memory"),
+                ("guru_session_summaries", "postgres_session_summaries"),
+            ):
+                try:
+                    res = await asyncio.to_thread(
+                        self._supabase.table(table).delete().eq("user_id", user_id).execute
+                    )
+                    result[key] = len(res.data) if res and getattr(res, "data", None) else 0
+                except Exception as e:
+                    result["errors"].append(f"{table}: {e}")
+                    logger.error(f"purge_all_user_data: failed to delete {table} for {user_id}: {e}")
+
+        try:
+            client = await asyncio.to_thread(self._get_qdrant_v2)
+            if client:
+                from qdrant_client.http import models
+
+                tenant_id = TenantContext.get() or "default"
+                await asyncio.to_thread(
+                    client.delete,
+                    collection_name=GLOBAL_MEMORY_COLLECTION,
+                    points_selector=models.FilterSelector(
+                        filter=models.Filter(
+                            must=[
+                                models.FieldCondition(
+                                    key="user_id", match=models.MatchValue(value=user_id)
+                                ),
+                                models.FieldCondition(
+                                    key="tenant_id", match=models.MatchValue(value=tenant_id)
+                                ),
+                            ]
+                        )
+                    ),
+                )
+                result["qdrant_deleted"] = True
+        except Exception as e:
+            result["errors"].append(f"qdrant: {e}")
+            logger.error(f"purge_all_user_data: Qdrant purge failed for {user_id}: {e}")
+
+        try:
+            driver = await asyncio.to_thread(self._get_neo4j)
+            if driver:
+                tenant_id = TenantContext.get() or "default"
+
+                def _purge():
+                    with driver.session() as session:
+                        session.run(
+                            """
+                            MATCH (u:User {tenant_id: $tenant_id, id: $user_id})
+                            OPTIONAL MATCH (u)-[:HAS_MEMORY]->(m:GlobalMemory {tenant_id: $tenant_id})
+                            DETACH DELETE u, m
+                            """,
+                            user_id=user_id,
+                            tenant_id=tenant_id,
+                        )
+
+                await asyncio.to_thread(_purge)
+                result["neo4j_deleted"] = True
+        except Exception as e:
+            result["errors"].append(f"neo4j: {e}")
+            logger.error(f"purge_all_user_data: Neo4j purge failed for {user_id}: {e}")
+
+        try:
+            result["redis_cleared"] = await self.clear_ephemeral(user_id)
+        except Exception as e:
+            result["errors"].append(f"redis: {e}")
+            logger.error(f"purge_all_user_data: Redis purge failed for {user_id}: {e}")
+
+        logger.info(f"purge_all_user_data user={user_id} result={result}")
+        return result
+
     # ---- Unified multi-tier query ----
 
     async def search_all_tiers(

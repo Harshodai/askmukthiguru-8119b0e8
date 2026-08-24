@@ -1,14 +1,12 @@
-import webpush from "npm:web-push@3.6.7";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-webpush.setVapidDetails(
-  "mailto:hello@askmukthiguru.com",
-  Deno.env.get("VAPID_PUBLIC_KEY")!,
-  Deno.env.get("VAPID_PRIVATE_KEY")!,
-);
-
+// This function used to send Web Push directly with its own copy of the
+// webpush-sending logic — a second cron sender with no stale-subscription
+// cleanup and a payload schema that diverged from push-send's. Two senders
+// could double-send the same teaching and drift in behavior. Consolidated to
+// delegate to push-send, which owns sending, stale (404/410) cleanup, and the
+// deep-link allowlist. (OH-P1-05, 2026-08-24)
 Deno.serve(async (req) => {
-  // Require shared CRON secret so this cannot be triggered by arbitrary callers.
   const cronSecret = Deno.env.get("CRON_SECRET");
   const provided = req.headers.get("x-cron-secret");
   if (!cronSecret || provided !== cronSecret) {
@@ -27,19 +25,23 @@ Deno.serve(async (req) => {
     .order("publish_date", { ascending: false })
     .limit(1)
     .single();
-  const { data: subs } = await sb.from("push_subscriptions").select("*");
-  const payload = JSON.stringify({
-    title: "Today's Teaching",
-    body: teaching?.caption ?? "",
-    image: teaching?.image_url,
+
+  const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/push-send`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-cron-secret": cronSecret,
+    },
+    body: JSON.stringify({
+      title: "Today's Teaching",
+      body: teaching?.caption ?? "",
+      url: "/chat",
+      ...(teaching?.image_url ? { image: teaching.image_url } : {}),
+    }),
   });
-  await Promise.allSettled(
-    (subs ?? []).map((s) =>
-      webpush.sendNotification(
-        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-        payload,
-      )
-    ),
-  );
-  return new Response("ok");
+  const result = await res.json().catch(() => ({}));
+  return new Response(JSON.stringify(result), {
+    status: res.status,
+    headers: { "Content-Type": "application/json" },
+  });
 });

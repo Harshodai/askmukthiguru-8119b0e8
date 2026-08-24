@@ -96,6 +96,13 @@ __pycache__/
 .windsurf/
 .worktrees/
 
+# Local non-runtime source/book data — dockerignore patterns without a
+# leading "/" only match at the context root, NOT recursively (unlike
+# .gitignore), so the bare "data/" rule above never covered backend/data/.
+# An ignored local backend/data/book/*.json can enter the image via
+# `COPY backend/ .` in backend/Dockerfile without this. (audit 2026-08-24, OH-P1-01)
+backend/data/
+
 # Sensitive files — never ship in Docker image (audit 2026-08-10)
 # These were deleted from the repo. These guards prevent re-introduction.
 The_Four_Sacred_Secrets.pdf

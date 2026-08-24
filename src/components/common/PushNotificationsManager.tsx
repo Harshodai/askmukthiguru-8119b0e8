@@ -8,6 +8,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { BACKEND_URL } from '@/lib/backendUrl';
 
 const TAG = '[PushNotificationsManager]';
+// Mirrors public/push-sw.js's allowlist — deep_link is attacker-controllable
+// if the FCM/APNs sender is ever compromised or misconfigured. (OH-P1-06, 2026-08-24)
+const SAFE_DEEP_LINK = /^\/(chat|practices|profile|notebooks|knowledge-graph)(\/[a-zA-Z0-9_-]*)?$/;
+const sanitizeDeepLink = (url: unknown): string =>
+  typeof url === 'string' && SAFE_DEEP_LINK.test(url) ? url : '/chat';
 
 export const PushNotificationsManager = () => {
   const navigate = useNavigate();
@@ -79,8 +84,7 @@ export const PushNotificationsManager = () => {
         attachListener(
           PushNotifications.addListener('pushNotificationActionPerformed', (a: ActionPerformed) => {
             const data = a.notification?.data || {};
-            if (data.deep_link) navigate(data.deep_link);
-            else navigate('/chat');
+            navigate(sanitizeDeepLink(data.deep_link));
           }),
           (h) => { actionListener = h; },
         );

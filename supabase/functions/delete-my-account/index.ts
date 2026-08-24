@@ -41,6 +41,33 @@ async function deleteUserRows(
   if (error) throw new Error(`failed to delete ${table}: ${error.message}`);
 }
 
+// The Postgres table list below is not the whole story: the FastAPI backend
+// separately owns Qdrant vectors, Neo4j graph nodes, Redis ephemeral memory,
+// and three guru_* Postgres tables (guru_core_memory, guru_memories,
+// guru_session_summaries) that this function has no reach into. Purge those
+// first, while the caller's bearer token is still valid — deleteUser() below
+// invalidates it. (OH-P0-02, 2026-08-24)
+//
+// Requires the BACKEND_URL secret to be set on this function
+// (`supabase secrets set BACKEND_URL=...`). If it is unset, this step is
+// skipped with a warning rather than blocking account deletion outright —
+// Postgres deletion still proceeds as it did before this change.
+async function purgeBackendMemory(authHeader: string): Promise<string | null> {
+  const backendUrl = Deno.env.get('BACKEND_URL');
+  if (!backendUrl) {
+    console.warn('[delete-my-account] BACKEND_URL not configured — skipping Qdrant/Neo4j/Redis purge');
+    return 'BACKEND_URL not configured; Qdrant/Neo4j/Redis memory was not purged';
+  }
+  const res = await fetch(`${backendUrl.replace(/\/$/, '')}/api/account/purge-memory`, {
+    method: 'DELETE',
+    headers: { Authorization: authHeader },
+  });
+  if (!res.ok) {
+    throw new Error(`backend memory purge failed: ${res.status} ${await res.text()}`);
+  }
+  return null;
+}
+
 async function deleteConversations(
   admin: SupabaseClient,
   userId: string,
@@ -104,6 +131,7 @@ Deno.serve(async (req) => {
 
     // Delete child/telemetry rows before Auth deletion. Every operation is checked;
     // a partial purge must never be reported as a successful account deletion.
+    const memoryWarning = await purgeBackendMemory(authHeader);
     await deleteConversations(admin, userId);
     for (const table of [
       'user_course_progress',
@@ -149,9 +177,10 @@ Deno.serve(async (req) => {
     const { error: delErr } = await admin.auth.admin.deleteUser(userId);
     if (delErr) throw delErr;
 
-    return new Response(JSON.stringify({ ok: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify(memoryWarning ? { ok: true, warning: memoryWarning } : { ok: true }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   } catch (e) {
     console.error('[delete-my-account]', e);
     return new Response(
