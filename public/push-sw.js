@@ -6,6 +6,12 @@
  */
 /* eslint-disable no-restricted-globals */
 
+// A push payload's url/deep_link is attacker-controllable if the admin/cron
+// sender is ever compromised or misconfigured — validate it here as a second
+// layer, independent of server-side validation. (OH-P1-06, 2026-08-24)
+const SAFE_DEEP_LINK = /^\/(chat|practices|profile|notebooks|knowledge-graph)(\/[a-zA-Z0-9_-]*)?$/;
+const sanitizeDeepLink = (url) => (typeof url === 'string' && SAFE_DEEP_LINK.test(url) ? url : '/chat');
+
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
@@ -34,14 +40,14 @@ self.addEventListener('push', (event) => {
       badge: '/favicon.svg',
       tag: 'daily-teaching',
       renotify: false,
-      data: { url: payload.url || '/chat' },
+      data: { url: sanitizeDeepLink(payload.url) },
     }),
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/chat';
+  const url = sanitizeDeepLink(event.notification.data && event.notification.data.url);
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
       for (const w of wins) {

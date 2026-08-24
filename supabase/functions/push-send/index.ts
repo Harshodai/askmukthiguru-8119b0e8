@@ -10,6 +10,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import webpush from 'https://esm.sh/web-push@3.6.7';
 
+// Mirrors public/push-sw.js, PushNotificationsManager.tsx, and
+// backend/schemas/push.py's allowlists. An arbitrary `url` here is a
+// phishing/external-link vector on an admin/cron-callable function.
+// (OH-P1-06, 2026-08-24)
+const SAFE_DEEP_LINK = /^\/(chat|practices|profile|notebooks|knowledge-graph)(\/[a-zA-Z0-9_-]*)?$/;
+const sanitizeDeepLink = (url: unknown): string =>
+  typeof url === 'string' && SAFE_DEEP_LINK.test(url) ? url : '/chat';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -72,7 +80,7 @@ Deno.serve(async (req) => {
 
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 
-  let body: { title?: string; body?: string; url?: string; user_id?: string } = {};
+  let body: { title?: string; body?: string; url?: string; user_id?: string; image?: string } = {};
   try {
     body = await req.json();
   } catch {
@@ -97,7 +105,8 @@ Deno.serve(async (req) => {
   const payload = JSON.stringify({
     title: body.title ?? 'A teaching for you',
     body: body.body ?? 'Open AskMukthiGuru for today’s message.',
-    url: body.url ?? '/chat',
+    url: sanitizeDeepLink(body.url),
+    ...(typeof body.image === 'string' ? { image: body.image } : {}),
   });
 
   let sent = 0;
