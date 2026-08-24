@@ -67,13 +67,13 @@ export const CookieConsentBanner = () => {
               </p>
               <p className="text-[11px] sm:text-xs text-muted-foreground leading-snug">
                 {t('common.noThirdParty')}{' '}
-                <Link to="/privacy" className="text-ojas hover:underline">{t('common.privacy')}</Link>.
+                <Link to="/privacy" className="text-primary-foreground font-semibold underline underline-offset-2">{t('common.privacy')}</Link>.
               </p>
               <div className="flex gap-2 pt-0.5">
                 <Button size="sm" variant="outline" className="h-7 text-[11px] px-2.5" onClick={() => decide('rejected')}>
                   {t('common.reject') === 'common.reject' ? 'Reject' : t('common.reject')}
                 </Button>
-                <Button size="sm" className="h-7 text-[11px] px-2.5 bg-ojas hover:bg-ojas-light text-primary-foreground" onClick={() => decide('accepted')}>
+                <Button size="sm" className="h-7 text-[11px] px-2.5 bg-ojas hover:bg-ojas-dark !text-foreground" onClick={() => decide('accepted')}>
                   {t('common.accept') === 'common.accept' ? 'Accept' : t('common.accept')}
                 </Button>
               </div>

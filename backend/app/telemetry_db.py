@@ -10,7 +10,6 @@ evaluations, and user feedback via Supabase.
 import json
 import logging
 import re
-import statistics
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 

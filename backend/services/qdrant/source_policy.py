@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Iterable, List, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ _SOURCE_SEPARATORS = re.compile(r"[\\/]+")
 def _source_candidates(doc: Any) -> Iterable[str]:
     if not isinstance(doc, dict):
         return ()
-    values: List[str] = []
+    values: list[str] = []
     for key in ("source_url", "source", "title", "source_id", "document_id"):
         value = doc.get(key)
         if isinstance(value, str) and value.strip():
@@ -53,9 +54,9 @@ def is_blocked_source(doc: Any) -> bool:
     return False
 
 
-def filter_blocked_sources(documents: Iterable[dict]) -> Tuple[List[dict], int]:
+def filter_blocked_sources(documents: Iterable[dict]) -> tuple[list[dict], int]:
     """Drop quarantined sources and return (allowed_documents, dropped_count)."""
-    allowed: List[dict] = []
+    allowed: list[dict] = []
     dropped = 0
     for document in documents:
         if is_blocked_source(document):

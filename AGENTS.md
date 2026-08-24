@@ -734,3 +734,18 @@ Warm repeated Hindi FAQ requests completed in roughly 7 seconds wall-clock with 
 - A metadata-only local sweep covered 20 prompts across greetings, flagship teachings, Indic languages, comparison, crisis, domestic violence, off-topic, prompt injection, personal-memory, Second Brain, graph, unknown doctrine, and follow-up behavior. With the local OpenRouter circuit open, substantive prompts returned transparent `ERROR`/`system_error` results with zero citations; acute crisis returned blocked `DISTRESS` with no final answer, and deterministic domestic-violence/prompt-injection blocks remained active.
 - Before/after read-only counts showed no buildup from these `incognito=true` interactions: doctrine, Second Brain, global-memory, and semantic-cache Qdrant collections remained at zero points; inspected Redis memory/Second Brain/session/job/quota/telemetry namespaces remained at zero keys; and the worker was stopped after measurement. This is not proof of authenticated Postgres-backed memory behavior.
 - No corpus files, personal data, or Railway deployment were changed. The expanded interaction results are local outage/data-plane evidence only.
+
+
+## Fresh loop-engineering handoff — Aug 24, 2026
+- Remediation loop ran on repository revision `62f9c7241ac16c612779c7c97ba56568b52c46e6`; at baseline `HEAD == origin/main`. No push or deployment was performed.
+- Fixed pre-token browser stream failure handling: Nginx `/api` and `/api/chat/stream` preserve upstream status/body; `ChatInterface` falls back once to JSON only for online `network`/`unknown` failures before the first token. Auth, quota, rate-limit, policy, and server failures remain terminal.
+- Curated runtime artifacts `okf_compiled` and `doctrine_lexicon` are required. `inspect_runtime_artifacts()` returns `missing_required` and `readiness_ok`; deep `/api/health` reports them as critical. Do not manufacture absent artifacts.
+- Repaired tracked `.claude/settings.local.json` merge marker, added precise ignores for machine-local probes/build state, and removed trailing whitespace from the corpus audit CSV.
+- Safe Ruff autofix plus one manual duplicate graph-provenance key correction left `backend/.venv/bin/ruff check backend` clean. Frontend lint has zero errors and 31 non-blocking warnings; `npm run typecheck` passes.
+- Chromium accessibility initially found a cookie-banner hover contrast defect; `CookieConsentBanner.tsx` now uses explicit foreground plus darker hover token. Final axe suite passed 8/8.
+- Final loop runner: `scripts/ops/loop_validate.sh`; run `./scripts/ops/loop_validate.sh`. It records per-gate logs under `docs/production-readiness/loop-runs/` and keeps full backend optional via `FULL_BACKEND=1`.
+- Final bounded gates passed: frontend 87 files / 509 tests, build 28 routes, mobile build, 31 focused backend tests, security/privacy/memory/upload/RAG/safety clusters, Ruff, Bandit medium/high gate, regex safety, Compose config, static browser suites, and Chromium regression/security with explicit skips.
+- Full backend suite was attempted twice and stalled around 41% in the connected desktop environment; never report it as passed until CI/test image completes it with per-test duration reporting.
+- `pip-audit` also stalled on network access; the prior report’s 36 advisories across 16 packages remain an open release gate until CI reruns the audit after upgrades.
+- Local Docker/HTTP runtime became unresponsive during final probes. Do not claim live provider, SSE, health, RLS, deletion, restore, rollback, or production evidence from this pass.
+- Detailed report: `docs/production-readiness/LOOP-REMEDIATION-2026-08-24.md`.

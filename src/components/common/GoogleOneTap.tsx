@@ -16,10 +16,17 @@ function generateNonce(): string {
   return nonce;
 }
 
-async function sha256Hex(input: string): Promise<string> {
+async function sha256Hex(input: string): Promise<string | null> {
+  const webCrypto = typeof window !== 'undefined' ? window.crypto : undefined;
+  if (!webCrypto?.subtle) {
+    // Google One Tap requires a hashed nonce. On an insecure Docker/test
+    // origin Web Crypto may be unavailable; skip the optional prompt rather
+    // than throwing a page-level error or weakening nonce validation.
+    return null;
+  }
   const encoder = new TextEncoder();
   const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashBuffer = await webCrypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
@@ -33,7 +40,7 @@ export const GoogleOneTap = () => {
     if (status !== 'anonymous' || initialized.current) return;
 
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) return;
+    if (!clientId || (typeof window !== 'undefined' && !window.isSecureContext)) return;
 
     let script = document.querySelector(`script[src="${GOOGLE_GSI_SDK_URL}"]`) as HTMLScriptElement;
     if (!script) {
@@ -50,7 +57,7 @@ export const GoogleOneTap = () => {
       const rawNonce = generateNonce();
 
       sha256Hex(rawNonce).then(hashedNonce => {
-        if (initialized.current) return;
+        if (!hashedNonce || initialized.current) return;
         initialized.current = true;
         nonce.current = hashedNonce;
 

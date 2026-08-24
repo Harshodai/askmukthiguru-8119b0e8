@@ -19,7 +19,8 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Dict, Iterable, Optional, Union
+from collections.abc import Iterable
+from typing import Optional
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ def _flush_qdrant(qdrant_url: str, collection_names: Iterable[str]) -> dict[str,
     return results
 
 
-def _flush_redis(redis_url: str, password: Optional[str] = None) -> Dict[str, Union[int, str]]:
+def _flush_redis(redis_url: str, password: Optional[str] = None) -> dict[str, int | str]:
     """Delete only query-cache namespaces using SCAN and batched pipelines."""
     try:
         import redis as redis_lib
@@ -74,7 +75,7 @@ def _flush_redis(redis_url: str, password: Optional[str] = None) -> Dict[str, Un
             client_kwargs["password"] = password
         client = redis_lib.from_url(redis_url, **client_kwargs)
         client.ping()
-        results: Dict[str, Union[int, str]] = {}
+        results: dict[str, int | str] = {}
         for pattern in _REDIS_QUERY_PATTERNS:
             deleted = 0
             pipe = client.pipeline(transaction=False)

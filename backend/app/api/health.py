@@ -15,11 +15,26 @@ import app.dependencies as _app_deps
 from app.config import settings
 from app.dependencies import ServiceContainer, get_container
 from app.metrics import HEALTH_CHECK_TOTAL, metrics_endpoint
+from app.runtime_artifacts import inspect_runtime_artifacts
 from app.runtime_metrics import observe_queue_depths
 from services.auth_service import get_current_user_from_supabase, require_aal2
 
 router = APIRouter(tags=["Health"])
 logger = logging.getLogger(__name__)
+
+
+def _availability_flag(service) -> bool:
+    """Return a JSON-safe availability flag for optional service adapters.
+
+    Adapters expose ``is_available`` as a boolean in production, but test doubles
+    and partially initialized plugins may expose truthy sentinel objects. Never
+    place those objects directly in a JSON response.
+    """
+    if service is None:
+        return False
+    return bool(getattr(service, "is_available", False))
+
+
 _MANUAL_RESET_COOLDOWN_SECONDS = 30.0
 _manual_reset_lock = threading.Lock()
 _manual_reset_last: dict[str, float] = {}
@@ -162,6 +177,19 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
             "error": str(exc)[:200],
         }
 
+    # Curated knowledge inputs are a critical readiness dependency. Keep the
+    # complete artifact report in deep health while using its required-only
+    # signal for the release decision; an optional reranker cache may be cold.
+    artifact_report = inspect_runtime_artifacts()
+    results["runtime_artifacts"] = {
+        "ok": bool(artifact_report.get("readiness_ok", False)),
+        "latency_ms": 0,
+        "critical": True,
+        "missing_required": artifact_report.get("missing_required", []),
+        "present": artifact_report.get("present", 0),
+        "total": artifact_report.get("total", 0),
+    }
+
     # Guardrails — normalize mock/optional service values before JSON encoding.
     guardrails_available = bool(getattr(container.guardrails, "is_available", False))
     guardrails_provider = getattr(container.guardrails, "provider_name", "unknown")
@@ -176,24 +204,28 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
 
     # Caches
     results["exact_cache"] = {
-        "ok": container.exact_cache.is_available if container.exact_cache else False,
+        "ok": _availability_flag(container.exact_cache),
         "latency_ms": 0,
         "critical": False,
     }
     if container.exact_cache and hasattr(container.exact_cache, "telemetry_snapshot"):
         try:
             cache_snapshot = await asyncio.to_thread(container.exact_cache.telemetry_snapshot)
-            results["exact_cache"].update(
-                {
-                    "keys": cache_snapshot.get("keys", 0),
-                    "nonexpiring_keys": cache_snapshot.get("nonexpiring", 0),
-                    "max_keys": cache_snapshot.get("max_keys", 0),
-                }
-            )
+            if not isinstance(cache_snapshot, dict):
+                cache_snapshot = {}
+            snapshot_values = {
+                "keys": cache_snapshot.get("keys", 0),
+                "nonexpiring_keys": cache_snapshot.get("nonexpiring", 0),
+                "max_keys": cache_snapshot.get("max_keys", 0),
+            }
+            for key, value in snapshot_values.items():
+                if not isinstance(value, (int, float)) or isinstance(value, bool):
+                    snapshot_values[key] = 0
+            results["exact_cache"].update(snapshot_values)
         except Exception as exc:
             logger.debug("Exact-cache telemetry unavailable during health check: %s", exc)
     results["semantic_cache"] = {
-        "ok": container.semantic_cache.is_available if container.semantic_cache else False,
+        "ok": _availability_flag(container.semantic_cache),
         "latency_ms": 0,
         "critical": False,
     }
@@ -230,7 +262,6 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
         queue_size = 0
     observe_queue_depths({"job": queue_size})
     # Job Queue
-    # Job Queue
     results["job_queue"] = {
         "ok": job_queue is not None,
         "latency_ms": 0,
@@ -241,11 +272,17 @@ async def health_endpoint(container: ServiceContainer = Depends(get_container)) 
     # P1-OPS-8: chat admission-control contention (per-replica semaphore)
     from app.api.chat import get_chat_backpressure
 
+    backpressure = dict(get_chat_backpressure() or {})
+    for key in ("max_concurrent", "in_flight"):
+        value = backpressure.get(key, 0)
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            backpressure[key] = 0
+    backpressure["admission_limited"] = bool(backpressure.get("admission_limited", False))
     results["chat_backpressure"] = {
         "ok": True,
         "latency_ms": 0,
         "critical": False,
-        **get_chat_backpressure(),
+        **backpressure,
     }
 
     # LightRAG

@@ -159,7 +159,6 @@ def reciprocal_rank_fusion(
                     "ontology_version": h.get("ontology_version"),
                     "domain_rights_status": h.get("domain_rights_status") or h.get("rights_status"),
                     "entity_resolution_confidence": h.get("entity_resolution_confidence"),
-                    "relation": h.get("relation"),
                 },
             )
 

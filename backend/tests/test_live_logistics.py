@@ -4,6 +4,7 @@ import pytest
 
 from app.config import settings
 from rag.graph_strategies import route_after_intent
+from rag.nodes.generation import generate_answer
 from rag.nodes.intent import (
     _is_app_boundary_query,
     _is_logistics_query,
@@ -13,7 +14,6 @@ from rag.nodes.intent import (
     _is_response_format_query,
     handle_casual,
 )
-from rag.nodes.generation import generate_answer
 from rag.nodes.web_search import web_search_node
 
 

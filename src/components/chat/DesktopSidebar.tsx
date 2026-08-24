@@ -131,6 +131,7 @@ export const DesktopSidebar = ({
 
   return (
     <motion.aside
+      id="sidebar-panel"
       className="hidden sm:flex flex-col h-full border-r border-hairline bg-card/40 backdrop-blur-sm overflow-hidden flex-shrink-0 safe-top"
       animate={{ width: isCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
@@ -218,7 +219,7 @@ export const DesktopSidebar = ({
           <div className="px-2 pt-2.5 pb-2">
             <button
               onClick={onNewConversation}
-              className="w-full flex items-center gap-2.5 h-10 px-3 rounded-xl text-sm font-medium bg-ojas/[0.08] hover:bg-ojas/[0.14] text-ojas border border-hairline hover:border-ojas/25 transition-all"
+              className="w-full flex items-center gap-2.5 h-10 px-3 rounded-xl text-sm font-medium bg-ojas/[0.08] hover:bg-ojas/[0.14] text-foreground border border-hairline hover:border-ojas/25 transition-all"
             >
               <Plus className="w-4 h-4 flex-shrink-0" />
               {t('desktopSidebar.newConversation') === 'desktopSidebar.newConversation' ? 'New Conversation' : t('desktopSidebar.newConversation')}
@@ -261,7 +262,7 @@ export const DesktopSidebar = ({
             ) : (
               groups.map(group => (
                 <div key={group.label} className="mb-3">
-                  <p className="px-2.5 pb-1 pt-2 text-[11px] font-medium tracking-wide text-muted-foreground/70 select-none">
+                  <p className="px-2.5 pb-1 pt-2 text-[11px] font-medium tracking-wide text-muted-foreground select-none">
                     {group.label}
                   </p>
                   <div className="space-y-px">
@@ -276,7 +277,7 @@ export const DesktopSidebar = ({
                             : 'hover:bg-muted/60 text-foreground/80 hover:text-foreground'
                         }`}
                       >
-                        <MessageCircle className={`w-4 h-4 flex-shrink-0 ${conv.id === currentConversationId ? 'text-ojas' : 'opacity-50'}`} />
+                        <MessageCircle className={`w-4 h-4 flex-shrink-0 ${conv.id === currentConversationId ? 'text-foreground' : 'opacity-50'}`} />
                         <div className="flex-1 min-w-0">
                           {editingId === conv.id ? (
                             <input
@@ -328,7 +329,7 @@ export const DesktopSidebar = ({
 
           {/* ── Explore — always visible, no collapsible ── */}
           <div className="border-t border-hairline px-2 py-1.5">
-            <p className="px-1 pb-1 pt-0.5 text-[10px] font-semibold tracking-widest text-muted-foreground/50 uppercase select-none">
+            <p className="px-1 pb-1 pt-0.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase select-none">
               Explore
             </p>
             <div className="space-y-px">

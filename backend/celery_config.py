@@ -22,6 +22,10 @@ from celery import Celery
 from kombu import Exchange, Queue
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+# Local dev: run .delay() calls synchronously in the backend process itself,
+# no separate celery-worker container needed. Off by default -- Railway
+# production still wants the real async worker split.
+CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "false").lower() == "true"
 # Sanitize redis_url to strip 'default:' username if present (fixes Celery/Kombu connection issues)
 if "@" in REDIS_URL:
     prefix = "rediss://" if REDIS_URL.startswith("rediss://") else "redis://"
@@ -54,6 +58,8 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    task_always_eager=CELERY_TASK_ALWAYS_EAGER,
+    task_eager_propagates=CELERY_TASK_ALWAYS_EAGER,
     # Recycle ingestion children both by task count and RSS. Celery expects
     # this value in kilobytes; 1.5 GB bounds model/client high-water marks
     # without affecting the parent worker process.

@@ -1354,20 +1354,34 @@ openSereneMind('audio');
           const streamDetail = err?.message ?? '';
           const streamOffline = !navigator.onLine || /network|fetch|failed to fetch|load failed/i.test(streamDetail);
           const streamErrorCode = err?.errorCode || (streamOffline ? 'network' : undefined);
-          const msgError = buildMessageError(streamErrorCode, err?.message, err?.status);
-          if (msgError.kind === 'quota_exceeded') {
-            setQuotaExceeded(true);
-            setQuotaMeta({ remaining: err?.quotaRemaining, totalLimit: err?.quotaTotalLimit });
+          const canFallbackToJson =
+            navigator.onLine &&
+            (streamErrorCode === 'network' || streamErrorCode === 'unknown');
+
+          // A proxy, static preview, or browser-specific fetch path can fail
+          // before the first token even though the JSON API is healthy. Leave
+          // streamingWorked false so the existing non-stream path below runs
+          // exactly once; do not render a terminal ERR_UNKNOWN for this case.
+          // Auth, quota, rate-limit, policy, and server errors remain terminal
+          // here because retrying them would duplicate a meaningful failure.
+          if (canFallbackToJson) {
+            streamingWorked = false;
+          } else {
+            const msgError = buildMessageError(streamErrorCode, err?.message, err?.status);
+            if (msgError.kind === 'quota_exceeded') {
+              setQuotaExceeded(true);
+              setQuotaMeta({ remaining: err?.quotaRemaining, totalLimit: err?.quotaTotalLimit });
+            }
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === streamingGuruId
+                  ? { ...m, content: '', error: msgError }
+                  : m,
+              ),
+            );
+            streamingWorked = true;
+            chatErrorBus.publishFromMessage(msgError, streamingGuruId);
           }
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === streamingGuruId
-                ? { ...m, content: '', error: msgError }
-                : m,
-            ),
-          );
-          streamingWorked = true;
-          chatErrorBus.publishFromMessage(msgError, streamingGuruId);
         }
       } finally {
         clearInterval(checkpointInterval);

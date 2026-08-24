@@ -16,6 +16,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from app.grounding import grounding_state_for
 from app.pipeline.pipeline_coordinator import PipelineCoordinator
 
 
@@ -72,14 +73,14 @@ def test_probe_exception_degrades_to_not_open():
     assert coord._is_circuit_open() is False
 
 
-def test_circuit_open_result_is_error_result():
-    """The short-circuit result for an open circuit is a blocked ERROR result
-    with the circuit-breaker reason."""
+def test_circuit_open_result_is_system_error_result():
+    """An open provider circuit is a retryable system error, not a safety block."""
     coord = _coordinator_with(_StubProvider(is_open=True))
     result = coord._circuit_open_result(is_benchmark=False, start_time=0.0)
-    assert result.blocked is True
+    assert result.blocked is False
     assert result.intent == "ERROR"
-    assert result.block_reason == "circuit_breaker_open"
+    assert result.block_reason is None
+    assert grounding_state_for(result) == "system_error"
 
 
 if __name__ == "__main__":

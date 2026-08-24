@@ -6,8 +6,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from services.second_brain.crypto import generate_dek, unwrap_dek, wrap_dek
 from scripts.ops.rotate_brain_kek import _parse_args, _rewrap_blob
+
+from services.second_brain.crypto import generate_dek, unwrap_dek, wrap_dek
 
 
 def _key(seed: int) -> bytes:

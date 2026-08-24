@@ -11,10 +11,8 @@ import argparse
 import json
 import os
 import statistics
-from typing import Dict, Iterable, List
 
-
-NAMESPACES: Dict[str, str] = {
+NAMESPACES: dict[str, str] = {
     "exact_query_cache": "mukthiguru:cache:*",
     "semantic_query_cache": "mukthiguru:semcache:*",
     "jobs": "job:*",
@@ -30,7 +28,7 @@ def _summarize(client, pattern: str, scan_limit: int) -> dict:
     keys = 0
     expiring = 0
     nonexpiring = 0
-    ttl_values: List[int] = []
+    ttl_values: list[int] = []
     truncated = False
     for key in client.scan_iter(match=pattern, count=500):
         keys += 1

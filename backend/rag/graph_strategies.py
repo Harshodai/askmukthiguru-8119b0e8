@@ -507,7 +507,7 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
                 "reflection_feedback": f"Deep contradiction gate (LettuceDetect) failed: score={score:.2f}",
             }
         return {"needs_correction": False}
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("deep_contradiction_gate: faithfulness scorer deadline exceeded")
         return {
             "needs_correction": True,

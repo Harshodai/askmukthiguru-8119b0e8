@@ -316,6 +316,50 @@ describe('ChatInterface (regression)', () => {
     });
   });
 
+  it('falls back to non-streaming when streaming fails before the first token', async () => {
+    mocks.sendMessageStreaming.mockImplementation(() => ({
+      [Symbol.asyncIterator]: async function* () {
+        // Keep this a generator while throwing before the first token.
+        yield* [];
+        throw Object.assign(new Error('Backend not reachable (got content-type: application/json)'), {
+          errorCode: 'network',
+        });
+      },
+    }));
+
+    render(
+      <BrowserRouter>
+        <ChatInterface />
+      </BrowserRouter>
+    );
+
+    await screen.findByRole('heading', { level: 2, name: /Test/i });
+
+    const input = screen.getByLabelText('Your message');
+    const sendButton = screen.getByLabelText('Send message');
+
+    fireEvent.change(input, { target: { value: 'What is stillness?' } });
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+      expect(sendMessage).toHaveBeenCalledWith(
+        expect.any(Array),
+        'What is stillness?',
+        0,
+        undefined,
+        'test-conv-id',
+        null,
+        undefined,
+        false,
+        undefined,
+        undefined,
+        expect.objectContaining({ mode: 'balanced_guidance' }),
+        undefined,
+      );
+    });
+  });
+
   it('renders an error fallback message when the backend returns an error code', async () =>
  {
     mocks.sendMessageStreaming.mockImplementation(() => ({

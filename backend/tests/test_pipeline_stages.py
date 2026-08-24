@@ -217,6 +217,7 @@ async def test_cache_hit_observes_slo_latency_once(coordinator, monkeypatch):
 
     chat_body = MagicMock()
     chat_body.messages = []
+    chat_body.user_message = "what is the beautiful state"
     chat_body.assistant = None
     chat_body.response_preferences = None
     chat_body.incognito = False
@@ -433,7 +434,7 @@ async def test_input_guardrail_blocked_reports_real_category(
 
 
 # ---------------------------------------------------------------------------
-# Self-check: pipeline builder returns all 12 stages in the expected order
+# Self-check: pipeline builder keeps deterministic paths ahead of dependencies
 # ---------------------------------------------------------------------------
 
 
@@ -442,12 +443,13 @@ def test_build_default_pipeline_order():
     names = [s.name for s in stages]
     assert names == [
         "cache_check",
-        "circuit_breaker",
         "request_state",
         "input_guardrails",
+        "circuit_breaker",
         "doctrine_cache",
         "casual_short_circuit",
         "distress_detection",
+        "bounded_comparison_short_circuit",
         "langgraph",
         "meditation_gen",
         "translation",

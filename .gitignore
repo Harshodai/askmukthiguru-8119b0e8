@@ -157,6 +157,13 @@ external_repos/
 playwright-report/
 test-results/
 
+# Local audit/probe outputs — keep reproducible reports under docs/production-readiness
+localhost_*probe*.json
+backend/tests/tmp_*.py
+scripts/tmp_*.mjs
+*.tsbuildinfo
+*.bak
+
 # Local DBs and IDE directories
 *.db
 *.db-shm
@@ -336,3 +343,4 @@ docs/transcript_end_to_end_review_report.md
 
 # Checkpoint lock files (transient runtime locks — never commit)
 data/ingest_checkpoint.json.ckpt.lock
+coverage/

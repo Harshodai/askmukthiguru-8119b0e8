@@ -26,11 +26,11 @@ _duckduckgo_search_available = importlib.util.find_spec("duckduckgo_search") is 
 
 from services.web_search_service import (
     DuckDuckGoProvider,
-    _DuckDuckGoHtmlParser,
-    _normalise_ddg_href,
     WebSearchService,
+    _DuckDuckGoHtmlParser,
     _extract_domain,
     _is_domain_allowed,
+    _normalise_ddg_href,
 )
 
 try:

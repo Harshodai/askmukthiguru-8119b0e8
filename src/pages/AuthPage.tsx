@@ -758,7 +758,12 @@ const AuthPage = () => {
 
   useEffect(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId || isNativePlatform || !isTopLevelFrame) return;
+    if (
+      !clientId ||
+      isNativePlatform ||
+      !isTopLevelFrame ||
+      (typeof window !== 'undefined' && !window.isSecureContext)
+    ) return;
 
     // Load GIS script if not already present
     let script = document.querySelector(`script[src="${GOOGLE_GSI_SDK_URL}"]`) as HTMLScriptElement;
@@ -1079,7 +1084,7 @@ const AuthPage = () => {
                 if (resetErr) setError(friendlyError(resetErr));
                 else toast({ title: t('auth.checkEmail'), description: t('auth.passwordResetSent') });
               }}
-              className="text-xs text-muted-foreground hover:text-ojas hover:underline"
+              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
             >
               {t('auth.forgotPassword')}
             </button>
@@ -1091,7 +1096,7 @@ const AuthPage = () => {
             {isSignUp ? t('auth.alreadyAccount') : t('auth.noAccount')}{' '}
             <button
               onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
-              className="text-ojas hover:underline font-medium"
+              className="text-foreground hover:underline font-medium"
             >
               {isSignUp ? t('auth.signInBtn') : t('auth.signUpBtn')}
             </button>
@@ -1099,16 +1104,16 @@ const AuthPage = () => {
           {!import.meta.env.PROD && (
             <p className="text-[11px] text-muted-foreground/60">
               {t('auth.troubleSigningIn')}{' '}
-              <a href="/auth/diagnostics" className="text-ojas hover:underline">
+              <a href="/auth/diagnostics" className="text-foreground hover:underline">
                 {t('auth.runDiagnostics')}
               </a>
             </p>
           )}
           <p className="text-[11px] text-muted-foreground/50">
             {t('auth.byContinuing')}{' '}
-            <a href="/terms" className="hover:text-ojas hover:underline">{t('auth.terms')}</a>{' '}
+            <a href="/terms" className="text-foreground hover:underline">{t('auth.terms')}</a>{' '}
             {t('auth.and')}{' '}
-            <a href="/privacy" className="hover:text-ojas hover:underline">{t('auth.privacyPolicy')}</a>.
+            <a href="/privacy" className="text-foreground hover:underline">{t('auth.privacyPolicy')}</a>.
           </p>
         </div>
       </div>

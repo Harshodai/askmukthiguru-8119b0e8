@@ -50,6 +50,7 @@ class TestTestAuthStrategyRegistration:
                 "ENABLE_TEST_AUTH": "false",
                 "IS_PRODUCTION": "true",
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+                "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "BENCHMARK_SECRET": "",
             },
             clear=False,
@@ -108,6 +109,7 @@ class TestTestAuthStrategyRegistration:
             {
                 "IS_PRODUCTION": "true",
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+                "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "true",
                 "BENCHMARK_SECRET": "my-secret",
             },
@@ -126,6 +128,7 @@ class TestTestAuthStrategyRegistration:
             {
                 "IS_PRODUCTION": "true",
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+                "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "false",
                 "BENCHMARK_SECRET": "my-secret",
             },
@@ -287,6 +290,7 @@ class TestAuthBridgeIntegration:
             {
                 "IS_PRODUCTION": "true",
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+                "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "false",
             },
             clear=False,

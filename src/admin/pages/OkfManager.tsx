@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +55,7 @@ export default function OkfManagerPage() {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [tab, setTab] = useState("entries");
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await listOkfEntries(typeFilter || undefined);
@@ -68,9 +68,9 @@ export default function OkfManagerPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [typeFilter]);
 
-  async function loadReviewQueue() {
+  const loadReviewQueue = useCallback(async () => {
     setReviewLoading(true);
     try {
       const items = await listOkfReviewQueue("pending");
@@ -80,7 +80,7 @@ export default function OkfManagerPage() {
     } finally {
       setReviewLoading(false);
     }
-  }
+  }, []);
 
   async function compile() {
     setCompiling(true);
@@ -115,8 +115,8 @@ export default function OkfManagerPage() {
     }
   }
 
-  useEffect(() => { load(); }, [typeFilter]);
-  useEffect(() => { if (tab === "review") loadReviewQueue(); }, [tab]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (tab === "review") loadReviewQueue(); }, [tab, loadReviewQueue]);
 
   return (
     <div className="space-y-6">

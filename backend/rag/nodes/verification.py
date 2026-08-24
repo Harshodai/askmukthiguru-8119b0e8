@@ -48,7 +48,7 @@ async def _score_faithfulness_bounded(
             ),
             timeout=timeout,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning(
             "Faithfulness scorer exceeded %.1fs deadline; returning unverified verdict",
             timeout,

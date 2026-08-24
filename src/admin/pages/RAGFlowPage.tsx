@@ -347,7 +347,7 @@ export default function RAGFlowPage() {
         setSelectedNode(updatedNode);
       }
     }
-  }, [graphData]);
+  }, [graphData, selectedNode, setEdges, setNodes]);
 
   const onNodeClick = (_: ReactMouseEvent, node: FlowNode) => {
     if (node?.data?.raw) {

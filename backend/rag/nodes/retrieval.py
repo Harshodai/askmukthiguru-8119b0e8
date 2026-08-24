@@ -24,9 +24,9 @@ from rag.timeout_utils import get_node_timeout
 from rag.tree_navigator import navigate_tree
 from services.embedding_service import EmbeddingService, _apply_query_expansion
 from services.lightrag_service import LightRAGService
-from services.qdrant_service import QdrantService
 from services.provenance_context import build_provenance_context
 from services.qdrant.source_policy import filter_blocked_sources
+from services.qdrant_service import QdrantService
 from services.tenant_context import TenantContext
 
 from . import _services

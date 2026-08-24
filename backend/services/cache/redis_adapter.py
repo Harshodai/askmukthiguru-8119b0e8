@@ -6,14 +6,13 @@ import hashlib
 import json
 import logging
 import time
-from typing import Dict, Optional, Union
+from typing import Optional
 
 from app.metrics import (
     REDIS_CACHE_BUDGET_REJECTIONS,
     REDIS_NAMESPACE_KEYS,
     REDIS_NAMESPACE_NONEXPIRING_KEYS,
 )
-
 from domain.ports.cache_port import ICacheRepository
 from services.cache.constants import _CACHE_TTL
 from services.cache.exceptions import CacheInitializationError
@@ -102,7 +101,7 @@ class RedisCacheAdapter(ICacheRepository):
         tenant_id = TenantContext.get()
         return f"mukthiguru:cache:{tenant_id}:{key_hash}"
 
-    def _refresh_namespace_telemetry(self, force: bool = False) -> Dict[str, int]:
+    def _refresh_namespace_telemetry(self, force: bool = False) -> dict[str, int]:
         """Sample only the exact-query namespace and publish bounded metrics.
 
         This is deliberately not a global Redis scan. Queue, session, quota,
@@ -135,7 +134,7 @@ class RedisCacheAdapter(ICacheRepository):
             logger.warning("Redis exact-query telemetry failed: %s", exc)
         return {"keys": keys, "nonexpiring": nonexpiring}
 
-    def telemetry_snapshot(self, force: bool = False) -> Dict[str, Union[int, str]]:
+    def telemetry_snapshot(self, force: bool = False) -> dict[str, int | str]:
         """Return non-sensitive exact-query namespace telemetry for health/ops."""
         snapshot = self._refresh_namespace_telemetry(force=force)
         snapshot.update({"namespace": self._NAMESPACE, "max_keys": self._max_keys})

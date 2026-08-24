@@ -58,7 +58,21 @@ function capabilityEndpoint(): string | null {
   const endpoint = getCurrentConfig().endpoint;
   if (!endpoint || typeof window === 'undefined') return null;
   try {
-    return new URL('/api/capabilities', new URL(endpoint, window.location.origin).origin).href;
+    const configuredOrigin = new URL(endpoint, window.location.origin).origin;
+    const explicitBackend = Boolean(import.meta.env.VITE_BACKEND_URL?.trim());
+    const configuredUrl = new URL(configuredOrigin);
+    const isLoopbackOrigin =
+      configuredUrl.hostname === 'localhost' ||
+      configuredUrl.hostname === '127.0.0.1' ||
+      configuredUrl.hostname === '[::1]';
+
+    // A stale runtime chat override must not send a hosted/browser request to
+    // the developer's localhost. Docker and reverse-proxy deployments use the
+    // same-origin /api proxy unless an explicit backend URL was built in.
+    const origin = !explicitBackend && !import.meta.env.DEV && isLoopbackOrigin
+      ? window.location.origin
+      : configuredOrigin;
+    return new URL('/api/capabilities', origin).href;
   } catch {
     return null;
   }

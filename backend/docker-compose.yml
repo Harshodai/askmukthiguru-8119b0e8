@@ -212,6 +212,9 @@ services:
       - OCR_LANGUAGES=en,hi
       # Redis cache
       - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379/0
+      # Local dev only: run .delay() tasks synchronously in this process
+      # instead of dispatching to a separate celery-worker container.
+      - CELERY_TASK_ALWAYS_EAGER=${CELERY_TASK_ALWAYS_EAGER:-false}
       # OpenTelemetry
       # Tracing is opt-in locally because Jaeger is an observability profile.
       - OTEL_ENABLED=${OTEL_ENABLED:-false}

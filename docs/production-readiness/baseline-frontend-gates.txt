@@ -1,0 +1,335 @@
+## lint
+
+> askmukthiguru@0.0.0 lint
+> eslint .
+
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/admin/lib/filtersStore.tsx
+  59:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/admin/pages/OkfManager.tsx
+  118:32  warning  React Hook useEffect has a missing dependency: 'load'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/admin/pages/RAGFlowPage.tsx
+  350:6  warning  React Hook useEffect has missing dependencies: 'selectedNode', 'setEdges', and 'setNodes'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/admin/pages/StagingQueuePage.tsx
+  39:6  warning  React Hook useEffect has a missing dependency: 'loadStaging'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/ai-elements/conversation.tsx
+  126:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/ai-elements/prompt-input.tsx
+  215:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  230:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  377:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  401:14  warning  Fast refresh only works when a file only exports components. Move your React context(s) to a separate file                      react-refresh/only-export-components
+  404:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/chat/ChatHelpers.tsx
+   63:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  137:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  144:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/chat/ChatMessage.tsx
+  63:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/chat/DesktopSidebar.tsx
+  411:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/chat/HealingPathCard.tsx
+  59:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/chat/LanguageSelector.tsx
+  260:6  warning  React Hook useEffect has a missing dependency: 'handleLanguageChange'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/chat/TeacherGuidancePanel.tsx
+  6:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/chat/ThinkingPills.tsx
+  21:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/common/CookieConsentBanner.tsx
+  13:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/common/RootErrorBoundary.tsx
+  37:7  warning  Fast refresh only works when a file only exports components. Move your component(s) to a separate file  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/common/SereneMindProvider.tsx
+  94:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/kg/KGConceptMap.tsx
+  24:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/landing/DemoModal.tsx
+  25:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  34:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  36:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/landing/WaitlistForm.tsx
+  4:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/ui/badge.tsx
+  29:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/ui/button-group.tsx
+  82:3  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/ui/button.tsx
+  48:18  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/ui/form.tsx
+  129:10  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/ui/navigation-menu.tsx
+  111:3  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/ui/sidebar.tsx
+  636:3  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/ui/sonner.tsx
+  108:19  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/components/ui/toggle.tsx
+  37:18  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/hooks/useBreathTeaching.ts
+  86:6  warning  React Hook useEffect has a missing dependency: 'state.loading'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/hooks/usePageMeta.ts
+  105:6   warning  React Hook useEffect has a missing dependency: 'jsonLd'. Either include it or remove the dependency array                                 react-hooks/exhaustive-deps
+  105:64  warning  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked  react-hooks/exhaustive-deps
+
+/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/src/pages/ProfilePage.tsx
+  184:6  warning  React Hook useEffect has missing dependencies: 'resolveEmail' and 'resolveName'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 39 problems (0 errors, 39 warnings)
+
+lint_exit=0
+## bundle budget
+
+> askmukthiguru@0.0.0 bundle:check
+> node scripts/check-bundle-budget.mjs
+
+====================================================
+         AskMukthiGuru Frontend Bundle Budget
+====================================================
+Total JS Files:       136
+Largest Chunk:        index-LR-CQ1Ez.js (462.07 kB)
+Max Chunk Budget:     < 800.00 kB
+Core JS Size:         3.01 MB (Budget: < 3.00 MB)
+Total JS Size:        4.47 MB (Budget: < 5.00 MB)
+----------------------------------------------------
+Top 10 Largest Chunks:
+  -  462.07 kB  assets/js/index-LR-CQ1Ez.js
+  -  391.34 kB  assets/js/ChatPage-o5b0N2VV.js
+  -  350.46 kB  assets/js/generateCategoricalChart-B46ME1eX.js
+  -  285.41 kB  assets/js/radix-vendor-Cjslnh-i.js
+  -  199.30 kB  assets/js/supabase-vendor-BuBxLT1s.js
+  -  177.54 kB  assets/js/RAGFlowPage-Df4H3LQR.js
+  -  150.53 kB  assets/js/ui-vendor-UQO9dGeJ.js
+  -  131.73 kB  assets/js/ta-DBh7p6_U.js [locale]
+  -  128.59 kB  assets/js/ml-CyN0cgPI.js [locale]
+  -  123.39 kB  assets/js/or-DomhEcu1.js [locale]
+====================================================
+
+[bundle-budget] FAIL — Core JS total (3.01 MB) reached/exceeded budget of 3.00 MB.
+
+[bundle-budget] Bundle budget check FAILED.
+bundle_exit=1
+## build
+
+> askmukthiguru@0.0.0 build
+> vite build && node scripts/prerender-seo.mjs
+
+vite v8.1.0 building client environment for production...
+[2Ktransforming...Browserslist: browsers data (caniuse-lite) is 14 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+warn - The class `ease-[cubic-bezier(0.32,0.72,0,1)]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `ease-&lsqb;cubic-bezier(0.32,0.72,0,1)&rsqb;` to silence this warning.
+[32m✓[0m 2405 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[0m[2massets/[0m[32mimages/gurus-photo-BMONvrtD.jpg               [0m[1;2m  5.38 kB[0m
+[2mdist/[0m[32mindex.html                                           [0m[1;2m  6.64 kB[0m[2m │ gzip:   1.74 kB[0m
+[2mdist/[0m[2massets/[0m[32mimages/hero-spiritual-CnpEcDNd.webp           [0m[1;2m 54.70 kB[0m
+[2mdist/[0m[2massets/[0m[35mcss/RAGFlowPage-BtuwCoHU.css                  [0m[1;2m 15.90 kB[0m[2m │ gzip:   2.56 kB[0m
+[2mdist/[0m[2massets/[0m[35mcss/index-CD9xoH2E.css                        [0m[1;2m188.48 kB[0m[2m │ gzip:  29.73 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/FloatingParticles--3PQ9Y5H.js              [0m[1;2m  0.04 kB[0m[2m │ gzip:   0.06 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/gurus-photo-C4H23k7e.js                    [0m[1;2m  0.06 kB[0m[2m │ gzip:   0.08 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/authConstants-DBI83SWx.js                  [0m[1;2m  0.18 kB[0m[2m │ gzip:   0.14 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/telemetryEvents-Co1Y1Tdn.js                [0m[1;2m  0.20 kB[0m[2m │ gzip:   0.18 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/skeleton-DlPNwZNn.js                       [0m[1;2m  0.22 kB[0m[2m │ gzip:   0.18 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/PublicShell-BRAqMN3H.js                    [0m[1;2m  0.30 kB[0m[2m │ gzip:   0.22 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/BarChart-BkwzwcOX.js                       [0m[1;2m  0.31 kB[0m[2m │ gzip:   0.22 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/sarvamVoices-hnvxkIyP.js                   [0m[1;2m  0.35 kB[0m[2m │ gzip:   0.23 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/domain--upq2H2b.js                         [0m[1;2m  0.37 kB[0m[2m │ gzip:   0.26 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/supportApi-CucIj87v.js                     [0m[1;2m  0.40 kB[0m[2m │ gzip:   0.28 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/EmptyState-CAUpT5Qk.js                     [0m[1;2m  0.45 kB[0m[2m │ gzip:   0.29 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/label-DuLZwyDM.js                          [0m[1;2m  0.48 kB[0m[2m │ gzip:   0.31 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/separator-DeGvbY4A.js                      [0m[1;2m  0.51 kB[0m[2m │ gzip:   0.32 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/auth-CgzS-MJD.js                           [0m[1;2m  0.58 kB[0m[2m │ gzip:   0.33 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/textarea-Bo_dXxo_.js                       [0m[1;2m  0.62 kB[0m[2m │ gzip:   0.39 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/backendUrl-ZOqekUnw.js                     [0m[1;2m  0.63 kB[0m[2m │ gzip:   0.40 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/dist-UHu1H1lj.js                           [0m[1;2m  0.68 kB[0m[2m │ gzip:   0.41 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/useProfile-CsY_9OSG.js                     [0m[1;2m  0.72 kB[0m[2m │ gzip:   0.40 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/input-D3FyR3uF.js                          [0m[1;2m  0.72 kB[0m[2m │ gzip:   0.42 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/workspaceNavigation-BLZwNwhp.js            [0m[1;2m  0.77 kB[0m[2m │ gzip:   0.38 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/badge-7oFsDfBO.js                          [0m[1;2m  0.83 kB[0m[2m │ gzip:   0.44 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/web-DdnC3fU8.js                            [0m[1;2m  0.84 kB[0m[2m │ gzip:   0.40 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/tooltip-DlneZd9u.js                        [0m[1;2m  0.84 kB[0m[2m │ gzip:   0.46 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/client-rhIiyI6C.js                         [0m[1;2m  0.84 kB[0m[2m │ gzip:   0.54 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/useDailyTeaching-C_LiIM5w.js               [0m[1;2m  0.86 kB[0m[2m │ gzip:   0.55 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/rolldown-runtime-CNC7AqOf.js               [0m[1;2m  0.87 kB[0m[2m │ gzip:   0.50 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/slider-CDGkPi6O.js                         [0m[1;2m  0.90 kB[0m[2m │ gzip:   0.49 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/popover-CdO71dZf.js                        [0m[1;2m  0.92 kB[0m[2m │ gzip:   0.48 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/use-toast-DZXTYAp9.js                      [0m[1;2m  0.94 kB[0m[2m │ gzip:   0.54 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/filtersStore-DProoU21.js                   [0m[1;2m  0.95 kB[0m[2m │ gzip:   0.52 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/switch-BiZBd_Qv.js                         [0m[1;2m  0.96 kB[0m[2m │ gzip:   0.50 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/formatters-Rnaom56j.js                     [0m[1;2m  1.02 kB[0m[2m │ gzip:   0.42 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/adminAuth-f7UkKFaC.js                      [0m[1;2m  1.13 kB[0m[2m │ gzip:   0.48 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/web-CwAfjduC.js                            [0m[1;2m  1.19 kB[0m[2m │ gzip:   0.54 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/KpiCard-Bktu91V5.js                        [0m[1;2m  1.34 kB[0m[2m │ gzip:   0.63 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/table-FxpGVv1G.js                          [0m[1;2m  1.65 kB[0m[2m │ gzip:   0.59 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/TermsPage-wKwVUgHT.js                      [0m[1;2m  1.70 kB[0m[2m │ gzip:   0.69 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/usePageMeta-Hqy6WPjl.js                    [0m[1;2m  1.89 kB[0m[2m │ gzip:   0.82 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/PrivacyPage-Dbph9oCw.js                    [0m[1;2m  1.98 kB[0m[2m │ gzip:   0.78 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/BackgroundParticles-ZNwpf8W5.js            [0m[1;2m  2.01 kB[0m[2m │ gzip:   1.06 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/alert-dialog-CWxBgOYi.js                   [0m[1;2m  2.23 kB[0m[2m │ gzip:   0.82 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/web-DdRKjuYH.js                            [0m[1;2m  2.38 kB[0m[2m │ gzip:   1.06 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/dialog-CEEWrOIT.js                         [0m[1;2m  2.46 kB[0m[2m │ gzip:   0.97 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/NotFound-26SBxtu6.js                       [0m[1;2m  2.60 kB[0m[2m │ gzip:   1.07 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/AdminSelfCheckPage-H5xwQfvi.js             [0m[1;2m  2.70 kB[0m[2m │ gzip:   1.27 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/authTelemetry-CciiXews.js                  [0m[1;2m  2.82 kB[0m[2m │ gzip:   1.23 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/sheet-FOM6uMdX.js                          [0m[1;2m  2.86 kB[0m[2m │ gzip:   1.14 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/AdminLoginPage-2jQxG0KE.js                 [0m[1;2m  2.98 kB[0m[2m │ gzip:   1.25 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/MFAChallengePage-Dw5RZCbN.js               [0m[1;2m  3.02 kB[0m[2m │ gzip:   1.43 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/SpiritGuidesPage-B4DAYVcJ.js               [0m[1;2m  3.20 kB[0m[2m │ gzip:   1.38 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/select-DPY27iAW.js                         [0m[1;2m  3.21 kB[0m[2m │ gzip:   1.16 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/AdminsPage-DWHtD39Q.js                     [0m[1;2m  3.28 kB[0m[2m │ gzip:   1.38 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/JobsPage-BeNk1AMx.js                       [0m[1;2m  3.63 kB[0m[2m │ gzip:   1.22 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/useStudyNotebooks-C8CsKEBP.js              [0m[1;2m  3.69 kB[0m[2m │ gzip:   1.43 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/useAdminData-aS7Qt1Aj.js                   [0m[1;2m  3.72 kB[0m[2m │ gzip:   1.06 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/TeachingTipsPage-DLHydDek.js               [0m[1;2m  3.74 kB[0m[2m │ gzip:   1.59 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/dropdown-menu-EkgU9I1X.js                  [0m[1;2m  3.90 kB[0m[2m │ gzip:   1.11 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/MonitoringPage-D2HlDz95.js                 [0m[1;2m  3.95 kB[0m[2m │ gzip:   1.49 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/useTextToSpeech-D4jRg5er.js                [0m[1;2m  4.07 kB[0m[2m │ gzip:   1.74 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/ResetPasswordPage-VqVlno-o.js              [0m[1;2m  4.09 kB[0m[2m │ gzip:   1.67 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/UserMenu-kYOXWqQA.js                       [0m[1;2m  4.51 kB[0m[2m │ gzip:   1.68 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/LogsPage-CKfczUDy.js                       [0m[1;2m  4.64 kB[0m[2m │ gzip:   1.82 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/useSpeechRecognition-Cy3uql7T.js           [0m[1;2m  4.89 kB[0m[2m │ gzip:   2.03 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/Footer-9DdSj96L.js                         [0m[1;2m  4.98 kB[0m[2m │ gzip:   1.58 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/FeedbackPage-CvNKD4C2.js                   [0m[1;2m  5.72 kB[0m[2m │ gzip:   1.83 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/AlertsPage-AT6lpp9X.js                     [0m[1;2m  6.42 kB[0m[2m │ gzip:   2.12 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/profileStorage-BTqIclxn.js                 [0m[1;2m  6.44 kB[0m[2m │ gzip:   2.87 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/RetrievalPage-SL_hJ2EU.js                  [0m[1;2m  6.49 kB[0m[2m │ gzip:   2.26 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/AuthDiagnosticsPage-ihYkS9vA.js            [0m[1;2m  6.89 kB[0m[2m │ gzip:   2.61 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/PromptsPage-DRBxSDuX.js                    [0m[1;2m  6.95 kB[0m[2m │ gzip:   2.40 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/StudyNotebookPage-ClZDyTUV.js              [0m[1;2m  7.06 kB[0m[2m │ gzip:   2.47 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/OkfManager-BJiPikch.js                     [0m[1;2m  7.17 kB[0m[2m │ gzip:   2.38 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/PracticesPage-CzXGD9rr.js                  [0m[1;2m  7.19 kB[0m[2m │ gzip:   2.56 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/DataSourcesPage-BxQ3d6O0.js                [0m[1;2m  7.29 kB[0m[2m │ gzip:   1.93 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/SettingsPage-D1j28kEJ.js                   [0m[1;2m  7.32 kB[0m[2m │ gzip:   2.60 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/AuthLatencyDashboard-BH2r6_pR.js           [0m[1;2m  7.36 kB[0m[2m │ gzip:   2.37 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/AiSpiritualCompanionPage-C4RX7Z4P.js       [0m[1;2m  7.64 kB[0m[2m │ gzip:   2.75 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/dist-BrDEbczm.js                           [0m[1;2m  7.77 kB[0m[2m │ gzip:   3.10 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/TelemetryPage-4wF8An5P.js                  [0m[1;2m  8.59 kB[0m[2m │ gzip:   2.83 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/QualityPage-EcJvtR01.js                    [0m[1;2m  8.73 kB[0m[2m │ gzip:   2.60 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/useFavorites-B7E1rtlm.js                   [0m[1;2m  9.04 kB[0m[2m │ gzip:   3.92 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/SufferingToBeautifulStatePage-DldhweC_.js  [0m[1;2m  9.12 kB[0m[2m │ gzip:   3.22 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/value-DT6mOeOg.js                          [0m[1;2m  9.23 kB[0m[2m │ gzip:   3.96 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/SpiritualGuideForAnxietyPage-DfRm6SxJ.js   [0m[1;2m  9.38 kB[0m[2m │ gzip:   3.37 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/EvalsPage-sD-t7Sqv.js                      [0m[1;2m  9.38 kB[0m[2m │ gzip:   2.92 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/SereneMindPracticePage-Cp54j-6-.js         [0m[1;2m  9.56 kB[0m[2m │ gzip:   3.32 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/BeautifulStateMeditationPage-BFWR05pK.js   [0m[1;2m  9.98 kB[0m[2m │ gzip:   3.53 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/responsePreferences-xrfbMcmY.js            [0m[1;2m 10.20 kB[0m[2m │ gzip:   2.81 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/DailyTeachingPage-BUW9vGh_.js              [0m[1;2m 10.25 kB[0m[2m │ gzip:   3.27 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/SelfCentricThinkingPage-CDZblibv.js        [0m[1;2m 10.36 kB[0m[2m │ gzip:   3.59 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/IngestionPage-D2Eo-Lsk.js                  [0m[1;2m 11.18 kB[0m[2m │ gzip:   3.68 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/TimeseriesChart-D0QIxua6.js                [0m[1;2m 11.99 kB[0m[2m │ gzip:   4.63 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/SecondBrainPage-D7DYtnbZ.js                [0m[1;2m 12.28 kB[0m[2m │ gzip:   4.12 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/CachePage-rmNQiPO0.js                      [0m[1;2m 12.41 kB[0m[2m │ gzip:   3.85 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/LanguageSelector-DOsv1Wq_.js               [0m[1;2m 12.50 kB[0m[2m │ gzip:   4.00 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/TTSVerificationPage-fpIBSrTR.js            [0m[1;2m 12.99 kB[0m[2m │ gzip:   4.09 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/OverviewPage-BBz6GlmV.js                   [0m[1;2m 13.54 kB[0m[2m │ gzip:   4.30 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/command-C0Q1su-g.js                        [0m[1;2m 14.28 kB[0m[2m │ gzip:   5.33 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/TopicsPage-BIsBQq2c.js                     [0m[1;2m 15.71 kB[0m[2m │ gzip:   5.25 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/TriggersPage-DYGoX0ER.js                   [0m[1;2m 15.77 kB[0m[2m │ gzip:   5.54 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/WisdomCardGenerator-BsBCZFmQ.js            [0m[1;2m 16.79 kB[0m[2m │ gzip:   6.63 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/aiService-nQTfYn87.js                      [0m[1;2m 18.21 kB[0m[2m │ gzip:   6.11 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/PracticeDetailPage-B02DyMrI.js             [0m[1;2m 18.80 kB[0m[2m │ gzip:   5.75 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/KnowledgeGraphPage-fiWbkApp.js             [0m[1;2m 19.96 kB[0m[2m │ gzip:   6.49 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/api-uzAjPyif.js                            [0m[1;2m 21.18 kB[0m[2m │ gzip:   5.84 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/QueriesPage-BEVn67kY.js                    [0m[1;2m 21.31 kB[0m[2m │ gzip:   6.22 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/AppShell-6ACUExgB.js                       [0m[1;2m 23.65 kB[0m[2m │ gzip:   6.67 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/AuthPage-Bf4d-R1r.js                       [0m[1;2m 27.54 kB[0m[2m │ gzip:   8.92 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/query-vendor-BJYdPdzC.js                   [0m[1;2m 29.36 kB[0m[2m │ gzip:   9.04 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/AdminShell-CNWZz_q5.js                     [0m[1;2m 38.12 kB[0m[2m │ gzip:  12.19 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/utils-vendor-BYK3waZW.js                   [0m[1;2m 41.86 kB[0m[2m │ gzip:  12.91 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/react-vendor-BJ_5MN26.js                   [0m[1;2m 44.03 kB[0m[2m │ gzip:  15.56 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/Index-DiT_CW4R.js                          [0m[1;2m 54.34 kB[0m[2m │ gzip:  14.19 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/i18n-vendor-kXCx1bhf.js                    [0m[1;2m 61.29 kB[0m[2m │ gzip:  19.99 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/chatStorage-DwV1mYQN.js                    [0m[1;2m 67.34 kB[0m[2m │ gzip:  16.60 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/ur-NtaYuKny.js                             [0m[1;2m 84.36 kB[0m[2m │ gzip:  24.14 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/gu-CMMJoJqq.js                             [0m[1;2m109.94 kB[0m[2m │ gzip:  24.88 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/hi-CBdURc5R.js                             [0m[1;2m110.57 kB[0m[2m │ gzip:  25.61 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/mr-VXWEV4Nh.js                             [0m[1;2m113.36 kB[0m[2m │ gzip:  26.30 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/pa-DLrjFRcu.js                             [0m[1;2m114.40 kB[0m[2m │ gzip:  25.62 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/as-D-L9cifv.js                             [0m[1;2m116.17 kB[0m[2m │ gzip:  25.04 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/bn-Nx5YEpaL.js                             [0m[1;2m120.90 kB[0m[2m │ gzip:  26.16 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/sa-0XhC28A1.js                             [0m[1;2m121.78 kB[0m[2m │ gzip:  26.04 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/ProfilePage-Bj_0YzfU.js                    [0m[1;2m121.95 kB[0m[2m │ gzip:  29.78 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/te-B_vUjDUt.js                             [0m[1;2m125.01 kB[0m[2m │ gzip:  27.47 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/kn-B0lUQ2xt.js                             [0m[1;2m125.90 kB[0m[2m │ gzip:  27.26 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/or-DomhEcu1.js                             [0m[1;2m126.35 kB[0m[2m │ gzip:  25.62 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/ml-CyN0cgPI.js                             [0m[1;2m131.67 kB[0m[2m │ gzip:  26.06 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/ta-DBh7p6_U.js                             [0m[1;2m134.89 kB[0m[2m │ gzip:  26.40 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/ui-vendor-UQO9dGeJ.js                      [0m[1;2m154.13 kB[0m[2m │ gzip:  50.55 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/RAGFlowPage-Df4H3LQR.js                    [0m[1;2m181.80 kB[0m[2m │ gzip:  57.55 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/supabase-vendor-BuBxLT1s.js                [0m[1;2m204.08 kB[0m[2m │ gzip:  52.32 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/radix-vendor-Cjslnh-i.js                   [0m[1;2m292.26 kB[0m[2m │ gzip:  90.62 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/generateCategoricalChart-B46ME1eX.js       [0m[1;2m358.87 kB[0m[2m │ gzip:  94.37 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/ChatPage-o5b0N2VV.js                       [0m[1;2m400.73 kB[0m[2m │ gzip: 115.15 kB[0m
+[2mdist/[0m[2massets/[0m[36mjs/index-LR-CQ1Ez.js                          [0m[1;2m473.15 kB[0m[2m │ gzip: 150.11 kB[0m
+
+[33m[PLUGIN_TIMINGS] [0mYour build spent significant time in plugins. Here is a breakdown:
+  - vite:css-post (26%)
+  - visualizer (23%)
+  - vite:asset (14%)
+  - vite:css (10%)
+  - vite:build-import-analysis (7%)
+See https://rolldown.rs/reference/InputOptions.checks#plugintimings for more details.
+
+✓ built in 7.59s
+✓ prerendered: / → dist/index.html
+✓ prerendered: /chat → dist/chat/index.html
+✓ prerendered: /practices → dist/practices/index.html
+✓ prerendered: /practices/soul-sync → dist/practices/soul-sync/index.html
+✓ prerendered: /practices/serene-mind → dist/practices/serene-mind/index.html
+✓ prerendered: /practices/beautiful-state → dist/practices/beautiful-state/index.html
+✓ prerendered: /practices/daily-reflection → dist/practices/daily-reflection/index.html
+✓ prerendered: /guides/spirit-guides → dist/guides/spirit-guides/index.html
+✓ prerendered: /guides/ai-spiritual-companion → dist/guides/ai-spiritual-companion/index.html
+✓ prerendered: /guides/beautiful-state-meditation → dist/guides/beautiful-state-meditation/index.html
+✓ prerendered: /guides/serene-mind-practice → dist/guides/serene-mind-practice/index.html
+✓ prerendered: /guides/self-centric-thinking → dist/guides/self-centric-thinking/index.html
+✓ prerendered: /guides/spiritual-guide-for-anxiety → dist/guides/spiritual-guide-for-anxiety/index.html
+✓ prerendered: /guides/suffering-to-beautiful-state → dist/guides/suffering-to-beautiful-state/index.html
+✓ prerendered: /auth → dist/auth/index.html
+✓ prerendered: /privacy → dist/privacy/index.html
+✓ prerendered: /terms → dist/terms/index.html
+✓ prerendered: /practices/wisdom-reflection → dist/practices/wisdom-reflection/index.html
+✓ prerendered: /notebooks → dist/notebooks/index.html
+✓ prerendered: /knowledge-graph → dist/knowledge-graph/index.html
+✓ prerendered: /second-brain → dist/second-brain/index.html
+✓ prerendered: /auth/diagnostics → dist/auth/diagnostics/index.html
+✓ prerendered: /auth/mfa → dist/auth/mfa/index.html
+✓ prerendered: /reset-password → dist/reset-password/index.html
+✓ prerendered: /profile → dist/profile/index.html
+✓ prerendered: /admin → dist/admin/index.html
+✓ prerendered: /admin/login → dist/admin/login/index.html
+✓ prerendered: /404 → dist/404/index.html
+Done: 28 routes prerendered (base dist/index.html preserved as SPA fallback).
+build_exit=0

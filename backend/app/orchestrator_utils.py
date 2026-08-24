@@ -471,7 +471,7 @@ async def prepare_request_state(
                 preferred_lang,
                 (time.monotonic() - translation_started) * 1000,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # BGE-M3 and the generation model support multilingual text. Keep
             # the original query rather than turning a provider tail into a
             # user-visible timeout; retrieval remains fail-open.
@@ -503,7 +503,7 @@ async def prepare_request_state(
                     target_lang="en",
                     timeout=translation_timeout,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     "History translation timed out after %.1fs; preserving native text",
                     translation_timeout,

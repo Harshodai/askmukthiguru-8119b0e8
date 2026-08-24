@@ -20,9 +20,15 @@ class RuntimeArtifact:
 
 
 ARTIFACTS: tuple[RuntimeArtifact, ...] = (
-    RuntimeArtifact("okf_compiled", Path("/app/memory/okf/compiled.json")),
-    RuntimeArtifact("doctrine_lexicon", Path("/app/data/doctrine_lexicon.json")),
-    RuntimeArtifact("cpu_reranker_cache", Path("/app/model_cache/sentence_transformers")),
+    # These are curated serving inputs, not optional optimizations. A healthy
+    # image without either artifact can silently answer outside the approved
+    # doctrine layer, so both are release-blocking and must be produced by the
+    # audited corpus build rather than synthesized at startup.
+    RuntimeArtifact("okf_compiled", Path("/app/memory/okf/compiled.json"), required=True),
+    RuntimeArtifact("doctrine_lexicon", Path("/app/data/doctrine_lexicon.json"), required=True),
+    # The CPU reranker cache is an optimization; a cold cache may be acceptable
+    # when the configured backend can fetch or warm it under an explicit budget.
+    RuntimeArtifact("cpu_reranker_cache", Path("/app/model_cache/sentence_transformers"), required=False),
 )
 
 
@@ -33,6 +39,7 @@ def inspect_runtime_artifacts(
     items: dict[str, dict[str, object]] = {}
     present = 0
     missing: list[str] = []
+    missing_required: list[str] = []
 
     for artifact in artifacts:
         exists = artifact.path.exists()
@@ -52,6 +59,8 @@ def inspect_runtime_artifacts(
             present += 1
         else:
             missing.append(artifact.name)
+            if artifact.required:
+                missing_required.append(artifact.name)
 
         items[artifact.name] = {
             "present": exists,
@@ -60,9 +69,16 @@ def inspect_runtime_artifacts(
         }
 
     return {
+        # `ok` is the readiness signal: optional performance caches may be cold,
+        # but curated doctrine inputs may never be absent from a release image.
+        # Keep `ok` backward-compatible for diagnostics: any missing artifact
+        # is visible. `readiness_ok` is the release gate and ignores only
+        # explicitly optional performance caches.
         "ok": not missing,
+        "readiness_ok": not missing_required,
         "present": present,
         "total": len(artifacts),
         "missing": missing,
+        "missing_required": missing_required,
         "artifacts": items,
     }

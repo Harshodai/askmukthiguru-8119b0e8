@@ -1,0 +1,427 @@
+## python
+Python 3.9.6
+## compileall
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/gepa/examples/anymaths-bench/train_anymaths.py'...
+  File "backend/.venv/lib/python3.12/site-packages/gepa/examples/anymaths-bench/train_anymaths.py", line 8
+    match anymaths_dset_name:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/lightrag/api/routers/document_routes.py'...
+  File "backend/.venv/lib/python3.12/site-packages/lightrag/api/routers/document_routes.py", line 1307
+    match ext:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/litellm/router.py'...
+  File "backend/.venv/lib/python3.12/site-packages/litellm/router.py", line 869
+    match self._normalize_strategy(strategy):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/matplotlib/_afm.py'...
+  File "backend/.venv/lib/python3.12/site-packages/matplotlib/_afm.py", line 368
+    match line.split()[0]:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/matplotlib/_api/__init__.py'...
+  File "backend/.venv/lib/python3.12/site-packages/matplotlib/_api/__init__.py", line 176
+    match len(best):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/matplotlib/_type1font.py'...
+  File "backend/.venv/lib/python3.12/site-packages/matplotlib/_type1font.py", line 1051
+    match opcode:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/matplotlib/font_manager.py'...
+  File "backend/.venv/lib/python3.12/site-packages/matplotlib/font_manager.py", line 1809
+    match font_filepaths:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/matplotlib/widgets.py'...
+  File "backend/.venv/lib/python3.12/site-packages/matplotlib/widgets.py", line 1090
+    match layout:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/neo4j/vector.py'...
+  File "backend/.venv/lib/python3.12/site-packages/neo4j/vector.py", line 246
+    match byteorder:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/numpy/_core/tests/test_dtype.py'...
+  File "backend/.venv/lib/python3.12/site-packages/numpy/_core/tests/test_dtype.py", line 2094
+    match typename.lower().removesuffix("dtype"):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/numpy/lib/_arraypad_impl.py'...
+  File "backend/.venv/lib/python3.12/site-packages/numpy/lib/_arraypad_impl.py", line 778
+    match width:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/pycparser/c_generator.py'...
+  File "backend/.venv/lib/python3.12/site-packages/pycparser/c_generator.py", line 73
+    match n.op:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/pycparser/c_lexer.py'...
+  File "backend/.venv/lib/python3.12/site-packages/pycparser/c_lexer.py", line 112
+    match text[self._pos]:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/pycparser/c_parser.py'...
+  File "backend/.venv/lib/python3.12/site-packages/pycparser/c_parser.py", line 1551
+    match tok_type:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/scipy/_lib/tests/test_warnings.py'...
+  File "backend/.venv/lib/python3.12/site-packages/scipy/_lib/tests/test_warnings.py", line 44
+    match node.args[0]:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/scipy/integrate/_lebedev.py'...
+  File "backend/.venv/lib/python3.12/site-packages/scipy/integrate/_lebedev.py", line 107
+    match degree:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/scipy/io/wavfile.py'...
+  File "backend/.venv/lib/python3.12/site-packages/scipy/io/wavfile.py", line 54
+    match whence:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/scipy/optimize/_differentiable_functions.py'...
+  File "backend/.venv/lib/python3.12/site-packages/scipy/optimize/_differentiable_functions.py", line 92
+    match self._hess_func:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py'...
+  File "backend/.venv/lib/python3.12/site-packages/sklearn/linear_model/_logistic.py", line 2030
+    coef_init = np.mean(coefs_paths[0, :, *best_index, :], axis=0)
+                                          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/tifffile/tifffile.py'...
+  File "backend/.venv/lib/python3.12/site-packages/tifffile/tifffile.py", line 929
+    type ByteOrder = Literal['>', '<']
+         ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_dynamo/decorators.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_dynamo/decorators.py", line 1035
+    match getattr(t, attr):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/builder.py", line 3819
+    match getattr(e, attr):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/constant.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_dynamo/variables/constant.py", line 75
+    match value:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_export/non_strict_utils.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_export/non_strict_utils.py", line 261
+    match getattr(t, attr):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/frontend_utils.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/frontend_utils.py", line 115
+    match getattr(x, a):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/functional_utils.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/functional_utils.py", line 53
+    match getattr(t, attr):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/graph_capture_wrappers.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/graph_capture_wrappers.py", line 676
+    match getattr(e, a):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/graph_compile.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/graph_compile.py", line 752
+    match hop_partition_fn:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/subclass_codegen.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/subclass_codegen.py", line 77
+    match attr_meta:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/subclass_parametrization.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/subclass_parametrization.py", line 75
+    match val:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/subclass_utils.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/subclass_utils.py", line 94
+    match getattr(tensor_subclass, key):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_inductor/ir.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_inductor/ir.py", line 6455
+    match arg:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_inductor/kernel/mm.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_inductor/kernel/mm.py", line 845
+    match scaling_type:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_subclasses/fake_tensor.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_subclasses/fake_tensor.py", line 210
+    match getattr(x, attr):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/_subclasses/meta_utils.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/_subclasses/meta_utils.py", line 383
+    match inner:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/distributed/_tools/common_utils.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/distributed/_tools/common_utils.py", line 25
+    match getattr(obj, attr):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/distributed/fsdp/_init_utils.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/distributed/fsdp/_init_utils.py", line 1132
+    match getattr(detached_buffer, attr):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/fx/experimental/symbolic_shapes.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/fx/experimental/symbolic_shapes.py", line 6052
+    match getattr(t, attr):
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/nn/utils/parametrize.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/nn/utils/parametrize.py", line 209
+    match originali:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/profiler/_utils.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/profiler/_utils.py", line 497
+    match timeline_event.event_type:
+          ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/.venv/lib/python3.12/site-packages/torch/testing/_internal/py312_intrinsics.py'...
+  File "backend/.venv/lib/python3.12/site-packages/torch/testing/_internal/py312_intrinsics.py", line 11
+    def f[T](a: "This is a new annotation"):  # noqa: F722
+         ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/app/core/result.py'...
+  File "backend/app/core/result.py", line 24
+    class Result[T]:
+                ^
+SyntaxError: invalid syntax
+
+*** Error compiling 'backend/venv/lib/python3.9/site-packages/lightrag/api/routers/document_routes.py'...
+  File "backend/venv/lib/python3.9/site-packages/lightrag/api/routers/document_routes.py", line 501
+    match ext:
+          ^
+SyntaxError: invalid syntax
+
+compileall_exit=1
+## pytest availability
+pytest 8.4.2
+## backend manifests
+[project]
+name = "askmukthiguru-backend"
+version = "0.1.0"
+description = "FastAPI backend for AskMukthiGuru AI Spiritual Guide"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Private" }
+
+dependencies = [
+    # Core
+    "fastapi>=0.115.0,<1.0",
+    "uvicorn[standard]>=0.34.0,<1.0",
+    "pydantic>=2.10.0,<3.0",
+    "pydantic-settings>=2.14.2,<3.0",
+    "python-dotenv>=1.0.0,<2.0",
+    "supabase>=2.3.0",
+    "instructor>=1.0.0",
+
+    # LLM & RAG
+    "langchain>=1.3.13,<2.0",
+    "langchain-core>=1.4.9,<2.0",
+    "langchain-community>=0.3.15,<1.0",
+    "langchain-ollama>=0.3.0,<1.0",
+    "langgraph>=1.2.9,<2.0",
+    "langchain-nvidia-ai-endpoints>=1.4.0",
+    "langchain-sarvam>=0.1.0",
+    "sarvamai>=0.1.0",
+    "qdrant-client>=1.13.0,<2.0",
+    "sentence-transformers>=3.4.0,<4.0",
+    "FlagEmbedding>=1.2.10",
+    "umap-learn>=0.5.7",
+    "scikit-learn>=1.6.0,<2.0",
+    "lightrag-hku>=1.0.0",
+    "llmlingua>=0.2.2,<0.3.0",
+    "neo4j>=5.17.0",
+
+    # Ingestion & Media
+    "youtube-transcript-api>=1.0.0",
+    "yt-dlp>=2025.10.14",  # LICENSE-EXCEPTION: Un licensed nightly not approved; use latest public-domain release
+    "requests>=2.32.0,<3.0",
+    "Pillow>=12.2.0,<13.0",
+    "duckduckgo-search>=6.1.7",
+
+    # Infrastructure
+    "cachetools>=5.3.0,<6.0",
+    "prometheus_client>=0.21.0",
+    "redis>=5.2.0,<8.0",
+    "apscheduler>=3.10.0",
+
+    # Auth & Security
+    "fastapi-users[sqlalchemy]>=13.0.0",
+    "slowapi>=0.1.9",
+    "aiosqlite>=0.20.0",
+    "passlib[bcrypt]>=1.7.4",
+    "gptcache>=0.1.43",
+    "easyocr>=1.7.2",
+    "nemoguardrails>=0.11.0",
+
+    # UI
+    "gradio>=6.15.0",
+
+    # Observability & Tracing
+    "opentelemetry-sdk>=1.24.0,<2.0",
+    "opentelemetry-instrumentation-fastapi>=0.45b0,<1.0",
+    "opentelemetry-exporter-otlp>=1.24.0,<2.0",
+    "openinference-instrumentation-langchain>=0.1.33,<1.0",
+
+    # Advanced Ingestion
+    "litellm>=1.24.0",
+    "pypdf>=6.13.3,<7.0",
+    "PyYAML>=6.0.0",
+    "turbovec>=0.8.0"
+]
+
+[project.optional-dependencies]
+heavy = [
+    "faster-whisper>=1.1.0",
+    "arize-phoenix>=4.38.0",
+    "openinference-instrumentation-langchain>=0.1.33",
+    "ragas>=0.2.1",
+]
+eval = [
+    "dspy-ai>=2.4.0",
+    "ragas>=0.2.1",
+    "arize-phoenix>=4.38.0",
+    "openinference-instrumentation-langchain>=0.1.33",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0,<9.0",
+    "pytest-asyncio>=0.25.0,<1.0",
+    "httpx>=0.28.0,<1.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "bandit>=1.7",
+    "pip-audit>=2.7",
+    # Property-based testing — generates 100s of test cases automatically
+    "hypothesis>=6.100.0,<7.0",
+]
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"  # Matches .venv Python 3.12 — enables TaskGroup, except*, slots=True
+exclude = [
+    "*.ipynb",
+    "colab/**",
+    "repos/**",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "E501",  # Line length handled by formatter
+    "E402",  # Module level import not at top of file (needed for path-patching scripts)
+    "UP042", # Class inherits from both str and Enum (needed for backwards-compatible string enums)
+    "B905",  # zip() strict= parameter (breaks compatibility with Python < 3.10)
+    "B008",  # Depends function calls in FastAPI defaults
+    "B904",  # exception chaining (raise from)
+    "UP047", # PEP 695 generics (def func[T]...) break compatibility with Python < 3.12
+    "UP045", # Prefer X | None over Optional[X] (Optional is required for Python 3.9 compatibility without future imports)
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = [
+    "repos",
+    ".git",
+    ".venv",
+    "__pycache__",
+]
+python_files = ["test_*.py"]
+markers = [
+    "unit: Unit tests",
+    "integration: Requires live infra (Qdrant/embedding model) — skips gracefully if unavailable",
+    "slow: Opt-in stress/benchmark tests, not run by default",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::FutureWarning",
+    "ignore::ImportWarning",
+    "ignore::ResourceWarning",
+    "ignore:.*allowed_objects.*",
+    "ignore:.*LangChainPendingDeprecationWarning.*",
+    "ignore:::langgraph.*",
+    "ignore:::langchain_core.*",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+ignore_missing_imports = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["app", "rag", "domain", "services", "routers"]

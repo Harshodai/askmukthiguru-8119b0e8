@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,11 +34,7 @@ export default function StagingQueuePage() {
   const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    void loadStaging();
-  }, [statusFilter]);
-
-  async function loadStaging() {
+  const loadStaging = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
@@ -52,7 +48,11 @@ export default function StagingQueuePage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    void loadStaging();
+  }, [loadStaging]);
 
   async function handleReviewSubmit() {
     if (!selectedItem?.id || !actionType) return;

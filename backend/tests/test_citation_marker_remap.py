@@ -53,17 +53,21 @@ async def test_diversity_reorder_does_not_desync_citation_numbering():
     """enforce_source_diversity can move a citation from position 4+ into
     position 3 (0-based index 2). The [N] baked into the text before that
     reorder must be rewritten to match, or it points at the wrong source."""
-    same_source = "https://same.example/teaching"
-    other_source = "https://other.example/teaching"
+    # Three distinct URLs from one YouTube source keep the citations unique
+    # while still exercising top-three source diversity promotion.
+    same_source_1 = "https://www.youtube.com/watch?v=abc123&t=1"
+    same_source_2 = "https://www.youtube.com/watch?v=abc123&t=2"
+    same_source_3 = "https://www.youtube.com/watch?v=abc123&t=3"
+    other_source = "https://www.youtube.com/watch?v=xyz789"
     state = GraphState(
         answer="The distinguishing fact is over here [Source: Fourth Doc].",
         relevant_docs=[
-            {"title": "First Doc", "source_url": same_source},
-            {"title": "Second Doc", "source_url": same_source},
-            {"title": "Third Doc", "source_url": same_source},
+            {"title": "First Doc", "source_url": same_source_1},
+            {"title": "Second Doc", "source_url": same_source_2},
+            {"title": "Third Doc", "source_url": same_source_3},
             {"title": "Fourth Doc", "source_url": other_source},
         ],
-        citations=[same_source, same_source, same_source, other_source],
+        citations=[same_source_1, same_source_2, same_source_3, other_source],
         is_faithful=True,
         verification={"passed": True},
         confidence_score=8.0,

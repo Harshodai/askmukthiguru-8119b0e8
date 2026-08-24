@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -162,14 +162,14 @@ const ProfilePage = () => {
     setDirty(false);
   }, [profile]);
 
-  const resolveName = (): string => {
+  const resolveName = useCallback((): string => {
     const raw = profile.displayName || user?.user_metadata?.full_name || '';
     return raw && raw !== 'Seeker' ? raw : '';
-  };
+  }, [profile.displayName, user?.user_metadata?.full_name]);
 
-  const resolveEmail = (): string => {
+  const resolveEmail = useCallback((): string => {
     return user?.email || '';
-  };
+  }, [user?.email]);
 
   useEffect(() => {
     if (user || profile) {
@@ -181,7 +181,7 @@ const ProfilePage = () => {
         email: resolvedEmail || prev.email || '',
       }));
     }
-  }, [user, profile]);
+  }, [user, profile, resolveName, resolveEmail]);
 
   useEffect(() => {
     setSearchParams(tab === 'profile' ? {} : { tab }, { replace: true });

@@ -194,7 +194,10 @@ class DuckDuckGoProvider(SearchProvider):
                 )
             },
         )
-        with urlopen(request, timeout=10) as response:
+        # B310: request.full_url is assembled from a fixed DuckDuckGo origin;
+        # the only user-controlled value is URL-encoded query text, never the
+        # scheme or host. Keep the explicit timeout and bounded read below.
+        with urlopen(request, timeout=10) as response:  # nosec B310
             html = response.read(2_000_000).decode("utf-8", errors="replace")
         parser = _DuckDuckGoHtmlParser()
         parser.feed(html)
@@ -385,7 +388,7 @@ class WebSearchService:
                 timeout=self.search_timeout_seconds,
             )
             self._circuit.record_success()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self._circuit.record_failure()
             logger.warning(
                 "Web search provider timed out after %.1fs",

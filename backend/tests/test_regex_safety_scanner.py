@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import ast
-from pathlib import Path
-
 from scripts.security.check_regex_safety import _has_ambiguous_nested_quantifier, scan
 
 

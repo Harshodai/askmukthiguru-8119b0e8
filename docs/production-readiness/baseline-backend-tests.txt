@@ -1,0 +1,1701 @@
+Python 3.12.13
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 12%]
+....................................F......................ss........... [ 15%]
+........................................................................ [ 18%]
+........................................................................ [ 21%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 33%]
+................................................................F....... [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 42%]
+................................ss...................................... [ 45%]
+........................................................................ [ 48%]
+........................................................................ [ 51%]
+..........................ss............................................ [ 54%]
+..............sssss.s..s..s............................................. [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 63%]
+...................................................................ssss. [ 66%]
+........................................................................ [ 69%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 79%]
+...................................ssssssss...........F................. [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+................................sss.....F............................... [ 94%]
+...................s.................................................... [ 97%]
+..............................................................           [100%]
+=================================== FAILURES ===================================
+__________ test_diversity_reorder_does_not_desync_citation_numbering ___________
+
+    @pytest.mark.asyncio
+    async def test_diversity_reorder_does_not_desync_citation_numbering():
+        """enforce_source_diversity can move a citation from position 4+ into
+        position 3 (0-based index 2). The [N] baked into the text before that
+        reorder must be rewritten to match, or it points at the wrong source."""
+        same_source = "https://same.example/teaching"
+        other_source = "https://other.example/teaching"
+        state = GraphState(
+            answer="The distinguishing fact is over here [Source: Fourth Doc].",
+            relevant_docs=[
+                {"title": "First Doc", "source_url": same_source},
+                {"title": "Second Doc", "source_url": same_source},
+                {"title": "Third Doc", "source_url": same_source},
+                {"title": "Fourth Doc", "source_url": other_source},
+            ],
+            citations=[same_source, same_source, same_source, other_source],
+            is_faithful=True,
+            verification={"passed": True},
+            confidence_score=8.0,
+            query_tier="standard",
+        )
+
+        result = await format_final_answer(state)
+        final_answer = result["final_answer"]
+        final_citations = result["citations"]
+
+        # "Fourth Doc" -> relevant_docs position 4 -> [4] initially. Diversity
+        # promotion moves other_source into index 2 (0-based) = citation [3].
+>       assert final_citations[2] == other_source
+               ^^^^^^^^^^^^^^^^^^
+E       IndexError: list index out of range
+
+backend/tests/test_citation_marker_remap.py:79: IndexError
+______________________________ test_health_check _______________________________
+  + Exception Group Traceback (most recent call last):
+  |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 81, in collapse_excgroups
+  |     yield
+  |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 799, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 344, in from_call
+    |     result: TResult | None = func()
+    |                              ^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 246, in <lambda>
+    |     lambda: runtest_hook(item=item, **kwds), when=when, reraise=reraise
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512, in __call__
+    |     return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    |     return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 167, in _multicall
+    |     raise exception
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 139, in _multicall
+    |     teardown.throw(exception)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/_pytest/logging.py", line 850, in pytest_runtest_call
+    |     yield
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 139, in _multicall
+    |     teardown.throw(exception)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/_pytest/capture.py", line 900, in pytest_runtest_call
+    |     return (yield)
+    |             ^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 139, in _multicall
+    |     teardown.throw(exception)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 53, in run_old_style_hookwrapper
+    |     return result.get_result()
+    |            ^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_result.py", line 103, in get_result
+    |     raise exc.with_traceback(tb)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 38, in run_old_style_hookwrapper
+    |     res = yield
+    |           ^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 139, in _multicall
+    |     teardown.throw(exception)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/_pytest/skipping.py", line 263, in pytest_runtest_call
+    |     return (yield)
+    |             ^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121, in _multicall
+    |     res = hook_impl.function(*args)
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 178, in pytest_runtest_call
+    |     item.runtest()
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/_pytest/python.py", line 1671, in runtest
+    |     self.ihook.pytest_pyfunc_call(pyfuncitem=self)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512, in __call__
+    |     return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120, in _hookexec
+    |     return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 167, in _multicall
+    |     raise exception
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 139, in _multicall
+    |     teardown.throw(exception)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 53, in run_old_style_hookwrapper
+    |     return result.get_result()
+    |            ^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_result.py", line 103, in get_result
+    |     raise exc.with_traceback(tb)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 38, in run_old_style_hookwrapper
+    |     res = yield
+    |           ^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121, in _multicall
+    |     res = hook_impl.function(*args)
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/_pytest/python.py", line 157, in pytest_pyfunc_call
+    |     result = testfunction(**testargs)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/tests/test_health.py", line 53, in test_health_check
+    |     response = client.get("/api/health")
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/testclient.py", line 473, in get
+    |     return super().get(
+    |            ^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1053, in get
+    |     return self.request(
+    |            ^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/testclient.py", line 445, in request
+    |     return super().request(
+    |            ^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/httpx/_client.py", line 825, in request
+    |     return self.send(request, auth=auth, follow_redirects=follow_redirects)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/httpx/_client.py", line 914, in send
+    |     response = self._send_handling_auth(
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/httpx/_client.py", line 942, in _send_handling_auth
+    |     response = self._send_handling_redirects(
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/httpx/_client.py", line 979, in _send_handling_redirects
+    |     response = self._send_single_request(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1014, in _send_single_request
+    |     response = transport.handle_request(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/testclient.py", line 348, in handle_request
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/testclient.py", line 345, in handle_request
+    |     portal.call(self.app, scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/anyio/from_thread.py", line 334, in call
+    |     return cast(T_Retval, self.start_task_soon(func, *args).result())
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 456, in result
+    |     return self.__get_result()
+    |            ^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    |     raise self._exception
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/anyio/from_thread.py", line 259, in _call_func
+    |     retval = await retval_or_awaitable
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/applications.py", line 1159, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/applications.py", line 90, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 927, in request_timeout_middleware
+    |     return await asyncio.wait_for(call_next(request), timeout=timeout_val)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    |     return await fut
+    |            ^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 909, in inflight_tracker
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/middleware/idempotency.py", line 96, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/middleware/audit.py", line 40, in dispatch
+    |     response: Response = await call_next(request)
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/middleware/rate_limit.py", line 64, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 879, in admin_rate_limit_middleware
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 854, in auth_rate_limit_middleware
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 755, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 711, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 88, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    |     await route.handle(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    |     await self.app(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/api/health.py", line 267, in health_endpoint
+    |     return JSONResponse(
+    |            ^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/responses.py", line 192, in __init__
+    |     super().__init__(content, status_code, headers, media_type, background)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/responses.py", line 45, in __init__
+    |     self.body = self.render(content)
+    |                 ^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/responses.py", line 195, in render
+    |     return json.dumps(
+    |            ^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/__init__.py", line 238, in dumps
+    |     **kw).encode(obj)
+    |           ^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py", line 200, in encode
+    |     chunks = self.iterencode(o, _one_shot=True)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py", line 258, in iterencode
+    |     return _iterencode(o, 0)
+    |            ^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py", line 180, in default
+    |     raise TypeError(f'Object of type {o.__class__.__name__} '
+    | TypeError: Object of type MagicMock is not JSON serializable
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/tests/test_health.py", line 53, in test_health_check
+    response = client.get("/api/health")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/testclient.py", line 473, in get
+    return super().get(
+           ^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1053, in get
+    return self.request(
+           ^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/testclient.py", line 445, in request
+    return super().request(
+           ^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/httpx/_client.py", line 825, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/httpx/_client.py", line 914, in send
+    response = self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/httpx/_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/httpx/_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/httpx/_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/testclient.py", line 348, in handle_request
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/testclient.py", line 345, in handle_request
+    portal.call(self.app, scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/anyio/from_thread.py", line 334, in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 456, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/anyio/from_thread.py", line 259, in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/applications.py", line 1159, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 927, in request_timeout_middleware
+    return await asyncio.wait_for(call_next(request), timeout=timeout_val)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 909, in inflight_tracker
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/middleware/idempotency.py", line 96, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/middleware/audit.py", line 40, in dispatch
+    response: Response = await call_next(request)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/middleware/rate_limit.py", line 64, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 879, in admin_rate_limit_middleware
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 854, in auth_rate_limit_middleware
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 755, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 711, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 88, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/api/health.py", line 267, in health_endpoint
+    return JSONResponse(
+           ^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/responses.py", line 192, in __init__
+    super().__init__(content, status_code, headers, media_type, background)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/responses.py", line 45, in __init__
+    self.body = self.render(content)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/responses.py", line 195, in render
+    return json.dumps(
+           ^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py", line 180, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+TypeError: Object of type MagicMock is not JSON serializable
+
+The above exception was the direct cause of the following exception:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x141812e10>
+
+    def test_health_check(monkeypatch):
+        """Verify the health endpoint returns a valid healthy response with mocked container."""
+        monkeypatch.setattr(_app_deps, "startup_complete", True)
+        monkeypatch.setattr("app.api.health._check_redis", lambda c: _async_true())
+        monkeypatch.setattr("app.api.health._check_neo4j", lambda c: _async_true())
+
+        mock_container = MagicMock()
+        mock_container.qdrant.health_check.return_value = True
+        mock_container.ollama.health_check = _async_true
+        mock_container.ocr.health_check.return_value = True
+        # S7: the health probe now encodes a token and checks the vector width, so
+        # the mock must return a correctly-dimensioned dense vector.
+        from app.config import settings as _settings
+
+        mock_container.embedding._encoder = MagicMock()
+        mock_container.embedding.encode_single_full.return_value = {
+            "dense": [0.0] * _settings.embedding_dimension
+        }
+        mock_container.guardrails.is_available = True
+        mock_container.guardrails.provider_name = "mock"
+        mock_container.exact_cache = MagicMock()
+        mock_container.exact_cache.is_available = True
+        mock_container.semantic_cache = MagicMock()
+        mock_container.semantic_cache.is_available = True
+        mock_container.fast_graph = MagicMock()
+        mock_container.standard_graph = MagicMock()
+        mock_container.deep_graph = MagicMock()
+        mock_container.lightrag_degraded = False
+        mock_container.graph_warmup_status = "ready"
+        mock_container.job_queue = MagicMock()
+        mock_container.job_queue.queue_size = 0
+
+        async def mock_get_container():
+            return mock_container
+
+        app.dependency_overrides[_app_deps.get_container] = mock_get_container
+
+        try:
+>           response = client.get("/api/health")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend/tests/test_health.py:53:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend/.venv/lib/python3.12/site-packages/starlette/testclient.py:473: in get
+    return super().get(
+backend/.venv/lib/python3.12/site-packages/httpx/_client.py:1053: in get
+    return self.request(
+backend/.venv/lib/python3.12/site-packages/starlette/testclient.py:445: in request
+    return super().request(
+backend/.venv/lib/python3.12/site-packages/httpx/_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/httpx/_client.py:914: in send
+    response = self._send_handling_auth(
+backend/.venv/lib/python3.12/site-packages/httpx/_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+backend/.venv/lib/python3.12/site-packages/httpx/_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/httpx/_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/starlette/testclient.py:348: in handle_request
+    raise exc
+backend/.venv/lib/python3.12/site-packages/starlette/testclient.py:345: in handle_request
+    portal.call(self.app, scope, receive, send)
+backend/.venv/lib/python3.12/site-packages/anyio/from_thread.py:334: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py:456: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py:401: in __get_result
+    raise self._exception
+backend/.venv/lib/python3.12/site-packages/anyio/from_thread.py:259: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/fastapi/applications.py:1159: in __call__
+    await super().__call__(scope, receive, send)
+backend/.venv/lib/python3.12/site-packages/starlette/applications.py:90: in __call__
+    await self.middleware_stack(scope, receive, send)
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:191: in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:158: in __exit__
+    self.gen.throw(value)
+backend/.venv/lib/python3.12/site-packages/starlette/_utils.py:87: in collapse_excgroups
+    raise exc
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/app/main.py:927: in request_timeout_middleware
+    return await asyncio.wait_for(call_next(request), timeout=timeout_val)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:520: in wait_for
+    return await fut
+           ^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:191: in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:158: in __exit__
+    self.gen.throw(value)
+backend/.venv/lib/python3.12/site-packages/starlette/_utils.py:87: in collapse_excgroups
+    raise exc
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/app/main.py:909: in inflight_tracker
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:191: in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:158: in __exit__
+    self.gen.throw(value)
+backend/.venv/lib/python3.12/site-packages/starlette/_utils.py:87: in collapse_excgroups
+    raise exc
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/app/middleware/idempotency.py:96: in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:191: in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:158: in __exit__
+    self.gen.throw(value)
+backend/.venv/lib/python3.12/site-packages/starlette/_utils.py:87: in collapse_excgroups
+    raise exc
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/app/middleware/audit.py:40: in dispatch
+    response: Response = await call_next(request)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:191: in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:158: in __exit__
+    self.gen.throw(value)
+backend/.venv/lib/python3.12/site-packages/starlette/_utils.py:87: in collapse_excgroups
+    raise exc
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/app/middleware/rate_limit.py:64: in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:191: in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:158: in __exit__
+    self.gen.throw(value)
+backend/.venv/lib/python3.12/site-packages/starlette/_utils.py:87: in collapse_excgroups
+    raise exc
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/app/main.py:879: in admin_rate_limit_middleware
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:191: in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py:158: in __exit__
+    self.gen.throw(value)
+backend/.venv/lib/python3.12/site-packages/starlette/_utils.py:87: in collapse_excgroups
+    raise exc
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:193: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/app/main.py:854: in auth_rate_limit_middleware
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:168: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:144: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+backend/app/main.py:755: in __call__
+    await self.app(scope, receive, send_wrapper)
+backend/app/main.py:711: in __call__
+    await self.app(scope, receive, send_wrapper)
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py:88: in __call__
+    await self.app(scope, receive, send)
+backend/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+backend/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+backend/.venv/lib/python3.12/site-packages/starlette/routing.py:660: in __call__
+    await self.middleware_stack(scope, receive, send)
+backend/.venv/lib/python3.12/site-packages/starlette/routing.py:680: in app
+    await route.handle(scope, receive, send)
+backend/.venv/lib/python3.12/site-packages/starlette/routing.py:276: in handle
+    await self.app(scope, receive, send)
+backend/.venv/lib/python3.12/site-packages/fastapi/routing.py:134: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+backend/.venv/lib/python3.12/site-packages/fastapi/routing.py:120: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/fastapi/routing.py:674: in app
+    raw_response = await run_endpoint_function(
+backend/.venv/lib/python3.12/site-packages/fastapi/routing.py:328: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/app/api/health.py:267: in health_endpoint
+    return JSONResponse(
+backend/.venv/lib/python3.12/site-packages/starlette/responses.py:192: in __init__
+    super().__init__(content, status_code, headers, media_type, background)
+backend/.venv/lib/python3.12/site-packages/starlette/responses.py:45: in __init__
+    self.body = self.render(content)
+                ^^^^^^^^^^^^^^^^^^^^
+backend/.venv/lib/python3.12/site-packages/starlette/responses.py:195: in render
+    return json.dumps(
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/__init__.py:238: in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py:200: in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py:258: in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <json.encoder.JSONEncoder object at 0x156c3f290>
+o = <MagicMock name='mock.exact_cache.telemetry_snapshot().get()' id='5397780224'>
+
+    def default(self, o):
+        """Implement this method in a subclass such that it returns
+        a serializable object for ``o``, or calls the base implementation
+        (to raise a ``TypeError``).
+
+        For example, to support arbitrary iterators, you could
+        implement default like this::
+
+            def default(self, o):
+                try:
+                    iterable = iter(o)
+                except TypeError:
+                    pass
+                else:
+                    return list(iterable)
+                # Let the base class default method raise the TypeError
+                return super().default(o)
+
+        """
+>       raise TypeError(f'Object of type {o.__class__.__name__} '
+                        f'is not JSON serializable')
+E       TypeError: Object of type MagicMock is not JSON serializable
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py:180: TypeError
+------------------------------ Captured log call -------------------------------
+ERROR    app.middleware.audit:audit.py:44 AUDIT GET /api/health -> EXCEPTION (0.002s): Object of type MagicMock is not JSON serializable
+ERROR    app.main:main.py:954 Unhandled server error on /api/health (error_id: err_[REDACTED_PHONE]_89f6ee77): Object of type MagicMock is not JSON serializable
+  + Exception Group Traceback (most recent call last):
+  |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 81, in collapse_excgroups
+  |     yield
+  |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 799, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    |     await self.app(scope, receive, _send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 927, in request_timeout_middleware
+    |     return await asyncio.wait_for(call_next(request), timeout=timeout_val)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    |     return await fut
+    |            ^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 909, in inflight_tracker
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/middleware/idempotency.py", line 96, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/middleware/audit.py", line 40, in dispatch
+    |     response: Response = await call_next(request)
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/middleware/rate_limit.py", line 64, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 879, in admin_rate_limit_middleware
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 854, in auth_rate_limit_middleware
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 755, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 711, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 88, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    |     await route.handle(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    |     await self.app(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    |     response = await f(request)
+    |                ^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    |     raw_response = await run_endpoint_function(
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    |     return await dependant.call(**values)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/api/health.py", line 267, in health_endpoint
+    |     return JSONResponse(
+    |            ^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/responses.py", line 192, in __init__
+    |     super().__init__(content, status_code, headers, media_type, background)
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/responses.py", line 45, in __init__
+    |     self.body = self.render(content)
+    |                 ^^^^^^^^^^^^^^^^^^^^
+    |   File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/responses.py", line 195, in render
+    |     return json.dumps(
+    |            ^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/__init__.py", line 238, in dumps
+    |     **kw).encode(obj)
+    |           ^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py", line 200, in encode
+    |     chunks = self.iterencode(o, _one_shot=True)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py", line 258, in iterencode
+    |     return _iterencode(o, 0)
+    |            ^^^^^^^^^^^^^^^^^
+    |   File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py", line 180, in default
+    |     raise TypeError(f'Object of type {o.__class__.__name__} '
+    | TypeError: Object of type MagicMock is not JSON serializable
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 927, in request_timeout_middleware
+    return await asyncio.wait_for(call_next(request), timeout=timeout_val)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 909, in inflight_tracker
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/middleware/idempotency.py", line 96, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/middleware/audit.py", line 40, in dispatch
+    response: Response = await call_next(request)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/middleware/rate_limit.py", line 64, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 879, in admin_rate_limit_middleware
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 854, in auth_rate_limit_middleware
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 755, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/main.py", line 711, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/cors.py", line 88, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/routing.py", line 276, in handle
+    await self.app(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 134, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 120, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 674, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/fastapi/routing.py", line 328, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/app/api/health.py", line 267, in health_endpoint
+    return JSONResponse(
+           ^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/responses.py", line 192, in __init__
+    super().__init__(content, status_code, headers, media_type, background)
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/responses.py", line 45, in __init__
+    self.body = self.render(content)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/starlette/responses.py", line 195, in render
+    return json.dumps(
+           ^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py", line 258, in iterencode
+    return _iterencode(o, 0)
+           ^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/json/encoder.py", line 180, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+TypeError: Object of type MagicMock is not JSON serializable
+_____________ test_current_runtime_tree_has_no_known_evil_literals _____________
+
+    def test_current_runtime_tree_has_no_known_evil_literals() -> None:
+>       assert scan() == []
+               ^^^^^^
+
+backend/tests/test_regex_safety_scanner.py:18:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scripts/security/check_regex_safety.py:62: in scan
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1028: in read_text
+    return f.read()
+           ^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <encodings.utf_8.IncrementalDecoder object at 0x1414d6420>
+input = b'# -*- coding: big5 -*-\n\n\n# Some Traditional Chinese characters: \xa4@\xa8\xc7\xa4\xa4\xa4\xe5\xa6r\xb2\xc5\ndef b...f():\n    """\xa5\xce\xa9\xf3\xb4\xfa\xb8\xd5\xaa\xba\xa8\xe7\xbc\xc6\n    """\n    # \xb5\xf9\xc4\xc0\n    return 0\n'
+final = True
+
+>   ???
+E   UnicodeDecodeError: 'utf-8' codec can't decode byte 0xa4 in position 64: invalid start byte
+
+<frozen codecs>:322: UnicodeDecodeError
+------------------------------ Captured log call -------------------------------
+WARNING  opentelemetry.exporter.otlp.proto.grpc.exporter:exporter.py:474 Transient error StatusCode.UNAVAILABLE encountered while exporting traces to jaeger:4317, retrying in 0.87s.
+WARNING  opentelemetry.exporter.otlp.proto.grpc.exporter:exporter.py:474 Transient error StatusCode.UNAVAILABLE encountered while exporting traces to jaeger:4317, retrying in 3.93s.
+ERROR    opentelemetry.exporter.otlp.proto.grpc.exporter:exporter.py:466 Failed to export traces to jaeger:4317, error code: StatusCode.UNAVAILABLE
+________________ test_retrieval_bm25_uses_native_sparse_vector _________________
+
+mock_retrieval_services = (<AsyncMock id='5760071248'>, <tests.test_task3._MockEmbeddingService object at 0x15c4ac800>, <MagicMock id='5760868304'>, <MagicMock id='5847472784'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x157539520>
+
+    @pytest.mark.asyncio
+    async def test_retrieval_bm25_uses_native_sparse_vector(mock_retrieval_services, monkeypatch):
+        """BM25 path must call Qdrant with a sparse vector instead of word-overlap scoring."""
+        from app.config import settings
+
+        monkeypatch.setattr(settings, "bm25_retrieval_enabled", True)
+        monkeypatch.setattr(settings, "bm25_result_limit", 5)
+        monkeypatch.setattr(settings, "rag_skip_retrieval_expansions", True)
+        monkeypatch.setattr(settings, "rag_okf_injection_enabled", False)
+        monkeypatch.setattr(settings, "retrieval_score_delta_enabled", False)
+        monkeypatch.setattr(settings, "retrieval_deduplication_enabled", False)
+        monkeypatch.setattr(settings, "rag_context_compression_enabled", False)
+        monkeypatch.setattr(settings, "knowledge_graph_query_enabled", False)
+        monkeypatch.setattr(settings, "graphrag_fusion_enabled", False)
+        monkeypatch.setattr(settings, "rag_top_k_retrieval", 20)
+        monkeypatch.setattr(settings, "rag_top_k_retrieval_after_cutoff", 20)
+        monkeypatch.setattr(settings, "rag_mmr_lambda", 0.5)
+        monkeypatch.setattr(settings, "web_search_coverage_threshold", 0.0)
+
+        _, mock_embedder, mock_qdrant, _ = mock_retrieval_services
+
+        def fake_search(*args, **kwargs):
+            return [{"text": "hybrid result", "score": 0.9}]
+
+        def fake_scroll_content(query, limit, filter_cond=None):
+            return []
+
+        captured = {}
+
+        def fake_bm25_sparse_search(query, embedder, qdrant, limit, scope=None):
+            captured["query"] = query
+            captured["limit"] = limit
+            return [{"text": "bm25 sparse result", "score": 0.7, "source": "bm25"}]
+
+        monkeypatch.setattr(mock_qdrant, "search", fake_search)
+        monkeypatch.setattr(mock_qdrant, "scroll_content", fake_scroll_content)
+        monkeypatch.setattr(retrieval_module, "_bm25_sparse_search", fake_bm25_sparse_search)
+
+        state = GraphState(
+            question="meditation practice",
+            chat_history=[],
+            rewritten_query=None,
+            sub_queries=["meditation practice"],
+            selected_clusters=[],
+            hyde_text=None,
+            intent="FACTUAL",
+            knowledge_tags=[],
+            request_id="test-req-bm25",
+            documents=[],
+            reranked_docs=[],
+            relevant_docs=[],
+            is_complex=False,
+            grading_reasons=[],
+            rewrite_count=0,
+            hints=[],
+            citations=[],
+            is_faithful=None,
+            needs_correction=False,
+            reflection_feedback=None,
+            verification=None,
+            confidence_score=None,
+            input_blocked=False,
+            output_blocked=False,
+            block_reason=None,
+            meditation_step=0,
+            meditation_response=None,
+            final_answer=None,
+            error=None,
+            context_layers=None,
+            citation_reasoning={},
+            metrics={},
+            user_id=None,
+            detected_language="en",
+            memory_context="",
+            ab_model="primary",
+            query_tier="tier2_simple",
+        )
+        result = await retrieval_module.retrieve_documents(state, config=None)
+
+>       assert captured.get("query") == "meditation practice"
+E       AssertionError: assert None == 'meditation practice'
+E        +  where None = <built-in method get of dict object at 0x162141700>('query')
+E        +    where <built-in method get of dict object at 0x162141700> = {}.get
+
+backend/tests/test_task3.py:220: AssertionError
+=============================== warnings summary ===============================
+langchain_text_splitters/__init__.py:8
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/langchain_text_splitters/__init__.py:8: RuntimeWarning: langchain_text_splitters stub imported outside test environment
+    warnings.warn(
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/trec_car/read_data.py:466: SyntaxWarning: invalid escape sequence '\ '
+    The content of the Paragraph (which in turn contain a list of :class:`ParaBody`\ s)
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/trec_car/read_data.py:741: SyntaxWarning: invalid escape sequence '\ '
+    Iterate over the :class:`Page`\ s of an annotations file.
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/trec_car/read_data.py:753: SyntaxWarning: invalid escape sequence '\ '
+    Iterate over the :class:`Page`\ s of an annotations file.
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/trec_car/read_data.py:764: SyntaxWarning: invalid escape sequence '\ '
+    Iterate over the :class:`Page`\ s of an annotations file.
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/trec_car/read_data.py:774: SyntaxWarning: invalid escape sequence '\ '
+    Iterate over the :class:`Paragraph`\ s of an paragraphs file.
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/warc/warc.py:341: SyntaxWarning: invalid escape sequence '\d'
+    RE_VERSION = re.compile("WARC/(\d+.\d+)\r\n")
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/warc/arc.py:17: SyntaxWarning: invalid escape sequence '\S'
+    ARC1_HEADER_RE = re.compile('(?P<url>\S*)\s(?P<ip_address>\S*)\s(?P<date>\S*)\s(?P<content_type>\S*)\s(?P<length>\S*)')
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/warc/arc.py:18: SyntaxWarning: invalid escape sequence '\S'
+    ARC2_HEADER_RE = re.compile('(?P<url>\S*)\s(?P<ip_address>\S*)\s(?P<date>\S*)\s(?P<content_type>\S*)\s(?P<result_code>\S*)\s(?P<checksum>\S*)\s(?P<location>\S*)\s(?P<offset>\S*)\s(?P<filename>\S*)\s(?P<length>\S*)')
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pydub/utils.py:300: SyntaxWarning: invalid escape sequence '\('
+    m = re.match('([su]([0-9]{1,2})p?) \(([0-9]{1,2}) bit\)$', token)
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pydub/utils.py:301: SyntaxWarning: invalid escape sequence '\('
+    m2 = re.match('([su]([0-9]{1,2})p?)( \(default\))?$', token)
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pydub/utils.py:310: SyntaxWarning: invalid escape sequence '\('
+    elif re.match('(flt)p?( \(default\))?$', token):
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/pydub/utils.py:314: SyntaxWarning: invalid escape sequence '\('
+    elif re.match('(dbl)p?( \(default\))?$', token):
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:22: SyntaxWarning: invalid escape sequence '\.'
+    description=compile("A user has heard that some countries do give teach.{159}teachers vs. university professors is of interest\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:23: SyntaxWarning: invalid escape sequence '\.'
+    narrative=compile("Highly relevant arguments make a clear statement a.{181}the situation of teachers' financial independence\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:28: SyntaxWarning: invalid escape sequence '\.'
+    description=compile("Redistribution of wealth is a fundamental concept .{93}ver, a user wonders whether this truly would help\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:29: SyntaxWarning: invalid escape sequence '\.'
+    narrative=compile("Highly relevant arguments take a clear stance towa.{134}mentioning universal basic income only in passing\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:40: SyntaxWarning: invalid escape sequence '\.'
+    description=compile("A user has heard that some countries do give teach.{159}teachers vs. university professors is of interest\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:41: SyntaxWarning: invalid escape sequence '\.'
+    narrative=compile("Highly relevant arguments make a clear statement a.{181}the situation of teachers' financial independence\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:46: SyntaxWarning: invalid escape sequence '\.'
+    description=compile("Redistribution of wealth is a fundamental concept .{93}ver, a user wonders whether this truly would help\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:47: SyntaxWarning: invalid escape sequence '\.'
+    narrative=compile("Highly relevant arguments take a clear stance towa.{134}mentioning universal basic income only in passing\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:58: SyntaxWarning: invalid escape sequence '\.'
+    description=compile("A user has heard that some countries do give teach.{159}teachers vs. university professors is of interest\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:59: SyntaxWarning: invalid escape sequence '\.'
+    narrative=compile("Highly relevant arguments make a clear statement a.{181}the situation of teachers' financial independence\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:64: SyntaxWarning: invalid escape sequence '\.'
+    description=compile("Redistribution of wealth is a fundamental concept .{93}ver, a user wonders whether this truly would help\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:65: SyntaxWarning: invalid escape sequence '\.'
+    narrative=compile("Highly relevant arguments take a clear stance towa.{134}mentioning universal basic income only in passing\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:76: SyntaxWarning: invalid escape sequence '\.'
+    description=compile("A potentially younger user has heard people talk a.{147}ontrast, what characterizes a loving relationship\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:77: SyntaxWarning: invalid escape sequence '\.'
+    narrative=compile("Relevant documents will contain some description o.{155}f what people are looking for in either direction\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:82: SyntaxWarning: invalid escape sequence '\.'
+    description=compile("A young married couple raises a 14-year old boy wh.{313}income to players in different parts of the world\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:83: SyntaxWarning: invalid escape sequence '\.'
+    narrative=compile("Highly relevant documents provide information on a.{496}iptions of basketball and soccer are not relevant\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:108: SyntaxWarning: invalid escape sequence '\.'
+    description=compile("Younger parents have their 8-year old child sick\. .{400}en and aspirin for reducing the fever in children\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:109: SyntaxWarning: invalid escape sequence '\.'
+    narrative=compile("Relevant documents will describe ibuprofen, aspiri.{258} or ingredients of the medicines are not relevant\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:114: SyntaxWarning: invalid escape sequence '\.'
+    description=compile("Wondering whether you should use Python or R for d.{318}ore useful, flexible, easy to learn and efficient\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:115: SyntaxWarning: invalid escape sequence '\.'
+    narrative=compile("Relevant documents should compare two programming .{430}re not related to data analysis, are not relevant\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/touche.py:152: SyntaxWarning: invalid escape sequence '\?'
+    description=compile("Wondering whether you should use Python or R for data analysis\? It's hard to know whether to use Python or R for data analysis. And that's especially true if you're a newbie data analyst looking for the right language to start with. Users are looking for documents that help them decide which programming language, Python or R, is better suited for data analysis, is more useful, flexible, easy to learn and efficient."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:20: SyntaxWarning: invalid escape sequence '\.'
+    text=compile("My opponent forfeited every round\. None of my argu.{393}it is illegal to sell you them is, frankly, wrong\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:25: SyntaxWarning: invalid escape sequence '\.'
+    premises_texts=compile("My opponent forfeited every round\. None of my argu.{393}it is illegal to sell you them is, frankly, wrong\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:89: SyntaxWarning: invalid escape sequence '\.'
+    text=compile("My opponent forfeited every round\. None of my argu.{393}it is illegal to sell you them is, frankly, wrong\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:94: SyntaxWarning: invalid escape sequence '\.'
+    premises_texts=compile("My opponent forfeited every round\. None of my argu.{393}it is illegal to sell you them is, frankly, wrong\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:171: SyntaxWarning: invalid escape sequence '\.'
+    source_text=compile("DEBATES OPINIONS FORUMS POLLS Google Search My Deb.{3149}p Version © 2019 Debate\.org\. All rights reserved\. "),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:187: SyntaxWarning: invalid escape sequence '\.'
+    conclusion=compile("The recent throne speech said that the government .{27}o ensure that our communities continue to be safe\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:190: SyntaxWarning: invalid escape sequence '\.'
+    text=compile("How can Canadians trust the Liberals when they say.{1049}replaced by the system changers in the opposition\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:195: SyntaxWarning: invalid escape sequence '\.'
+    premises_texts=compile("How can Canadians trust the Liberals when they say.{1049}replaced by the system changers in the opposition\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:211: SyntaxWarning: invalid escape sequence '\.'
+    source_text=compile("How can Canadians trust the Liberals when they say.{1050}eplaced by the system changers in the opposition\. "),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:246: SyntaxWarning: invalid escape sequence '\.'
+    source_text=compile("DEBATES OPINIONS FORUMS POLLS Google Search My Deb.{3149}p Version © 2019 Debate\.org\. All rights reserved\. "),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:265: SyntaxWarning: invalid escape sequence '\.'
+    text=compile("In this debate, I will argue that occasionally hit.{2302}fe\. My opponent may begin his argument\. Good luck\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:270: SyntaxWarning: invalid escape sequence '\.'
+    premises_texts=compile("In this debate, I will argue that occasionally hit.{2302}fe\. My opponent may begin his argument\. Good luck\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:286: SyntaxWarning: invalid escape sequence '\.'
+    source_text=compile("DEBATES OPINIONS FORUMS POLLS Google Search My Deb.{26529}p Version © 2019 Debate\.org\. All rights reserved\. "),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:321: SyntaxWarning: invalid escape sequence '\|'
+    source_text=compile("Welcome to Debatepedia! \| About \| Help \| FAQ \| Med.{33182} Disclaimers Problem with the site\?  Edit Close \. "),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:340: SyntaxWarning: invalid escape sequence '\.'
+    text=compile("Barages are fairly massive objects, like Dams, tha.{160} and possibly reduced property values and tourism\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:345: SyntaxWarning: invalid escape sequence '\.'
+    premises_texts=compile("Barages are fairly massive objects, like Dams, tha.{160} and possibly reduced property values and tourism\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:354: SyntaxWarning: invalid escape sequence '\|'
+    source_text=compile("Welcome to Debatepedia! \| About \| Help \| FAQ \| Med.{28127} Disclaimers Problem with the site\?  Edit Close \. "),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:375: SyntaxWarning: invalid escape sequence '\?'
+    text=compile("But are chocolate eaters happy\? \[\[http://news\.bbc\..{623} health !!! as it increases our colestrol in body\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:380: SyntaxWarning: invalid escape sequence '\?'
+    premises_texts=compile("But are chocolate eaters happy\? \[\[http://news\.bbc\..{623} health !!! as it increases our colestrol in body\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:389: SyntaxWarning: invalid escape sequence '\?'
+    source_text=compile("Browse Our Categories Is chocolate good for you\? L.{10743}me \| About Us \| Privacy & Contact Us Top wpDiscuz "),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:408: SyntaxWarning: invalid escape sequence '\?'
+    text=compile("‎:/ Adolf Hitler was not evil he wasn't a murderer.{244}wer Told You To Jump Off A Bridge Would You Do It\?"),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:413: SyntaxWarning: invalid escape sequence '\?'
+    premises_texts=compile("‎:/ Adolf Hitler was not evil he wasn't a murderer.{244}wer Told You To Jump Off A Bridge Would You Do It\?"),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:435: SyntaxWarning: invalid escape sequence '\|'
+    source_text=compile("Browse Our Categories Adolf Hitler Does Not Deserv.{54510} Us \| Privacy & Contact Us Top wpDiscuz 113shares "),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:470: SyntaxWarning: invalid escape sequence '\.'
+    source_text=compile("idebate\.org Educational and informative news and r.{17520}in with\.\.\. Login with Facebook Login with Twitter "),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:489: SyntaxWarning: invalid escape sequence '\.'
+    text=compile("In order to avoid economic crisis there is a need .{1343}agall\. Financial Times\. Retrieved June 14, 2011 1\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:494: SyntaxWarning: invalid escape sequence '\.'
+    premises_texts=compile("In order to avoid economic crisis there is a need .{1343}agall\. Financial Times\. Retrieved June 14, 2011 1\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:516: SyntaxWarning: invalid escape sequence '\.'
+    source_text=compile("idebate\.org Educational and informative news and r.{29663}in with\.\.\. Login with Facebook Login with Twitter "),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:534: SyntaxWarning: invalid escape sequence '\.'
+    conclusion=compile("I want them to know that their braids, their dread.{165} boardroom, and yes, even here on Parliament Hill\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:537: SyntaxWarning: invalid escape sequence '\.'
+    text=compile("I want them to know that their braids, their dread.{165} boardroom, and yes, even here on Parliament Hill\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:542: SyntaxWarning: invalid escape sequence '\.'
+    premises_texts=compile("I want them to know that their braids, their dread.{165} boardroom, and yes, even here on Parliament Hill\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:564: SyntaxWarning: invalid escape sequence '\.'
+    source_text=compile("This week I have my hair in braids, much like I ha.{1066}boardroom, and yes, even here on Parliament Hill\. "),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:580: SyntaxWarning: invalid escape sequence '\.'
+    conclusion=compile("The recent throne speech said that the government .{27}o ensure that our communities continue to be safe\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:583: SyntaxWarning: invalid escape sequence '\.'
+    text=compile("How can Canadians trust the Liberals when they say.{1049}replaced by the system changers in the opposition\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:588: SyntaxWarning: invalid escape sequence '\.'
+    premises_texts=compile("How can Canadians trust the Liberals when they say.{1049}replaced by the system changers in the opposition\."),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:604: SyntaxWarning: invalid escape sequence '\.'
+    source_text=compile("How can Canadians trust the Liberals when they say.{1050}eplaced by the system changers in the opposition\. "),
+
+tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+  /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/backend/.venv/lib/python3.12/site-packages/test/integration/argsme.py:682: SyntaxWarning: invalid escape sequence '\|'
+    source_text=compile("Welcome to Debatepedia! \| About \| Help \| FAQ \| Media Kit Personal .{28131} with the site\?\xa0 Edit Close . "),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_citation_marker_remap.py::test_diversity_reorder_does_not_desync_citation_numbering
+FAILED backend/tests/test_health.py::test_health_check - TypeError: Object of...
+FAILED backend/tests/test_regex_safety_scanner.py::test_current_runtime_tree_has_no_known_evil_literals
+FAILED backend/tests/test_task3.py::test_retrieval_bm25_uses_native_sparse_vector
+4 failed, 2332 passed, 30 skipped, 70 warnings in 329.52s (0:05:29)
+Failed to export traces to jaeger:4317, error code: StatusCode.UNAVAILABLE
+Transient error StatusCode.UNAVAILABLE encountered while exporting traces to jaeger:4317, retrying in 0.82s.
+Failed to export traces to jaeger:4317, error code: StatusCode.UNAVAILABLE

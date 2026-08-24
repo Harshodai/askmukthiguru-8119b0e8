@@ -70,6 +70,7 @@ class TestTestAuthRegistrationGates:
             {
                 "IS_PRODUCTION": "true",
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+                "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "true",
                 "BENCHMARK_SECRET": "my-secret",
             },
@@ -88,6 +89,7 @@ class TestTestAuthRegistrationGates:
             {
                 "IS_PRODUCTION": "true",
                 "ANON_SESSION_HMAC_SECRET": "test-anon-secret-0123456789abcdef",
+                "BRAIN_KEK": "test-brain-kek-fixture-only",
                 "ENABLE_TEST_AUTH": "false",
                 "BENCHMARK_SECRET": "my-secret",
             },

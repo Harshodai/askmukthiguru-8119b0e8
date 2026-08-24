@@ -1,0 +1,23 @@
+[
+  {
+    "video_id": "G_soqEsZRU8",
+    "job_id": "cd0aae79-3104-4afc-9d5c-bf3d99c1d540",
+    "idempotency_key": "30feb3fcbbea847ba239432d8aa884e7a8d837858002a2405bf90e9296b70641",
+    "terminal_state": "success",
+    "uploaded_at": 1787487783.129863
+  },
+  {
+    "video_id": "2seBB2oByZc",
+    "job_id": "1b575a3a-d57d-4a63-ba13-0a1b85ffad29",
+    "idempotency_key": "cbac9d283519c77b3759436afc0eca18b6eba9f01fa56824670962e7531c6f8b",
+    "terminal_state": "success",
+    "uploaded_at": 1787489865.000473
+  },
+  {
+    "video_id": "G_soqEsZRU8",
+    "job_id": "c88b38bd-6867-43f9-a0d4-b6c5dee28762",
+    "idempotency_key": "27d98a4ebd6c7dbb1546917ccf0d6e0e89a9291d8de85890d45dc5c66a5f1dd0",
+    "terminal_state": "success",
+    "uploaded_at": 1787489997.3630679
+  }
+]

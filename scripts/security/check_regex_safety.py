@@ -16,7 +16,17 @@ from typing import Iterator, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[2]
 SCAN_ROOTS = (ROOT / "backend", ROOT / "src", ROOT / "whatsapp_bot")
-EXCLUDED_PARTS = {"tests", "scripts/ingestion/corpus", "node_modules", "dist"}
+EXCLUDED_PARTS = {
+    "tests",
+    "scripts/ingestion/corpus",
+    "node_modules",
+    "dist",
+    ".venv",
+    "venv",
+    "backend/.venv",
+    "backend/venv",
+    "__pycache__",
+}
 REGEX_CALLS = {"compile", "search", "match", "fullmatch", "findall", "finditer", "sub", "split"}
 NESTED_GROUP_RE = re.compile(r"\((?:\?:)?(?P<body>[^()\n]*)\)(?P<outer>[+*]|\{[0-9]+,\})")
 SIMPLE_REPEATED_TOKEN_RE = re.compile(
@@ -60,7 +70,7 @@ def scan() -> list[str]:
                 continue
             try:
                 tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            except (OSError, SyntaxError) as exc:
+            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 findings.append(f"{path.relative_to(ROOT)}: parse failure: {exc}")
                 continue
             for line, operation, pattern in _regex_literals(tree):

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from services.second_brain.second_brain_service import _epoch_seconds
 
 
 def test_epoch_seconds_accepts_postgres_timestamptz() -> None:
     actual = _epoch_seconds("2026-08-21T10:01:46.242Z")
-    expected = datetime(2026, 8, 21, 10, 1, 46, 242000, tzinfo=timezone.utc).timestamp()
+    expected = datetime(2026, 8, 21, 10, 1, 46, 242000, tzinfo=UTC).timestamp()
     assert abs(actual - expected) < 0.001
 
 

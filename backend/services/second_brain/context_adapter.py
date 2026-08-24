@@ -5,8 +5,9 @@ accepts already-authorized decrypted items and returns ephemeral concept links.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List
+from typing import Any
 
 from rag.kg_expansion import resolve_concepts_in_query
 
@@ -17,11 +18,11 @@ class PrivateContextLink:
     owner_id: str
     kind: str
     text: str
-    entity_ids: List[str] = field(default_factory=list)
+    entity_ids: list[str] = field(default_factory=list)
     confidence: float = 0.0
     source: str = "private_second_brain"
 
-    def to_public_metadata(self) -> Dict[str, Any]:
+    def to_public_metadata(self) -> dict[str, Any]:
         """Return telemetry metadata without private plaintext."""
         return {
             "item_id": self.item_id,
@@ -33,12 +34,12 @@ class PrivateContextLink:
         }
 
 
-def build_private_context_links(owner_id: str, query: str, items: Iterable[Any]) -> List[PrivateContextLink]:
+def build_private_context_links(owner_id: str, query: str, items: Iterable[Any]) -> list[PrivateContextLink]:
     """Resolve concepts against owner-authorized items without persistence."""
     if not owner_id or owner_id.startswith("anon:"):
         return []
     query_entities = set(resolve_concepts_in_query(query or ""))
-    links: List[PrivateContextLink] = []
+    links: list[PrivateContextLink] = []
     for item in items:
         text = str(getattr(item, "text", "") or "").strip()
         item_owner = str(getattr(item, "user_id", "") or "")

@@ -51,8 +51,8 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime, timezone
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 from pydantic import SecretStr
@@ -122,7 +122,7 @@ def _epoch_seconds(value: Any) -> float:
             try:
                 parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
                 if parsed.tzinfo is None:
-                    parsed = parsed.replace(tzinfo=timezone.utc)
+                    parsed = parsed.replace(tzinfo=UTC)
                 return parsed.timestamp()
             except (TypeError, ValueError, OverflowError):
                 logger.warning("Invalid Second Brain timestamp encountered; using epoch zero")
@@ -286,7 +286,7 @@ class SecondBrainService:
             "ciphertext": blob,
             "blind": blind_index(vault.dek, text[:64]),
             "confidence": float(confidence),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
             "access_count": 0,
             "decay": 1.0,
         }

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from fastapi import HTTPException
 
@@ -25,7 +25,7 @@ class AssistantResolution:
     avatar_url: Optional[str]
     visibility: str
     system_prompt: Optional[str]
-    knowledge_tags: Tuple[str, ...]
+    knowledge_tags: tuple[str, ...]
     scope: AssistantScope
 
 
@@ -38,43 +38,43 @@ class AssistantCatalogItem:
     name: str
     description: str
     avatar_url: Optional[str]
-    starter_questions: Tuple[str, ...]
+    starter_questions: tuple[str, ...]
     visibility: str
 
 
-def _is_authenticated(user: Optional[Dict[str, Any]]) -> bool:
+def _is_authenticated(user: Optional[dict[str, Any]]) -> bool:
     if not user:
         return False
     user_id = str(user.get("id") or "")
     return bool(user_id) and user_id != "anonymous" and not user_id.startswith("anon:") and not user.get("is_anonymous")
 
 
-def _user_id(user: Optional[Dict[str, Any]]) -> Optional[str]:
+def _user_id(user: Optional[dict[str, Any]]) -> Optional[str]:
     if not _is_authenticated(user):
         return None
     value = user.get("id") if user else None
     return str(value) if value else None
 
 
-def _rows(response: Any) -> List[Dict[str, Any]]:
+def _rows(response: Any) -> list[dict[str, Any]]:
     data = getattr(response, "data", None)
     return data if isinstance(data, list) else []
 
 
-def _row(response: Any) -> Optional[Dict[str, Any]]:
+def _row(response: Any) -> Optional[dict[str, Any]]:
     data = getattr(response, "data", None)
     if isinstance(data, list):
         return data[0] if data else None
     return data if isinstance(data, dict) else None
 
 
-def _clean_string_list(value: Any) -> Tuple[str, ...]:
+def _clean_string_list(value: Any) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
     return tuple(item.strip() for item in value if isinstance(item, str) and item.strip())
 
 
-def _scope_from_metadata(row: Optional[Dict[str, Any]], *, fallback: AssistantScope) -> AssistantScope:
+def _scope_from_metadata(row: Optional[dict[str, Any]], *, fallback: AssistantScope) -> AssistantScope:
     if not row:
         return fallback
     return AssistantScope(
@@ -87,7 +87,7 @@ def _scope_from_metadata(row: Optional[Dict[str, Any]], *, fallback: AssistantSc
     )
 
 
-async def _load_db_assistant(slug: str, container: Any) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+async def _load_db_assistant(slug: str, container: Any) -> tuple[Optional[dict[str, Any]], Optional[dict[str, Any]]]:
     client = getattr(container, "supabase_client", None)
     if client is None:
         return None, None
@@ -115,7 +115,7 @@ async def _load_db_assistant(slug: str, container: Any) -> Tuple[Optional[Dict[s
         return None, None
 
 
-async def _has_access(assistant_row: Dict[str, Any], user: Optional[Dict[str, Any]], container: Any) -> bool:
+async def _has_access(assistant_row: dict[str, Any], user: Optional[dict[str, Any]], container: Any) -> bool:
     visibility = str(assistant_row.get("visibility") or "private").lower()
     if visibility == "public":
         return True
@@ -145,7 +145,7 @@ async def _has_access(assistant_row: Dict[str, Any], user: Optional[Dict[str, An
 
 
 async def resolve_effective_assistant(
-    slug: Optional[str], user: Optional[Dict[str, Any]], container: Any
+    slug: Optional[str], user: Optional[dict[str, Any]], container: Any
 ) -> Optional[AssistantResolution]:
     """Resolve built-in or database-backed assistants and fail closed on access."""
     if not slug:
@@ -191,7 +191,7 @@ async def resolve_effective_assistant(
     )
 
 
-async def authorize_chat_assistant(chat_body: Any, user: Optional[Dict[str, Any]], container: Any) -> Optional[AssistantResolution]:
+async def authorize_chat_assistant(chat_body: Any, user: Optional[dict[str, Any]], container: Any) -> Optional[AssistantResolution]:
     """Replace client prompt/tag fields with effective server-authorized values."""
     assistant = getattr(chat_body, "assistant", None)
     slug = getattr(assistant, "slug", None) if assistant is not None else None
@@ -206,7 +206,7 @@ async def authorize_chat_assistant(chat_body: Any, user: Optional[Dict[str, Any]
     return resolved
 
 
-async def list_visible_assistants(user: Optional[Dict[str, Any]], container: Any) -> List[AssistantCatalogItem]:
+async def list_visible_assistants(user: Optional[dict[str, Any]], container: Any) -> list[AssistantCatalogItem]:
     client = getattr(container, "supabase_client", None)
     if client is None:
         return []
@@ -222,7 +222,7 @@ async def list_visible_assistants(user: Optional[Dict[str, Any]], container: Any
         logger.warning("Assistant catalog listing failed: %s", type(exc).__name__)
         return []
 
-    visible: List[AssistantCatalogItem] = []
+    visible: list[AssistantCatalogItem] = []
     for row in _rows(response):
         if await _has_access(row, user, container):
             visible.append(
@@ -239,7 +239,7 @@ async def list_visible_assistants(user: Optional[Dict[str, Any]], container: Any
     return visible
 
 
-async def redeem_assistant_invite(invite_code: str, user: Optional[Dict[str, Any]], container: Any) -> Dict[str, Any]:
+async def redeem_assistant_invite(invite_code: str, user: Optional[dict[str, Any]], container: Any) -> dict[str, Any]:
     """Redeem a link/private assistant invite without exposing lookup details."""
     uid = _user_id(user)
     if not uid:

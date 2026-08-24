@@ -17,6 +17,15 @@ def test_health_check(monkeypatch):
     monkeypatch.setattr(_app_deps, "startup_complete", True)
     monkeypatch.setattr("app.api.health._check_redis", lambda c: _async_true())
     monkeypatch.setattr("app.api.health._check_neo4j", lambda c: _async_true())
+    monkeypatch.setattr(
+        "app.api.health.inspect_runtime_artifacts",
+        lambda: {
+            "readiness_ok": True,
+            "missing_required": [],
+            "present": 2,
+            "total": 3,
+        },
+    )
 
     mock_container = MagicMock()
     mock_container.qdrant.health_check.return_value = True

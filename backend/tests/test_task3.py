@@ -213,7 +213,10 @@ async def test_retrieval_bm25_uses_native_sparse_vector(mock_retrieval_services,
         detected_language="en",
         memory_context="",
         ab_model="primary",
-        query_tier="tier2_simple",
+        # Standalone BM25 fan-out is intentionally disabled for fast/tier2
+        # requests; this contract test targets the standard retrieval path.
+        query_tier="standard",
+
     )
     result = await retrieval_module.retrieve_documents(state, config=None)
 

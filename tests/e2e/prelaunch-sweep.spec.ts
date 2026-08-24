@@ -35,6 +35,8 @@ const IGNORABLE = (e: string): boolean =>
   e.includes('Failed to load resource') ||
   e.includes('503') ||
   e.includes('accounts.google.com') ||
+  e.includes('accounts.youtube.com') ||
+  e.includes('requestStorageAccess: Permission denied.') ||
   e.includes('.mp3') ||
   e.includes('useMeditationAudio');
 

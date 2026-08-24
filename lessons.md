@@ -53,6 +53,28 @@
 
 ## Aug 19, 2026 — Ephemeral Multimodal Chat Evidence Boundary
 
+## Aug 21, 2026 — Ruthless Release-Gate Hardening
+
+### L-RELEASE-1. Static previews must not impersonate live backends
+- **What**: A static Vite preview returned successful HTML responses for `/api/*`, causing backend-dependent E2E tests to attempt chat assertions without a serving backend.
+- **Fix applied**: Live chat and meditation assertions now require explicit `BACKEND_E2E=true`; source-serving invariants skip clearly when a preview cannot expose raw modules. The full-regression suite passes with only the intentionally skipped live-backend cases.
+- **How to prevent**: Treat a JSON health contract and explicit environment opt-in as prerequisites for live-provider assertions. Never interpret an HTML 200 from a static fallback as backend readiness.
+
+### L-RELEASE-2. ARIA relationships need real DOM targets
+- **What**: `aria-controls="sidebar-panel"` referenced no element, producing a critical axe violation even though the toggle behavior worked visually.
+- **Fix applied**: Added the matching `id="sidebar-panel"` to the desktop sidebar landmark and blocked service workers in Playwright so fresh bundles are always audited.
+- **How to prevent**: Validate every `aria-controls`, `aria-labelledby`, and `aria-describedby` reference against rendered DOM, and isolate E2E runs from stale service-worker caches.
+
+### L-RELEASE-3. Accessibility contrast must be checked in contextual states
+- **What**: Shared cookie-consent and chat-sidebar controls used decorative saffron colors and opacity modifiers that failed WCAG contrast only when rendered over actual page backgrounds.
+- **Fix applied**: Replaced low-contrast link/control text with contextual foreground colors, persistent underlines where links appear inside text blocks, and full-opacity section labels. Chromium axe now reports zero serious/critical violations across eight routes and the meditation flow.
+- **How to prevent**: Run axe against real overlays, authenticated redirects, responsive sidebars, and modal states—not only isolated component snapshots.
+
+### L-RELEASE-4. Release-test skips must represent product contracts, not test convenience
+- **What**: Security and critical-journey tests assumed `/chat` was always authenticated and that a browser preview exposed raw TypeScript modules, contradicting the anonymous-chat and static-preview contracts.
+- **Fix applied**: AAL2 coverage now targets identity-protected profile/Second Brain/admin routes; anonymous chat remains covered by quota/rate-limit tests. Full-regression skips live provider flows only with explicit opt-in.
+- **How to prevent**: Keep test assumptions synchronized with route policy and environment topology. A skip must state the missing prerequisite and never conceal a reproducible product failure.
+
 ## Aug 21, 2026 — Comparative refusal closure and final production proof
 
 ### L-AUDIT-5. Terminal graph fallbacks must preserve bounded product help
@@ -7635,3 +7657,21 @@ A broad local question sweep is useful for routing and stream-contract coverage,
 
 ### L-QUAL-2 — Provider-outage interaction results are not retrieval-quality results
 When the provider circuit is open, ordinary prompts can correctly surface `system_error` quickly while safety prompts continue through deterministic guardrails. Those fast outage responses must not be counted as grounded/abstained answer-quality outcomes. Retrieval-quality claims require a populated target collection and a functioning provider or a deliberately isolated retrieval-only evaluation.
+
+
+## Aug 24, 2026 — Loop-engineering remediation lessons
+
+### L-LOOP-1. Preserve API status semantics on browser streaming routes
+A reverse proxy must not rewrite `/api` or SSE upstream failures into HTTP 200 responses. A browser fetch client needs the original status and structured body to distinguish retryable transport failure from quota, authorization, policy, and server decisions. When a stream fails before its first token, the UI may make one bounded request through the existing JSON transport; it must not retry meaningful backend errors or duplicate a partially delivered answer.
+
+### L-LOOP-2. Required curated artifacts must block readiness, not be synthesized
+Health telemetry should expose both the full missing-artifact inventory and a required-only readiness signal. Optional performance caches may be cold, but approved doctrine inputs such as the curated OKF index and lexicon cannot be replaced with placeholders or hidden behind a generic healthy status. Artifact production requires audited source inputs and version/checksum evidence.
+
+### L-LOOP-3. Accessibility checks must include hover and overlay states
+A page can pass a static accessibility assertion while a cookie-consent button under the test cursor fails contrast in its hover state. Run axe against real overlays and pointer states, use contextual foreground tokens, and rerun the complete route set after fixing the first reported violation.
+
+### L-LOOP-4. A passing focused matrix is not a passing full suite
+When a full backend suite stalls, retain its partial output and classify the gate as incomplete. Focused dependency-complete clusters can establish local confidence, but they cannot replace a completed full suite with per-test duration data in CI or the production test image.
+
+### L-LOOP-5. Validation runners must continue after failures
+A loop runner should execute independent checks separately, write one log per gate, preserve explicit skips, and return a final aggregate status. This prevents an early failure or a network-stalled dependency scanner from hiding later successful gates.

@@ -135,7 +135,6 @@
       "Bash(git ls-remote *)",
       "Bash(mkdir -p __TRACKED_VAR__/test)",
       "Bash(touch __TRACKED_VAR__/test/file)",
-<<<<<<< Updated upstream
       "WebFetch(domain:codeload.github.com)",
       "Bash(ollama list *)",
       "Bash(rtk ps *)",

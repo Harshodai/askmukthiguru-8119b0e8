@@ -122,7 +122,14 @@ async def test_single_comparison_decomposition_bypass(mock_services):
         query_tier="tier3_complex",
     )
     res = await nodes.decompose_query(state)
-    assert res == {"sub_queries": [question], "is_complex": True}
+    assert res["sub_queries"] == [question]
+    assert res["is_complex"] is True
+    # Timing metadata is intentionally preserved for observability even when
+    # the planner is bypassed.
+    assert "metrics" in res
+    assert "decompose_query" in res["metrics"]
+    assert "node_timings" in res
+    assert "decompose_query" in res["node_timings"]
     mock_ollama.decompose_query.assert_not_awaited()
 
 

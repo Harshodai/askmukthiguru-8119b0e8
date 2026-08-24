@@ -1,22 +1,24 @@
 {
   "summary": {
     "audit_version": "1.0.0",
-    "generated_at": "2026-08-18T19:30:11.929699+00:00",
+    "generated_at": "2026-08-23T12:15:15.873542+00:00",
     "root": "scripts/ingestion/corpus",
     "workers": 12,
     "package_count": 745,
     "package_ok_count": 745,
     "issue_package_count": 0,
-    "warning_package_count": 166,
+    "warning_package_count": 167,
     "quality_state_counts": {
-      "needs_review": 652,
+      "needs_review": 650,
       "unavailable": 45,
       "dead_lettered": 43,
+      "trusted_after_review": 2,
       "sound_only": 5
     },
     "issue_counts": {},
     "warning_counts": {
-      "most_paragraphs_outside_300_500_chars": 166
+      "most_paragraphs_outside_300_500_chars": 167,
+      "correction_not_marked_reversal_tested": 1
     }
   },
   "packages": [
@@ -1651,22 +1653,23 @@
       "path": "scripts/ingestion/corpus/2seBB2oByZc",
       "package_ok": true,
       "issues": [],
-      "warnings": [],
-      "paragraph_count": 5,
-      "transcript_chars": 2041,
+      "warnings": [
+        "most_paragraphs_outside_300_500_chars",
+        "correction_not_marked_reversal_tested"
+      ],
+      "paragraph_count": 1,
+      "transcript_chars": 2036,
       "transcript_words": 368,
-      "paragraph_min_chars": 238,
-      "paragraph_median_chars": 411,
-      "paragraph_max_chars": 530,
-      "quality_score": 0.7,
-      "quality_state": "needs_review",
+      "paragraph_min_chars": 2036,
+      "paragraph_median_chars": 2036,
+      "paragraph_max_chars": 2036,
+      "quality_score": 0.85,
+      "quality_state": "trusted_after_review",
       "coverage_ratio": 0.9909242172137348,
       "segment_count_reported": 29,
       "repetition_detected": false,
       "hallucination_suspected": false,
-      "quality_flags": [
-        "single_source_requires_human_review"
-      ],
+      "quality_flags": [],
       "segment_count": 29,
       "segment_total_duration": 131.02,
       "segment_bad_rows": 0,
@@ -1674,7 +1677,7 @@
       "segment_empty_text": 0,
       "transcript_segment_char_ratio": 1.0,
       "transcript_segment_token_jaccard": 1.0,
-      "correction_count": 0,
+      "correction_count": 1,
       "manifest_artifact_count": 5,
       "manifest_hash_mismatches": 0,
       "manifest_missing_artifacts": 0,
@@ -6704,8 +6707,8 @@
       "paragraph_min_chars": 834,
       "paragraph_median_chars": 834,
       "paragraph_max_chars": 834,
-      "quality_score": 0.5,
-      "quality_state": "needs_review",
+      "quality_score": 0.85,
+      "quality_state": "trusted_after_review",
       "coverage_ratio": 0.7668593448940269,
       "segment_count_reported": 24,
       "repetition_detected": false,

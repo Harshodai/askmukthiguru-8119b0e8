@@ -114,7 +114,7 @@ function TierCard({
     >
       {/* Outer shell — Double-Bezel */}
       <div
-        className={`p-[1.5px] rounded-[1.6rem] ring-1 ${tier.borderAccent} bg-white/[0.02] transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:ring-white/10`}
+        className={`p-[1.5px] rounded-[1.6rem] ring-1 ${tier.borderAccent} bg-white/[0.02] transition-all duration-700 ease-out group-hover:ring-white/10`}
         style={{ boxShadow: `0 0 40px ${tier.glow}` }}
       >
         {/* Inner core */}
@@ -258,14 +258,14 @@ function ConfirmModal({ onConfirm, onCancel, pending }: {
             <div className="flex gap-3">
               <button
                 onClick={onCancel}
-                className="flex-1 py-3 rounded-full text-sm font-medium text-white/50 bg-white/5 hover:bg-white/8 ring-1 ring-white/10 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                className="flex-1 py-3 rounded-full text-sm font-medium text-white/50 bg-white/5 hover:bg-white/8 ring-1 ring-white/10 transition-all duration-300 ease-out"
               >
                 Cancel
               </button>
               <button
                 onClick={onConfirm}
                 disabled={pending}
-                className="flex-1 py-3 rounded-full text-sm font-bold text-white bg-rose-500/80 hover:bg-rose-500 ring-1 ring-rose-400/30 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 py-3 rounded-full text-sm font-bold text-white bg-rose-500/80 hover:bg-rose-500 ring-1 ring-rose-400/30 transition-all duration-300 ease-out active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 style={{ boxShadow: '0 0 20px rgba(239,68,68,0.3)' }}
               >
                 {pending ? (
@@ -355,7 +355,7 @@ export default function CachePage() {
             <button
               onClick={handleRefresh}
               disabled={isLoading}
-              className="group flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium text-white/50 bg-white/5 ring-1 ring-white/10 hover:ring-white/20 hover:text-white/80 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] disabled:opacity-40"
+              className="group flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium text-white/50 bg-white/5 ring-1 ring-white/10 hover:ring-white/20 hover:text-white/80 transition-all duration-500 ease-out active:scale-[0.97] disabled:opacity-40"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
               Refresh
@@ -364,7 +364,7 @@ export default function CachePage() {
             {/* Invalidate — Button-in-Button architecture */}
             <button
               onClick={() => setShowConfirm(true)}
-              className="group flex items-center gap-2.5 pl-5 pr-2 py-2.5 rounded-full text-sm font-semibold text-white bg-rose-500/75 ring-1 ring-rose-400/30 hover:bg-rose-500/90 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
+              className="group flex items-center gap-2.5 pl-5 pr-2 py-2.5 rounded-full text-sm font-semibold text-white bg-rose-500/75 ring-1 ring-rose-400/30 hover:bg-rose-500/90 transition-all duration-500 ease-out active:scale-[0.97]"
               style={{ boxShadow: '0 0 24px rgba(239,68,68,0.25)' }}
             >
               Invalidate All

@@ -83,7 +83,7 @@ export const useBreathTeaching = (techniqueId: string): TeachingState => {
     return () => {
       cancelled = true;
     };
-  }, [techniqueId]);
+  }, [techniqueId, state.loading]);
 
   return state;
 };

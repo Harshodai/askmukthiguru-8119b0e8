@@ -374,7 +374,7 @@ class TranslationStage(Stage):
                         ctx.preferred_lang,
                         (time.monotonic() - translation_started) * 1000,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.warning(
                         "Answer translation timed out after %.1fs duration_ms=%.1f; preserving English answer",
                         translation_timeout,

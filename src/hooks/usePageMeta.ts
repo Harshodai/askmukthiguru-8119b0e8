@@ -17,6 +17,8 @@ interface PageMeta {
  * don't leak meta from an unmounted page.
  */
 export function usePageMeta({ title, description, canonical, ogType = 'website', ogImage, jsonLd, noindex }: PageMeta) {
+  const jsonLdString = JSON.stringify(jsonLd);
+
   useEffect(() => {
     const prevTitle = document.title;
     document.title = title;
@@ -70,11 +72,11 @@ export function usePageMeta({ title, description, canonical, ogType = 'website',
     }
 
     let jsonLdEl: HTMLScriptElement | null = null;
-    if (jsonLd) {
+    if (jsonLdString) {
       jsonLdEl = document.createElement('script');
       jsonLdEl.type = 'application/ld+json';
       jsonLdEl.dataset.pageMeta = 'true';
-      jsonLdEl.text = JSON.stringify(jsonLd);
+      jsonLdEl.text = jsonLdString;
       document.head.appendChild(jsonLdEl);
     }
 
@@ -102,5 +104,5 @@ export function usePageMeta({ title, description, canonical, ogType = 'website',
       }
       if (jsonLdEl) jsonLdEl.remove();
     };
-  }, [title, description, canonical, ogType, ogImage, noindex, JSON.stringify(jsonLd)]);
+  }, [title, description, canonical, ogType, ogImage, noindex, jsonLdString]);
 }

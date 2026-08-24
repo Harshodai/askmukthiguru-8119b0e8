@@ -99,7 +99,7 @@ const PracticeDetailPage = () => {
       });
       setTimeout(() => setShareCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy to clipboard: ', err);
+      console.debug('[PracticeDetail] Clipboard write unavailable:', err);
       toast({
         title: 'Unable to copy link',
         description: 'Please copy the steps manually from the page.',
@@ -196,9 +196,11 @@ const PracticeDetailPage = () => {
           <CardContent>
             <div className="relative w-full overflow-hidden rounded-lg bg-black/40 ring-1 ring-border/20" style={{ paddingTop: '56.25%' }}>
               {!isPlaying && practice.videoId ? (
-                <div 
-                  className="absolute inset-0 cursor-pointer group"
+                <button
+                  type="button"
+                  className="absolute inset-0 cursor-pointer group w-full text-left"
                   onClick={() => setIsPlaying(true)}
+                  aria-label={`Play ${lp!.title} guided video`}
                 >
                   <img
                     src={`https://img.youtube.com/vi/${practice.videoId}/hqdefault.jpg`}
@@ -217,7 +219,7 @@ const PracticeDetailPage = () => {
                       </div>
                     </div>
                   </div>
-                </div>
+                </button>
               ) : (
                 <iframe
                   className="absolute inset-0 w-full h-full"

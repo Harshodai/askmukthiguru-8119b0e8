@@ -1,0 +1,12 @@
+## git status
+## [32mmain[m...[31morigin/main[m
+## recent commits
+[33m35e28195[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix: include BRAIN_KEK utility in Railway image
+[33m163ba1e4[m ops: ship BRAIN_KEK rotation utility for Railway maintenance
+[33m0bbadc42[m fix: parse ISO timestamps in Second Brain listings
+[33m2735521d[m fix: write Second Brain timestamps as timestamptz
+[33mf502b93b[m docs: record cache telemetry readiness lessons
+[33mb0fe207e[m obs: expose exact-cache budget telemetry in health
+[33m7d7bc0e3[m obs: publish Redis cache namespace telemetry on health checks
+[33m298ac623[m perf: harden cache budgets and maintenance worker profiles
+## diff stat

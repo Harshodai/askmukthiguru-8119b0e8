@@ -6,9 +6,9 @@ contract for generation, telemetry, and the frontend provenance drawer.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, Iterable, List, Optional
-
+from typing import Any, Optional
 
 BAND_DIRECT = "direct_source"
 BAND_GRAPH = "graph_one_hop"
@@ -24,7 +24,7 @@ class ProvenanceEvidence:
     score: float
     source_url: Optional[str] = None
     source_segment_id: Optional[str] = None
-    entity_ids: List[str] = field(default_factory=list)
+    entity_ids: list[str] = field(default_factory=list)
     relation: Optional[str] = None
     hop: int = 0
     confidence: float = 0.0
@@ -33,7 +33,7 @@ class ProvenanceEvidence:
     channel: str = "vector"
     corroborated: bool = False
 
-    def to_public_dict(self) -> Dict[str, Any]:
+    def to_public_dict(self) -> dict[str, Any]:
         payload = asdict(self)
         payload["text"] = self.text[:4000]
         payload["entity_ids"] = list(dict.fromkeys(self.entity_ids))[:32]
@@ -42,12 +42,12 @@ class ProvenanceEvidence:
 
 @dataclass
 class ProvenanceContext:
-    bands: Dict[str, List[ProvenanceEvidence]]
+    bands: dict[str, list[ProvenanceEvidence]]
     total_tokens: int
     evidence_count: int
-    entities_touched: List[str] = field(default_factory=list)
+    entities_touched: list[str] = field(default_factory=list)
 
-    def to_manifest(self) -> Dict[str, Any]:
+    def to_manifest(self) -> dict[str, Any]:
         return {
             "bands": {
                 band: [item.to_public_dict() for item in self.bands.get(band, [])]
@@ -59,7 +59,7 @@ class ProvenanceContext:
         }
 
     def to_prompt_block(self) -> str:
-        lines: List[str] = []
+        lines: list[str] = []
         index = 1
         for band in BANDS:
             for item in self.bands.get(band, []):
@@ -73,14 +73,14 @@ class ProvenanceContext:
         return "\n".join(lines)
 
 
-def _as_list(value: Any) -> List[str]:
+def _as_list(value: Any) -> list[str]:
     if value is None:
         return []
     values = value if isinstance(value, list) else [value]
     return [str(item) for item in values if item not in (None, "")]
 
 
-def _prov_from_item(item: Any) -> Dict[str, Any]:
+def _prov_from_item(item: Any) -> dict[str, Any]:
     """Normalize provenance from a ContextItem or a plain retrieval dict."""
     if isinstance(item, dict):
         # Plain retrieval dict from finalization boundary
@@ -119,7 +119,7 @@ def _channel_from(item: Any) -> str:
     return str(getattr(item, "channel", "vector") or "vector")
 
 
-def _band_for(item: Any, provenance: Dict[str, Any]) -> str:
+def _band_for(item: Any, provenance: dict[str, Any]) -> str:
     content_type = (
         item.get("content_type") if isinstance(item, dict) else None
     )
@@ -135,7 +135,7 @@ def _band_for(item: Any, provenance: Dict[str, Any]) -> str:
     return BAND_DIRECT
 
 
-def _confidence(score: float, provenance: Dict[str, Any], band: str) -> float:
+def _confidence(score: float, provenance: dict[str, Any], band: str) -> float:
     explicit = provenance.get("entity_resolution_confidence") or provenance.get("confidence")
     if isinstance(explicit, (int, float)):
         return max(0.0, min(1.0, float(explicit)))
@@ -155,7 +155,7 @@ def build_provenance_context(
     max_items_per_band: int = 24,
 ) -> ProvenanceContext:
     """Build bounded four-band evidence from ContextItems or retrieval dicts."""
-    bands: Dict[str, List[ProvenanceEvidence]] = {band: [] for band in BANDS}
+    bands: dict[str, list[ProvenanceEvidence]] = {band: [] for band in BANDS}
     used = 0
     sorted_items = sorted(
         list(items),
@@ -215,11 +215,11 @@ def build_provenance_context(
 
 
 def attach_provenance_to_state(
-    state: Dict[str, Any],
+    state: dict[str, Any],
     docs: Iterable[Any],
     *,
     entities_touched: Optional[Iterable[str]] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Return a state update; never mutates or persists private memory text."""
     context = build_provenance_context(
         docs,

@@ -4,8 +4,9 @@
  *
  * Checks production build assets in `dist/assets` against defined budgets:
  * 1. Max individual JS chunk size: < 800 kB (0.8 MB)
- * 2. Total core application JS size: < 3 MB
- * 3. Total overall JS size (including all 14 lazy-loaded localized dictionaries): < 5 MB
+ * 2. Total eager/core application JS size: < 3 MB. This is the JS referenced
+ *    by dist/index.html, excluding locale chunks and route-lazy code.
+ * 3. Total overall JS size (including all lazy routes and localized dictionaries): < 5 MB
  *
  * Exits with non-zero code if any budget is exceeded or if dist/assets is missing.
  *
@@ -14,7 +15,7 @@
  *   node scripts/check-bundle-budget.mjs
  */
 
-import { readdirSync, statSync, existsSync } from 'node:fs';
+import { readdirSync, statSync, existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
 
@@ -89,6 +90,11 @@ jsFiles.sort((a, b) => b.size - a.size);
 
 // Locale chunk identifier (e.g., te-*.js, hi-*.js, mr-*.js)
 const isLocaleChunk = (name) => /^(hi|te|kn|ta|mr|bn|gu|ml|ur|or|pa|as|sa)-[A-Za-z0-9_-]+\.js$/.test(name);
+const indexHtml = readFileSync(join(distDir, 'index.html'), 'utf8');
+const eagerAssetNames = new Set(
+  [...indexHtml.matchAll(/assets\/js\/([A-Za-z0-9_-]+\.js)/g)].map((match) => match[1]),
+);
+const isEagerCoreChunk = (file) => eagerAssetNames.has(file.name) && !isLocaleChunk(file.name);
 
 let totalJsBytes = 0;
 let coreJsBytes = 0;
@@ -96,7 +102,7 @@ const chunkViolations = [];
 
 for (const file of jsFiles) {
   totalJsBytes += file.size;
-  if (!isLocaleChunk(file.name)) {
+  if (isEagerCoreChunk(file)) {
     coreJsBytes += file.size;
   }
   if (file.size >= MAX_CHUNK_BYTES) {
@@ -119,7 +125,8 @@ console.log('----------------------------------------------------');
 console.log('Top 10 Largest Chunks:');
 for (const file of jsFiles.slice(0, 10)) {
   const isLocale = isLocaleChunk(file.name) ? ' [locale]' : '';
-  console.log(`  - ${formatKB(file.size).padStart(10)}  ${file.relPath}${isLocale}`);
+  const isEager = isEagerCoreChunk(file) ? ' [eager-core]' : '';
+  console.log(`  - ${formatKB(file.size).padStart(10)}  ${file.relPath}${isLocale}${isEager}`);
 }
 console.log('====================================================');
 

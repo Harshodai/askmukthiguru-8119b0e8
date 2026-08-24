@@ -179,6 +179,13 @@ export const LanguageSelector = ({
     };
   }, []);
 
+  const handleLanguageChange = useCallback((code: string) => {
+    setInternalLang(code);
+    setLanguage(code);
+    onLanguageChange?.(code);
+    setIsOpen(false);
+  }, [onLanguageChange]);
+
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -257,14 +264,7 @@ export const LanguageSelector = ({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, focusedIndex]);
-
-  const handleLanguageChange = (code: string) => {
-    setInternalLang(code);
-    setLanguage(code);
-    onLanguageChange?.(code);
-    setIsOpen(false);
-  };
+  }, [isOpen, focusedIndex, handleLanguageChange]);
 
   const currentLang = LANGUAGES.find((l) => l.code === selectedLanguage);
 

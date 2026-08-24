@@ -9,7 +9,6 @@ questions a bounded graph context.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
 
 from rag.kg_expansion import resolve_concepts_in_query
 
@@ -17,7 +16,7 @@ from rag.kg_expansion import resolve_concepts_in_query
 @dataclass(frozen=True)
 class ContextGraphPlan:
     mode: str  # "none", "local", or "multi_hop"
-    entity_ids: List[str]
+    entity_ids: list[str]
     max_hops: int
     token_budget: int
     reason: str
